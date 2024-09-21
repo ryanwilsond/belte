@@ -10,12 +10,6 @@ internal static class SymbolUtilities {
         }
     }
 
-    internal static BoundType NoReturn {
-        get {
-            return new BoundType(TypeSymbol.Void);
-        }
-    }
-
     internal static BoundExpression NoDefault {
         get {
             return null;

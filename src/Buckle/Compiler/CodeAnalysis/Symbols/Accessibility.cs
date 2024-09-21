@@ -1,4 +1,6 @@
 
+namespace Buckle.CodeAnalysis.Symbols;
+
 /// <summary>
 /// All accessibility's/protection levels
 /// </summary> <summary>

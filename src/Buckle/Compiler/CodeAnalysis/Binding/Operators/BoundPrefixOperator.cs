@@ -10,14 +10,14 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundPrefixOperator {
     private BoundPrefixOperator(
-        SyntaxKind kind, BoundPrefixOperatorKind opKind, BoundType operandType, BoundType resultType) {
+        SyntaxKind kind, BoundPrefixOperatorKind opKind, TypeSymbol operandType, TypeSymbol resultType) {
         this.kind = kind;
         this.opKind = opKind;
         this.operandType = operandType;
         type = resultType;
     }
 
-    private BoundPrefixOperator(SyntaxKind kind, BoundPrefixOperatorKind opKind, BoundType operandType)
+    private BoundPrefixOperator(SyntaxKind kind, BoundPrefixOperatorKind opKind, TypeSymbol operandType)
         : this(kind, opKind, operandType, operandType) { }
 
     /// <summary>
@@ -26,15 +26,15 @@ internal sealed class BoundPrefixOperator {
     internal static BoundPrefixOperator[] Operators = {
         // integer
         new BoundPrefixOperator(SyntaxKind.PlusPlusToken, BoundPrefixOperatorKind.Increment,
-            BoundType.Int),
+            TypeSymbol.Int),
         new BoundPrefixOperator(SyntaxKind.MinusMinusToken, BoundPrefixOperatorKind.Decrement,
-            BoundType.Int),
+            TypeSymbol.Int),
 
         // decimal
         new BoundPrefixOperator(SyntaxKind.PlusPlusToken, BoundPrefixOperatorKind.Increment,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
         new BoundPrefixOperator(SyntaxKind.MinusMinusToken, BoundPrefixOperatorKind.Decrement,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
     };
 
     /// <summary>
@@ -47,12 +47,12 @@ internal sealed class BoundPrefixOperator {
     /// </summary>
     internal BoundPrefixOperatorKind opKind { get; }
 
-    internal BoundType operandType { get; }
+    internal TypeSymbol operandType { get; }
 
     /// <summary>
-    /// Result value <see cref="BoundType" />.
+    /// Result value <see cref="TypeSymbol" />.
     /// </summary>
-    internal BoundType type { get; }
+    internal TypeSymbol type { get; }
 
     internal static BoundPrefixOperator BindWithOverloading(
         SyntaxToken operatorToken,

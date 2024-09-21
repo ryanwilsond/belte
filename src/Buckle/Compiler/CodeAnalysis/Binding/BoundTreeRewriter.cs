@@ -259,7 +259,7 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
-        if (expression.constantValue.value is ImmutableArray<BoundConstant>)
+        if (expression.constantValue.value is ImmutableArray<ConstantValue>)
             return new BoundInitializerListExpression(expression.constantValue, expression.type);
         else if (expression is not BoundTypeWrapper)
             return new BoundLiteralExpression(expression.constantValue.value, expression.type);
@@ -383,9 +383,9 @@ internal abstract class BoundTreeRewriter {
     }
 
     protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
-        var rewrote = RewriteExpression(expression.expression);
+        var rewrote = RewriteExpression(expression.operand);
 
-        if (rewrote == expression.expression)
+        if (rewrote == expression.operand)
             return expression;
 
         return new BoundCastExpression(expression.type, rewrote);

@@ -12,9 +12,9 @@ internal sealed class BoundBinaryOperator {
     private BoundBinaryOperator(
         SyntaxKind kind,
         BoundBinaryOperatorKind opKind,
-        BoundType leftType,
-        BoundType rightType,
-        BoundType resultType) {
+        TypeSymbol leftType,
+        TypeSymbol rightType,
+        TypeSymbol resultType) {
         this.kind = kind;
         this.opKind = opKind;
         this.leftType = leftType;
@@ -25,11 +25,11 @@ internal sealed class BoundBinaryOperator {
     private BoundBinaryOperator(
         SyntaxKind kind,
         BoundBinaryOperatorKind opKind,
-        BoundType operandType,
-        BoundType resultType)
+        TypeSymbol operandType,
+        TypeSymbol resultType)
         : this(kind, opKind, operandType, operandType, resultType) { }
 
-    private BoundBinaryOperator(SyntaxKind kind, BoundBinaryOperatorKind opKind, BoundType type)
+    private BoundBinaryOperator(SyntaxKind kind, BoundBinaryOperatorKind opKind, TypeSymbol type)
         : this(kind, opKind, type, type, type) { }
 
     /// <summary>
@@ -38,122 +38,122 @@ internal sealed class BoundBinaryOperator {
     internal static BoundBinaryOperator[] Operators = {
         // integer
         new BoundBinaryOperator(
-            SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition, BoundType.Int),
+            SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.MinusToken, BoundBinaryOperatorKind.Subtraction, BoundType.Int),
+            SyntaxKind.MinusToken, BoundBinaryOperatorKind.Subtraction, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.AsteriskToken, BoundBinaryOperatorKind.Multiplication, BoundType.Int),
+            SyntaxKind.AsteriskToken, BoundBinaryOperatorKind.Multiplication, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.SlashToken, BoundBinaryOperatorKind.Division, BoundType.Int),
+            SyntaxKind.SlashToken, BoundBinaryOperatorKind.Division, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.AsteriskAsteriskToken, BoundBinaryOperatorKind.Power, BoundType.Int),
+            SyntaxKind.AsteriskAsteriskToken, BoundBinaryOperatorKind.Power, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.AmpersandToken, BoundBinaryOperatorKind.LogicalAnd, BoundType.Int),
+            SyntaxKind.AmpersandToken, BoundBinaryOperatorKind.LogicalAnd, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.PipeToken, BoundBinaryOperatorKind.LogicalOr, BoundType.Int),
+            SyntaxKind.PipeToken, BoundBinaryOperatorKind.LogicalOr, TypeSymbol.Int),
         new BoundBinaryOperator(
-            SyntaxKind.CaretToken, BoundBinaryOperatorKind.LogicalXor, BoundType.Int),
+            SyntaxKind.CaretToken, BoundBinaryOperatorKind.LogicalXor, TypeSymbol.Int),
         new BoundBinaryOperator(SyntaxKind.LessThanLessThanToken, BoundBinaryOperatorKind.LeftShift,
-            BoundType.Int),
+            TypeSymbol.Int),
         new BoundBinaryOperator(SyntaxKind.GreaterThanGreaterThanToken, BoundBinaryOperatorKind.RightShift,
-            BoundType.Int),
+            TypeSymbol.Int),
         new BoundBinaryOperator(SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
-            BoundBinaryOperatorKind.UnsignedRightShift, BoundType.Int),
+            BoundBinaryOperatorKind.UnsignedRightShift, TypeSymbol.Int),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.Int, BoundType.Bool),
+            TypeSymbol.Int, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.Int, BoundType.Bool),
+            TypeSymbol.Int, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanToken, BoundBinaryOperatorKind.LessThan,
-            BoundType.Int, BoundType.Bool),
+            TypeSymbol.Int, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanToken, BoundBinaryOperatorKind.GreaterThan,
-            BoundType.Int, BoundType.Bool),
+            TypeSymbol.Int, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanEqualsToken, BoundBinaryOperatorKind.LessOrEqual,
-            BoundType.Int, BoundType.Bool),
+            TypeSymbol.Int, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanEqualsToken, BoundBinaryOperatorKind.GreatOrEqual,
-            BoundType.Int, BoundType.Bool),
-        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, BoundType.Int),
+            TypeSymbol.Int, TypeSymbol.Bool),
+        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, TypeSymbol.Int),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-            BoundType.NullableInt),
+            TypeSymbol.Int),
 
         // boolean
         new BoundBinaryOperator(SyntaxKind.AmpersandAmpersandToken, BoundBinaryOperatorKind.ConditionalAnd,
-            BoundType.Bool),
+            TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.PipePipeToken, BoundBinaryOperatorKind.ConditionalOr,
-            BoundType.Bool),
+            TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.AmpersandToken, BoundBinaryOperatorKind.LogicalAnd,
-            BoundType.Bool),
+            TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.PipeToken, BoundBinaryOperatorKind.LogicalOr,
-            BoundType.Bool),
+            TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.CaretToken, BoundBinaryOperatorKind.LogicalXor,
-            BoundType.Bool),
+            TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.Bool, BoundType.Bool),
+            TypeSymbol.Bool, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.Bool, BoundType.Bool),
+            TypeSymbol.Bool, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-            BoundType.NullableBool),
+            TypeSymbol.Bool),
 
         // string
         new BoundBinaryOperator(SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition,
-            BoundType.String),
+            TypeSymbol.String),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.String, BoundType.Bool),
+            TypeSymbol.String, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.String, BoundType.Bool),
+            TypeSymbol.String, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-            BoundType.NullableString),
+            TypeSymbol.String),
 
         // char
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.Char, BoundType.Bool),
+            TypeSymbol.Char, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.Char, BoundType.Bool),
+            TypeSymbol.Char, TypeSymbol.Bool),
 
         // decimal
         new BoundBinaryOperator(SyntaxKind.PlusToken, BoundBinaryOperatorKind.Addition,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
         new BoundBinaryOperator(SyntaxKind.MinusToken, BoundBinaryOperatorKind.Subtraction,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
         new BoundBinaryOperator(SyntaxKind.AsteriskToken, BoundBinaryOperatorKind.Multiplication,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
         new BoundBinaryOperator(SyntaxKind.SlashToken, BoundBinaryOperatorKind.Division,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
         new BoundBinaryOperator(SyntaxKind.AsteriskAsteriskToken, BoundBinaryOperatorKind.Power,
-            BoundType.Decimal),
+            TypeSymbol.Decimal),
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.Decimal, BoundType.Bool),
+            TypeSymbol.Decimal, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.Decimal, BoundType.Bool),
+            TypeSymbol.Decimal, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanToken, BoundBinaryOperatorKind.LessThan,
-            BoundType.Decimal, BoundType.Bool),
+            TypeSymbol.Decimal, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanToken, BoundBinaryOperatorKind.GreaterThan,
-            BoundType.Decimal, BoundType.Bool),
+            TypeSymbol.Decimal, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.LessThanEqualsToken, BoundBinaryOperatorKind.LessOrEqual,
-            BoundType.Decimal, BoundType.Bool),
+            TypeSymbol.Decimal, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.GreaterThanEqualsToken, BoundBinaryOperatorKind.GreatOrEqual,
-            BoundType.Decimal, BoundType.Bool),
-        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, BoundType.Decimal),
+            TypeSymbol.Decimal, TypeSymbol.Bool),
+        new BoundBinaryOperator(SyntaxKind.PercentToken, BoundBinaryOperatorKind.Modulo, TypeSymbol.Decimal),
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing,
-                BoundType.NullableDecimal),
+                TypeSymbol.Decimal),
 
         // type
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.Type, BoundType.Bool),
+            TypeSymbol.Type, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.Type, BoundType.Bool),
+            TypeSymbol.Type, TypeSymbol.Bool),
 
         // any
         new BoundBinaryOperator(SyntaxKind.IsKeyword, BoundBinaryOperatorKind.Is,
-            BoundType.NullableAny, BoundType.Bool),
+            TypeSymbol.Any, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.IsntKeyword, BoundBinaryOperatorKind.Isnt,
-            BoundType.NullableAny, BoundType.Bool),
+            TypeSymbol.Any, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.AsKeyword, BoundBinaryOperatorKind.As,
-            BoundType.NullableAny, null),
+            TypeSymbol.Any, null),
         // TODO Maybe make this an explicit operator that does not implicitly cast
         new BoundBinaryOperator(SyntaxKind.EqualsEqualsToken, BoundBinaryOperatorKind.EqualityEquals,
-            BoundType.Any, BoundType.Bool),
+            TypeSymbol.Any, TypeSymbol.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
-            BoundType.Any, BoundType.Bool),
+            TypeSymbol.Any, TypeSymbol.Bool),
 
         new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing, null),
     };
@@ -171,17 +171,17 @@ internal sealed class BoundBinaryOperator {
     /// <summary>
     /// Left side operand type.
     /// </summary>
-    internal BoundType leftType { get; }
+    internal TypeSymbol leftType { get; }
 
     /// <summary>
     /// Right side operand type.
     /// </summary>
-    internal BoundType rightType { get; }
+    internal TypeSymbol rightType { get; }
 
     /// <summary>
     /// Result value type.
     /// </summary>
-    internal BoundType type { get; }
+    internal TypeSymbol type { get; }
 
     internal static BoundBinaryOperator BindWithOverloading(
         SyntaxToken operatorToken,
@@ -251,9 +251,9 @@ internal sealed class BoundBinaryOperator {
                     return new BoundBinaryOperator(
                         op.kind,
                         op.opKind,
-                        BoundType.CopyWith(op.leftType, isNullable: true),
-                        BoundType.CopyWith(op.rightType, isNullable: true),
-                        BoundType.CopyWith(op.type, isNullable: true)
+                        TypeSymbol.CopyWith(op.leftType, isNullable: true),
+                        TypeSymbol.CopyWith(op.rightType, isNullable: true),
+                        TypeSymbol.CopyWith(op.type, isNullable: true)
                     );
                 } else {
                     return op;

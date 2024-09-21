@@ -127,14 +127,14 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentExpression Increment(BoundExpression operand) {
-        var value = new BoundTypeWrapper(BoundType.Int, new BoundConstant(1));
+        var value = new BoundTypeWrapper(BoundType.Int, new ConstantValue(1));
         var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, operand.type, value.type);
 
         return new BoundCompoundAssignmentExpression(operand, op, value);
     }
 
     internal static BoundCompoundAssignmentExpression Decrement(BoundExpression operand) {
-        var value = new BoundTypeWrapper(BoundType.Int, new BoundConstant(1));
+        var value = new BoundTypeWrapper(BoundType.Int, new ConstantValue(1));
         var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, operand.type, value.type);
 
         return new BoundCompoundAssignmentExpression(operand, op, value);

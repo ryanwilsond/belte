@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Buckle.CodeAnalysis.Binding;
 using Buckle.Libraries.Standard;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
@@ -13,277 +12,279 @@ internal static class BuiltinMethods {
     /// <summary>
     /// RandInt method, gets a random integer with a maximum (minimum is always 0).
     /// </summary>
-    internal static readonly MethodSymbol RandInt = new MethodSymbol(
+    internal static readonly MethodSymbol RandInt = new SynthesizedMethodSymbol(
         "RandInt",
-        [], [], [new ParameterSymbol("max", BoundType.Int, 0, NoDefault)],
-        BoundType.Int
+        [], [], [new ParameterSymbol("max", TypeWithAnnotations.Int, 0, NoDefault)],
+        TypeWithAnnotations.Int
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueAny = new MethodSymbol(
+    internal static readonly MethodSymbol ValueAny = new SynthesizedMethodSymbol(
         "Value",
-        [], [], [new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.Any
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableAny, 0, NoDefault)],
+        TypeWithAnnotations.Any
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueBool = new MethodSymbol(
+    internal static readonly MethodSymbol ValueBool = new SynthesizedMethodSymbol(
         "Value",
-        [], [], [new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableBool, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueDecimal = new MethodSymbol(
+    internal static readonly MethodSymbol ValueDecimal = new SynthesizedMethodSymbol(
         "Value",
-        [], [], [new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)],
-        BoundType.Decimal
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableDecimal, 0, NoDefault)],
+        TypeWithAnnotations.Decimal
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Integer type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueInt = new MethodSymbol(
+    internal static readonly MethodSymbol ValueInt = new SynthesizedMethodSymbol(
         "Value",
-        [], [], [new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)],
-        BoundType.Int
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableInt, 0, NoDefault)],
+        TypeWithAnnotations.Int
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// String type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueString = new MethodSymbol(
+    internal static readonly MethodSymbol ValueString = new SynthesizedMethodSymbol(
         "Value",
-        [], [], [new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)],
-        BoundType.String
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableString, 0, NoDefault)],
+        TypeWithAnnotations.String
     );
 
     /// <summary>
     /// Value method, gets non nullable value from nullable item (throws if item is null).
     /// Char type overload.
     /// </summary>
-    internal static readonly MethodSymbol ValueChar = new MethodSymbol(
+    internal static readonly MethodSymbol ValueChar = new SynthesizedMethodSymbol(
         "Value",
-        [], [], [new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)],
-        BoundType.Char
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableChar, 0, NoDefault)],
+        TypeWithAnnotations.Char
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Any type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueAny = new MethodSymbol(
+    internal static readonly MethodSymbol HasValueAny = new SynthesizedMethodSymbol(
         "HasValue",
-        [], [], [new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableAny, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Bool type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueBool = new MethodSymbol(
+    internal static readonly MethodSymbol HasValueBool = new SynthesizedMethodSymbol(
         "HasValue",
-        [], [], [new ParameterSymbol("value", BoundType.NullableBool, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableBool, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Decimal type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueDecimal = new MethodSymbol(
+    internal static readonly MethodSymbol HasValueDecimal = new SynthesizedMethodSymbol(
         "HasValue",
-        [], [], [new ParameterSymbol("value", BoundType.NullableDecimal, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableDecimal, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Int type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueInt = new MethodSymbol(
+    internal static readonly MethodSymbol HasValueInt = new SynthesizedMethodSymbol(
         "HasValue",
-        [], [], [new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableInt, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// String type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueString = new MethodSymbol(
+    internal static readonly MethodSymbol HasValueString = new SynthesizedMethodSymbol(
         "HasValue",
-        [], [], [new ParameterSymbol("value", BoundType.NullableString, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableString, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Checks if nullable item has a value (otherwise it is null).
     /// Char type overload.
     /// </summary>
-    internal static readonly MethodSymbol HasValueChar = new MethodSymbol(
+    internal static readonly MethodSymbol HasValueChar = new SynthesizedMethodSymbol(
         "HasValue",
-        [], [], [new ParameterSymbol("value", BoundType.NullableChar, 0, NoDefault)],
-        BoundType.Bool
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableChar, 0, NoDefault)],
+        TypeWithAnnotations.Bool
     );
 
     /// <summary>
     /// Converts an integer into a base 16 representation.
     /// Optionally adds the '0x' prefix.
     /// </summary>
-    internal static readonly MethodSymbol Hex = new MethodSymbol(
+    internal static readonly MethodSymbol Hex = new SynthesizedMethodSymbol(
         "Hex",
         [], [], [
-            new ParameterSymbol("value", BoundType.Int, 0, NoDefault),
-            new ParameterSymbol("prefix", BoundType.Bool, 1, Literal(false, BoundType.Bool)),
+            new ParameterSymbol("value", TypeWithAnnotations.Int, 0, NoDefault),
+            new ParameterSymbol("prefix", TypeWithAnnotations.Bool, 1, Literal(false)),
         ],
-        BoundType.String
+        TypeWithAnnotations.String
     );
 
     /// <summary>
     /// Converts an integer into a base 16 representation.
     /// Optionally adds the '0x' prefix.
     /// </summary>
-    internal static readonly MethodSymbol NullableHex = new MethodSymbol(
+    internal static readonly MethodSymbol NullableHex = new SynthesizedMethodSymbol(
         "Hex",
         [], [], [
-            new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault),
-            new ParameterSymbol("prefix", BoundType.Bool, 1, Literal(false, BoundType.Bool)),
+            new ParameterSymbol("value", TypeWithAnnotations.NullableInt, 0, NoDefault),
+            new ParameterSymbol("prefix", TypeWithAnnotations.Bool, 1, Literal(false)),
         ],
-        BoundType.NullableString
+        TypeWithAnnotations.NullableString
     );
 
     /// <summary>
     /// Converts a string of length 1 to the appropriate ASCII code of the character.
     /// </summary>
-    internal static readonly MethodSymbol Ascii = new MethodSymbol(
+    internal static readonly MethodSymbol Ascii = new SynthesizedMethodSymbol(
         "Ascii",
-        [], [], [new ParameterSymbol("char", BoundType.String, 0, NoDefault)],
-        BoundType.Int
+        [], [], [new ParameterSymbol("char", TypeWithAnnotations.String, 0, NoDefault)],
+        TypeWithAnnotations.Int
     );
 
     /// <summary>
     /// Converts a string of length 1 to the appropriate ASCII code of the character.
     /// </summary>
-    internal static readonly MethodSymbol NullableAscii = new MethodSymbol(
+    internal static readonly MethodSymbol NullableAscii = new SynthesizedMethodSymbol(
         "Ascii",
-        [], [], [new ParameterSymbol("char", BoundType.NullableString, 0, NoDefault)],
-        BoundType.NullableInt
+        [], [], [new ParameterSymbol("char", TypeWithAnnotations.NullableString, 0, NoDefault)],
+        TypeWithAnnotations.NullableInt
     );
 
     /// <summary>
     /// Converts an integer to the appropriate character using ASCII codes.
     /// Opposite of <see cref="Ascii">.
     /// </summary>
-    internal static readonly MethodSymbol Char = new MethodSymbol(
+    internal static readonly MethodSymbol Char = new SynthesizedMethodSymbol(
         "Char",
-        [], [], [new ParameterSymbol("ascii", BoundType.Int, 0, NoDefault)],
-        BoundType.String
+        [], [], [new ParameterSymbol("ascii", TypeWithAnnotations.Int, 0, NoDefault)],
+        TypeWithAnnotations.String
     );
 
     /// <summary>
     /// Converts an integer to the appropriate character using ASCII codes.
     /// Opposite of <see cref="Ascii">.
     /// </summary>
-    internal static readonly MethodSymbol NullableChar = new MethodSymbol(
+    internal static readonly MethodSymbol NullableChar = new SynthesizedMethodSymbol(
         "Char",
-        [], [], [new ParameterSymbol("ascii", BoundType.NullableInt, 0, NoDefault)],
-        BoundType.NullableString
+        [], [], [new ParameterSymbol("ascii", TypeWithAnnotations.NullableInt, 0, NoDefault)],
+        TypeWithAnnotations.NullableString
     );
 
     /// <summary>
     /// Gets the length of the given array. If given a non-array, returns null.
     /// </summary>
-    internal static readonly MethodSymbol LengthNull = new MethodSymbol(
+    internal static readonly MethodSymbol LengthNull = new SynthesizedMethodSymbol(
         "Length",
-        [], [], [new ParameterSymbol("array", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableInt
+        [], [], [new ParameterSymbol("array", TypeWithAnnotations.NullableAny, 0, NoDefault)],
+        TypeWithAnnotations.NullableInt
     );
 
     /// <summary>
     /// Gets the length of the given array.
     /// </summary>
-    internal static readonly MethodSymbol Length = new MethodSymbol(
+    internal static readonly MethodSymbol Length = new SynthesizedMethodSymbol(
         "Length",
-        [], [], [new ParameterSymbol("array", BoundType.Any, 0, NoDefault)],
-        BoundType.Int
+        [], [], [new ParameterSymbol("array", TypeWithAnnotations.Any, 0, NoDefault)],
+        TypeWithAnnotations.Int
     );
 
     /// <summary>
     /// LowLevel only.
     /// Converts a truly generic type into a generic primitive.
     /// </summary>
-    internal static readonly MethodSymbol ToAny = new MethodSymbol(
+    internal static readonly MethodSymbol ToAny = new SynthesizedMethodSymbol(
         "ToAny",
-        [], [], [new ParameterSymbol("primitive", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableAny
+        [], [], [new ParameterSymbol("primitive", TypeWithAnnotations.NullableAny, 0, NoDefault)],
+        TypeWithAnnotations.NullableAny
     );
 
     /// <summary>
     /// LowLevel only.
     /// Converts a truly generic type into a generic object.
     /// </summary>
-    internal static readonly MethodSymbol ToObject = new MethodSymbol(
+    internal static readonly MethodSymbol ToObject = new SynthesizedMethodSymbol(
         "ToObject",
-        [], [], [new ParameterSymbol("object", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.NullableAny
+        [], [], [new ParameterSymbol("object", TypeWithAnnotations.NullableAny, 0, NoDefault)],
+        TypeWithAnnotations.NullableAny
     );
 
     /// <summary>
     /// LowLevel only.
     /// Checks if two objects values equal.
     /// </summary>
-    internal static readonly MethodSymbol ObjectsEqual = new MethodSymbol(
+    internal static readonly MethodSymbol ObjectsEqual = new SynthesizedMethodSymbol(
         "ObjectsEqual",
         [], [], [
-            new ParameterSymbol("x", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault),
-            new ParameterSymbol("y", new BoundType(StandardLibrary.Object, isNullable: true), 1, NoDefault)
+            new ParameterSymbol("x", new TypeWithAnnotations(StandardLibrary.Object, true), 0, NoDefault),
+            new ParameterSymbol("y", new TypeWithAnnotations(StandardLibrary.Object, true), 1, NoDefault)
         ],
-        BoundType.NullableBool
+        TypeWithAnnotations.NullableBool
     );
 
     /// <summary>
     /// LowLevel only.
     /// Checks if two references refer to the same object.
     /// </summary>
-    internal static readonly MethodSymbol ObjectReferencesEqual = new MethodSymbol(
+    internal static readonly MethodSymbol ObjectReferencesEqual = new SynthesizedMethodSymbol(
         "ObjectReferencesEqual",
         [], [], [
             new ParameterSymbol(
                 "x",
-                new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
+                new TypeWithAnnotations(StandardLibrary.Object, true),
                 0,
-                NoDefault
+                NoDefault,
+                DeclarationModifiers.Ref
             ),
             new ParameterSymbol(
                 "y",
-                new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
+                new TypeWithAnnotations(StandardLibrary.Object, true),
                 1,
-                NoDefault
+                NoDefault,
+                DeclarationModifiers.Ref
             )
         ],
-        BoundType.NullableBool
+        TypeWithAnnotations.NullableBool
     );
 
     /// <summary>
     /// Gets the hash of a primitive or object.
     /// </summary>
-    internal static readonly new MethodSymbol GetHashCode = new MethodSymbol(
+    internal static readonly new MethodSymbol GetHashCode = new SynthesizedMethodSymbol(
         "GetHashCode",
-        [], [], [new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)],
-        BoundType.Int
+        [], [], [new ParameterSymbol("value", TypeWithAnnotations.NullableAny, 0, NoDefault)],
+        TypeWithAnnotations.Int
     );
 
     /// <summary>

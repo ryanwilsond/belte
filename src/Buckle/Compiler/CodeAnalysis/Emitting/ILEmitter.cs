@@ -697,7 +697,7 @@ internal sealed partial class ILEmitter {
         if (variableType.typeSymbol is StructSymbol) {
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
         } else if (variableType.isNullable &&
-            !BoundConstant.IsNull(statement.declaration.initializer.constantValue) &&
+            !ConstantValue.IsNull(statement.declaration.initializer.constantValue) &&
             variableType.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.declaration.initializer.type));
         } else if (!preset) {
@@ -726,7 +726,7 @@ internal sealed partial class ILEmitter {
 
         */
         if (statement.expression != null) {
-            if (_insideMain && BoundConstant.IsNull(statement.expression.constantValue))
+            if (_insideMain && ConstantValue.IsNull(statement.expression.constantValue))
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
             else
                 EmitExpression(iLProcessor, statement.expression);
@@ -943,8 +943,8 @@ internal sealed partial class ILEmitter {
         EmitBoundConstant(iLProcessor, expression.constantValue, expression.type);
     }
 
-    private void EmitBoundConstant(ILProcessor iLProcessor, BoundConstant constant, BoundType type) {
-        if (BoundConstant.IsNull(constant)) {
+    private void EmitBoundConstant(ILProcessor iLProcessor, ConstantValue constant, BoundType type) {
+        if (ConstantValue.IsNull(constant)) {
             if (type.typeSymbol is StructSymbol)
                 iLProcessor.Emit(OpCodes.Ldnull);
             else
@@ -955,7 +955,7 @@ internal sealed partial class ILEmitter {
 
         var expressionType = type.typeSymbol;
 
-        if (constant.value is ImmutableArray<BoundConstant> ia) {
+        if (constant.value is ImmutableArray<ConstantValue> ia) {
             for (var i = 0; i < ia.Length; i++) {
                 var item = ia[i];
                 iLProcessor.Emit(OpCodes.Dup);
@@ -1481,13 +1481,13 @@ internal sealed partial class ILEmitter {
     }
 
     private void EmitCastExpression(ILProcessor iLProcessor, BoundCastExpression expression) {
-        if (BoundConstant.IsNull(expression.expression.constantValue)) {
+        if (ConstantValue.IsNull(expression.operand.constantValue)) {
             EmitExpression(iLProcessor, new BoundLiteralExpression(null, expression.type));
             return;
         }
 
-        EmitExpression(iLProcessor, expression.expression);
-        var subExpressionType = expression.expression.type;
+        EmitExpression(iLProcessor, expression.operand);
+        var subExpressionType = expression.operand.type;
         var expressionType = expression.type;
 
         var needsBoxing = subExpressionType.typeSymbol == TypeSymbol.Int ||

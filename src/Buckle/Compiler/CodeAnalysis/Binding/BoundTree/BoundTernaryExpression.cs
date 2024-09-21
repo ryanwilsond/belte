@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -17,9 +18,9 @@ internal sealed class BoundTernaryExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.TernaryExpression;
 
-    internal override BoundType type => op.type;
+    internal override TypeSymbol type => op.type;
 
-    internal override BoundConstant constantValue { get; }
+    internal override ConstantValue constantValue { get; }
 
     internal BoundExpression left { get; }
 

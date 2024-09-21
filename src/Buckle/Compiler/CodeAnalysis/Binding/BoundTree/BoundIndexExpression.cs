@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -5,10 +6,15 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound index expression, bound from a <see cref="Syntax.IndexExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundIndexExpression : BoundExpression {
-    internal BoundIndexExpression(BoundExpression expression, BoundExpression index, bool isNullConditional) {
+    internal BoundIndexExpression(
+        BoundExpression expression,
+        BoundExpression index,
+        TypeSymbol type,
+        bool isNullConditional) {
         this.expression = expression;
         this.index = index;
         this.isNullConditional = isNullConditional;
+        this.type = type;
         constantValue = ConstantFolding.FoldIndex(this.expression, this.index);
     }
 
@@ -20,7 +26,7 @@ internal sealed class BoundIndexExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.IndexExpression;
 
-    internal override BoundConstant constantValue { get; }
+    internal override ConstantValue constantValue { get; }
 
-    internal override BoundType type => expression.type.ChildType();
+    internal override TypeSymbol type { get; }
 }

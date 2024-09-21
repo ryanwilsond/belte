@@ -387,7 +387,7 @@ internal abstract class BoundTreeExpander {
     protected virtual List<BoundStatement> ExpandCastExpression(
         BoundCastExpression expression,
         out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.expression, out var expressionReplacement);
+        var statements = ExpandExpression(expression.operand, out var expressionReplacement);
 
         if (statements.Count != 0) {
             replacement = new BoundCastExpression(expression.type, expressionReplacement);

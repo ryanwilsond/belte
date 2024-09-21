@@ -233,10 +233,10 @@ internal sealed class CSharpEmitter {
         return equivalentType.ToString();
     }
 
-    private string GetEquivalentConstant(BoundConstant constant, BoundType type) {
+    private string GetEquivalentConstant(ConstantValue constant, BoundType type) {
         var builder = new StringBuilder();
 
-        if (constant.value is ImmutableArray<BoundConstant> ia) {
+        if (constant.value is ImmutableArray<ConstantValue> ia) {
             builder.Append($"new {GetEquivalentType(type)} {{ ");
 
             var isFirst = true;
@@ -299,7 +299,7 @@ internal sealed class CSharpEmitter {
         var firstTemplate = true;
         var needsCloseBracket = false;
 
-        foreach (var templateType in @struct.members.OfType<TemplateTypeSymbol>()) {
+        foreach (var templateType in @struct.members.OfType<TemplateParameterSymbol>()) {
             if (firstTemplate) {
                 needsCloseBracket = true;
                 signature.Append($"<{GetSafeName(templateType.name)}");
@@ -324,7 +324,7 @@ internal sealed class CSharpEmitter {
         var firstTemplate = true;
         var needsCloseBracket = false;
 
-        foreach (var templateType in @class.members.OfType<TemplateTypeSymbol>()) {
+        foreach (var templateType in @class.members.OfType<TemplateParameterSymbol>()) {
             if (firstTemplate) {
                 needsCloseBracket = true;
                 signature.Append($"<{GetSafeName(templateType.name)}");
@@ -465,7 +465,7 @@ internal sealed class CSharpEmitter {
         var signature = $"{GetModifiers(method.Key)}" +
             $"{GetEquivalentType(method.Key.type)} {GetSafeName(method.Key.name)}({parameters})";
 
-        if (method.Key.type.typeSymbol is TemplateTypeSymbol)
+        if (method.Key.type.typeSymbol is TemplateParameterSymbol)
             _insideReturningT = true;
 
         using (var methodCurly = new CurlyIndenter(indentedTextWriter, signature))
@@ -603,12 +603,12 @@ internal sealed class CSharpEmitter {
         } else {
             indentedTextWriter.Write("return ");
 
-            if (_insideMain && BoundConstant.IsNull(statement.expression.constantValue)) {
+            if (_insideMain && ConstantValue.IsNull(statement.expression.constantValue)) {
                 indentedTextWriter.WriteLine("0;");
                 return;
             }
 
-            if (_insideReturningT && BoundConstant.IsNull(statement.expression.constantValue)) {
+            if (_insideReturningT && ConstantValue.IsNull(statement.expression.constantValue)) {
                 indentedTextWriter.WriteLine($"default({GetEquivalentType(statement.expression.type)});");
                 return;
             }
@@ -780,7 +780,7 @@ internal sealed class CSharpEmitter {
         EmitBoundConstant(indentedTextWriter, expression.constantValue, expression.type);
     }
 
-    private void EmitBoundConstant(IndentedTextWriter indentedTextWriter, BoundConstant constant, BoundType type) {
+    private void EmitBoundConstant(IndentedTextWriter indentedTextWriter, ConstantValue constant, BoundType type) {
         indentedTextWriter.Write(GetEquivalentConstant(constant, type));
     }
 
@@ -1031,7 +1031,7 @@ internal sealed class CSharpEmitter {
         } else if (typeSymbol == TypeSymbol.Int) {
             indentedTextWriter.Write("global::System.Convert.ToInt32(");
 
-            if (expression.expression.type.typeSymbol == TypeSymbol.Decimal) {
+            if (expression.operand.type.typeSymbol == TypeSymbol.Decimal) {
                 indentedTextWriter.Write("global::System.Math.Truncate(");
                 neededParenthesis = 2;
             }
@@ -1040,7 +1040,7 @@ internal sealed class CSharpEmitter {
             neededParenthesis = 0;
         }
 
-        EmitExpression(indentedTextWriter, expression.expression);
+        EmitExpression(indentedTextWriter, expression.operand);
         indentedTextWriter.Write(new string(')', neededParenthesis));
     }
 
@@ -1057,7 +1057,7 @@ internal sealed class CSharpEmitter {
 
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.leftOpKind)} ");
 
-        if (BoundConstant.IsNull(expression.right.constantValue)) {
+        if (ConstantValue.IsNull(expression.right.constantValue)) {
             indentedTextWriter.Write("(");
             indentedTextWriter.Write(GetEquivalentType(expression.center.type));
             indentedTextWriter.Write(")");
@@ -1066,7 +1066,7 @@ internal sealed class CSharpEmitter {
         EmitExpression(indentedTextWriter, expression.center);
         indentedTextWriter.Write($" {SyntaxFacts.GetText(expression.op.rightOpKind)} ");
 
-        if (BoundConstant.IsNull(expression.center.constantValue)) {
+        if (ConstantValue.IsNull(expression.center.constantValue)) {
             indentedTextWriter.Write("(");
             indentedTextWriter.Write(GetEquivalentType(expression.center.type));
             indentedTextWriter.Write(")");

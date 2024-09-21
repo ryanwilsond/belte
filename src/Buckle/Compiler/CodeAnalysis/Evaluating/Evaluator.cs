@@ -94,16 +94,16 @@ internal sealed class Evaluator {
         var body = LookupMethod(_methods, _program.entryPoint);
 
         if (_program.entryPoint.parameters.Length == 1) {
-            var args = ImmutableArray.CreateBuilder<BoundConstant>();
+            var args = ImmutableArray.CreateBuilder<ConstantValue>();
 
             foreach (var arg in _arguments)
-                args.Add(new BoundConstant(arg));
+                args.Add(new ConstantValue(arg));
 
             var list = EvaluateObjectCreationExpression(new BoundObjectCreationExpression(
                 _program.entryPoint.parameters[0].type,
                 (_program.entryPoint.parameters[0].type.typeSymbol as NamedTypeSymbol).constructors[3],
                 [new BoundInitializerListExpression(
-                    new BoundConstant(args.ToImmutable()),
+                    new ConstantValue(args.ToImmutable()),
                     new BoundType(
                         TypeSymbol.String,
                         dimensions: 1,
@@ -279,7 +279,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject CreateObject(BoundType type) {
         var members = new Dictionary<Symbol, EvaluatorObject>();
-        var typeMembers = (type.typeSymbol as NamedTypeSymbol).GetMembers();
+        var typeMembers = (type.typeSymbol as NamedTypeSymbol).GetMembersPublic();
 
         foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
             var value = field.type.arity > 0 ? new EvaluatorObject(null, field.type) : EvaluatorObject.Null;
@@ -602,7 +602,7 @@ internal sealed class Evaluator {
 
     private BoundType ClarifyType(BoundType type) {
         if (_enclosingTypes.Count > 0 && _enclosingTypes.Peek().trueType.arity > 0) {
-            var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+            var templateMappings = new Dictionary<ParameterSymbol, TypeOrConstant>();
             var enclosingType = _enclosingTypes.Peek().trueType;
 
             for (var i = 0; i < enclosingType.arity; i++) {
@@ -703,13 +703,13 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression node, ValueWrapper<bool> _) {
         var trueType = node.typeOfType;
 
-        if (node.typeOfType.typeSymbol is TemplateTypeSymbol t) {
+        if (node.typeOfType.typeSymbol is TemplateParameterSymbol t) {
             foreach (var enclosingType in _enclosingTypes) {
                 var type = enclosingType.trueType.typeSymbol as NamedTypeSymbol;
                 var succeeded = false;
 
                 for (var i = 0; i < type.templateParameters.Length; i++) {
-                    if (t.template == type.templateParameters[i]) {
+                    if (t.parameter == type.templateParameters[i]) {
                         trueType = enclosingType.trueType.templateArguments[i].type;
                         succeeded = true;
                         break;
@@ -752,9 +752,9 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateCastExpression(BoundCastExpression node, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(node.expression, abort);
+        var value = EvaluateExpression(node.operand, abort);
 
-        return EvaluateCast(value, node.expression.type, node.type);
+        return EvaluateCast(value, node.operand.type, node.type);
     }
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression node, ValueWrapper<bool> abort) {
@@ -876,7 +876,7 @@ internal sealed class Evaluator {
     private EvaluatorObject InvokeMethod(
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
-        ImmutableArray<BoundTypeOrConstant> templateArguments,
+        ImmutableArray<TypeOrConstant> templateArguments,
         ValueWrapper<bool> abort,
         BoundExpression expression = null) {
         var receiver = default(EvaluatorObject);
@@ -892,7 +892,7 @@ internal sealed class Evaluator {
         if (method.isAbstract || method.isVirtual) {
             var trueType = Dereference(receiver).trueType;
             var newMethod = (trueType.typeSymbol as ClassSymbol)
-                .GetMembers()
+                .GetMembersPublic()
                 .Where(s => s is MethodSymbol m && m.Signature() == method.Signature() && m.isOverride)
                 .First() as MethodSymbol;
 
@@ -950,7 +950,7 @@ internal sealed class Evaluator {
 
     private void AddTemplatesToLocals(
         ImmutableArray<ParameterSymbol> templateParameters,
-        ImmutableArray<BoundTypeOrConstant> templateArguments,
+        ImmutableArray<TypeOrConstant> templateArguments,
         Dictionary<IVariableSymbol, EvaluatorObject> locals,
         ValueWrapper<bool> abort) {
         for (var i = 0; i < templateArguments.Length; i++) {
@@ -969,8 +969,8 @@ internal sealed class Evaluator {
         return EvaluateBoundConstant(expression.constantValue);
     }
 
-    private static EvaluatorObject EvaluateBoundConstant(BoundConstant constant) {
-        if (constant.value is ImmutableArray<BoundConstant> ia) {
+    private static EvaluatorObject EvaluateBoundConstant(ConstantValue constant) {
+        if (constant.value is ImmutableArray<ConstantValue> ia) {
             var builder = new EvaluatorObject[ia.Length];
 
             for (var i = 0; i < ia.Length; i++)
@@ -1266,16 +1266,16 @@ internal sealed class Evaluator {
                     (Value(EvaluateExpression(arguments[0], abort)), null, null) as string[];
 
                 var listType = _program.usedLibraryTypes.Where(t => t.name == "List").Single();
-                var items = ImmutableArray.CreateBuilder<BoundConstant>();
+                var items = ImmutableArray.CreateBuilder<ConstantValue>();
 
                 foreach (var item in tempResult)
-                    items.Add(new BoundConstant(item));
+                    items.Add(new ConstantValue(item));
 
                 result = EvaluateObjectCreationExpression(new BoundObjectCreationExpression(
-                    new BoundType(listType, templateArguments: [new BoundTypeOrConstant(BoundType.String)]),
+                    new BoundType(listType, templateArguments: [new TypeOrConstant(BoundType.String)]),
                     listType.constructors[3],
                     [new BoundInitializerListExpression(
-                        new BoundConstant(items.ToImmutable()),
+                        new ConstantValue(items.ToImmutable()),
                         new BoundType(
                             TypeSymbol.String,
                             dimensions: 1,

@@ -212,10 +212,10 @@ public sealed class DisplayText {
     }
 
     /// <summary>
-    /// Renders a <see cref="BoundConstant" /> and appends it to the given <see cref="DisplayText" />.
+    /// Renders a <see cref="ConstantValue" /> and appends it to the given <see cref="DisplayText" />.
     /// </summary>
-    internal static void DisplayConstant(DisplayText text, BoundConstant constant) {
-        if (constant.value is ImmutableArray<BoundConstant> il) {
+    internal static void DisplayConstant(DisplayText text, ConstantValue constant) {
+        if (constant.value is ImmutableArray<ConstantValue> il) {
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
             var isFirst = true;
 
@@ -615,7 +615,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-        DisplayNode(text, node.expression);
+        DisplayNode(text, node.operand);
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {

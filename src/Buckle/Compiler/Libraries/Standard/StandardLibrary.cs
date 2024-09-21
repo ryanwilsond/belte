@@ -884,7 +884,7 @@ internal static partial class StandardLibrary {
         wellKnownTypes.TryGetValue(WellKnownTypeNames.List, out var listTypeSymbol);
         var listStringType = listTypeSymbol is null
             ? BoundType.Void
-            : new BoundType(listTypeSymbol, templateArguments: [new BoundTypeOrConstant(BoundType.String)]);
+            : new BoundType(listTypeSymbol, templateArguments: [new TypeOrConstant(BoundType.String)]);
 
         if (Directory.members.Length > 4)
             return;

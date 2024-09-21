@@ -1,4 +1,3 @@
-using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -12,18 +11,17 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     /// Creates a <see cref="VariableSymbol" />.
     /// </summary>
     /// <param name="name">Name of the variable.</param>
-    /// <param name="type"><see cref="BoundType" /> of the variable.</param>
-    /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
+    /// <param name="type"><see cref="TypeSymbol" /> of the variable.</param>
+    /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
     internal VariableSymbol(
         string name,
-        BoundType type,
-        BoundConstant constant,
+        TypeWithAnnotations type,
+        ConstantValue constant,
         DeclarationModifiers modifiers,
         Accessibility accessibility)
         : base(name, accessibility) {
-        this.type = type;
-        constantValue = ((type?.isConstant ?? false) || (type?.isConstantExpression ?? false))
-            && (!type?.isReference ?? false) ? constant : null;
+        typeWithAnnotations = type;
+        constantValue = constant;
         _declarationModifiers = modifiers;
     }
 
@@ -38,31 +36,23 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
 
     public override bool isOverride => false;
 
-    public ITypeSymbol typeSymbol => type.typeSymbol;
+    public ITypeSymbol typeSymbol => typeWithAnnotations.underlyingType;
 
-    public bool isImplicit => type.isImplicit;
+    internal bool isConstantReference => (_declarationModifiers & DeclarationModifiers.ConstExpr) != 0;
 
-    public bool isConstantReference => type.isConstantReference;
+    internal bool isReference => (_declarationModifiers & DeclarationModifiers.Ref) != 0;
 
-    public bool isReference => type.isReference;
+    internal bool isConstant
+        => (_declarationModifiers & (DeclarationModifiers.Const | DeclarationModifiers.ConstExpr)) != 0;
 
-    public bool isExplicitReference => type.isExplicitReference;
+    internal bool isNullable => (_declarationModifiers & DeclarationModifiers.NonNullable) == 0;
 
-    public bool isConstant => type.isConstant;
+    internal TypeWithAnnotations typeWithAnnotations { get; }
 
-    public bool isNullable => type.isNullable;
-
-    public bool isLiteral => type.isLiteral;
-
-    public int dimensions => type.dimensions;
+    internal TypeSymbol type => typeWithAnnotations.underlyingType;
 
     /// <summary>
-    /// <see cref="BoundType" /> of the variable.
+    /// <see cref="ConstantValue" /> of the variable (can be null).
     /// </summary>
-    internal BoundType type { get; }
-
-    /// <summary>
-    /// <see cref="BoundConstant" /> of the variable (can be null).
-    /// </summary>
-    internal BoundConstant constantValue { get; }
+    internal ConstantValue constantValue { get; }
 }

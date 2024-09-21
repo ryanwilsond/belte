@@ -110,7 +110,7 @@ internal static class LibraryUtilities {
         return new FieldSymbol(
             name,
             BoundType.CopyWith(type, isConstantExpression: true),
-            new BoundConstant(value),
+            new ConstantValue(value),
             DeclarationModifiers.ConstExpr,
             Accessibility.Public
         );

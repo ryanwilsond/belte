@@ -6,8 +6,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A base symbol.
 /// </summary>
 internal abstract class Symbol : ISymbol {
-    protected virtual Symbol _originalDefinition => this;
-
     private protected Symbol(string name) {
         this.name = name;
         accessibility = Accessibility.NotApplicable;
@@ -36,7 +34,9 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// Gets the original definition of the symbol.
     /// </summary>
-    public Symbol originalDefinition => _originalDefinition;
+    public Symbol originalDefinition => originalSymbolDefinition;
+
+    public virtual Symbol originalSymbolDefinition => this;
 
     public ITypeSymbolWithMembers parent => containingType;
 

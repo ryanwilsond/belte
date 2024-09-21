@@ -42,7 +42,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         ;
 
         */
-        if (BoundConstant.IsNotNull(statement.condition.constantValue)) {
+        if (ConstantValue.IsNotNull(statement.condition.constantValue)) {
             var condition = (bool)statement.condition.constantValue.value;
             condition = statement.jumpIfTrue ? condition : !condition;
 
@@ -70,10 +70,10 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         */
         if (expression.op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (BoundConstant.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
+            if (ConstantValue.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.center);
 
-            if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
+            if (ConstantValue.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
                 return RewriteExpression(expression.right);
         }
 
@@ -135,7 +135,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         */
         if (expression.method == BuiltinMethods.Length && expression.arguments[0].constantValue is not null) {
-            var constantList = expression.arguments[0].constantValue.value as ImmutableArray<BoundConstant>?;
+            var constantList = expression.arguments[0].constantValue.value as ImmutableArray<ConstantValue>?;
 
             if (constantList.HasValue)
                 return RewriteLiteralExpression(new BoundLiteralExpression(constantList.Value.Length));

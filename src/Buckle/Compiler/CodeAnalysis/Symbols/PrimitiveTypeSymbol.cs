@@ -16,4 +16,8 @@ internal sealed class PrimitiveTypeSymbol : TypeSymbol {
     public override bool isSealed => false;
 
     public override bool isOverride => false;
+
+    internal override NamedTypeSymbol baseType => null;
+
+    internal override TypeKind typeKind => TypeKind.Primitive;
 }

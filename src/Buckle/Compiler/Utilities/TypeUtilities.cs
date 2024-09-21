@@ -21,7 +21,7 @@ internal static class TypeUtilities {
         var baseType = (left.typeSymbol as ClassSymbol).baseType;
 
         if (left.templateArguments.Length > 0) {
-            var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+            var templateMappings = new Dictionary<ParameterSymbol, TypeOrConstant>();
 
             for (var i = 0; i < left.templateArguments.Length; i++) {
                 templateMappings.Add(

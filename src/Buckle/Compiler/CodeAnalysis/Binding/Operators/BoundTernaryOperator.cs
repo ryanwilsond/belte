@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -7,8 +8,13 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundTernaryOperator {
     private BoundTernaryOperator(
-        SyntaxKind leftOpKind, SyntaxKind rightOpKind, BoundTernaryOperatorKind opKind, BoundType leftType,
-        BoundType centerType, BoundType rightType, BoundType resultType) {
+        SyntaxKind leftOpKind,
+        SyntaxKind rightOpKind,
+        BoundTernaryOperatorKind opKind,
+        TypeSymbol leftType,
+        TypeSymbol centerType,
+        TypeSymbol rightType,
+        TypeSymbol resultType) {
         this.leftOpKind = leftOpKind;
         this.rightOpKind = rightOpKind;
         this.opKind = opKind;
@@ -23,7 +29,7 @@ internal sealed class BoundTernaryOperator {
     /// </summary>
     internal static BoundTernaryOperator[] Operators = {
         new BoundTernaryOperator(SyntaxKind.QuestionToken, SyntaxKind.ColonToken, BoundTernaryOperatorKind.Conditional,
-            BoundType.Bool, null, null, null),
+            TypeSymbol.Bool, null, null, null),
     };
 
     /// <summary>
@@ -44,22 +50,22 @@ internal sealed class BoundTernaryOperator {
     /// <summary>
     /// Left side operand type.
     /// </summary>
-    internal BoundType leftType { get; }
+    internal TypeSymbol leftType { get; }
 
     /// <summary>
     /// Center operand type.
     /// </summary>
-    internal BoundType centerType { get; }
+    internal TypeSymbol centerType { get; }
 
     /// <summary>
     /// Right side operand type.
     /// </summary>
-    internal BoundType rightType { get; }
+    internal TypeSymbol rightType { get; }
 
     /// <summary>
     /// Result value type.
     /// </summary>
-    internal BoundType type { get; }
+    internal TypeSymbol type { get; }
 
     /// <summary>
     /// Attempts to bind an operator with given sides.

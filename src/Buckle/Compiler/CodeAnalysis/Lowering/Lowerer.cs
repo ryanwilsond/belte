@@ -277,14 +277,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return base.RewriteBinaryExpression(expression);
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Is) {
-            if (BoundConstant.IsNull(expression.right.constantValue))
+            if (ConstantValue.IsNull(expression.right.constantValue))
                 return RewriteExpression(Not(HasValue(expression.left)));
             else
                 return base.RewriteBinaryExpression(expression);
         }
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Isnt) {
-            if (BoundConstant.IsNull(expression.right.constantValue))
+            if (ConstantValue.IsNull(expression.right.constantValue))
                 return RewriteExpression(HasValue(expression.left));
             else
                 return base.RewriteBinaryExpression(expression);
@@ -292,8 +292,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (expression.op.opKind == BoundBinaryOperatorKind.Power) {
             var powMethod = expression.left.type.isNullable || expression.right.type.isNullable
-                ? StandardLibrary.Math.GetMembers()[46]
-                : StandardLibrary.Math.GetMembers()[47];
+                ? StandardLibrary.Math.GetMembersPublic()[46]
+                : StandardLibrary.Math.GetMembersPublic()[47];
 
             return RewriteExpression(
                 Call(powMethod as MethodSymbol, [expression.left, expression.right])
@@ -412,20 +412,20 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <expression>
 
         */
-        if (expression.expression.type.isNullable && !expression.type.isNullable) {
-            if (BoundType.CopyWith(expression.type, isNullable: true).Equals(expression.expression.type, true))
-                return RewriteExpression(Value(expression.expression));
+        if (expression.operand.type.isNullable && !expression.type.isNullable) {
+            if (BoundType.CopyWith(expression.type, isNullable: true).Equals(expression.operand.type, true))
+                return RewriteExpression(Value(expression.operand));
 
             return base.RewriteCastExpression(
                 Cast(
                     expression.type,
-                    Value(expression.expression)
+                    Value(expression.operand)
                 )
             );
         }
 
-        if (BoundType.CopyWith(expression.expression.type, isNullable: true).Equals(expression.type, true))
-            return RewriteExpression(expression.expression);
+        if (BoundType.CopyWith(expression.operand.type, isNullable: true).Equals(expression.type, true))
+            return RewriteExpression(expression.operand);
 
         return base.RewriteCastExpression(expression);
     }

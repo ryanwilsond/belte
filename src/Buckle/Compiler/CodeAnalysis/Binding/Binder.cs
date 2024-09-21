@@ -74,7 +74,7 @@ internal sealed class Binder {
         var currentContainingType = _containingType;
 
         while (currentContainingType != null) {
-            foreach (var member in currentContainingType.GetMembers()) {
+            foreach (var member in currentContainingType.GetMembersPublic()) {
                 if (member is FieldSymbol or ParameterSymbol)
                     _scope.TryDeclareVariable(member as VariableSymbol);
                 else if (member is NamedTypeSymbol n)
@@ -95,7 +95,7 @@ internal sealed class Binder {
 
             foreach (var templateParameter in method.templateParameters) {
                 if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
-                    var templateType = new TemplateTypeSymbol(templateParameter);
+                    var templateType = new TemplateParameterSymbol(templateParameter);
                     _scope.TryDeclareType(templateType);
                 } else {
                     _scope.TryDeclareVariable(templateParameter);
@@ -380,7 +380,7 @@ internal sealed class Binder {
         int argument = 0,
         bool isImplicitNull = false,
         BoundType receiverType = null,
-        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
+        ImmutableArray<TypeOrConstant>? templateArguments = null) {
         var boundExpression = BindExpression(expression);
 
         return BindCast(
@@ -403,7 +403,7 @@ internal sealed class Binder {
         int argument = 0,
         bool isImplicitNull = false,
         BoundType receiverType = null,
-        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
+        ImmutableArray<TypeOrConstant>? templateArguments = null) {
         return BindCast(
             diagnosticLocation,
             expression,
@@ -427,7 +427,7 @@ internal sealed class Binder {
         bool isImplicitNull = false,
         bool isTemplate = false,
         BoundType receiverType = null,
-        ImmutableArray<BoundTypeOrConstant>? templateArguments = null) {
+        ImmutableArray<TypeOrConstant>? templateArguments = null) {
         var fromType = expression.type;
         var toType = type;
 
@@ -445,7 +445,7 @@ internal sealed class Binder {
         if (expression.type.typeSymbol == TypeSymbol.Error || toType.typeSymbol == TypeSymbol.Error)
             return new BoundErrorExpression();
 
-        if (BoundConstant.IsNull(expression.constantValue) && !toType.isNullable) {
+        if (ConstantValue.IsNull(expression.constantValue) && !toType.isNullable) {
             if (isImplicitNull)
                 diagnostics.Push(Error.CannotImplyNull(diagnosticLocation));
             else
@@ -479,7 +479,7 @@ internal sealed class Binder {
             if (expression.type.typeSymbol != null)
                 return expression;
             else if (expression.constantValue != null)
-                return new BoundTypeWrapper(toType, expression.constantValue);
+                return new BoundLiteralExpression(expression.constantValue, toType);
         }
 
         return new BoundCastExpression(toType, expression);
@@ -517,7 +517,7 @@ internal sealed class Binder {
             var argsType = new BoundType(
                 binder._scope.LookupSymbol<ClassSymbol>(WellKnownTypeNames.List),
                 isNullable: false,
-                templateArguments: [new BoundTypeOrConstant(BoundType.String)],
+                templateArguments: [new TypeOrConstant(BoundType.String)],
                 arity: 1
             );
 
@@ -962,11 +962,11 @@ internal sealed class Binder {
         _scope = new BoundScope(_scope);
 
         var templates = BindTemplateParameters(method.templateParameterList);
-        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
+        var templateTypes = new Dictionary<string, TemplateParameterSymbol>();
 
         foreach (var template in templates) {
             if (template.type.typeSymbol == TypeSymbol.Type) {
-                var templateType = new TemplateTypeSymbol(template);
+                var templateType = new TemplateParameterSymbol(template);
                 _scope.TryDeclareType(templateType);
                 templateTypes.Add(templateType.name, templateType);
             } else {
@@ -1581,7 +1581,7 @@ internal sealed class Binder {
 
     private void ApplyExtensionConstraints(
         ImmutableArray<BoundExpression> constraints,
-        Dictionary<string, TemplateTypeSymbol> templates) {
+        Dictionary<string, TemplateParameterSymbol> templates) {
         foreach (var constraint in constraints) {
             if (constraint is BoundExtendExpression e)
                 templates[e.template.name].AddBaseType(e.extension);
@@ -1615,11 +1615,11 @@ internal sealed class Binder {
             _flags |= BinderFlags.LowLevelContext;
 
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
-        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
+        var templateTypes = new Dictionary<string, TemplateParameterSymbol>();
 
         foreach (var templateParameter in oldStruct.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
-                var templateType = new TemplateTypeSymbol(templateParameter);
+                var templateType = new TemplateParameterSymbol(templateParameter);
                 builder.Add(templateType);
                 _scope.TryDeclareType(templateType);
                 templateTypes.Add(templateType.name, templateType);
@@ -1776,11 +1776,11 @@ internal sealed class Binder {
         }
 
         var templates = ImmutableArray.CreateBuilder<ParameterSymbol>();
-        var templateTypes = new Dictionary<string, TemplateTypeSymbol>();
+        var templateTypes = new Dictionary<string, TemplateParameterSymbol>();
 
         foreach (var templateParameter in oldClass.templateParameters) {
             if (templateParameter.type.typeSymbol == TypeSymbol.Type) {
-                var templateType = new TemplateTypeSymbol(templateParameter);
+                var templateType = new TemplateParameterSymbol(templateParameter);
                 builder.Add(templateType);
                 _scope.TryDeclareType(templateType);
                 templateTypes.Add(templateType.name, templateType);
@@ -1808,7 +1808,7 @@ internal sealed class Binder {
             if (baseType.typeSymbol.isStatic)
                 diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
 
-            foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
+            foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembersPublic()) {
                 switch (member.kind) {
                     case SymbolKind.Field:
                         _scope.TryDeclareVariable(member as FieldSymbol);
@@ -2434,7 +2434,7 @@ internal sealed class Binder {
                 return null;
             } else {
                 var namedLeft = leftType.typeSymbol as NamedTypeSymbol;
-                var symbols = namedLeft.GetMembers()
+                var symbols = namedLeft.GetMembersPublic()
                     .Where(m => m is NamedTypeSymbol && m.name == rightType.identifier.text)
                     .Select(n => n as NamedTypeSymbol);
 
@@ -2503,17 +2503,17 @@ internal sealed class Binder {
         if (!identifierSymbols.Any()) {
             var result = _overloadResolution.TemplateOverloadResolution(
                 symbols.ToImmutableArray<ISymbolWithTemplates>(),
-                ImmutableArray<(string, BoundTypeOrConstant)>.Empty,
+                ImmutableArray<(string, TypeOrConstant)>.Empty,
                 name.identifier.text,
                 name.identifier,
                 null
             );
 
-            var constantArguments = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+            var constantArguments = ImmutableArray.CreateBuilder<TypeOrConstant>();
 
             foreach (var argument in result.arguments) {
                 if (argument is BoundType t)
-                    constantArguments.Add(new BoundTypeOrConstant(t));
+                    constantArguments.Add(new TypeOrConstant(t));
                 else
                     constantArguments.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
             }
@@ -2545,7 +2545,7 @@ internal sealed class Binder {
     private BoundType BindTemplateNameCore(
         TemplateNameSyntax name,
         IEnumerable<NamedTypeSymbol> symbols,
-        ImmutableArray<(string, BoundTypeOrConstant)>? templateArguments) {
+        ImmutableArray<(string, TypeOrConstant)>? templateArguments) {
         var templateSymbols = symbols.Where(s => s.arity > 0);
 
         if (!templateSymbols.Any()) {
@@ -2556,7 +2556,7 @@ internal sealed class Binder {
             return null;
         }
 
-        ImmutableArray<(string, BoundTypeOrConstant)> arguments;
+        ImmutableArray<(string, TypeOrConstant)> arguments;
 
         if (!templateArguments.HasValue)
             BindTemplateArgumentList(name.templateArgumentList, out arguments);
@@ -2574,11 +2574,11 @@ internal sealed class Binder {
         if (!result.succeeded)
             return null;
 
-        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<TypeOrConstant>();
 
         foreach (var argument in result.arguments) {
             if (argument is BoundType t)
-                constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
+                constantArgumentsBuilder.Add(new TypeOrConstant(t));
             else
                 constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
         }
@@ -2606,7 +2606,7 @@ internal sealed class Binder {
     private void VerifyConstraintClauses(
         TextLocation location,
         ImmutableArray<BoundExpression> constraints,
-        ImmutableArray<BoundTypeOrConstant> constantArguments) {
+        ImmutableArray<TypeOrConstant> constantArguments) {
         for (var i = 0; i < constraints.Length; i++) {
             var constraint = constraints[i];
 
@@ -2709,7 +2709,7 @@ internal sealed class Binder {
                 containingTypesEqual &&
                 (_containingMethod?.isStatic ?? false) &&
                 !symbols[0].isStatic &&
-                symbols[0] is not TemplateTypeSymbol) {
+                symbols[0] is not TemplateParameterSymbol) {
                 diagnostics.Push(Error.InvalidStaticReference(syntax.location, name));
                 return new BoundErrorExpression();
             }
@@ -2775,7 +2775,7 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
-        var templateArguments = ImmutableArray<(string, BoundTypeOrConstant)>.Empty;
+        var templateArguments = ImmutableArray<(string, TypeOrConstant)>.Empty;
         var templateName = syntax as TemplateNameSyntax;
 
         if (templateName is not null) {
@@ -2804,11 +2804,11 @@ internal sealed class Binder {
         if (!result.succeeded)
             return new BoundErrorExpression();
 
-        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<BoundTypeOrConstant>();
+        var constantArgumentsBuilder = ImmutableArray.CreateBuilder<TypeOrConstant>();
 
         foreach (var argument in result.arguments) {
             if (argument is BoundType t)
-                constantArgumentsBuilder.Add(new BoundTypeOrConstant(t));
+                constantArgumentsBuilder.Add(new TypeOrConstant(t));
             else
                 constantArgumentsBuilder.Add(new BoundTypeOrConstant(argument.constantValue, argument.type, argument));
         }
@@ -2842,7 +2842,7 @@ internal sealed class Binder {
         var name = syntax.identifier.text;
         var arity = 0;
 
-        var templateArguments = ImmutableArray<(string, BoundTypeOrConstant)>.Empty;
+        var templateArguments = ImmutableArray<(string, TypeOrConstant)>.Empty;
         TextLocation templateLocation = null;
 
         if (syntax is TemplateNameSyntax tn) {
@@ -2985,7 +2985,7 @@ internal sealed class Binder {
     private VariableSymbol BindVariable(
         SyntaxToken identifier,
         BoundType type,
-        BoundConstant constant,
+        ConstantValue constant,
         DeclarationModifiers modifiers) {
         var name = identifier.text ?? "?";
         var declare = !identifier.isFabricated;
@@ -3015,11 +3015,11 @@ internal sealed class Binder {
         bool isStructField) {
         var name = declaration.identifier.text;
         BindAndVerifyType(declaration, modifiers, true, isStructField, out var type);
-        BoundConstant constant = null;
+        ConstantValue constant = null;
 
         if ((modifiers & DeclarationModifiers.ConstExpr) != 0) {
             var initializer = declaration.initializer?.value is null
-                ? new BoundTypeWrapper(type, new BoundConstant(null))
+                ? new BoundTypeWrapper(type, new ConstantValue(null))
                 : BindExpression(declaration.initializer.value);
 
             constant = initializer.constantValue;
@@ -3178,7 +3178,7 @@ internal sealed class Binder {
     private BoundStatement BindWhileStatement(WhileStatementSyntax statement) {
         var condition = BindCast(statement.condition, BoundType.NullableBool);
 
-        if (BoundConstant.IsNotNull(condition.constantValue) && !(bool)condition.constantValue.value)
+        if (ConstantValue.IsNotNull(condition.constantValue) && !(bool)condition.constantValue.value)
             diagnostics.Push(Warning.UnreachableCode(statement.body));
 
         var body = BindLoopBody(statement.body, out var breakLabel, out var continueLabel);
@@ -3213,7 +3213,7 @@ internal sealed class Binder {
 
         BoundLiteralExpression constant = null;
 
-        if (BoundConstant.IsNotNull(condition.constantValue)) {
+        if (ConstantValue.IsNotNull(condition.constantValue)) {
             if (!(bool)condition.constantValue.value)
                 diagnostics.Push(Warning.UnreachableCode(statement.then));
             else if (statement.elseClause != null)
@@ -3443,7 +3443,7 @@ internal sealed class Binder {
         if (type.isReference || (type.isImplicit && value?.kind == SyntaxKind.ReferenceExpression)) {
             var initializer = value != null
                 ? BindReferenceExpression((ReferenceExpressionSyntax)value)
-                : new BoundTypeWrapper(type, new BoundConstant(null));
+                : new BoundTypeWrapper(type, new ConstantValue(null));
 
             if (isConstantExpression && type.isImplicit)
                 diagnostics.Push(Error.CannotBeRefAndConstexpr(value.location));
@@ -3488,7 +3488,7 @@ internal sealed class Binder {
             (type.isImplicit && value is InitializerListExpressionSyntax)) {
             var initializer = (value is null ||
                 (value is LiteralExpressionSyntax l && l.token.kind == SyntaxKind.NullKeyword))
-                ? new BoundTypeWrapper(type, new BoundConstant(null))
+                ? new BoundTypeWrapper(type, new ConstantValue(null))
                 : BindExpression(value, initializerListType: type);
 
             if (initializer is BoundInitializerListExpression il && type.isImplicit) {
@@ -3502,7 +3502,7 @@ internal sealed class Binder {
                     var allNull = true;
 
                     foreach (var item in il.items) {
-                        if (!BoundConstant.IsNull(item.constantValue))
+                        if (!ConstantValue.IsNull(item.constantValue))
                             allNull = false;
                     }
 
@@ -3555,7 +3555,7 @@ internal sealed class Binder {
         } else {
             var initializer = value != null
                 ? BindExpression(value)
-                : new BoundTypeWrapper(type, new BoundConstant(null));
+                : new BoundTypeWrapper(type, new ConstantValue(null));
 
             if (isConstantExpression && initializer.constantValue is null)
                 diagnostics.Push(Error.NotConstantExpression(value.location));
@@ -3849,6 +3849,18 @@ internal sealed class Binder {
             return new BoundErrorExpression();
         }
 
+        /*
+
+    internal override BoundType type => BoundType.CopyWith(
+        expression.type,
+        isConstant: false,
+        isConstantReference: expression.type.isConstant,
+        isReference: true,
+        isExplicitReference: true
+    );
+
+        */
+
         return new BoundReferenceExpression(boundExpression);
     }
 
@@ -3962,7 +3974,7 @@ internal sealed class Binder {
     private BoundExpression BindIndexExpression(IndexExpressionSyntax expression) {
         var boundIndex = BindExpression(expression.index);
 
-        if (BoundConstant.IsNotNull(boundIndex.constantValue) &&
+        if (ConstantValue.IsNotNull(boundIndex.constantValue) &&
             boundIndex.constantValue.value is int v &&
             expression.expression is InitializerListExpressionSyntax i) {
             // Optimizes inline list indexes working around the List rewrite that initializer lists perform
@@ -4138,7 +4150,7 @@ internal sealed class Binder {
             if (receiver.type is not null &&
                 receiver.type.templateArguments.Length > 0 &&
                 method.type.typeSymbol is NamedTypeSymbol) {
-                var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+                var templateMappings = new Dictionary<ParameterSymbol, TypeOrConstant>();
 
                 for (var i = 0; i < receiver.type.templateArguments.Length; i++) {
                     templateMappings.Add(
@@ -4157,7 +4169,7 @@ internal sealed class Binder {
                     returnType,
                     method.declaration,
                     method,
-                    method.declarationModifiers,
+                    method.modifiers,
                     method.accessibility);
             }
 
@@ -4182,7 +4194,7 @@ internal sealed class Binder {
 
     private bool BindTemplateArgumentList(
         TemplateArgumentListSyntax argumentList,
-        out ImmutableArray<(string, BoundTypeOrConstant)> templateArguments) {
+        out ImmutableArray<(string, TypeOrConstant)> templateArguments) {
         var saved = _flags;
         _flags |= BinderFlags.TemplateArgumentList;
 
@@ -4193,11 +4205,11 @@ internal sealed class Binder {
             result = true;
         } else {
             result = PartiallyBindArguments(argumentList.arguments, out var arguments, true);
-            var builder = ImmutableArray.CreateBuilder<(string, BoundTypeOrConstant)>();
+            var builder = ImmutableArray.CreateBuilder<(string, TypeOrConstant)>();
 
             foreach ((var name, var expression) in arguments) {
                 if (expression is BoundType t)
-                    builder.Add((name, new BoundTypeOrConstant(t)));
+                    builder.Add((name, new TypeOrConstant(t)));
                 else
                     builder.Add((name, new BoundTypeOrConstant(expression.constantValue, expression.type, expression)));
             }
@@ -4290,7 +4302,7 @@ internal sealed class Binder {
         var listType = _wellKnownTypes[WellKnownTypeNames.List];
         var constructedListType = new BoundType(
             listType,
-            templateArguments: [new BoundTypeOrConstant(type.ChildType())],
+            templateArguments: [new TypeOrConstant(type.ChildType())],
             arity: 1
         );
 
@@ -4315,7 +4327,7 @@ internal sealed class Binder {
         var dictionaryType = _wellKnownTypes[WellKnownTypeNames.Dictionary];
         var constructedType = new BoundType(
             dictionaryType,
-            templateArguments: [new BoundTypeOrConstant(keyType), new BoundTypeOrConstant(valueType)],
+            templateArguments: [new TypeOrConstant(keyType), new TypeOrConstant(valueType)],
             arity: 2
         );
 
@@ -4433,17 +4445,17 @@ internal sealed class Binder {
             boundOp.opKind != BoundBinaryOperatorKind.As &&
             boundOp.opKind != BoundBinaryOperatorKind.ConditionalAnd &&
             boundOp.opKind != BoundBinaryOperatorKind.ConditionalOr) {
-            if (BoundConstant.IsNull(boundLeft.constantValue) || BoundConstant.IsNull(boundRight.constantValue)) {
+            if (ConstantValue.IsNull(boundLeft.constantValue) || ConstantValue.IsNull(boundRight.constantValue)) {
                 diagnostics.Push(Warning.AlwaysValue(expression.location, null));
-                return new BoundTypeWrapper(boundOp.type, new BoundConstant(null));
+                return new BoundTypeWrapper(boundOp.type, new ConstantValue(null));
             }
         }
 
         if (boundOp.opKind is BoundBinaryOperatorKind.Is or BoundBinaryOperatorKind.Isnt) {
-            if (BoundConstant.IsNull(boundLeft.constantValue) && BoundConstant.IsNull(boundRight.constantValue)) {
+            if (ConstantValue.IsNull(boundLeft.constantValue) && ConstantValue.IsNull(boundRight.constantValue)) {
                 var constant = boundOp.opKind == BoundBinaryOperatorKind.Is ? true : false;
                 diagnostics.Push(Warning.AlwaysValue(expression.location, constant));
-                return new BoundTypeWrapper(boundOp.type, new BoundConstant(constant));
+                return new BoundTypeWrapper(boundOp.type, new ConstantValue(constant));
             }
         }
 
@@ -4624,7 +4636,7 @@ internal sealed class Binder {
             var convertedExpression = BindCast(expression.right.location, boundExpression, type);
 
             if (left is BoundVariableExpression ve) {
-                if (ve.variable.constantValue is null || BoundConstant.IsNotNull(ve.variable.constantValue))
+                if (ve.variable.constantValue is null || ConstantValue.IsNotNull(ve.variable.constantValue))
                     _scope.NoteAssignment(ve.variable);
             }
 
@@ -4707,7 +4719,7 @@ internal sealed class Binder {
                     IsCompilerComputable(ternaryExpression.center, allowedVariables) &&
                     IsCompilerComputable(ternaryExpression.right, allowedVariables);
             case BoundNodeKind.CastExpression:
-                return IsCompilerComputable(((BoundCastExpression)expression).expression, allowedVariables);
+                return IsCompilerComputable(((BoundCastExpression)expression).operand, allowedVariables);
             case BoundNodeKind.IndexExpression:
                 var indexExpression = (BoundIndexExpression)expression;
                 return IsCompilerComputable(indexExpression.expression, allowedVariables) &&
@@ -4724,7 +4736,7 @@ internal sealed class Binder {
         }
     }
 
-    private static bool? EvaluateConstraint(BoundExpression expression, ImmutableArray<BoundTypeOrConstant> templates) {
+    private static bool? EvaluateConstraint(BoundExpression expression, ImmutableArray<TypeOrConstant> templates) {
         return (bool?)EvaluateExpression(expression);
 
         object EvaluateExpression(BoundExpression expression) {
@@ -4764,7 +4776,7 @@ internal sealed class Binder {
                     ).value;
                 case BoundNodeKind.CastExpression:
                     var castExpression = (BoundCastExpression)expression;
-                    var castOperand = EvaluateExpression(castExpression.expression);
+                    var castOperand = EvaluateExpression(castExpression.operand);
 
                     return ConstantFolding.FoldCast(
                         new BoundLiteralExpression(castOperand),

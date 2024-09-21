@@ -64,7 +64,7 @@ internal sealed class OverloadResolution {
         string name,
         SyntaxNodeOrToken operand,
         ArgumentListSyntax argumentList,
-        ImmutableArray<BoundTypeOrConstant>? templateArguments,
+        ImmutableArray<TypeOrConstant>? templateArguments,
         BoundType receiverType) {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
@@ -299,7 +299,7 @@ internal sealed class OverloadResolution {
     /// <param name="argumentList">The original arguments, used for calculations.</param>
     internal OverloadResolutionResult<ISymbolWithTemplates> TemplateOverloadResolution(
         ImmutableArray<ISymbolWithTemplates> symbols,
-        ImmutableArray<(string name, BoundTypeOrConstant constant)> arguments,
+        ImmutableArray<(string name, TypeOrConstant constant)> arguments,
         string name,
         SyntaxNodeOrToken operand,
         TemplateArgumentListSyntax argumentList) {
@@ -315,7 +315,7 @@ internal sealed class OverloadResolution {
 
                 if (argument.constant.constant is null)
                     expression = argument.constant.expression;
-                else if (argument.constant.constant.value is ImmutableArray<BoundConstant>)
+                else if (argument.constant.constant.value is ImmutableArray<ConstantValue>)
                     expression = new BoundInitializerListExpression(argument.constant.constant, argument.constant.type);
                 else
                     expression = new BoundLiteralExpression(argument.constant.constant.value);
@@ -572,7 +572,7 @@ internal sealed class OverloadResolution {
         ImmutableArray<(string name, BoundExpression expression)> preBoundArguments,
         ImmutableArray<BoundExpression>.Builder currentBoundArguments,
         bool isTemplate,
-        ImmutableArray<BoundTypeOrConstant>? templateArguments,
+        ImmutableArray<TypeOrConstant>? templateArguments,
         BoundType receiverType) {
         for (var i = 0; i < preBoundArguments.Length; i++) {
             var argument = preBoundArguments[rearrangedArguments[i]];
@@ -585,7 +585,7 @@ internal sealed class OverloadResolution {
 
             if (argumentExpression.type.typeSymbol is null &&
                 argumentExpression is BoundLiteralExpression le &&
-                BoundConstant.IsNull(argumentExpression.constantValue) &&
+                ConstantValue.IsNull(argumentExpression.constantValue) &&
                 le.isArtificial) {
                 argumentExpression = new BoundLiteralExpression(
                     null, BoundType.CopyWith(argumentExpression.type, typeSymbol: parameter.type.typeSymbol)

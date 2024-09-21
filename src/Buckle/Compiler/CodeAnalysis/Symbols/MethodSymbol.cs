@@ -8,64 +8,61 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A method symbol.
 /// </summary>
-internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
+internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
     private string _signature = null;
-
-    protected override Symbol _originalDefinition { get; }
 
     /// <summary>
     /// Creates a <see cref="MethodSymbol" />.
     /// </summary>
-    /// <param name="name">Name of method.</param>
-    /// <param name="parameters">Parameters of method.</param>
-    /// <param name="type"><see cref="BoundType" /> of return type.</param>
-    /// <param name="declaration">Declaration of method.</param>
-    /// <param name="originalDefinition">
-    /// The symbol that has our entry in the global method map. This is used to locate the body of this method.
-    /// </param>
     internal MethodSymbol(
         string name,
-        ImmutableArray<ParameterSymbol> templateParameters,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<ParameterSymbol> parameters,
-        BoundType type,
-        BaseMethodDeclarationSyntax declaration = null,
-        MethodSymbol originalDefinition = null,
-        DeclarationModifiers modifiers = DeclarationModifiers.None,
-        Accessibility accessibility = Accessibility.NotApplicable)
+        TypeWithAnnotations returnType,
+        BaseMethodDeclarationSyntax declaration,
+        DeclarationModifiers modifiers,
+        Accessibility accessibility)
         : base(name, accessibility) {
-        this.type = type;
+        typeWithAnnotations = returnType;
         this.parameters = parameters;
         this.declaration = declaration;
-        _originalDefinition = originalDefinition;
-        declarationModifiers = modifiers;
+        this.modifiers = modifiers;
         this.templateParameters = templateParameters;
         this.templateConstraints = templateConstraints;
     }
 
     public override SymbolKind kind => SymbolKind.Method;
 
-    public override bool isStatic => (declarationModifiers & DeclarationModifiers.Static) != 0;
+    public override bool isStatic => (modifiers & DeclarationModifiers.Static) != 0;
 
-    public override bool isAbstract => (declarationModifiers & DeclarationModifiers.Abstract) != 0;
+    public override bool isAbstract => (modifiers & DeclarationModifiers.Abstract) != 0;
 
-    public override bool isVirtual => (declarationModifiers & DeclarationModifiers.Virtual) != 0;
+    public override bool isVirtual => (modifiers & DeclarationModifiers.Virtual) != 0;
 
-    public override bool isOverride => (declarationModifiers & DeclarationModifiers.Override) != 0;
+    public override bool isOverride => (modifiers & DeclarationModifiers.Override) != 0;
 
     public override bool isSealed => false;
 
-    public ImmutableArray<ParameterSymbol> templateParameters { get; set; }
+    public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
-    public ImmutableArray<BoundExpression> templateConstraints { get; set; }
+    public ImmutableArray<BoundExpression> templateConstraints { get; }
 
-    public DeclarationModifiers declarationModifiers { get; }
+    public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
-    public new MethodSymbol originalDefinition => _originalDefinition as MethodSymbol;
+    public abstract TemplateMap templateSubstitution { get; }
 
-    internal bool isConstant => (declarationModifiers & DeclarationModifiers.Const) != 0;
+    public DeclarationModifiers modifiers { get; }
 
-    internal bool isLowLevel => (declarationModifiers & DeclarationModifiers.LowLevel) != 0;
+    public new MethodSymbol originalDefinition => originalMethodDefinition;
+
+    public virtual MethodSymbol originalMethodDefinition => this;
+
+    public override Symbol originalSymbolDefinition => originalMethodDefinition;
+
+    internal bool isConstant => (modifiers & DeclarationModifiers.Const) != 0;
+
+    internal bool isLowLevel => (modifiers & DeclarationModifiers.LowLevel) != 0;
 
     internal int arity => templateParameters.Length;
 
@@ -74,10 +71,9 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates
     /// </summary>
     internal ImmutableArray<ParameterSymbol> parameters { get; }
 
-    /// <summary>
-    /// <see cref="BoundType" /> of method return type.
-    /// </summary>
-    internal BoundType type { get; }
+    internal TypeWithAnnotations typeWithAnnotations { get; }
+
+    internal TypeSymbol type { get; }
 
     /// <summary>
     /// Declaration of method (see <see cref="BaseMethodDeclarationSyntax">).
@@ -92,13 +88,6 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates
             GenerateSignature();
 
         return _signature;
-    }
-
-    /// <summary>
-    /// Creates a new method symbol with different parameters, but everything else is identical.
-    /// </summary>
-    internal MethodSymbol UpdateParameters(ImmutableArray<ParameterSymbol> parameters) {
-        return new MethodSymbol(name, templateParameters, templateConstraints, parameters, type, declaration, this);
     }
 
     /// <summary>
@@ -128,7 +117,7 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates
 
             hash = hash * 23 + templateParameters.GetHashCode();
             hash = hash * 23 + templateConstraints.GetHashCode();
-            hash = hash * 23 + declarationModifiers.GetHashCode();
+            hash = hash * 23 + modifiers.GetHashCode();
             hash = hash * 23 + parameters.GetHashCode();
             hash = hash * 23 + type.GetHashCode();
             hash = hash * 23 + name.GetHashCode();
@@ -153,7 +142,7 @@ internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates
                 else
                     signature.Append(',');
 
-                signature.Append(templateParameter.type.ToString());
+                signature.Append(templateParameter);
             }
 
             signature.Append('>');

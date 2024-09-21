@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -7,7 +8,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// If folding is not possible, <see cref="constantValue" /> is null.
 /// </summary>
 internal abstract class BoundExpression : BoundNode {
-    internal abstract BoundType type { get; }
+    internal abstract TypeSymbol type { get; }
 
-    internal virtual BoundConstant constantValue => null;
+    internal virtual ConstantValue constantValue => null;
 }

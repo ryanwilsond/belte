@@ -1,24 +1,24 @@
 
-namespace Buckle.CodeAnalysis.Binding;
+namespace Buckle.CodeAnalysis;
 
 /// <summary>
-/// Bound constant.
+/// Constant value at compile time.
 /// </summary>
-internal sealed class BoundConstant {
-    internal BoundConstant(object value) {
+internal sealed class ConstantValue {
+    internal ConstantValue(object value) {
         this.value = value;
     }
 
     internal object value { get; }
 
-    internal static bool IsNull(BoundConstant constant) {
+    internal static bool IsNull(ConstantValue constant) {
         if (constant != null && constant.value is null)
             return true;
 
         return false;
     }
 
-    internal static bool IsNotNull(BoundConstant constant) {
+    internal static bool IsNotNull(ConstantValue constant) {
         if (constant != null && constant.value != null)
             return true;
 
@@ -30,24 +30,24 @@ internal sealed class BoundConstant {
     }
 
     public override bool Equals(object obj) {
-        return Equals(obj as BoundConstant);
+        return Equals(obj as ConstantValue);
     }
 
-    public bool Equals(BoundConstant other) {
+    public bool Equals(ConstantValue other) {
         if (other is null)
             return false;
 
         return value == other.value;
     }
 
-    public static bool operator ==(BoundConstant left, BoundConstant right) {
+    public static bool operator ==(ConstantValue left, ConstantValue right) {
         if (right is null)
             return left is null;
 
         return (object)left == (object)right || right.Equals(left);
     }
 
-    public static bool operator !=(BoundConstant left, BoundConstant right) {
+    public static bool operator !=(ConstantValue left, ConstantValue right) {
         if (right is null)
             return left is not null;
 
