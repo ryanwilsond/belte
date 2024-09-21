@@ -147,7 +147,7 @@ internal static class BuiltinMethods {
         "Hex",
         [], [], [
             new ParameterSymbol("value", BoundType.Int, 0, NoDefault),
-            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool)),
+            new ParameterSymbol("prefix", BoundType.Bool, 1, Literal(false, BoundType.Bool)),
         ],
         BoundType.String
     );
@@ -160,7 +160,7 @@ internal static class BuiltinMethods {
         "Hex",
         [], [], [
             new ParameterSymbol("value", BoundType.NullableInt, 0, NoDefault),
-            new ParameterSymbol("prefix", BoundType.Bool, 0, Literal(false, BoundType.Bool)),
+            new ParameterSymbol("prefix", BoundType.Bool, 1, Literal(false, BoundType.Bool)),
         ],
         BoundType.NullableString
     );
@@ -206,10 +206,19 @@ internal static class BuiltinMethods {
     /// <summary>
     /// Gets the length of the given array. If given a non-array, returns null.
     /// </summary>
-    internal static readonly MethodSymbol Length = new MethodSymbol(
+    internal static readonly MethodSymbol LengthNull = new MethodSymbol(
         "Length",
         [], [], [new ParameterSymbol("array", BoundType.NullableAny, 0, NoDefault)],
         BoundType.NullableInt
+    );
+
+    /// <summary>
+    /// Gets the length of the given array.
+    /// </summary>
+    internal static readonly MethodSymbol Length = new MethodSymbol(
+        "Length",
+        [], [], [new ParameterSymbol("array", BoundType.Any, 0, NoDefault)],
+        BoundType.Int
     );
 
     /// <summary>
@@ -240,7 +249,7 @@ internal static class BuiltinMethods {
         "ObjectsEqual",
         [], [], [
             new ParameterSymbol("x", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault),
-            new ParameterSymbol("y", new BoundType(StandardLibrary.Object, isNullable: true), 0, NoDefault)
+            new ParameterSymbol("y", new BoundType(StandardLibrary.Object, isNullable: true), 1, NoDefault)
         ],
         BoundType.NullableBool
     );
@@ -261,11 +270,20 @@ internal static class BuiltinMethods {
             new ParameterSymbol(
                 "y",
                 new BoundType(StandardLibrary.Object, isNullable: true, isReference: true),
-                0,
+                1,
                 NoDefault
             )
         ],
         BoundType.NullableBool
+    );
+
+    /// <summary>
+    /// Gets the hash of a primitive or object.
+    /// </summary>
+    internal static readonly new MethodSymbol GetHashCode = new MethodSymbol(
+        "GetHashCode",
+        [], [], [new ParameterSymbol("value", BoundType.NullableAny, 0, NoDefault)],
+        BoundType.Int
     );
 
     /// <summary>
@@ -281,10 +299,12 @@ internal static class BuiltinMethods {
             NullableAscii,
             Char,
             NullableChar,
+            LengthNull,
             Length,
             ToAny,
             ToObject,
             ObjectsEqual,
-            ObjectReferencesEqual
+            ObjectReferencesEqual,
+            GetHashCode
         ];
 }

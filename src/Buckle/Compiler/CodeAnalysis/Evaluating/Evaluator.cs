@@ -228,7 +228,7 @@ internal sealed class Evaluator {
         else if (value.members is not null)
             return new EvaluatorObject(Copy(value.members), value.trueType);
         else if (value.trueType is not null)
-            return new EvaluatorObject(members: null, trueType: value.trueType);
+            return new EvaluatorObject(null, value.trueType);
         else
             return new EvaluatorObject(value.value);
     }
@@ -277,6 +277,25 @@ internal sealed class Evaluator {
         }
     }
 
+    private EvaluatorObject CreateObject(BoundType type) {
+        var members = new Dictionary<Symbol, EvaluatorObject>();
+        var typeMembers = (type.typeSymbol as NamedTypeSymbol).GetMembers();
+
+        foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
+            var value = field.type.arity > 0 ? new EvaluatorObject(null, field.type) : EvaluatorObject.Null;
+
+            if (field.isReference) {
+                value.isReference = true;
+                value.isExplicitReference = true;
+            }
+
+            members.Add(field, value);
+        }
+
+        var trueType = ClarifyType(type);
+        return new EvaluatorObject(members, trueType);
+    }
+
     private void Assign(EvaluatorObject left, EvaluatorObject right) {
         right = Dereference(right, false);
         left = Dereference(left, false);
@@ -295,6 +314,19 @@ internal sealed class Evaluator {
             left.members = Copy(right.members);
         else
             left.value = Value(right);
+
+        left.trueType = right.trueType;
+    }
+
+    private bool HasValue(EvaluatorObject value, BoundType type) {
+        value = Dereference(value);
+
+        if (value.members is null && Value(value) is null &&
+            (type.typeSymbol != TypeSymbol.Type || value.trueType is null)) {
+            return false;
+        }
+
+        return true;
     }
 
     private void EnterClassScope(EvaluatorObject @class) {
@@ -510,11 +542,10 @@ internal sealed class Evaluator {
             return EvaluateConstantExpression(node, abort);
 
         switch (node.kind) {
-            case BoundNodeKind.LiteralExpression:
-                if (node is BoundInitializerListExpression il)
-                    return new EvaluatorObject(EvaluateInitializerListExpression(il, abort));
-                else
-                    goto default;
+            case BoundNodeKind.InitializerListExpression:
+                return new EvaluatorObject(
+                    EvaluateInitializerListExpression((BoundInitializerListExpression)node, abort)
+                );
             case BoundNodeKind.VariableExpression:
                 return EvaluateVariableExpression((BoundVariableExpression)node, abort);
             case BoundNodeKind.AssignmentExpression:
@@ -564,8 +595,27 @@ internal sealed class Evaluator {
 
         _locals.Push(locals);
         _templateConstantDepth++;
+        var trueType = ClarifyType(node);
 
-        return new EvaluatorObject(members: [], node);
+        return new EvaluatorObject(members: [], trueType);
+    }
+
+    private BoundType ClarifyType(BoundType type) {
+        if (_enclosingTypes.Count > 0 && _enclosingTypes.Peek().trueType.arity > 0) {
+            var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
+            var enclosingType = _enclosingTypes.Peek().trueType;
+
+            for (var i = 0; i < enclosingType.arity; i++) {
+                templateMappings.Add(
+                    (enclosingType.typeSymbol as NamedTypeSymbol).templateParameters[i],
+                    enclosingType.templateArguments[i]
+                );
+            }
+
+            return BoundType.Clarify(type, templateMappings);
+        }
+
+        return type;
     }
 
     private EvaluatorObject EvaluateThisExpression(BoundThisExpression _, ValueWrapper<bool> _1) {
@@ -601,40 +651,7 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
         if (node.viaConstructor || (node.type.sizes.Length == 0 && node.type.typeSymbol is StructSymbol)) {
-            var members = new Dictionary<Symbol, EvaluatorObject>();
-            var typeMembers = (node.type.typeSymbol as NamedTypeSymbol).GetMembers();
-
-            foreach (var field in typeMembers.Where(f => f is FieldSymbol)) {
-                var value = EvaluatorObject.Null;
-
-                if ((field as FieldSymbol).isReference) {
-                    value.isReference = true;
-                    value.isExplicitReference = true;
-                }
-
-                members.Add(field as Symbol, value);
-            }
-
-            BoundType trueType;
-
-            if (_enclosingTypes.Count > 0 && _enclosingTypes.Peek().trueType.templateArguments.Length > 0) {
-                var templateMappings = new Dictionary<ParameterSymbol, BoundTypeOrConstant>();
-                var enclosingType = _enclosingTypes.Peek().trueType;
-
-                for (var i = 0; i < enclosingType.templateArguments.Length; i++) {
-                    templateMappings.Add(
-                        (enclosingType.typeSymbol as NamedTypeSymbol).templateParameters[i],
-                        enclosingType.templateArguments[i]
-                    );
-                }
-
-                trueType = BoundType.Clarify(node.type, templateMappings);
-            } else {
-                trueType = node.type;
-            }
-
-            var newObject = new EvaluatorObject(members, trueType);
-
+            var newObject = CreateObject(node.type);
             EnterClassScope(newObject);
 
             // structs don't have any methods, so no constructors
@@ -654,8 +671,13 @@ internal sealed class Evaluator {
                 foreach (var element in IterateElements(array)) {
                     var members = new EvaluatorObject[sizeValue];
 
-                    for (var i = 0; i < sizeValue; i++)
-                        members[i] = EvaluatorObject.Null;
+                    for (var i = 0; i < sizeValue; i++) {
+                        // TODO This will use a default when default expression is added for primitives instead of null
+                        if (node.type.isNullable || node.type.typeSymbol is PrimitiveTypeSymbol)
+                            members[i] = EvaluatorObject.Null;
+                        else
+                            members[i] = CreateObject(node.type.ChildType());
+                    }
 
                     element.value = members;
                 }
@@ -699,7 +721,7 @@ internal sealed class Evaluator {
             }
         }
 
-        return new EvaluatorObject(members: null, trueType: trueType);
+        return new EvaluatorObject(null, trueType);
     }
 
     private EvaluatorObject EvaluateReferenceExpression(BoundReferenceExpression node, ValueWrapper<bool> abort) {
@@ -765,14 +787,8 @@ internal sealed class Evaluator {
             node.method == BuiltinMethods.HasValueInt ||
             node.method == BuiltinMethods.HasValueString ||
             node.method == BuiltinMethods.HasValueChar) {
-            var value = Dereference(EvaluateExpression(node.arguments[0], abort));
-
-            if (value.members is null && Value(value) is null &&
-                (node.arguments[0].type.typeSymbol != TypeSymbol.Type || value.trueType is null)) {
-                return new EvaluatorObject(false);
-            }
-
-            return new EvaluatorObject(true);
+            var value = EvaluateExpression(node.arguments[0], abort);
+            return new EvaluatorObject(HasValue(value, node.arguments[0].type));
         } else if (node.method == BuiltinMethods.Hex || node.method == BuiltinMethods.NullableHex) {
             var value = (int?)Value(EvaluateExpression(node.arguments[0], abort));
 
@@ -797,13 +813,17 @@ internal sealed class Evaluator {
                 return EvaluatorObject.Null;
 
             return new EvaluatorObject(((char)value.Value).ToString());
-        } else if (node.method == BuiltinMethods.Length) {
+        } else if (node.method == BuiltinMethods.Length || node.method == BuiltinMethods.LengthNull) {
             var value = Value(EvaluateExpression(node.arguments[0], abort));
 
-            if (value is object[] v)
+            if (value is object[] v) {
                 return new EvaluatorObject(v.Length);
-            else
+            } else {
+                if (node.method == BuiltinMethods.Length)
+                    throw new NullReferenceException();
+
                 return EvaluatorObject.Null;
+            }
         } else if (node.method.originalDefinition == BuiltinMethods.ToAny) {
             var value = Value(EvaluateExpression(node.arguments[0], abort));
             return new EvaluatorObject(value);
@@ -828,6 +848,16 @@ internal sealed class Evaluator {
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);
+        } else if (node.method == BuiltinMethods.GetHashCode) {
+            var value = Dereference(EvaluateExpression(node.arguments[0], abort));
+
+            if (value.members is null && value.trueType is null && value.value is null)
+                return new EvaluatorObject(0);
+
+            if (value.value is not null)
+                return new EvaluatorObject(value.value.GetHashCode());
+            else
+                return new EvaluatorObject(value.GetHashCode());
         } else {
             if (CheckStandardMap(node.method, node.arguments, abort, out var result, out var printed, out var io)) {
                 lastOutputWasPrint = printed;

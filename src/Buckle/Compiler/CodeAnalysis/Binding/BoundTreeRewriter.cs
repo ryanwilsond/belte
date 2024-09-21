@@ -184,18 +184,20 @@ internal abstract class BoundTreeRewriter {
             return RewriteConstantExpression(expression);
 
         switch (expression.kind) {
-            case BoundNodeKind.BinaryExpression:
-                return RewriteBinaryExpression((BoundBinaryExpression)expression);
             case BoundNodeKind.LiteralExpression:
-                if (expression is BoundInitializerListExpression il)
-                    return RewriteInitializerListExpression(il);
                 return RewriteLiteralExpression((BoundLiteralExpression)expression);
+            case BoundNodeKind.InitializerListExpression:
+                return RewriteInitializerListExpression((BoundInitializerListExpression)expression);
+            case BoundNodeKind.InitializerDictionaryExpression:
+                return RewriteInitializerDictionaryExpression((BoundInitializerDictionaryExpression)expression);
             case BoundNodeKind.VariableExpression:
                 return RewriteVariableExpression((BoundVariableExpression)expression);
             case BoundNodeKind.AssignmentExpression:
                 return RewriteAssignmentExpression((BoundAssignmentExpression)expression);
             case BoundNodeKind.UnaryExpression:
                 return RewriteUnaryExpression((BoundUnaryExpression)expression);
+            case BoundNodeKind.BinaryExpression:
+                return RewriteBinaryExpression((BoundBinaryExpression)expression);
             case BoundNodeKind.EmptyExpression:
                 return RewriteEmptyExpression((BoundEmptyExpression)expression);
             case BoundNodeKind.ErrorExpression:
@@ -362,6 +364,11 @@ internal abstract class BoundTreeRewriter {
             return expression;
 
         return new BoundInitializerListExpression(builder.MoveToImmutable(), expression.type);
+    }
+
+    protected virtual BoundExpression RewriteInitializerDictionaryExpression(
+        BoundInitializerDictionaryExpression expression) {
+        return expression;
     }
 
     protected virtual BoundExpression RewriteCompoundAssignmentExpression(

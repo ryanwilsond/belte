@@ -596,14 +596,32 @@
     </Field>
   </Node>
   <Node Name="InitializerListExpressionSyntax" Base="ExpressionSyntax">
-    <Kind Name="LiteralExpression"/>
-    <Field Name="openBrace" Type="SyntaxToken" Optional="true">
+    <Kind Name="InitializerListExpression"/>
+    <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
     <Field Name="items" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
-    <Field Name="closeBrace" Type="SyntaxToken" Optional="true">
+    <Field Name="closeBrace" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
     </Field>
+  </Node>
+  <Node Name="InitializerDictionaryExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="InitializerDictionaryExpression"/>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="items" Type="SeparatedSyntaxList&lt;KeyValuePairSyntax&gt;"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="KeyValuePairSyntax" Base="ExpressionSyntax">
+    <Kind Name="KeyValuePair"/>
+    <Field Name="key" Type="ExpressionSyntax"/>
+    <Field Name="colon" Type="SyntaxToken">
+      <Kind Name="ColonToken"/>
+    </Field>
+    <Field Name="value" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="LiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="LiteralExpression"/>

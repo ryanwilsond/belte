@@ -29,6 +29,8 @@ internal enum BoundNodeKind {
     BaseExpression,
     ExtendExpression,
     ThrowExpression,
+    InitializerListExpression,
+    InitializerDictionaryExpression,
 
     BlockStatement,
     ExpressionStatement,

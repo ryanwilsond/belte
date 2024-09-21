@@ -154,6 +154,8 @@ internal sealed class BoundBinaryOperator {
             BoundType.Any, BoundType.Bool),
         new BoundBinaryOperator(SyntaxKind.ExclamationEqualsToken, BoundBinaryOperatorKind.EqualityNotEquals,
             BoundType.Any, BoundType.Bool),
+
+        new BoundBinaryOperator(SyntaxKind.QuestionQuestionToken, BoundBinaryOperatorKind.NullCoalescing, null),
     };
 
     /// <summary>

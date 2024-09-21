@@ -207,6 +207,9 @@ public enum SyntaxKind {
     AttributeList,
     TemplateParameterConstraintClause,
     TemplateParameterConstraintClauseList,
+    InitializerListExpression,
+    KeyValuePair,
+    InitializerDictionaryExpression,
 
     // Other
     EndOfFileToken,

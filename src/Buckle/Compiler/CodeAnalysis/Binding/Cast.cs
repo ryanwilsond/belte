@@ -96,8 +96,13 @@ internal sealed class Cast {
             return Identity;
         }
 
-        if (from != TypeSymbol.Void && to == TypeSymbol.Any)
+        if (from != TypeSymbol.Void && to == TypeSymbol.Any) {
+            if (toType.isNullable)
+                return new Cast(true, true, true, true, true);
+
             return AnyAdding;
+        }
+
         if (from == TypeSymbol.Any && to != TypeSymbol.Void)
             return Explicit;
 

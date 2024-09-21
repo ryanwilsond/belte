@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries.Standard;
@@ -36,7 +37,8 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
-        BoundCompoundAssignmentExpression expression, out BoundExpression replacement) {
+        BoundCompoundAssignmentExpression expression,
+        out BoundExpression replacement) {
         _compoundAssignmentDepth++;
 
         if (_compoundAssignmentDepth > 1) {
@@ -110,7 +112,8 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandBinaryExpression(
-        BoundBinaryExpression expression, out BoundExpression replacement) {
+        BoundBinaryExpression expression,
+        out BoundExpression replacement) {
         _operatorDepth++;
 
         if (_operatorDepth > 1) {
@@ -137,7 +140,8 @@ internal sealed class Expander : BoundTreeExpander {
     }
 
     protected override List<BoundStatement> ExpandTernaryExpression(
-        BoundTernaryExpression expression, out BoundExpression replacement) {
+        BoundTernaryExpression expression,
+        out BoundExpression replacement) {
         _operatorDepth++;
 
         if (_operatorDepth > 1) {
@@ -162,6 +166,36 @@ internal sealed class Expander : BoundTreeExpander {
         var baseStatements = base.ExpandTernaryExpression(expression, out replacement);
         _operatorDepth--;
         return baseStatements;
+    }
+
+    protected override List<BoundStatement> ExpandInitializerDictionaryExpression(
+        BoundInitializerDictionaryExpression expression,
+        out BoundExpression replacement) {
+        // TODO Add a way where if _operatorDepth == 0 a temp local isn't made if this is a variable initializer
+        var dictionaryType = expression.type.typeSymbol as NamedTypeSymbol;
+        var tempLocal = GenerateTempLocal(expression.type);
+        var statements = new List<BoundStatement>() {
+            new BoundLocalDeclarationStatement(new BoundVariableDeclaration(
+                tempLocal,
+                new BoundObjectCreationExpression(
+                    expression.type,
+                    dictionaryType.constructors[0],
+                    []
+                )
+            ))
+        };
+
+        foreach (var pair in expression.items) {
+            statements.Add(new BoundExpressionStatement(new BoundCallExpression(
+                new BoundVariableExpression(tempLocal),
+                dictionaryType.GetMembers("Add").Single() as MethodSymbol,
+                [pair.Item1, pair.Item2],
+                []
+            )));
+        }
+
+        replacement = new BoundVariableExpression(tempLocal);
+        return statements;
     }
 
     private LocalVariableSymbol GenerateTempLocal(BoundType type) {

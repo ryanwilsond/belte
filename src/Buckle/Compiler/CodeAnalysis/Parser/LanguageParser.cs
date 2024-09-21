@@ -1194,7 +1194,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.NullKeyword:
                 return ParseNullLiteral();
             case SyntaxKind.OpenBraceToken:
-                return ParseInitializerListExpression();
+                return ParseInitializerListOrDictionaryExpression();
             case SyntaxKind.RefKeyword:
                 return ParseReferenceExpression();
             case SyntaxKind.TypeOfKeyword:
@@ -1267,8 +1267,23 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.PostfixExpression(operand, operatorToken);
     }
 
-    private ExpressionSyntax ParseInitializerListExpression() {
+    private ExpressionSyntax ParseInitializerListOrDictionaryExpression() {
         var left = Match(SyntaxKind.OpenBraceToken);
+
+        if (currentToken.kind == SyntaxKind.CloseBraceToken)
+            return ParseInitializerListExpression(left);
+
+        var point = GetResetPoint();
+        var initializerDictionary = ParseInitializerDictionaryExpression(left);
+
+        if (!initializerDictionary.containsDiagnostics)
+            return initializerDictionary;
+
+        Reset(point);
+        return ParseInitializerListExpression(left);
+    }
+
+    private ExpressionSyntax ParseInitializerListExpression(SyntaxToken leftBrace) {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextItem = true;
 
@@ -1290,9 +1305,43 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         var separatedSyntaxList = new SeparatedSyntaxList<ExpressionSyntax>(nodesAndSeparators.ToList());
-        var right = Match(SyntaxKind.CloseBraceToken);
+        var rightBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.InitializerListExpression(left, separatedSyntaxList, right);
+        return SyntaxFactory.InitializerListExpression(leftBrace, separatedSyntaxList, rightBrace);
+    }
+
+    private ExpressionSyntax ParseInitializerDictionaryExpression(SyntaxToken leftBrace) {
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
+        var parseNextItem = true;
+
+        while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
+            if (currentToken.kind is not SyntaxKind.CommaToken and not SyntaxKind.CloseBraceToken) {
+                var keyValuePair = ParseKeyValuePair();
+                nodesAndSeparators.Add(keyValuePair);
+            } else {
+                var empty = SyntaxFactory.Empty();
+                nodesAndSeparators.Add(empty);
+            }
+
+            if (currentToken.kind == SyntaxKind.CommaToken) {
+                var comma = EatToken();
+                nodesAndSeparators.Add(comma);
+            } else {
+                parseNextItem = false;
+            }
+        }
+
+        var separatedSyntaxList = new SeparatedSyntaxList<KeyValuePairSyntax>(nodesAndSeparators.ToList());
+        var rightBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return SyntaxFactory.InitializerDictionaryExpression(leftBrace, separatedSyntaxList, rightBrace);
+    }
+
+    private KeyValuePairSyntax ParseKeyValuePair() {
+        var key = ParseExpression();
+        var colon = Match(SyntaxKind.ColonToken);
+        var value = ParseExpression();
+        return SyntaxFactory.KeyValuePair(key, colon, value);
     }
 
     private ExpressionSyntax ParseParenthesizedExpression() {

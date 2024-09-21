@@ -838,6 +838,37 @@ internal static partial class StandardLibrary {
                         ),
                         Token(SyntaxKind.SemicolonToken)
                     )
+                ),
+        /* 6 */ Method(
+                    "GetHashCode",
+                    BoundType.Int,
+                    [],
+                    DeclarationModifiers.Virtual,
+                    Accessibility.Public,
+                    MethodDeclaration(
+                        null,
+                        TokenList(Token(SyntaxKind.VirtualKeyword)),
+                        IdentifierName("int"),
+                        Identifier("GetHashCode"),
+                        TemplateParameterList(),
+                        ParameterList(
+                            Token(SyntaxKind.OpenParenToken),
+                            SeparatedList(
+                                Parameter(IdentifierName("any"), Identifier("value"))
+                            ),
+                            Token(SyntaxKind.CloseParenToken)
+                        ),
+                        ConstraintClauseList(),
+                        Block(
+                            Return(
+                                CallExpression(
+                                    IdentifierName("GetHashCode"),
+                                    ArgumentList(Argument(This()))
+                                )
+                            )
+                        ),
+                        Token(SyntaxKind.SemicolonToken)
+                    )
                 )
             )
         );
@@ -892,14 +923,20 @@ internal static partial class StandardLibrary {
             )
         );
 
+        var length = MethodEvaluatorMap.Count;
+
         MethodEvaluatorMap.Add(Directory.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { return System.IO.Directory.GetDirectories((string)a); }));
+        if (MethodEvaluatorMap.Count > length + 1) return;
         MethodEvaluatorMap.Add(Directory.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { return System.IO.Directory.GetFiles((string)a); }));
+        if (MethodEvaluatorMap.Count > length + 2) return;
         MethodEvaluatorMap.Add(File.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { System.IO.File.AppendAllLines((string)a, (List<string>)b); return null; }));
+        if (MethodEvaluatorMap.Count > length + 3) return;
         MethodEvaluatorMap.Add(File.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { return System.IO.File.ReadAllLines((string)a); }));
+        if (MethodEvaluatorMap.Count > length + 4) return;
         MethodEvaluatorMap.Add(File.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             => { System.IO.File.WriteAllLines((string)a, (List<string>)b); return null; }));
 

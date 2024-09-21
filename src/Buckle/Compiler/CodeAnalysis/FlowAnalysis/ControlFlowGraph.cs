@@ -68,8 +68,10 @@ internal sealed class ControlFlowGraph {
 
         foreach (var branch in graph.end.incoming) {
             var lastStatement = branch.from.statements.LastOrDefault();
+            var lastStatementIsThrow = lastStatement is BoundExpressionStatement es &&
+                es.expression is BoundThrowExpression;
 
-            if (lastStatement is null || lastStatement.kind != BoundNodeKind.ReturnStatement)
+            if (lastStatement is null || (lastStatement.kind != BoundNodeKind.ReturnStatement && !lastStatementIsThrow))
                 return false;
         }
 

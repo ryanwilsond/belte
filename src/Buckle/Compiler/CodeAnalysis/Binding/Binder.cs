@@ -147,6 +147,8 @@ internal sealed class Binder {
                 if (options.isLibrary) {
                     if (symbol.name == WellKnownTypeNames.List)
                         binder._wellKnownTypes.Add(WellKnownTypeNames.List, symbol);
+                    else if (symbol.name == WellKnownTypeNames.Dictionary)
+                        binder._wellKnownTypes.Add(WellKnownTypeNames.Dictionary, symbol);
                     else if (symbol.name == WellKnownTypeNames.Exception)
                         binder._wellKnownTypes.Add(WellKnownTypeNames.Exception, symbol);
                 }
@@ -836,7 +838,7 @@ internal sealed class Binder {
         if (!result.succeeded)
             return new BoundErrorExpression();
 
-        if (result.bestOverload.accessibility == Accessibility.Private) {
+        if (_options.buildMode != BuildMode.Repl && result.bestOverload.accessibility == Accessibility.Private) {
             if (_containingType is null ||
                 _containingType != result.bestOverload.containingType) {
                 diagnostics.Push(Error.MemberIsInaccessible(
@@ -1790,33 +1792,37 @@ internal sealed class Binder {
             templates.Add(templateParameter);
         }
 
-        var baseType = @class.baseType is null
-            ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
-            : BindBaseType(@class.baseType);
-
-        if (baseType.typeSymbol.isSealed)
-            diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
-
-        if (baseType.typeSymbol.isStatic)
-            diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
-
         var constraints = BindConstraintClauseList(oldClass.name, @class.constraintClauseList, templates.ToImmutable());
         ApplyExtensionConstraints(constraints, templateTypes);
 
-        foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
-            switch (member.kind) {
-                case SymbolKind.Field:
-                    _scope.TryDeclareVariable(member as FieldSymbol);
-                    break;
-                case SymbolKind.Type:
-                    _scope.TryDeclareType(member as NamedTypeSymbol);
-                    break;
-                case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
-                    _scope.TryDeclareMethod(member as MethodSymbol);
-                    inheritedMethods.Add(member as MethodSymbol);
-                    break;
-                default:
-                    continue;
+        BoundType baseType = null;
+
+        if (!oldClass.isStatic) {
+            baseType = @class.baseType is null
+                ? new BoundType(_wellKnownTypes[WellKnownTypeNames.Object])
+                : BindBaseType(@class.baseType);
+
+            if (baseType.typeSymbol.isSealed)
+                diagnostics.Push(Error.CannotDeriveSealed(@class.baseType.type.location, baseType.typeSymbol.name));
+
+            if (baseType.typeSymbol.isStatic)
+                diagnostics.Push(Error.CannotDeriveStatic(@class.baseType.type.location, baseType.typeSymbol.name));
+
+            foreach (var member in (baseType.typeSymbol as ClassSymbol).GetMembers()) {
+                switch (member.kind) {
+                    case SymbolKind.Field:
+                        _scope.TryDeclareVariable(member as FieldSymbol);
+                        break;
+                    case SymbolKind.Type:
+                        _scope.TryDeclareType(member as NamedTypeSymbol);
+                        break;
+                    case SymbolKind.Method when member.name != WellKnownMemberNames.InstanceConstructorName:
+                        _scope.TryDeclareMethod(member as MethodSymbol);
+                        inheritedMethods.Add(member as MethodSymbol);
+                        break;
+                    default:
+                        continue;
+                }
             }
         }
 
@@ -2725,7 +2731,8 @@ internal sealed class Binder {
             diagnostics.Push(Error.CannotUseGlobalInClass(syntax.location, name));
         }
 
-        if (_containingType is not null &&
+        if (_options.buildMode != BuildMode.Repl &&
+            _containingType is not null &&
             result is BoundVariableExpression v &&
             v.variable.accessibility == Accessibility.Private &&
             _containingType != v.variable.containingType) {
@@ -2962,7 +2969,7 @@ internal sealed class Binder {
             var insideSameType = _containingType == v.variable.containingType;
             var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, v.variable.containingType);
 
-            if (left.type.typeSymbol is ClassSymbol) {
+            if (_options.buildMode != BuildMode.Repl && left.type.typeSymbol is ClassSymbol) {
                 if ((v.variable.accessibility == Accessibility.Private && !insideSameType) ||
                     (v.variable.accessibility == Accessibility.Protected && !insideChildType)) {
                     diagnostics.Push(Error.MemberIsInaccessible(
@@ -3638,10 +3645,11 @@ internal sealed class Binder {
         bool allowTypes) {
         switch (expression.kind) {
             case SyntaxKind.LiteralExpression:
-                if (expression is InitializerListExpressionSyntax il)
-                    return BindInitializerListExpression(il, initializerListType);
-                else
-                    return BindLiteralExpression((LiteralExpressionSyntax)expression);
+                return BindLiteralExpression((LiteralExpressionSyntax)expression);
+            case SyntaxKind.InitializerListExpression:
+                return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
+            case SyntaxKind.InitializerDictionaryExpression:
+                return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)expression);
             case SyntaxKind.UnaryExpression:
                 return BindUnaryExpression((UnaryExpressionSyntax)expression);
             case SyntaxKind.BinaryExpression:
@@ -3788,8 +3796,9 @@ internal sealed class Binder {
             var insideSameType = _containingType == result.bestOverload.containingType;
             var insideChildType = TypeUtilities.TypeInheritsFrom(_containingType, result.bestOverload.containingType);
 
-            if ((result.bestOverload.accessibility == Accessibility.Private && !insideSameType) ||
-                (result.bestOverload.accessibility == Accessibility.Protected && !insideChildType)) {
+            if (_options.buildMode != BuildMode.Repl &&
+                ((result.bestOverload.accessibility == Accessibility.Private && !insideSameType) ||
+                (result.bestOverload.accessibility == Accessibility.Protected && !insideChildType))) {
                 diagnostics.Push(Error.MemberIsInaccessible(
                     expression.type.location,
                     result.bestOverload.Signature(),
@@ -4113,7 +4122,7 @@ internal sealed class Binder {
                 }
             }
 
-            if (method.accessibility == Accessibility.Private) {
+            if (_options.buildMode != BuildMode.Repl && method.accessibility == Accessibility.Private) {
                 if (_containingType is null ||
                     _containingType != method.containingType) {
                     diagnostics.Push(Error.MemberIsInaccessible(
@@ -4289,6 +4298,32 @@ internal sealed class Binder {
             _usedLibraryTypes.Add(listType);
 
         return new BoundObjectCreationExpression(constructedListType, listType.constructors[3], [initializerList]);
+    }
+
+    private BoundExpression BindInitializerDictionaryExpression(InitializerDictionaryExpressionSyntax expression) {
+        // TODO need to add type checking
+        var keyType = BoundType.Any;
+        var valueType = BoundType.Any;
+
+        var builder = ImmutableArray.CreateBuilder<(BoundExpression, BoundExpression)>();
+
+        foreach (var pair in expression.items) {
+            var key = BindExpression(pair.key);
+            var value = BindExpression(pair.value);
+            builder.Add((key, value));
+        }
+
+        var dictionaryType = _wellKnownTypes[WellKnownTypeNames.Dictionary];
+        var constructedType = new BoundType(
+            dictionaryType,
+            templateArguments: [new BoundTypeOrConstant(keyType), new BoundTypeOrConstant(valueType)],
+            arity: 2
+        );
+
+        if (!_options.isLibrary)
+            _usedLibraryTypes.Add(dictionaryType);
+
+        return new BoundInitializerDictionaryExpression(builder.ToImmutable(), constructedType);
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax expression) {

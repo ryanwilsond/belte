@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Symbols;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -14,13 +16,13 @@ internal sealed class Optimizer : BoundTreeRewriter {
     /// Optimizes a <see cref="BoundStatement" />.
     /// </summary>
     /// <param name="statement"><see cref="BoundStatement" /> to optimize.</param>
-    /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of optimizing.</param>
+    /// <param name="removeDeadCode">If the compiler is transpiling skip this part of optimizing.</param>
     /// <returns>Optimized <param name="statement" />.</returns>
-    internal static BoundStatement Optimize(BoundStatement statement, bool transpilerMode) {
+    internal static BoundStatement Optimize(BoundStatement statement, bool removeDeadCode) {
         var optimizer = new Optimizer();
         var optimizedStatement = optimizer.RewriteStatement(statement);
 
-        if (statement is BoundBlockStatement && !transpilerMode)
+        if (statement is BoundBlockStatement && removeDeadCode)
             return RemoveDeadCode(optimizedStatement as BoundBlockStatement);
         else
             return optimizedStatement;
@@ -120,6 +122,26 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         var index = (int)expression.index.constantValue.value;
         return RewriteExpression(i.items[index]);
+    }
+
+    protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+        /*
+
+        <method>(<arguments>)
+
+        ----> <method> is Length and argument is a constant list
+
+        <length of constant list>
+
+        */
+        if (expression.method == BuiltinMethods.Length && expression.arguments[0].constantValue is not null) {
+            var constantList = expression.arguments[0].constantValue.value as ImmutableArray<BoundConstant>?;
+
+            if (constantList.HasValue)
+                return RewriteLiteralExpression(new BoundLiteralExpression(constantList.Value.Length));
+        }
+
+        return base.RewriteCallExpression(expression);
     }
 
     private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {

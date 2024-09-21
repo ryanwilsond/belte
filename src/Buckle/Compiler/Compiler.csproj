@@ -8,7 +8,12 @@
 
   <ItemGroup>
     <Content Remove="Resources/ErrorDescriptionsBU.txt" />
+    <Content Remove="../../Belte/Standard/HashHelpers.blt" />
+    <Content Remove="../../Belte/Standard/Collections/KeyNotFoundException.blt" />
+    <Content Remove="../../Belte/Standard/Collections/EqualityComparer.blt" />
+    <Content Remove="../../Belte/Standard/Collections/Array.blt" />
     <Content Remove="../../Belte/Standard/Collections/List.blt" />
+    <Content Remove="../../Belte/Standard/Collections/Dictionary.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/ArgumentException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/ArgumentNullException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
@@ -20,7 +25,12 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/ErrorDescriptionsBU.txt" />
+    <EmbeddedResource Include="../../Belte/Standard/HashHelpers.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Collections/KeyNotFoundException.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Collections/EqualityComparer.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Collections/Array.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Collections/List.blt" />
+    <EmbeddedResource Include="../../Belte/Standard/Collections/Dictionary.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentNullException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/ArgumentOutOfRangeException.blt" />

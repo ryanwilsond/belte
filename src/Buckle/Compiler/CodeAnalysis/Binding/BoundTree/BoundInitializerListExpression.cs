@@ -13,13 +13,14 @@ internal sealed class BoundInitializerListExpression : BoundExpression {
     }
 
     internal BoundInitializerListExpression(BoundConstant constantValue, BoundType type) {
+        items = ImmutableArray<BoundExpression>.Empty;
         this.type = type;
         this.constantValue = constantValue;
     }
 
     internal ImmutableArray<BoundExpression> items { get; }
 
-    internal override BoundNodeKind kind => BoundNodeKind.LiteralExpression;
+    internal override BoundNodeKind kind => BoundNodeKind.InitializerListExpression;
 
     internal override BoundType type { get; }
 

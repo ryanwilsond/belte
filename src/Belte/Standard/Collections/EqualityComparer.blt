@@ -2,6 +2,8 @@
 abstract class EqualityComparer<type T> {
     public abstract bool! Equals(T x, T y);
 
+    public abstract int! GetHashCode(T obj);
+
     public static EqualityComparer<T> CreateComparer() {
         var t = typeof(T);
 
@@ -33,10 +35,18 @@ sealed class PrimitiveEqualityComparer<type T> extends EqualityComparer<T> {
 
         return x! == y!;
     }
+
+    public override int! GetHashCode(T obj) {
+        return GetHashCode(obj);
+    }
 }
 
 sealed class ObjectEqualityComparer<type T> extends EqualityComparer<T> {
     public override bool! Equals(T x, T y) {
         return ToObject(x).Equals(ToObject(y));
+    }
+
+    public override int! GetHashCode(T obj) {
+        return ToObject(obj).GetHashCode();
     }
 }
