@@ -154,6 +154,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0141 | Error | '{0}' cannot be marked abstract because it is not contained by an abstract type |
 | BU0142 | Error | '{0}' must implement inherited abstract member '{1}.{2}' |
 | BU0143 | Error | operator '{0}' requires a matching operator '{1}' to also be defined |
+| BU0144 | Error | invalid expression term '{0}' |
 
 ## Command Line Diagnostics
 

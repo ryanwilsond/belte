@@ -97,7 +97,7 @@ internal sealed class BoundPrefixOperator {
         foreach (var op in Operators) {
             var operandIsCorrect = op.operandType is null
                 ? true
-                : Cast.Classify(operandType, op.operandType, false).isImplicit;
+                : Conversion.Classify(operandType, op.operandType, false).isImplicit;
 
             if (op.kind == kind && operandIsCorrect) {
                 if (op.operandType is null) {

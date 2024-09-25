@@ -78,6 +78,7 @@ internal sealed class TypeWithAnnotations {
     internal TypeWithAnnotations(TypeSymbol underlyingType, bool isNullable) {
         this.underlyingType = underlyingType;
         this.isNullable = isNullable;
+        this.underlyingType.AddAnnotations(this);
     }
 
     internal TypeSymbol underlyingType { get; }

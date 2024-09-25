@@ -27,18 +27,6 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     public override SymbolKind kind => SymbolKind.Type;
 
-    public override bool isStatic => (modifiers & DeclarationModifiers.Static) != 0;
-
-    public override bool isAbstract => (modifiers & DeclarationModifiers.Abstract) != 0;
-
-    public override bool isSealed => (modifiers & DeclarationModifiers.Sealed) != 0;
-
-    public override bool isVirtual => false;
-
-    public override bool isOverride => false;
-
-    public ImmutableArray<MethodSymbol> constructors => GetConstructors();
-
     public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
     public ImmutableArray<BoundExpression> templateConstraints { get; }
@@ -46,6 +34,20 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
     public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     public abstract TemplateMap templateSubstitution { get; }
+
+    internal override bool isStatic => (modifiers & DeclarationModifiers.Static) != 0;
+
+    internal override bool isAbstract => (modifiers & DeclarationModifiers.Abstract) != 0;
+
+    internal override bool isSealed => (modifiers & DeclarationModifiers.Sealed) != 0;
+
+    internal override bool isVirtual => false;
+
+    internal override bool isOverride => false;
+
+    internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
+
+    internal TypeWithAnnotations typeWithAnnotations { get; private set; }
 
     internal abstract ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments { get; }
 
@@ -58,6 +60,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
     internal TypeDeclarationSyntax declaration { get; }
 
     internal override ImmutableArray<Symbol> members { get; }
+
+    internal new NamedTypeSymbol originalDefinition => this;
 
     /// <summary>
     /// Gets a string representation of the type signature without template parameter names.
@@ -78,6 +82,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
         signature.Append('>');
 
         return signature.ToString();
+    }
+
+    internal override void AddAnnotations(TypeWithAnnotations annotations) {
+        typeWithAnnotations = annotations;
     }
 
     internal override bool InheritsFrom(TypeSymbol other) {

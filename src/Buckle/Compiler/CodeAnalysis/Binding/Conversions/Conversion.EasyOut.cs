@@ -2,23 +2,23 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed partial class Cast {
+internal sealed partial class Conversion {
     private static class EasyOut {
         private static readonly byte[,] CastKindMap;
 
         static EasyOut() {
-            const byte NON = (byte)CastKind.None;
-            const byte IDN = (byte)CastKind.Identity;
-            const byte IPL = (byte)CastKind.Implicit;
-            const byte XPL = (byte)CastKind.Explicit;
-            const byte BOX = (byte)CastKind.AnyBoxing;
-            const byte BNU = (byte)CastKind.AnyBoxingImplicitNullable;
-            const byte BXN = (byte)CastKind.AnyBoxingExplicitNullable;
-            const byte UNB = (byte)CastKind.AnyUnboxing;
-            const byte UIN = (byte)CastKind.AnyUnboxingImplicitNullable;
-            const byte UXN = (byte)CastKind.AnyUnboxingExplicitNullable;
-            const byte NUL = (byte)CastKind.ImplicitNullable;
-            const byte XNL = (byte)CastKind.ExplicitNullable;
+            const byte NON = (byte)ConversionKind.None;
+            const byte IDN = (byte)ConversionKind.Identity;
+            const byte IPL = (byte)ConversionKind.Implicit;
+            const byte XPL = (byte)ConversionKind.Explicit;
+            const byte BOX = (byte)ConversionKind.AnyBoxing;
+            const byte BNU = (byte)ConversionKind.AnyBoxingImplicitNullable;
+            const byte BXN = (byte)ConversionKind.AnyBoxingExplicitNullable;
+            const byte UNB = (byte)ConversionKind.AnyUnboxing;
+            const byte UIN = (byte)ConversionKind.AnyUnboxingImplicitNullable;
+            const byte UXN = (byte)ConversionKind.AnyUnboxingExplicitNullable;
+            const byte NUL = (byte)ConversionKind.ImplicitNullable;
+            const byte XNL = (byte)ConversionKind.ExplicitNullable;
 
             CastKindMap = new byte[,] {
                 // Casting Y to X:
@@ -40,18 +40,18 @@ internal sealed partial class Cast {
             };
         }
 
-        internal static CastKind Classify(TypeSymbol source, TypeSymbol target) {
+        internal static ConversionKind Classify(TypeSymbol source, TypeSymbol target) {
             var sourceIndex = source.TypeToIndex();
 
             if (sourceIndex < 0)
-                return CastKind.None;
+                return ConversionKind.None;
 
             var targetIndex = target.TypeToIndex();
 
             if (targetIndex < 0)
-                return CastKind.None;
+                return ConversionKind.None;
 
-            return (CastKind)CastKindMap[sourceIndex, targetIndex];
+            return (ConversionKind)CastKindMap[sourceIndex, targetIndex];
         }
     }
 }

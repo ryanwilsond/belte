@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 
@@ -75,11 +76,11 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
 
     public override SymbolKind kind => SymbolKind.Type;
 
-    public new TypeSymbol originalDefinition => originalTypeDefinition;
+    internal new TypeSymbol originalDefinition => originalTypeDefinition;
 
-    public virtual TypeSymbol originalTypeDefinition => this;
+    internal virtual TypeSymbol originalTypeDefinition => this;
 
-    public override Symbol originalSymbolDefinition => originalTypeDefinition;
+    internal override Symbol originalSymbolDefinition => originalTypeDefinition;
 
     internal abstract NamedTypeSymbol baseType { get; }
 
@@ -91,10 +92,6 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     internal abstract TypeKind typeKind { get; }
 
     internal virtual SpecialType specialType => SpecialType.None;
-
-    internal abstract bool isRef { get; }
-
-    internal abstract TypeWithAnnotations typeWithAnnotations { get; }
 
     internal virtual ImmutableArray<Symbol> members { get; }
 
@@ -118,6 +115,8 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
 
         return _lazyMembers.ToImmutableArray<ISymbol>();
     }
+
+    internal abstract void AddAnnotations(TypeWithAnnotations annotations);
 
     internal virtual bool InheritsFrom(TypeSymbol other) => false;
 

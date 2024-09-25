@@ -10,15 +10,17 @@ internal sealed class TemplateParameterSymbol : TypeSymbol {
         this.baseType = baseType;
     }
 
-    public override bool isStatic => false;
+    public override SymbolKind kind => SymbolKind.TemplateParameter;
 
-    public override bool isAbstract => false;
+    internal override bool isStatic => false;
 
-    public override bool isSealed => false;
+    internal override bool isAbstract => false;
 
-    public override bool isVirtual => false;
+    internal override bool isSealed => false;
 
-    public override bool isOverride => false;
+    internal override bool isVirtual => false;
+
+    internal override bool isOverride => false;
 
     internal ParameterSymbol parameter { get; }
 

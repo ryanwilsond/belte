@@ -25,18 +25,19 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
         _declarationModifiers = modifiers;
     }
 
-    public override bool isStatic
-        => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
-
-    public override bool isVirtual => false;
-
-    public override bool isAbstract => false;
-
-    public override bool isSealed => false;
-
-    public override bool isOverride => false;
 
     public ITypeSymbol typeSymbol => typeWithAnnotations.underlyingType;
+
+    internal override bool isStatic
+        => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
+
+    internal override bool isVirtual => false;
+
+    internal override bool isAbstract => false;
+
+    internal override bool isSealed => false;
+
+    internal override bool isOverride => false;
 
     internal bool isConstantReference => (_declarationModifiers & DeclarationModifiers.ConstExpr) != 0;
 
@@ -45,7 +46,7 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     internal bool isConstant
         => (_declarationModifiers & (DeclarationModifiers.Const | DeclarationModifiers.ConstExpr)) != 0;
 
-    internal bool isNullable => (_declarationModifiers & DeclarationModifiers.NonNullable) == 0;
+    internal bool isNullable => typeWithAnnotations.isNullable;
 
     internal TypeWithAnnotations typeWithAnnotations { get; }
 

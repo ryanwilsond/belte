@@ -35,7 +35,7 @@ internal sealed class ConstructedMethodSymbol : MethodSymbol {
 
     public override TemplateMap templateSubstitution => null;
 
-    public override MethodSymbol originalMethodDefinition { get; }
+    internal override MethodSymbol originalMethodDefinition { get; }
 
     /// <summary>
     /// Creates a new method symbol with different parameters, but everything else is identical.

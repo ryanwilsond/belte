@@ -104,7 +104,11 @@ internal static class Error {
     /// BU0007. Run `buckle --explain BU0007` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotConvertImplicitly(
-        TextLocation location, BoundType from, BoundType to, int argument, bool canAssert) {
+        TextLocation location,
+        BoundType from,
+        BoundType to,
+        int argument,
+        bool canAssert) {
         var message =
             $"cannot convert from type '{from}' to '{to}' implicitly; " +
             "an explicit conversion exists (are you missing a cast?)";
@@ -151,7 +155,11 @@ internal static class Error {
     /// BU0011. Run `buckle --explain BU0011` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic InvalidBinaryOperatorUse(
-        TextLocation location, string op, BoundType left, BoundType right, bool isCompound) {
+        TextLocation location,
+        string op,
+        BoundType left,
+        BoundType right,
+        bool isCompound) {
         var operatorWord = isCompound ? "compound" : "binary";
         var message = $"{operatorWord} operator '{op}' is not defined for types '{left}' and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidBinaryOperatorUse), location, message);
@@ -1325,6 +1333,14 @@ internal static class Error {
         var message = $"operator {DiagnosticText(existingOperator, false)} requires a matching operator " +
             $"{DiagnosticText(neededOperator, false)} to also be defined";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingOperatorPair), location, message);
+    }
+
+    /// <summary>
+    /// BU0144. Run `buckle --explain BU0144` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic InvalidExpressionTerm(SyntaxKind kind) {
+        var message = $"invalid expression term {kind}";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidExpressionTerm), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

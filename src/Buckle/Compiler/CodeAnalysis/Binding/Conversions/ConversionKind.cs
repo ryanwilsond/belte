@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal enum CastKind : byte {
+internal enum ConversionKind : byte {
     None,
     Identity,
     Implicit,

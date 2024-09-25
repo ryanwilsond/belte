@@ -29,5 +29,5 @@ internal sealed class SubstitutedMethodSymbol : MethodSymbol {
 
     public override TemplateMap templateSubstitution { get; }
 
-    public override MethodSymbol originalMethodDefinition { get; }
+    internal override MethodSymbol originalMethodDefinition { get; }
 }

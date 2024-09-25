@@ -1103,14 +1103,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var operatorToken = EatToken();
 
             if (operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
-                var operand = ParsePrimaryExpression();
+                var operand = ParsePrimaryExpression(unaryPrecedence);
                 left = SyntaxFactory.PrefixExpression(operatorToken, operand);
             } else {
                 var operand = ParseOperatorExpression(unaryPrecedence);
                 left = SyntaxFactory.UnaryExpression(operatorToken, operand);
             }
         } else {
-            left = ParsePrimaryExpression();
+            left = ParsePrimaryExpression(parentPrecedence);
         }
 
         while (true) {
@@ -1175,7 +1175,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return left;
     }
 
-    private ExpressionSyntax ParsePrimaryExpressionInternal() {
+    private ExpressionSyntax ParsePrimaryExpressionInternal(int parentPrecedence) {
         switch (currentToken.kind) {
             case SyntaxKind.OpenParenToken:
                 if (PeekIsCastExpression())
@@ -1195,8 +1195,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNullLiteral();
             case SyntaxKind.OpenBraceToken:
                 return ParseInitializerListOrDictionaryExpression();
-            case SyntaxKind.RefKeyword:
-                return ParseReferenceExpression();
             case SyntaxKind.TypeOfKeyword:
                 return ParseTypeOfExpression();
             case SyntaxKind.NameOfKeyword:
@@ -1209,6 +1207,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseBaseExpression();
             case SyntaxKind.ThrowKeyword:
                 return ParseThrowExpression();
+            case SyntaxKind.RefKeyword when parentPrecedence == 0:
+                return ParseReferenceExpression();
+            case SyntaxKind.RefKeyword when parentPrecedence > 0:
+                return AddDiagnostic(ParseReferenceExpression(), Error.InvalidExpressionTerm(SyntaxKind.RefKeyword));
             case SyntaxKind.IdentifierToken:
             default:
                 return ParseLastCaseName();
@@ -1216,18 +1218,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {
-        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax expression) {
-            return currentToken.kind switch {
-                SyntaxKind.OpenParenToken => ParseCallExpression(expression),
-                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
-                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
-                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken
-                    => ParsePostfixExpression(expression),
-                _ => expression,
-            };
-        }
-
-        left ??= ParsePrimaryExpressionInternal();
+        left ??= ParsePrimaryExpressionInternal(parentPrecedence);
 
         while (true) {
             var startToken = currentToken;
@@ -1244,6 +1235,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         return left;
+
+        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax expression) {
+            return currentToken.kind switch {
+                SyntaxKind.OpenParenToken => ParseCallExpression(expression),
+                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
+                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
+                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken
+                    => ParsePostfixExpression(expression),
+                _ => expression,
+            };
+        }
     }
 
     private ExpressionSyntax ParseCastExpression() {

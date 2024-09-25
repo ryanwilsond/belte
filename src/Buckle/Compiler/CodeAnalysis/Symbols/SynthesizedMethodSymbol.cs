@@ -28,5 +28,5 @@ internal sealed class SynthesizedMethodSymbol : MethodSymbol {
 
     public override TemplateMap templateSubstitution => null;
 
-    public override MethodSymbol originalMethodDefinition => this;
+    internal override MethodSymbol originalMethodDefinition => this;
 }

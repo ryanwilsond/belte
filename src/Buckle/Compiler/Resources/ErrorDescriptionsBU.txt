@@ -2162,6 +2162,14 @@ class A {
 
 As shown in the example, if either operators `==` or `!=` are defined, both must
 be defined.
+$BU0144
+Not all expressions are valid terms, such as ref expressions.
+
+For example:
+
+```
+var x = 3 + ref a; // Invalid, `ref` is not a valid term
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

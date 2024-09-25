@@ -24,7 +24,7 @@ internal class ParameterSymbol : LocalVariableSymbol {
 
     public override SymbolKind kind => SymbolKind.Parameter;
 
-    public override bool isStatic => base.isStatic || isTemplate;
+    internal override bool isStatic => base.isStatic || isTemplate;
 
     /// <summary>
     /// If the parameter is apart of a template parameter list.

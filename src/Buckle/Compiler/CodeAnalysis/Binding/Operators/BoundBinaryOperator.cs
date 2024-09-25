@@ -232,11 +232,11 @@ internal sealed class BoundBinaryOperator {
         foreach (var op in Operators) {
             var leftIsCorrect = op.leftType is null
                 ? true
-                : Cast.Classify(leftType, op.leftType, false).isImplicit;
+                : Conversion.Classify(leftType, op.leftType, false).isImplicit;
 
             var rightIsCorrect = op.rightType is null
                 ? true
-                : Cast.Classify(rightType, op.rightType, false).isImplicit;
+                : Conversion.Classify(rightType, op.rightType, false).isImplicit;
 
             if (op.kind == kind && leftIsCorrect && rightIsCorrect) {
                 if (op.leftType is null || op.rightType is null || op.type is null) {

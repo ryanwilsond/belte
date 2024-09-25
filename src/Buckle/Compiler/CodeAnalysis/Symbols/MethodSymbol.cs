@@ -34,16 +34,6 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     public override SymbolKind kind => SymbolKind.Method;
 
-    public override bool isStatic => (modifiers & DeclarationModifiers.Static) != 0;
-
-    public override bool isAbstract => (modifiers & DeclarationModifiers.Abstract) != 0;
-
-    public override bool isVirtual => (modifiers & DeclarationModifiers.Virtual) != 0;
-
-    public override bool isOverride => (modifiers & DeclarationModifiers.Override) != 0;
-
-    public override bool isSealed => false;
-
     public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
     public ImmutableArray<BoundExpression> templateConstraints { get; }
@@ -52,13 +42,25 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     public abstract TemplateMap templateSubstitution { get; }
 
-    public DeclarationModifiers modifiers { get; }
+    internal override bool isStatic => (modifiers & DeclarationModifiers.Static) != 0;
 
-    public new MethodSymbol originalDefinition => originalMethodDefinition;
+    internal override bool isAbstract => (modifiers & DeclarationModifiers.Abstract) != 0;
 
-    public virtual MethodSymbol originalMethodDefinition => this;
+    internal override bool isVirtual => (modifiers & DeclarationModifiers.Virtual) != 0;
 
-    public override Symbol originalSymbolDefinition => originalMethodDefinition;
+    internal override bool isOverride => (modifiers & DeclarationModifiers.Override) != 0;
+
+    internal override bool isSealed => false;
+
+    internal DeclarationModifiers modifiers { get; }
+
+    internal new MethodSymbol originalDefinition => originalMethodDefinition;
+
+    internal virtual MethodSymbol originalMethodDefinition => this;
+
+    internal abstract MethodKind methodKind { get; }
+
+    internal override Symbol originalSymbolDefinition => originalMethodDefinition;
 
     internal bool isConstant => (modifiers & DeclarationModifiers.Const) != 0;
 

@@ -98,7 +98,7 @@ internal sealed class BoundPostfixOperator {
         foreach (var op in Operators) {
             var operandIsCorrect = op.operandType is null
                 ? true
-                : Cast.Classify(operandType, op.operandType, false).isImplicit;
+                : Conversion.Classify(operandType, op.operandType, false).isImplicit;
             var nonNullable = op.operandType is null;
 
             if (op.kind == kind && operandIsCorrect) {

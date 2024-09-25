@@ -81,15 +81,15 @@ internal sealed class BoundTernaryOperator {
         foreach (var op in Operators) {
             var leftIsCorrect = op.leftType is null
                 ? true
-                : Cast.Classify(leftType, op.leftType, false).isImplicit;
+                : Conversion.Classify(leftType, op.leftType, false).isImplicit;
 
             var centerIsCorrect = op.centerType is null
                 ? true
-                : Cast.Classify(centerType, op.centerType, false).isImplicit;
+                : Conversion.Classify(centerType, op.centerType, false).isImplicit;
 
             var rightIsCorrect = op.rightType is null
                 ? true
-                : Cast.Classify(rightType, op.rightType, false).isImplicit;
+                : Conversion.Classify(rightType, op.rightType, false).isImplicit;
 
             if (op.leftOpKind == leftOpKind && op.rightOpKind == rightOpKind &&
                 leftIsCorrect && rightIsCorrect && centerIsCorrect) {

@@ -11,8 +11,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A scope of code.
 /// </summary>
 internal sealed class BoundScope {
-    private readonly bool _isBlock;
-
     private List<Symbol> _symbols;
     private List<Symbol> _assignedSymbols;
     private BoundScope _parent;
@@ -21,9 +19,8 @@ internal sealed class BoundScope {
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope.</param>
-    internal BoundScope(BoundScope parent, bool isBlock = false) {
+    internal BoundScope(BoundScope parent) {
         _parent = parent;
-        _isBlock = isBlock;
     }
 
     internal BoundScope parent {
@@ -324,7 +321,7 @@ internal sealed class BoundScope {
             }
         }
 
-        return _isBlock ? (parent is null ? false : parent.Contains(name)) : false;
+        return false;
     }
 
     private ImmutableArray<T> GetDeclaredSymbols<T>() where T : Symbol {

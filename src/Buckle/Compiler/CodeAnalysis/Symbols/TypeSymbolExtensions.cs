@@ -15,7 +15,7 @@ internal static class TypeSymbolExtensions {
             case SpecialType.Decimal: return 5;
             case SpecialType.Type: return 6;
             case SpecialType.Nullable:
-                var underlyingType = type.typeWithAnnotations.underlyingType;
+                var underlyingType = type.GetNullableUnderlyingType();
 
                 switch (underlyingType.specialType) {
                     case SpecialType.Any: return 7;
@@ -30,5 +30,34 @@ internal static class TypeSymbolExtensions {
                 goto default;
             default: return -1;
         }
+    }
+
+    internal static bool IsNullableType(this TypeSymbol type) {
+        return type.originalDefinition.specialType == SpecialType.Nullable;
+    }
+
+    internal static TypeSymbol GetNullableUnderlyingType(this TypeSymbol type) {
+        return type.GetNullableUnderlyingTypeWithAnnotations().underlyingType;
+    }
+
+    internal static TypeWithAnnotations GetNullableUnderlyingTypeWithAnnotations(this TypeSymbol type) {
+        return ((NamedTypeSymbol)type).typeWithAnnotations;
+    }
+
+    internal static TypeSymbol StrippedType(this TypeSymbol type) {
+        return type.IsNullableType() ? type.GetNullableUnderlyingType() : type;
+    }
+
+    internal static bool InheritsFromIgnoringConstruction(this TypeSymbol type, NamedTypeSymbol baseType) {
+        var current = type;
+
+        while (current is not null) {
+            if (current == (object)baseType)
+                return true;
+
+            current = current.baseType?.originalDefinition;
+        }
+
+        return false;
     }
 }

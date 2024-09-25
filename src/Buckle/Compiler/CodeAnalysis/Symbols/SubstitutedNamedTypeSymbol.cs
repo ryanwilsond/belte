@@ -10,9 +10,7 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
     internal SubstitutedNamedTypeSymbol(
         NamedTypeSymbol originalDefinition,
         ImmutableArray<TypeOrConstant> templateArguments,
-        TemplateMap templateSubstitution,
-        TypeWithAnnotations typeWithAnnotations,
-        bool isRef)
+        TemplateMap templateSubstitution)
         : base(
             originalDefinition.templateParameters,
             originalDefinition.templateConstraints,
@@ -23,9 +21,11 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
         originalTypeDefinition = originalDefinition;
         this.templateArguments = templateArguments;
         this.templateSubstitution = templateSubstitution;
-        this.typeWithAnnotations = typeWithAnnotations;
-        this.isRef = isRef;
     }
+
+    public override ImmutableArray<TypeOrConstant> templateArguments { get; }
+
+    public override TemplateMap templateSubstitution { get; }
 
     internal override ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments
         => (originalTypeDefinition as NamedTypeSymbol).defaultFieldAssignments;
@@ -37,19 +37,11 @@ internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
 
     internal override TypeKind typeKind => originalTypeDefinition.typeKind;
 
-    internal override TypeWithAnnotations typeWithAnnotations { get; }
+    internal new TypeSymbol originalDefinition => originalTypeDefinition;
 
-    internal override bool isRef { get; }
+    internal override TypeSymbol originalTypeDefinition { get; }
 
-    public override ImmutableArray<TypeOrConstant> templateArguments { get; }
-
-    public override TemplateMap templateSubstitution { get; }
-
-    public new TypeSymbol originalDefinition => originalTypeDefinition;
-
-    public override TypeSymbol originalTypeDefinition { get; }
-
-    public override Symbol originalSymbolDefinition => originalTypeDefinition;
+    internal override Symbol originalSymbolDefinition => originalTypeDefinition;
 
     internal override bool InheritsFrom(TypeSymbol other) {
         if (other is null)

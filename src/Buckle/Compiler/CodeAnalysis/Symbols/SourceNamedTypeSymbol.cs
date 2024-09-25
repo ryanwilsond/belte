@@ -16,23 +16,19 @@ internal sealed class SourceNamedTypeSymbol : NamedTypeSymbol {
         this.typeKind = typeKind;
     }
 
+    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+
+    public override TemplateMap templateSubstitution => null;
+
     internal override ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments => [];
 
     internal override TypeKind typeKind { get; }
 
     internal override NamedTypeSymbol baseType => null;
 
-    internal override TypeWithAnnotations typeWithAnnotations => null;
+    internal new TypeSymbol originalDefinition => originalTypeDefinition;
 
-    internal override bool isRef => false;
+    internal override TypeSymbol originalTypeDefinition => this;
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
-
-    public override TemplateMap templateSubstitution => null;
-
-    public new TypeSymbol originalDefinition => originalTypeDefinition;
-
-    public override TypeSymbol originalTypeDefinition => this;
-
-    public override Symbol originalSymbolDefinition => originalTypeDefinition;
+    internal override Symbol originalSymbolDefinition => originalTypeDefinition;
 }

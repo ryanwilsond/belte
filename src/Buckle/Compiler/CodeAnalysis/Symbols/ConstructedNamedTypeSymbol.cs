@@ -28,6 +28,10 @@ internal sealed class ConstructedNamedTypeSymbol : NamedTypeSymbol {
         originalTypeDefinition = originalDefinition;
     }
 
+    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+
+    public override TemplateMap templateSubstitution => null;
+
     /// <summary>
     /// Statements that assigns fields with specified initializers. Used in constructors.
     /// </summary>
@@ -40,19 +44,11 @@ internal sealed class ConstructedNamedTypeSymbol : NamedTypeSymbol {
 
     internal override TypeKind typeKind => originalTypeDefinition.typeKind;
 
-    internal override TypeWithAnnotations typeWithAnnotations => null;
+    internal new TypeSymbol originalDefinition => originalTypeDefinition;
 
-    internal override bool isRef => false;
+    internal override TypeSymbol originalTypeDefinition { get; }
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
-
-    public override TemplateMap templateSubstitution => null;
-
-    public new TypeSymbol originalDefinition => originalTypeDefinition;
-
-    public override TypeSymbol originalTypeDefinition { get; }
-
-    public override Symbol originalSymbolDefinition => originalTypeDefinition;
+    internal override Symbol originalSymbolDefinition => originalTypeDefinition;
 
     protected override void ConstructLazyMembers() {
         _lazyMembers = [.. members, .. baseType?.GetMembers() ?? []];

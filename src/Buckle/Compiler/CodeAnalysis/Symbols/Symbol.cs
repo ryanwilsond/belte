@@ -6,6 +6,10 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A base symbol.
 /// </summary>
 internal abstract class Symbol : ISymbol {
+    private protected Symbol() {
+        accessibility = Accessibility.NotApplicable;
+    }
+
     private protected Symbol(string name) {
         this.name = name;
         accessibility = Accessibility.NotApplicable;
@@ -19,26 +23,26 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// Name of the symbol.
     /// </summary>
-    public string name { get; }
+    public virtual string name { get; }
+
+    public ITypeSymbolWithMembers parent => containingType;
 
     /// <summary>
     /// The accessibility/protection level of the symbol.
     /// </summary> <summary>
-    public Accessibility accessibility { get; }
+    internal Accessibility accessibility { get; }
 
     /// <summary>
     /// The type that contains this symbol, or null if nothing is containing this symbol.
     /// </summary>
-    public virtual NamedTypeSymbol containingType { get; private set; }
+    internal virtual NamedTypeSymbol containingType { get; private set; }
 
     /// <summary>
     /// Gets the original definition of the symbol.
     /// </summary>
-    public Symbol originalDefinition => originalSymbolDefinition;
+    internal Symbol originalDefinition => originalSymbolDefinition;
 
-    public virtual Symbol originalSymbolDefinition => this;
-
-    public ITypeSymbolWithMembers parent => containingType;
+    internal virtual Symbol originalSymbolDefinition => this;
 
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
@@ -48,27 +52,27 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// If the symbol is "static", i.e. declared with the static modifier.
     /// </summary>
-    public abstract bool isStatic { get; }
+    internal abstract bool isStatic { get; }
 
     /// <summary>
     /// If the symbol is "virtual", i.e. is defined but can be overridden
     /// </summary>
-    public abstract bool isVirtual { get; }
+    internal abstract bool isVirtual { get; }
 
     /// <summary>
     /// If the symbol is "abstract", i.e. must be overridden or cannot be constructed directly.
     /// </summary>
-    public abstract bool isAbstract { get; }
+    internal abstract bool isAbstract { get; }
 
     /// <summary>
     /// If the symbol is "override", i.e. overriding a virtual or abstract symbol.
     /// </summary>
-    public abstract bool isOverride { get; }
+    internal abstract bool isOverride { get; }
 
     /// <summary>
     /// If the symbol is "sealed", i.e. cannot have child classes.
     /// </summary>
-    public abstract bool isSealed { get; }
+    internal abstract bool isSealed { get; }
 
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
