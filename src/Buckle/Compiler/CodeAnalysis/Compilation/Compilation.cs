@@ -13,6 +13,7 @@ using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Diagnostics;
 using Shared;
 
@@ -23,6 +24,7 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
+    private CorLibrary _corLibrary;
 
     private Compilation(CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
         this.previous = previous;
@@ -94,6 +96,15 @@ public sealed class Compilation {
                 EnsureGlobalScope();
 
             return _globalScope;
+        }
+    }
+
+    internal CorLibrary corLibrary {
+        get {
+            if (_corLibrary is null)
+                EnsureCorLibrary();
+
+            return _corLibrary;
         }
     }
 
@@ -380,6 +391,14 @@ public sealed class Compilation {
         var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
         // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
         Interlocked.CompareExchange(ref _globalScope, tempScope, null);
+    }
+
+    internal void EnsureCorLibrary() {
+        Interlocked.CompareExchange(ref _corLibrary, new CorLibrary(), null);
+    }
+
+    internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+
     }
 
     private static void CreateCfg(BoundProgram program) {

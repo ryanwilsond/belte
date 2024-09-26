@@ -4,18 +4,8 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.Libraries.Standard;
 
 internal static partial class StandardLibrary {
-    internal static class ObjectMembers {
-        internal static MethodSymbol Constructor => Object.members[0] as MethodSymbol;
-        internal static new MethodSymbol ToString => Object.members[1] as MethodSymbol;
-        internal static new MethodSymbol Equals => Object.members.ElementAtOrDefault(2) as MethodSymbol;
-        internal static new MethodSymbol ReferenceEquals => Object.members.ElementAtOrDefault(3) as MethodSymbol;
-        internal static MethodSymbol op_Equality => Object.members.ElementAtOrDefault(4) as MethodSymbol;
-        internal static MethodSymbol op_Inequality => Object.members.ElementAtOrDefault(5) as MethodSymbol;
-        internal static new MethodSymbol GetHashCode => Object.members.ElementAtOrDefault(6) as MethodSymbol;
-    }
-
     internal static class ConsoleMembers {
-        internal static ClassSymbol Color => Console.members[0] as ClassSymbol;
+        internal static NamedTypeSymbol Color => Console.members[0] as NamedTypeSymbol;
         internal static MethodSymbol GetWidth => Console.members[1] as MethodSymbol;
         internal static MethodSymbol GetHeight => Console.members[2] as MethodSymbol;
         internal static MethodSymbol Input => Console.members[3] as MethodSymbol;

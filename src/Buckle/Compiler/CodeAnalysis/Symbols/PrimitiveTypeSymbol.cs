@@ -4,8 +4,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Builtin primitive types such as Int, Float, etc.
 /// </summary>
-internal sealed class PrimitiveTypeSymbol : TypeSymbol {
-    internal PrimitiveTypeSymbol(string name, SpecialType specialType) : base(name) {
+internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
+    internal PrimitiveTypeSymbol(string name, SpecialType specialType) : base([], [], [], null, DeclarationModifiers.None, Accessibility.NotApplicable) {
         this.specialType = specialType;
     }
 

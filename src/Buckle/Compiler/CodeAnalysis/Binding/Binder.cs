@@ -21,66 +21,61 @@ namespace Buckle.CodeAnalysis.Binding;
 /// flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal class Binder {
-    private BoundScope _scope;
+    protected readonly OverloadResolution _overloadResolution;
+    protected readonly Conversions _conversions;
+    protected readonly Compilation _compilation;
+    protected readonly BinderFlags _flags;
 
     private Binder() {
-        conversions = new Conversions(this);
-        overloadResolution = new OverloadResolution(this);
+        _conversions = new Conversions(this);
+        _overloadResolution = new OverloadResolution(this);
         diagnostics = new BelteDiagnosticQueue();
     }
 
-    protected Binder(Compilation compilation, BinderFlags flags, BoundScope enclosing) : this() {
-        this.compilation = compilation;
-        this.flags = flags;
-        _scope = new BoundScope(enclosing);
+    protected Binder(Compilation compilation, BinderFlags flags) : this() {
+        _compilation = compilation;
+        _flags = flags;
     }
 
-    internal Binder next { get; }
+    protected virtual SyntaxNode _scopeDesignator => null;
 
-    internal OverloadResolution overloadResolution { get; }
+    protected virtual Symbol _containingMember => null;
 
-    internal Conversions conversions { get; }
+    protected virtual LabelSymbol _breakLabel => null;
 
-    internal Compilation compilation { get; }
+    protected virtual LabelSymbol _continueLabel => null;
 
-    internal BinderFlags flags { get; }
+    protected virtual bool _inMethod => false;
 
-    internal virtual SyntaxNode scopeDesignator => null;
+    protected virtual LocalVariableSymbol _localInProgress => null;
 
-    internal virtual Symbol containingMember => next.containingMember;
-
-    internal virtual LabelSymbol breakLabel => next.breakLabel;
-
-    internal virtual LabelSymbol continueLabel => next.continueLabel;
-
-    internal virtual bool inMethod => next.inMethod;
-
-    internal virtual LocalVariableSymbol localInProgress => next.localInProgress;
-
-    internal NamedTypeSymbol containingType => containingMember switch {
+    protected NamedTypeSymbol _containingType => _containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,
-        _ => containingMember.containingType
+        _ => _containingMember.containingType
     };
 
     internal BelteDiagnosticQueue diagnostics { get; }
 
-    internal virtual Binder GetBinder(SyntaxNode node) {
-        return next.GetBinder(node);
+    internal static BoundGlobalScope BindGlobalScope(
+        Compilation compilation,
+        BoundGlobalScope previous,
+        ImmutableArray<SyntaxTree> syntaxTrees) {
+
     }
 
-    internal virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
-        return next.GetDeclaredLocalsForScope(scopeDesignator);
+    protected virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
+        return default;
     }
 
-    internal bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType = null) {
+    private bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType = null) {
         return IsSymbolAccessible(symbol, within, throughType, out _);
     }
 
-    internal bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType, out bool failedThroughTypeCheck) {
+    private bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType, out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
 
-        if (flags.Includes(BinderFlags.IgnoreAccessibility))
+        if (_flags.Includes(BinderFlags.IgnoreAccessibility))
             return true;
 
         return IsSymbolAccessibleInternal(symbol, within, throughType, out failedThroughTypeCheck);
