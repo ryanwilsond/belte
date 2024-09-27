@@ -4,6 +4,57 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.Libraries;
 
 internal sealed class CorLibrary {
+    /// <summary>
+    /// Error type (meaning something went wrong, not an actual type).
+    /// </summary>
+    internal static readonly TypeSymbol Error = new PrimitiveTypeSymbol("?", SpecialType.None);
+
+    /// <summary>
+    /// Integer type (any whole number, signed).
+    /// </summary>
+    internal static readonly TypeSymbol Int = new PrimitiveTypeSymbol("int", SpecialType.Int);
+
+    /// <summary>
+    /// Decimal type (any floating point number, precision TBD).
+    /// </summary>
+    internal static readonly TypeSymbol Decimal = new PrimitiveTypeSymbol("decimal", SpecialType.Decimal);
+
+    /// <summary>
+    /// Boolean type (true/false).
+    /// </summary>
+    internal static readonly TypeSymbol Bool = new PrimitiveTypeSymbol("bool", SpecialType.Bool);
+
+    /// <summary>
+    /// String type.
+    /// </summary>
+    internal static readonly TypeSymbol String = new PrimitiveTypeSymbol("string", SpecialType.String);
+
+    /// <summary>
+    /// Character type.
+    /// </summary>
+    internal static readonly TypeSymbol Char = new PrimitiveTypeSymbol("char", SpecialType.Char);
+
+    /// <summary>
+    /// Any type (effectively the object type).
+    /// </summary>
+    internal static readonly TypeSymbol Any = new PrimitiveTypeSymbol("any", SpecialType.Any);
+
+    /// <summary>
+    /// Void type (lack of type, exclusively used in method declarations).
+    /// </summary>
+    internal static readonly TypeSymbol Void = new PrimitiveTypeSymbol("void", SpecialType.Void);
+
+    /// <summary>
+    /// Type type (contains a type, e.g. type myVar = typeof(int) ).
+    /// </summary>
+    internal static readonly TypeSymbol Type = new PrimitiveTypeSymbol("type", SpecialType.Type);
+
+    /// <summary>
+    /// Type used to represent function (or method) signatures. Purely an implementation detail, cannot be used
+    /// by users.
+    /// </summary>
+    internal static readonly TypeSymbol Func = new PrimitiveTypeSymbol("Func", SpecialType.Func);
+
     internal static class ObjectMembers {
         internal static ObjectMembers() {
 
@@ -51,5 +102,19 @@ internal sealed class CorLibrary {
             case SpecialType.String:
                 return TypeSymbol.String;
         }
+    }
+
+    /// <summary>
+    /// Assumes the type of a value.
+    /// </summary>
+    internal static TypeSymbol Assume(object value) {
+        if (value is bool) return Bool;
+        if (value is int) return Int;
+        if (value is string) return String;
+        if (value is char) return Char;
+        if (value is double) return Decimal;
+        if (value is TypeSymbol) return Type;
+
+        throw new BelteInternalException($"Assume: unexpected literal '{value}' of type '{value.GetType()}'");
     }
 }

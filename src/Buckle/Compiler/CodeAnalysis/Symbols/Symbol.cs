@@ -6,20 +6,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A base symbol.
 /// </summary>
 internal abstract class Symbol : ISymbol {
-    private protected Symbol() {
-        accessibility = Accessibility.NotApplicable;
-    }
-
-    private protected Symbol(string name) {
-        this.name = name;
-        accessibility = Accessibility.NotApplicable;
-    }
-
-    private protected Symbol(string name, Accessibility accessibility) {
-        this.name = name;
-        this.accessibility = accessibility;
-    }
-
     /// <summary>
     /// Name of the symbol.
     /// </summary>
@@ -30,12 +16,23 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// The accessibility/protection level of the symbol.
     /// </summary> <summary>
-    internal Accessibility accessibility { get; }
+    internal abstract Accessibility accessibility { get; }
+
+    internal abstract Symbol containingSymbol { get; }
 
     /// <summary>
     /// The type that contains this symbol, or null if nothing is containing this symbol.
     /// </summary>
-    internal virtual NamedTypeSymbol containingType { get; private set; }
+    internal virtual NamedTypeSymbol containingType {
+        get {
+            var containerAsType = containingSymbol as NamedTypeSymbol;
+
+            if ((object)containerAsType == containingSymbol)
+                return containerAsType;
+
+            return containingSymbol.containingType;
+        }
+    }
 
     /// <summary>
     /// Gets the original definition of the symbol.
@@ -76,10 +73,6 @@ internal abstract class Symbol : ISymbol {
 
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
-    }
-
-    internal void SetContainingType(NamedTypeSymbol symbol) {
-        containingType = symbol;
     }
 
     public override int GetHashCode() {

@@ -9,7 +9,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal sealed class ConstructedNamedTypeSymbol : NamedTypeSymbol {
     internal ConstructedNamedTypeSymbol(
-        NamedTypeSymbol originalDefinition,
+        NamedTypeSymbol constructedFrom,
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<BoundExpression> templateConstraints,
         ImmutableArray<Symbol> members,

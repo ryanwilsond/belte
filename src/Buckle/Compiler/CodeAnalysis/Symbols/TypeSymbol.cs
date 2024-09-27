@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -14,66 +13,6 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     protected List<Symbol> _lazyMembers;
     protected Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
 
-    /// <summary>
-    /// Error type (meaning something went wrong, not an actual type).
-    /// </summary>
-    internal static readonly TypeSymbol Error = new PrimitiveTypeSymbol("?", SpecialType.None);
-
-    /// <summary>
-    /// Integer type (any whole number, signed).
-    /// </summary>
-    internal static readonly TypeSymbol Int = new PrimitiveTypeSymbol("int", SpecialType.Int);
-
-    /// <summary>
-    /// Decimal type (any floating point number, precision TBD).
-    /// </summary>
-    internal static readonly TypeSymbol Decimal = new PrimitiveTypeSymbol("decimal", SpecialType.Decimal);
-
-    /// <summary>
-    /// Boolean type (true/false).
-    /// </summary>
-    internal static readonly TypeSymbol Bool = new PrimitiveTypeSymbol("bool", SpecialType.Bool);
-
-    /// <summary>
-    /// String type.
-    /// </summary>
-    internal static readonly TypeSymbol String = new PrimitiveTypeSymbol("string", SpecialType.String);
-
-    /// <summary>
-    /// Character type.
-    /// </summary>
-    internal static readonly TypeSymbol Char = new PrimitiveTypeSymbol("char", SpecialType.Char);
-
-    /// <summary>
-    /// Any type (effectively the object type).
-    /// </summary>
-    internal static readonly TypeSymbol Any = new PrimitiveTypeSymbol("any", SpecialType.Any);
-
-    /// <summary>
-    /// Void type (lack of type, exclusively used in method declarations).
-    /// </summary>
-    internal static readonly TypeSymbol Void = new PrimitiveTypeSymbol("void", SpecialType.Void);
-
-    /// <summary>
-    /// Type type (contains a type, e.g. type myVar = typeof(int) ).
-    /// </summary>
-    internal static readonly TypeSymbol Type = new PrimitiveTypeSymbol("type", SpecialType.Type);
-
-    /// <summary>
-    /// Type used to represent function (or method) signatures. Purely an implementation detail, cannot be used
-    /// by users.
-    /// </summary>
-    internal static readonly TypeSymbol Func = new PrimitiveTypeSymbol("Func", SpecialType.Func);
-
-    /// <summary>
-    /// Creates a new <see cref="TypeSymbol" />.
-    /// Use predefined type symbols if possible.
-    /// </summary>
-    /// <param name="name">Name of type.</param>
-    protected TypeSymbol(string name) : base(name) { }
-
-    protected TypeSymbol(string name, Accessibility accessibility) : base(name, accessibility) { }
-
     public override SymbolKind kind => SymbolKind.Type;
 
     internal new TypeSymbol originalDefinition => originalTypeDefinition;
@@ -84,29 +23,60 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
 
     internal abstract NamedTypeSymbol baseType { get; }
 
-    /// <summary>
-    /// Number of template parameters the type has.
-    /// </summary>
-    internal virtual int arity => 0;
-
     internal abstract TypeKind typeKind { get; }
 
     internal virtual SpecialType specialType => SpecialType.None;
 
     internal virtual ImmutableArray<Symbol> members { get; }
 
-    public ImmutableArray<Symbol> GetMembers(string name) {
+    internal TypeSymbol EffectiveType() {
+        return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).EffectiveBaseClass() : this;
+    }
+
+    internal virtual ImmutableArray<Symbol> GetMembers(string name) {
         if (_lazyMembersDictionary is null || _lazyMembers is null)
             ConstructLazyMembersDictionary();
 
         return _lazyMembersDictionary.TryGetValue(name, out var result) ? result : ImmutableArray<Symbol>.Empty;
     }
 
-    public ImmutableArray<Symbol> GetMembers() {
+    internal virtual ImmutableArray<Symbol> GetMembers() {
         if (_lazyMembers is null)
             ConstructLazyMembers();
 
         return _lazyMembers.ToImmutableArray();
+    }
+
+    internal bool IsDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
+        if (other is null)
+            return false;
+
+        if (this == other)
+            return true;
+
+        if (typeKind != other.typeKind)
+            return false;
+
+        return InheritsFrom(other.baseType);
+    }
+
+    internal bool IsEqualToOrDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
+        return Equals(type, compareKind) || IsDerivedFrom(type, compareKind);
+    }
+
+    internal override int GetInheritanceDepth(TypeSymbol other) {
+        if (!InheritsFrom(other))
+            return -1;
+
+        var depth = 0;
+        var current = this;
+
+        while (current != other) {
+            depth++;
+            current = current.baseType;
+        }
+
+        return depth;
     }
 
     public ImmutableArray<ISymbol> GetMembersPublic() {
@@ -116,24 +86,18 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
         return _lazyMembers.ToImmutableArray<ISymbol>();
     }
 
-    internal abstract void AddAnnotations(TypeWithAnnotations annotations);
+    public bool Equals(TypeSymbol other) {
+        return Equals(other, TypeCompareKind.ConsiderEverything);
+    }
 
-    internal virtual bool InheritsFrom(TypeSymbol other) => false;
+    public bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        if (compareKind == TypeCompareKind.ConsiderEverything)
+            return isNullable == other.isNullable && underlyingType == other.underlyingType;
 
-    internal virtual int GetInheritanceDepth(TypeSymbol other) => -1;
+        if (compareKind == TypeCompareKind.IgnoreNullability)
+            return underlyingType == other.underlyingType;
 
-    /// <summary>
-    /// Assumes the type of a value.
-    /// </summary>
-    internal static TypeSymbol Assume(object value) {
-        if (value is bool) return Bool;
-        if (value is int) return Int;
-        if (value is string) return String;
-        if (value is char) return Char;
-        if (value is double) return Decimal;
-        if (value is TypeSymbol) return Type;
-
-        throw new BelteInternalException($"Assume: unexpected literal '{value}' of type '{value.GetType()}'");
+        return false;
     }
 
     protected virtual void ConstructLazyMembers() {

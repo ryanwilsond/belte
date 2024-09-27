@@ -4,13 +4,14 @@ using Buckle.CodeAnalysis.Syntax;
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A named type that is not constructed with with members.
+/// A named type that has template arguments substituted.
 /// </summary>
-internal sealed class SubstitutedNamedTypeSymbol : NamedTypeSymbol {
+internal sealed class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
     internal SubstitutedNamedTypeSymbol(
+        Symbol newContainer,
+        TemplateMap map,
         NamedTypeSymbol originalDefinition,
-        ImmutableArray<TypeOrConstant> templateArguments,
-        TemplateMap templateSubstitution)
+        NamedTypeSymbol constructedFrom)
         : base(
             originalDefinition.templateParameters,
             originalDefinition.templateConstraints,
