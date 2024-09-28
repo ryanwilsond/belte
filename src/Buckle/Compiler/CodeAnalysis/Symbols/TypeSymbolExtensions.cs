@@ -37,7 +37,7 @@ internal static class TypeSymbolExtensions {
     }
 
     internal static TypeSymbol GetNullableUnderlyingType(this TypeSymbol type) {
-        return type.GetNullableUnderlyingTypeWithAnnotations().underlyingType;
+        return type.GetNullableUnderlyingTypeWithAnnotations().type;
     }
 
     internal static TypeWithAnnotations GetNullableUnderlyingTypeWithAnnotations(this TypeSymbol type) {

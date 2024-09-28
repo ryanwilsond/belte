@@ -26,7 +26,7 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
     }
 
 
-    public ITypeSymbol typeSymbol => typeWithAnnotations.underlyingType;
+    public ITypeSymbol typeSymbol => typeWithAnnotations.type;
 
     internal override bool isStatic
         => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
@@ -50,7 +50,7 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
 
     internal TypeWithAnnotations typeWithAnnotations { get; }
 
-    internal TypeSymbol type => typeWithAnnotations.underlyingType;
+    internal TypeSymbol type => typeWithAnnotations.type;
 
     /// <summary>
     /// <see cref="ConstantValue" /> of the variable (can be null).

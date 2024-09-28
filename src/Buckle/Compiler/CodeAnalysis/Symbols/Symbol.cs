@@ -1,4 +1,6 @@
 using Buckle.CodeAnalysis.Display;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -9,7 +11,7 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// Name of the symbol.
     /// </summary>
-    public virtual string name { get; }
+    public abstract string name { get; }
 
     public ITypeSymbolWithMembers parent => containingType;
 
@@ -37,9 +39,11 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// Gets the original definition of the symbol.
     /// </summary>
-    internal Symbol originalDefinition => originalSymbolDefinition;
+    internal Symbol originalDefinition => _originalSymbolDefinition;
 
-    internal virtual Symbol originalSymbolDefinition => this;
+    internal bool isDefinition => (object)this == originalDefinition;
+
+    protected virtual Symbol _originalSymbolDefinition => this;
 
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).
@@ -71,6 +75,35 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     internal abstract bool isSealed { get; }
 
+    internal virtual Compilation declaringCompilation {
+        get {
+            if (!isDefinition)
+                return originalDefinition.declaringCompilation;
+
+            return containingSymbol.declaringCompilation;
+        }
+    }
+
+    // TODO Will need to change this to an immutable array when `partial` keyword is added
+    internal abstract SyntaxReference syntaxReference { get; }
+
+    internal virtual void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
+        if (diagnostics.Count > 0)
+            declaringCompilation.diagnostics.Move(diagnostics);
+    }
+
+    internal bool Equals(Symbol other) {
+        return Equals(other, SymbolEqualityComparer.Default.compareKind);
+    }
+
+    internal bool Equals(Symbol other, SymbolEqualityComparer comparer) {
+        return Equals(other, comparer.compareKind);
+    }
+
+    internal virtual bool Equals(Symbol other, TypeCompareKind compareKind) {
+        return (object)this == other;
+    }
+
     public override string ToString() {
         return SymbolDisplay.DisplaySymbol(this).ToString();
     }
@@ -79,25 +112,21 @@ internal abstract class Symbol : ISymbol {
         return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
     }
 
-    public override bool Equals(object obj) {
-        return Equals(obj as Symbol);
-    }
-
-    public bool Equals(Symbol other) {
-        return (object)this == other;
+    public sealed override bool Equals(object obj) {
+        return Equals(obj as Symbol, SymbolEqualityComparer.Default.compareKind);
     }
 
     public static bool operator ==(Symbol left, Symbol right) {
         if (right is null)
             return left is null;
 
-        return (object)left == (object)right || right.Equals(left);
+        return (object)left == right || right.Equals(left);
     }
 
     public static bool operator !=(Symbol left, Symbol right) {
         if (right is null)
             return left is not null;
 
-        return (object)left != (object)right && !right.Equals(left);
+        return (object)left != right && !right.Equals(left);
     }
 }

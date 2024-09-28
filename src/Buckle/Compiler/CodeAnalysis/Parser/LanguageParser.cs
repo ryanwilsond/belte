@@ -442,28 +442,35 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private TemplateParameterConstraintClauseSyntax ParseTemplateParameterConstraintClause() {
-        IdentifierNameSyntax name = null;
-        SyntaxToken extendsKeyword = null;
-        SimpleNameSyntax type = null;
-        SyntaxToken semicolon = null;
-        ExpressionStatementSyntax expressionStatement = null;
+        TemplateParameterTypeConstraintClauseSyntax typeConstraint = null;
+        ExpressionStatementSyntax expressionConstraint = null;
 
-        if (Peek(1).kind == SyntaxKind.ExtendsKeyword) {
-            name = ParseIdentifierName();
-            extendsKeyword = Match(SyntaxKind.ExtendsKeyword);
-            type = ParseSimpleName();
-            semicolon = Match(SyntaxKind.SemicolonToken);
-        } else {
-            expressionStatement = (ExpressionStatementSyntax)ParseExpressionStatement();
-        }
+        if (Peek(1).kind == SyntaxKind.ColonToken)
+            typeConstraint = ParseTemplateParameterTypeConstraintClause();
+        else
+            expressionConstraint = (ExpressionStatementSyntax)ParseExpressionStatement();
 
         return SyntaxFactory.TemplateParameterConstraintClause(
-            name,
-            extendsKeyword,
-            type,
-            semicolon,
-            expressionStatement
+            typeConstraint,
+            expressionConstraint
         );
+    }
+
+    private TemplateParameterTypeConstraintClauseSyntax ParseTemplateParameterTypeConstraintClause() {
+        SyntaxToken primitiveKeyword = null;
+        SimpleNameSyntax type = null;
+
+        var name = ParseIdentifierName();
+        var colon = Match(SyntaxKind.ColonToken);
+
+        if (currentToken.kind == SyntaxKind.PrimitiveKeyword)
+            primitiveKeyword = EatToken();
+        else
+            type = ParseSimpleName();
+
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+
+        return SyntaxFactory.TemplateParameterTypeConstraintClause(name, colon, primitiveKeyword, type, semicolon);
     }
 
     private ConstructorDeclarationSyntax ParseConstructorDeclaration(

@@ -107,6 +107,7 @@ public enum SyntaxKind {
     AsKeyword,
     WhereKeyword,
     ThrowKeyword,
+    PrimitiveKeyword,
 
     // Tokens with text
     BadToken,
@@ -206,6 +207,7 @@ public enum SyntaxKind {
     Attribute,
     AttributeList,
     TemplateParameterConstraintClause,
+    TemplateParameterTypeConstraintClause,
     TemplateParameterConstraintClauseList,
     InitializerListExpression,
     KeyValuePair,

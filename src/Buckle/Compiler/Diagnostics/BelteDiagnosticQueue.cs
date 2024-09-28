@@ -8,6 +8,8 @@ namespace Buckle.Diagnostics;
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+    internal static readonly BelteDiagnosticQueue Instance = new BelteDiagnosticQueue();
+
     /// <summary>
     /// Creates a <see cref="BelteDiagnosticQueue" /> with no Diagnostics.
     /// </summary>

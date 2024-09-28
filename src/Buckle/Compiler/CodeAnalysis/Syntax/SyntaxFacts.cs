@@ -179,6 +179,7 @@ internal static class SyntaxFacts {
             "as" => SyntaxKind.AsKeyword,
             "where" => SyntaxKind.WhereKeyword,
             "throw" => SyntaxKind.ThrowKeyword,
+            "primitive" => SyntaxKind.PrimitiveKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -284,6 +285,7 @@ internal static class SyntaxFacts {
             SyntaxKind.AsKeyword => "as",
             SyntaxKind.WhereKeyword => "where",
             SyntaxKind.ThrowKeyword => "throw",
+            SyntaxKind.PrimitiveKeyword => "primitive",
             _ => null,
         };
     }

@@ -117,17 +117,24 @@
   </Node>
   <Node Name="TemplateParameterConstraintClauseSyntax" Base="SyntaxNode">
     <Kind Name="TemplateParameterConstraintClause"/>
-    <Field Name="name" Type="IdentifierNameSyntax" Optional="true">
+    <Field Name="typeConstraint" Type="TemplateParameterTypeConstraintClauseSyntax" Optional="true"/>
+    <Field Name="expressionConstraint" Type="ExpressionStatementSyntax" Optional="true"/>
+  </Node>
+  <Node Name="TemplateParameterTypeConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateParameterTypeConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
       <Kind Name="IdentifierName"/>
     </Field>
-    <Field Name="extendsKeyword" Type="SyntaxToken" Optional="true">
-      <Kind Name="ExtendsKeyword"/>
+    <Field Name="colon" Type="SyntaxToken">
+      <Kind Name="ColonToken"/>
+    </Field>
+    <Field Name="primitiveKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="PrimitiveKeyword"/>
     </Field>
     <Field Name="type" Type="SimpleNameSyntax" Optional="true"/>
-    <Field Name="semicolon" Type="SyntaxToken" Optional="true">
+    <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
-    <Field Name="expressionStatement" Type="ExpressionStatementSyntax" Optional="true"/>
   </Node>
   <Node Name="ConstructorInitializerSyntax" Base="SyntaxNode">
     <Kind Name="ConstructorInitializer"/>

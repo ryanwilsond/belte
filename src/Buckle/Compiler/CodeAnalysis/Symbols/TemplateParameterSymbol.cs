@@ -1,32 +1,97 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
 /// A type wrapper of a template parameter replaced after the template is created.
 /// </summary>
-internal sealed class TemplateParameterSymbol : TypeSymbol {
-    internal TemplateParameterSymbol(ParameterSymbol parameter, NamedTypeSymbol baseType) : base(parameter.name) {
-        this.parameter = parameter;
-        this.baseType = baseType;
+internal abstract class TemplateParameterSymbol : TypeSymbol {
+    public sealed override SymbolKind kind => SymbolKind.TemplateParameter;
+
+    internal sealed override TypeKind typeKind => TypeKind.TemplateParameter;
+
+    internal sealed override Accessibility accessibility => Accessibility.NotApplicable;
+
+    internal sealed override NamedTypeSymbol baseType => null;
+
+    internal sealed override bool isStatic => false;
+
+    internal sealed override bool isAbstract => false;
+
+    internal sealed override bool isSealed => false;
+
+    internal sealed override bool isVirtual => false;
+
+    internal sealed override bool isOverride => false;
+
+    internal sealed override bool isRef => false;
+
+    internal sealed override bool isConst => false;
+
+    internal abstract TypeWithAnnotations underlyingType { get; }
+
+    internal abstract TemplateParameterKind templateParameterKind { get; }
+
+    internal abstract int ordinal { get; }
+
+    internal abstract ConstantValue defaultValue { get; }
+
+    internal bool isTypeParameter => underlyingType.type.specialType == SpecialType.Type;
+
+    internal new virtual TemplateParameterSymbol originalDefinition => this;
+
+    protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
+
+
+    internal NamedTypeSymbol effectiveBaseClass {
+        get {
+            EnsureConstraintsAreResolved();
+            return GetEffectiveBaseClass([]);
+        }
     }
 
-    public override SymbolKind kind => SymbolKind.TemplateParameter;
+    internal ImmutableArray<TypeWithAnnotations> constraintTypes {
+        get {
+            EnsureConstraintsAreResolved();
+            return GetConstraintTypes([]);
+        }
+    }
 
-    internal override bool isStatic => false;
+    internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(List<TemplateParameterSymbol> inProgress);
 
-    internal override bool isAbstract => false;
+    internal abstract NamedTypeSymbol GetEffectiveBaseClass(List<TemplateParameterSymbol> inProgress);
 
-    internal override bool isSealed => false;
+    internal abstract void EnsureConstraintsAreResolved();
 
-    internal override bool isVirtual => false;
+    protected static void EnsureConstraintsAreResolved(ImmutableArray<TemplateParameterSymbol> templateParameters) {
+        foreach (var templateParameter in templateParameters) {
+            var _ = templateParameter.GetConstraintTypes([]);
+        }
+    }
 
-    internal override bool isOverride => false;
+    internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        return Equals(other as TemplateParameterSymbol, compareKind);
+    }
 
-    internal ParameterSymbol parameter { get; }
+    internal bool Equals(TemplateParameterSymbol other) {
+        return Equals(other, TypeCompareKind.ConsiderEverything);
+    }
 
-    internal override NamedTypeSymbol baseType { get; }
+    private bool Equals(TemplateParameterSymbol other, TypeCompareKind compareKind) {
+        if (ReferenceEquals(this, other))
+            return true;
 
-    internal override TypeKind typeKind => TypeKind.TemplateParameter;
+        if ((object)other is null || !ReferenceEquals(other.originalDefinition, originalDefinition))
+            return false;
+
+        return other.containingSymbol.containingType.Equals(containingSymbol.containingType, compareKind);
+    }
+
+    public override int GetHashCode() {
+        return Hash.Combine(containingSymbol, ordinal);
+    }
 
     protected override void ConstructLazyMembers() {
         _lazyMembers = [.. baseType.GetMembers()];

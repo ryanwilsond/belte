@@ -6,6 +6,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal enum SpecialType {
     None,
+    Object,
     Any,
     String,
     Bool,

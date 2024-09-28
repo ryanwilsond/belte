@@ -15,22 +15,26 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
 
     public override SymbolKind kind => SymbolKind.Type;
 
-    internal new TypeSymbol originalDefinition => originalTypeDefinition;
+    internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
 
-    internal virtual TypeSymbol originalTypeDefinition => this;
+    protected virtual TypeSymbol _originalTypeSymbolDefinition => this;
 
-    internal override Symbol originalSymbolDefinition => originalTypeDefinition;
+    protected sealed override Symbol _originalSymbolDefinition => _originalTypeSymbolDefinition;
 
     internal abstract NamedTypeSymbol baseType { get; }
 
     internal abstract TypeKind typeKind { get; }
+
+    internal abstract bool isRef { get; }
+
+    internal abstract bool isConst { get; }
 
     internal virtual SpecialType specialType => SpecialType.None;
 
     internal virtual ImmutableArray<Symbol> members { get; }
 
     internal TypeSymbol EffectiveType() {
-        return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).EffectiveBaseClass() : this;
+        return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).effectiveBaseClass : this;
     }
 
     internal virtual ImmutableArray<Symbol> GetMembers(string name) {
@@ -48,35 +52,34 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     }
 
     internal bool IsDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
-        if (other is null)
+        if ((object)this == type)
             return false;
 
-        if (this == other)
-            return true;
+        var current = baseType;
 
-        if (typeKind != other.typeKind)
-            return false;
+        while ((object)current is not null) {
+            if (type.Equals(current, compareKind))
+                return true;
 
-        return InheritsFrom(other.baseType);
+            current = current.baseType;
+        }
+
+        return false;
     }
 
     internal bool IsEqualToOrDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
         return Equals(type, compareKind) || IsDerivedFrom(type, compareKind);
     }
 
-    internal override int GetInheritanceDepth(TypeSymbol other) {
-        if (!InheritsFrom(other))
-            return -1;
+    internal virtual bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        return ReferenceEquals(this, other);
+    }
 
-        var depth = 0;
-        var current = this;
+    internal sealed override bool Equals(Symbol other, TypeCompareKind compareKind) {
+        if (other is not TypeSymbol otherAsType)
+            return false;
 
-        while (current != other) {
-            depth++;
-            current = current.baseType;
-        }
-
-        return depth;
+        return Equals(otherAsType, compareKind);
     }
 
     public ImmutableArray<ISymbol> GetMembersPublic() {
@@ -84,20 +87,6 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
             ConstructLazyMembers();
 
         return _lazyMembers.ToImmutableArray<ISymbol>();
-    }
-
-    public bool Equals(TypeSymbol other) {
-        return Equals(other, TypeCompareKind.ConsiderEverything);
-    }
-
-    public bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
-        if (compareKind == TypeCompareKind.ConsiderEverything)
-            return isNullable == other.isNullable && underlyingType == other.underlyingType;
-
-        if (compareKind == TypeCompareKind.IgnoreNullability)
-            return underlyingType == other.underlyingType;
-
-        return false;
     }
 
     protected virtual void ConstructLazyMembers() {

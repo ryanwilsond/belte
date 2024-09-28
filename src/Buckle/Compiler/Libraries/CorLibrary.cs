@@ -4,56 +4,29 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.Libraries;
 
 internal sealed class CorLibrary {
-    /// <summary>
-    /// Error type (meaning something went wrong, not an actual type).
-    /// </summary>
-    internal static readonly TypeSymbol Error = new PrimitiveTypeSymbol("?", SpecialType.None);
+    private static readonly CorLibrary Instance = new CorLibrary();
 
-    /// <summary>
-    /// Integer type (any whole number, signed).
-    /// </summary>
-    internal static readonly TypeSymbol Int = new PrimitiveTypeSymbol("int", SpecialType.Int);
+    private CorLibrary() { }
 
-    /// <summary>
-    /// Decimal type (any floating point number, precision TBD).
-    /// </summary>
-    internal static readonly TypeSymbol Decimal = new PrimitiveTypeSymbol("decimal", SpecialType.Decimal);
+    private static readonly TypeSymbol Error = new PrimitiveTypeSymbol("?", SpecialType.None);
 
-    /// <summary>
-    /// Boolean type (true/false).
-    /// </summary>
-    internal static readonly TypeSymbol Bool = new PrimitiveTypeSymbol("bool", SpecialType.Bool);
+    private static readonly TypeSymbol Int = new PrimitiveTypeSymbol("int", SpecialType.Int);
 
-    /// <summary>
-    /// String type.
-    /// </summary>
-    internal static readonly TypeSymbol String = new PrimitiveTypeSymbol("string", SpecialType.String);
+    private static readonly TypeSymbol Decimal = new PrimitiveTypeSymbol("decimal", SpecialType.Decimal);
 
-    /// <summary>
-    /// Character type.
-    /// </summary>
-    internal static readonly TypeSymbol Char = new PrimitiveTypeSymbol("char", SpecialType.Char);
+    private static readonly TypeSymbol Bool = new PrimitiveTypeSymbol("bool", SpecialType.Bool);
 
-    /// <summary>
-    /// Any type (effectively the object type).
-    /// </summary>
-    internal static readonly TypeSymbol Any = new PrimitiveTypeSymbol("any", SpecialType.Any);
+    private static readonly TypeSymbol String = new PrimitiveTypeSymbol("string", SpecialType.String);
 
-    /// <summary>
-    /// Void type (lack of type, exclusively used in method declarations).
-    /// </summary>
-    internal static readonly TypeSymbol Void = new PrimitiveTypeSymbol("void", SpecialType.Void);
+    private static readonly TypeSymbol Char = new PrimitiveTypeSymbol("char", SpecialType.Char);
 
-    /// <summary>
-    /// Type type (contains a type, e.g. type myVar = typeof(int) ).
-    /// </summary>
-    internal static readonly TypeSymbol Type = new PrimitiveTypeSymbol("type", SpecialType.Type);
+    private static readonly TypeSymbol Any = new PrimitiveTypeSymbol("any", SpecialType.Any);
 
-    /// <summary>
-    /// Type used to represent function (or method) signatures. Purely an implementation detail, cannot be used
-    /// by users.
-    /// </summary>
-    internal static readonly TypeSymbol Func = new PrimitiveTypeSymbol("Func", SpecialType.Func);
+    private static readonly TypeSymbol Void = new PrimitiveTypeSymbol("void", SpecialType.Void);
+
+    private static readonly TypeSymbol Type = new PrimitiveTypeSymbol("type", SpecialType.Type);
+
+    private static readonly TypeSymbol Func = new PrimitiveTypeSymbol("Func", SpecialType.Func);
 
     internal static class ObjectMembers {
         internal static ObjectMembers() {
@@ -97,17 +70,25 @@ internal sealed class CorLibrary {
         ]
     );
 
-    internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
-        switch (specialType) {
-            case SpecialType.String:
-                return TypeSymbol.String;
-        }
+    internal static NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+        return Instance.GetSpecialType(specialType);
     }
 
     /// <summary>
     /// Assumes the type of a value.
     /// </summary>
     internal static TypeSymbol Assume(object value) {
+        return Instance.Assume(value);
+    }
+
+    private NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.String:
+                return TypeSymbol.String;
+        }
+    }
+
+    private TypeSymbol Assume(object value) {
         if (value is bool) return Bool;
         if (value is int) return Int;
         if (value is string) return String;
