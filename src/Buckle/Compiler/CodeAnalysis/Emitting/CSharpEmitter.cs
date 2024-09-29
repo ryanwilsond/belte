@@ -12,6 +12,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Libraries.Standard;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Emitting;
@@ -1110,7 +1111,7 @@ internal sealed class CSharpEmitter {
         if (!expression.viaConstructor)
             return;
 
-        var arguments = ImmutableArray.CreateBuilder<BoundExpression>();
+        var arguments = ArrayBuilder<BoundExpression>.GetInstance();
         arguments.AddRange(expression.arguments);
 
         foreach (var templateArgument in expression.type.templateArguments) {
@@ -1124,7 +1125,7 @@ internal sealed class CSharpEmitter {
 
         EmitArguments(
             indentedTextWriter,
-            arguments.ToImmutable(),
+            arguments.ToImmutableAndFree(),
             expression.constructor?.parameters ?? ImmutableArray<ParameterSymbol>.Empty
         );
     }

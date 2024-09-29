@@ -109,7 +109,7 @@ public sealed partial class BelteRepl : Repl {
         LoadLibraries();
     }
 
-    protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+    private protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
         UpdateTree();
 
         var texts = new List<(string text, ConsoleColor color)>();
@@ -161,25 +161,25 @@ public sealed partial class BelteRepl : Repl {
 
         Console.ForegroundColor = state.colorTheme.@default;
     }
-    protected override void EvaluateSubmission(string text) {
+    private protected override void EvaluateSubmission(string text) {
         // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
         // Otherwise, this is much slower than the 0 arity overload
         var syntaxTree = SyntaxTree.Parse(text, SourceCodeKind.Script);
         EvaluateSubmissionInternal(syntaxTree);
     }
 
-    protected override void EvaluateSubmission() {
+    private protected override void EvaluateSubmission() {
         UpdateTree();
         EvaluateSubmissionInternal(state.tree);
         ClearTree();
     }
 
-    protected override string EditSubmission() {
+    private protected override string EditSubmission() {
         ClearTree();
         return base.EditSubmission();
     }
 
-    protected override void AddChange(
+    private protected override void AddChange(
         ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
         var position = startIndex;
 
@@ -189,11 +189,11 @@ public sealed partial class BelteRepl : Repl {
         _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
     }
 
-    protected override void AddClearChange(ObservableCollection<string> document) {
+    private protected override void AddClearChange(ObservableCollection<string> document) {
         ClearTree();
     }
 
-    protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
+    private protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
         var position = 0;
 
         for (var i = 0; i < lineIndex; i++) {
@@ -208,7 +208,7 @@ public sealed partial class BelteRepl : Repl {
         );
     }
 
-    protected override bool IsCompleteSubmission(string text) {
+    private protected override bool IsCompleteSubmission(string text) {
         if (string.IsNullOrEmpty(text))
             return true;
 
@@ -229,15 +229,15 @@ public sealed partial class BelteRepl : Repl {
         return true;
     }
 
-    protected override void AddDiagnostic(Diagnostic diagnostic) {
+    private protected override void AddDiagnostic(Diagnostic diagnostic) {
         handle.diagnostics.Push(diagnostic);
     }
 
-    protected override void ClearDiagnostics() {
+    private protected override void ClearDiagnostics() {
         handle.diagnostics.Clear();
     }
 
-    protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
+    private protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
         if (arg2 is null)
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string);
         else

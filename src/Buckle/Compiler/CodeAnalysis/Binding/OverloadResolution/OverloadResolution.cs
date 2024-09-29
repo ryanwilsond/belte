@@ -6,7 +6,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -69,7 +69,7 @@ internal sealed class OverloadResolution {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<MethodSymbol>();
 
-        var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+        var boundArguments = ArrayBuilder<BoundExpression>.GetInstance();
 
         var tempDiagnostics = new BelteDiagnosticQueue();
         tempDiagnostics.Move(_binder.diagnostics);
@@ -77,7 +77,7 @@ internal sealed class OverloadResolution {
         var isConstructor = false;
 
         foreach (var method in methods) {
-            var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+            var preBoundArgumentsBuilder = ArrayBuilder<(string name, BoundExpression expression)>.GetInstance();
             preBoundArgumentsBuilder.AddRange(arguments);
 
             var beforeCount = _binder.diagnostics.Count;
@@ -139,7 +139,7 @@ internal sealed class OverloadResolution {
                 }
             }
 
-            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+            var currentBoundArguments = ArrayBuilder<BoundExpression>.GetInstance();
 
             if (canContinue) {
                 score = RearrangeArguments(
@@ -148,7 +148,7 @@ internal sealed class OverloadResolution {
                     expressionArgumentsCount,
                     expressionArguments,
                     rearrangedArguments,
-                    preBoundArgumentsBuilder.ToImmutable(),
+                    preBoundArgumentsBuilder.ToImmutableAndFree(),
                     currentBoundArguments,
                     false,
                     templateArguments,
@@ -190,6 +190,8 @@ internal sealed class OverloadResolution {
                 score,
                 currentBoundArguments
             );
+
+            currentBoundArguments.Free();
         }
 
         CleanUpDiagnostics(methods, tempDiagnostics);
@@ -285,7 +287,7 @@ internal sealed class OverloadResolution {
 
         return OverloadResolutionResult<MethodSymbol>.Succeeded(
             possibleOverloads.SingleOrDefault(),
-            boundArguments.ToImmutable()
+            boundArguments.ToImmutableAndFree()
         );
     }
 
@@ -306,8 +308,8 @@ internal sealed class OverloadResolution {
         var minScore = int.MaxValue;
         var possibleOverloads = new List<ISymbolWithTemplates>();
 
-        var boundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
-        var preBoundArgumentsBuilder = ImmutableArray.CreateBuilder<(string name, BoundExpression expression)>();
+        var boundArguments = ArrayBuilder<BoundExpression>.GetInstance();
+        var preBoundArgumentsBuilder = ArrayBuilder<(string name, BoundExpression expression)>.GetInstance();
 
         foreach (var argument in arguments) {
             if (argument.constant.isConstant) {
@@ -377,7 +379,7 @@ internal sealed class OverloadResolution {
                 }
             }
 
-            var currentBoundArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+            var currentBoundArguments = ArrayBuilder<BoundExpression>.GetInstance();
 
             if (canContinue) {
                 score = RearrangeArguments(
@@ -386,7 +388,7 @@ internal sealed class OverloadResolution {
                     expressionArguments?.Count ?? 0,
                     expressionArguments,
                     rearrangedArguments,
-                    preBoundArgumentsBuilder.ToImmutable(),
+                    preBoundArgumentsBuilder.ToImmutableAndFree(),
                     currentBoundArguments,
                     true,
                     null,
@@ -408,6 +410,8 @@ internal sealed class OverloadResolution {
                 score,
                 currentBoundArguments
             );
+
+            currentBoundArguments.Free();
         }
 
         CleanUpDiagnostics(symbols, tempDiagnostics);
@@ -450,7 +454,7 @@ internal sealed class OverloadResolution {
 
             return OverloadResolutionResult<ISymbolWithTemplates>.Succeeded(
                 possibleOverloads.ToArray(),
-                boundArguments.ToImmutable()
+                boundArguments.ToImmutableAndFree()
             );
         } else if (symbols.Length == 1 && possibleOverloads.Count == 0) {
             possibleOverloads.Add(symbols[0]);
@@ -458,7 +462,7 @@ internal sealed class OverloadResolution {
 
         return OverloadResolutionResult<ISymbolWithTemplates>.Succeeded(
             possibleOverloads.SingleOrDefault(),
-            boundArguments.ToImmutable()
+            boundArguments.ToImmutableAndFree()
         );
     }
 
@@ -507,7 +511,7 @@ internal sealed class OverloadResolution {
     private bool CalculateArgumentRearrangements(
         int overloadCount,
         string name,
-        ImmutableArray<(string name, BoundExpression expression)>.Builder preBoundArgumentsBuilder,
+        ArrayBuilder<(string name, BoundExpression expression)> preBoundArgumentsBuilder,
         ImmutableArray<ParameterSymbol> parameters,
         int argumentCount,
         SeparatedSyntaxList<ArgumentSyntax> arguments,
@@ -570,7 +574,7 @@ internal sealed class OverloadResolution {
         SeparatedSyntaxList<ArgumentSyntax> expressionArguments,
         Dictionary<int, int> rearrangedArguments,
         ImmutableArray<(string name, BoundExpression expression)> preBoundArguments,
-        ImmutableArray<BoundExpression>.Builder currentBoundArguments,
+        ArrayBuilder<BoundExpression> currentBoundArguments,
         bool isTemplate,
         ImmutableArray<TypeOrConstant>? templateArguments,
         BoundType receiverType) {
@@ -622,11 +626,11 @@ internal sealed class OverloadResolution {
     private int UpdateScore<T>(
         int minScore,
         List<T> possibleOverloads,
-        ImmutableArray<BoundExpression>.Builder boundArguments,
+        ArrayBuilder<BoundExpression> boundArguments,
         T overload,
         int beforeCount,
         int score,
-        ImmutableArray<BoundExpression>.Builder currentBoundArguments) where T : ISymbol {
+        ArrayBuilder<BoundExpression> currentBoundArguments) where T : ISymbol {
         if (_binder.diagnostics.Count == beforeCount) {
             if (score < minScore) {
                 boundArguments.Clear();

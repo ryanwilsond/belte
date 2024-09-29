@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
-    protected readonly bool _visitIntoTrivia;
+    private protected readonly bool _visitIntoTrivia;
 
     internal SyntaxRewriter(bool visitIntoTrivia = false) {
         _visitIntoTrivia = visitIntoTrivia;

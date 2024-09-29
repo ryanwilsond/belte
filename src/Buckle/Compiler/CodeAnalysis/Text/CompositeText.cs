@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -68,7 +69,7 @@ internal sealed class CompositeText : SourceText {
 
         GetIndexAndOffset(sourceIndex, out var segmentIndex, out var segmentOffset);
 
-        var newSegments = ImmutableArray.CreateBuilder<SourceText>();
+        var newSegments = ArrayBuilder<SourceText>.GetInstance();
 
         while (segmentIndex < _segments.Length && count > 0) {
             var segment = _segments[segmentIndex];
@@ -87,7 +88,7 @@ internal sealed class CompositeText : SourceText {
     /// <summary>
     /// Adds a SourceText's segments to an array of segments.
     /// </summary>
-    internal static void AddSegments(ImmutableArray<SourceText>.Builder segments, SourceText text) {
+    internal static void AddSegments(ArrayBuilder<SourceText> segments, SourceText text) {
         if (text is not CompositeText composite)
             segments.Add(text);
         else
@@ -97,7 +98,7 @@ internal sealed class CompositeText : SourceText {
     /// <summary>
     /// Converts an array of segments to a <see cref="SourceText" />.
     /// </summary>
-    internal static SourceText ToSourceText(ImmutableArray<SourceText>.Builder segments) {
+    internal static SourceText ToSourceText(ArrayBuilder<SourceText> segments) {
         ReduceSegmentCountIfNecessary(segments);
 
         if (segments.Count == 0)
@@ -105,14 +106,14 @@ internal sealed class CompositeText : SourceText {
         else if (segments.Count == 1)
             return segments[0];
         else
-            return new CompositeText(segments.ToImmutable());
+            return new CompositeText(segments.ToImmutableAndFree());
     }
 
-    protected override void EnsureLines() {
+    private protected override void EnsureLines() {
         if (_lines != null)
             return;
 
-        var builder = ImmutableArray.CreateBuilder<SourceText>();
+        var builder = ArrayBuilder<SourceText>.GetInstance();
         builder.AddRange(_segments);
 
         if (GetSegmentCountIfCombined(builder, int.MaxValue) > 1)
@@ -121,16 +122,18 @@ internal sealed class CompositeText : SourceText {
         CombineSegments(builder, int.MaxValue);
         var singleText = builder.Single();
         _lines = singleText.GetLines();
+
+        builder.Free();
     }
 
-    private static void ReduceSegmentCountIfNecessary(ImmutableArray<SourceText>.Builder segments) {
+    private static void ReduceSegmentCountIfNecessary(ArrayBuilder<SourceText> segments) {
         if (segments.Count > MaximumSegmentCountBeforeReduction) {
             var segmentSize = GetMinimalSegmentSizeToUseForCombining(segments);
             CombineSegments(segments, segmentSize);
         }
     }
 
-    private static int GetMinimalSegmentSizeToUseForCombining(ImmutableArray<SourceText>.Builder segments) {
+    private static int GetMinimalSegmentSizeToUseForCombining(ArrayBuilder<SourceText> segments) {
         for (var segmentSize = InitialSegmentSizeForCombining;
              segmentSize <= MaximumSegmentSizeForCombining;
              segmentSize *= 2) {
@@ -141,7 +144,7 @@ internal sealed class CompositeText : SourceText {
         return MaximumSegmentSizeForCombining;
     }
 
-    private static int GetSegmentCountIfCombined(ImmutableArray<SourceText>.Builder segments, int segmentSize) {
+    private static int GetSegmentCountIfCombined(ArrayBuilder<SourceText> segments, int segmentSize) {
         var numberOfSegmentsReduced = 0;
 
         for (var i = 0; i < segments.Count - 1; i++) {
@@ -164,7 +167,7 @@ internal sealed class CompositeText : SourceText {
         return segments.Count - numberOfSegmentsReduced;
     }
 
-    private static void CombineSegments(ImmutableArray<SourceText>.Builder segments, int segmentSize) {
+    private static void CombineSegments(ArrayBuilder<SourceText> segments, int segmentSize) {
         for (var i = 0; i < segments.Count - 1; i++) {
             if (segments[i].length <= segmentSize) {
                 var combinedLength = segments[i].length;

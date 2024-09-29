@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -219,8 +220,10 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? current = null) {
-        var overloads = ImmutableArray.CreateBuilder<Symbol>();
+        string name,
+        bool strict = false,
+        ImmutableArray<Symbol>? current = null) {
+        var overloads = ArrayBuilder<Symbol>.GetInstance();
 
         if (_symbols != null) {
             foreach (var symbol in _symbols) {
@@ -256,12 +259,12 @@ internal sealed class BoundScope {
                 name,
                 strict: strict,
                 current: current is null
-                    ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(current.Value))
+                    ? overloads.ToImmutableAndFree()
+                    : overloads.ToImmutableAndFree().AddRange(current.Value))
             );
         }
 
-        return overloads.ToImmutable();
+        return overloads.ToImmutableAndFree();
     }
 
     private bool TryDeclareSymbol<T>(T symbol, bool strictMethod = false) where T : Symbol {

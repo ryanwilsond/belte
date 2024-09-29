@@ -43,7 +43,7 @@ internal abstract class Symbol : ISymbol {
 
     internal bool isDefinition => (object)this == originalDefinition;
 
-    protected virtual Symbol _originalSymbolDefinition => this;
+    private protected virtual Symbol _originalSymbolDefinition => this;
 
     /// <summary>
     /// The type of symbol this is (see <see cref="SymbolKind" />).

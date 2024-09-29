@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Utilities;
 
@@ -34,32 +33,32 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal new virtual TemplateParameterSymbol originalDefinition => this;
 
-    protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
+    private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
 
 
     internal NamedTypeSymbol effectiveBaseClass {
         get {
             EnsureConstraintsAreResolved();
-            return GetEffectiveBaseClass([]);
+            return GetEffectiveBaseClass(ConsList<TemplateParameterSymbol>.Empty);
         }
     }
 
     internal ImmutableArray<TypeWithAnnotations> constraintTypes {
         get {
             EnsureConstraintsAreResolved();
-            return GetConstraintTypes([]);
+            return GetConstraintTypes(ConsList<TemplateParameterSymbol>.Empty);
         }
     }
 
-    internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(List<TemplateParameterSymbol> inProgress);
+    internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress);
 
-    internal abstract NamedTypeSymbol GetEffectiveBaseClass(List<TemplateParameterSymbol> inProgress);
+    internal abstract NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress);
 
     internal abstract void EnsureConstraintsAreResolved();
 
-    protected static void EnsureConstraintsAreResolved(ImmutableArray<TemplateParameterSymbol> templateParameters) {
+    private protected static void EnsureConstraintsAreResolved(ImmutableArray<TemplateParameterSymbol> templateParameters) {
         foreach (var templateParameter in templateParameters) {
-            var _ = templateParameter.GetConstraintTypes([]);
+            var _ = templateParameter.GetConstraintTypes(ConsList<TemplateParameterSymbol>.Empty);
         }
     }
 

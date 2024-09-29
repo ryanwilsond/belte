@@ -28,7 +28,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
             return optimizedStatement;
     }
 
-    protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+    private protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
         /*
 
         goto <label> if <condition>
@@ -55,7 +55,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.RewriteConditionalGotoStatement(statement);
     }
 
-    protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+    private protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
         /*
 
         <left> <op> <center> <op> <right>
@@ -80,7 +80,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.RewriteTernaryExpression(expression);
     }
 
-    protected override BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
+    private protected override BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
         /*
 
         <left> = <right>
@@ -107,7 +107,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return base.RewriteAssignmentExpression(expression);
     }
 
-    protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+    private protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
         /*
 
         <expression>[<index>]
@@ -124,7 +124,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return RewriteExpression(i.items[index]);
     }
 
-    protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+    private protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
         /*
 
         <method>(<arguments>)

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
@@ -11,7 +10,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
     private SymbolCompletionState _state;
 
-    protected SourceTemplateParameterSymbolBase(
+    private protected SourceTemplateParameterSymbolBase(
         string name,
         int ordinal,
         TypeWithAnnotations underlyingType,
@@ -34,15 +33,15 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
     internal sealed override SyntaxReference syntaxReference { get; }
 
-    protected abstract ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters { get; }
+    private protected abstract ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters { get; }
 
-    internal sealed override NamedTypeSymbol GetEffectiveBaseClass(List<TemplateParameterSymbol> inProgress) {
+    internal sealed override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         var bounds = GetBounds(inProgress);
         return (bounds is not null) ? bounds.effectiveBaseClass : GetDefaultBaseType();
     }
 
     internal sealed override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(
-        List<TemplateParameterSymbol> inProgress) {
+        ConsList<TemplateParameterSymbol> inProgress) {
         var bounds = GetBounds(inProgress);
         return (bounds is not null) ? bounds.constraintTypes : [];
     }
@@ -52,15 +51,15 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             EnsureConstraintsAreResolved(_containerTemplateParameters);
     }
 
-    protected abstract TypeParameterBounds ResolveBounds(
-        List<TemplateParameterSymbol> inProgress,
+    private protected abstract TypeParameterBounds ResolveBounds(
+        ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics);
 
     private NamedTypeSymbol GetDefaultBaseType() {
         return CorLibrary.GetSpecialType(SpecialType.Object);
     }
 
-    private TypeParameterBounds GetBounds(List<TemplateParameterSymbol> inProgress) {
+    private TypeParameterBounds GetBounds(ConsList<TemplateParameterSymbol> inProgress) {
         if (!_lazyBounds.IsSet()) {
             var diagnostics = BelteDiagnosticQueue.Instance;
             var bounds = ResolveBounds(inProgress, diagnostics);

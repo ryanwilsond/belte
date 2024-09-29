@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 using static Buckle.CodeAnalysis.Symbols.SymbolUtilities;
 
@@ -140,7 +141,7 @@ internal static class LibraryUtilities {
     }
 
     internal static ImmutableArray<ParameterSymbol> CreateParameterList(List<(string, BoundType)> parameters) {
-        var builder = ImmutableArray.CreateBuilder<ParameterSymbol>(parameters.Count);
+        var builder = ArrayBuilder<ParameterSymbol>.GetInstance(parameters.Count);
 
         for (var i = 0; i < parameters.Count; i++) {
             builder.Add(new ParameterSymbol(
@@ -151,6 +152,6 @@ internal static class LibraryUtilities {
             ));
         }
 
-        return builder.ToImmutable();
+        return builder.ToImmutableAndFree();
     }
 }

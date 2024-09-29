@@ -48,9 +48,8 @@ internal sealed partial class ChangedText : SourceText {
             return this;
     }
 
-    protected override void EnsureLines() {
-        if (_lines is null)
-            _lines = _newText.GetLines();
+    private protected override void EnsureLines() {
+        _lines ??= _newText.GetLines();
     }
 
     internal override ImmutableArray<TextChangeRange> GetChangeRanges(SourceText oldText) {

@@ -13,9 +13,9 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
 
     internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
 
-    protected virtual TypeSymbol _originalTypeSymbolDefinition => this;
+    private protected virtual TypeSymbol _originalTypeSymbolDefinition => this;
 
-    protected sealed override Symbol _originalSymbolDefinition => _originalTypeSymbolDefinition;
+    private protected sealed override Symbol _originalSymbolDefinition => _originalTypeSymbolDefinition;
 
     internal abstract NamedTypeSymbol baseType { get; }
 
@@ -66,11 +66,11 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
         return Equals(otherAsType, compareKind);
     }
 
-    internal static bool Equals(TypeSymbol left, TypeSymbol right, TypeCompareKind comparison) {
+    internal static bool Equals(TypeSymbol left, TypeSymbol right, TypeCompareKind compareKind) {
         if (left is null)
             return right is null;
 
-        return left.Equals(right, comparison);
+        return left.Equals(right, compareKind);
     }
 
     public override int GetHashCode() {

@@ -102,20 +102,20 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         return false;
     }
 
-    internal override bool Equals(TypeSymbol other, TypeCompareKind comparison) {
-        return Equals(other as ArrayTypeSymbol, comparison);
+    internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        return Equals(other as ArrayTypeSymbol, compareKind);
     }
 
-    private bool Equals(ArrayTypeSymbol other, TypeCompareKind comparison) {
+    private bool Equals(ArrayTypeSymbol other, TypeCompareKind compareKind) {
         if (ReferenceEquals(this, other))
             return true;
 
         if ((object)other is null || !other.HasSameShapeAs(this) ||
-            !other.elementTypeWithAnnotations.Equals(elementTypeWithAnnotations, comparison)) {
+            !other.elementTypeWithAnnotations.Equals(elementTypeWithAnnotations, compareKind)) {
             return false;
         }
 
-        if ((comparison & TypeCompareKind.IgnoreArraySizesAndLowerBounds) == 0 && !HasSameSizesAndLowerBoundsAs(other))
+        if ((compareKind & TypeCompareKind.IgnoreArraySizesAndLowerBounds) == 0 && !HasSameSizesAndLowerBoundsAs(other))
             return false;
 
         return true;

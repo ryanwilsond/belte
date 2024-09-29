@@ -21,10 +21,10 @@ namespace Buckle.CodeAnalysis.Binding;
 /// flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal class Binder {
-    protected readonly OverloadResolution _overloadResolution;
-    protected readonly Conversions _conversions;
-    protected readonly Compilation _compilation;
-    protected readonly BinderFlags _flags;
+    private protected readonly OverloadResolution _overloadResolution;
+    private protected readonly Conversions _conversions;
+    private protected readonly Compilation _compilation;
+    private protected readonly BinderFlags _flags;
 
     private Binder() {
         _conversions = new Conversions(this);
@@ -32,24 +32,24 @@ internal class Binder {
         diagnostics = new BelteDiagnosticQueue();
     }
 
-    protected Binder(Compilation compilation, BinderFlags flags) : this() {
+    private protected Binder(Compilation compilation, BinderFlags flags) : this() {
         _compilation = compilation;
         _flags = flags;
     }
 
-    protected virtual SyntaxNode _scopeDesignator => null;
+    private protected virtual SyntaxNode _scopeDesignator => null;
 
-    protected virtual Symbol _containingMember => null;
+    private protected virtual Symbol _containingMember => null;
 
-    protected virtual LabelSymbol _breakLabel => null;
+    private protected virtual LabelSymbol _breakLabel => null;
 
-    protected virtual LabelSymbol _continueLabel => null;
+    private protected virtual LabelSymbol _continueLabel => null;
 
-    protected virtual bool _inMethod => false;
+    private protected virtual bool _inMethod => false;
 
-    protected virtual LocalVariableSymbol _localInProgress => null;
+    private protected virtual LocalVariableSymbol _localInProgress => null;
 
-    protected NamedTypeSymbol _containingType => _containingMember switch {
+    private protected NamedTypeSymbol _containingType => _containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,
         _ => _containingMember.containingType
@@ -64,7 +64,7 @@ internal class Binder {
 
     }
 
-    protected virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
+    private protected virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
         return default;
     }
 

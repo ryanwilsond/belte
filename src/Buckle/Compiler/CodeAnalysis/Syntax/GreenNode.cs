@@ -11,7 +11,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Houses basic information for both SyntaxNodes and SyntaxTokens.
 /// </summary>
 internal abstract partial class GreenNode {
-    protected NodeFlags _flags;
+    private protected NodeFlags _flags;
 
     /// <summary>
     /// A <see cref="SyntaxKind" /> that represents any list kind.
@@ -66,12 +66,12 @@ internal abstract partial class GreenNode {
     /// The full width/length of the <see cref="GreenNode" />.
     /// Includes leading and trialing trivia.
     /// </summary>
-    public int fullWidth { get; protected set; }
+    public int fullWidth { get; private protected set; }
 
     /// <summary>
     /// The number of children / "slots".
     /// </summary>
-    public virtual int slotCount { get; protected set; }
+    public virtual int slotCount { get; private protected set; }
 
     /// <summary>
     /// The width/length of the <see cref="GreenNode" /> excluding the leading and trailing trivia.
@@ -345,7 +345,7 @@ internal abstract partial class GreenNode {
         return NoDiagnostics;
     }
 
-    protected internal void WriteTo(TextWriter writer, bool leading, bool trailing) {
+    private protected void WriteTo(TextWriter writer, bool leading, bool trailing) {
         var stack = new Stack<(GreenNode node, bool leading, bool trailing)>();
         stack.Push((this, leading, trailing));
 
@@ -385,15 +385,15 @@ internal abstract partial class GreenNode {
         }
     }
 
-    protected virtual void WriteTriviaTo(TextWriter writer) {
+    private protected virtual void WriteTriviaTo(TextWriter writer) {
         throw new NotImplementedException();
     }
 
-    protected virtual void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
+    private protected virtual void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
         throw new NotImplementedException();
     }
 
-    protected void AdjustFlagsAndWidth(GreenNode node) {
+    private protected void AdjustFlagsAndWidth(GreenNode node) {
         _flags |= node._flags;
         fullWidth += node.fullWidth;
     }

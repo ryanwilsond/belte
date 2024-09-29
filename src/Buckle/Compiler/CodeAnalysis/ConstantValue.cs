@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 
 namespace Buckle.CodeAnalysis;
 
@@ -26,7 +27,7 @@ internal sealed class ConstantValue {
     }
 
     public override int GetHashCode() {
-        return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+        return RuntimeHelpers.GetHashCode(this);
     }
 
     public override bool Equals(object obj) {
@@ -44,13 +45,13 @@ internal sealed class ConstantValue {
         if (right is null)
             return left is null;
 
-        return (object)left == (object)right || right.Equals(left);
+        return (object)left == right || right.Equals(left);
     }
 
     public static bool operator !=(ConstantValue left, ConstantValue right) {
         if (right is null)
             return left is not null;
 
-        return (object)left != (object)right && !right.Equals(left);
+        return (object)left != right && !right.Equals(left);
     }
 }

@@ -11,7 +11,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Base building block of all things on the syntax trees.
 /// </summary>
 public abstract partial class SyntaxNode {
-    protected SyntaxTree _syntaxTree;
+    private protected SyntaxTree _syntaxTree;
 
     /// <summary>
     /// Creates a new <see cref="SyntaxNode" /> from an underlying <see cref="GreenNode" />.
@@ -362,7 +362,7 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
-    protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
+    private protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
         var result = field;
 
         if (result is null) {
@@ -378,7 +378,7 @@ public abstract partial class SyntaxNode {
     }
 
     // special case of above function where slot = 0, does not need GetChildPosition
-    protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
+    private protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
         var result = field;
 
         if (result is null) {

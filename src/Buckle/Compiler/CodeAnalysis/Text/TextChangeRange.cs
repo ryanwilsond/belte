@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -61,7 +62,7 @@ internal sealed partial class TextChangeRange {
     internal static ImmutableArray<TextChangeRange> Merge(
         ImmutableArray<TextChangeRange> oldChanges, ImmutableArray<TextChangeRange> newChanges) {
         // Literally have no clue how this works
-        var builder = ImmutableArray.CreateBuilder<TextChangeRange>();
+        var builder = ArrayBuilder<TextChangeRange>.GetInstance();
 
         var oldChange = oldChanges[0];
         var newChange = new UnadjustedNewChange(newChanges[0]);
@@ -95,13 +96,13 @@ internal sealed partial class TextChangeRange {
         }
 
         void AddAndAdjustOldDelta(
-            ImmutableArray<TextChangeRange>.Builder builder, ref int oldDelta, TextChangeRange oldChange) {
+            ArrayBuilder<TextChangeRange> builder, ref int oldDelta, TextChangeRange oldChange) {
             oldDelta = oldDelta - oldChange.span.length + oldChange.newLength;
             Add(builder, oldChange);
         }
 
         void AdjustAndAddNewChange(
-            ImmutableArray<TextChangeRange>.Builder builder, int oldDelta, UnadjustedNewChange newChange) {
+            ArrayBuilder<TextChangeRange> builder, int oldDelta, UnadjustedNewChange newChange) {
             Add(
                 builder,
                 new TextChangeRange(
@@ -110,7 +111,7 @@ internal sealed partial class TextChangeRange {
             );
         }
 
-        void Add(ImmutableArray<TextChangeRange>.Builder builder, TextChangeRange change) {
+        void Add(ArrayBuilder<TextChangeRange> builder, TextChangeRange change) {
             if (builder.Count > 0) {
                 var last = builder[^1];
 
@@ -225,7 +226,7 @@ internal sealed partial class TextChangeRange {
             TryGetNextNewChange();
         }
 
-        return builder.ToImmutable();
+        return builder.ToImmutableAndFree();
     }
 
     private static int NewEnd(TextChangeRange range) => range.span.start + range.newLength;

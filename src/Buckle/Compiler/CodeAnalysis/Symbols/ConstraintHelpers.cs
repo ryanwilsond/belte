@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal static class ConstraintsHelpers {
     internal static TypeParameterBounds ResolveBounds(
         this SourceTemplateParameterSymbolBase templateParameter,
-        List<TemplateParameterSymbol> inProgress,
+        ConsList<TemplateParameterSymbol> inProgress,
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics) {
         // TODO

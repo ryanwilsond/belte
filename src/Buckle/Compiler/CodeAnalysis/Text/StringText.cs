@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.IO;
 
 namespace Buckle.CodeAnalysis.Text;
@@ -53,8 +52,7 @@ internal sealed class StringText : SourceText {
         writer.Write(source);
     }
 
-    protected override void EnsureLines() {
-        if (_lines is null)
-            _lines = ImmutableArray<TextLine>.Empty;
+    private protected override void EnsureLines() {
+        _lines ??= [];
     }
 }

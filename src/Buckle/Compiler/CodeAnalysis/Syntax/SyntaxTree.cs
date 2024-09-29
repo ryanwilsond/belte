@@ -50,7 +50,7 @@ public partial class SyntaxTree {
     /// <summary>
     /// The length of the <see cref="SourceText" />.
     /// </summary>
-    protected virtual int _length => text.length;
+    private protected virtual int _length => text.length;
 
     /// <summary>
     /// Parses text (not necessarily related to a source file).
@@ -166,7 +166,7 @@ public partial class SyntaxTree {
         return new BelteDiagnosticQueue();
     }
 
-    protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
+    private protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
         return SyntaxNode.CloneNodeAsRoot(node, this);
     }
 

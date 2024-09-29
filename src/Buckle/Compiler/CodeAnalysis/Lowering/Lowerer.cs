@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries.Standard;
+using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -55,7 +55,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return (optimizedBlock, transpilerOptimizedBlock);
     }
 
-    protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {
+    private protected override BoundStatement RewriteIfStatement(BoundIfStatement statement) {
         /*
 
         if <condition>
@@ -120,7 +120,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
     }
 
-    protected override BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
+    private protected override BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
         /*
 
         while <condition>
@@ -155,7 +155,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
+    private protected override BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
         /*
 
         do
@@ -189,7 +189,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    protected override BoundStatement RewriteForStatement(BoundForStatement statement) {
+    private protected override BoundStatement RewriteForStatement(BoundForStatement statement) {
         /*
 
         for (<initializer> <condition>; <step>)
@@ -235,7 +235,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    protected override BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
+    private protected override BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
         /*
 
         <left> <op> <right>
@@ -361,7 +361,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteBinaryExpression(expression);
     }
 
-    protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
+    private protected override BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
         /*
 
         <op> <operand>
@@ -394,7 +394,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteUnaryExpression(expression);
     }
 
-    protected override BoundExpression RewriteCastExpression(BoundCastExpression expression) {
+    private protected override BoundExpression RewriteCastExpression(BoundCastExpression expression) {
         /*
 
         (<type>)<expression>
@@ -430,7 +430,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteCastExpression(expression);
     }
 
-    protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+    private protected override BoundExpression RewriteCallExpression(BoundCallExpression expression) {
         /*
 
         <method>(<parameters>)
@@ -457,7 +457,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         var method = expression.method;
-        var parameters = ImmutableArray.CreateBuilder<ParameterSymbol>();
+        var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
 
         if (method.name == "Value" && !expression.arguments[0].type.isNullable)
             return RewriteExpression(expression.arguments[0]);
@@ -484,7 +484,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             parameters.Add(parameter);
         }
 
-        ImmutableArray<BoundExpression>.Builder builder = null;
+        ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < expression.arguments.Length; i++) {
             var oldArgument = expression.arguments[i];
@@ -492,7 +492,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             if (newArgument != oldArgument) {
                 if (builder is null) {
-                    builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.arguments.Length);
+                    builder = ArrayBuilder<BoundExpression>.GetInstance(expression.arguments.Length);
 
                     for (var j = 0; j < i; j++)
                         builder.Add(expression.arguments[j]);
@@ -503,17 +503,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         var newMethod = parametersChanged
-            ? method.UpdateParameters(parameters.ToImmutable())
+            ? method.UpdateParameters(parameters.ToImmutableAndFree())
             : method;
 
-        var arguments = builder is null ? expression.arguments : builder.ToImmutable();
+        var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
         return base.RewriteCallExpression(
             new BoundCallExpression(expression.expression, newMethod, arguments, expression.templateArguments)
         );
     }
 
-    protected override BoundExpression RewriteCompoundAssignmentExpression(
+    private protected override BoundExpression RewriteCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression) {
         /*
 
@@ -539,7 +539,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    protected override BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
+    private protected override BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
         /*
 
         <operand><op><member>
@@ -570,7 +570,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteMemberAccessExpression(expression);
     }
 
-    protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+    private protected override BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
         /*
 
         <operand><openBracket><index>]
@@ -596,7 +596,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.RewriteIndexExpression(expression);
     }
 
-    protected override BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
+    private protected override BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
         /*
 
         <op><operand>
@@ -619,7 +619,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return RewriteExpression(Decrement(expression.operand));
     }
 
-    protected override BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
+    private protected override BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
         /*
 
         <operand><op>
@@ -698,7 +698,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
-        var builder = ImmutableArray.CreateBuilder<BoundStatement>();
+        var builder = ArrayBuilder<BoundStatement>.GetInstance();
         var stack = new Stack<BoundStatement>();
         stack.Push(statement);
 
@@ -718,7 +718,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 builder.Add(new BoundReturnStatement(null));
         }
 
-        return new BoundBlockStatement(builder.ToImmutable());
+        return new BoundBlockStatement(builder.ToImmutableAndFree());
     }
 
     private static bool CanFallThrough(BoundStatement boundStatement) {

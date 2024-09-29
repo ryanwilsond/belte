@@ -17,6 +17,10 @@ internal sealed class TemplateMap {
         }
     }
 
+    private TemplateMap(Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping) {
+        _mapping = mapping;
+    }
+
     internal TypeOrConstant SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
         if (_mapping.TryGetValue(templateParameter, out var result))
             return result;
@@ -78,7 +82,7 @@ internal sealed class TemplateMap {
 
         var oldTemplateArguments = previous.templateArguments;
         var changed = !ReferenceEquals(oldConstructedFrom, newConstructedFrom);
-        var newTypeArguments = ImmutableArray.CreateBuilder<TypeOrConstant>(oldTemplateArguments.Length);
+        var newTypeArguments = ArrayBuilder<TypeOrConstant>.GetInstance(oldTemplateArguments.Length);
 
         for (var i = 0; i < oldTemplateArguments.Length; i++) {
             var oldArgument = oldTemplateArguments[i];
@@ -99,12 +103,12 @@ internal sealed class TemplateMap {
         if (!changed)
             return previous;
 
-        return newConstructedFrom.ConstructIfGeneric(newTypeArguments.ToImmutable());
+        return newConstructedFrom.ConstructIfGeneric(newTypeArguments.ToImmutableAndFree());
     }
 
     internal void SubstituteConstraintTypesDistinctWithoutModifiers(
         ImmutableArray<TypeWithAnnotations> original,
-        ImmutableArray<TypeWithAnnotations>.Builder result) {
+        ArrayBuilder<TypeWithAnnotations> result) {
         if (original.Length == 0) {
             return;
         } else if (original.Length == 1) {
@@ -135,5 +139,22 @@ internal sealed class TemplateMap {
             return previous;
 
         return previous.originalDefinition.AsMember(newContainingType);
+    }
+
+    internal TemplateMap WithAlphaRename(
+        NamedTypeSymbol oldOwner,
+        NamedTypeSymbol newOwner,
+        out ImmutableArray<TemplateParameterSymbol> newTemplateParameters) {
+        var oldTemplateParameters = oldOwner.originalDefinition.templateParameters;
+
+        if (oldTemplateParameters.Length == 0) {
+            newTemplateParameters = [];
+            return this;
+        }
+
+        var result = new TemplateMap(_mapping);
+        var newTypeParametersBuilder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+
+
     }
 }

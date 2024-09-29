@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Shared.Tests;
 
@@ -29,7 +30,7 @@ public sealed class AnnotatedText {
         text = Unindent(text);
 
         var textBuilder = new StringBuilder();
-        var spanBuilder = ImmutableArray.CreateBuilder<TextSpan>();
+        var spanBuilder = ArrayBuilder<TextSpan>.GetInstance();
         var startStack = new Stack<int>();
 
         var position = 0;

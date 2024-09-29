@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries.Standard;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 using static Buckle.Utilities.MethodUtilities;
 
@@ -94,7 +95,7 @@ internal sealed class Evaluator {
         var body = LookupMethod(_methods, _program.entryPoint);
 
         if (_program.entryPoint.parameters.Length == 1) {
-            var args = ImmutableArray.CreateBuilder<ConstantValue>();
+            var args = ArrayBuilder<ConstantValue>.GetInstance();
 
             foreach (var arg in _arguments)
                 args.Add(new ConstantValue(arg));
@@ -103,7 +104,7 @@ internal sealed class Evaluator {
                 _program.entryPoint.parameters[0].type,
                 (_program.entryPoint.parameters[0].type.typeSymbol as NamedTypeSymbol).constructors[3],
                 [new BoundInitializerListExpression(
-                    new ConstantValue(args.ToImmutable()),
+                    new ConstantValue(args.ToImmutableAndFree()),
                     new BoundType(
                         TypeSymbol.String,
                         dimensions: 1,
@@ -1266,7 +1267,7 @@ internal sealed class Evaluator {
                     (Value(EvaluateExpression(arguments[0], abort)), null, null) as string[];
 
                 var listType = _program.usedLibraryTypes.Where(t => t.name == "List").Single();
-                var items = ImmutableArray.CreateBuilder<ConstantValue>();
+                var items = ArrayBuilder<ConstantValue>.GetInstance();
 
                 foreach (var item in tempResult)
                     items.Add(new ConstantValue(item));
@@ -1275,7 +1276,7 @@ internal sealed class Evaluator {
                     new BoundType(listType, templateArguments: [new TypeOrConstant(BoundType.String)]),
                     listType.constructors[3],
                     [new BoundInitializerListExpression(
-                        new ConstantValue(items.ToImmutable()),
+                        new ConstantValue(items.ToImmutableAndFree()),
                         new BoundType(
                             TypeSymbol.String,
                             dimensions: 1,

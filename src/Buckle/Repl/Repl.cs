@@ -24,19 +24,19 @@ public abstract partial class Repl {
     /// </summary>
     internal OutputCapture writer = new OutputCapture();
 
-    protected readonly List<string> _submissionHistory = new List<string>();
+    private protected readonly List<string> _submissionHistory = new List<string>();
 
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
-    protected ValueWrapper<bool> _abortEvaluation;
-    protected bool _showTime;
-    protected bool _hasDiagnosticHandle;
+    private protected ValueWrapper<bool> _abortEvaluation;
+    private protected bool _showTime;
+    private protected bool _hasDiagnosticHandle;
 
     private int _submissionHistoryIndex;
     private bool _done;
     private bool _evaluate;
 
-    protected Repl(object handle) {
+    private protected Repl(object handle) {
         _handle = handle;
         InitializeMetaCommands();
     }
@@ -176,31 +176,31 @@ public abstract partial class Repl {
         return _submissionHistory;
     }
 
-    protected virtual void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+    private protected virtual void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
         writer.Write(lines[lineIndex]);
     }
 
-    protected void ClearHistory() {
+    private protected void ClearHistory() {
         _submissionHistory.Clear();
     }
 
-    protected abstract bool IsCompleteSubmission(string text);
-    protected abstract void EvaluateSubmission(string text);
-    protected abstract void EvaluateSubmission();
-    protected abstract void AddDiagnostic(Diagnostic diagnostic);
-    protected abstract void ClearDiagnostics();
-    protected abstract void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null);
+    private protected abstract bool IsCompleteSubmission(string text);
+    private protected abstract void EvaluateSubmission(string text);
+    private protected abstract void EvaluateSubmission();
+    private protected abstract void AddDiagnostic(Diagnostic diagnostic);
+    private protected abstract void ClearDiagnostics();
+    private protected abstract void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null);
 
-    protected virtual void AddChange(
+    private protected virtual void AddChange(
         ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) { }
 
-    protected virtual void AddClearChange(ObservableCollection<string> document) { }
+    private protected virtual void AddClearChange(ObservableCollection<string> document) { }
 
-    protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
+    private protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
 
 
     [MetaCommand("help", "Show this document")]
-    protected void EvaluateHelp() {
+    private protected void EvaluateHelp() {
         var previous = Console.BackgroundColor;
 
         var maxLength = _metaCommands
@@ -232,7 +232,7 @@ public abstract partial class Repl {
     }
 
     [MetaCommand("state", "Dump the current state of the Repl")]
-    protected void EvaluateState() {
+    private protected void EvaluateState() {
         var fields = _state.GetType()
             .GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
@@ -250,7 +250,7 @@ public abstract partial class Repl {
         }
     }
 
-    protected virtual string EditSubmission() {
+    private protected virtual string EditSubmission() {
         _done = false;
 
         var document = new ObservableCollection<string>() { "" };

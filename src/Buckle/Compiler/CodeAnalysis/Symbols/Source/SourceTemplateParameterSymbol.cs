@@ -23,10 +23,10 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
 
     internal override Symbol containingSymbol => _owner;
 
-    protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
+    private protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
         => _owner.templateParameters;
 
-    protected override TypeParameterBounds ResolveBounds(
+    private protected override TypeParameterBounds ResolveBounds(
         List<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics) {
         var constraintTypes = _owner.GetTemplateParameterConstraintTypes(ordinal);

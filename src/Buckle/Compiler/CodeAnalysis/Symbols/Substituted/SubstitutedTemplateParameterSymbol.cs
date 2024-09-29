@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -27,12 +27,12 @@ internal sealed class SubstitutedTemplateParameterSymbol : WrappedTemplateParame
 
     internal override Compilation declaringCompilation => containingSymbol.declaringCompilation;
 
-    internal override NamedTypeSymbol GetEffectiveBaseClass(List<TemplateParameterSymbol> inProgress) {
+    internal override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         return _templateMap.SubstituteNamedType(underlyingTemplateParameter.GetEffectiveBaseClass(inProgress));
     }
 
-    internal override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(List<TemplateParameterSymbol> inProgress) {
-        var builder = ImmutableArray.CreateBuilder<TypeWithAnnotations>();
+    internal override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress) {
+        var builder = ArrayBuilder<TypeWithAnnotations>.GetInstance();
         _templateMap.SubstituteConstraintTypesDistinctWithoutModifiers(
             underlyingTemplateParameter.GetConstraintTypes(inProgress),
             builder

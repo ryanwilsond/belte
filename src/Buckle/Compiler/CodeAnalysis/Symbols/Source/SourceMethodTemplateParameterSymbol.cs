@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
@@ -26,11 +25,11 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
 
     internal override Symbol containingSymbol => _owner;
 
-    protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
+    private protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
         => _owner.templateParameters;
 
-    protected override TypeParameterBounds ResolveBounds(
-        List<TemplateParameterSymbol> inProgress,
+    private protected override TypeParameterBounds ResolveBounds(
+        ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics) {
         var constraintTypes = _owner.GetTemplateParameterConstraintTypes(ordinal);
 

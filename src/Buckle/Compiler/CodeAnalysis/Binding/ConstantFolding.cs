@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -262,7 +263,7 @@ internal static class ConstantFolding {
     /// <param name="items">Initializer list contents.</param>
     /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
     internal static ConstantValue FoldInitializerList(ImmutableArray<BoundExpression> items) {
-        var foldedItems = ImmutableArray.CreateBuilder<ConstantValue>();
+        var foldedItems = ArrayBuilder<ConstantValue>.GetInstance();
 
         foreach (var item in items) {
             if (item.constantValue != null)
@@ -271,7 +272,7 @@ internal static class ConstantFolding {
                 return null;
         }
 
-        return new ConstantValue(foldedItems.ToImmutable());
+        return new ConstantValue(foldedItems.ToImmutableAndFree());
     }
 
     /// <summary>
