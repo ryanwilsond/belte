@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -46,7 +49,87 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     internal abstract NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved);
 
-    internal abstract ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved);
+    internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
+        return newOwner.isDefinition
+            ? this
+            : new SubstitutedNestedTypeSymbol((SubstitutedNamedTypeSymbol)newOwner, this);
+    }
+
+    internal ImmutableArray<TypeOrConstant> GetTemplateParametersAsTemplateArguments() {
+        return TemplateMap.TemplateParametersAsTypeOrConstants(templateParameters);
+    }
+
+    internal NamedTypeSymbol ConstructIfGeneric(ImmutableArray<TypeOrConstant> templateArguments) {
+        return templateParameters.IsEmpty ? this : Construct(templateArguments, unbound: false);
+    }
+
+    internal static readonly Func<TypeOrConstant, bool> TypeOrConstantIsNullFunction = type
+        => type.isType && type.type.type is null;
+
+    internal NamedTypeSymbol Construct(ImmutableArray<TypeOrConstant> templateArguments, bool unbound) {
+        if (!ReferenceEquals(this, constructedFrom))
+            throw new InvalidOperationException("Cannot create constructed from constructed");
+
+        if (arity == 0)
+            throw new InvalidOperationException("Cannot create constructed from non-template");
+
+        if (templateArguments.IsDefault)
+            throw new ArgumentNullException(nameof(templateArguments));
+
+        if (templateArguments.Any(TypeOrConstantIsNullFunction))
+            throw new ArgumentException("Type argument cannot be null", nameof(templateArguments));
+
+        if (templateArguments.Length != arity)
+            throw new ArgumentException("Wrong number of template arguments", nameof(templateArguments));
+
+        if (ConstructedNamedTypeSymbol.TypeParametersMatchTypeArguments(templateParameters, templateArguments))
+            return this;
+
+        return ConstructCore(templateArguments, unbound);
+    }
+
+    private protected virtual NamedTypeSymbol ConstructCore(
+        ImmutableArray<TypeOrConstant> templateArguments,
+        bool unbound) {
+        return new ConstructedNamedTypeSymbol(this, templateArguments, unbound);
+    }
+
+    internal int ComputeHashCode() {
+        if (WasConstructedForAnnotations(this))
+            return originalDefinition.GetHashCode();
+
+        var code = originalDefinition.GetHashCode();
+        code = Hash.Combine(containingType, code);
+
+        if ((object)constructedFrom != this) {
+            foreach (var arg in templateArguments)
+                code = Hash.Combine(arg, code);
+        }
+
+        if (code == 0)
+            code++;
+
+        return code;
+
+        static bool WasConstructedForAnnotations(NamedTypeSymbol type) {
+            do {
+                var typeArguments = type.templateArguments;
+                var typeParameters = type.originalDefinition.templateParameters;
+
+                for (var i = 0; i < typeArguments.Length; i++) {
+                    if (!typeParameters[i].Equals(
+                             typeArguments[i].type.type.originalDefinition,
+                             TypeCompareKind.ConsiderEverything)) {
+                        return false;
+                    }
+                }
+
+                type = type.containingType;
+            } while (type is not null && !type.isDefinition);
+
+            return true;
+        }
+    }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
         if ((object)other == this)

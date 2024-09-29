@@ -31,4 +31,11 @@ internal sealed class TypeOrConstant {
         else
             return type.Equals(other.type, compareKind);
     }
+
+    public override int GetHashCode() {
+        if (isType)
+            return type.GetHashCode();
+
+        return constant.GetHashCode();
+    }
 }

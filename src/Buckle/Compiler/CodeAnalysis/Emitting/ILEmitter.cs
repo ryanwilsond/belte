@@ -1206,7 +1206,7 @@ internal sealed partial class ILEmitter {
 
         switch (nodes.Count) {
             case 0:
-                iLProcessor.Emit(OpCodes.Ldstr, string.Empty);
+                iLProcessor.Emit(OpCodes.Ldstr, "");
                 break;
             case 1:
                 EmitExpression(iLProcessor, nodes[0]);

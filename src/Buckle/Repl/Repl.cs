@@ -43,15 +43,9 @@ public abstract partial class Repl {
 
     private delegate void LineRenderHandler(IReadOnlyList<string> lines, int lineIndex);
 
-    /// <summary>
-    /// <see cref="Repl" /> specific state used by child classes.
-    /// </summary>
-    internal object _state { get; set; }
+    private protected object _state;
 
-    /// <summary>
-    /// The callback handle. Usually a compiler object.
-    /// </summary>
-    internal object _handle { get; set; }
+    private protected object _handle;
 
     /// <summary>
     /// Resets all state.
@@ -760,7 +754,7 @@ public abstract partial class Repl {
     private void HandleEscape(ObservableCollection<string> document, SubmissionView view) {
         AddClearChange(document);
         document.Clear();
-        document.Add(string.Empty);
+        document.Add("");
         view.currentLine = 0;
         view.currentCharacter = 0;
     }

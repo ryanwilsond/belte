@@ -9,9 +9,10 @@ public enum SymbolKind {
     LocalVariable,
     NamedType,
     ArrayType,
+    ErrorType,
     Method,
     Parameter,
+    TemplateParameter,
     Field,
     Label,
-    TemplateParameter,
 }

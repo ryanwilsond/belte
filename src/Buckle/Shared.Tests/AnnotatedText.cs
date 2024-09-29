@@ -92,7 +92,7 @@ public sealed class AnnotatedText {
             var line = lines[i];
 
             if (line.Trim().Length == 0) {
-                lines[i] = string.Empty;
+                lines[i] = "";
                 continue;
             }
 

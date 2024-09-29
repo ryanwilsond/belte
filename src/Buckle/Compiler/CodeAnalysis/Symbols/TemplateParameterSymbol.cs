@@ -29,8 +29,6 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract ConstantValue defaultValue { get; }
 
-    internal bool isTypeParameter => underlyingType.type.specialType == SpecialType.Type;
-
     internal new virtual TemplateParameterSymbol originalDefinition => this;
 
     private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
@@ -53,6 +51,9 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress);
 
     internal abstract NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress);
+
+    // TODO Ensure this is needed
+    internal abstract TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress);
 
     internal abstract void EnsureConstraintsAreResolved();
 

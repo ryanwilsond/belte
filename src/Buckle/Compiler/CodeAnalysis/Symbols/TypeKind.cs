@@ -10,4 +10,5 @@ internal enum TypeKind {
     Struct,
     Primitive,
     TemplateParameter,
+    Error,
 }

@@ -40,6 +40,11 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         return (bounds is not null) ? bounds.effectiveBaseClass : GetDefaultBaseType();
     }
 
+    internal sealed override TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress) {
+        var bounds = GetBounds(inProgress);
+        return (bounds is not null) ? bounds.deducedBaseType : GetDefaultBaseType();
+    }
+
     internal sealed override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(
         ConsList<TemplateParameterSymbol> inProgress) {
         var bounds = GetBounds(inProgress);

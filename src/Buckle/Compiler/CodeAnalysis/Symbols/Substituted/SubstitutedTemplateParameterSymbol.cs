@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SubstitutedTemplateParameterSymbol : WrappedTemplateParameterSymbol {
+internal class SubstitutedTemplateParameterSymbol : WrappedTemplateParameterSymbol {
     private readonly TemplateMap _templateMap;
 
     internal SubstitutedTemplateParameterSymbol(
@@ -29,6 +29,10 @@ internal sealed class SubstitutedTemplateParameterSymbol : WrappedTemplateParame
 
     internal override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         return _templateMap.SubstituteNamedType(underlyingTemplateParameter.GetEffectiveBaseClass(inProgress));
+    }
+
+    internal override TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress) {
+        return _templateMap.SubstituteType(underlyingTemplateParameter.GetDeducedBaseType(inProgress)).type.type;
     }
 
     internal override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress) {

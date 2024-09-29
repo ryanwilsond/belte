@@ -36,6 +36,8 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
+    internal virtual bool isImplicitlyDeclared => false;
+
     /// <summary>
     /// Gets the original definition of the symbol.
     /// </summary>

@@ -17,8 +17,37 @@ internal sealed class TemplateMap {
         }
     }
 
+    internal TemplateMap(
+        NamedTypeSymbol containingType,
+        ImmutableArray<TemplateParameterSymbol> from,
+        ImmutableArray<TypeOrConstant> to) {
+        _mapping = ForType(containingType);
+
+        for (var i = 0; i < from.Length; i++) {
+            var templateParameter = from[i];
+            var templateArgument = to[i];
+
+            if (!templateArgument.Equals(templateParameter))
+                _mapping.Add(templateParameter, templateArgument);
+        }
+    }
+
+    private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(NamedTypeSymbol containingType) {
+        return containingType is SubstitutedNamedTypeSymbol substituted
+            ? new Dictionary<TemplateParameterSymbol, TypeOrConstant>(
+                substituted.templateSubstitution._mapping, ReferenceEqualityComparer.Instance)
+            : new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
+    }
+
     private TemplateMap(Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping) {
         _mapping = mapping;
+    }
+
+    internal ImmutableArray<TemplateParameterSymbol> SubstituteTemplateParameters(
+        ImmutableArray<TemplateParameterSymbol> original) {
+        return original.SelectAsArray(
+            (tp, m) => (TemplateParameterSymbol)m.SubstituteTemplateParameter(tp).type.type, this
+        );
     }
 
     internal TypeOrConstant SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
@@ -92,7 +121,7 @@ internal sealed class TemplateMap {
                 continue;
             }
 
-            var newArgument = oldArgument.type.SubstituteType(this);
+            var newArgument = oldArgument.type.SubstituteType(this).type;
 
             if (!changed && !oldArgument.type.IsSameAs(newArgument))
                 changed = true;
@@ -155,6 +184,29 @@ internal sealed class TemplateMap {
         var result = new TemplateMap(_mapping);
         var newTypeParametersBuilder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
 
+        var isSynthesized = !ReferenceEquals(
+            oldTemplateParameters[0].containingSymbol.originalDefinition,
+            newOwner.originalDefinition
+        );
 
+        var ordinal = 0;
+
+        foreach (var templateParameter in oldTemplateParameters) {
+            var newTemplateParameter = isSynthesized
+                ? new SynthesizedSubstitutedTemplateParameterSymbol(newOwner, result, templateParameter, ordinal)
+                : new SubstitutedTemplateParameterSymbol(newOwner, result, templateParameter, ordinal);
+
+            result._mapping.Add(templateParameter, new TypeOrConstant(new TypeWithAnnotations(newTemplateParameter)));
+            newTypeParametersBuilder.Add(newTemplateParameter);
+            ordinal++;
+        }
+
+        newTemplateParameters = newTypeParametersBuilder.ToImmutableAndFree();
+        return result;
+    }
+
+    internal static ImmutableArray<TypeOrConstant> TemplateParametersAsTypeOrConstants(
+        ImmutableArray<TemplateParameterSymbol> templateParameters) {
+        return templateParameters.SelectAsArray(static (tp) => new TypeOrConstant(new TypeWithAnnotations(tp)));
     }
 }

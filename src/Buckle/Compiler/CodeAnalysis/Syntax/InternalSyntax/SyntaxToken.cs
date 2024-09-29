@@ -134,7 +134,7 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// <summary>
     /// Text related to <see cref="SyntaxToken" /> (if applicable).
     /// </summary>
-    internal virtual string text => isFabricated ? string.Empty : _text ?? SyntaxFacts.GetText(kind);
+    internal virtual string text => isFabricated ? "" : _text ?? SyntaxFacts.GetText(kind);
 
     /// <summary>
     /// Value related to <see cref="SyntaxToken" /> (if applicable).

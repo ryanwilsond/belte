@@ -142,7 +142,7 @@ public sealed class SyntaxToken {
     }
 
     public override string ToString() {
-        return node != null ? node.ToString() : string.Empty;
+        return node != null ? node.ToString() : "";
     }
 
     /// <summary>

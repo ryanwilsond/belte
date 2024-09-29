@@ -64,4 +64,11 @@ internal sealed class TypeWithAnnotations {
 
         return true;
     }
+
+    public override int GetHashCode() {
+        if (type is null)
+            return 0;
+
+        return type.GetHashCode();
+    }
 }

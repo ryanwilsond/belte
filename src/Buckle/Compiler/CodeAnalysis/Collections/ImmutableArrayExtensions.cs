@@ -7,7 +7,9 @@ namespace Buckle.CodeAnalysis;
 
 internal static class ImmutableArrayExtensions {
     internal static Dictionary<K, ImmutableArray<T>> ToDictionary<K, T>(
-        this ImmutableArray<T> items, Func<T, K> keySelector, IEqualityComparer<K>? comparer = null)
+        this ImmutableArray<T> items,
+        Func<T, K> keySelector,
+        IEqualityComparer<K>? comparer = null)
         where K : notnull {
         if (items.Length == 1) {
             var dictionary1 = new Dictionary<K, ImmutableArray<T>>(1, comparer);
@@ -39,5 +41,25 @@ internal static class ImmutableArrayExtensions {
             dictionary.Add(pair.Key, pair.Value.ToImmutableAndFree());
 
         return dictionary;
+    }
+
+    internal static ImmutableArray<TResult> SelectAsArray<TItem, TResult>(
+        this ImmutableArray<TItem> items,
+        Func<TItem, TResult> map) {
+        return ImmutableArray.CreateRange(items, map);
+    }
+
+    internal static ImmutableArray<TResult> SelectAsArray<TItem, TArg, TResult>(
+        this ImmutableArray<TItem> items,
+        Func<TItem, TArg, TResult> map,
+        TArg arg) {
+        return ImmutableArray.CreateRange(items, map, arg);
+    }
+
+    internal static ImmutableArray<T> AsImmutableOrNull<T>(this T[]? items) {
+        if (items == null)
+            return default;
+
+        return ImmutableArray.Create(items);
     }
 }

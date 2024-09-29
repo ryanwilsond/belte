@@ -10,7 +10,6 @@ namespace SyntaxGenerator;
 /// </summary>
 internal sealed class SourceWriter {
     private readonly TextWriter _writer;
-    private readonly Tree _tree;
     private readonly IDictionary<string, string> _parentMap;
 
     private const int IndentSize = 4;
@@ -27,7 +26,7 @@ internal sealed class SourceWriter {
         _parentMap.Add(tree.Root, null);
     }
 
-    private Tree tree { get { return _tree; } }
+    private Tree _tree { get; }
 
     /// <summary>
     /// Writes the green/internal syntax.
@@ -68,13 +67,13 @@ internal sealed class SourceWriter {
 
     private static string GetElementType(string typeName) {
         if (!typeName.Contains('<'))
-            return string.Empty;
+            return "";
 
         var iStart = typeName.IndexOf('<');
         var iEnd = typeName.IndexOf('>', iStart + 1);
 
         if (iEnd < iStart)
-            return string.Empty;
+            return "";
 
         var sub = typeName.Substring(iStart + 1, iEnd - iStart - 1);
 
@@ -204,7 +203,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenNodes() {
-        var nodes = tree.types.Where(n => n is not PredefinedNode).ToList();
+        var nodes = _tree.types.Where(n => n is not PredefinedNode).ToList();
 
         foreach (var node in nodes) {
             WriteLine();
@@ -475,7 +474,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenVisitorT() {
-        var nodes = tree.types.Where(n => n is Node).ToList();
+        var nodes = _tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal partial class SyntaxVisitor<TResult>");
@@ -493,7 +492,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenVisitor() {
-        var nodes = tree.types.Where(n => n is Node).ToList();
+        var nodes = _tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal partial class SyntaxVisitor");
@@ -510,7 +509,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenRewriter() {
-        var nodes = tree.types.Where(n => n is Node).ToList();
+        var nodes = _tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode>");
@@ -534,7 +533,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteGreenFactory() {
-        var nodes = tree.types.Where(n => n is Node).ToList();
+        var nodes = _tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
         Write("internal static partial class SyntaxFactory");
@@ -571,7 +570,7 @@ internal sealed class SourceWriter {
     }
 
     private void WriteRedNodes() {
-        var nodes = tree.types.Where(n => n is not PredefinedNode).ToList();
+        var nodes = _tree.types.Where(n => n is not PredefinedNode).ToList();
 
         foreach (var node in nodes) {
             WriteLine();
@@ -764,7 +763,7 @@ internal sealed class SourceWriter {
         Write("public static partial class SyntaxFactory");
         OpenBlock();
 
-        var nodes = tree.types.Where(n => n is Node).ToList();
+        var nodes = _tree.types.Where(n => n is Node).ToList();
 
         foreach (var node in nodes) {
             WriteRedFactoryMethods(node as Node);
