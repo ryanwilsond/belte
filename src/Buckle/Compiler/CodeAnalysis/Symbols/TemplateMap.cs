@@ -53,7 +53,7 @@ internal sealed class TemplateMap {
 
     internal ArrayTypeSymbol SubstituteArrayType(ArrayTypeSymbol previous) {
         var oldElement = previous.elementTypeWithAnnotations;
-        var element = oldElement.SubstituteType(this);
+        var element = oldElement.SubstituteType(this).type;
 
         if (element.IsSameAs(oldElement))
             return previous;

@@ -22,14 +22,6 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal sealed override bool isSealed => false;
 
-    internal sealed override bool isVirtual => false;
-
-    internal sealed override bool isOverride => false;
-
-    internal sealed override bool isRef => false;
-
-    internal sealed override bool isConst => false;
-
     internal abstract TypeWithAnnotations underlyingType { get; }
 
     internal abstract TemplateParameterKind templateParameterKind { get; }
@@ -71,6 +63,14 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
+    internal sealed override ImmutableArray<Symbol> GetMembers() {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<Symbol> GetMembers(string name) {
+        return [];
+    }
+
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
         return Equals(other as TemplateParameterSymbol, compareKind);
     }
@@ -91,9 +91,5 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     public override int GetHashCode() {
         return Hash.Combine(containingSymbol, ordinal);
-    }
-
-    protected override void ConstructLazyMembers() {
-        _lazyMembers = [.. baseType.GetMembers()];
     }
 }

@@ -19,71 +19,29 @@ internal sealed class TypeWithAnnotations {
 
     internal bool isNullable { get; }
 
+    internal bool IsSameAs(TypeWithAnnotations other) {
+        return ReferenceEquals(type, other.type) && isNullable == other.isNullable;
+    }
+
     internal TypeOrConstant SubstituteType(TemplateMap templateMap) {
         var typeSymbol = type;
-        var newTypeWithModifiers = templateMap.SubstituteType(typeSymbol);
+        var newType = templateMap.SubstituteType(typeSymbol).type;
 
-        if (!typeSymbol.IsTypeParameter()) {
-            if (typeSymbol.Equals(newTypeWithModifiers.type, TypeCompareKind.ConsiderEverything)) {
-                return this;
-            } else if ((NullableAnnotation.IsOblivious() || (typeSymbol.IsNullableType() && NullableAnnotation.IsAnnotated())) &&
-                  newCustomModifiers.IsEmpty) {
-                return newTypeWithModifiers;
-            }
+        if (typeSymbol.typeKind != TypeKind.TemplateParameter) {
+            if (typeSymbol.Equals(newType.type, TypeCompareKind.ConsiderEverything))
+                return new TypeOrConstant(this);
+            else if (typeSymbol.IsNullableType() && isNullable)
+                return new TypeOrConstant(newType);
 
-            return Create(newTypeWithModifiers.Type, NullableAnnotation, newCustomModifiers);
+            return new TypeOrConstant(new TypeWithAnnotations(newType.type, isNullable));
         }
 
-        if (newTypeWithModifiers.Is((TypeParameterSymbol)typeSymbol) &&
-            newCustomModifiers == CustomModifiers) {
-            return this; // substitution had no effect on the type or modifiers
-        } else if (Is((TypeParameterSymbol)typeSymbol) && newTypeWithModifiers.NullableAnnotation != NullableAnnotation.Ignored) {
-            return newTypeWithModifiers;
-        }
+        if (newType.type.Equals(typeSymbol))
+            return new TypeOrConstant(this);
+        else if (type.Equals(typeSymbol))
+            return new TypeOrConstant(newType);
 
-        if (newTypeWithModifiers.Type is PlaceholderTypeArgumentSymbol) {
-            return newTypeWithModifiers;
-        }
-
-        NullableAnnotation newAnnotation;
-        Debug.Assert(newTypeWithModifiers.Type is not IndexedTypeParameterSymbol || newTypeWithModifiers.NullableAnnotation == NullableAnnotation.Ignored);
-
-        if (NullableAnnotation.IsAnnotated() || newTypeWithModifiers.NullableAnnotation.IsAnnotated()) {
-            newAnnotation = NullableAnnotation.Annotated;
-        } else if (newTypeWithModifiers.NullableAnnotation == NullableAnnotation.Ignored) {
-            newAnnotation = NullableAnnotation;
-        } else if (NullableAnnotation != NullableAnnotation.Oblivious) {
-            Debug.Assert(NullableAnnotation == NullableAnnotation.NotAnnotated);
-            if (newTypeWithModifiers.NullableAnnotation == NullableAnnotation.Oblivious) {
-                // When the type parameter disallows a nullable reference type as a type argument (i.e. IsNotNullable),
-                // we want to drop any Oblivious annotation from the substituted type and use NotAnnotated instead,
-                // to reflect the "stronger" claim being made by the type parameter.
-                var typeParameter = (TypeParameterSymbol)typeSymbol;
-                if (typeParameter.CalculateIsNotNullableFromNonTypeConstraints() == true) {
-                    newAnnotation = NullableAnnotation.NotAnnotated;
-                } else {
-                    // We won't know the substituted type's nullable annotation
-                    // until we bind type constraints on the type parameter.
-                    // We need to delay doing this to avoid a cycle.
-                    Debug.Assert((object)newTypeWithModifiers.DefaultType == newTypeWithModifiers.Type);
-                    return CreateLazySubstitutedType(newTypeWithModifiers.DefaultType, newCustomModifiers.Concat(newTypeWithModifiers.CustomModifiers), typeParameter);
-                }
-            } else {
-                Debug.Assert(newTypeWithModifiers.NullableAnnotation is NullableAnnotation.NotAnnotated);
-                newAnnotation = NullableAnnotation.NotAnnotated;
-            }
-        } else if (newTypeWithModifiers.NullableAnnotation != NullableAnnotation.Oblivious) {
-            newAnnotation = newTypeWithModifiers.NullableAnnotation;
-        } else {
-            Debug.Assert(NullableAnnotation.IsOblivious());
-            Debug.Assert(newTypeWithModifiers.NullableAnnotation.IsOblivious());
-            newAnnotation = NullableAnnotation;
-        }
-
-        return CreateNonLazyType(
-            newTypeWithModifiers.Type,
-            newAnnotation,
-            newCustomModifiers.Concat(newTypeWithModifiers.CustomModifiers));
+        return new TypeOrConstant(new TypeWithAnnotations(newType.type, isNullable || newType.isNullable));
     }
 
     public bool Equals(TypeWithAnnotations other) {
@@ -91,12 +49,19 @@ internal sealed class TypeWithAnnotations {
     }
 
     public bool Equals(TypeWithAnnotations other, TypeCompareKind compareKind) {
-        if (compareKind == TypeCompareKind.ConsiderEverything)
-            return isNullable == other.isNullable && type == other.type;
+        if (IsSameAs(other))
+            return true;
 
-        if (compareKind == TypeCompareKind.IgnoreNullability)
-            return type == other.type;
+        if (type is null) {
+            if (other.type is not null)
+                return false;
+        } else if (other.type is null || !type.Equals(other.type, compareKind)) {
+            return false;
+        }
 
-        return false;
+        if ((compareKind & TypeCompareKind.IgnoreNullability) == 0)
+            return isNullable == other.isNullable;
+
+        return true;
     }
 }

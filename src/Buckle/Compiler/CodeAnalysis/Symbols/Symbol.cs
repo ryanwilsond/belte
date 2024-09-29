@@ -11,7 +11,7 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// Name of the symbol.
     /// </summary>
-    public abstract string name { get; }
+    public virtual string name => "";
 
     public ITypeSymbolWithMembers parent => containingType;
 

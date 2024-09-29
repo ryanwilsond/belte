@@ -1,7 +1,6 @@
-using System.Collections.Generic;
+using System;
 using System.Collections.Immutable;
-using System.Linq;
-using Buckle.CodeAnalysis.Syntax;
+using System.Runtime.CompilerServices;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -10,9 +9,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>
 internal abstract class TypeSymbol : Symbol, ITypeSymbol {
-    protected List<Symbol> _lazyMembers;
-    protected Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
-
     public override SymbolKind kind => SymbolKind.NamedType;
 
     internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
@@ -25,30 +21,18 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
 
     internal abstract TypeKind typeKind { get; }
 
-    internal abstract bool isRef { get; }
-
-    internal abstract bool isConst { get; }
-
     internal virtual SpecialType specialType => SpecialType.None;
 
-    internal virtual ImmutableArray<Symbol> members { get; }
+    internal sealed override bool isOverride => false;
+
+    internal sealed override bool isVirtual => false;
+
+    internal abstract ImmutableArray<Symbol> GetMembers();
+
+    internal abstract ImmutableArray<Symbol> GetMembers(string name);
 
     internal TypeSymbol EffectiveType() {
         return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).effectiveBaseClass : this;
-    }
-
-    internal virtual ImmutableArray<Symbol> GetMembers(string name) {
-        if (_lazyMembersDictionary is null || _lazyMembers is null)
-            ConstructLazyMembersDictionary();
-
-        return _lazyMembersDictionary.TryGetValue(name, out var result) ? result : ImmutableArray<Symbol>.Empty;
-    }
-
-    internal virtual ImmutableArray<Symbol> GetMembers() {
-        if (_lazyMembers is null)
-            ConstructLazyMembers();
-
-        return _lazyMembers.ToImmutableArray();
     }
 
     internal bool IsDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
@@ -82,22 +66,42 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
         return Equals(otherAsType, compareKind);
     }
 
+    internal static bool Equals(TypeSymbol left, TypeSymbol right, TypeCompareKind comparison) {
+        if (left is null)
+            return right is null;
+
+        return left.Equals(right, comparison);
+    }
+
+    public override int GetHashCode() {
+        return RuntimeHelpers.GetHashCode(this);
+    }
+
+    [Obsolete("Use 'TypeSymbol.Equals(TypeSymbol, TypeSymbol, TypeCompareKind)' method.", true)]
+    public static bool operator ==(TypeSymbol left, TypeSymbol right)
+        => throw ExceptionUtilities.Unreachable();
+
+    [Obsolete("Use 'TypeSymbol.Equals(TypeSymbol, TypeSymbol, TypeCompareKind)' method.", true)]
+    public static bool operator !=(TypeSymbol left, TypeSymbol right)
+        => throw ExceptionUtilities.Unreachable();
+
+    [Obsolete("Use 'TypeSymbol.Equals(TypeSymbol, TypeSymbol, TypeCompareKind)' method.", true)]
+    public static bool operator ==(Symbol left, TypeSymbol right)
+        => throw ExceptionUtilities.Unreachable();
+
+    [Obsolete("Use 'TypeSymbol.Equals(TypeSymbol, TypeSymbol, TypeCompareKind)' method.", true)]
+    public static bool operator !=(Symbol left, TypeSymbol right)
+        => throw ExceptionUtilities.Unreachable();
+
+    [Obsolete("Use 'TypeSymbol.Equals(TypeSymbol, TypeSymbol, TypeCompareKind)' method.", true)]
+    public static bool operator ==(TypeSymbol left, Symbol right)
+        => throw ExceptionUtilities.Unreachable();
+
+    [Obsolete("Use 'TypeSymbol.Equals(TypeSymbol, TypeSymbol, TypeCompareKind)' method.", true)]
+    public static bool operator !=(TypeSymbol left, Symbol right)
+        => throw ExceptionUtilities.Unreachable();
+
     public ImmutableArray<ISymbol> GetMembersPublic() {
-        if (_lazyMembers is null)
-            ConstructLazyMembers();
-
-        return _lazyMembers.ToImmutableArray<ISymbol>();
-    }
-
-    protected virtual void ConstructLazyMembers() {
-        _lazyMembers = members.ToList();
-    }
-
-    private void ConstructLazyMembersDictionary() {
-        if (_lazyMembers is null)
-            ConstructLazyMembers();
-
-        _lazyMembersDictionary = _lazyMembers.ToImmutableArray()
-            .ToDictionary(m => m.name, StringOrdinalComparer.Instance);
+        return [.. GetMembers()];
     }
 }
