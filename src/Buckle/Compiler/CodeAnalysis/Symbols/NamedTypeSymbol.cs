@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, ISymbolWithTemplates {
-    public override SymbolKind kind => SymbolKind.Type;
+    public override SymbolKind kind => SymbolKind.NamedType;
 
     public abstract ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 

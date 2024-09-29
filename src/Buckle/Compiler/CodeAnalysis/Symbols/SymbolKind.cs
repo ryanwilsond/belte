@@ -7,7 +7,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 public enum SymbolKind {
     GlobalVariable,
     LocalVariable,
-    Type,
+    NamedType,
+    ArrayType,
     Method,
     Parameter,
     Field,

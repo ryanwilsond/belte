@@ -13,7 +13,7 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     protected List<Symbol> _lazyMembers;
     protected Dictionary<string, ImmutableArray<Symbol>> _lazyMembersDictionary;
 
-    public override SymbolKind kind => SymbolKind.Type;
+    public override SymbolKind kind => SymbolKind.NamedType;
 
     internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
 

@@ -85,7 +85,7 @@ internal class Binder {
         failedThroughTypeCheck = false;
 
         switch (symbol.kind) {
-            case SymbolKind.Type:
+            case SymbolKind.NamedType:
             case SymbolKind.LocalVariable:
             case SymbolKind.GlobalVariable:
             case SymbolKind.TemplateParameter:

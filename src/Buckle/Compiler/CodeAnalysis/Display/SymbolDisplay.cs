@@ -40,7 +40,7 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol);
                 break;
-            case SymbolKind.Type:
+            case SymbolKind.NamedType:
                 DisplayType(text, (TypeSymbol)symbol);
                 break;
             default:
