@@ -1,6 +1,10 @@
 using System.Collections.Immutable;
+using System.Linq;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -51,5 +55,136 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         }
 
         return _templateParameterInfo.lazyTypeParameterConstraintKinds;
+    }
+
+    private ImmutableArray<ImmutableArray<TypeWithAnnotations>> MakeTypeParameterConstraintTypes(
+        BelteDiagnosticQueue diagnostics) {
+        var templateParameters = this.templateParameters;
+        var results = ImmutableArray<TypeParameterConstraintClause>.Empty;
+        var arity = templateParameters.Length;
+
+        if (arity > 0) {
+            var skipPartialDeclarationsWithoutConstraintClauses = SkipPartialDeclarationsWithoutConstraintClauses();
+            ArrayBuilder<ImmutableArray<TypeParameterConstraintClause>> otherPartialClauses = null;
+
+            var constraintClauses = GetConstraintClauses(_declaration, out var templateParameterList);
+
+            if (!skipPartialDeclarationsWithoutConstraintClauses || constraintClauses.Count != 0) {
+                var binderFactory = declaringCompilation.GetBinderFactory(_declaration.syntaxTree);
+                Binder binder;
+                ImmutableArray<TypeParameterConstraintClause> constraints;
+
+                if (constraintClauses.Count == 0) {
+                    binder = binderFactory.GetBinder(templateParameterList.parameters[0]);
+                    constraints = binder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
+                } else {
+                    binder = binderFactory.GetBinder(constraintClauses[0]);
+                    binder = binder.WithContainingMemberOrLambda(this)
+                        .WithAdditionalFlags(
+                            BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks
+                        );
+
+                    constraints = binder.BindTypeParameterConstraintClauses(
+                        this,
+                        templateParameters,
+                        templateParameterList,
+                        constraintClauses,
+                        diagnostics,
+                        performOnlyCycleSafeValidation: false
+                    );
+                }
+
+                if (results.Length == 0) {
+                    results = constraints;
+                } else {
+                    (otherPartialClauses ??= ArrayBuilder<ImmutableArray<TypeParameterConstraintClause>>.GetInstance())
+                        .Add(constraints);
+                }
+            }
+
+            results = MergeConstraintTypesForPartialDeclarations(results, otherPartialClauses, diagnostics);
+
+            if (results.All(clause => clause.constraintTypes.IsEmpty))
+                results = [];
+
+            otherPartialClauses?.Free();
+        }
+
+        return results.SelectAsArray(clause => clause.constraintTypes);
+    }
+
+    private ImmutableArray<TypeParameterConstraintKinds> MakeTypeParameterConstraintKinds() {
+        var templateParameters = this.templateParameters;
+        var results = ImmutableArray<TypeParameterConstraintClause>.Empty;
+        var arity = templateParameters.Length;
+
+        if (arity > 0) {
+            var skipPartialDeclarationsWithoutConstraintClauses = SkipPartialDeclarationsWithoutConstraintClauses();
+            ArrayBuilder<ImmutableArray<TypeParameterConstraintClause>> otherPartialClauses = null;
+
+            var constraintClauses = GetConstraintClauses(_declaration, out var templateParameterList);
+
+            if (!skipPartialDeclarationsWithoutConstraintClauses || constraintClauses.Count != 0) {
+                var binderFactory = declaringCompilation.GetBinderFactory(_declaration.syntaxTree);
+                Binder binder;
+                ImmutableArray<TypeParameterConstraintClause> constraints;
+
+                if (constraintClauses.Count == 0) {
+                    binder = binderFactory.GetBinder(templateParameterList.parameters[0]);
+                    constraints = binder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
+                } else {
+                    binder = binderFactory.GetBinder(constraintClauses[0]);
+                    binder = binder.WithContainingMemberOrLambda(this)
+                        .WithAdditionalFlags(
+                            BinderFlags.TemplateConstraintsClause |
+                            BinderFlags.SuppressConstraintChecks |
+                            BinderFlags.SuppressTemplateArgumentBinding
+                        );
+
+                    constraints = binder.BindTypeParameterConstraintClauses(
+                        this,
+                        templateParameters,
+                        templateParameterList,
+                        constraintClauses,
+                        new BelteDiagnosticQueue(),
+                        performOnlyCycleSafeValidation: true
+                    );
+                }
+
+                if (results.Length == 0) {
+                    results = constraints;
+                } else {
+                    (otherPartialClauses ??= ArrayBuilder<ImmutableArray<TypeParameterConstraintClause>>.GetInstance())
+                        .Add(constraints);
+                }
+            }
+
+            results = MergeConstraintKindsForPartialDeclarations(results, otherPartialClauses);
+            results = ConstraintsHelpers.AdjustConstraintKindsBasedOnConstraintTypes(templateParameters, results);
+
+            if (results.All(clause => clause.constraints == TypeParameterConstraintKinds.None))
+                results = [];
+
+            otherPartialClauses?.Free();
+        }
+
+        return results.SelectAsArray(clause => clause.constraints);
+    }
+
+    private bool SkipPartialDeclarationsWithoutConstraintClauses() {
+        return GetConstraintClauses(_declaration, out _).Count != 0;
+    }
+
+    private static SyntaxList<TemplateParameterConstraintClauseSyntax> GetConstraintClauses(
+        TypeDeclarationSyntax node,
+        out TemplateParameterListSyntax templateParameterList) {
+        switch (node.kind) {
+            case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.StructDeclaration:
+                templateParameterList = node.templateParameterList;
+                return node.constraintClauseList.constraintClauses;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
+        }
     }
 }

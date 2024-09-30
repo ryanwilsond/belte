@@ -125,6 +125,17 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return false;
     }
 
+    internal static bool NonTypeParameterConstraintImpliesObjectType(TypeSymbol constraint) {
+        if (!constraint.isObjectType) {
+            return false;
+        } else {
+            if (constraint.typeKind == TypeKind.Error)
+                return false;
+
+            return true;
+        }
+    }
+
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
         return Equals(other as TemplateParameterSymbol, compareKind);
     }
@@ -149,17 +160,6 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
 
         return NonTypeParameterConstraintImpliesObjectType(constraint);
-    }
-
-    private static bool NonTypeParameterConstraintImpliesObjectType(TypeSymbol constraint) {
-        if (!constraint.isObjectType) {
-            return false;
-        } else {
-            if (constraint.typeKind == TypeKind.Error)
-                return false;
-
-            return true;
-        }
     }
 
     public override int GetHashCode() {
