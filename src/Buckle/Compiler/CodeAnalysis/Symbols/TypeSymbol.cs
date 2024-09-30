@@ -21,6 +21,10 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     internal abstract TypeKind typeKind { get; }
 
+    internal abstract bool isPrimitiveType { get; }
+
+    internal abstract bool isObjectType { get; }
+
     internal virtual SpecialType specialType => SpecialType.None;
 
     internal TypeSymbol EffectiveType() {
@@ -45,6 +49,78 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     internal bool IsEqualToOrDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
         return Equals(type, compareKind) || IsDerivedFrom(type, compareKind);
+    }
+
+    internal int TypeToIndex() {
+        switch (specialType) {
+            case SpecialType.Any: return 0;
+            case SpecialType.String: return 1;
+            case SpecialType.Bool: return 2;
+            case SpecialType.Char: return 3;
+            case SpecialType.Int: return 4;
+            case SpecialType.Decimal: return 5;
+            case SpecialType.Type: return 6;
+            case SpecialType.Nullable:
+                var underlyingType = GetNullableUnderlyingType();
+
+                switch (underlyingType.specialType) {
+                    case SpecialType.Any: return 7;
+                    case SpecialType.String: return 8;
+                    case SpecialType.Bool: return 9;
+                    case SpecialType.Char: return 10;
+                    case SpecialType.Int: return 11;
+                    case SpecialType.Decimal: return 12;
+                    case SpecialType.Type: return 13;
+                }
+
+                goto default;
+            default: return -1;
+        }
+    }
+
+    internal bool IsNullableType() {
+        return originalDefinition.specialType == SpecialType.Nullable;
+    }
+
+    internal bool IsErrorType() {
+        return kind == SymbolKind.ErrorType;
+    }
+
+    internal bool IsClassType() {
+        return typeKind == TypeKind.Class;
+    }
+
+    internal bool IsStructType() {
+        return typeKind == TypeKind.Struct;
+    }
+
+    internal bool IsPossiblyNullableTypeTemplateParameter() {
+        return this is TemplateParameterSymbol t && t.underlyingType.isNullable;
+    }
+
+    internal TypeSymbol GetNullableUnderlyingType() {
+        return GetNullableUnderlyingTypeWithAnnotations().type;
+    }
+
+    internal TypeWithAnnotations GetNullableUnderlyingTypeWithAnnotations() {
+        return ((NamedTypeSymbol)this).templateArguments[0].type;
+    }
+
+    internal TypeSymbol StrippedType() {
+        return IsNullableType() ? GetNullableUnderlyingType() : this;
+    }
+
+    internal bool InheritsFromIgnoringConstruction(NamedTypeSymbol baseType) {
+        var current = this;
+
+        while (current is not null) {
+            if (current == (object)baseType)
+                return true;
+
+            current = current.baseType?.originalDefinition;
+        }
+
+        return false;
     }
 
     internal virtual bool Equals(TypeSymbol other, TypeCompareKind compareKind) {

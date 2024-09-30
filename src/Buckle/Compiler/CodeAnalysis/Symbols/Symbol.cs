@@ -106,6 +106,10 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal bool IsFromCompilation(Compilation compilation) {
+        return compilation == declaringCompilation;
+    }
+
     internal bool Equals(Symbol other) {
         return Equals(other, SymbolEqualityComparer.Default.compareKind);
     }

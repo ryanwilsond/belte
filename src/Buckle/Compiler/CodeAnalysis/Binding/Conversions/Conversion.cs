@@ -91,11 +91,11 @@ internal sealed partial class Conversion {
         if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)
             return None;
 
-        if (source == target)
+        if (source.Equals(target))
             return Identity;
 
-        var sourceIsNullable = source.specialType == SpecialType.Nullable;
-        var targetIsNullable = target.specialType == SpecialType.Nullable;
+        var sourceIsNullable = source.IsNullableType();
+        var targetIsNullable = target.IsNullableType();
 
         if (source.typeWithAnnotations.underlyingType == target.typeWithAnnotations.underlyingType) {
             if (sourceIsNullable && targetIsNullable)
@@ -123,5 +123,153 @@ internal sealed partial class Conversion {
         }
 
         return None;
+    }
+
+    internal static bool IsBaseClass(TypeSymbol derivedType, TypeSymbol baseType) {
+        if (!baseType.IsClassType())
+            return false;
+
+        for (TypeSymbol b = derivedType.baseType; (object)b is not null; b = b.baseType) {
+            if (HasIdentityConversionInternal(b, baseType))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool HasIdentityOrImplicitConversion(TypeSymbol source, TypeSymbol destination) {
+        if (HasIdentityConversionInternal(source, destination))
+            return true;
+
+        return HasImplicitConversion(source, destination);
+    }
+
+    internal static bool HasImplicitConversion(TypeSymbol source, TypeSymbol destination) {
+        if (source.IsErrorType())
+            return false;
+
+        if (destination.specialType == SpecialType.Object)
+            return true;
+
+        switch (source.typeKind) {
+            case TypeKind.Class:
+                return IsBaseClass(source, destination);
+            case TypeKind.TemplateParameter:
+                return HasImplicitTypeParameterConversion((TemplateParameterSymbol)source, destination);
+            case TypeKind.Array:
+                return HasImplicitConversionFromArray(source, destination);
+        }
+
+        return false;
+    }
+
+    internal static bool HasTopLevelNullabilityImplicitConversion(
+        TypeWithAnnotations source,
+        TypeWithAnnotations destination) {
+        if (destination.isNullable)
+            return true;
+
+        if (IsPossiblyNullableTypeTypeParameter(source) && !IsPossiblyNullableTypeTypeParameter(destination))
+            return false;
+
+        return !source.isNullable;
+    }
+
+    internal static bool HasBoxingConversion(TypeSymbol source, TypeSymbol destination) {
+        if ((source.typeKind == TypeKind.TemplateParameter) &&
+            HasImplicitBoxingTemplateParameterConversion((TemplateParameterSymbol)source, destination)) {
+            return true;
+        }
+
+        // The rest of the boxing conversions only operate when going from a specific primitive type to the `any` type
+        if (!source.isPrimitiveType || destination.originalDefinition.specialType != SpecialType.Any)
+            return false;
+
+        if (source.IsNullableType())
+            return HasBoxingConversion(source.GetNullableUnderlyingType(), destination);
+
+        // TODO Return false?
+        return true;
+    }
+
+    private static bool HasImplicitBoxingTemplateParameterConversion(
+        TemplateParameterSymbol source,
+        TypeSymbol destination) {
+        // TODO Does this conflict with the notion that "boxing" conversions have a destination of `any`?
+        if (source.isObjectType)
+            return false;
+
+        if (HasImplicitEffectiveBaseConversion(source, destination))
+            return true;
+
+        return false;
+    }
+
+    private static bool IsPossiblyNullableTypeTypeParameter(TypeWithAnnotations typeWithAnnotations) {
+        var type = typeWithAnnotations.type;
+        return type is not null &&
+            (type.IsPossiblyNullableTypeTemplateParameter() || type.IsNullableTypeOrTypeParameter());
+    }
+
+    private static bool HasImplicitConversion(TypeWithAnnotations source, TypeWithAnnotations destination) {
+        if (!HasTopLevelNullabilityImplicitConversion(source, destination))
+            return false;
+
+        if (source.isNullable != destination.isNullable &&
+            HasIdentityConversionInternal(source.type, destination.type, includeNullability: true)) {
+            return true;
+        }
+
+        return HasImplicitConversion(source.type, destination.type);
+    }
+
+    private static bool HasImplicitTypeParameterConversion(
+        TemplateParameterSymbol source,
+        TypeSymbol destination) {
+        if (HasImplicitEffectiveBaseConversion(source, destination))
+            return true;
+
+        return false;
+    }
+
+    private static bool HasImplicitConversionFromArray(TypeSymbol source, TypeSymbol destination) {
+        if (source is not ArrayTypeSymbol)
+            return false;
+
+        if (HasCovariantArrayConversion(source, destination))
+            return true;
+
+        if (destination.GetSpecialTypeSafe() == SpecialType.Array)
+            return true;
+
+        return false;
+    }
+
+    private static bool HasCovariantArrayConversion(TypeSymbol source, TypeSymbol destination) {
+        if (source is not ArrayTypeSymbol s || destination is not ArrayTypeSymbol d)
+            return false;
+
+        if (!s.HasSameShapeAs(d))
+            return false;
+
+        return HasImplicitConversion(s.elementTypeWithAnnotations, d.elementTypeWithAnnotations);
+    }
+
+    private static bool HasImplicitEffectiveBaseConversion(TemplateParameterSymbol source, TypeSymbol destination) {
+        var effectiveBaseClass = source.effectiveBaseClass;
+        return HasIdentityConversionInternal(effectiveBaseClass, destination) ||
+            IsBaseClass(effectiveBaseClass, destination);
+    }
+
+    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
+        return HasIdentityConversionInternal(type1, type2, includeNullability: false);
+    }
+
+    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2, bool includeNullability) {
+        var compareKind = includeNullability
+            ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
+            : TypeCompareKind.AllIgnoreOptions;
+
+        return type1.Equals(type2, compareKind);
     }
 }

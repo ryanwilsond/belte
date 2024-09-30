@@ -155,6 +155,10 @@ public enum DiagnosticCode : int {
     ERR_InvalidExpressionTerm = 144,
     WRN_ProtectedMemberInSealedType = 145,
     ERR_MultipleAccessibilities = 146,
+    ERR_CircularConstraint = 147,
+    ERR_TemplateObjectBaseWithPrimitiveBase = 148,
+    ERR_TemplateBaseConstraintConflict = 149,
+    ERR_TemplateBaseBothObjectAndPrimitive = 150,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -49,6 +49,10 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal override int arity => 0;
 
+    internal override bool isObjectType => true;
+
+    internal override bool isPrimitiveType => true;
+
     internal override IEnumerable<string> memberNames => SpecializedCollections.EmptyEnumerable<string>();
 
     internal override ImmutableArray<Symbol> GetMembers() {

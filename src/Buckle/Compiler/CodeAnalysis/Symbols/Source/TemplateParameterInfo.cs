@@ -5,13 +5,13 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class TemplateParameterInfo {
     internal static readonly TemplateParameterInfo Empty = new TemplateParameterInfo {
         lazyTemplateParameters = [],
-        lazyTemplateParameterConstraintTypes = [],
-        lazyTemplateParameterConstraintKinds = [],
+        lazyTypeParameterConstraintTypes = [],
+        lazyTypeParameterConstraintKinds = [],
     };
 
     internal ImmutableArray<TemplateParameterSymbol> lazyTemplateParameters;
 
-    internal ImmutableArray<ImmutableArray<TypeWithAnnotations>> lazyTemplateParameterConstraintTypes;
+    internal ImmutableArray<ImmutableArray<TypeWithAnnotations>> lazyTypeParameterConstraintTypes;
 
-    internal ImmutableArray<TypeParameterConstraintKinds> lazyTemplateParameterConstraintKinds;
+    internal ImmutableArray<TypeParameterConstraintKinds> lazyTypeParameterConstraintKinds;
 }

@@ -83,6 +83,8 @@ internal sealed class CorLibrary {
 
     private NamedTypeSymbol GetSpecialType(SpecialType specialType) {
         switch (specialType) {
+            case SpecialType.None:
+                return null;
             case SpecialType.String:
                 return TypeSymbol.String;
         }

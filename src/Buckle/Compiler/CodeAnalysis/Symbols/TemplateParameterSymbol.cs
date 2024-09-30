@@ -28,12 +28,19 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract int ordinal { get; }
 
+    internal abstract bool hasPrimitiveTypeConstraint { get; }
+
+    internal abstract bool hasObjectTypeConstraint { get; }
+
+    internal abstract bool isPrimitiveTypeFromConstraintTypes { get; }
+
+    internal abstract bool isObjectTypeFromConstraintTypes { get; }
+
     internal abstract ConstantValue defaultValue { get; }
 
     internal new virtual TemplateParameterSymbol originalDefinition => this;
 
     private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
-
 
     internal NamedTypeSymbol effectiveBaseClass {
         get {
@@ -46,6 +53,24 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         get {
             EnsureConstraintsAreResolved();
             return GetConstraintTypes(ConsList<TemplateParameterSymbol>.Empty);
+        }
+    }
+
+    internal sealed override bool isObjectType {
+        get {
+            if (hasObjectTypeConstraint)
+                return true;
+
+            return isObjectTypeFromConstraintTypes;
+        }
+    }
+
+    internal sealed override bool isPrimitiveType {
+        get {
+            if (hasPrimitiveTypeConstraint)
+                return true;
+
+            return isPrimitiveTypeFromConstraintTypes;
         }
     }
 
@@ -80,6 +105,26 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return [];
     }
 
+    internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        foreach (var constraintType in constraintTypes) {
+            if (constraintType.type.isPrimitiveType)
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool CalculateIsObjectTypeFromConstraintTypes(
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        foreach (var constraintType in constraintTypes) {
+            if (ConstraintImpliesObjectType(constraintType.type))
+                return true;
+        }
+
+        return false;
+    }
+
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
         return Equals(other as TemplateParameterSymbol, compareKind);
     }
@@ -96,6 +141,25 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
             return false;
 
         return other.containingSymbol.containingType.Equals(containingSymbol.containingType, compareKind);
+    }
+
+    private static bool ConstraintImpliesObjectType(TypeSymbol constraint) {
+        if (constraint.typeKind == TypeKind.TemplateParameter) {
+            return ((TemplateParameterSymbol)constraint).isObjectTypeFromConstraintTypes;
+        }
+
+        return NonTypeParameterConstraintImpliesObjectType(constraint);
+    }
+
+    private static bool NonTypeParameterConstraintImpliesObjectType(TypeSymbol constraint) {
+        if (!constraint.isObjectType) {
+            return false;
+        } else {
+            if (constraint.typeKind == TypeKind.Error)
+                return false;
+
+            return true;
+        }
     }
 
     public override int GetHashCode() {

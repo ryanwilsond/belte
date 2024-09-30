@@ -157,6 +157,10 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0144 | Error | invalid expression term '{0}' |
 | BU0145 | Warning | new protected member declared in sealed type; no different than private |
 | BU0146 | Error | cannot apply multiple accessibility modifiers |
+| BU0147 | Error | template parameters '{0}' and '{1}' form a circular constraint |
+| BU0148 | Error | template parameter '{0}' cannot be used as a constraint for template parameter '{1}' |
+| BU0149 | Error | template parameter '{templateParameter}' cannot be constrained to both types '{base1}' and '{base2}' |
+| BU0150 | Error | template parameter '{templateParameter}' cannot be constrained as both an Object type and Primitive type |
 
 ## Command Line Diagnostics
 

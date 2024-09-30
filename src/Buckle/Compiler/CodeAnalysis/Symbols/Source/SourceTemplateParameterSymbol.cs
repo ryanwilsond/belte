@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 
@@ -23,18 +21,54 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
 
     internal override Symbol containingSymbol => _owner;
 
+    internal override bool hasPrimitiveTypeConstraint {
+        get {
+            var constraints = GetConstraintKinds();
+            return (constraints & TypeParameterConstraintKinds.Primitive) != 0;
+        }
+    }
+
+    internal override bool hasObjectTypeConstraint {
+        get {
+            var constraints = GetConstraintKinds();
+            return (constraints & TypeParameterConstraintKinds.Object) != 0;
+        }
+    }
+
+    internal override bool isPrimitiveTypeFromConstraintTypes {
+        get {
+            var constraints = GetConstraintKinds();
+            return (constraints & TypeParameterConstraintKinds.Primitive) != 0;
+        }
+    }
+
+    internal override bool isObjectTypeFromConstraintTypes {
+        get {
+            var constraints = GetConstraintKinds();
+            return (constraints & TypeParameterConstraintKinds.Object) != 0;
+        }
+    }
+
     private protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
         => _owner.templateParameters;
 
     private protected override TypeParameterBounds ResolveBounds(
-        List<TemplateParameterSymbol> inProgress,
+        ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics) {
-        var constraintTypes = _owner.GetTemplateParameterConstraintTypes(ordinal);
+        var constraintTypes = _owner.GetTypeParameterConstraintTypes(ordinal, diagnostics);
 
         if (constraintTypes.IsEmpty && GetConstraintKinds() == TypeParameterConstraintKinds.None)
             return null;
 
-        return ResolveBounds(inProgress.Prepend(this), constraintTypes, declaringCompilation, diagnostics);
+        return ConstraintsHelpers.ResolveBounds(
+            this,
+            inProgress.Prepend(this),
+            constraintTypes,
+            false,
+            declaringCompilation,
+            diagnostics,
+            syntaxReference.location
+        );
     }
 
     private TypeParameterConstraintKinds GetConstraintKinds() {

@@ -2186,6 +2186,16 @@ sealed class A {
 The two fields declared in the sealed type `A` have effectively identical accessibilities, because protected only
 differs from private in that inherited types can also access the member, but because `A` is sealed that aspect is
 irrelevant.
+$BU0146
+Multiple accessibility modifiers cannot be applied to the same member as it creates ambiguity.
+
+For example:
+
+```
+class A {
+    public private int field; // Invalid, cannot apply two (or more) accessibility modifiers, in this case `public` and `private`
+}
+```
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

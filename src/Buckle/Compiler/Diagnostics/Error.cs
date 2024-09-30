@@ -1351,6 +1351,52 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleAccessibilities), location, message);
     }
 
+    /// <summary>
+    /// BU0147. Run `buckle --explain BU0147` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CircularConstraint(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter1,
+        TemplateParameterSymbol templateParameter2) {
+        var message = $"template parameters '{templateParameter1}' and '{templateParameter2}' form a circular " +
+            "constraint";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CircularConstraint), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0148. Run `buckle --explain BU0148` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TemplateObjectBaseWithPrimitiveBase(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter1,
+        TemplateParameterSymbol templateParameter2) {
+        var message = $"template parameter '{templateParameter2}' cannot be used as a constraint for template " +
+            $"parameter '{templateParameter1}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateObjectBaseWithPrimitiveBase), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    internal static BelteDiagnostic TemplateBaseConstraintConflict(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter,
+        TypeSymbol base1,
+        TypeSymbol base2) {
+        var message = $"template parameter '{templateParameter}' cannot be constrained to both types '{base1}' and " +
+            $"'{base2}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateBaseConstraintConflict), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    internal static BelteDiagnostic TemplateBaseBothObjectAndPrimitive(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter) {
+        var message = $"template parameter '{templateParameter}' cannot be constrained as both an Object type " +
+            "and Primitive type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateBaseBothObjectAndPrimitive), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

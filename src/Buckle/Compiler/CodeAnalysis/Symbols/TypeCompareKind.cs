@@ -10,4 +10,6 @@ internal enum TypeCompareKind {
     ConsiderEverything = 0,
     IgnoreNullability = 1 << 0,
     IgnoreArraySizesAndLowerBounds = 1 << 1,
+
+    AllIgnoreOptions = IgnoreNullability | IgnoreArraySizesAndLowerBounds,
 }

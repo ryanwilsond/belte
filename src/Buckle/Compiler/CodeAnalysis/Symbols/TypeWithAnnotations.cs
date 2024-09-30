@@ -21,8 +21,14 @@ internal sealed class TypeWithAnnotations {
 
     internal bool isNullable { get; }
 
+    internal TypeKind typeKind => type.typeKind;
+
     internal bool IsSameAs(TypeWithAnnotations other) {
         return ReferenceEquals(type, other.type) && isNullable == other.isNullable;
+    }
+
+    internal bool IsNullableType() {
+        return type.IsNullableType();
     }
 
     internal TypeOrConstant SubstituteType(TemplateMap templateMap) {

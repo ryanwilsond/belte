@@ -14,6 +14,8 @@ internal abstract class SubstitutedErrorTypeSymbol : ErrorTypeSymbol {
 
     internal override int arity => originalDefinition.arity;
 
+    internal override bool mangleName => originalDefinition.mangleName;
+
     public override int GetHashCode() {
         if (_hashCode == 0)
             _hashCode = ComputeHashCode();

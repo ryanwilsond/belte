@@ -37,13 +37,15 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
 
-    internal TypeWithAnnotations typeWithAnnotations { get; private set; }
-
     internal virtual bool isUnboundTemplateType => false;
 
     internal new virtual NamedTypeSymbol originalDefinition => this;
 
     private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
+
+    internal override bool isObjectType => originalDefinition.specialType.IsObjectType();
+
+    internal override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
 
     internal abstract override ImmutableArray<Symbol> GetMembers();
 
