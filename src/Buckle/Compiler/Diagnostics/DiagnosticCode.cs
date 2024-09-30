@@ -153,6 +153,8 @@ public enum DiagnosticCode : int {
     ERR_TypeDoesNotImplementAbstract = 142,
     ERR_MissingOperatorPair = 143,
     ERR_InvalidExpressionTerm = 144,
+    WRN_ProtectedMemberInSealedType = 145,
+    ERR_MultipleAccessibilities = 146,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

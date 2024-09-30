@@ -15,4 +15,5 @@ public enum SymbolKind {
     TemplateParameter,
     Field,
     Label,
+    Namespace,
 }

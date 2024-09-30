@@ -18,4 +18,6 @@ internal enum SpecialType {
     Nullable,
     Func,
     Void,
+    List,
+    Dictionary,
 }

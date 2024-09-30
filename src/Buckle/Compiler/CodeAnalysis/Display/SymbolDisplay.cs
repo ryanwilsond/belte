@@ -16,10 +16,14 @@ public static class SymbolDisplay {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to convert to rich text.</param>
     /// <returns>New <see cref="DisplayText" /> representing the <see cref="Symbol" />.</returns>
-    internal static DisplayText DisplaySymbol(Symbol symbol) {
+    internal static DisplayText ToDisplayText(Symbol symbol, SymbolDisplayFormat format = null) {
         var text = new DisplayText();
-        DisplaySymbol(text, symbol);
+        AppendToDisplayText(text, symbol, format);
         return text;
+    }
+
+    internal static string ToDisplayString(Symbol symbol, SymbolDisplayFormat format = null) {
+        return ToDisplayText(symbol, format).ToString();
     }
 
     /// <summary>
@@ -27,7 +31,7 @@ public static class SymbolDisplay {
     /// </summary>
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
-    public static void DisplaySymbol(DisplayText text, ISymbol symbol, bool includeVariableTypes = false) {
+    public static void AppendToDisplayText(DisplayText text, ISymbol symbol, SymbolDisplayFormat format = null) {
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);

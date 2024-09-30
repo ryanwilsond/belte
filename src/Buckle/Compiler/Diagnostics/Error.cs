@@ -729,8 +729,8 @@ internal static class Error {
     /// <summary>
     /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ModifierAlreadyApplied(TextLocation location, string name) {
-        var message = $"modifier '{name}' has already been applied to this item";
+    internal static BelteDiagnostic ModifierAlreadyApplied(TextLocation location, SyntaxToken modifier) {
+        var message = $"modifier '{modifier.text}' has already been applied to this item";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ModifierAlreadyApplied), location, message);
     }
 
@@ -1341,6 +1341,14 @@ internal static class Error {
     internal static Diagnostic InvalidExpressionTerm(SyntaxKind kind) {
         var message = $"invalid expression term {kind}";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidExpressionTerm), message);
+    }
+
+    /// <summary>
+    /// BU0146. Run `buckle --explain BU0146` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MultipleAccessibilities(TextLocation location) {
+        var message = $"cannot apply multiple accessibility modifiers";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleAccessibilities), location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

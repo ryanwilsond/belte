@@ -1,5 +1,5 @@
 
-lowlevel sealed class List<type T> {
+lowlevel sealed class List<type! T> {
     private T[] _array;
     private int! _length = 0;
     private int! _res = 0;

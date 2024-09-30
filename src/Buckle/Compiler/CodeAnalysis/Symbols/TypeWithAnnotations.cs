@@ -1,4 +1,6 @@
 
+using Buckle.CodeAnalysis.Display;
+
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
@@ -42,6 +44,15 @@ internal sealed class TypeWithAnnotations {
             return new TypeOrConstant(newType);
 
         return new TypeOrConstant(new TypeWithAnnotations(newType.type, isNullable || newType.isNullable));
+    }
+
+    public string ToDisplayString(SymbolDisplayFormat format = null) {
+        var emittedType = type.ToDisplayString(format);
+
+        if (isNullable)
+            return string.Concat(emittedType, "?");
+
+        return emittedType;
     }
 
     public bool Equals(TypeWithAnnotations other) {

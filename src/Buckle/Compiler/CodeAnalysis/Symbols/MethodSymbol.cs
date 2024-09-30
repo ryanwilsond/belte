@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 
@@ -9,8 +8,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A method symbol.
 /// </summary>
 internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
-    private string _signature = null;
-
     /// <summary>
     /// Creates a <see cref="MethodSymbol" />.
     /// </summary>
@@ -83,16 +80,6 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal BaseMethodDeclarationSyntax declaration { get; }
 
     /// <summary>
-    /// Gets a string representation of the method signature without the return type or parameter names.
-    /// </summary>
-    public string Signature() {
-        if (_signature is null)
-            GenerateSignature();
-
-        return _signature;
-    }
-
-    /// <summary>
     /// If the given symbol refers to this one.
     /// </summary>
     internal bool RefersTo(MethodSymbol symbol) {
@@ -129,40 +116,5 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
             return hash;
         }
-    }
-
-    private void GenerateSignature() {
-        var signature = new StringBuilder(name);
-        var isFirst = true;
-
-        if (templateParameters.Length > 0) {
-            signature.Append('<');
-
-            foreach (var templateParameter in templateParameters) {
-                if (isFirst)
-                    isFirst = false;
-                else
-                    signature.Append(',');
-
-                signature.Append(templateParameter);
-            }
-
-            signature.Append('>');
-        }
-
-        signature.Append('(');
-        isFirst = true;
-
-        foreach (var parameter in parameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(',');
-
-            signature.Append(parameter.type.ToString());
-        }
-
-        signature.Append(')');
-        _signature = signature.ToString();
     }
 }

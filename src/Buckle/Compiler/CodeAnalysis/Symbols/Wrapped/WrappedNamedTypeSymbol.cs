@@ -9,6 +9,8 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
 
     public override string name => underlyingNamedType.name;
 
+    internal override bool mangleName => underlyingNamedType.mangleName;
+
     internal NamedTypeSymbol underlyingNamedType { get; }
 
     internal override int arity => underlyingNamedType.arity;

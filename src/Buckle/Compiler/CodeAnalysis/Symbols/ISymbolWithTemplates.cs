@@ -14,6 +14,4 @@ internal interface ISymbolWithTemplates : ISymbol {
     public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     public abstract TemplateMap templateSubstitution { get; }
-
-    public string Signature();
 }

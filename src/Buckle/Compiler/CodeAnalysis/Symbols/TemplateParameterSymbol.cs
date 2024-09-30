@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Buckle.Utilities;
 
@@ -68,6 +69,14 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name) {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return [];
     }
 

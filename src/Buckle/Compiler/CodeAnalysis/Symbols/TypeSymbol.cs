@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>
-internal abstract class TypeSymbol : Symbol, ITypeSymbol {
+internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     public override SymbolKind kind => SymbolKind.NamedType;
 
     internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
@@ -22,14 +22,6 @@ internal abstract class TypeSymbol : Symbol, ITypeSymbol {
     internal abstract TypeKind typeKind { get; }
 
     internal virtual SpecialType specialType => SpecialType.None;
-
-    internal sealed override bool isOverride => false;
-
-    internal sealed override bool isVirtual => false;
-
-    internal abstract ImmutableArray<Symbol> GetMembers();
-
-    internal abstract ImmutableArray<Symbol> GetMembers(string name);
 
     internal TypeSymbol EffectiveType() {
         return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).effectiveBaseClass : this;

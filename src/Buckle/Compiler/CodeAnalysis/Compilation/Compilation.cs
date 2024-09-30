@@ -108,6 +108,8 @@ public sealed class Compilation {
         }
     }
 
+    internal bool keepLookingForCorTypes { get; set; } = true;
+
     /// <summary>
     /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
     /// </summary>

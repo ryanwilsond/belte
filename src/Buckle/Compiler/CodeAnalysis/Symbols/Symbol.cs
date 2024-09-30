@@ -1,6 +1,7 @@
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -12,6 +13,8 @@ internal abstract class Symbol : ISymbol {
     /// Name of the symbol.
     /// </summary>
     public virtual string name => "";
+
+    public virtual string metadataName => name;
 
     public ITypeSymbolWithMembers parent => containingType;
 
@@ -94,6 +97,15 @@ internal abstract class Symbol : ISymbol {
             declaringCompilation.diagnostics.Move(diagnostics);
     }
 
+    internal Symbol SymbolAsMember(NamedTypeSymbol newOwner) {
+        return kind switch {
+            SymbolKind.Field => ((FieldSymbol)this).AsMember(newOwner),
+            SymbolKind.Method => ((MethodSymbol)this).AsMember(newOwner),
+            SymbolKind.NamedType => ((NamedTypeSymbol)this).AsMember(newOwner),
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
     internal bool Equals(Symbol other) {
         return Equals(other, SymbolEqualityComparer.Default.compareKind);
     }
@@ -106,8 +118,12 @@ internal abstract class Symbol : ISymbol {
         return (object)this == other;
     }
 
+    public string ToDisplayString(SymbolDisplayFormat format) {
+        return SymbolDisplay.ToDisplayString(this, format);
+    }
+
     public override string ToString() {
-        return SymbolDisplay.DisplaySymbol(this).ToString();
+        return ToDisplayString(null);
     }
 
     public override int GetHashCode() {

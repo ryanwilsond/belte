@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -11,9 +10,10 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, ISymbolWithTemplates {
-    private string _signature = null;
-
     public abstract override string name { get; }
+
+    public override string metadataName
+        => mangleName ? MetadataHelpers.ComposeSuffixedMetadataName(name, templateParameters) : name;
 
     public override SymbolKind kind => SymbolKind.NamedType;
 
@@ -24,6 +24,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
     public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     public virtual TemplateMap templateSubstitution { get; } = null;
+
+    internal abstract bool mangleName { get; }
 
     internal abstract IEnumerable<string> memberNames { get; }
 
@@ -46,6 +48,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
     internal abstract override ImmutableArray<Symbol> GetMembers();
 
     internal abstract override ImmutableArray<Symbol> GetMembers(string name);
+
+    internal abstract override ImmutableArray<NamedTypeSymbol> GetTypeMembers();
+
+    internal abstract override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name);
 
     internal abstract NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved);
 
@@ -167,31 +173,6 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
             return (int)SpecialType.Object;
 
         return RuntimeHelpers.GetHashCode(originalDefinition);
-    }
-
-    // TODO Double check this is needed
-    public string Signature() {
-        if (_signature is null)
-            GenerateSignature();
-
-        return _signature;
-    }
-
-    private void GenerateSignature() {
-        var signature = new StringBuilder($"{name}<");
-        var isFirst = true;
-
-        foreach (var parameter in templateParameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(", ");
-
-            signature.Append(parameter);
-        }
-
-        signature.Append('>');
-        _signature = signature.ToString();
     }
 
     private ImmutableArray<MethodSymbol> GetConstructors() {

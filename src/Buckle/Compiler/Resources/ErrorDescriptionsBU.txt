@@ -2170,6 +2170,22 @@ For example:
 ```
 var x = 3 + ref a; // Invalid, `ref` is not a valid term
 ```
+$BU0145
+Protected is no different than private in a sealed type, because the type cannot be inherited from, so using the private
+modifier is preferred.
+
+For example:
+
+```
+sealed class A {
+    protected int field1;
+    private int field2;
+}
+```
+
+The two fields declared in the sealed type `A` have effectively identical accessibilities, because protected only
+differs from private in that inherited types can also access the member, but because `A` is sealed that aspect is
+irrelevant.
 $BU9001
 Assembling natively is currently unsupported. If it is requested to assemble
 natively, the compilation will not raise an error but rather ignore the request.

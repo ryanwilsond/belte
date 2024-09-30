@@ -155,6 +155,8 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0142 | Error | '{0}' must implement inherited abstract member '{1}.{2}' |
 | BU0143 | Error | operator '{0}' requires a matching operator '{1}' to also be defined |
 | BU0144 | Error | invalid expression term '{0}' |
+| BU0145 | Warning | new protected member declared in sealed type; no different than private |
+| BU0146 | Error | cannot apply multiple accessibility modifiers |
 
 ## Command Line Diagnostics
 

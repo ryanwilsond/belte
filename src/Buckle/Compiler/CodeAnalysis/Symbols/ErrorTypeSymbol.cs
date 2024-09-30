@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
@@ -55,6 +56,14 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return [];
     }
 

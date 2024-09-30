@@ -1,34 +1,17 @@
-using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-/// <summary>
-/// A named type that is not constructed with type arguments, if generic.
-/// </summary>
-internal sealed class SourceNamedTypeSymbol : NamedTypeSymbol {
+internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
+    private readonly TemplateParameterInfo _templateParameterInfo;
+
     internal SourceNamedTypeSymbol(
-        TypeKind typeKind,
+        NamespaceOrTypeSymbol containingSymbol,
         TypeDeclarationSyntax declaration,
-        DeclarationModifiers modifiers,
-        Accessibility accessibility)
-        : base([], [], [], declaration, modifiers, accessibility) {
-        this.typeKind = typeKind;
+        BelteDiagnosticQueue diagnostics,
+        Compilation declaringCompilation)
+        : base(containingSymbol, declaration, diagnostics, declaringCompilation) {
+        _templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
     }
-
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
-
-    public override TemplateMap templateSubstitution => null;
-
-    internal override ImmutableArray<(FieldSymbol, ExpressionSyntax)> defaultFieldAssignments => [];
-
-    internal override TypeKind typeKind { get; }
-
-    internal override NamedTypeSymbol baseType => null;
-
-    internal new TypeSymbol originalDefinition => originalTypeDefinition;
-
-    internal override TypeSymbol originalTypeDefinition => this;
-
-    internal override Symbol originalSymbolDefinition => originalTypeDefinition;
 }

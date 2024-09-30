@@ -1,4 +1,5 @@
 using System.Linq;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Diagnostics;
@@ -90,6 +91,18 @@ internal static class Warning {
     internal static BelteDiagnostic MemberShadowsNothing(TextLocation location, string signature, string typeName) {
         var message = $"the member '{typeName}.{signature}' does not hide a member; the 'new' keyword is unnecessary";
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_MemberShadowsNothing), location, message);
+    }
+
+    /// <summary>
+    /// BU0145. Run `buckle --explain BU0145` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic ProtectedMemberInSealedType(
+        TextLocation location,
+        NamespaceOrTypeSymbol containingSymbol,
+        Symbol member) {
+        var message = $"'{containingSymbol}.{member}': " +
+            "new protected member declared in sealed type; no different than private";
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_ProtectedMemberInSealedType), location, message);
     }
 
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
