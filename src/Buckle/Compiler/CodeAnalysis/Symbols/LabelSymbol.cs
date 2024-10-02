@@ -1,15 +1,9 @@
+using System;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class LabelSymbol : Symbol {
-    private static int Sequence = 1;
-
-    internal LabelSymbol(string name) {
-        // TODO Remove this when not debugging
-        var sequence = System.Threading.Interlocked.Add(ref Sequence, 1);
-        this.name = $"<{name}-{sequence & 0xFFFF}>";
-    }
-
+internal abstract class LabelSymbol : Symbol {
     public override string name { get; }
 
     public override SymbolKind kind => SymbolKind.Label;
@@ -24,4 +18,11 @@ internal sealed class LabelSymbol : Symbol {
 
     internal override bool isVirtual => false;
 
+    internal override Accessibility accessibility => Accessibility.NotApplicable;
+
+    internal virtual SyntaxNodeOrToken identifierNodeOrToken => default;
+
+    internal virtual MethodSymbol containingMethod => throw new NotSupportedException();
+
+    internal override Symbol containingSymbol => throw new NotSupportedException();
 }

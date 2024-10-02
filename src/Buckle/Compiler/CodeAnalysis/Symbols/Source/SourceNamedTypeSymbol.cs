@@ -14,9 +14,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         TypeDeclarationSyntax declaration,
-        BelteDiagnosticQueue diagnostics,
-        Compilation declaringCompilation)
-        : base(containingSymbol, declaration, diagnostics, declaringCompilation) {
+        BelteDiagnosticQueue diagnostics)
+        : base(containingSymbol, declaration, diagnostics) {
         _templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
     }
 

@@ -8,6 +8,7 @@ internal sealed partial class BinderFactory {
     private readonly ConcurrentCache<BinderCacheKey, Binder> _binderCache;
     private readonly Compilation _compilation;
     private readonly ObjectPool<BinderFactoryVisitor> _binderFactoryVisitorPool;
+    private readonly EndBinder _endBinder;
 
     private static readonly ObjectPool<BinderFactoryVisitor> BinderFactoryVisitorPool
         = new ObjectPool<BinderFactoryVisitor>(static () => new BinderFactoryVisitor(), 64);
@@ -21,6 +22,7 @@ internal sealed partial class BinderFactory {
         _binderFactoryVisitorPool = binderFactoryVisitorPool ?? BinderFactoryVisitorPool;
         // 50 is most likely more than ever needed before collected
         _binderCache = new ConcurrentCache<BinderCacheKey, Binder>(50);
+        _endBinder = new EndBinder(compilation);
     }
 
     internal SyntaxTree syntaxTree { get; }

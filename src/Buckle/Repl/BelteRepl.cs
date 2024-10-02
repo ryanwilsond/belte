@@ -100,7 +100,7 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<IVariableSymbol, EvaluatorObject>();
+        state.variables = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
         state.previous = null;
         state.currentPage = Page.Repl;
         _changes.Clear();
@@ -282,7 +282,7 @@ public sealed partial class BelteRepl : Repl {
     private void LoadLibraries() {
         var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
         state.previous = compilation;
-        compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), _abortEvaluation);
+        compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), _abortEvaluation);
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {

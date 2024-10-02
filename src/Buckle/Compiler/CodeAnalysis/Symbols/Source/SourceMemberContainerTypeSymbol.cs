@@ -8,7 +8,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceMemberContainerTypeSymbol : NamedTypeSymbol {
     private readonly DeclarationModifiers _modifiers;
-    private readonly Compilation _compilation;
     private readonly TextLocation _nameLocation;
     private protected SymbolCompletionState _state;
     private protected readonly TypeDeclarationSyntax _declaration;
@@ -16,12 +15,10 @@ internal abstract class SourceMemberContainerTypeSymbol : NamedTypeSymbol {
     internal SourceMemberContainerTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         TypeDeclarationSyntax declaration,
-        BelteDiagnosticQueue diagnostics,
-        Compilation declaringCompilation) {
+        BelteDiagnosticQueue diagnostics) {
         this.containingSymbol = containingSymbol;
         _declaration = declaration;
         _nameLocation = declaration.identifier.location;
-        _compilation = declaringCompilation;
         typeKind = declaration.kind == SyntaxKind.ClassDeclaration ? TypeKind.Class : TypeKind.Struct;
         name = declaration.identifier.text;
         arity = declaration.templateParameterList.parameters.Count;
@@ -72,8 +69,6 @@ internal abstract class SourceMemberContainerTypeSymbol : NamedTypeSymbol {
     internal override SpecialType specialType { get; }
 
     internal override SyntaxReference syntaxReference => new SyntaxReference(_declaration);
-
-    internal override Compilation declaringCompilation => _compilation ?? base.declaringCompilation;
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
         var defaultAccess = DeclarationModifiers.Private;

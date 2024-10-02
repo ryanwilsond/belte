@@ -85,7 +85,21 @@ internal abstract class Symbol : ISymbol {
             if (!isDefinition)
                 return originalDefinition.declaringCompilation;
 
+            if (this is NamespaceSymbol @namespace)
+                return @namespace.containingCompilation;
+
             return containingSymbol.declaringCompilation;
+        }
+    }
+
+    internal virtual NamespaceSymbol containingNamespace {
+        get {
+            for (var container = containingSymbol; container is not null; container = container.containingSymbol) {
+                if (container is NamespaceSymbol ns)
+                    return ns;
+            }
+
+            return null;
         }
     }
 

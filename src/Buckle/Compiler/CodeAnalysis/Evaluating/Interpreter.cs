@@ -26,7 +26,7 @@ internal sealed class Interpreter {
     internal static EvaluationResult Interpret(
         SyntaxTree syntaxTree,
         CompilationOptions options,
-        Dictionary<IVariableSymbol, EvaluatorObject> variables,
+        Dictionary<IDataContainerSymbol, EvaluatorObject> variables,
         ValueWrapper<bool> abort) {
         // This pseudo interpreter parses all of the source files at once, so there is a short delay before running the
         // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the

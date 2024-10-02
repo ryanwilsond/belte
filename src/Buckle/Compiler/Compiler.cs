@@ -137,7 +137,7 @@ public sealed class Compiler {
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
                     result = compilation.Evaluate(
-                        new Dictionary<IVariableSymbol, EvaluatorObject>(),
+                        new Dictionary<IDataContainerSymbol, EvaluatorObject>(),
                         (ValueWrapper<bool>)parameter,
                         state.verboseMode
                     );
@@ -173,7 +173,7 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 result = compilation.Interpret(
-                    new Dictionary<IVariableSymbol, EvaluatorObject>(),
+                    new Dictionary<IDataContainerSymbol, EvaluatorObject>(),
                     (ValueWrapper<bool>)parameter
                 );
             }

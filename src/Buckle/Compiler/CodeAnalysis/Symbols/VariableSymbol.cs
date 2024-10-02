@@ -1,19 +1,10 @@
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-/// <summary>
-/// A variable symbol. This can be any type of variable.
-/// </summary>
-internal abstract class VariableSymbol : Symbol, IVariableSymbol {
+internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     private protected readonly DeclarationModifiers _declarationModifiers;
 
-    /// <summary>
-    /// Creates a <see cref="VariableSymbol" />.
-    /// </summary>
-    /// <param name="name">Name of the variable.</param>
-    /// <param name="type"><see cref="TypeSymbol" /> of the variable.</param>
-    /// <param name="constant"><see cref="ConstantValue" /> of the variable.</param>
-    internal VariableSymbol(
+    internal DataContainerSymbol(
         string name,
         TypeWithAnnotations type,
         ConstantValue constant,
@@ -24,7 +15,6 @@ internal abstract class VariableSymbol : Symbol, IVariableSymbol {
         constantValue = constant;
         _declarationModifiers = modifiers;
     }
-
 
     public ITypeSymbol typeSymbol => typeWithAnnotations.type;
 

@@ -1,17 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
-using System.Linq.Expressions;
-using Buckle.CodeAnalysis.FlowAnalysis;
+using System.Threading;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries.Standard;
 using Buckle.Utilities;
-using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -21,51 +14,109 @@ namespace Buckle.CodeAnalysis.Binding;
 /// flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
 internal class Binder {
-    private protected readonly OverloadResolution _overloadResolution;
-    private protected readonly Conversions _conversions;
-    private protected readonly Compilation _compilation;
-    private protected readonly BinderFlags _flags;
+    private protected OverloadResolution _lazyOverloadResolution;
+    private protected Conversions _lazyConversions;
 
-    private Binder() {
-        _conversions = new Conversions(this);
-        _overloadResolution = new OverloadResolution(this);
-        diagnostics = new BelteDiagnosticQueue();
+    internal Binder(Compilation compilation) {
+        flags = compilation.options.topLevelBinderFlags;
+        this.compilation = compilation;
     }
 
-    private protected Binder(Compilation compilation, BinderFlags flags) : this() {
-        _compilation = compilation;
-        _flags = flags;
+    internal Binder(Binder next) {
+        this.next = next;
+        flags = next.flags;
+        _lazyConversions = conversions;
     }
 
-    private protected virtual SyntaxNode _scopeDesignator => null;
+    private protected Binder(Binder next, BinderFlags flags) {
+        this.next = next;
+        this.flags = flags;
+        compilation = next.compilation;
+    }
 
-    private protected virtual Symbol _containingMember => null;
+    internal virtual SyntaxNode scopeDesignator => null;
 
-    private protected virtual LabelSymbol _breakLabel => null;
+    internal virtual Symbol containingMember => next.containingMember;
 
-    private protected virtual LabelSymbol _continueLabel => null;
+    internal virtual SynthesizedLabelSymbol breakLabel => next.breakLabel;
 
-    private protected virtual bool _inMethod => false;
+    internal virtual SynthesizedLabelSymbol continueLabel => next.continueLabel;
 
-    private protected virtual LocalVariableSymbol _localInProgress => null;
+    internal virtual bool inMethod => next.inMethod;
 
-    private protected NamedTypeSymbol _containingType => _containingMember switch {
+    internal virtual LocalVariableSymbol localInProgress => next.localInProgress;
+
+    internal virtual ConstantFieldsInProgress constantFieldsInProgress => next.constantFieldsInProgress;
+
+    internal virtual BoundExpression conditionalReceiverExpression => next.conditionalReceiverExpression;
+
+    internal virtual ConsList<FieldSymbol> fieldsBeingBound => next.fieldsBeingBound;
+
+    internal NamedTypeSymbol containingType => containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,
-        _ => _containingMember.containingType
+        _ => containingMember.containingType
     };
 
-    internal BelteDiagnosticQueue diagnostics { get; }
+    internal Compilation compilation { get; }
 
-    internal static BoundGlobalScope BindGlobalScope(
-        Compilation compilation,
-        BoundGlobalScope previous,
-        ImmutableArray<SyntaxTree> syntaxTrees) {
+    internal BinderFlags flags { get; }
 
+    internal Conversions conversions {
+        get {
+            if (_lazyConversions == null)
+                Interlocked.CompareExchange(ref _lazyConversions, new Conversions(this), null);
+
+            return _lazyConversions;
+        }
     }
 
-    private protected virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
-        return default;
+    internal OverloadResolution overloadResolution {
+        get {
+            if (_lazyOverloadResolution == null)
+                Interlocked.CompareExchange(ref _lazyOverloadResolution, new OverloadResolution(this), null);
+
+            return _lazyOverloadResolution;
+        }
+    }
+
+    internal Binder next { get; }
+
+    internal virtual Binder GetBinder(SyntaxNode node) {
+        return next.GetBinder(node);
+    }
+
+    internal virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
+        return next.GetDeclaredLocalsForScope(scopeDesignator);
+    }
+
+    internal virtual ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(
+        BelteSyntaxNode scopeDesignator) {
+        return next.GetDeclaredLocalFunctionsForScope(scopeDesignator);
+    }
+
+    internal virtual BoundForStatement BindForParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindForParts(diagnostics, originalBinder);
+    }
+
+    internal virtual BoundWhileStatement BindWhileParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindWhileParts(diagnostics, originalBinder);
+    }
+
+    internal virtual BoundDoWhileStatement BindDoWhileParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindDoWhileParts(diagnostics, originalBinder);
+    }
+
+    private protected virtual SourceLocalSymbol LookupLocal(SyntaxToken identifier) {
+        return next.LookupLocal(identifier);
+    }
+
+    private protected virtual LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
+        return next.LookupLocalFunction(identifier);
+    }
+
+    private protected virtual bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {
+        return next.IsUnboundTypeAllowed(syntax);
     }
 
     private bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType = null) {
@@ -75,7 +126,7 @@ internal class Binder {
     private bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType, out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
 
-        if (_flags.Includes(BinderFlags.IgnoreAccessibility))
+        if (flags.Includes(BinderFlags.IgnoreAccessibility))
             return true;
 
         return IsSymbolAccessibleInternal(symbol, within, throughType, out failedThroughTypeCheck);
@@ -175,7 +226,7 @@ internal class Binder {
         var originalThroughType = throughType?.originalDefinition;
 
         while (current is not null) {
-            if (current.InheritsFrom(originalContainingType)) {
+            if (current.InheritsFromIgnoringConstruction(originalContainingType)) {
                 if (originalThroughType is null || originalThroughType.InheritsFromIgnoringConstruction(current))
                     return true;
                 else

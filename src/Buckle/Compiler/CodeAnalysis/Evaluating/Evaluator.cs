@@ -21,9 +21,9 @@ internal sealed class Evaluator {
     private readonly string[] _arguments;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methods =
         new Dictionary<MethodSymbol, BoundBlockStatement>();
-    private readonly Dictionary<IVariableSymbol, EvaluatorObject> _globals;
-    private readonly Stack<Dictionary<IVariableSymbol, EvaluatorObject>> _locals =
-        new Stack<Dictionary<IVariableSymbol, EvaluatorObject>>();
+    private readonly Dictionary<IDataContainerSymbol, EvaluatorObject> _globals;
+    private readonly Stack<Dictionary<IDataContainerSymbol, EvaluatorObject>> _locals =
+        new Stack<Dictionary<IDataContainerSymbol, EvaluatorObject>>();
     private readonly Stack<EvaluatorObject> _enclosingTypes = new Stack<EvaluatorObject>();
 
     private EvaluatorObject _lastValue;
@@ -39,14 +39,14 @@ internal sealed class Evaluator {
     /// <param name="arguments">Runtime arguments.</param>
     internal Evaluator(
         BoundProgram program,
-        Dictionary<IVariableSymbol, EvaluatorObject> globals,
+        Dictionary<IDataContainerSymbol, EvaluatorObject> globals,
         string[] arguments) {
         diagnostics = new BelteDiagnosticQueue();
         exceptions = new List<Exception>();
         _arguments = arguments;
         _program = program;
         _globals = globals;
-        _locals.Push(new Dictionary<IVariableSymbol, EvaluatorObject>());
+        _locals.Push(new Dictionary<IDataContainerSymbol, EvaluatorObject>());
         _templateConstantDepth = 0;
 
         var current = program;
@@ -113,7 +113,7 @@ internal sealed class Evaluator {
                 )]
             ), abort);
 
-            _locals.Push(new Dictionary<IVariableSymbol, EvaluatorObject>() {
+            _locals.Push(new Dictionary<IDataContainerSymbol, EvaluatorObject>() {
                 [_program.entryPoint.parameters[0]] = list
             });
         }
@@ -137,7 +137,7 @@ internal sealed class Evaluator {
     }
 
     private static bool TryGet(
-        Dictionary<IVariableSymbol, EvaluatorObject> variables,
+        Dictionary<IDataContainerSymbol, EvaluatorObject> variables,
         VariableSymbol variable,
         out EvaluatorObject evaluatorObject) {
         if (variables.Count > 0 && variables.TryGetValue(variable, out var result)) {
@@ -149,7 +149,7 @@ internal sealed class Evaluator {
         return false;
     }
 
-    private EvaluatorObject Get(VariableSymbol variable, Dictionary<IVariableSymbol, EvaluatorObject> scope = null) {
+    private EvaluatorObject Get(VariableSymbol variable, Dictionary<IDataContainerSymbol, EvaluatorObject> scope = null) {
         if (scope is not null) {
             if (TryGet(scope, variable, out var evaluatorObject))
                 return evaluatorObject;
@@ -331,7 +331,7 @@ internal sealed class Evaluator {
     }
 
     private void EnterClassScope(EvaluatorObject @class) {
-        var classLocalBuffer = new Dictionary<IVariableSymbol, EvaluatorObject>();
+        var classLocalBuffer = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
 
         foreach (var member in @class.members) {
             if (member.Key is FieldSymbol f) {
@@ -590,7 +590,7 @@ internal sealed class Evaluator {
         if (node.arity == 0)
             return new EvaluatorObject(members: [], node);
 
-        var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
+        var locals = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
         var typeSymbol = node.typeSymbol as NamedTypeSymbol;
         AddTemplatesToLocals(typeSymbol.templateParameters, node.templateArguments, locals, abort);
 
@@ -901,7 +901,7 @@ internal sealed class Evaluator {
                 method = newMethod;
         }
 
-        var locals = new Dictionary<IVariableSymbol, EvaluatorObject>();
+        var locals = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
         AddTemplatesToLocals(method.templateParameters, templateArguments, locals, abort);
 
         for (var i = 0; i < arguments.Length; i++) {
@@ -952,7 +952,7 @@ internal sealed class Evaluator {
     private void AddTemplatesToLocals(
         ImmutableArray<ParameterSymbol> templateParameters,
         ImmutableArray<TypeOrConstant> templateArguments,
-        Dictionary<IVariableSymbol, EvaluatorObject> locals,
+        Dictionary<IDataContainerSymbol, EvaluatorObject> locals,
         ValueWrapper<bool> abort) {
         for (var i = 0; i < templateArguments.Length; i++) {
             EvaluatorObject value;

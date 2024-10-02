@@ -2,10 +2,9 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// Represents a local or global variable in a method body.
+/// Represents a local or global.
 /// </summary>
-///
-public interface IVariableSymbol : ISymbol {
+public interface IDataContainerSymbol : ISymbol {
     /// <summary>
     /// The type.
     /// </summary>

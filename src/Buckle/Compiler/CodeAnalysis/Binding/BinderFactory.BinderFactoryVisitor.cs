@@ -1,3 +1,4 @@
+using System;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
@@ -34,6 +35,8 @@ internal sealed partial class BinderFactory {
 
         private ConcurrentCache<BinderCacheKey, Binder> binderCache => _factory._binderCache;
 
+        private EndBinder endBinder => _factory._endBinder;
+
         private bool inScript => _factory.inScript;
 
         internal override Binder DefaultVisit(SyntaxNode parent) {
@@ -42,6 +45,28 @@ internal sealed partial class BinderFactory {
 
         internal override Binder Visit(SyntaxNode node) {
             return ((BelteSyntaxNode)node).Accept(this);
+        }
+
+        internal override Binder VisitCompilationUnit(CompilationUnitSyntax node) {
+            if (node != syntaxTree.GetRoot())
+                throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
+
+            var key = new BinderCacheKey(node, inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
+
+            if (!binderCache.TryGetValue(key, out var result)) {
+                result = endBinder;
+
+                if (inScript) {
+                    // TODO
+                } else {
+                    var globalNamespace = compilation.globalNamespace;
+                    result = new InContainerBinder(globalNamespace, result);
+                }
+
+                binderCache.TryAdd(key, result);
+            }
+
+            return result;
         }
     }
 }
