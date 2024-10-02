@@ -102,36 +102,47 @@
     </Field>
     <Field Name="type" Type="SimpleNameSyntax"/>
   </Node>
-  <Node Name="TemplateParameterConstraintClauseListSyntax" Base="SyntaxNode">
-    <Kind Name="TemplateParameterConstraintClauseList"/>
+  <Node Name="TemplateConstraintClauseListSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateConstraintClauseList"/>
     <Field Name="whereKeyword" Type="SyntaxToken">
       <Kind Name="WhereKeyword"/>
     </Field>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
-    <Field Name="constraintClauses" Type="SyntaxList&lt;TemplateParameterConstraintClauseSyntax&gt;"/>
+    <Field Name="constraintClauses" Type="SyntaxList&lt;TemplateConstraintClauseSyntax&gt;"/>
     <Field Name="closeBrace" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
-  <Node Name="TemplateParameterConstraintClauseSyntax" Base="SyntaxNode">
-    <Kind Name="TemplateParameterConstraintClause"/>
-    <Field Name="typeConstraint" Type="TemplateParameterTypeConstraintClauseSyntax" Optional="true"/>
+  <Node Name="TemplateConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateConstraintClause"/>
+    <Field Name="extendConstraint" Type="TemplateExtendsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="isConstraint" Type="TemplateIsConstraintClauseSyntax" Optional="true"/>
     <Field Name="expressionConstraint" Type="ExpressionStatementSyntax" Optional="true"/>
   </Node>
-  <Node Name="TemplateParameterTypeConstraintClauseSyntax" Base="SyntaxNode">
-    <Kind Name="TemplateParameterTypeConstraintClause"/>
+  <Node Name="TemplateExtendsConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateExtendsConstraintClause"/>
     <Field Name="name" Type="IdentifierNameSyntax">
       <Kind Name="IdentifierName"/>
     </Field>
-    <Field Name="colon" Type="SyntaxToken">
-      <Kind Name="ColonToken"/>
+    <Field Name="extendsKeyword" Type="SyntaxToken">
+      <Kind Name="ExtendsKeyword"/>
     </Field>
-    <Field Name="primitiveKeyword" Type="SyntaxToken" Optional="true">
-      <Kind Name="PrimitiveKeyword"/>
+    <Field Name="type" Type="SimpleNameSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
     </Field>
-    <Field Name="type" Type="SimpleNameSyntax" Optional="true"/>
+  </Node>
+  <Node Name="TemplateIsConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateIsConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
+      <Kind Name="IdentifierName"/>
+    </Field>
+    <Field Name="isKeyword" Type="SyntaxToken">
+      <Kind Name="IsKeyword"/>
+    </Field>
+    <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
@@ -236,7 +247,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -276,7 +287,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -296,7 +307,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -335,7 +346,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -381,7 +392,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="BlockStatementSyntax" Base="StatementSyntax">

@@ -85,13 +85,13 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates an empty <see cref="TemplateParameterConstraintClauseListSyntax" />.
+    /// Creates an empty <see cref="TemplateConstraintClauseListSyntax" />.
     /// </summary>
-    public static TemplateParameterConstraintClauseListSyntax ConstraintClauseList() {
-        return TemplateParameterConstraintClauseList(
+    public static TemplateConstraintClauseListSyntax ConstraintClauseList() {
+        return TemplateConstraintClauseList(
             Token(SyntaxKind.WhereKeyword),
             Token(SyntaxKind.OpenBraceToken),
-            List<TemplateParameterConstraintClauseSyntax>(),
+            List<TemplateConstraintClauseSyntax>(),
             Token(SyntaxKind.CloseBraceToken)
         );
     }

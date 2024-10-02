@@ -141,6 +141,50 @@ internal static class ConstraintsHelpers {
         return bounds;
     }
 
+    internal static ImmutableArray<TypeParameterConstraintClause> AdjustConstraintKindsBasedOnConstraintTypes(
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<TypeParameterConstraintClause> constraintClauses) {
+        var arity = templateParameters.Length;
+
+        var isPrimitiveTypeMap = TypeParameterConstraintClause.BuildIsPrimitiveTypeMap(
+            templateParameters,
+            constraintClauses
+        );
+
+        var isObjectTypeFromConstraintTypesMap = TypeParameterConstraintClause.BuildIsObjectTypeFromConstraintTypesMap(
+            templateParameters,
+            constraintClauses
+        );
+
+        ArrayBuilder<TypeParameterConstraintClause> builder = null;
+
+        for (var i = 0; i < arity; i++) {
+            var constraint = constraintClauses[i];
+            var typeParameter = templateParameters[i];
+            var constraintKind = constraint.constraints;
+
+            if ((constraintKind & TypeParameterConstraintKinds.Primitive) == 0 && isPrimitiveTypeMap[typeParameter])
+                constraintKind |= TypeParameterConstraintKinds.Primitive;
+
+            if (isObjectTypeFromConstraintTypesMap[typeParameter])
+                constraintKind |= TypeParameterConstraintKinds.Object;
+
+            if (constraint.constraints != constraintKind) {
+                if (builder == null) {
+                    builder = ArrayBuilder<TypeParameterConstraintClause>.GetInstance(constraintClauses.Length);
+                    builder.AddRange(constraintClauses);
+                }
+
+                builder[i] = TypeParameterConstraintClause.Create(constraintKind, constraint.constraintTypes);
+            }
+        }
+
+        if (builder != null)
+            constraintClauses = builder.ToImmutableAndFree();
+
+        return constraintClauses;
+    }
+
     private static bool IsEncompassedBy(TypeSymbol a, TypeSymbol b) {
         return Conversion.HasIdentityOrImplicitConversion(a, b) || Conversion.HasBoxingConversion(a, b);
     }

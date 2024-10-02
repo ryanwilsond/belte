@@ -78,18 +78,17 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                     constraints = binder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
                 } else {
                     binder = binderFactory.GetBinder(constraintClauses[0]);
-                    binder = binder.WithContainingMemberOrLambda(this)
-                        .WithAdditionalFlags(
-                            BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks
-                        );
+                    binder = binder.WithAdditionalFlagsAndContainingMember(
+                        BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks,
+                        this
+                    );
 
                     constraints = binder.BindTypeParameterConstraintClauses(
                         this,
                         templateParameters,
                         templateParameterList,
                         constraintClauses,
-                        diagnostics,
-                        performOnlyCycleSafeValidation: false
+                        diagnostics
                     );
                 }
 
@@ -100,8 +99,6 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                         .Add(constraints);
                 }
             }
-
-            results = MergeConstraintTypesForPartialDeclarations(results, otherPartialClauses, diagnostics);
 
             if (results.All(clause => clause.constraintTypes.IsEmpty))
                 results = [];
@@ -133,20 +130,19 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                     constraints = binder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
                 } else {
                     binder = binderFactory.GetBinder(constraintClauses[0]);
-                    binder = binder.WithContainingMemberOrLambda(this)
-                        .WithAdditionalFlags(
-                            BinderFlags.TemplateConstraintsClause |
-                            BinderFlags.SuppressConstraintChecks |
-                            BinderFlags.SuppressTemplateArgumentBinding
-                        );
+                    binder = binder.WithAdditionalFlagsAndContainingMember(
+                        BinderFlags.TemplateConstraintsClause |
+                        BinderFlags.SuppressConstraintChecks |
+                        BinderFlags.SuppressTemplateArgumentBinding,
+                        this
+                    );
 
                     constraints = binder.BindTypeParameterConstraintClauses(
                         this,
                         templateParameters,
                         templateParameterList,
                         constraintClauses,
-                        new BelteDiagnosticQueue(),
-                        performOnlyCycleSafeValidation: true
+                        new BelteDiagnosticQueue()
                     );
                 }
 
@@ -158,7 +154,6 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                 }
             }
 
-            results = MergeConstraintKindsForPartialDeclarations(results, otherPartialClauses);
             results = ConstraintsHelpers.AdjustConstraintKindsBasedOnConstraintTypes(templateParameters, results);
 
             if (results.All(clause => clause.constraints == TypeParameterConstraintKinds.None))
@@ -174,7 +169,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         return GetConstraintClauses(_declaration, out _).Count != 0;
     }
 
-    private static SyntaxList<TemplateParameterConstraintClauseSyntax> GetConstraintClauses(
+    private static SyntaxList<TemplateConstraintClauseSyntax> GetConstraintClauses(
         TypeDeclarationSyntax node,
         out TemplateParameterListSyntax templateParameterList) {
         switch (node.kind) {

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Lowering;
@@ -5,6 +6,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -13,7 +15,10 @@ namespace Buckle.CodeAnalysis.Binding;
 /// error checking happens. The <see cref="Lowerer" /> is also called here to simplify the code and convert control of
 /// flow into gotos and labels. Dead code is also removed here, as well as other optimizations.
 /// </summary>
-internal class Binder {
+internal partial class Binder {
+
+    #region Internal Model
+
     private protected OverloadResolution _lazyOverloadResolution;
     private protected Conversions _lazyConversions;
 
@@ -258,4 +263,103 @@ internal class Binder {
         return type.containingType is null
             || IsMemberAccessible(type.containingType, type.accessibility, within, null, out _);
     }
+
+    #endregion
+
+    #region Flags
+
+    internal Binder WithAdditionalFlagsAndContainingMember(BinderFlags flags, Symbol containing) {
+        return this.flags.Includes(flags)
+            ? new BinderWithContainingMember(this, containing)
+            : new BinderWithContainingMember(this, this.flags | flags, containing);
+    }
+
+    #endregion
+
+    #region Constraints
+
+    internal ImmutableArray<TypeParameterConstraintClause> GetDefaultTypeParameterConstraintClauses(
+        TemplateParameterListSyntax templateParameterList) {
+        var builder = ArrayBuilder<TypeParameterConstraintClause>.GetInstance(
+            templateParameterList.parameters.Count,
+            GetDefaultTypeParameterConstraintClause()
+        );
+
+        return builder.ToImmutable();
+    }
+
+    internal TypeParameterConstraintClause GetDefaultTypeParameterConstraintClause() {
+        return TypeParameterConstraintClause.Empty;
+    }
+
+    internal ImmutableArray<TypeParameterConstraintClause> BindTypeParameterConstraintClauses(
+        Symbol containingSymbol,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        TemplateParameterListSyntax templateParameterList,
+        SyntaxList<TemplateConstraintClauseSyntax> clauses,
+        BelteDiagnosticQueue diagnostics) {
+        var n = templateParameters.Length;
+        var names = new Dictionary<string, int>(n, StringOrdinalComparer.Instance);
+
+        foreach (var templateParameter in templateParameters) {
+            var name = templateParameter.name;
+
+            if (!names.ContainsKey(name))
+                names.Add(name, names.Count);
+        }
+
+        var results = ArrayBuilder<TypeParameterConstraintClause>.GetInstance(n, fillWithValue: null);
+        var syntaxNodes = ArrayBuilder<ArrayBuilder<TemplateConstraintClauseSyntax>>
+            .GetInstance(n, fillWithValue: null);
+
+        foreach (var clause in clauses) {
+            if (clause.expressionConstraint is not null)
+                continue;
+
+            var name = clause.extendConstraint is null
+                ? clause.isConstraint.name.identifier
+                : clause.extendConstraint.name.identifier;
+
+            if (names.TryGetValue(name.text, out var ordinal)) {
+                if (syntaxNodes[ordinal] is null)
+                    syntaxNodes[ordinal] = ArrayBuilder<TemplateConstraintClauseSyntax>.GetInstance();
+
+                syntaxNodes[ordinal].Add(clause);
+            } else {
+                diagnostics.Push(Error.UnknownTemplate(name.location, containingSymbol.name, name.text));
+            }
+        }
+
+        foreach (var parameter in templateParameters) {
+            names.TryGetValue(parameter.name, out var ordinal);
+
+            if (syntaxNodes[ordinal] is not null) {
+                var constraintClause = BindTypeParameterConstraints(templateParameterList.parameters[ordinal], syntaxNodes[ordinal], diagnostics);
+                results[ordinal] = constraintClause;
+            }
+        }
+
+        for (var i = 0; i < n; i++) {
+            if (results[i] is null)
+                results[i] = GetDefaultTypeParameterConstraintClause();
+        }
+
+        foreach (var typeConstraintsSyntaxes in syntaxNodes)
+            typeConstraintsSyntaxes?.Free();
+
+        syntaxNodes.Free();
+
+        return results.ToImmutableAndFree();
+    }
+
+    private TypeParameterConstraintClause BindTypeParameterConstraints(
+        ParameterSyntax templateParameter,
+        ArrayBuilder<TemplateConstraintClauseSyntax> constraints,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        // Need to bind type first to make sure this template is a type parameter
+        return TypeParameterConstraintClause.Empty;
+    }
+
+    #endregion
 }
