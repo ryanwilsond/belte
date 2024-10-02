@@ -179,8 +179,8 @@ internal sealed class SourceWriter {
         WriteLine("namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;");
 
         WriteGreenNodes();
-        WriteGreenVisitorT();
-        WriteGreenVisitor();
+        WriteVisitorT();
+        WriteVisitor();
         WriteGreenRewriter();
         WriteGreenFactory();
     }
@@ -190,6 +190,8 @@ internal sealed class SourceWriter {
         WriteLine("namespace Buckle.CodeAnalysis.Syntax;");
 
         WriteRedNodes();
+        WriteVisitorT();
+        WriteVisitor();
         WriteRedFactory();
     }
 
@@ -473,7 +475,7 @@ internal sealed class SourceWriter {
         Unindent();
     }
 
-    private void WriteGreenVisitorT() {
+    private void WriteVisitorT() {
         var nodes = _tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
@@ -491,7 +493,7 @@ internal sealed class SourceWriter {
         CloseBlock();
     }
 
-    private void WriteGreenVisitor() {
+    private void WriteVisitor() {
         var nodes = _tree.types.Where(n => n is Node).ToList();
 
         WriteLine();
@@ -679,6 +681,17 @@ internal sealed class SourceWriter {
                 );
                 WriteLine();
             }
+
+            WriteLine(
+                $"internal override void Accept(SyntaxVisitor visitor) => visitor.Visit" +
+                $"{StripPost(node.Name, "Syntax")}(this);"
+            );
+            WriteLine();
+            WriteLine(
+                $"internal override TResult Accept<TResult>(SyntaxVisitor<TResult> visitor) => " +
+                $"visitor.Visit{StripPost(node.Name, "Syntax")}(this);"
+            );
+            WriteLine();
 
             // WriteGetNodeSlotMethod
             {

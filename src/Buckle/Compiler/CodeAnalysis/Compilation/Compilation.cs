@@ -24,7 +24,8 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 public sealed class Compilation {
     private BoundGlobalScope _globalScope;
-    private CorLibrary _corLibrary;
+    private ImmutableDictionary<SyntaxTree, int> _ordinalMap;
+    private WeakReference<BinderFactory>[] _binderFactories;
 
     private Compilation(CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
         this.previous = previous;
@@ -35,6 +36,12 @@ public sealed class Compilation {
             diagnostics.Move(syntaxTree.GetDiagnostics());
 
         this.syntaxTrees = syntaxTrees.ToImmutableArray();
+        var builder = ImmutableDictionary.CreateBuilder<SyntaxTree, int>();
+
+        for (var i = 0; i < syntaxTrees.Length; i++)
+            builder.Add(syntaxTrees[i], i);
+
+        _ordinalMap = builder.ToImmutable();
     }
 
     /// <summary>
@@ -96,15 +103,6 @@ public sealed class Compilation {
                 EnsureGlobalScope();
 
             return _globalScope;
-        }
-    }
-
-    internal CorLibrary corLibrary {
-        get {
-            if (_corLibrary is null)
-                EnsureCorLibrary();
-
-            return _corLibrary;
         }
     }
 
@@ -385,6 +383,24 @@ public sealed class Compilation {
         return Binder.BindProgram(options, previous, globalScope);
     }
 
+    internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree) {
+        var treeOrdinal = _ordinalMap[syntaxTree];
+        var binderFactories = _binderFactories;
+
+        if (binderFactories is null) {
+            binderFactories = new WeakReference<BinderFactory>[syntaxTrees.Length];
+            binderFactories = Interlocked.CompareExchange(ref _binderFactories, binderFactories, null)
+                ?? binderFactories;
+        }
+
+        var previousWeakReference = binderFactories[treeOrdinal];
+
+        if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
+            return previousFactory;
+
+        return AddNewFactory(syntaxTree, ref binderFactories[treeOrdinal]);
+    }
+
     /// <summary>
     /// Binds the global scope if it hasn't been bound already. Does not return anything to indicate if the global scope
     /// was bound or already bound, but after this method is called the global scope is guaranteed to have been bound.
@@ -395,12 +411,21 @@ public sealed class Compilation {
         Interlocked.CompareExchange(ref _globalScope, tempScope, null);
     }
 
-    internal void EnsureCorLibrary() {
-        Interlocked.CompareExchange(ref _corLibrary, new CorLibrary(), null);
-    }
+    private BinderFactory AddNewFactory(SyntaxTree syntaxTree, ref WeakReference<BinderFactory> slot) {
+        var newFactory = new BinderFactory(this, syntaxTree);
+        var newWeakReference = new WeakReference<BinderFactory>(newFactory);
 
-    internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+        while (true) {
+            var previousWeakReference = slot;
 
+            if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
+                return previousFactory;
+
+            if (Interlocked.CompareExchange(ref slot!, newWeakReference, previousWeakReference)
+                == previousWeakReference) {
+                return newFactory;
+            }
+        }
     }
 
     private static void CreateCfg(BoundProgram program) {

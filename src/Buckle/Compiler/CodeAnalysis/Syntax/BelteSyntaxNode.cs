@@ -19,6 +19,10 @@ public abstract class BelteSyntaxNode : SyntaxNode {
 
     internal new BelteSyntaxNode parent => (BelteSyntaxNode)base.parent;
 
+    internal abstract TResult Accept<TResult>(SyntaxVisitor<TResult> visitor);
+
+    internal abstract void Accept(SyntaxVisitor visitor);
+
     private static SyntaxTree ComputeSyntaxTree(BelteSyntaxNode node) {
         ArrayBuilder<BelteSyntaxNode> nodes = null;
         SyntaxTree tree;
