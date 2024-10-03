@@ -41,7 +41,7 @@ public static class CompilationExtensions {
     public static void EmitTree(this Compilation self, string name, DisplayText text) {
         var program = self.GetProgram();
         var pair = LookupMethodFromParentsFromName(program, name);
-        SymbolDisplay.DisplaySymbol(text, pair.Item1);
+        SymbolDisplay.AppendToDisplayText(text, pair.Item1);
         text.Write(CreateSpace());
         DisplayText.DisplayNode(text, pair.Item2);
     }

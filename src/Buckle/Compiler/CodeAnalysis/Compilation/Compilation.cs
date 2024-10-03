@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -18,6 +19,7 @@ public sealed class Compilation {
     private readonly SyntaxManager _syntax;
     private readonly ImmutableDictionary<SyntaxTree, int> _ordinalMap;
     private NamespaceSymbol _lazyGlobalNamespace;
+    private BoundGlobalScope _lazyGlobalScope;
     private WeakReference<BinderFactory>[] _binderFactories;
 
     private Compilation(
@@ -27,7 +29,10 @@ public sealed class Compilation {
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
+        diagnostics = new BelteDiagnosticQueue();
     }
+
+    internal BelteDiagnosticQueue diagnostics { get; }
 
     internal CompilationOptions options { get; }
 
@@ -45,6 +50,15 @@ public sealed class Compilation {
             }
 
             return _lazyGlobalNamespace;
+        }
+    }
+
+    internal BoundGlobalScope globalScope {
+        get {
+            if (_lazyGlobalScope is null)
+                EnsureGlobalScope();
+
+            return _lazyGlobalScope;
         }
     }
 
@@ -83,22 +97,6 @@ public sealed class Compilation {
             return previousFactory;
 
         return AddNewFactory(syntaxTree, ref binderFactories[treeOrdinal]);
-    }
-
-    private static Compilation Create(
-        CompilationOptions options,
-        Compilation previous,
-        IEnumerable<SyntaxTree> syntaxTrees) {
-        var compilation = new Compilation(
-            options,
-            previous,
-            new SyntaxManager([], null)
-        );
-
-        if (syntaxTrees is not null)
-            compilation = compilation.AddSyntaxTrees(syntaxTrees);
-
-        return compilation;
     }
 
     private Compilation AddSyntaxTrees(IEnumerable<SyntaxTree> trees) {
@@ -152,6 +150,28 @@ public sealed class Compilation {
                 return newFactory;
             }
         }
+    }
+
+    private void EnsureGlobalScope() {
+        var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
+        // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
+        Interlocked.CompareExchange(ref _globalScope, tempScope, null);
+    }
+
+    private static Compilation Create(
+        CompilationOptions options,
+        Compilation previous,
+        IEnumerable<SyntaxTree> syntaxTrees) {
+        var compilation = new Compilation(
+            options,
+            previous,
+            new SyntaxManager([], null)
+        );
+
+        if (syntaxTrees is not null)
+            compilation = compilation.AddSyntaxTrees(syntaxTrees);
+
+        return compilation;
     }
 
     private static void CreateCfg(BoundProgram program) {
