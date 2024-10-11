@@ -36,8 +36,8 @@ public static class SymbolDisplay {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);
                 break;
-            case SymbolKind.LocalVariable:
-            case SymbolKind.GlobalVariable:
+            case SymbolKind.Local:
+            case SymbolKind.Global:
             case SymbolKind.Parameter:
                 DisplayVariable(text, (VariableSymbol)symbol, includeVariableTypes);
                 break;

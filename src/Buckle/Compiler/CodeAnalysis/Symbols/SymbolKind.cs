@@ -5,8 +5,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Type of symbol.
 /// </summary>
 public enum SymbolKind {
-    GlobalVariable,
-    LocalVariable,
+    Global,
+    Local,
     NamedType,
     ArrayType,
     ErrorType,

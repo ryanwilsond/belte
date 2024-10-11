@@ -15,5 +15,5 @@ internal sealed class GlobalVariableSymbol : VariableSymbol {
         DeclarationModifiers modifiers)
         : base(name, type, constant, modifiers, Accessibility.NotApplicable) { }
 
-    public override SymbolKind kind => SymbolKind.GlobalVariable;
+    public override SymbolKind kind => SymbolKind.Global;
 }

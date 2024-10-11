@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 
@@ -54,6 +55,25 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     internal sealed override void EnsureConstraintsAreResolved() {
         if (!_lazyBounds.IsSet())
             EnsureConstraintsAreResolved(_containerTemplateParameters);
+    }
+
+    internal override void ForceComplete(TextLocation location) {
+        while (true) {
+            var incompletePart = _state.nextIncompletePart;
+
+            switch (incompletePart) {
+                case CompletionParts.TemplateParameterConstraints:
+                    var _ = constraintTypes;
+                    break;
+                case CompletionParts.None:
+                    return;
+                default:
+                    _state.NotePartComplete(CompletionParts.All & ~CompletionParts.TemplateParameterSymbolAll);
+                    break;
+            }
+
+            _state.SpinWaitComplete(incompletePart);
+        }
     }
 
     private protected abstract TypeParameterBounds ResolveBounds(

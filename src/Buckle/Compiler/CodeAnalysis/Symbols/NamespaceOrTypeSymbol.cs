@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class NamespaceOrTypeSymbol : Symbol {
+    protected static readonly ObjectPool<PooledDictionary<ReadOnlyMemory<char>, object>> NameToObjectPool =
+        PooledDictionary<ReadOnlyMemory<char>, object>.CreatePool(ReadOnlyMemoryOfCharComparer.Instance);
+
     internal bool isNamespace => kind == SymbolKind.Namespace;
 
     internal bool isType => !isNamespace;

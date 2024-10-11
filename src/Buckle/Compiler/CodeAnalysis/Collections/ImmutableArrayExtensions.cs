@@ -62,4 +62,42 @@ internal static class ImmutableArrayExtensions {
 
         return ImmutableArray.Create(items);
     }
+
+    internal static ImmutableArray<TValue> Flatten<TKey, TValue>(
+        this Dictionary<TKey, ImmutableArray<TValue>> dictionary,
+        IComparer<TValue> comparer = null)
+        where TKey : notnull {
+        if (dictionary.Count == 0)
+            return [];
+
+        var builder = ArrayBuilder<TValue>.GetInstance();
+
+        foreach (var keyValuePair in dictionary)
+            builder.AddRange(keyValuePair.Value);
+
+        if (comparer is not null && builder.Count > 1)
+            builder.Sort(comparer);
+
+        return builder.ToImmutableAndFree();
+    }
+
+    internal static void AddToMultiValueDictionaryBuilder<K, T>(Dictionary<K, object> accumulator, K key, T item)
+        where K : notnull
+        where T : notnull {
+        if (accumulator.TryGetValue(key, out var existingValueOrArray)) {
+            if (existingValueOrArray is not ArrayBuilder<T> arrayBuilder) {
+                arrayBuilder = ArrayBuilder<T>.GetInstance(capacity: 2);
+                arrayBuilder.Add((T)existingValueOrArray);
+                accumulator[key] = arrayBuilder;
+            }
+
+            arrayBuilder.Add(item);
+        } else {
+            accumulator.Add(key, item);
+        }
+    }
+
+    internal static ImmutableArray<T> Concat<T>(this ImmutableArray<T> first, ImmutableArray<T> second) {
+        return first.AddRange(second);
+    }
 }

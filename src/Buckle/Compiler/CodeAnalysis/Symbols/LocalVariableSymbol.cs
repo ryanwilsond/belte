@@ -18,5 +18,5 @@ internal class LocalVariableSymbol : VariableSymbol {
         DeclarationModifiers modifiers)
         : base(name, type, constant, modifiers, Accessibility.NotApplicable) { }
 
-    public override SymbolKind kind => SymbolKind.LocalVariable;
+    public override SymbolKind kind => SymbolKind.Local;
 }

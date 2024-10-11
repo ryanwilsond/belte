@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 
@@ -109,6 +110,17 @@ internal abstract class Symbol : ISymbol {
     internal virtual void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
         if (diagnostics.Count > 0)
             declaringCompilation.diagnostics.Move(diagnostics);
+    }
+
+    internal virtual void ForceComplete(TextLocation location) { }
+
+    internal virtual bool HasComplete(CompletionParts part) {
+        return true;
+    }
+
+    internal LexicalSortKey GetLexicalSortKey() {
+        var declaringCompilation = this.declaringCompilation;
+        return new LexicalSortKey(syntaxReference, declaringCompilation);
     }
 
     internal Symbol SymbolAsMember(NamedTypeSymbol newOwner) {

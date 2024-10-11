@@ -142,8 +142,8 @@ internal partial class Binder {
 
         switch (symbol.kind) {
             case SymbolKind.NamedType:
-            case SymbolKind.LocalVariable:
-            case SymbolKind.GlobalVariable:
+            case SymbolKind.Local:
+            case SymbolKind.Global:
             case SymbolKind.TemplateParameter:
             case SymbolKind.Parameter:
             case SymbolKind.Method when ((MethodSymbol)symbol).methodKind == MethodKind.LocalFunction:

@@ -19,7 +19,6 @@ public sealed class Compilation {
     private readonly SyntaxManager _syntax;
     private readonly ImmutableDictionary<SyntaxTree, int> _ordinalMap;
     private NamespaceSymbol _lazyGlobalNamespace;
-    private BoundGlobalScope _lazyGlobalScope;
     private WeakReference<BinderFactory>[] _binderFactories;
 
     private Compilation(
@@ -50,15 +49,6 @@ public sealed class Compilation {
             }
 
             return _lazyGlobalNamespace;
-        }
-    }
-
-    internal BoundGlobalScope globalScope {
-        get {
-            if (_lazyGlobalScope is null)
-                EnsureGlobalScope();
-
-            return _lazyGlobalScope;
         }
     }
 
@@ -97,6 +87,10 @@ public sealed class Compilation {
             return previousFactory;
 
         return AddNewFactory(syntaxTree, ref binderFactories[treeOrdinal]);
+    }
+
+    internal int GetSyntaxTreeOrdinal(SyntaxTree syntaxTree) {
+        return _syntax.state.ordinalMap[syntaxTree];
     }
 
     private Compilation AddSyntaxTrees(IEnumerable<SyntaxTree> trees) {
@@ -150,12 +144,6 @@ public sealed class Compilation {
                 return newFactory;
             }
         }
-    }
-
-    private void EnsureGlobalScope() {
-        var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
-        // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
-        Interlocked.CompareExchange(ref _globalScope, tempScope, null);
     }
 
     private static Compilation Create(

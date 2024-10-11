@@ -155,7 +155,7 @@ internal sealed class Evaluator {
                 return evaluatorObject;
         }
 
-        if (variable.kind == SymbolKind.GlobalVariable) {
+        if (variable.kind == SymbolKind.Global) {
             if (TryGet(_globals, variable, out var evaluatorObject))
                 return evaluatorObject;
         } else {
@@ -244,7 +244,7 @@ internal sealed class Evaluator {
     }
 
     private void Create(VariableSymbol left, EvaluatorObject right) {
-        if (left.kind == SymbolKind.GlobalVariable) {
+        if (left.kind == SymbolKind.Global) {
             var set = false;
 
             foreach (var global in _globals) {
