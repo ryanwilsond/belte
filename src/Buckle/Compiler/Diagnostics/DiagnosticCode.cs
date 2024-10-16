@@ -106,7 +106,7 @@ public enum DiagnosticCode : int {
     ERR_TemplateMustBeConstant = 95,
     ERR_CannotReferenceNonField = 96,
     ERR_CannotUseType = 97,
-    ERR_StaticConstructor = 98,
+    ERR_ConstructorInStaticClass = 98,
     ERR_StaticVariable = 99,
     ERR_CannotConstructStatic = 100,
     ERR_ConflictingModifiers = 101,
@@ -159,6 +159,7 @@ public enum DiagnosticCode : int {
     ERR_TemplateObjectBaseWithPrimitiveBase = 148,
     ERR_TemplateBaseConstraintConflict = 149,
     ERR_TemplateBaseBothObjectAndPrimitive = 150,
+    ERR_MemberNameSameAsType = 151,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

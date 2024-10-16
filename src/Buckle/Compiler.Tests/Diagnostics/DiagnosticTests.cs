@@ -1319,7 +1319,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0098_StaticConstructor() {
+    public void Reports_Error_BU0098_ConstructorInStaticClass() {
         var text = @"
             static class A {
                 [constructor]() { }

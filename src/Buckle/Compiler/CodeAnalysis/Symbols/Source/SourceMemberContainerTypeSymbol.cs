@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -101,15 +102,131 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name) {
+        if (GetMembersByName().TryGetValue(name.AsMemory(), out var members))
+            return members;
 
+        return [];
     }
 
     internal override void ForceComplete(TextLocation location) {
-        // TODO
+        while (true) {
+            var incompletePart = _state.nextIncompletePart;
+
+            switch (incompletePart) {
+                case CompletionParts.StartBaseType:
+                case CompletionParts.FinishBaseType:
+                    if (state.NotePartComplete(CompletionPart.StartBaseType)) {
+                        var diagnostics = BindingDiagnosticBag.GetInstance();
+                        CheckBase(diagnostics);
+                        AddDeclarationDiagnostics(diagnostics);
+                        state.NotePartComplete(CompletionPart.FinishBaseType);
+                        diagnostics.Free();
+                    }
+                    break;
+                case CompletionParts.TemplateArguments: {
+                        var tmp = this.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics; // force type arguments
+                    }
+                    break;
+
+                case CompletionParts.TemplateParameters:
+                    // force type parameters
+                    foreach (var typeParameter in this.TypeParameters) {
+                        // We can't filter out type parameters: if this container was requested, then all its type parameters need to be compiled
+                        typeParameter.ForceComplete(locationOpt, filter: null, cancellationToken);
+                    }
+
+                    state.NotePartComplete(CompletionPart.TypeParameters);
+                    break;
+
+                case CompletionParts.Members:
+                    this.GetMembersByName();
+                    break;
+
+                case CompletionParts.TypeMembers:
+                    this.GetTypeMembersUnordered();
+                    break;
+
+                case CompletionPart.SynthesizedExplicitImplementations:
+                    this.GetSynthesizedExplicitImplementations(cancellationToken); //force interface and base class errors to be checked
+                    break;
+
+                case CompletionParts.StartMemberChecks:
+                case CompletionParts.FinishMemberChecks:
+                    if (state.NotePartComplete(CompletionPart.StartMemberChecks)) {
+                        var diagnostics = BindingDiagnosticBag.GetInstance();
+                        AfterMembersChecks(diagnostics);
+                        AddDeclarationDiagnostics(diagnostics);
+
+                        // We may produce a SymbolDeclaredEvent for the enclosing type before events for its contained members
+                        DeclaringCompilation.SymbolDeclaredEvent(this);
+                        var thisThreadCompleted = state.NotePartComplete(CompletionPart.FinishMemberChecks);
+                        Debug.Assert(thisThreadCompleted);
+                        diagnostics.Free();
+                    }
+                    break;
+
+                case CompletionParts.MembersCompletedChecksStarted:
+                case CompletionParts.MembersCompleted: {
+                        ImmutableArray<Symbol> members = this.GetMembersUnordered();
+
+                        bool allCompleted = true;
+
+                        if (locationOpt == null && filter == null) {
+                            foreach (var member in members) {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                member.ForceComplete(locationOpt, filter: null, cancellationToken);
+                            }
+                        } else {
+                            foreach (var member in members) {
+                                ForceCompleteMemberConditionally(locationOpt, filter, member, cancellationToken);
+                                allCompleted = allCompleted && member.HasComplete(CompletionPart.All);
+                            }
+                        }
+
+                        if (!allCompleted) {
+                            // We did not complete all members so we won't have enough information for
+                            // the PointedAtManagedTypeChecks, so just kick out now.
+                            var allParts = CompletionPart.NamedTypeSymbolWithLocationAll;
+                            state.SpinWaitComplete(allParts, cancellationToken);
+                            return;
+                        }
+
+                        EnsureFieldDefinitionsNoted();
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                        if (state.NotePartComplete(CompletionPart.MembersCompletedChecksStarted)) {
+                            var diagnostics = BindingDiagnosticBag.GetInstance();
+                            AfterMembersCompletedChecks(diagnostics);
+                            AddDeclarationDiagnostics(diagnostics);
+
+                            // We've completed all members, so we're ready for the PointedAtManagedTypeChecks;
+                            // proceed to the next iteration.
+                            var thisThreadCompleted = state.NotePartComplete(CompletionPart.MembersCompleted);
+                            Debug.Assert(thisThreadCompleted);
+                            diagnostics.Free();
+                        }
+                    }
+                    break;
+
+                case CompletionParts.None:
+                    return;
+                default:
+                    _state.NotePartComplete(CompletionParts.All & ~CompletionParts.NamedTypeSymbolAll);
+                    break;
+            }
+
+            _state.SpinWaitComplete(incompletePart, cancellationToken);
+        }
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     internal sealed override bool HasComplete(CompletionParts part) {
         return _state.HasComplete(part);
+    }
+
+    internal Binder GetBinder(BelteSyntaxNode syntaxNode) {
+        return declaringCompilation.GetBinder(syntaxNode);
     }
 
     private protected Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetMembersByName() {
@@ -272,6 +389,154 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
             return builder.ToReadOnlyAndFree(declaringCompilation);
         }
+    }
+
+    private void AddDeclaredNonTypeMembers(DeclaredMembersAndInitializersBuilder builder, BelteDiagnosticQueue diagnostics) {
+        if (_lazyMembersAndInitializers is not null)
+            return;
+
+        var syntax = syntaxReference.node;
+
+        switch (syntax.kind) {
+            case SyntaxKind.CompilationUnit:
+                AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
+                break;
+            case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.StructDeclaration:
+                var typeDeclaration = (TypeDeclarationSyntax)syntax;
+                NoteTypeParameters(typeDeclaration, builder);
+                AddNonTypeMembers(builder, typeDeclaration.members, diagnostics);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(syntax.kind);
+        }
+
+        void NoteTypeParameters(TypeDeclarationSyntax syntax, DeclaredMembersAndInitializersBuilder builder) {
+            var parameterList = syntax.templateParameterList;
+
+            if (parameterList is null)
+                return;
+
+            if (builder.declarationWithParameters is null) {
+                builder.declarationWithParameters = syntax;
+
+                if (isStatic)
+                    diagnostics.Push(Error.ConstructorInStaticClass(syntax.identifier.location));
+            }
+        }
+    }
+
+    private void AddNonTypeMembers(
+        DeclaredMembersAndInitializersBuilder builder,
+        SyntaxList<MemberDeclarationSyntax> members,
+        BelteDiagnosticQueue diagnostics) {
+        if (members.Count == 0)
+            return;
+
+        var firstMember = members[0];
+        var bodyBinder = GetBinder(firstMember);
+
+        ArrayBuilder<FieldInitializer>? initializers = null;
+        var compilation = declaringCompilation;
+
+        foreach (var m in members) {
+            if (_lazyMembersAndInitializers is not null)
+                return;
+
+            var reportMisplacedGlobalCode = !m.containsDiagnostics;
+
+            switch (m.kind) {
+                case SyntaxKind.FieldDeclaration: {
+                        var fieldSyntax = (FieldDeclarationSyntax)m;
+
+                        var modifiers = SourceMemberFieldSymbol.MakeModifiers(
+                            this,
+                            fieldSyntax.declaration.identifier,
+                            fieldSyntax.modifiers,
+                            isRefField: refKind != RefKind.None,
+                            diagnostics,
+                            out var modifierErrors
+                        );
+
+                        var declaration = fieldSyntax.declaration;
+                        var fieldSymbol = new SourceMemberFieldSymbolFromDeclarator(
+                            this,
+                            declaration,
+                            modifiers,
+                            modifierErrors,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(fieldSymbol);
+
+                        if (declaration.initializer != null)
+                            AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
+                    }
+                    break;
+                case SyntaxKind.MethodDeclaration: {
+                        var methodSyntax = (MethodDeclarationSyntax)m;
+                        var method = SourceOrdinaryMethodSymbol.CreateMethodSymbol(
+                            this,
+                            bodyBinder,
+                            methodSyntax,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(method);
+                    }
+                    break;
+                case SyntaxKind.ConstructorDeclaration: {
+                        var constructorSyntax = (ConstructorDeclarationSyntax)m;
+
+                        var constructor = SourceConstructorSymbol.CreateConstructorSymbol(
+                            this,
+                            constructorSyntax,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(constructor);
+                    }
+                    break;
+                case SyntaxKind.OperatorDeclaration: {
+                        var operatorSyntax = (OperatorDeclarationSyntax)m;
+
+                        var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
+                            this,
+                            bodyBinder,
+                            operatorSyntax,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(method);
+                    }
+                    break;
+                case SyntaxKind.GlobalStatement: {
+                        // TODO ensure this is even possible to reach
+                        var globalStatement = ((GlobalStatementSyntax)m).statement;
+                        // diagnostics.Add(ErrorCode.ERR_GlobalStatement, new SourceLocation(globalStatement));
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        AddInitializers(builder.fieldInitializers, initializers);
+    }
+
+    private static void AddInitializer(
+        ref ArrayBuilder<FieldInitializer>? initializers,
+        FieldSymbol field,
+        BelteSyntaxNode node) {
+        initializers ??= ArrayBuilder<FieldInitializer>.GetInstance();
+        initializers.Add(new FieldInitializer(field, node));
+    }
+
+    private static void AddInitializers(
+        ArrayBuilder<ArrayBuilder<FieldInitializer>> allInitializers,
+        ArrayBuilder<FieldInitializer>? siblingsOpt) {
+        if (siblingsOpt is not null)
+            allInitializers.Add(siblingsOpt);
     }
 
     private void AddSynthesizedMembers(

@@ -950,9 +950,9 @@ internal static class Error {
     /// <summary>
     /// BU0098. Run `buckle --explain BU0098` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic StaticConstructor(TextLocation location) {
+    internal static BelteDiagnostic ConstructorInStaticClass(TextLocation location) {
         var message = $"static classes cannot have constructors";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticConstructor), location, message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstructorInStaticClass), location, message);
     }
 
     /// <summary>
@@ -1377,6 +1377,9 @@ internal static class Error {
         // TODO add this to resource doc after finding example
     }
 
+    /// <summary>
+    /// BU0149. Run `buckle --explain BU0149` on the command line for more info.
+    /// </summary>
     internal static BelteDiagnostic TemplateBaseConstraintConflict(
         TextLocation location,
         TemplateParameterSymbol templateParameter,
@@ -1388,12 +1391,24 @@ internal static class Error {
         // TODO add this to resource doc after finding example
     }
 
+    /// <summary>
+    /// BU0150. Run `buckle --explain BU0150` on the command line for more info.
+    /// </summary>
     internal static BelteDiagnostic TemplateBaseBothObjectAndPrimitive(
         TextLocation location,
         TemplateParameterSymbol templateParameter) {
         var message = $"template parameter '{templateParameter}' cannot be constrained as both an Object type " +
             "and Primitive type";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateBaseBothObjectAndPrimitive), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0151. Run `buckle --explain BU0151` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberNameSameAsType(TextLocation location, string name) {
+        var message = $"cannot declare a member with the same name as the enclosing type '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberNameSameAsType), location, message);
         // TODO add this to resource doc after finding example
     }
 

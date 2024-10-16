@@ -71,6 +71,10 @@ public sealed class Compilation {
         return Create(options, previous, syntaxTrees);
     }
 
+    internal Binder GetBinder(BelteSyntaxNode syntax) {
+        return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
+    }
+
     internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree) {
         var treeOrdinal = _ordinalMap[syntaxTree];
         var binderFactories = _binderFactories;
