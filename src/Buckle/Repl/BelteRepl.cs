@@ -32,7 +32,7 @@ public sealed partial class BelteRepl : Repl {
             ("Dark", "", new DarkTheme()),
             ("Light", "", new LightTheme()),
             ("Green", "Abiral Shakya", new GreenTheme()),
-            ("Blue", "Logan Kuz", new BlueTheme()),
+            ("Purpura", "Logan Kuz", new PurpuraTheme()),
             ("Traffic Stop", "Jason Pelkey", new TrafficStopTheme()),
         ];
 
