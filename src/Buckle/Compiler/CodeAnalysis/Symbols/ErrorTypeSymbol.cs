@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -28,6 +30,16 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
+
+    public override ImmutableArray<BoundExpression> templateConstraints => [];
+
+    internal abstract DiagnosticInfo errorInfo { get; }
+
+    internal virtual LookupResultKind resultKind => LookupResultKind.Empty;
+
+    internal virtual ImmutableArray<Symbol> candidateSymbols => [];
+
+    internal virtual bool unreported => false;
 
     internal override TypeKind typeKind => TypeKind.Error;
 

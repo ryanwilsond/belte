@@ -143,7 +143,7 @@ public partial class SyntaxTree {
     internal BelteDiagnosticQueue GetDiagnostics() {
         var root = GetRoot();
 
-        if (root != null)
+        if (root is not null)
             return GetDiagnostics(root);
         else
             return new BelteDiagnosticQueue();

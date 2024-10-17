@@ -82,7 +82,7 @@ public sealed class AnnotatedText {
         using (var stringReader = new StringReader(text)) {
             string line;
 
-            while ((line = stringReader.ReadLine()) != null)
+            while ((line = stringReader.ReadLine()) is not null)
                 lines.Add(line);
         }
 

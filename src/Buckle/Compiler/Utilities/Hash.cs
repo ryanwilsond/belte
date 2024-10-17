@@ -27,7 +27,7 @@ internal static class Hash {
     internal static int Combine<T>(T newKeyPart, int currentKey) where T : class? {
         var hash = unchecked(currentKey * (int)0xA5555529);
 
-        if (newKeyPart != null) {
+        if (newKeyPart is not null) {
             return unchecked(hash + newKeyPart.GetHashCode());
         }
 

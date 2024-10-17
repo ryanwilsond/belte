@@ -259,7 +259,7 @@ internal abstract partial class GreenNode {
         for (var i = 0; i < index; i++) {
             var child = GetSlot(i);
 
-            if (child != null)
+            if (child is not null)
                 offset += child.fullWidth;
         }
 
@@ -276,7 +276,7 @@ internal abstract partial class GreenNode {
         for (i = 0; ; i++) {
             var child = GetSlot(i);
 
-            if (child != null) {
+            if (child is not null) {
                 accumulatedWidth += child.fullWidth;
 
                 if (offset < accumulatedWidth)
@@ -299,7 +299,7 @@ internal abstract partial class GreenNode {
             for (int i = 0, n = node.slotCount; i < n; i++) {
                 var child = node.GetSlot(i);
 
-                if (child != null) {
+                if (child is not null) {
                     firstChild = child;
                     break;
                 }
@@ -323,7 +323,7 @@ internal abstract partial class GreenNode {
             for (var i = node.slotCount - 1; i >= 0; i--) {
                 var child = node.GetSlot(i);
 
-                if (child != null) {
+                if (child is not null) {
                     lastChild = child;
                     break;
                 }
@@ -375,7 +375,7 @@ internal abstract partial class GreenNode {
                 for (var i = lastIndex; i >= firstIndex; i--) {
                     var child = currentNode.GetSlot(i);
 
-                    if (child != null) {
+                    if (child is not null) {
                         var first = i == firstIndex;
                         var last = i == lastIndex;
                         stack.Push((child, currentLeading | !first, currentTrailing | !last));
@@ -405,7 +405,7 @@ internal abstract partial class GreenNode {
         for (; firstIndex < n; firstIndex++) {
             var child = node.GetSlot(firstIndex);
 
-            if (child != null)
+            if (child is not null)
                 break;
         }
 
@@ -419,7 +419,7 @@ internal abstract partial class GreenNode {
         for (; lastIndex >= 0; lastIndex--) {
             var child = node.GetSlot(lastIndex);
 
-            if (child != null)
+            if (child is not null)
                 break;
         }
 

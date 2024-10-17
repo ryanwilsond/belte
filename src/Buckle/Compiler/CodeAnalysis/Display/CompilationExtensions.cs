@@ -19,7 +19,7 @@ public static class CompilationExtensions {
     public static void EmitTree(this Compilation self, DisplayText text) {
         var entryPoint = self.globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
 
-        if (entryPoint != null) {
+        if (entryPoint is not null) {
             EmitTree(self, entryPoint, text);
         } else {
             var program = self.GetProgram();

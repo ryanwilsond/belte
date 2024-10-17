@@ -963,7 +963,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var innerIf = (IfStatementSyntax)inner;
             offset += innerIf.GetSlotOffset(4);
 
-            if (innerIf.elseClause != null && innerIf.then.kind != SyntaxKind.BlockStatement) {
+            if (innerIf.elseClause is not null && innerIf.then.kind != SyntaxKind.BlockStatement) {
                 var elseOffset = offset + innerIf.then.fullWidth + innerIf.elseClause.GetLeadingTriviaWidth();
 
                 then = AddDiagnostic(
@@ -982,7 +982,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         var elseClause = ParseElseClause();
 
-        if (elseClause != null && then.kind != SyntaxKind.BlockStatement && nestedIf) {
+        if (elseClause is not null && then.kind != SyntaxKind.BlockStatement && nestedIf) {
             elseClause = AddDiagnostic(
                 elseClause,
                 Error.AmbiguousElse(),

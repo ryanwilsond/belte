@@ -55,7 +55,7 @@ public static class SymbolDisplay {
     private static void DisplayContainedNames(DisplayText text, ISymbol symbol) {
         var currentSymbol = symbol as Symbol;
 
-        while (currentSymbol.containingType != null) {
+        while (currentSymbol.containingType is not null) {
             text.Write(CreateType(currentSymbol.containingType.name));
             text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
 
@@ -154,7 +154,7 @@ public static class SymbolDisplay {
     private static void DisplayMethod(DisplayText text, MethodSymbol symbol) {
         DisplayModifiers(text, symbol);
 
-        if (symbol.type != null) {
+        if (symbol.type is not null) {
             DisplayText.DisplayNode(text, symbol.type);
             text.Write(CreateSpace());
         }

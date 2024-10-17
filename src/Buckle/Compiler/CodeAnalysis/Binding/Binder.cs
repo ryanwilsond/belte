@@ -69,7 +69,7 @@ internal partial class Binder {
 
     internal Conversions conversions {
         get {
-            if (_lazyConversions == null)
+            if (_lazyConversions is null)
                 Interlocked.CompareExchange(ref _lazyConversions, new Conversions(this), null);
 
             return _lazyConversions;
@@ -78,7 +78,7 @@ internal partial class Binder {
 
     internal OverloadResolution overloadResolution {
         get {
-            if (_lazyOverloadResolution == null)
+            if (_lazyOverloadResolution is null)
                 Interlocked.CompareExchange(ref _lazyOverloadResolution, new OverloadResolution(this), null);
 
             return _lazyOverloadResolution;

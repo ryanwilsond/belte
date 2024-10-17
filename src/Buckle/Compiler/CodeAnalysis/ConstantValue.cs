@@ -13,14 +13,14 @@ internal sealed class ConstantValue {
     internal object value { get; }
 
     internal static bool IsNull(ConstantValue constant) {
-        if (constant != null && constant.value is null)
+        if (constant is not null && constant.value is null)
             return true;
 
         return false;
     }
 
     internal static bool IsNotNull(ConstantValue constant) {
-        if (constant != null && constant.value != null)
+        if (constant is not null && constant.value is not null)
             return true;
 
         return false;

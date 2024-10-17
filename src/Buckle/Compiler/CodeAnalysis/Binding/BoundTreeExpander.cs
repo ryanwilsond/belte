@@ -74,7 +74,7 @@ internal abstract class BoundTreeExpander {
             new BoundIfStatement(
                 conditionReplacement,
                 Simplify(ExpandStatement(statement.then)),
-                statement.elseStatement != null ? Simplify(ExpandStatement(statement.elseStatement)) : null
+                statement.elseStatement is not null ? Simplify(ExpandStatement(statement.elseStatement)) : null
             )
         );
 
@@ -157,10 +157,10 @@ internal abstract class BoundTreeExpander {
         return new List<BoundStatement>() {
             new BoundTryStatement(
                 Simplify(ExpandStatement(statement.body)) as BoundBlockStatement,
-                statement.catchBody != null ?
+                statement.catchBody is not null ?
                     Simplify(ExpandStatement(statement.catchBody)) as BoundBlockStatement
                     : null,
-                statement.finallyBody != null ?
+                statement.finallyBody is not null ?
                     Simplify(ExpandStatement(statement.finallyBody)) as BoundBlockStatement
                     : null
             )

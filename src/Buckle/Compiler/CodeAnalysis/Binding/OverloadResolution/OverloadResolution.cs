@@ -86,7 +86,7 @@ internal sealed class OverloadResolution {
 
             isConstructor = method.name == WellKnownMemberNames.InstanceConstructorName;
 
-            var defaultParameterCount = method.parameters.Where(p => p.defaultValue != null).Count();
+            var defaultParameterCount = method.parameters.Where(p => p.defaultValue is not null).Count();
             var expressionArgumentsCount = argumentList?.arguments?.Count ?? arguments.Length;
             var expressionArguments = argumentList?.arguments;
 
@@ -133,7 +133,7 @@ internal sealed class OverloadResolution {
 
                 if (!parameter.name.StartsWith('$') &&
                     seenParameterNames.Add(parameter.name) &&
-                    parameter.defaultValue != null) {
+                    parameter.defaultValue is not null) {
                     rearrangedArguments[i] = preBoundArgumentsBuilder.Count;
                     preBoundArgumentsBuilder.Add((parameter.name, parameter.defaultValue));
                 }
@@ -335,7 +335,7 @@ internal sealed class OverloadResolution {
             var beforeCount = _binder.diagnostics.Count;
             var score = 0;
 
-            var defaultParameterCount = symbol.templateParameters.Where(p => p.defaultValue != null).Count();
+            var defaultParameterCount = symbol.templateParameters.Where(p => p.defaultValue is not null).Count();
             var expressionArguments = argumentList?.arguments;
             var argumentCount = expressionArguments?.Count ?? 0;
 
@@ -373,7 +373,7 @@ internal sealed class OverloadResolution {
 
                 if (!parameter.name.StartsWith('$') &&
                     seenParameterNames.Add(parameter.name) &&
-                    parameter.defaultValue != null) {
+                    parameter.defaultValue is not null) {
                     rearrangedArguments[i] = preBoundArgumentsBuilder.Count;
                     preBoundArgumentsBuilder.Add((parameter.name, parameter.defaultValue));
                 }

@@ -91,7 +91,7 @@ public sealed class SyntaxToken {
     /// <summary>
     /// The span of the token, excluding any trivia.
     /// </summary>
-    internal TextSpan span => node != null ? new TextSpan(position + node.GetLeadingTriviaWidth(), node.width) : null;
+    internal TextSpan span => node is not null ? new TextSpan(position + node.GetLeadingTriviaWidth(), node.width) : null;
 
     /// <summary>
     /// The full span of the token, including any trivia.
@@ -108,12 +108,12 @@ public sealed class SyntaxToken {
     /// The absolute location of this token in the
     /// <see cref="SyntaxTree.text" /> of the <see cref="SyntaxTree" /> that contains this token.
     /// </summary>
-    internal TextLocation location => syntaxTree != null ? new TextLocation(syntaxTree.text, span) : null;
+    internal TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span) : null;
 
     /// <summary>
     /// The leading trivia of this token, if any.
     /// </summary>
-    internal SyntaxTriviaList leadingTrivia => node != null ?
+    internal SyntaxTriviaList leadingTrivia => node is not null ?
         new SyntaxTriviaList(this, node.GetLeadingTrivia(), position)
         : null;
 
@@ -128,13 +128,13 @@ public sealed class SyntaxToken {
             var leading = node.GetLeadingTrivia();
             var index = 0;
 
-            if (leading != null)
+            if (leading is not null)
                 index = leading.isList ? leading.slotCount : 1;
 
             var trailingGreen = node.GetTrailingTrivia();
             var trailingPosition = position + fullWidth;
 
-            if (trailingGreen != null)
+            if (trailingGreen is not null)
                 trailingPosition -= trailingGreen.fullWidth;
 
             return new SyntaxTriviaList(this, trailingGreen, trailingPosition, index);
@@ -142,7 +142,7 @@ public sealed class SyntaxToken {
     }
 
     public override string ToString() {
-        return node != null ? node.ToString() : "";
+        return node is not null ? node.ToString() : "";
     }
 
     /// <summary>
@@ -154,7 +154,7 @@ public sealed class SyntaxToken {
         // All tokens are tokens, so we don't need to display token every time
         text.Write(CreateIdentifier(kind.ToString().Replace("Token", "")));
 
-        if (this.text != null) {
+        if (this.text is not null) {
             text.Write(CreatePunctuation(", "));
             text.Write(CreateString($"\"{this.text}\""));
         }

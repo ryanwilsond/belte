@@ -94,6 +94,17 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return typeKind == TypeKind.Struct;
     }
 
+    internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
+        return typeKind switch {
+            TypeKind.Class or TypeKind.Struct => symbol.accessibility switch {
+                Accessibility.Public => accessibility is Accessibility.Public,
+                Accessibility.Protected => accessibility is Accessibility.Public or Accessibility.Protected,
+                _ => true,
+            },
+            _ => true,
+        };
+    }
+
     internal bool IsPossiblyNullableTypeTemplateParameter() {
         return this is TemplateParameterSymbol t && t.underlyingType.isNullable;
     }

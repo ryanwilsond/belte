@@ -89,7 +89,7 @@ public sealed class DisplayText {
     /// <param name="text">Existing text.</param>
     /// <param name="node"><see cref="BoundNode" /> to append.</param>
     internal static void DisplayNode(DisplayText text, BoundNode node) {
-        if (node is BoundExpression be && be.constantValue != null) {
+        if (node is BoundExpression be && be.constantValue is not null) {
             DisplayConstant(text, be.constantValue);
             return;
         }
@@ -377,14 +377,14 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         DisplayBlockStatement(text, node.body, false);
 
-        if (node.catchBody != null) {
+        if (node.catchBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
             text.Write(CreateSpace());
             DisplayBlockStatement(text, node.catchBody, false);
         }
 
-        if (node.finallyBody != null) {
+        if (node.finallyBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.FinallyKeyword));
             text.Write(CreateSpace());
@@ -397,7 +397,7 @@ public sealed class DisplayText {
     private static void DisplayReturnStatement(DisplayText text, BoundReturnStatement node) {
         text.Write(CreateKeyword(SyntaxKind.ReturnKeyword));
 
-        if (node.expression != null) {
+        if (node.expression is not null) {
             text.Write(CreateSpace());
             DisplayNode(text, node.expression);
         }
@@ -508,7 +508,7 @@ public sealed class DisplayText {
         DisplayNestedStatement(text, node.then);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
 
-        if (node.elseStatement != null) {
+        if (node.elseStatement is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.ElseKeyword));
             text.Write(CreateSpace());

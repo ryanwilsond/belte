@@ -292,7 +292,7 @@ internal sealed partial class ILEmitter {
             EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
         }
 
-        if (program.entryPoint != null)
+        if (program.entryPoint is not null)
             _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.entryPoint);
     }
 
@@ -373,7 +373,7 @@ internal sealed partial class ILEmitter {
     }
 
     private void ThrowRequiredTypeNotFound(string buckleName, string metadataName) {
-        var message = buckleName != null
+        var message = buckleName is not null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
 
@@ -384,7 +384,7 @@ internal sealed partial class ILEmitter {
         var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
         var nameList = string.Join(", ", assemblyNames);
 
-        var message = buckleName != null
+        var message = buckleName is not null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
 
@@ -725,7 +725,7 @@ internal sealed partial class ILEmitter {
         ret
 
         */
-        if (statement.expression != null) {
+        if (statement.expression is not null) {
             if (_insideMain && ConstantValue.IsNull(statement.expression.constantValue))
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
             else
@@ -889,7 +889,7 @@ internal sealed partial class ILEmitter {
     }
 
     private void EmitExpression(ILProcessor iLProcessor, BoundExpression expression) {
-        if (expression.constantValue != null) {
+        if (expression.constantValue is not null) {
             EmitConstantExpression(iLProcessor, expression);
             return;
         }
@@ -1273,7 +1273,7 @@ internal sealed partial class ILEmitter {
             StringBuilder sb = null;
 
             foreach (var node in nodes) {
-                if (node.constantValue != null) {
+                if (node.constantValue is not null) {
                     var stringValue = (string)node.constantValue.value;
 
                     if (string.IsNullOrEmpty(stringValue))

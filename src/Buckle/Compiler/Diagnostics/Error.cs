@@ -1143,8 +1143,8 @@ internal static class Error {
     /// <summary>
     /// BU0121. Run `buckle --explain BU0121` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotDerivePrimitive(TextLocation location, string typeName) {
-        var message = $"cannot derive from primitive type '{typeName}'";
+    internal static BelteDiagnostic CannotDerivePrimitive(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from primitive type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDerivePrimitive), location, message);
     }
 
@@ -1250,16 +1250,16 @@ internal static class Error {
     /// <summary>
     /// BU0134. Run `buckle --explain BU0134` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotDeriveSealed(TextLocation location, string typeName) {
-        var message = $"cannot derive from sealed type '{typeName}'";
+    internal static BelteDiagnostic CannotDeriveSealed(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from sealed type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveSealed), location, message);
     }
 
     /// <summary>
     /// BU0135. Run `buckle --explain BU0135` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, string typeName) {
-        var message = $"cannot derive from static type '{typeName}'";
+    internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from static type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveStatic), location, message);
     }
 
@@ -1412,6 +1412,45 @@ internal static class Error {
         // TODO add this to resource doc after finding example
     }
 
+    /// <summary>
+    /// BU0152. Run `buckle --explain BU0152` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CircularBase(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
+        var message = $"circular base dependency involving '{type1}' and '{type2}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CircularBase), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0153. Run `buckle --explain BU0153` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityClass(
+        TextLocation location,
+        NamedTypeSymbol type1,
+        NamedTypeSymbol type2) {
+        var message = $"inconsistent accessibility: class '{type1}' is less accessible than class '{type2}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityClass), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0154. Run `buckle --explain BU0154` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticDeriveFromNotObject(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from type '{type}'; static classes must derive from Object";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticDeriveFromNotObject), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0155. Run `buckle --explain BU0155` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDeriveTemplate(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from template parameter '{type}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveTemplate), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
@@ -1419,9 +1458,9 @@ internal static class Error {
     private static string DiagnosticText(SyntaxKind type, bool sayToken = true) {
         var factValue = SyntaxFacts.GetText(type);
 
-        if (factValue != null && type.IsToken() && sayToken)
+        if (factValue is not null && type.IsToken() && sayToken)
             return $"token '{factValue}'";
-        else if (factValue != null)
+        else if (factValue is not null)
             return $"'{factValue}'";
 
         if (type.ToString().EndsWith("Statement")) {

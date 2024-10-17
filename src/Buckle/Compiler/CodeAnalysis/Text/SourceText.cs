@@ -170,7 +170,7 @@ public abstract class SourceText {
         var newText = CompositeText.ToSourceText(segments);
         segments.Free();
 
-        if (newText != null) {
+        if (newText is not null) {
             return new ChangedText(this, newText, changeRanges.ToImmutableAndFree());
         } else {
             changeRanges.Free();

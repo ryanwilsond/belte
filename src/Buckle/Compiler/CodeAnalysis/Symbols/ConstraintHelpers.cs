@@ -56,7 +56,7 @@ internal static class ConstraintsHelpers {
                         constraintEffectiveBase = constraintTypeParameter.GetEffectiveBaseClass(constraintsInProgress);
                         constraintDeducedBase = constraintTypeParameter.GetDeducedBaseType(constraintsInProgress);
 
-                        if (!inherited && currentCompilation != null && constraintTypeParameter.IsFromCompilation(currentCompilation)) {
+                        if (!inherited && currentCompilation is not null && constraintTypeParameter.IsFromCompilation(currentCompilation)) {
                             if (constraintTypeParameter.hasPrimitiveTypeConstraint) {
                                 diagnostics.Push(
                                     Error.TemplateObjectBaseWithPrimitiveBase(
@@ -170,7 +170,7 @@ internal static class ConstraintsHelpers {
                 constraintKind |= TypeParameterConstraintKinds.Object;
 
             if (constraint.constraints != constraintKind) {
-                if (builder == null) {
+                if (builder is null) {
                     builder = ArrayBuilder<TypeParameterConstraintClause>.GetInstance(constraintClauses.Length);
                     builder.AddRange(constraintClauses);
                 }
@@ -179,7 +179,7 @@ internal static class ConstraintsHelpers {
             }
         }
 
-        if (builder != null)
+        if (builder is not null)
             constraintClauses = builder.ToImmutableAndFree();
 
         return constraintClauses;

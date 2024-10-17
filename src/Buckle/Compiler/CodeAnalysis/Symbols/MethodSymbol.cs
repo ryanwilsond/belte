@@ -94,7 +94,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     /// returns this.
     /// </summary>
     internal MethodSymbol GetRootMethod() {
-        if (originalDefinition == null)
+        if (originalDefinition is null)
             return this;
 
         return originalDefinition.GetRootMethod();

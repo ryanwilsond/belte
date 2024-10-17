@@ -56,7 +56,7 @@ internal sealed class SyntaxNavigator {
                     if (child.isToken) {
                         var token = GetFirstToken(child.AsToken(), predicate, stepInto);
 
-                        if (token != null)
+                        if (token is not null)
                             return token;
                     }
 
@@ -90,7 +90,7 @@ internal sealed class SyntaxNavigator {
                     if (child.isToken) {
                         var token = GetLastToken(child.AsToken(), predicate, stepInto);
 
-                        if (token != null)
+                        if (token is not null)
                             return token;
                     }
 
@@ -110,20 +110,20 @@ internal sealed class SyntaxNavigator {
 
     private SyntaxToken GetFirstToken(
             SyntaxToken token, Func<SyntaxToken, bool>? predicate, Func<SyntaxTrivia, bool>? stepInto) {
-        if (stepInto != null) {
+        if (stepInto is not null) {
             var firstToken = GetFirstToken(token.leadingTrivia, predicate, stepInto);
 
-            if (firstToken != null)
+            if (firstToken is not null)
                 return firstToken;
         }
 
         if (Matches(predicate, token))
             return token;
 
-        if (stepInto != null) {
+        if (stepInto is not null) {
             var firstToken = GetFirstToken(token.trailingTrivia, predicate, stepInto);
 
-            if (firstToken != null)
+            if (firstToken is not null)
                 return firstToken;
         }
 
@@ -132,20 +132,20 @@ internal sealed class SyntaxNavigator {
 
     private SyntaxToken GetLastToken(
         SyntaxToken token, Func<SyntaxToken, bool> predicate, Func<SyntaxTrivia, bool> stepInto) {
-        if (stepInto != null) {
+        if (stepInto is not null) {
             var lastToken = GetLastToken(token.trailingTrivia, predicate, stepInto);
 
-            if (lastToken != null)
+            if (lastToken is not null)
                 return lastToken;
         }
 
         if (Matches(predicate, token))
             return token;
 
-        if (stepInto != null) {
+        if (stepInto is not null) {
             var lastToken = GetLastToken(token.leadingTrivia, predicate, stepInto);
 
-            if (lastToken != null)
+            if (lastToken is not null)
                 return lastToken;
         }
 

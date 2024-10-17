@@ -67,7 +67,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         while (true) {
             greenChild = green.GetSlot(slotIndex);
 
-            if (greenChild != null) {
+            if (greenChild is not null) {
                 var currentOccupancy = Occupancy(greenChild);
 
                 if (idx < currentOccupancy)
@@ -83,12 +83,12 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         var red = node.GetNodeSlot(slotIndex);
 
         if (!greenChild.isList) {
-            if (red != null)
+            if (red is not null)
                 return red;
-        } else if (red != null) {
+        } else if (red is not null) {
             var redChild = red.GetNodeSlot(idx);
 
-            if (redChild != null)
+            if (redChild is not null)
                 return redChild;
 
             greenChild = greenChild.GetSlot(idx);
@@ -114,7 +114,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         for (slot = 0; ; slot++) {
             var greenChild = green.GetSlot(slot);
 
-            if (greenChild != null) {
+            if (greenChild is not null) {
                 var endPosition = position + greenChild.fullWidth;
 
                 if (targetPosition < endPosition) {
@@ -130,15 +130,15 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         var red = node.GetNodeSlot(slot);
 
         if (!green.isList) {
-            if (red != null)
+            if (red is not null)
                 return red;
         } else {
             slot = green.FindSlotIndexContainingOffset(targetPosition - position);
 
-            if (red != null) {
+            if (red is not null) {
                 red = red.GetNodeSlot(slot);
 
-                if (red != null)
+                if (red is not null)
                     return red;
             }
 
@@ -178,7 +178,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         for (int i = 0, s = green.slotCount; i < s; i++) {
             var child = green.GetSlot(i);
 
-            if (child != null) {
+            if (child is not null) {
                 if (!child.isList)
                     n++;
                 else
@@ -198,7 +198,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         while (true) {
             greenChild = green.GetSlot(slotIndex);
 
-            if (greenChild != null) {
+            if (greenChild is not null) {
                 var currentOccupancy = Occupancy(greenChild);
 
                 if (idx < currentOccupancy)
@@ -212,7 +212,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
         var red = node.GetNodeSlot(slotIndex);
 
-        if (greenChild.isList && red != null)
+        if (greenChild.isList && red is not null)
             return red.GetNodeSlot(idx);
 
         return red;

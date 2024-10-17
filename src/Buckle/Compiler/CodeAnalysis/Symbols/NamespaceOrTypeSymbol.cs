@@ -21,7 +21,7 @@ internal abstract class NamespaceOrTypeSymbol : Symbol {
 
     internal abstract ImmutableArray<Symbol> GetMembers(string name);
 
-    internal abstract ImmutableArray<Symbol> GetMembersUnordered();
+    internal virtual ImmutableArray<Symbol> GetMembersUnordered() => GetMembers();
 
     internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembers();
 
@@ -30,5 +30,5 @@ internal abstract class NamespaceOrTypeSymbol : Symbol {
 
     internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name);
 
-    internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembersUnordered();
+    internal virtual ImmutableArray<NamedTypeSymbol> GetTypeMembersUnordered() => GetTypeMembers();
 }

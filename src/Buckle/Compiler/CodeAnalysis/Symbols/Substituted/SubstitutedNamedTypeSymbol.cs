@@ -120,7 +120,7 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
 
         var cache = _lazyMembersByNameCache;
 
-        if (cache != null && cache.TryGetValue(name, out var result))
+        if (cache is not null && cache.TryGetValue(name, out var result))
             return result;
 
         return GetMembersWorker(name);

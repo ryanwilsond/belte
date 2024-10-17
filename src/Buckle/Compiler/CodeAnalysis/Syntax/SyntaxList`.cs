@@ -31,7 +31,7 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
     /// </summary>
     public T this[int index] {
         get {
-            if (node != null) {
+            if (node is not null) {
                 if (node.isList) {
                     if (unchecked((uint)index < (uint)node.slotCount))
                         return (T)node.GetNodeSlot(index);
@@ -79,7 +79,7 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
     }
 
     internal bool Any() {
-        return node != null;
+        return node is not null;
     }
 
     private static SyntaxNode CreateNode(IEnumerable<T> nodes) {

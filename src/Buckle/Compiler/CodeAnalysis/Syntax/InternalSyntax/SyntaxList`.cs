@@ -53,7 +53,7 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
     }
 
     public bool Any() {
-        return node != null;
+        return node is not null;
     }
 
     public bool Any(SyntaxKind kind) {
@@ -86,7 +86,7 @@ internal sealed partial class SyntaxList<T> : IEquatable<SyntaxList<T>> where T 
     }
 
     public override int GetHashCode() {
-        return node != null ? node.GetHashCode() : 0;
+        return node is not null ? node.GetHashCode() : 0;
     }
 
     internal void CopyTo(int offset, ArrayElement<GreenNode>[] array, int arrayOffset, int count) {

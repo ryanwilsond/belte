@@ -22,7 +22,7 @@ internal sealed partial class Blender {
         _lexer = lexer;
         _changes = ImmutableStack.Create<TextChangeRange>();
 
-        if (changes != null) {
+        if (changes is not null) {
             var collapsed = TextChangeRange.Collapse(changes);
             var affectedRange = ExtendToAffectedRange(oldTree, collapsed);
             _changes = _changes.Push(affectedRange);

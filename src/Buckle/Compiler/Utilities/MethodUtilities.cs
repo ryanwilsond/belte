@@ -38,7 +38,7 @@ internal static class MethodUtilities {
     internal static BoundBlockStatement LookupMethodFromParents(BoundProgram program, MethodSymbol method) {
         var current = program;
 
-        while (current != null) {
+        while (current is not null) {
             try {
                 return LookupMethod(current.methodBodies, method);
             } catch (BelteInternalException) {
@@ -59,7 +59,7 @@ internal static class MethodUtilities {
         LookupMethodFromParentsFromName(BoundProgram program, string name) {
         var current = program;
 
-        while (current != null) {
+        while (current is not null) {
             try {
                 return LookupMethod(current.methodBodies, name);
             } catch (BelteInternalException) {

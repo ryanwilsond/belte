@@ -110,7 +110,7 @@ internal sealed class CompositeText : SourceText {
     }
 
     private protected override void EnsureLines() {
-        if (_lines != null)
+        if (_lines is not null)
             return;
 
         var builder = ArrayBuilder<SourceText>.GetInstance();

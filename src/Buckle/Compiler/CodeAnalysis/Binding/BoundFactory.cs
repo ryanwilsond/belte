@@ -46,7 +46,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundLiteralExpression Literal(object value, TypeSymbol type = null) {
-        if (type != null)
+        if (type is not null)
             return new BoundLiteralExpression(value, type);
 
         return new BoundLiteralExpression(value);

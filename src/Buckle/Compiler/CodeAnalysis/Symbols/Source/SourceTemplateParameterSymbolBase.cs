@@ -63,7 +63,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
             switch (incompletePart) {
                 case CompletionParts.TemplateParameterConstraints:
-                    var _ = constraintTypes;
+                    _ = constraintTypes;
                     break;
                 case CompletionParts.None:
                     return;

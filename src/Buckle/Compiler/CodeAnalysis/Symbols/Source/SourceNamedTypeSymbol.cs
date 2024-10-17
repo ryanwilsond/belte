@@ -1,14 +1,20 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
+    private NamedTypeSymbol _lazyDeclaredBase;
+    private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
+
     private readonly TemplateParameterInfo _templateParameterInfo;
 
     internal SourceNamedTypeSymbol(
@@ -17,6 +23,40 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         BelteDiagnosticQueue diagnostics)
         : base(containingSymbol, declaration, diagnostics) {
         _templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
+    }
+
+    internal override NamedTypeSymbol baseType {
+        get {
+            if (ReferenceEquals(_lazyBaseType, ErrorTypeSymbol.UnknownResultType)) {
+                if (containingType is not null)
+                    _ = containingType.baseType;
+
+                var diagnostics = BelteDiagnosticQueue.Instance;
+                var acyclicBase = MakeAcyclicBaseType(diagnostics);
+
+                if (ReferenceEquals(
+                    Interlocked.CompareExchange(ref _lazyBaseType, acyclicBase, ErrorTypeSymbol.UnknownResultType),
+                    ErrorTypeSymbol.UnknownResultType)) {
+                    AddDeclarationDiagnostics(diagnostics);
+                }
+            }
+
+            return _lazyBaseType;
+        }
+    }
+
+    internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyDeclaredBase is null) {
+            var diagnostics = BelteDiagnosticQueue.Instance;
+
+            if (Interlocked.CompareExchange(
+                ref _lazyDeclaredBase,
+                MakeDeclaredBase(basesBeingResolved, diagnostics), null) is null) {
+                AddDeclarationDiagnostics(diagnostics);
+            }
+        }
+
+        return _lazyDeclaredBase;
     }
 
     internal ImmutableArray<TypeWithAnnotations> GetTypeParameterConstraintTypes(
@@ -29,6 +69,138 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     internal TypeParameterConstraintKinds GetTypeParameterConstraintKinds(int ordinal) {
         var constraintKinds = GetTypeParameterConstraintKinds();
         return (constraintKinds.Length > 0) ? constraintKinds[ordinal] : TypeParameterConstraintKinds.None;
+    }
+
+    private static bool TypeDependsOn(NamedTypeSymbol depends, NamedTypeSymbol on) {
+        var hashSet = PooledHashSet<Symbol>.GetInstance();
+        TypeDependsClosure(depends, depends.declaringCompilation, hashSet);
+        var result = hashSet.Contains(on);
+        hashSet.Free();
+        return result;
+    }
+
+    private static void TypeDependsClosure(
+        NamedTypeSymbol type,
+        Compilation currentCompilation,
+        HashSet<Symbol> partialClosure) {
+        if (type is null)
+            return;
+
+        type = type.originalDefinition;
+
+        if (partialClosure.Add(type)) {
+            TypeDependsClosure(type.GetDeclaredBaseType(null), currentCompilation, partialClosure);
+
+            if (currentCompilation is not null && type.IsFromCompilation(currentCompilation))
+                TypeDependsClosure(type.containingType, currentCompilation, partialClosure);
+        }
+    }
+
+    private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
+        var typeKind = this.typeKind;
+        var declaredBase = GetDeclaredBaseType(basesBeingResolved: null);
+
+        if (declaredBase is null) {
+            switch (typeKind) {
+                case TypeKind.Class:
+                    if (specialType == SpecialType.Object)
+                        return null;
+
+                    declaredBase = CorLibrary.GetSpecialType(SpecialType.Object);
+                    break;
+                case TypeKind.Struct:
+                    declaredBase = null;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(typeKind);
+            }
+        }
+
+        if (TypeDependsOn(declaredBase, this)) {
+            return new ExtendedErrorTypeSymbol(
+                declaredBase,
+                LookupResultKind.NotReferencable,
+                diagnostics.Push(Error.CircularBase(syntaxReference.location, declaredBase, this))
+            );
+        }
+
+        _hasNoBaseCycles = true;
+        return declaredBase;
+    }
+
+    private NamedTypeSymbol MakeDeclaredBase(
+        ConsList<TypeSymbol> basesBeingResolved,
+        BelteDiagnosticQueue diagnostics) {
+        var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
+        var baseType = MakeOneDeclaredBase(newBasesBeingResolved, diagnostics);
+        var baseTypeLocation = _declaration.identifier.location;
+
+        if (baseType is not null) {
+            if (baseType.isStatic)
+                diagnostics.Push(Error.CannotDeriveStatic(baseTypeLocation, baseType));
+
+            if (!IsNoMoreVisibleThan(baseType))
+                diagnostics.Push(Error.InconsistentAccessibilityClass(baseTypeLocation, baseType, this));
+        }
+
+        return baseType;
+    }
+
+    private NamedTypeSymbol MakeOneDeclaredBase(
+        ConsList<TypeSymbol> newBasesBeingResolved,
+        BelteDiagnosticQueue diagnostics) {
+        if (_declaration is not ClassDeclarationSyntax cd)
+            return null;
+
+        var baseSyntax = cd.baseType;
+
+        if (baseSyntax is null)
+            return null;
+
+        NamedTypeSymbol localBase = null;
+        var baseBinder = declaringCompilation.GetBinder(baseSyntax);
+        baseBinder = baseBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
+        var typeSyntax = baseSyntax.type;
+        var location = typeSyntax.location;
+
+        TypeSymbol baseType;
+
+        if (typeKind == TypeKind.Class) {
+            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type;
+            var baseSpecialType = baseType.specialType;
+
+            if (IsRestrictedBaseType(baseSpecialType))
+                diagnostics.Push(Error.CannotDerivePrimitive(location, baseType));
+
+            if (baseType.isSealed && !isStatic)
+                diagnostics.Push(Error.CannotDeriveSealed(location, baseType));
+
+            if ((baseType.typeKind == TypeKind.Class) &&
+                (localBase is null)) {
+                localBase = (NamedTypeSymbol)baseType;
+
+                if (isStatic && localBase.specialType != SpecialType.Object) {
+                    var info = diagnostics.Push(Error.StaticDeriveFromNotObject(location, localBase));
+                    localBase = new ExtendedErrorTypeSymbol(localBase, LookupResultKind.NotReferencable, info);
+                }
+            }
+        } else {
+            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type;
+        }
+
+        if (baseType.typeKind == TypeKind.TemplateParameter)
+            diagnostics.Push(Error.CannotDeriveTemplate(location, baseType));
+
+        return localBase;
+
+        static bool IsRestrictedBaseType(SpecialType specialType) {
+            return specialType switch {
+                SpecialType.Array or SpecialType.Any or SpecialType.String or
+                SpecialType.Bool or SpecialType.Char or SpecialType.Int or
+                SpecialType.Decimal or SpecialType.Type or SpecialType.Void => true,
+                _ => false,
+            };
+        }
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(

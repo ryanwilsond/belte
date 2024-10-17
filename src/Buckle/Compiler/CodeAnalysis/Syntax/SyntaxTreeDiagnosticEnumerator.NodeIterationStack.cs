@@ -22,13 +22,13 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
         private void PushToken(InternalSyntax.SyntaxToken token) {
             var trailing = token.GetTrailingTrivia();
 
-            if (trailing != null)
+            if (trailing is not null)
                 Push(trailing);
 
             Push(token);
             var leading = token.GetLeadingTrivia();
 
-            if (leading != null)
+            if (leading is not null)
                 Push(leading);
         }
 

@@ -28,24 +28,24 @@ internal static class ConstantFolding {
 
         // With and/or operators allow one side to be null
         if (op.opKind == BoundBinaryOperatorKind.ConditionalAnd) {
-            if ((leftConstant != null && leftConstant.value != null && !(bool)leftConstant.value) ||
-                (rightConstant != null && rightConstant.value != null && !(bool)rightConstant.value)) {
+            if ((leftConstant is not null && leftConstant.value is not null && !(bool)leftConstant.value) ||
+                (rightConstant is not null && rightConstant.value is not null && !(bool)rightConstant.value)) {
                 return new ConstantValue(false);
             }
         }
 
         if (op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
-            if ((leftConstant != null && leftConstant.value != null && (bool)leftConstant.value) ||
-                (rightConstant != null && rightConstant.value != null && (bool)rightConstant.value)) {
+            if ((leftConstant is not null && leftConstant.value is not null && (bool)leftConstant.value) ||
+                (rightConstant is not null && rightConstant.value is not null && (bool)rightConstant.value)) {
                 return new ConstantValue(true);
             }
         }
 
         if (op.opKind == BoundBinaryOperatorKind.NullCoalescing) {
-            if (leftConstant != null && leftConstant.value != null)
+            if (leftConstant is not null && leftConstant.value is not null)
                 return new ConstantValue(leftConstant.value);
 
-            if (leftConstant != null && leftConstant.value is null && rightConstant != null)
+            if (leftConstant is not null && leftConstant.value is null && rightConstant is not null)
                 return new ConstantValue(rightConstant.value);
         }
 
@@ -222,13 +222,13 @@ internal static class ConstantFolding {
         if (op.opKind == BoundTernaryOperatorKind.Conditional) {
             if (ConstantValue.IsNotNull(left.constantValue) &&
                 (bool)left.constantValue.value &&
-                center.constantValue != null) {
+                center.constantValue is not null) {
                 return new ConstantValue(center.constantValue.value);
             }
 
             if (ConstantValue.IsNotNull(left.constantValue) &&
                 !(bool)left.constantValue.value &&
-                right.constantValue != null) {
+                right.constantValue is not null) {
                 return new ConstantValue(right.constantValue.value);
             }
         }
@@ -243,7 +243,7 @@ internal static class ConstantFolding {
     /// <param name="type">Casting to type.</param>
     /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
     internal static ConstantValue FoldCast(BoundExpression expression, BoundType type) {
-        if (expression.constantValue != null) {
+        if (expression.constantValue is not null) {
             if (expression.constantValue.value is null && !type.isNullable)
                 return null;
 
@@ -266,7 +266,7 @@ internal static class ConstantFolding {
         var foldedItems = ArrayBuilder<ConstantValue>.GetInstance();
 
         foreach (var item in items) {
-            if (item.constantValue != null)
+            if (item.constantValue is not null)
                 foldedItems.Add(item.constantValue);
             else
                 return null;

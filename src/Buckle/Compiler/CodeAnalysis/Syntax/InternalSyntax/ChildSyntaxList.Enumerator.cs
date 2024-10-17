@@ -15,7 +15,7 @@ internal sealed partial class ChildSyntaxList {
         internal GreenNode current { get; private set; }
 
         internal bool MoveNext() {
-            if (_node != null) {
+            if (_node is not null) {
                 while (true) {
                     _childIndex++;
 

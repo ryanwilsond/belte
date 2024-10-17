@@ -57,7 +57,7 @@ internal sealed class SourceWriter {
         return typeName.StartsWith("SyntaxList<", StringComparison.Ordinal);
     }
 
-    private static bool IsTrue(string val) => val != null && string.Compare(val, "true", true) == 0;
+    private static bool IsTrue(string val) => val is not null && string.Compare(val, "true", true) == 0;
 
     private static bool IsOptional(Field f) => IsTrue(f.Optional);
 
@@ -103,7 +103,7 @@ internal sealed class SourceWriter {
         if (typeName == derivedTypeName)
             return true;
 
-        if (derivedTypeName != null && _parentMap.TryGetValue(derivedTypeName, out var baseType))
+        if (derivedTypeName is not null && _parentMap.TryGetValue(derivedTypeName, out var baseType))
             return IsDerivedType(typeName, baseType);
 
         return false;
@@ -380,7 +380,7 @@ internal sealed class SourceWriter {
 
         foreach (var field in nodeFields) {
             if (IsAnyList(field.Type) || IsOptional(field)) {
-                Write($"if ({field.Name} != null)");
+                Write($"if ({field.Name} is not null)");
                 OpenBlock();
 
                 // TODO Support multiple kinds
@@ -631,7 +631,7 @@ internal sealed class SourceWriter {
                         OpenBlock();
                         WriteLine($"var slot = ((Syntax.InternalSyntax.{node.Name})this.green)._{field.Name};");
                         WriteLine(
-                            $"return slot != null ? new SyntaxToken(this, slot," +
+                            $"return slot is not null ? new SyntaxToken(this, slot," +
                             $" {GetChildPosition(i)}, {GetChildIndex(i)}) : null;"
                         );
                         CloseBlock();
@@ -649,7 +649,7 @@ internal sealed class SourceWriter {
                     OpenBlock();
                     WriteLine($"var slot = this.green.GetSlot({i});");
                     WriteLine(
-                        $"return slot != null ? new SyntaxTokenList(this, slot, {GetChildPosition(i)}, " +
+                        $"return slot is not null ? new SyntaxTokenList(this, slot, {GetChildPosition(i)}, " +
                         $"{GetChildIndex(i)}) : null;"
                     );
                     CloseBlock();

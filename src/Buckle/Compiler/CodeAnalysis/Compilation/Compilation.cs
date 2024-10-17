@@ -170,7 +170,7 @@ public sealed class Compilation {
         var cfgPath = GetProjectPath("cfg.dot");
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
-        if (cfgStatement != null) {
+        if (cfgStatement is not null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);
 
             using var streamWriter = new StreamWriter(cfgPath);

@@ -66,7 +66,7 @@ internal static class Warning {
         if (node.kind == SyntaxKind.BlockStatement) {
             var firstStatement = ((BlockStatementSyntax)node).statements.FirstOrDefault();
             // Report just for non empty blocks.
-            if (firstStatement != null)
+            if (firstStatement is not null)
                 return UnreachableCode(firstStatement);
 
             return null;

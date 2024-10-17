@@ -38,7 +38,7 @@ internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
             alternate?.Add(visited);
         }
 
-        if (alternate != null)
+        if (alternate is not null)
             return alternate.ToList();
 
         return list;

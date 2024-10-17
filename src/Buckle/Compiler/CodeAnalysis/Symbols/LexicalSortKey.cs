@@ -25,7 +25,7 @@ internal struct LexicalSortKey {
     }
 
     private LexicalSortKey(SyntaxTree tree, int position, Compilation compilation)
-        : this(tree == null ? -1 : compilation.GetSyntaxTreeOrdinal(tree), position) { }
+        : this(tree is null ? -1 : compilation.GetSyntaxTreeOrdinal(tree), position) { }
 
     internal LexicalSortKey(SyntaxReference syntaxRef, Compilation compilation)
         : this(syntaxRef.syntaxTree, syntaxRef.span.start, compilation) { }

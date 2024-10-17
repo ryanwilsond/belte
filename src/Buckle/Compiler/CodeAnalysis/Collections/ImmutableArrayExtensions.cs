@@ -57,7 +57,7 @@ internal static class ImmutableArrayExtensions {
     }
 
     internal static ImmutableArray<T> AsImmutableOrNull<T>(this T[]? items) {
-        if (items == null)
+        if (items is null)
             return default;
 
         return ImmutableArray.Create(items);
@@ -99,5 +99,9 @@ internal static class ImmutableArrayExtensions {
 
     internal static ImmutableArray<T> Concat<T>(this ImmutableArray<T> first, ImmutableArray<T> second) {
         return first.AddRange(second);
+    }
+
+    internal static ImmutableArray<T> NullToEmpty<T>(this ImmutableArray<T> array) {
+        return array.IsDefault ? [] : array;
     }
 }

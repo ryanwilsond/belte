@@ -81,7 +81,7 @@ public sealed class Compiler {
         var textsCount = 0;
 
         foreach (var task in state.tasks) {
-            if (task.fileContent.text != null) {
+            if (task.fileContent.text is not null) {
                 textLength += task.fileContent.text.Length;
                 textsCount++;
             }

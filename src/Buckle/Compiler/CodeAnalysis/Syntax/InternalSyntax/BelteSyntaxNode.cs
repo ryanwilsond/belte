@@ -60,7 +60,7 @@ internal abstract class BelteSyntaxNode : GreenNode {
             for (int i = 0, n = node.slotCount; i < n; i++) {
                 var child = node.GetSlot(i);
 
-                if (child != null)
+                if (child is not null)
                     stack = ApplyDirectivesToListOrNode(child, stack);
             }
         }

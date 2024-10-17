@@ -39,7 +39,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         get {
             var node = _list.node;
 
-            if (node != null) {
+            if (node is not null) {
                 if (!node.isList) {
                     if (index == 0)
                         return (T)node;
@@ -81,7 +81,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     internal SyntaxToken GetSeparator(int index) {
         var node = _list.node;
 
-        if (node != null) {
+        if (node is not null) {
             if (unchecked((uint)index < (uint)_separatorCount)) {
                 index = (index << 1) + 1;
                 var green = node.green.GetSlot(index);

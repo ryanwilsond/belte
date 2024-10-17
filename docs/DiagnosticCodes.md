@@ -162,6 +162,10 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0149 | Error | template parameter '{templateParameter}' cannot be constrained to both types '{base1}' and '{base2}' |
 | BU0150 | Error | template parameter '{templateParameter}' cannot be constrained as both an Object type and Primitive type |
 | BU0151 | Error | cannot declare a member with the same name as the enclosing type '{0}' |
+| BU0152 | Error | circular base dependency involving '{0}' and '{1}' |
+| BU0153 | Error | inconsistent accessibility: class '{0}' is less accessible than class '{1}' |
+| BU0154 | Error | cannot derive from type '{0}'; static classes must derive from Object |
+| BU0155 | Error | cannot derive from template parameter '{0}' |
 
 ## Command Line Diagnostics
 

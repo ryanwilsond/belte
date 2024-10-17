@@ -160,6 +160,10 @@ public enum DiagnosticCode : int {
     ERR_TemplateBaseConstraintConflict = 149,
     ERR_TemplateBaseBothObjectAndPrimitive = 150,
     ERR_MemberNameSameAsType = 151,
+    ERR_CircularBase = 152,
+    ERR_InconsistentAccessibilityClass = 153,
+    ERR_StaticDeriveFromNotObject = 154,
+    ERR_CannotDeriveTemplate = 155,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -37,7 +37,7 @@ internal abstract partial class SyntaxParser {
         _syntaxTree = lexer.syntaxTree;
         _lexer = lexer;
         _mode = mode;
-        _isIncremental = oldTree != null;
+        _isIncremental = oldTree is not null;
 
         if (_isIncremental) {
             _firstBlender = new Blender(_lexer, oldTree, changes);
@@ -63,7 +63,7 @@ internal abstract partial class SyntaxParser {
         get {
             var node = _currentNode.node;
 
-            if (node != null)
+            if (node is not null)
                 return node;
 
             ReadCurrentNode();
@@ -101,9 +101,9 @@ internal abstract partial class SyntaxParser {
         _currentToken = null;
         _currentNode = null;
 
-        if (_blendedTokens != null) {
+        if (_blendedTokens is not null) {
             for (var i = _tokenOffset; i < _tokenCount; i++) {
-                if (_blendedTokens[i].token == null) {
+                if (_blendedTokens[i].token is null) {
                     _tokenCount = i;
 
                     if (_tokenCount == _tokenOffset)
@@ -180,7 +180,7 @@ internal abstract partial class SyntaxParser {
     private protected void GetDiagnosticSpanForMissingToken(out int offset, out int width) {
         var trivia = _prevTokenTrailingTrivia;
 
-        if (trivia != null) {
+        if (trivia is not null) {
             var triviaList = new SyntaxList<BelteSyntaxNode>(trivia);
             var prevTokenHasEndOfLineTrivia = triviaList.Any(SyntaxKind.EndOfLineTrivia);
 
@@ -231,7 +231,7 @@ internal abstract partial class SyntaxParser {
                 } else {
                     var existing = (SyntaxDiagnostic)token.GetDiagnostics().FirstOrDefault();
 
-                    if (existing != null) {
+                    if (existing is not null) {
                         diagnostic = existing;
                         diagnosticOffset = currentOffset;
                     }
@@ -242,7 +242,7 @@ internal abstract partial class SyntaxParser {
             } else if (node.containsDiagnostics && diagnostic is null) {
                 var existing = (SyntaxDiagnostic)node.GetDiagnostics().FirstOrDefault();
 
-                if (existing != null) {
+                if (existing is not null) {
                     diagnostic = existing;
                     diagnosticOffset = currentOffset;
                 }
@@ -273,7 +273,7 @@ internal abstract partial class SyntaxParser {
             triviaOffset = 0;
         }
 
-        if (diagnostic != null) {
+        if (diagnostic is not null) {
             var newOffset = triviaOffset + diagnosticOffset + diagnostic.offset;
             target = WithAdditionalDiagnostics(target, new SyntaxDiagnostic(diagnostic, newOffset, diagnostic.width));
         }
@@ -321,7 +321,7 @@ internal abstract partial class SyntaxParser {
         if (_tokenOffset >= _tokenCount)
             AddNewToken();
 
-        if (_blendedTokens != null)
+        if (_blendedTokens is not null)
             return _blendedTokens[_tokenOffset].token;
         else
             return _lexedTokens[_tokenOffset];
@@ -339,11 +339,11 @@ internal abstract partial class SyntaxParser {
     }
 
     private protected void AddNewToken() {
-        if (_blendedTokens != null) {
+        if (_blendedTokens is not null) {
             if (_tokenCount > 0) {
                 AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken());
             } else {
-                if (_currentNode?.token != null)
+                if (_currentNode?.token is not null)
                     AddToken(_currentNode);
                 else
                     AddToken(_firstBlender.ReadToken());
@@ -371,7 +371,7 @@ internal abstract partial class SyntaxParser {
         if (currentToken.kind == kind)
             return EatToken();
 
-        if (nextWanted != null && currentToken.kind == nextWanted) {
+        if (nextWanted is not null && currentToken.kind == nextWanted) {
             if (report) {
                 return AddDiagnostic(
                     WithFutureDiagnostics(SyntaxFactory.Missing(kind)),
@@ -454,7 +454,7 @@ internal abstract partial class SyntaxParser {
         _prevTokenTrailingTrivia = _currentToken.GetTrailingTrivia();
         _currentToken = null;
 
-        if (_blendedTokens != null)
+        if (_blendedTokens is not null)
             _currentNode = null;
 
         _tokenOffset++;
@@ -469,7 +469,7 @@ internal abstract partial class SyntaxParser {
         if (index < 0)
             index = 0;
 
-        if (_blendedTokens != null)
+        if (_blendedTokens is not null)
             return _blendedTokens[index].token;
         else
             return _lexedTokens[index];

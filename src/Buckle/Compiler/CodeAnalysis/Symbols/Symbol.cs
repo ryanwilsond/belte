@@ -118,6 +118,19 @@ internal abstract class Symbol : ISymbol {
         return true;
     }
 
+    internal NamespaceOrTypeSymbol ContainingNamespaceOrType() {
+        if (containingSymbol is not null) {
+            switch (containingSymbol.kind) {
+                case SymbolKind.Namespace:
+                case SymbolKind.NamedType:
+                case SymbolKind.ErrorType:
+                    return (NamespaceOrTypeSymbol)containingSymbol;
+            }
+        }
+
+        return null;
+    }
+
     internal LexicalSortKey GetLexicalSortKey() {
         var declaringCompilation = this.declaringCompilation;
         return new LexicalSortKey(syntaxReference, declaringCompilation);
@@ -130,6 +143,10 @@ internal abstract class Symbol : ISymbol {
             SymbolKind.NamedType => ((NamedTypeSymbol)this).AsMember(newOwner),
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
+    }
+
+    internal bool IsNoMoreVisibleThan(TypeSymbol type) {
+        return type.IsAtLeastAsVisibleAs(this);
     }
 
     internal bool IsFromCompilation(Compilation compilation) {

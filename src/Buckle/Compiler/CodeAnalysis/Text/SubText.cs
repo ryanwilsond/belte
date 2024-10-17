@@ -52,7 +52,7 @@ internal sealed class SubText : SourceText {
     }
 
     private protected override void EnsureLines() {
-        if (_lines != null)
+        if (_lines is not null)
             return;
 
         var lines = underlyingText.GetLines();

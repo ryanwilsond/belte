@@ -30,7 +30,7 @@ internal sealed class ConcurrentCache<TKey, TValue> : CachingBase<ConcurrentCach
         var idx = hash & _mask;
 
         var entry = _lazyEntries[idx];
-        if (entry != null && entry.hash == hash && _keyComparer.Equals(entry.key, key)) {
+        if (entry is not null && entry.hash == hash && _keyComparer.Equals(entry.key, key)) {
             return false;
         }
 
@@ -43,7 +43,7 @@ internal sealed class ConcurrentCache<TKey, TValue> : CachingBase<ConcurrentCach
         var idx = hash & _mask;
         var entry = _lazyEntries[idx];
 
-        if (entry != null && entry.hash == hash && _keyComparer.Equals(entry.key, key)) {
+        if (entry is not null && entry.hash == hash && _keyComparer.Equals(entry.key, key)) {
             value = entry.value;
             return true;
         }

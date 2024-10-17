@@ -544,7 +544,7 @@ public sealed partial class BelteRepl : Repl {
         var displayText = new DisplayText();
 
         foreach (var symbol in symbols) {
-            if (symbol.parent == null) {
+            if (symbol.parent is null) {
                 SymbolDisplay.DisplaySymbol(displayText, symbol, true);
                 displayText.Write(CreateLine());
             }
@@ -635,7 +635,7 @@ public sealed partial class BelteRepl : Repl {
             symbol = symbols[0];
         }
 
-        if (symbol != null) {
+        if (symbol is not null) {
             compilation.EmitTree(symbol, displayText);
             WriteDisplayText(displayText);
             return;

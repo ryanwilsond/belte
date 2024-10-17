@@ -65,9 +65,11 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// Pushes a <see cref="Diagnostic" /> onto the <see cref="DiagnosticQueue<T>" />.
     /// </summary>
     /// <param name="diagnostic"><see cref="Diagnostic" /> to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
-    public void Push(T diagnostic) {
-        if (diagnostic != null)
+    public DiagnosticInfo Push(T diagnostic) {
+        if (diagnostic is not null)
             _diagnostics.Add(diagnostic);
+
+        return diagnostic.info;
     }
 
     /// <summary>
@@ -80,7 +82,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
 
         var diagnostic = diagnosticQueue.Pop();
 
-        while (diagnostic != null) {
+        while (diagnostic is not null) {
             _diagnostics.Add(diagnostic);
             diagnostic = diagnosticQueue.Pop();
         }

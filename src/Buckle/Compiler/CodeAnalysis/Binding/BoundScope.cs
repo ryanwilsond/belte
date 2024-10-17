@@ -93,7 +93,7 @@ internal sealed class BoundScope {
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal T LookupSymbol<T>(string name, bool isStaticLookup = false) where T : Symbol {
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 if (symbol.name == name && symbol is T && (isStaticLookup ? symbol.containingType is null : true))
                     return symbol as T;
@@ -110,7 +110,7 @@ internal sealed class BoundScope {
     /// <param name="declaration">The declaration used to previously declare the <see cref="Symbol" />.</param>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal Symbol LookupSymbolDirect(SyntaxNode declaration) {
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 if (symbol is NamedTypeSymbol n && n.declaration == declaration)
                     return symbol;
@@ -146,7 +146,7 @@ internal sealed class BoundScope {
         ref var symbols = ref _symbols;
 
         while (true) {
-            if (symbols != null) {
+            if (symbols is not null) {
                 for (var i = 0; i < symbols.Count; i++) {
                     if (symbols[i] == currentSymbol) {
                         if (newSymbol is ClassSymbol cs) {
@@ -225,13 +225,13 @@ internal sealed class BoundScope {
         ImmutableArray<Symbol>? current = null) {
         var overloads = ArrayBuilder<Symbol>.GetInstance();
 
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName>g__name
                 if (symbol.name != name && (strict || !symbol.name.Contains($">g__{name}")))
                     continue;
 
-                if (current != null) {
+                if (current is not null) {
                     var skip = false;
 
                     foreach (var cs in current.Value) {
@@ -254,7 +254,7 @@ internal sealed class BoundScope {
             }
         }
 
-        if (parent != null) {
+        if (parent is not null) {
             overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
@@ -317,7 +317,7 @@ internal sealed class BoundScope {
     }
 
     private bool Contains(string name) {
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 if (symbol.name == name)
                     return true;

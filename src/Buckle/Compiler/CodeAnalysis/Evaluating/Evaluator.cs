@@ -51,7 +51,7 @@ internal sealed class Evaluator {
 
         var current = program;
 
-        while (current != null) {
+        while (current is not null) {
             foreach (var (method, body) in current.methodBodies)
                 _methods.Add(method, body);
 
@@ -311,7 +311,7 @@ internal sealed class Evaluator {
         if (right.members is null)
             left.members = null;
 
-        if (right.value is null && right.members != null)
+        if (right.value is null && right.members is not null)
             left.members = Copy(right.members);
         else
             left.value = Value(right);
@@ -520,12 +520,12 @@ internal sealed class Evaluator {
         try {
             EvaluateStatement(statement.body, abort, out hasReturn, true);
         } catch (Exception e) when (e is not BelteException) {
-            if (statement.catchBody != null && !hasReturn)
+            if (statement.catchBody is not null && !hasReturn)
                 EvaluateStatement(statement.catchBody, abort, out hasReturn);
             else
                 throw;
         } finally {
-            if (statement.finallyBody != null && !hasReturn)
+            if (statement.finallyBody is not null && !hasReturn)
                 EvaluateStatement(statement.finallyBody, abort, out hasReturn);
         }
     }
@@ -539,7 +539,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateExpression(BoundExpression node, ValueWrapper<bool> abort) {
-        if (node.constantValue != null)
+        if (node.constantValue is not null)
             return EvaluateConstantExpression(node, abort);
 
         switch (node.kind) {
@@ -1065,13 +1065,13 @@ internal sealed class Evaluator {
         }
 
         if (expression.op.opKind == BoundBinaryOperatorKind.ConditionalOr) {
-            if (leftValue != null && (bool)leftValue)
+            if (leftValue is not null && (bool)leftValue)
                 return new EvaluatorObject(true);
 
             var shortCircuitRight = EvaluateExpression(expression.right, abort);
             var shortCircuitRightValue = Value(shortCircuitRight);
 
-            if (shortCircuitRightValue != null && (bool)shortCircuitRightValue)
+            if (shortCircuitRightValue is not null && (bool)shortCircuitRightValue)
                 return new EvaluatorObject(true);
 
             return new EvaluatorObject(false);

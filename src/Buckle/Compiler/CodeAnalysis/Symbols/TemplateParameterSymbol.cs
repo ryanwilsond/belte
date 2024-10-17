@@ -84,9 +84,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     internal abstract void EnsureConstraintsAreResolved();
 
     private protected static void EnsureConstraintsAreResolved(ImmutableArray<TemplateParameterSymbol> templateParameters) {
-        foreach (var templateParameter in templateParameters) {
-            var _ = templateParameter.GetConstraintTypes(ConsList<TemplateParameterSymbol>.Empty);
-        }
+        foreach (var templateParameter in templateParameters)
+            _ = templateParameter.GetConstraintTypes(ConsList<TemplateParameterSymbol>.Empty);
     }
 
     internal sealed override ImmutableArray<Symbol> GetMembers() {

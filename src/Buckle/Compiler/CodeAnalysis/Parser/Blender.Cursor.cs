@@ -23,7 +23,7 @@ internal sealed partial class Blender {
                currentNodeOrToken.kind == SyntaxKind.EndOfFileToken;
 
         internal Cursor MoveToNextSibling() {
-            if (currentNodeOrToken.parent != null) {
+            if (currentNodeOrToken.parent is not null) {
                 var siblings = currentNodeOrToken.parent.ChildNodesAndTokens();
 
                 for (int i = _indexInParent + 1, n = siblings.Count; i < n; i++) {

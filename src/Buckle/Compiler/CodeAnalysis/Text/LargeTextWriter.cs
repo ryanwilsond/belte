@@ -25,7 +25,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     public override Encoding Encoding => Encoding.UTF8;
 
     public override void Write(char value) {
-        if (_buffer != null && _currentUsed < _buffer.Length) {
+        if (_buffer is not null && _currentUsed < _buffer.Length) {
             _buffer[_currentUsed] = value;
             _currentUsed++;
         } else {
@@ -75,7 +75,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     }
 
     public override void Flush() {
-        if (_buffer != null && _currentUsed > 0) {
+        if (_buffer is not null && _currentUsed > 0) {
             if (_currentUsed < _buffer.Length)
                 Array.Resize(ref _buffer, _currentUsed);
 
@@ -106,7 +106,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     /// If the buffer has enough room for the given number of chars.
     /// </summary>
     internal bool CanFitInAllocatedBuffer(int chars) {
-        return _buffer != null && chars <= (_buffer.Length - _currentUsed);
+        return _buffer is not null && chars <= (_buffer.Length - _currentUsed);
     }
 
     private void EnsureBuffer() {

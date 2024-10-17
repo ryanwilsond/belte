@@ -30,7 +30,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
         while (true) {
             tree = node._syntaxTree;
 
-            if (tree != null)
+            if (tree is not null)
                 break;
 
             var parent = node.parent;
@@ -43,7 +43,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
 
             tree = parent._syntaxTree;
 
-            if (tree != null) {
+            if (tree is not null) {
                 node._syntaxTree = tree;
                 break;
             }
@@ -52,11 +52,11 @@ public abstract class BelteSyntaxNode : SyntaxNode {
             node = parent;
         }
 
-        if (nodes != null) {
+        if (nodes is not null) {
             foreach (var n in nodes) {
                 var existingTree = n._syntaxTree;
 
-                if (existingTree != null)
+                if (existingTree is not null)
                     break;
 
                 n._syntaxTree = tree;

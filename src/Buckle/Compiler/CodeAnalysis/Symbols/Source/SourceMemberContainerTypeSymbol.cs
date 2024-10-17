@@ -152,7 +152,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     }
                     break;
                 case CompletionParts.TemplateArguments:
-                    var _ = templateArguments;
+                    _ = templateArguments;
                     break;
                 case CompletionParts.TemplateParameters:
                     foreach (var templateParameter in templateParameters)
@@ -388,7 +388,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         var membersAndInitializersBuilder = new MembersAndInitializersBuilder();
         AddSynthesizedMembers(membersAndInitializersBuilder, declaredMembersAndInitializers);
 
-        if (Volatile.Read(ref _lazyMembersAndInitializers) != null) {
+        if (Volatile.Read(ref _lazyMembersAndInitializers) is not null) {
             membersAndInitializersBuilder.Free();
             return null;
         }
@@ -519,7 +519,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(fieldSymbol);
 
-                        if (declaration.initializer != null)
+                        if (declaration.initializer is not null)
                             AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
                     }
                     break;

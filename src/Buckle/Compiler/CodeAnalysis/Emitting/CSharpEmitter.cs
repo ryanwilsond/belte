@@ -99,7 +99,7 @@ internal sealed class CSharpEmitter {
                     foreach (var @class in program.types.Where(t => t is ClassSymbol))
                         EmitClass(indentedTextWriter, @class as ClassSymbol);
 
-                    if (program.entryPoint != null) {
+                    if (program.entryPoint is not null) {
                         var mainBody = MethodUtilities.LookupMethod(_methods, program.entryPoint);
                         EmitMainMethod(indentedTextWriter, KeyValuePair.Create(program.entryPoint, mainBody));
                     } else {
@@ -169,7 +169,7 @@ internal sealed class CSharpEmitter {
             }
 
             if (templateParameter.isConstant) {
-                if (templateParameter.constant == null) {
+                if (templateParameter.constant is null) {
                     var stringWriter = new StringWriter();
                     var indentedWriter = new IndentedTextWriter(stringWriter, IndentString);
                     EmitExpression(indentedWriter, templateParameter.expression);
@@ -448,7 +448,7 @@ internal sealed class CSharpEmitter {
         IndentedTextWriter indentedTextWriter,
         KeyValuePair<MethodSymbol, BoundBlockStatement> method,
         bool ignoreContained = true) {
-        if (method.Key.containingType != null && ignoreContained)
+        if (method.Key.containingType is not null && ignoreContained)
             return;
 
         var parameters = new StringBuilder();
@@ -557,7 +557,7 @@ internal sealed class CSharpEmitter {
         indentedTextWriter.Write(GetEquivalentType(variable.type, true));
         indentedTextWriter.Write($" {GetSafeName(variable.name)}");
 
-        if (initializer != null) {
+        if (initializer is not null) {
             indentedTextWriter.Write(" = ");
             EmitExpression(indentedTextWriter, initializer);
         }
@@ -629,12 +629,12 @@ internal sealed class CSharpEmitter {
         using (var tryCurly = new CurlyIndenter(indentedTextWriter, "try"))
             EmitBody(indentedTextWriter, statement.body);
 
-        if (statement.catchBody != null) {
+        if (statement.catchBody is not null) {
             using var catchCurly = new CurlyIndenter(indentedTextWriter, "catch");
             EmitBody(indentedTextWriter, statement.catchBody);
         }
 
-        if (statement.finallyBody != null) {
+        if (statement.finallyBody is not null) {
             using var finallyCurly = new CurlyIndenter(indentedTextWriter, "finally");
             EmitBody(indentedTextWriter, statement.finallyBody);
         }
@@ -657,7 +657,7 @@ internal sealed class CSharpEmitter {
         using (var ifCurly = new CurlyIndenter(indentedTextWriter, ")"))
             EmitStatement(indentedTextWriter, statement.then);
 
-        if (statement.elseStatement != null) {
+        if (statement.elseStatement is not null) {
             using var elseCurly = new CurlyIndenter(indentedTextWriter, "else");
             EmitStatement(indentedTextWriter, statement.elseStatement);
         }
@@ -709,7 +709,7 @@ internal sealed class CSharpEmitter {
     }
 
     private void EmitExpression(IndentedTextWriter indentedTextWriter, BoundExpression expression) {
-        if (expression.constantValue != null) {
+        if (expression.constantValue is not null) {
             EmitConstantExpression(indentedTextWriter, expression);
             return;
         }
@@ -1116,7 +1116,7 @@ internal sealed class CSharpEmitter {
 
         foreach (var templateArgument in expression.type.templateArguments) {
             if (templateArgument.isConstant) {
-                if (templateArgument.constant == null)
+                if (templateArgument.constant is null)
                     arguments.Add(templateArgument.expression);
                 else
                     arguments.Add(new BoundLiteralExpression(templateArgument.constant.value));

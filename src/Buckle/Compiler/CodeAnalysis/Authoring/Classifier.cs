@@ -30,7 +30,7 @@ public static class Classifier {
         if (node is null)
             return;
 
-        if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
+        if (node.fullSpan is not null && !node.fullSpan.OverlapsWith(span))
             return;
 
         if (node.isToken) {
