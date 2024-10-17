@@ -266,15 +266,11 @@ internal partial class Binder {
 
     #endregion
 
-    #region Flags
-
     internal Binder WithAdditionalFlagsAndContainingMember(BinderFlags flags, Symbol containing) {
         return this.flags.Includes(flags)
             ? new BinderWithContainingMember(this, containing)
             : new BinderWithContainingMember(this, this.flags | flags, containing);
     }
-
-    #endregion
 
     #region Constraints
 
@@ -358,7 +354,18 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         // TODO
         // Need to bind type first to make sure this template is a type parameter
-        return TypeParameterConstraintClause.Empty;
+    }
+
+    #endregion
+
+    #region Symbols
+
+    internal TypeWithAnnotations BindType(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        // TODO
+
     }
 
     #endregion
