@@ -88,7 +88,7 @@ internal partial class SyntaxList : GreenNode {
         var rightList = right as SyntaxList;
 
         if (left is SyntaxList leftList) {
-            if (rightList != null) {
+            if (rightList is not null) {
                 var tmp = new ArrayElement<GreenNode>[left.slotCount + right.slotCount];
                 leftList.CopyTo(tmp, 0);
                 rightList.CopyTo(tmp, left.slotCount);
@@ -101,7 +101,7 @@ internal partial class SyntaxList : GreenNode {
 
                 return List(tmp);
             }
-        } else if (rightList != null) {
+        } else if (rightList is not null) {
             var tmp = new ArrayElement<GreenNode>[rightList.slotCount + 1];
             tmp[0].value = left;
             rightList.CopyTo(tmp, 1);

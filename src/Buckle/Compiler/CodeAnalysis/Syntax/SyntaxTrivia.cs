@@ -57,7 +57,7 @@ public class SyntaxTrivia {
     /// The span of the trivia. Should be the same as <see cref="fullSpan" />.
     /// </summary>
     /// <returns></returns>
-    internal TextSpan span => green != null
+    internal TextSpan span => green is not null
         ? new TextSpan(position + green.GetLeadingTriviaWidth(), green.width)
         : null;
 
@@ -65,7 +65,7 @@ public class SyntaxTrivia {
     /// The full span of the trivia. Should be the same as <see cref="span" />.
     /// </summary>
     /// <returns></returns>
-    internal TextSpan fullSpan => green != null ? new TextSpan(position, green.fullWidth) : null;
+    internal TextSpan fullSpan => green is not null ? new TextSpan(position, green.fullWidth) : null;
 
     /// <summary>
     /// If the trivia contains any diagnostics.

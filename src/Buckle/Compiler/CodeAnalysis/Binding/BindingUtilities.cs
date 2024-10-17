@@ -13,8 +13,8 @@ internal static class BindingUtilities {
     internal static VariableSymbol GetAssignedVariableSymbol(BoundExpression expression) {
         if (expression is BoundVariableExpression v)
             return v.variable;
-        if (expression is BoundMemberAccessExpression m)
-            return GetAssignedVariableSymbol(m.right);
+        if (expression is BoundFieldAccessExpression f)
+            return f.field;
         if (expression is BoundIndexExpression i)
             return GetAssignedVariableSymbol(i.expression);
 

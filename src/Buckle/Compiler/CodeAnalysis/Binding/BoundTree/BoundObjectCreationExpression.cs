@@ -8,26 +8,17 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundObjectCreationExpression : BoundExpression {
     internal BoundObjectCreationExpression(
-        BoundType type,
+        TypeSymbol type,
         MethodSymbol constructor,
         ImmutableArray<BoundExpression> arguments) {
         this.type = type;
         this.constructor = constructor;
         this.arguments = arguments;
-        viaConstructor = true;
-    }
-
-    internal BoundObjectCreationExpression(BoundType type) {
-        this.type = type;
-        viaConstructor = false;
-        arguments = ImmutableArray<BoundExpression>.Empty;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ObjectCreationExpression;
 
-    internal override BoundType type { get; }
-
-    internal bool viaConstructor { get; }
+    internal override TypeSymbol type { get; }
 
     internal MethodSymbol constructor { get; }
 

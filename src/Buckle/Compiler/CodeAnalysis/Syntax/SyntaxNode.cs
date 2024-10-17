@@ -11,7 +11,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Base building block of all things on the syntax trees.
 /// </summary>
 public abstract partial class SyntaxNode {
-    protected SyntaxTree _syntaxTree;
+    private protected SyntaxTree _syntaxTree;
 
     /// <summary>
     /// Creates a new <see cref="SyntaxNode" /> from an underlying <see cref="GreenNode" />.
@@ -192,12 +192,12 @@ public abstract partial class SyntaxNode {
             index--;
             var prevSibling = GetCachedSlot(index);
 
-            if (prevSibling != null)
+            if (prevSibling is not null)
                 return prevSibling.endPosition + offset;
 
             var greenChild = green.GetSlot(index);
 
-            if (greenChild != null)
+            if (greenChild is not null)
                 offset += greenChild.fullWidth;
         }
 
@@ -234,7 +234,7 @@ public abstract partial class SyntaxNode {
         while (true) {
             var node = currentNode.AsNode();
 
-            if (node != null)
+            if (node is not null)
                 currentNode = node.ChildThatContainsPosition(position);
             else
                 return currentNode.AsToken();
@@ -256,12 +256,12 @@ public abstract partial class SyntaxNode {
             index++;
             var nextSibling = GetCachedSlot(index);
 
-            if (nextSibling != null)
+            if (nextSibling is not null)
                 return nextSibling.position - offset;
 
             var greenChild = green.GetSlot(index);
 
-            if (greenChild != null)
+            if (greenChild is not null)
                 offset += greenChild.fullWidth;
         }
 
@@ -277,7 +277,7 @@ public abstract partial class SyntaxNode {
         for (var i = 0; i < slot; i++) {
             var item = green.GetSlot(i);
 
-            if (item != null) {
+            if (item is not null) {
                 if (item.isList)
                     index += item.slotCount;
                 else
@@ -333,7 +333,7 @@ public abstract partial class SyntaxNode {
         if (result is null) {
             var green = this.green.GetSlot(slot);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, green.CreateRed(this, GetChildPosition(slot)), null);
                 result = field;
             }
@@ -353,7 +353,7 @@ public abstract partial class SyntaxNode {
         if (result is null) {
             var green = this.green.GetSlot(0);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, green.CreateRed(this, position), null);
                 result = field;
             }
@@ -362,13 +362,13 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
-    protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
+    private protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
         var result = field;
 
         if (result is null) {
             var green = this.green.GetSlot(slot);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, (T)green.CreateRed(this, GetChildPosition(slot)), null);
                 result = field;
             }
@@ -378,13 +378,13 @@ public abstract partial class SyntaxNode {
     }
 
     // special case of above function where slot = 0, does not need GetChildPosition
-    protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
+    private protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
         var result = field;
 
         if (result is null) {
             var green = this.green.GetSlot(0);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, (T)green.CreateRed(this, position), null);
                 result = field;
             }
@@ -416,7 +416,7 @@ public abstract partial class SyntaxNode {
     private static void PrettyPrint(DisplayText text, SyntaxNodeOrToken node, string indent = "", bool isLast = true) {
         var token = node.AsToken();
 
-        if (token != null) {
+        if (token is not null) {
             foreach (var trivia in token.leadingTrivia) {
                 text.Write(CreatePunctuation(indent));
                 text.Write(CreatePunctuation("├─"));
@@ -425,7 +425,7 @@ public abstract partial class SyntaxNode {
             }
         }
 
-        var hasTrailingTrivia = token != null && token.trailingTrivia.Any();
+        var hasTrailingTrivia = token is not null && token.trailingTrivia.Any();
         var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
 
         text.Write(CreatePunctuation($"{indent}{tokenMarker}"));
@@ -435,7 +435,7 @@ public abstract partial class SyntaxNode {
         else
             text.Write(CreateBlueNode(node.AsNode().kind.ToString()));
 
-        if (node.AsToken(out var t) && t.text != null)
+        if (node.AsToken(out var t) && t.text is not null)
             text.Write(CreatePunctuation($" {t.text}"));
 
         if (node.isToken) {
@@ -446,7 +446,7 @@ public abstract partial class SyntaxNode {
             text.Write(CreateLine());
         }
 
-        if (token != null) {
+        if (token is not null) {
             foreach (var trivia in token.trailingTrivia) {
                 var isLastTrailingTrivia = trivia.index == token.trailingTrivia.Count - 1;
                 var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";

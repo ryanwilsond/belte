@@ -18,8 +18,8 @@ public sealed class ParserTests {
         var op1Text = SyntaxFacts.GetText(op1);
         var op2Text = SyntaxFacts.GetText(op2);
 
-        Debug.Assert(op1Text != null);
-        Debug.Assert(op2Text != null);
+        Debug.Assert(op1Text is not null);
+        Debug.Assert(op2Text is not null);
 
         var text = $"var v = a {op1Text} b {op2Text} c";
         var expression = ParseExpression(text);
@@ -62,8 +62,8 @@ public sealed class ParserTests {
         if (unaryText == "--" || unaryText == "++")
             return;
 
-        Debug.Assert(unaryText != null);
-        Debug.Assert(binaryText != null);
+        Debug.Assert(unaryText is not null);
+        Debug.Assert(binaryText is not null);
 
         var text = $"var v = {unaryText} a {binaryText} b";
         var expression = ParseExpression(text);

@@ -20,4 +20,8 @@ internal enum DeclarationModifiers : uint {
     Virtual = 1 << 9,
     Override = 1 << 10,
     New = 1 << 11,
+    Ref = 1 << 12,
+    ConstRef = 1 << 13,
+
+    AccessibilityMask = Public | Private | Protected,
 }

@@ -17,6 +17,8 @@ repls
 constexpr
 overloadable
 enumerables
+accessibilities
+referencable
 
 belte
 xunit

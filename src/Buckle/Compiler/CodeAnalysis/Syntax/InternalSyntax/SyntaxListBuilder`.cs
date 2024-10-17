@@ -117,7 +117,7 @@ internal sealed class SyntaxListBuilder<T> where T : GreenNode {
     }
 
     public static implicit operator SyntaxList<T>(SyntaxListBuilder<T> builder) {
-        if (builder._builder != null) {
+        if (builder._builder is not null) {
             return builder.ToList();
         }
 

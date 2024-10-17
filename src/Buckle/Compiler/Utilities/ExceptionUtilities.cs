@@ -1,5 +1,5 @@
-
 using System;
+using Buckle.Diagnostics;
 
 namespace Buckle.Utilities;
 
@@ -12,4 +12,7 @@ internal static class ExceptionUtilities {
     /// </summary>
     internal static Exception Unreachable()
         => new InvalidOperationException("This program location is thought to be unreachable");
+
+    internal static Exception UnexpectedValue(object value)
+        => new BelteInternalException($"Unexpected value '{value}'");
 }

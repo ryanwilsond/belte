@@ -8,6 +8,8 @@ namespace Buckle.Diagnostics;
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+    internal static readonly BelteDiagnosticQueue Instance = new BelteDiagnosticQueue();
+
     /// <summary>
     /// Creates a <see cref="BelteDiagnosticQueue" /> with no Diagnostics.
     /// </summary>
@@ -60,11 +62,11 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
 
-    public void Push<T>(T diagnostic) where T : Diagnostic {
-        base.Push(new BelteDiagnostic(diagnostic));
+    public DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
+        return base.Push(new BelteDiagnostic(diagnostic));
     }
 
-    public new void Push(BelteDiagnostic diagnostic) {
-        base.Push(diagnostic);
+    public new DiagnosticInfo Push(BelteDiagnostic diagnostic) {
+        return base.Push(diagnostic);
     }
 }

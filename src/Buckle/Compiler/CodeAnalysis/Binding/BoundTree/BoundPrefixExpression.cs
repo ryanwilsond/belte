@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -15,7 +16,7 @@ internal sealed class BoundPrefixExpression : BoundExpression {
 
     internal BoundExpression operand { get; }
 
-    internal override BoundType type => op.type;
+    internal override TypeSymbol type => op.type;
 
     internal override BoundNodeKind kind => BoundNodeKind.PrefixExpression;
 }

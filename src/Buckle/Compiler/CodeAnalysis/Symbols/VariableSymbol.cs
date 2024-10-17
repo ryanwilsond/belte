@@ -1,68 +1,49 @@
-using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-/// <summary>
-/// A variable symbol. This can be any type of variable.
-/// </summary>
-internal abstract class VariableSymbol : Symbol, IVariableSymbol {
+internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     private protected readonly DeclarationModifiers _declarationModifiers;
 
-    /// <summary>
-    /// Creates a <see cref="VariableSymbol" />.
-    /// </summary>
-    /// <param name="name">Name of the variable.</param>
-    /// <param name="type"><see cref="BoundType" /> of the variable.</param>
-    /// <param name="constant"><see cref="BoundConstant" /> of the variable.</param>
-    internal VariableSymbol(
+    internal DataContainerSymbol(
         string name,
-        BoundType type,
-        BoundConstant constant,
+        TypeWithAnnotations type,
+        ConstantValue constant,
         DeclarationModifiers modifiers,
         Accessibility accessibility)
         : base(name, accessibility) {
-        this.type = type;
-        constantValue = ((type?.isConstant ?? false) || (type?.isConstantExpression ?? false))
-            && (!type?.isReference ?? false) ? constant : null;
+        typeWithAnnotations = type;
+        constantValue = constant;
         _declarationModifiers = modifiers;
     }
 
-    public override bool isStatic
+    public ITypeSymbol typeSymbol => typeWithAnnotations.type;
+
+    internal override bool isStatic
         => (_declarationModifiers & (DeclarationModifiers.Static | DeclarationModifiers.ConstExpr)) != 0;
 
-    public override bool isVirtual => false;
+    internal override bool isVirtual => false;
 
-    public override bool isAbstract => false;
+    internal override bool isAbstract => false;
 
-    public override bool isSealed => false;
+    internal override bool isSealed => false;
 
-    public override bool isOverride => false;
+    internal override bool isOverride => false;
 
-    public ITypeSymbol typeSymbol => type.typeSymbol;
+    internal bool isConstantReference => (_declarationModifiers & DeclarationModifiers.ConstExpr) != 0;
 
-    public bool isImplicit => type.isImplicit;
+    internal bool isReference => (_declarationModifiers & DeclarationModifiers.Ref) != 0;
 
-    public bool isConstantReference => type.isConstantReference;
+    internal bool isConstant
+        => (_declarationModifiers & (DeclarationModifiers.Const | DeclarationModifiers.ConstExpr)) != 0;
 
-    public bool isReference => type.isReference;
+    internal bool isNullable => typeWithAnnotations.isNullable;
 
-    public bool isExplicitReference => type.isExplicitReference;
+    internal TypeWithAnnotations typeWithAnnotations { get; }
 
-    public bool isConstant => type.isConstant;
-
-    public bool isNullable => type.isNullable;
-
-    public bool isLiteral => type.isLiteral;
-
-    public int dimensions => type.dimensions;
+    internal TypeSymbol type => typeWithAnnotations.type;
 
     /// <summary>
-    /// <see cref="BoundType" /> of the variable.
+    /// <see cref="ConstantValue" /> of the variable (can be null).
     /// </summary>
-    internal BoundType type { get; }
-
-    /// <summary>
-    /// <see cref="BoundConstant" /> of the variable (can be null).
-    /// </summary>
-    internal BoundConstant constantValue { get; }
+    internal ConstantValue constantValue { get; }
 }

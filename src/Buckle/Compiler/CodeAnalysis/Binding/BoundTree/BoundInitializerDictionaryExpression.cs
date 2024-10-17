@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -8,7 +9,7 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class BoundInitializerDictionaryExpression : BoundExpression {
     internal BoundInitializerDictionaryExpression(
         ImmutableArray<(BoundExpression, BoundExpression)> items,
-        BoundType type) {
+        TypeSymbol type) {
         this.items = items;
         this.type = type;
     }
@@ -17,7 +18,7 @@ internal sealed class BoundInitializerDictionaryExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.InitializerDictionaryExpression;
 
-    internal override BoundType type { get; }
+    internal override TypeSymbol type { get; }
 
-    internal override BoundConstant constantValue { get; }
+    internal override ConstantValue constantValue { get; }
 }

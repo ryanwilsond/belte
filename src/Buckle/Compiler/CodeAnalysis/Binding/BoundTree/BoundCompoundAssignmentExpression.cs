@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -7,7 +8,9 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
     internal BoundCompoundAssignmentExpression(
-        BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
+        BoundExpression left,
+        BoundBinaryOperator op,
+        BoundExpression right) {
         this.left = left;
         this.op = op;
         this.right = right;
@@ -21,5 +24,5 @@ internal sealed class BoundCompoundAssignmentExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.CompoundAssignmentExpression;
 
-    internal override BoundType type => right.type;
+    internal override TypeSymbol type => right.type;
 }
