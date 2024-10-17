@@ -27,7 +27,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private DeclaredMembersAndInitializers _lazyDeclaredMembersAndInitializers = DeclaredMembersAndInitializers.UninitializedSentinel;
     private MembersAndInitializers _lazyMembersAndInitializers;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>>? _lazyMembersDictionary;
-    private ImmutableArray<Symbol> _lazyMembers;
+    private ImmutableArray<Symbol> _lazyMembersFlattened;
+
+    private bool _fieldDefinitionsNoted;
 
     internal SourceMemberContainerTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
@@ -88,14 +90,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override SyntaxReference syntaxReference => new SyntaxReference(_declaration);
 
     internal sealed override ImmutableArray<Symbol> GetMembers() {
-        if (!_lazyMembers.IsDefault)
-            return _lazyMembers;
+        if (!_lazyMembersFlattened.IsDefault)
+            return _lazyMembersFlattened;
 
         var members = GetMembersByName().Flatten();
 
         if (members.Length > 1) {
             members = members.Sort(LexicalOrderSymbolComparer.Instance);
-            ImmutableInterlocked.InterlockedExchange(ref _lazyMembers, members);
+            ImmutableInterlocked.InterlockedExchange(ref _lazyMembersFlattened, members);
         }
 
         return members;
@@ -108,6 +110,33 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         return [];
     }
 
+    internal override ImmutableArray<Symbol> GetMembersUnordered() {
+        var result = _lazyMembersFlattened;
+
+        if (result.IsDefault) {
+            result = GetMembersByName().Flatten();
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyMembersFlattened, result);
+            result = _lazyMembersFlattened;
+        }
+
+        return result;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
+        return GetTypeMembersDictionary().Flatten(LexicalOrderSymbolComparer.Instance);
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
+        if (GetTypeMembersDictionary().TryGetValue(name, out var members))
+            return members;
+
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetTypeMembersUnordered() {
+        return GetTypeMembersDictionary().Flatten();
+    }
+
     internal override void ForceComplete(TextLocation location) {
         while (true) {
             var incompletePart = _state.nextIncompletePart;
@@ -115,99 +144,54 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             switch (incompletePart) {
                 case CompletionParts.StartBaseType:
                 case CompletionParts.FinishBaseType:
-                    if (state.NotePartComplete(CompletionPart.StartBaseType)) {
-                        var diagnostics = BindingDiagnosticBag.GetInstance();
+                    if (_state.NotePartComplete(CompletionParts.StartBaseType)) {
+                        var diagnostics = BelteDiagnosticQueue.Instance;
                         CheckBase(diagnostics);
                         AddDeclarationDiagnostics(diagnostics);
-                        state.NotePartComplete(CompletionPart.FinishBaseType);
-                        diagnostics.Free();
+                        _state.NotePartComplete(CompletionParts.FinishBaseType);
                     }
                     break;
-                case CompletionParts.TemplateArguments: {
-                        var tmp = this.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics; // force type arguments
-                    }
+                case CompletionParts.TemplateArguments:
+                    var _ = templateArguments;
                     break;
-
                 case CompletionParts.TemplateParameters:
-                    // force type parameters
-                    foreach (var typeParameter in this.TypeParameters) {
-                        // We can't filter out type parameters: if this container was requested, then all its type parameters need to be compiled
-                        typeParameter.ForceComplete(locationOpt, filter: null, cancellationToken);
-                    }
+                    foreach (var templateParameter in templateParameters)
+                        templateParameter.ForceComplete(location);
 
-                    state.NotePartComplete(CompletionPart.TypeParameters);
+                    _state.NotePartComplete(CompletionParts.TemplateParameters);
                     break;
-
                 case CompletionParts.Members:
-                    this.GetMembersByName();
+                    GetMembersByName();
                     break;
-
                 case CompletionParts.TypeMembers:
-                    this.GetTypeMembersUnordered();
+                    GetTypeMembersUnordered();
                     break;
-
-                case CompletionPart.SynthesizedExplicitImplementations:
-                    this.GetSynthesizedExplicitImplementations(cancellationToken); //force interface and base class errors to be checked
-                    break;
-
                 case CompletionParts.StartMemberChecks:
                 case CompletionParts.FinishMemberChecks:
-                    if (state.NotePartComplete(CompletionPart.StartMemberChecks)) {
-                        var diagnostics = BindingDiagnosticBag.GetInstance();
+                    if (_state.NotePartComplete(CompletionParts.StartMemberChecks)) {
+                        var diagnostics = BelteDiagnosticQueue.Instance;
                         AfterMembersChecks(diagnostics);
                         AddDeclarationDiagnostics(diagnostics);
-
-                        // We may produce a SymbolDeclaredEvent for the enclosing type before events for its contained members
-                        DeclaringCompilation.SymbolDeclaredEvent(this);
-                        var thisThreadCompleted = state.NotePartComplete(CompletionPart.FinishMemberChecks);
-                        Debug.Assert(thisThreadCompleted);
-                        diagnostics.Free();
+                        _state.NotePartComplete(CompletionParts.FinishMemberChecks);
                     }
                     break;
-
                 case CompletionParts.MembersCompletedChecksStarted:
                 case CompletionParts.MembersCompleted: {
-                        ImmutableArray<Symbol> members = this.GetMembersUnordered();
+                        var members = GetMembersUnordered();
 
-                        bool allCompleted = true;
-
-                        if (locationOpt == null && filter == null) {
-                            foreach (var member in members) {
-                                cancellationToken.ThrowIfCancellationRequested();
-                                member.ForceComplete(locationOpt, filter: null, cancellationToken);
-                            }
-                        } else {
-                            foreach (var member in members) {
-                                ForceCompleteMemberConditionally(locationOpt, filter, member, cancellationToken);
-                                allCompleted = allCompleted && member.HasComplete(CompletionPart.All);
-                            }
-                        }
-
-                        if (!allCompleted) {
-                            // We did not complete all members so we won't have enough information for
-                            // the PointedAtManagedTypeChecks, so just kick out now.
-                            var allParts = CompletionPart.NamedTypeSymbolWithLocationAll;
-                            state.SpinWaitComplete(allParts, cancellationToken);
-                            return;
-                        }
+                        foreach (var member in members)
+                            member.ForceComplete(location);
 
                         EnsureFieldDefinitionsNoted();
-                        cancellationToken.ThrowIfCancellationRequested();
 
-                        if (state.NotePartComplete(CompletionPart.MembersCompletedChecksStarted)) {
-                            var diagnostics = BindingDiagnosticBag.GetInstance();
+                        if (_state.NotePartComplete(CompletionParts.MembersCompletedChecksStarted)) {
+                            var diagnostics = BelteDiagnosticQueue.Instance;
                             AfterMembersCompletedChecks(diagnostics);
                             AddDeclarationDiagnostics(diagnostics);
-
-                            // We've completed all members, so we're ready for the PointedAtManagedTypeChecks;
-                            // proceed to the next iteration.
-                            var thisThreadCompleted = state.NotePartComplete(CompletionPart.MembersCompleted);
-                            Debug.Assert(thisThreadCompleted);
-                            diagnostics.Free();
+                            _state.NotePartComplete(CompletionParts.MembersCompleted);
                         }
                     }
                     break;
-
                 case CompletionParts.None:
                     return;
                 default:
@@ -215,7 +199,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     break;
             }
 
-            _state.SpinWaitComplete(incompletePart, cancellationToken);
+            _state.SpinWaitComplete(incompletePart);
         }
 
         throw ExceptionUtilities.Unreachable();
@@ -227,6 +211,24 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal Binder GetBinder(BelteSyntaxNode syntaxNode) {
         return declaringCompilation.GetBinder(syntaxNode);
+    }
+
+    private protected abstract void CheckBase(BelteDiagnosticQueue diagnostics);
+
+    private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) {
+    }
+
+    private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
+        CheckMemberNamesDistinctFromType(diagnostics);
+        CheckMemberNameConflicts(diagnostics);
+        CheckRecordMemberNames(diagnostics);
+        CheckSpecialMemberErrors(diagnostics);
+        CheckTypeParameterNameConflicts(diagnostics);
+        CheckAccessorNameConflicts(diagnostics);
+        CheckSequentialOnPartialType(diagnostics);
+        CheckForProtectedInStaticClass(diagnostics);
+        CheckForUnmatchedOperators(diagnostics);
+        CheckForRequiredMemberAttribute(diagnostics);
     }
 
     private protected Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetMembersByName() {
@@ -253,6 +255,54 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         AddDeclarationDiagnostics(diagnostics);
         _lazyDeclaredMembersAndInitializers = null;
         return membersAndInitializers;
+    }
+
+    private void EnsureFieldDefinitionsNoted() {
+        if (_fieldDefinitionsNoted)
+            return;
+
+        NoteFieldDefinitions();
+    }
+
+    private void NoteFieldDefinitions() {
+        var membersAndInitializers = GetMembersAndInitializers();
+
+        // TODO This is thread protection, but is this code ever called from multiple places?
+        lock (membersAndInitializers) {
+            if (!_fieldDefinitionsNoted) {
+                // TODO Implement this to support unused fields warnings
+                /*
+                var containerEffectiveAccessibility = EffectiveAccessibility();
+
+                foreach (var member in membersAndInitializers.nonTypeMembers) {
+                    if (member is not FieldSymbol field || field.IsConstExpr)
+                        continue;
+
+                    var fieldDeclaredAccessibility = field.accessibility;
+
+                    if (fieldDeclaredAccessibility == Accessibility.Private)
+                        declaringCompilation.NoteFieldDefinition(field, isUnread: true);
+                    else if (containerEffectiveAccessibility == Accessibility.Private)
+                        declaringCompilation.NoteFieldDefinition(field, isUnread: false);
+                }
+                */
+                _fieldDefinitionsNoted = true;
+            }
+        }
+    }
+
+    private Accessibility EffectiveAccessibility() {
+        var result = accessibility;
+
+        if (result == Accessibility.Private)
+            return Accessibility.Private;
+
+        for (var container = containingType; container is not null; container = container.containingType) {
+            if (container.accessibility == Accessibility.Private)
+                return Accessibility.Private;
+        }
+
+        return result;
     }
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetMembersByNameSlow() {

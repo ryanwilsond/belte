@@ -21,10 +21,14 @@ internal abstract class NamespaceOrTypeSymbol : Symbol {
 
     internal abstract ImmutableArray<Symbol> GetMembers(string name);
 
+    internal abstract ImmutableArray<Symbol> GetMembersUnordered();
+
     internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembers();
 
     internal ImmutableArray<NamedTypeSymbol> GetTypeMembers(string name)
         => GetTypeMembers(name.AsMemory());
 
     internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name);
+
+    internal abstract ImmutableArray<NamedTypeSymbol> GetTypeMembersUnordered();
 }
