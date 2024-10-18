@@ -25,6 +25,22 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         _templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
     }
 
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters {
+        get {
+            if (_templateParameterInfo.lazyTemplateParameters.IsDefault) {
+                var diagnostics = BelteDiagnosticQueue.Instance;
+
+                if (ImmutableInterlocked.InterlockedInitialize(
+                    ref _templateParameterInfo.lazyTemplateParameters,
+                    MakeTemplateParameters(diagnostics))) {
+                    AddDeclarationDiagnostics(diagnostics);
+                }
+            }
+
+            return _templateParameterInfo.lazyTemplateParameters;
+        }
+    }
+
     internal override NamedTypeSymbol baseType {
         get {
             if (ReferenceEquals(_lazyBaseType, ErrorTypeSymbol.UnknownResultType)) {
@@ -201,6 +217,13 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                 _ => false,
             };
         }
+    }
+
+    private ImmutableArray<TemplateParameterSymbol> MakeTemplateParameters(BelteDiagnosticQueue diagnostics) {
+        if (_declaration.templateParameterList is null)
+            return [];
+
+
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(
