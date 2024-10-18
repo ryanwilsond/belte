@@ -218,8 +218,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     private protected abstract void CheckBase(BelteDiagnosticQueue diagnostics);
 
-    private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) {
-    }
+    private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) { }
 
     private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
         CheckMemberNamesDistinctFromType(diagnostics);
