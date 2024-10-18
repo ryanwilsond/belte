@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+using Buckle.Utilities;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Diagnostics;
 
@@ -8,7 +10,14 @@ namespace Buckle.Diagnostics;
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
-    internal static readonly BelteDiagnosticQueue Instance = new BelteDiagnosticQueue();
+    private static readonly ObjectPool<BelteDiagnosticQueue> Pool
+        = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
+
+    private readonly ObjectPool<BelteDiagnosticQueue> _pool;
+
+    private BelteDiagnosticQueue(ObjectPool<BelteDiagnosticQueue> pool) : base() {
+        _pool = pool;
+    }
 
     /// <summary>
     /// Creates a <see cref="BelteDiagnosticQueue" /> with no Diagnostics.
@@ -68,5 +77,18 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
 
     public new DiagnosticInfo Push(BelteDiagnostic diagnostic) {
         return base.Push(diagnostic);
+    }
+
+    internal static BelteDiagnosticQueue GetInstance() {
+        return Pool.Allocate();
+    }
+
+    internal void Free() {
+        if (_pool is not null) {
+            Clear();
+            _pool.Free(this);
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
     }
 }

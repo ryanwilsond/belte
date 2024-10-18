@@ -28,13 +28,15 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     public override ImmutableArray<TemplateParameterSymbol> templateParameters {
         get {
             if (_templateParameterInfo.lazyTemplateParameters.IsDefault) {
-                var diagnostics = BelteDiagnosticQueue.Instance;
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
 
                 if (ImmutableInterlocked.InterlockedInitialize(
                     ref _templateParameterInfo.lazyTemplateParameters,
                     MakeTemplateParameters(diagnostics))) {
                     AddDeclarationDiagnostics(diagnostics);
                 }
+
+                diagnostics.Free();
             }
 
             return _templateParameterInfo.lazyTemplateParameters;
@@ -47,7 +49,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                 if (containingType is not null)
                     _ = containingType.baseType;
 
-                var diagnostics = BelteDiagnosticQueue.Instance;
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
                 var acyclicBase = MakeAcyclicBaseType(diagnostics);
 
                 if (ReferenceEquals(
@@ -55,6 +57,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                     ErrorTypeSymbol.UnknownResultType)) {
                     AddDeclarationDiagnostics(diagnostics);
                 }
+
+                diagnostics.Free();
             }
 
             return _lazyBaseType;
@@ -63,13 +67,15 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         if (_lazyDeclaredBase is null) {
-            var diagnostics = BelteDiagnosticQueue.Instance;
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (Interlocked.CompareExchange(
                 ref _lazyDeclaredBase,
                 MakeDeclaredBase(basesBeingResolved, diagnostics), null) is null) {
                 AddDeclarationDiagnostics(diagnostics);
             }
+
+            diagnostics.Free();
         }
 
         return _lazyDeclaredBase;
@@ -223,7 +229,23 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         if (_declaration.templateParameterList is null)
             return [];
 
+        var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+        var i = 0;
 
+        foreach (var templateSyntax in _declaration.templateParameterList.parameters) {
+            var result = new SourceTemplateParameterSymbol(
+                this,
+                templateSyntax.identifier.text,
+                i,
+                new SyntaxReference(templateSyntax)
+            );
+
+            builder.Add(result);
+
+            i++;
+        }
+
+        return builder.ToImmutableAndFree();
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(

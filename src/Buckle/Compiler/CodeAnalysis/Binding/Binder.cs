@@ -363,7 +363,7 @@ internal partial class Binder {
     internal TypeWithAnnotations BindType(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
-        ConsList<TypeSymbol> basesBeingResolved) {
+        ConsList<TypeSymbol> basesBeingResolved = null) {
         // TODO
 
     }

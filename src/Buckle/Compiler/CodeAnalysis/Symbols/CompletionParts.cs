@@ -43,12 +43,9 @@ internal enum CompletionParts : int {
     // For complex parameters
     StartDefaultSyntaxValue = 1 << 6,
     EndDefaultSyntaxValue = 1 << 7,
-    StartMiscValidation = 1 << 8,
-    EndMiscValidation = 1 << 9,
-    ComplexParameterSymbolAll = StartDefaultSyntaxValue | EndDefaultSyntaxValue |
-        StartMiscValidation | EndMiscValidation,
+    ComplexParameterSymbolAll = StartDefaultSyntaxValue | EndDefaultSyntaxValue,
 
     // For template parameters
-    TemplateParameterConstraints = 1 << 6,
-    TemplateParameterSymbolAll = TemplateParameterConstraints,
+    TemplateParameterConstraints = 1 << 8,
+    TemplateParameterSymbolAll = TemplateParameterConstraints | StartDefaultSyntaxValue | EndDefaultSyntaxValue,
 }
