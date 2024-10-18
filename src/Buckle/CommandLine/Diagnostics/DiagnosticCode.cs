@@ -4,7 +4,7 @@ namespace Belte.Diagnostics;
 /// <summary>
 /// All codes used to represent each possible error and warning uniquely.
 /// </summary>
-public enum DiagnosticCode : int {
+public enum DiagnosticCode : ushort {
     // Never modify these codes after a release, as that would break backwards compatibility.
     // Instead mark unused errors and warnings in the docs, and append new errors and warnings to use new codes.
 

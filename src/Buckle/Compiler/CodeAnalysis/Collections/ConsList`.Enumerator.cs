@@ -20,7 +20,7 @@ internal partial class ConsList<T> : IEnumerable<T> {
             var currentTail = _tail;
             var newTail = currentTail._tail;
 
-            if (newTail != null) {
+            if (newTail is not null) {
                 _current = currentTail._head;
                 _tail = newTail;
                 return true;

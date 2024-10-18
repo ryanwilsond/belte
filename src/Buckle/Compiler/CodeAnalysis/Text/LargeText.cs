@@ -92,7 +92,7 @@ internal sealed class LargeText : SourceText {
         }
     }
 
-    protected override void EnsureLines() {
+    private protected override void EnsureLines() {
         throw ExceptionUtilities.Unreachable();
     }
 

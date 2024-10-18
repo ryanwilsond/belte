@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -10,5 +11,5 @@ internal sealed class BoundEmptyExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.EmptyExpression;
 
-    internal override BoundType type => null;
+    internal override TypeSymbol type => null;
 }

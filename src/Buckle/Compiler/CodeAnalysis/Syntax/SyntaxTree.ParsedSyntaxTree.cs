@@ -16,6 +16,6 @@ public partial class SyntaxTree {
 
         internal override SyntaxToken endOfFile { get; }
 
-        protected override int _length => _root?.fullSpan?.length ?? base._length;
+        private protected override int _length => _root?.fullSpan?.length ?? base._length;
     }
 }

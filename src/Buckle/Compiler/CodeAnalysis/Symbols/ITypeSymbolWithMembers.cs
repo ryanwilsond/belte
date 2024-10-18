@@ -9,5 +9,5 @@ public interface ITypeSymbolWithMembers : ITypeSymbol {
     /// <summary>
     /// Gets all members in their public representations.
     /// </summary>
-    public ImmutableArray<ISymbol> GetMembers();
+    public ImmutableArray<ISymbol> GetMembersPublic();
 }

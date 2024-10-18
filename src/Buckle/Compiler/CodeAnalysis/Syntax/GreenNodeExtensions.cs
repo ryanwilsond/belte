@@ -19,7 +19,7 @@ internal static class GreenNodeExtensions {
     internal static T WithoutDiagnosticsGreen<T>(this T node) where T : GreenNode {
         var current = node.GetDiagnostics();
 
-        if (current == null || current.Length == 0)
+        if (current is null || current.Length == 0)
             return node;
 
         return (T)node.SetDiagnostics(null);

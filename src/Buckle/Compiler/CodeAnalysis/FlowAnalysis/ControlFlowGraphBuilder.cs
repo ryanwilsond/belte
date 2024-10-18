@@ -116,7 +116,7 @@ internal sealed partial class ControlFlowGraphBuilder {
     }
 
     private BoundExpression Negate(BoundExpression condition) {
-        if (BoundConstant.IsNull(condition.constantValue))
+        if (ConstantValue.IsNull(condition.constantValue))
             return condition;
 
         if (condition is BoundLiteralExpression literal) {
@@ -131,7 +131,7 @@ internal sealed partial class ControlFlowGraphBuilder {
     }
 
     private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
-        if (BoundConstant.IsNull(condition?.constantValue))
+        if (ConstantValue.IsNull(condition?.constantValue))
             return;
 
         if (condition is BoundLiteralExpression l) {

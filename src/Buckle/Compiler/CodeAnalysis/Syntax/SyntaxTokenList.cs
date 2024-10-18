@@ -65,11 +65,11 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
 
     internal int position { get; }
 
-    public int Count => node == null ? 0 : (node.isList ? node.slotCount : 1);
+    public int Count => node is null ? 0 : (node.isList ? node.slotCount : 1);
 
     public SyntaxToken this[int index] {
         get {
-            if (node != null) {
+            if (node is not null) {
                 if (node.isList) {
                     if (unchecked((uint)index < (uint)node.slotCount)) {
                         return new SyntaxToken(
@@ -106,7 +106,7 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
     }
 
     public bool Any() {
-        return node != null;
+        return node is not null;
     }
 
     internal void CopyTo(int offset, GreenNode[] array, int arrayOffset, int count) {

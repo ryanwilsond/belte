@@ -28,7 +28,7 @@ internal sealed class SyntaxFirstTokenReplacer : SyntaxRewriter {
     }
 
     internal override BelteSyntaxNode Visit(BelteSyntaxNode node) {
-        if (node != null) {
+        if (node is not null) {
             if (!_foundOldToken) {
                 if (node is SyntaxToken) {
                     _foundOldToken = true;

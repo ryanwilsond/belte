@@ -4,6 +4,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// All ternary operator types.
 /// </summary>
-internal enum BoundTernaryOperatorKind {
+internal enum BoundTernaryOperatorKind : byte {
     Conditional,
 }

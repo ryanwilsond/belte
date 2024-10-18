@@ -10,34 +10,6 @@ using static Buckle.Utilities.LibraryUtilities;
 namespace Buckle.Libraries.Standard;
 
 internal static partial class StandardLibrary {
-    internal static ClassSymbol Object = Class("Object",
-        [
-    /* 0 */ Constructor([], Accessibility.Protected),
-    /* 1 */ Method(
-                "ToString",
-                BoundType.NullableString,
-                [],
-                DeclarationModifiers.Virtual,
-                Accessibility.Public,
-                MethodDeclaration(
-                    null,
-                    TokenList(Token(SyntaxKind.VirtualKeyword)),
-                    IdentifierName("string"),
-                    Identifier("ToString"),
-                    TemplateParameterList(),
-                    ParameterList(
-                        Token(SyntaxKind.OpenParenToken),
-                        SeparatedList<ParameterSyntax>(),
-                        Token(SyntaxKind.CloseParenToken)
-                    ),
-                    ConstraintClauseList(),
-                    Block(Return(Literal(""))),
-                    Token(SyntaxKind.SemicolonToken)
-                )
-            ),
-        ]
-    );
-
     internal static ClassSymbol Console = StaticClass("Console",
         [
     /* 0 */ StaticClass("Color", [
@@ -884,7 +856,7 @@ internal static partial class StandardLibrary {
         wellKnownTypes.TryGetValue(WellKnownTypeNames.List, out var listTypeSymbol);
         var listStringType = listTypeSymbol is null
             ? BoundType.Void
-            : new BoundType(listTypeSymbol, templateArguments: [new BoundTypeOrConstant(BoundType.String)]);
+            : new BoundType(listTypeSymbol, templateArguments: [new TypeOrConstant(BoundType.String)]);
 
         if (Directory.members.Length > 4)
             return;

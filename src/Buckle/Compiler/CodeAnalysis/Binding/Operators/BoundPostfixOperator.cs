@@ -10,14 +10,17 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal sealed class BoundPostfixOperator {
     private BoundPostfixOperator(
-        SyntaxKind kind, BoundPostfixOperatorKind opKind, BoundType operandType, BoundType resultType) {
+        SyntaxKind kind,
+        BoundPostfixOperatorKind opKind,
+        TypeSymbol operandType,
+        TypeSymbol resultType) {
         this.kind = kind;
         this.opKind = opKind;
         this.operandType = operandType;
         type = resultType;
     }
 
-    private BoundPostfixOperator(SyntaxKind kind, BoundPostfixOperatorKind opKind, BoundType operandType)
+    private BoundPostfixOperator(SyntaxKind kind, BoundPostfixOperatorKind opKind, TypeSymbol operandType)
         : this(kind, opKind, operandType, operandType) { }
 
     /// <summary>
@@ -25,12 +28,12 @@ internal sealed class BoundPostfixOperator {
     /// </summary>
     internal static BoundPostfixOperator[] Operators = {
         // integer
-        new BoundPostfixOperator(SyntaxKind.PlusPlusToken, BoundPostfixOperatorKind.Increment, BoundType.Int),
-        new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, BoundType.Int),
+        new BoundPostfixOperator(SyntaxKind.PlusPlusToken, BoundPostfixOperatorKind.Increment, TypeSymbol.Int),
+        new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, TypeSymbol.Int),
 
         // decimal
-        new BoundPostfixOperator(SyntaxKind.PlusPlusToken, BoundPostfixOperatorKind.Increment, BoundType.Decimal),
-        new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, BoundType.Decimal),
+        new BoundPostfixOperator(SyntaxKind.PlusPlusToken, BoundPostfixOperatorKind.Increment, TypeSymbol.Decimal),
+        new BoundPostfixOperator(SyntaxKind.MinusMinusToken, BoundPostfixOperatorKind.Decrement, TypeSymbol.Decimal),
 
         new BoundPostfixOperator(SyntaxKind.ExclamationToken, BoundPostfixOperatorKind.NullAssert, null),
     };
@@ -45,12 +48,12 @@ internal sealed class BoundPostfixOperator {
     /// </summary>
     internal BoundPostfixOperatorKind opKind { get; }
 
-    internal BoundType operandType { get; }
+    internal TypeSymbol operandType { get; }
 
     /// <summary>
-    /// Result value <see cref="BoundType" />.
+    /// Result value <see cref="TypeSymbol" />.
     /// </summary>
-    internal BoundType type { get; }
+    internal TypeSymbol type { get; }
 
     internal static BoundPostfixOperator BindWithOverloading(
         SyntaxToken operatorToken,
@@ -95,7 +98,7 @@ internal sealed class BoundPostfixOperator {
         foreach (var op in Operators) {
             var operandIsCorrect = op.operandType is null
                 ? true
-                : Cast.Classify(operandType, op.operandType, false).isImplicit;
+                : Conversion.Classify(operandType, op.operandType, false).isImplicit;
             var nonNullable = op.operandType is null;
 
             if (op.kind == kind && operandIsCorrect) {

@@ -24,7 +24,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
         _current = null;
         _position = position;
 
-        if (node != null && node.containsDiagnostics) {
+        if (node is not null && node.containsDiagnostics) {
             _syntaxTree = syntaxTree;
             _stack = new NodeIterationStack(DefaultStackCapacity);
             _stack.PushNodeOrToken(node);
