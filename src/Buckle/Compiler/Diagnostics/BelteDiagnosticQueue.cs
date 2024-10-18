@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -87,8 +86,6 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         if (_pool is not null) {
             Clear();
             _pool.Free(this);
-        } else {
-            throw ExceptionUtilities.Unreachable();
         }
     }
 }

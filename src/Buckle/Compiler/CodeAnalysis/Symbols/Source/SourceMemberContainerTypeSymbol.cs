@@ -145,10 +145,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case CompletionParts.StartBaseType:
                 case CompletionParts.FinishBaseType:
                     if (_state.NotePartComplete(CompletionParts.StartBaseType)) {
-                        var diagnostics = BelteDiagnosticQueue.Instance;
+                        var diagnostics = BelteDiagnosticQueue.GetInstance();
                         CheckBase(diagnostics);
                         AddDeclarationDiagnostics(diagnostics);
                         _state.NotePartComplete(CompletionParts.FinishBaseType);
+                        diagnostics.Free();
                     }
                     break;
                 case CompletionParts.TemplateArguments:
@@ -169,10 +170,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case CompletionParts.StartMemberChecks:
                 case CompletionParts.FinishMemberChecks:
                     if (_state.NotePartComplete(CompletionParts.StartMemberChecks)) {
-                        var diagnostics = BelteDiagnosticQueue.Instance;
+                        var diagnostics = BelteDiagnosticQueue.GetInstance();
                         AfterMembersChecks(diagnostics);
                         AddDeclarationDiagnostics(diagnostics);
                         _state.NotePartComplete(CompletionParts.FinishMemberChecks);
+                        diagnostics.Free();
                     }
                     break;
                 case CompletionParts.MembersCompletedChecksStarted:
@@ -185,10 +187,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         EnsureFieldDefinitionsNoted();
 
                         if (_state.NotePartComplete(CompletionParts.MembersCompletedChecksStarted)) {
-                            var diagnostics = BelteDiagnosticQueue.Instance;
+                            var diagnostics = BelteDiagnosticQueue.GetInstance();
                             AfterMembersCompletedChecks(diagnostics);
                             AddDeclarationDiagnostics(diagnostics);
                             _state.NotePartComplete(CompletionParts.MembersCompleted);
+                            diagnostics.Free();
                         }
                     }
                     break;
@@ -244,7 +247,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (membersAndInitializers is not null)
             return membersAndInitializers;
 
-        var diagnostics = BelteDiagnosticQueue.Instance;
+        var diagnostics = BelteDiagnosticQueue.GetInstance();
         membersAndInitializers = BuildMembersAndInitializers(diagnostics);
 
         var alreadyKnown = Interlocked.CompareExchange(ref _lazyMembersAndInitializers, membersAndInitializers, null);
@@ -253,6 +256,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             return alreadyKnown;
 
         AddDeclarationDiagnostics(diagnostics);
+        diagnostics.Free();
+
         _lazyDeclaredMembersAndInitializers = null;
         return membersAndInitializers;
     }
@@ -326,12 +331,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> GetTypeMembersDictionary() {
         if (_lazyTypeMembers is null) {
-            var diagnostics = BelteDiagnosticQueue.Instance;
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (Interlocked.CompareExchange(ref _lazyTypeMembers, MakeTypeMembers(diagnostics), null) is null) {
                 AddDeclarationDiagnostics(diagnostics);
                 _state.NotePartComplete(CompletionParts.TypeMembers);
             }
+
+            diagnostics.Free();
         }
 
         return _lazyTypeMembers;
