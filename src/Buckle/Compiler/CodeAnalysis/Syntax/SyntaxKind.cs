@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
-public enum SyntaxKind {
+public enum SyntaxKind : ushort {
     None = 0,
     List = GreenNode.ListKind,
 

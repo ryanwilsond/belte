@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Special type of symbol, if any.
 /// </summary>
-internal enum SpecialType {
+internal enum SpecialType : byte {
     None,
     Object,
     Array,

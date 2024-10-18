@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal enum TemplateParameterKind {
+internal enum TemplateParameterKind : byte {
     Method,
     Type,
 }

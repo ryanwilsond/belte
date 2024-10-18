@@ -111,6 +111,16 @@ public sealed class SyntaxToken {
     internal TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span) : null;
 
     /// <summary>
+    /// Determintes whether this token has any leading trivia.
+    /// </summary>
+    internal bool hasLeadingTrivia => leadingTrivia.Count > 0;
+
+    /// <summary>
+    /// Determintes whether this token has any trailing trivia.
+    /// </summary>
+    internal bool hasTrailingTrivia => trailingTrivia.Count > 0;
+
+    /// <summary>
     /// The leading trivia of this token, if any.
     /// </summary>
     internal SyntaxTriviaList leadingTrivia => node is not null ?

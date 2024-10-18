@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary> <summary>
 ///
 /// </summary>
-internal enum Accessibility {
+internal enum Accessibility : byte {
     NotApplicable = 0,
     Private,
     Public,

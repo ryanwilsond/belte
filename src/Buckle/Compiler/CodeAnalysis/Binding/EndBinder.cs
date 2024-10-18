@@ -13,7 +13,7 @@ internal sealed class EndBinder : Binder {
 
     internal override ConsList<FieldSymbol> fieldsBeingBound => ConsList<FieldSymbol>.Empty;
 
-    internal override LocalVariableSymbol localInProgress => null;
+    internal override LocalSymbol localInProgress => null;
 
     internal override SynthesizedLabelSymbol breakLabel => null;
 
@@ -27,7 +27,7 @@ internal sealed class EndBinder : Binder {
         return null;
     }
 
-    internal override ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(
+    internal override ImmutableArray<LocalSymbol> GetDeclaredLocalsForScope(
         SyntaxNode scopeDesignator) {
         throw ExceptionUtilities.Unreachable();
     }

@@ -49,13 +49,19 @@ internal partial class Binder {
 
     internal virtual bool inMethod => next.inMethod;
 
-    internal virtual LocalVariableSymbol localInProgress => next.localInProgress;
+    internal virtual LocalSymbol localInProgress => next.localInProgress;
 
     internal virtual ConstantFieldsInProgress constantFieldsInProgress => next.constantFieldsInProgress;
 
     internal virtual BoundExpression conditionalReceiverExpression => next.conditionalReceiverExpression;
 
     internal virtual ConsList<FieldSymbol> fieldsBeingBound => next.fieldsBeingBound;
+
+    internal virtual ImmutableArray<LocalSymbol> locals => [];
+
+    internal virtual ImmutableArray<LocalFunctionSymbol> localFunctions => [];
+
+    internal virtual ImmutableArray<LabelSymbol> labels => [];
 
     internal NamedTypeSymbol containingType => containingMember switch {
         null => null,
@@ -87,11 +93,13 @@ internal partial class Binder {
 
     internal Binder next { get; }
 
+    private protected virtual bool _inExecutableBinder => false;
+
     internal virtual Binder GetBinder(SyntaxNode node) {
         return next.GetBinder(node);
     }
 
-    internal virtual ImmutableArray<LocalVariableSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
+    internal virtual ImmutableArray<LocalSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
         return next.GetDeclaredLocalsForScope(scopeDesignator);
     }
 
@@ -366,6 +374,18 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved = null) {
         // TODO
 
+    }
+
+    #endregion
+
+    #region Expressions
+
+    internal Binder CreateBinderForParameterDefaultValue(Symbol parameter, EqualsValueClauseSyntax deafultValueSyntax) {
+        var binder = new LocalScopeBinder(
+            WithAdditionalFlagsAndContainingMember(BinderFlags.ParameterDefaultValue, parameter.containingSymbol)
+        );
+
+        return new ExecutableCodeBinder(deafultValueSyntax, parameter.containingSymbol, binder);
     }
 
     #endregion

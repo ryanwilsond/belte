@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal partial class Binder {
     [Flags]
-    internal enum ConversionForAssignmentFlags {
+    internal enum ConversionForAssignmentFlags : byte {
         None = 0,
         DefaultParameter = 1 << 0,
         RefAssignment = 1 << 1,

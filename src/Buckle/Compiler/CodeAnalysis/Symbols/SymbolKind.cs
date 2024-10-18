@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Type of symbol.
 /// </summary>
-public enum SymbolKind {
+public enum SymbolKind : byte {
     Global,
     Local,
     NamedType,

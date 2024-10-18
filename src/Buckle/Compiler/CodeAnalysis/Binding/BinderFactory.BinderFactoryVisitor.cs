@@ -29,15 +29,15 @@ internal sealed partial class BinderFactory {
             _member = null;
         }
 
-        private Compilation compilation => _factory._compilation;
+        private Compilation _compilation => _factory._compilation;
 
-        private SyntaxTree syntaxTree => _factory.syntaxTree;
+        private SyntaxTree _syntaxTree => _factory.syntaxTree;
 
-        private ConcurrentCache<BinderCacheKey, Binder> binderCache => _factory._binderCache;
+        private ConcurrentCache<BinderCacheKey, Binder> _binderCache => _factory._binderCache;
 
-        private EndBinder endBinder => _factory._endBinder;
+        private EndBinder _endBinder => _factory._endBinder;
 
-        private bool inScript => _factory.inScript;
+        private bool _inScript => _factory.inScript;
 
         internal override Binder DefaultVisit(SyntaxNode parent) {
             return ((BelteSyntaxNode)parent).parent.Accept(this);
@@ -48,22 +48,22 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitCompilationUnit(CompilationUnitSyntax node) {
-            if (node != syntaxTree.GetRoot())
+            if (node != _syntaxTree.GetRoot())
                 throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
 
-            var key = new BinderCacheKey(node, inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
+            var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
 
-            if (!binderCache.TryGetValue(key, out var result)) {
-                result = endBinder;
+            if (!_binderCache.TryGetValue(key, out var result)) {
+                result = _endBinder;
 
-                if (inScript) {
+                if (_inScript) {
                     // TODO
                 } else {
-                    var globalNamespace = compilation.globalNamespace;
+                    var globalNamespace = _compilation.globalNamespace;
                     result = new InContainerBinder(globalNamespace, result);
                 }
 
-                binderCache.TryAdd(key, result);
+                _binderCache.TryAdd(key, result);
             }
 
             return result;

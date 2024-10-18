@@ -3,7 +3,7 @@ using System;
 namespace Buckle.CodeAnalysis.Symbols;
 
 [Flags]
-internal enum CompletionParts : int {
+internal enum CompletionParts : ushort {
     None = 0,
 
     // For methods

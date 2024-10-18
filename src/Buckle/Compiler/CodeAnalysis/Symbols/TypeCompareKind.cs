@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Specifies the different kinds of comparison between types.
 /// </summary>
 [Flags]
-internal enum TypeCompareKind {
+internal enum TypeCompareKind : byte {
     ConsiderEverything = 0,
     IgnoreNullability = 1 << 0,
     IgnoreArraySizesAndLowerBounds = 1 << 1,

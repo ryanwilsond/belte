@@ -53,16 +53,22 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new EnumeratorImpl(node, Count);
     }
 
+
+    internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index) {
+        var slotData = new SlotData(node);
+        return ItemInternal(node, index, ref slotData);
+    }
+
     /// <summary>
     /// Gets the node or token at the given index from the given node. Unlike <see cref="SyntaxNode.GetNodeSlot" />,
     /// it uses the underlying node to get tokens as well.
     /// </summary>
-    internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index) {
+    internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index, ref SlotData slotData) {
         GreenNode greenChild;
         var green = node.green;
-        var idx = index;
-        var slotIndex = 0;
-        var position = node.position;
+        var idx = index - slotData.precedingOccupantSlotCount;
+        var slotIndex = slotData.slotIndex;
+        var position = slotData.positionAtSlotIndex;
 
         while (true) {
             greenChild = green.GetSlot(slotIndex);
@@ -79,6 +85,9 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
             slotIndex++;
         }
+
+        if (slotIndex != slotData.slotIndex)
+            slotData = new SlotData(slotIndex, index - idx, position);
 
         var red = node.GetNodeSlot(slotIndex);
 

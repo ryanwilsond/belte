@@ -1,7 +1,7 @@
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal enum MethodKind {
+internal enum MethodKind : byte {
     Constructor,
     Ordinary,
     Builtin,

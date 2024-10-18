@@ -10,7 +10,7 @@ internal static class BindingUtilities {
     /// <summary>
     /// Gets the root-most <see cref="VariableSymbol"/> from an assignment right hand.
     /// </summary>
-    internal static VariableSymbol GetAssignedVariableSymbol(BoundExpression expression) {
+    internal static LocalSymbol GetAssignedVariableSymbol(BoundExpression expression) {
         if (expression is BoundVariableExpression v)
             return v.variable;
         if (expression is BoundFieldAccessExpression f)
