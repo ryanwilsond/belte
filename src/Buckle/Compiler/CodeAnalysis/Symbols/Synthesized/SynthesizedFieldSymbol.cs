@@ -15,7 +15,7 @@ internal sealed class SynthesizedFieldSymbol : SynthesizedFieldSymbolBase {
         _type = new TypeWithAnnotations(type);
     }
 
-    internal override bool isRef => false;
+    internal override RefKind refKind => RefKind.None;
 
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
         return _type;

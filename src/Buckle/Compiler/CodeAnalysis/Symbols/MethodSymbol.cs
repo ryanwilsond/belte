@@ -7,97 +7,58 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A method symbol.
 /// </summary>
-internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
-    /// <summary>
-    /// Creates a <see cref="MethodSymbol" />.
-    /// </summary>
-    internal MethodSymbol(
-        string name,
-        ImmutableArray<TemplateParameterSymbol> templateParameters,
-        ImmutableArray<BoundExpression> templateConstraints,
-        ImmutableArray<ParameterSymbol> parameters,
-        TypeWithAnnotations returnType,
-        BaseMethodDeclarationSyntax declaration,
-        DeclarationModifiers modifiers,
-        Accessibility accessibility)
-        : base(name, accessibility) {
-        typeWithAnnotations = returnType;
-        this.parameters = parameters;
-        this.declaration = declaration;
-        this.modifiers = modifiers;
-        this.templateParameters = templateParameters;
-        this.templateConstraints = templateConstraints;
-    }
+internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
+    private protected MethodSymbol() { }
 
     public override SymbolKind kind => SymbolKind.Method;
 
-    public ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+    public abstract ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
-    public ImmutableArray<BoundExpression> templateConstraints { get; }
+    public abstract ImmutableArray<BoundExpression> templateConstraints { get; }
 
     public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     public abstract TemplateMap templateSubstitution { get; }
 
-    internal override bool isStatic => (modifiers & DeclarationModifiers.Static) != 0;
+    internal new virtual MethodSymbol originalDefinition => this;
 
-    internal override bool isAbstract => (modifiers & DeclarationModifiers.Abstract) != 0;
+    internal new bool isDefinition => (object)this == originalDefinition;
 
-    internal override bool isVirtual => (modifiers & DeclarationModifiers.Virtual) != 0;
+    private protected sealed override Symbol _originalSymbolDefinition => originalDefinition;
 
-    internal override bool isOverride => (modifiers & DeclarationModifiers.Override) != 0;
+    internal abstract RefKind refKind { get; }
 
-    internal override bool isSealed => false;
+    internal bool returnsByRef => refKind == RefKind.Ref;
 
-    internal DeclarationModifiers modifiers { get; }
+    internal bool returnsByRefConst => refKind == RefKind.RefConst;
 
-    internal new MethodSymbol originalDefinition => originalMethodDefinition;
+    internal abstract bool returnsVoid { get; }
 
-    internal virtual MethodSymbol originalMethodDefinition => this;
+    internal abstract TypeWithAnnotations returnTypeWithAnnotations { get; }
+
+    internal TypeSymbol returnType => returnTypeWithAnnotations.type;
 
     internal abstract MethodKind methodKind { get; }
 
-    internal override Symbol originalSymbolDefinition => originalMethodDefinition;
+    internal virtual bool requiresInstanceReceiver => !isStatic;
 
-    internal bool isConstant => (modifiers & DeclarationModifiers.Const) != 0;
+    internal abstract int arity { get; }
 
-    internal bool isLowLevel => (modifiers & DeclarationModifiers.LowLevel) != 0;
+    internal virtual int parameterCount => parameters.Length;
 
-    internal int arity => templateParameters.Length;
+    internal virtual MethodSymbol constructedFrom => this;
 
-    /// <summary>
-    /// All parameters (see <see cref="ParameterSymbol" />).
-    /// </summary>
-    internal ImmutableArray<ParameterSymbol> parameters { get; }
+    internal abstract ImmutableArray<ParameterSymbol> parameters { get; }
 
-    internal TypeWithAnnotations typeWithAnnotations { get; }
-
-    internal TypeSymbol type { get; }
+    // TODO finish this
 
     /// <summary>
     /// Declaration of method (see <see cref="BaseMethodDeclarationSyntax">).
     /// </summary>
     internal BaseMethodDeclarationSyntax declaration { get; }
 
-    /// <summary>
-    /// If the given symbol refers to this one.
-    /// </summary>
-    internal bool RefersTo(MethodSymbol symbol) {
-        if (symbol is null)
-            return false;
-
-        return GetRootMethod() == symbol.GetRootMethod();
-    }
-
-    /// <summary>
-    /// Gets the most original definition (recursively) of this method. If no explicit original definition exists,
-    /// returns this.
-    /// </summary>
-    internal MethodSymbol GetRootMethod() {
-        if (originalDefinition is null)
-            return this;
-
-        return originalDefinition.GetRootMethod();
+    internal ImmutableArray<TypeOrConstant> GetTemplateParametersAsTemplateArguments() {
+        return TemplateMap.TemplateParametersAsTypeOrConstants(templateParameters);
     }
 
     public override int GetHashCode() {

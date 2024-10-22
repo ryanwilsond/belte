@@ -20,7 +20,7 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     internal override bool isConstExpr => underlyingField.isConstExpr;
 
-    internal override bool isRef => underlyingField.isRef;
+    internal override RefKind refKind => underlyingField.refKind;
 
     internal override object constantValue => underlyingField.constantValue;
 

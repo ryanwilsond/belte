@@ -22,7 +22,7 @@ internal abstract class FieldSymbol : Symbol {
 
     internal abstract bool isConstExpr { get; }
 
-    internal abstract bool isRef { get; }
+    internal abstract RefKind refKind { get; }
 
     internal virtual bool requiresInstanceReciever => !isStatic;
 
