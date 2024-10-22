@@ -1,20 +1,24 @@
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SubstitutedErrorTypeSymbol : ErrorTypeSymbol {
+    private readonly ErrorTypeSymbol _originalDefinition;
     private int _hashCode;
 
     private protected SubstitutedErrorTypeSymbol(ErrorTypeSymbol originalDefinition) {
-        this.originalDefinition = originalDefinition;
+        _originalDefinition = originalDefinition;
     }
 
-    public override string name => (originalDefinition as ErrorTypeSymbol).name;
+    public override string name => _originalDefinition.name;
 
-    internal override NamedTypeSymbol originalDefinition { get; }
+    internal override NamedTypeSymbol originalDefinition => _originalDefinition;
 
-    internal override int arity => originalDefinition.arity;
+    internal override int arity => _originalDefinition.arity;
 
-    internal override bool mangleName => originalDefinition.mangleName;
+    internal override bool mangleName => _originalDefinition.mangleName;
+
+    internal override DiagnosticInfo errorInfo => _originalDefinition.errorInfo;
 
     public override int GetHashCode() {
         if (_hashCode == 0)

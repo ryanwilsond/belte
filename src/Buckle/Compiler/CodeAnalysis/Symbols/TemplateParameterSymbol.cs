@@ -4,9 +4,6 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-/// <summary>
-/// A type wrapper of a template parameter replaced after the template is created.
-/// </summary>
 internal abstract class TemplateParameterSymbol : TypeSymbol {
     public sealed override SymbolKind kind => SymbolKind.TemplateParameter;
 

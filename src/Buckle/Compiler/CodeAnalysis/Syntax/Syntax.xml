@@ -60,10 +60,7 @@
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
-    <Field Name="equals" Type="SyntaxToken" Optional="true">
-      <Kind Name="EqualsToken"/>
-    </Field>
-    <Field Name="defaultValue" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="defaultValue" Type="EqualsValueClauseSyntax" Optional="true"/>
   </Node>
   <Node Name="TemplateArgumentListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateArgumentList"/>

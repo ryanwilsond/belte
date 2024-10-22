@@ -388,5 +388,36 @@ internal partial class Binder {
         return new ExecutableCodeBinder(deafultValueSyntax, parameter.containingSymbol, binder);
     }
 
+    internal BoundParameterEqualsValue BindParameterDefaultValue(
+        EqualsValueClauseSyntax defaultValueSyntax,
+        Symbol parameter,
+        BelteDiagnosticQueue diagnostics,
+        out BoundExpression valueBeforeConversion) {
+        var defaultValueBinder = GetBinder(defaultValueSyntax);
+        valueBeforeConversion = defaultValueBinder.BindValue(
+            defaultValueSyntax.value,
+            diagnostics,
+            BindValueKind.RValue
+        );
+
+        var parameterType = parameter is ParameterSymbol p
+            ? p.type
+            : (parameter as TemplateParameterSymbol).underlyingType.type;
+
+        var result = new BoundParameterEqualsValue(
+            defaultValueSyntax,
+            parameter,
+            defaultValueBinder.GetDeclaredLocalsForScope(defaultValueSyntax),
+            defaultValueBinder.GenerateConversionForAssignment(
+                parameterType,
+                valueBeforeConversion,
+                diagnostics,
+                ConversionForAssignmentFlags.DefaultParameter
+            )
+        );
+
+        return result;
+    }
+
     #endregion
 }

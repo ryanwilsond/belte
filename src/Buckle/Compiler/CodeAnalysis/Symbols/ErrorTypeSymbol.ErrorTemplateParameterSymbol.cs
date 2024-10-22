@@ -28,6 +28,14 @@ internal abstract partial class ErrorTypeSymbol {
 
         internal override ConstantValue defaultValue => null;
 
+        internal override bool hasObjectTypeConstraint => false;
+
+        internal override bool hasPrimitiveTypeConstraint => false;
+
+        internal override bool isObjectTypeFromConstraintTypes => false;
+
+        internal override bool isPrimitiveTypeFromConstraintTypes => false;
+
         internal override void EnsureConstraintsAreResolved() { }
 
         internal override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(

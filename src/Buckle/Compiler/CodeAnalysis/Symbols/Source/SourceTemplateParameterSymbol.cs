@@ -11,7 +11,8 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
         SourceNamedTypeSymbol owner,
         string name,
         int ordinal,
-        SyntaxReference syntaxReference) : base(name, ordinal, syntaxReference) {
+        SyntaxReference syntaxReference)
+        : base(name, ordinal, syntaxReference) {
         _owner = owner;
     }
 

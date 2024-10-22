@@ -676,16 +676,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ParameterSyntax ParseParameter() {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
+        var defaultValue = currentToken.kind == SyntaxKind.EqualsToken
+            ? ParseEqualsValueClause(false)
+            : null;
 
-        SyntaxToken equals = null;
-        ExpressionSyntax defaultValue = null;
-
-        if (currentToken.kind == SyntaxKind.EqualsToken) {
-            equals = EatToken();
-            defaultValue = ParseNonAssignmentExpression();
-        }
-
-        return SyntaxFactory.Parameter(type, identifier, equals, defaultValue);
+        return SyntaxFactory.Parameter(type, identifier, defaultValue);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {

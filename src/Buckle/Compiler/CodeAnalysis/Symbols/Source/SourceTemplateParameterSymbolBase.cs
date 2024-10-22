@@ -114,7 +114,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics);
 
-    private NamedTypeSymbol GetDefaultBaseType() {
+    private static NamedTypeSymbol GetDefaultBaseType() {
         return CorLibrary.GetSpecialType(SpecialType.Object);
     }
 
@@ -190,6 +190,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             }
         }
 
+        // TODO Error checking, i.e. "must be compile-time constant"
         return convertedExpression.constantValue;
     }
 
