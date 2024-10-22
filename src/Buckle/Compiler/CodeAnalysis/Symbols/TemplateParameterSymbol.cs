@@ -9,7 +9,7 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal sealed override TypeKind typeKind => TypeKind.TemplateParameter;
 
-    internal sealed override Accessibility accessibility => Accessibility.NotApplicable;
+    internal sealed override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal sealed override NamedTypeSymbol baseType => null;
 

@@ -18,7 +18,7 @@ internal abstract class LabelSymbol : Symbol {
 
     internal override bool isVirtual => false;
 
-    internal override Accessibility accessibility => Accessibility.NotApplicable;
+    internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal virtual SyntaxNodeOrToken identifierNodeOrToken => default;
 

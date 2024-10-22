@@ -15,7 +15,7 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
 
     internal override int arity => underlyingNamedType.arity;
 
-    internal override Accessibility accessibility => underlyingNamedType.accessibility;
+    internal override Accessibility declaredAccessibility => underlyingNamedType.declaredAccessibility;
 
     internal override TypeKind typeKind => underlyingNamedType.typeKind;
 

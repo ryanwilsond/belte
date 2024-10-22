@@ -61,4 +61,15 @@ internal abstract class FieldSymbol : Symbol {
     internal virtual FieldSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition ? this : new SubstitutedFieldSymbol(newOwner as SubstitutedNamedTypeSymbol, this);
     }
+
+    internal override bool Equals(Symbol other, TypeCompareKind compareKind) {
+        if (other is SubstitutedFieldSymbol sfs)
+            return sfs.Equals(this, compareKind);
+
+        return base.Equals(other, compareKind);
+    }
+
+    public override int GetHashCode() {
+        return base.GetHashCode();
+    }
 }

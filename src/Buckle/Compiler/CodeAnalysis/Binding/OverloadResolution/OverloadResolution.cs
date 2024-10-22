@@ -221,12 +221,12 @@ internal sealed class OverloadResolution {
 
                 if (receiverType is not null) {
                     foreach (var overload in possibleOverloads) {
-                        if (overload.accessibility == Accessibility.Public) {
+                        if (overload.declaredAccessibility == Accessibility.Public) {
                             tempPossibleOverloads.Add(overload);
-                        } else if (overload.accessibility == Accessibility.Protected &&
+                        } else if (overload.declaredAccessibility == Accessibility.Protected &&
                             TypeUtilities.TypeInheritsFrom(receiverType.typeSymbol, overload.containingType)) {
                             tempPossibleOverloads.Add(overload);
-                        } else if (overload.accessibility == Accessibility.Private && receiverType.typeSymbol == overload.containingType) {
+                        } else if (overload.declaredAccessibility == Accessibility.Private && receiverType.typeSymbol == overload.containingType) {
                             tempPossibleOverloads.Add(overload);
                         }
                     }

@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -69,6 +70,35 @@ public sealed class Compilation {
         params SyntaxTree[] syntaxTrees) {
         options.isScript = true;
         return Create(options, previous, syntaxTrees);
+    }
+
+    internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
+        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
+
+        if (comparison != 0)
+            return comparison;
+
+        return syntax1.span.start - syntax2.span.start;
+    }
+
+    internal int CompareSourceLocations(
+        SyntaxReference syntax1,
+        TextLocation location1,
+        SyntaxReference syntax2,
+        TextLocation location2) {
+        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
+
+        if (comparison != 0)
+            return comparison;
+
+        return location1.span.start - location2.span.start;
+    }
+
+    internal int CompareSyntaxTreeOrdering(SyntaxTree tree1, SyntaxTree tree2) {
+        if (tree1 == tree2)
+            return 0;
+
+        return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {

@@ -75,7 +75,7 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         return [];
     }
 
-    internal override Accessibility accessibility => Accessibility.NotApplicable;
+    internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal override bool isStatic => false;
 

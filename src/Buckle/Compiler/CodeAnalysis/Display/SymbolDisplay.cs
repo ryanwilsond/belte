@@ -182,13 +182,13 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
-        if (symbol.accessibility == Accessibility.Public) {
+        if (symbol.declaredAccessibility == Accessibility.Public) {
             text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
             text.Write(CreateSpace());
-        } else if (symbol.accessibility == Accessibility.Protected) {
+        } else if (symbol.declaredAccessibility == Accessibility.Protected) {
             text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
             text.Write(CreateSpace());
-        } else if (symbol.accessibility == Accessibility.Private) {
+        } else if (symbol.declaredAccessibility == Accessibility.Private) {
             text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
             text.Write(CreateSpace());
         }

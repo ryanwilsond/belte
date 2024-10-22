@@ -268,7 +268,7 @@ internal sealed class CSharpEmitter {
     private string GetModifiers(Symbol symbol) {
         var modifiers = new StringBuilder();
 
-        switch (symbol.accessibility) {
+        switch (symbol.declaredAccessibility) {
             case Accessibility.Public:
             case Accessibility.NotApplicable when symbol is NamedTypeSymbol:
                 modifiers.Append("public ");

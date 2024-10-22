@@ -49,7 +49,7 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol constructedFrom => this;
 
-    internal sealed override Accessibility accessibility => Accessibility.NotApplicable;
+    internal sealed override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal sealed override bool isStatic => false;
 

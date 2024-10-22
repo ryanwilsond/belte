@@ -1,9 +1,11 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Buckle.CodeAnalysis;
 
-internal static class IEnumerableExtensions {
+internal static partial class IEnumerableExtensions {
     internal static bool IsEmpty<T>(this IEnumerable<T> source) {
         if (source is IReadOnlyCollection<T> readOnlyCollection)
             return readOnlyCollection.Count == 0;
@@ -21,5 +23,13 @@ internal static class IEnumerableExtensions {
             return false;
 
         return true;
+    }
+
+    internal static IOrderedEnumerable<T> OrderByDescending<T>(this IEnumerable<T> source, IComparer<T>? comparer) {
+        return source.OrderByDescending(Functions<T>.Identity, comparer);
+    }
+
+    internal static IOrderedEnumerable<T> OrderByDescending<T>(this IEnumerable<T> source, Comparison<T> compare) {
+        return source.OrderByDescending(Comparer<T>.Create(compare));
     }
 }

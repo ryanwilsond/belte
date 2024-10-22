@@ -5,7 +5,11 @@ namespace Buckle.CodeAnalysis;
 /// <summary>
 /// Constant value at compile time.
 /// </summary>
-internal sealed class ConstantValue {
+internal partial class ConstantValue {
+    internal static ConstantValue Unset => ConstantValueNull.Uninitialized;
+
+    private protected ConstantValue() { }
+
     internal ConstantValue(object value) {
         this.value = value;
     }

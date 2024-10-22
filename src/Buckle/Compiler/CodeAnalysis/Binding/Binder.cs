@@ -161,7 +161,7 @@ internal partial class Binder {
                 if (!symbol.isStatic)
                     throughType = null;
 
-                return IsMemberAccessible(symbol.containingType, symbol.accessibility, within, throughType, out failedThroughTypeCheck);
+                return IsMemberAccessible(symbol.containingType, symbol.declaredAccessibility, within, throughType, out failedThroughTypeCheck);
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
@@ -269,7 +269,7 @@ internal partial class Binder {
 
     private static bool IsNamedTypeAccessible(NamedTypeSymbol type, Symbol within) {
         return type.containingType is null
-            || IsMemberAccessible(type.containingType, type.accessibility, within, null, out _);
+            || IsMemberAccessible(type.containingType, type.declaredAccessibility, within, null, out _);
     }
 
     #endregion

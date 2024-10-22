@@ -22,7 +22,7 @@ internal abstract class Symbol : ISymbol {
     /// <summary>
     /// The accessibility/protection level of the symbol.
     /// </summary> <summary>
-    internal abstract Accessibility accessibility { get; }
+    internal abstract Accessibility declaredAccessibility { get; }
 
     internal abstract Symbol containingSymbol { get; }
 
@@ -39,6 +39,8 @@ internal abstract class Symbol : ISymbol {
             return containingSymbol.containingType;
         }
     }
+
+    internal virtual bool requiresCompletion => false;
 
     internal virtual bool isImplicitlyDeclared => false;
 

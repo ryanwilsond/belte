@@ -96,9 +96,9 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
         return typeKind switch {
-            TypeKind.Class or TypeKind.Struct => symbol.accessibility switch {
-                Accessibility.Public => accessibility is Accessibility.Public,
-                Accessibility.Protected => accessibility is Accessibility.Public or Accessibility.Protected,
+            TypeKind.Class or TypeKind.Struct => symbol.declaredAccessibility switch {
+                Accessibility.Public => declaredAccessibility is Accessibility.Public,
+                Accessibility.Protected => declaredAccessibility is Accessibility.Public or Accessibility.Protected,
                 _ => true,
             },
             _ => true,

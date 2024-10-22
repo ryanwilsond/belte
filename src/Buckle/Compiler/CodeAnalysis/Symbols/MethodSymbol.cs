@@ -110,7 +110,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             hash = hash * 23 + parameters.GetHashCode();
             hash = hash * 23 + type.GetHashCode();
             hash = hash * 23 + name.GetHashCode();
-            hash = hash * 23 + accessibility.GetHashCode();
+            hash = hash * 23 + declaredAccessibility.GetHashCode();
             hash = hash * 23 + (originalDefinition is null ? 0 : originalDefinition.GetHashCode());
             hash = hash * 23 + (declaration is null ? 0 : declaration.GetHashCode());
 

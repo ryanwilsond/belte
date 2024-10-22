@@ -56,7 +56,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         var containingType = this.containingType;
 
-        if (containingType?.isSealed == true && accessibility.HasFlag(Accessibility.Protected)) {
+        if (containingType?.isSealed == true && declaredAccessibility.HasFlag(Accessibility.Protected)) {
             var protectedModifierIndex = declaration.modifiers.IndexOf(SyntaxKind.ProtectedKeyword);
             var protectedModifier = declaration.modifiers[protectedModifierIndex];
             diagnostics.Push(Warning.ProtectedMemberInSealedType(protectedModifier.location, containingSymbol, this));
@@ -67,8 +67,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     public override string name { get; }
 
-    internal override int arity { get; }
-
     internal sealed override bool mangleName => arity > 0;
 
     internal sealed override bool isStatic => HasFlag(DeclarationModifiers.Static);
@@ -77,9 +75,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override bool isSealed => HasFlag(DeclarationModifiers.Sealed);
 
+    internal sealed override bool requiresCompletion => true;
+
+    internal sealed override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+
     internal bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel);
 
-    internal sealed override Accessibility accessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+    internal override int arity { get; }
 
     internal override Symbol containingSymbol { get; }
 
@@ -296,13 +298,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private Accessibility EffectiveAccessibility() {
-        var result = accessibility;
+        var result = declaredAccessibility;
 
         if (result == Accessibility.Private)
             return Accessibility.Private;
 
         for (var container = containingType; container is not null; container = container.containingType) {
-            if (container.accessibility == Accessibility.Private)
+            if (container.declaredAccessibility == Accessibility.Private)
                 return Accessibility.Private;
         }
 

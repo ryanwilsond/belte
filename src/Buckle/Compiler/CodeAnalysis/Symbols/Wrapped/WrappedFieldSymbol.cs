@@ -12,7 +12,7 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     internal FieldSymbol underlyingField { get; }
 
-    internal override Accessibility accessibility => underlyingField.accessibility;
+    internal override Accessibility declaredAccessibility => underlyingField.declaredAccessibility;
 
     internal override bool isImplicitlyDeclared => underlyingField.isImplicitlyDeclared;
 

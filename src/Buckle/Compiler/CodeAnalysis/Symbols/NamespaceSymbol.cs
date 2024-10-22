@@ -23,7 +23,7 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol {
 
     internal sealed override bool isSealed => false;
 
-    internal sealed override Accessibility accessibility => Accessibility.Public;
+    internal sealed override Accessibility declaredAccessibility => Accessibility.Public;
 
     internal abstract NamespaceExtent extent { get; }
 

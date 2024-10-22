@@ -1,5 +1,5 @@
-
 using System.Threading;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -37,20 +37,15 @@ internal sealed class SubstitutedFieldSymbol : WrappedFieldSymbol {
 
         return obj is FieldSymbol other &&
             TypeSymbol.Equals(_containingType, other.containingType, compareKind) &&
-                originalDefinition == other.originalDefinition;
+            originalDefinition == other.originalDefinition;
     }
 
     public override int GetHashCode() {
-        var code = this.OriginalDefinition.GetHashCode();
-
-        // If the containing type of the original definition is the same as our containing type
-        // it's possible that we will compare equal to the original definition under certain conditions
-        // (e.g, ignoring nullability) and want to retain the same hashcode. As such only make
-        // the containing type part of the hashcode when we know equality isn't possible
+        var code = originalDefinition.GetHashCode();
         var containingHashCode = _containingType.GetHashCode();
-        if (containingHashCode != this.OriginalDefinition.ContainingType.GetHashCode()) {
+
+        if (containingHashCode != originalDefinition.containingType.GetHashCode())
             code = Hash.Combine(containingHashCode, code);
-        }
 
         return code;
     }

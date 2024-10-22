@@ -33,7 +33,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
 
     internal abstract NamedTypeSymbol constructedFrom { get; }
 
-    internal abstract override Accessibility accessibility { get; }
+    internal abstract override Accessibility declaredAccessibility { get; }
 
     internal abstract int arity { get; }
 
