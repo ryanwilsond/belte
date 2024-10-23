@@ -94,7 +94,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, ITypeSymbolWithMembers, IS
         if (templateArguments.Length != arity)
             throw new ArgumentException("Wrong number of template arguments", nameof(templateArguments));
 
-        if (ConstructedNamedTypeSymbol.TypeParametersMatchTypeArguments(templateParameters, templateArguments))
+        if (ConstructedNamedTypeSymbol.TemplateParametersMatchTemplateArguments(templateParameters, templateArguments))
             return this;
 
         return ConstructCore(templateArguments, unbound);

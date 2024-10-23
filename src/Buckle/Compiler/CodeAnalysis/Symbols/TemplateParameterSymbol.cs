@@ -33,7 +33,7 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract bool isObjectTypeFromConstraintTypes { get; }
 
-    internal abstract ConstantValue defaultValue { get; }
+    internal abstract TypeOrConstant defaultValue { get; }
 
     internal new virtual TemplateParameterSymbol originalDefinition => this;
 

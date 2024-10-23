@@ -59,8 +59,7 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
         if (constraintTypes.IsEmpty && GetConstraintKinds() == TypeParameterConstraintKinds.None)
             return null;
 
-        return ConstraintsHelpers.ResolveBounds(
-            this,
+        return this.ResolveBounds(
             inProgress.Prepend(this),
             constraintTypes,
             false,

@@ -37,7 +37,7 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
         }
 
         var order = ArrayBuilder<ConstantEvaluationHelpers.FieldInfo>.GetInstance();
-        ConstantEvaluationHelpers.OrderAllDependencies(this, order);
+        this.OrderAllDependencies(order);
 
         foreach (var info in order) {
             var field = info.field;
@@ -84,7 +84,9 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
         if (startsCycle)
-            diagnostics.Add(ErrorCode.ERR_CircConstValue, syntaxReference.location, this);
+            // TODO Add this error once confirmed this actually happens
+            // diagnostics.Add(ErrorCode.ERR_CircConstValue, syntaxReference.location, this);
+            ;
 
         var value = MakeConstantValue(builder, diagnostics);
         SetLazyConstantValue(

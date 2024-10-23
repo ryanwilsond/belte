@@ -29,7 +29,7 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
 
     internal override TypeWithAnnotations underlyingType => underlyingTemplateParameter.underlyingType;
 
-    internal override ConstantValue defaultValue => underlyingTemplateParameter.defaultValue;
+    internal override TypeOrConstant defaultValue => underlyingTemplateParameter.defaultValue;
 
     internal override SyntaxReference syntaxReference => underlyingTemplateParameter.syntaxReference;
 

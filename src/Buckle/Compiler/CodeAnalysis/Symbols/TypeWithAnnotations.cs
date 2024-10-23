@@ -31,25 +31,29 @@ internal sealed class TypeWithAnnotations {
         return type.IsNullableType();
     }
 
+    internal bool IsVoidType() {
+        return type.IsVoidType();
+    }
+
     internal TypeOrConstant SubstituteType(TemplateMap templateMap) {
         var typeSymbol = type;
         var newType = templateMap.SubstituteType(typeSymbol).type;
 
-        if (typeSymbol.typeKind != TypeKind.TemplateParameter) {
+        if (!typeSymbol.IsTemplateParameter()) {
             if (typeSymbol.Equals(newType.type, TypeCompareKind.ConsiderEverything))
                 return new TypeOrConstant(this);
             else if (typeSymbol.IsNullableType() && isNullable)
                 return new TypeOrConstant(newType);
 
-            return new TypeOrConstant(new TypeWithAnnotations(newType.type, isNullable));
+            return new TypeOrConstant(newType.type, isNullable);
         }
 
-        if (newType.type.Equals(typeSymbol))
+        if ((object)newType == (TemplateParameterSymbol)typeSymbol)
             return new TypeOrConstant(this);
-        else if (type.Equals(typeSymbol))
+        else if ((object)this == (TemplateParameterSymbol)typeSymbol)
             return new TypeOrConstant(newType);
 
-        return new TypeOrConstant(new TypeWithAnnotations(newType.type, isNullable || newType.isNullable));
+        return new TypeOrConstant(newType.type, isNullable || newType.isNullable);
     }
 
     public string ToDisplayString(SymbolDisplayFormat format = null) {

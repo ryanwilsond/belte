@@ -6,4 +6,5 @@ internal enum MethodKind : byte {
     Ordinary,
     Builtin,
     LocalFunction,
+    Operator,
 }

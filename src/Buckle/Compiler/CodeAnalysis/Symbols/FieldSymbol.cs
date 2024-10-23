@@ -24,7 +24,7 @@ internal abstract class FieldSymbol : Symbol {
 
     internal abstract RefKind refKind { get; }
 
-    internal virtual bool requiresInstanceReciever => !isStatic;
+    internal virtual bool requiresInstanceReceiver => !isStatic;
 
     internal sealed override bool isAbstract => false;
 

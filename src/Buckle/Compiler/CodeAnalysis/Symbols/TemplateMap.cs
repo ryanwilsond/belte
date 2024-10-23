@@ -77,7 +77,7 @@ internal sealed class TemplateMap {
                 break;
         }
 
-        return new TypeOrConstant(new TypeWithAnnotations(result));
+        return new TypeOrConstant(result);
     }
 
     internal TypeOrConstant SubstituteType(TypeWithAnnotations previous) {
@@ -196,7 +196,7 @@ internal sealed class TemplateMap {
                 ? new SynthesizedSubstitutedTemplateParameterSymbol(newOwner, result, templateParameter, ordinal)
                 : new SubstitutedTemplateParameterSymbol(newOwner, result, templateParameter, ordinal);
 
-            result._mapping.Add(templateParameter, new TypeOrConstant(new TypeWithAnnotations(newTemplateParameter)));
+            result._mapping.Add(templateParameter, new TypeOrConstant(newTemplateParameter));
             newTypeParametersBuilder.Add(newTemplateParameter);
             ordinal++;
         }
@@ -207,6 +207,6 @@ internal sealed class TemplateMap {
 
     internal static ImmutableArray<TypeOrConstant> TemplateParametersAsTypeOrConstants(
         ImmutableArray<TemplateParameterSymbol> templateParameters) {
-        return templateParameters.SelectAsArray(static (tp) => new TypeOrConstant(new TypeWithAnnotations(tp)));
+        return templateParameters.SelectAsArray(static (tp) => new TypeOrConstant(tp));
     }
 }

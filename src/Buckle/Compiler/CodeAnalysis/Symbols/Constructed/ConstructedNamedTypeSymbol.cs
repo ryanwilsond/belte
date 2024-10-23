@@ -18,8 +18,7 @@ internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
             ),
             constructedFrom.originalDefinition,
             constructedFrom,
-            isUnboundTemplateType
-        ) {
+            isUnboundTemplateType) {
         this.templateArguments = templateArguments;
         this.constructedFrom = constructedFrom;
     }
@@ -30,7 +29,7 @@ internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
 
     internal override NamedTypeSymbol constructedFrom { get; }
 
-    internal static bool TypeParametersMatchTypeArguments(
+    internal static bool TemplateParametersMatchTemplateArguments(
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<TypeOrConstant> templateArguments) {
         var n = templateParameters.Length;

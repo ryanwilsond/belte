@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -136,6 +137,85 @@ internal abstract class Symbol : ISymbol {
     internal LexicalSortKey GetLexicalSortKey() {
         var declaringCompilation = this.declaringCompilation;
         return new LexicalSortKey(syntaxReference, declaringCompilation);
+    }
+
+    internal int GetMemberArity() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).arity,
+            SymbolKind.NamedType or SymbolKind.ErrorType => ((NamedTypeSymbol)this).arity,
+            _ => 0,
+        };
+    }
+
+    internal ImmutableArray<TemplateParameterSymbol> GetMemberTemplateParameters() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).templateParameters,
+            SymbolKind.NamedType or SymbolKind.ErrorType => ((NamedTypeSymbol)this).templateParameters,
+            SymbolKind.Field => [],
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
+    internal int GetParameterCount() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameterCount,
+            SymbolKind.Field => 0,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
+    internal ImmutableArray<ParameterSymbol> GetParameters() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameters,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
+    internal TypeWithAnnotations GetTypeOrReturnType() {
+        GetTypeOrReturnType(out _, out var returnType);
+        return returnType;
+    }
+
+    internal void GetTypeOrReturnType(
+        out RefKind refKind,
+        out TypeWithAnnotations returnType) {
+        switch (kind) {
+            case SymbolKind.Field:
+                var field = (FieldSymbol)this;
+                // TODO Why is this None?
+                refKind = RefKind.None;
+                returnType = field.typeWithAnnotations;
+                break;
+            case SymbolKind.Method:
+                var method = (MethodSymbol)this;
+                refKind = method.refKind;
+                returnType = method.returnTypeWithAnnotations;
+                break;
+            case SymbolKind.Local:
+                var local = (LocalSymbol)this;
+                refKind = local.refKind;
+                returnType = local.typeWithAnnotations;
+                break;
+            case SymbolKind.Parameter:
+                var parameter = (ParameterSymbol)this;
+                refKind = parameter.refKind;
+                returnType = parameter.typeWithAnnotations;
+                break;
+            case SymbolKind.ErrorType:
+                refKind = RefKind.None;
+                returnType = new TypeWithAnnotations((TypeSymbol)this);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
+    }
+
+    internal bool RequiresInstanceReceiver() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).requiresInstanceReceiver,
+            SymbolKind.Field => ((FieldSymbol)this).requiresInstanceReceiver,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind)
+        };
     }
 
     internal Symbol SymbolAsMember(NamedTypeSymbol newOwner) {

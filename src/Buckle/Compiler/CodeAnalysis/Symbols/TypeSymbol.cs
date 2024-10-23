@@ -94,6 +94,19 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return typeKind == TypeKind.Struct;
     }
 
+    internal bool IsTemplateParameter() {
+        return typeKind == TypeKind.TemplateParameter;
+    }
+
+    internal bool IsPrimitiveType() {
+        return specialType.IsPrimitiveType();
+    }
+
+    internal bool IsVoidType() {
+        // TODO Use originalDefinition here?
+        return specialType == SpecialType.Void;
+    }
+
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
         return typeKind switch {
             TypeKind.Class or TypeKind.Struct => symbol.declaredAccessibility switch {
