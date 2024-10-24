@@ -265,12 +265,12 @@ internal partial class Binder {
 
     #region Expressions
 
-    internal Binder CreateBinderForParameterDefaultValue(Symbol parameter, EqualsValueClauseSyntax deafultValueSyntax) {
+    internal Binder CreateBinderForParameterDefaultValue(Symbol parameter, EqualsValueClauseSyntax defaultValueSyntax) {
         var binder = new LocalScopeBinder(
             WithAdditionalFlagsAndContainingMember(BinderFlags.ParameterDefaultValue, parameter.containingSymbol)
         );
 
-        return new ExecutableCodeBinder(deafultValueSyntax, parameter.containingSymbol, binder);
+        return new ExecutableCodeBinder(defaultValueSyntax, parameter.containingSymbol, binder);
     }
 
     internal BoundParameterEqualsValue BindParameterDefaultValue(

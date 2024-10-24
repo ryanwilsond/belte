@@ -43,7 +43,8 @@ internal enum CompletionParts : ushort {
     // For complex parameters
     StartDefaultSyntaxValue = 1 << 6,
     EndDefaultSyntaxValue = 1 << 7,
-    ComplexParameterSymbolAll = StartDefaultSyntaxValue | EndDefaultSyntaxValue,
+    EndDefaultSyntaxValueDiagnostics = 1 << 13,
+    ComplexParameterSymbolAll = StartDefaultSyntaxValue | EndDefaultSyntaxValue | EndDefaultSyntaxValueDiagnostics,
 
     // For template parameters
     TemplateParameterConstraints = 1 << 8,

@@ -12,7 +12,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
     private SymbolCompletionState _state;
     private TypeWithAnnotations _lazyUnderlyingType;
-    private ConstantValue _lazyDefaultValue;
+    private TypeOrConstant _lazyDefaultValue;
 
     private protected SourceTemplateParameterSymbolBase(
         string name,
@@ -42,7 +42,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         }
     }
 
-    internal sealed override ConstantValue defaultValue {
+    internal sealed override TypeOrConstant defaultValue {
         get {
             if (_state.NotePartComplete(CompletionParts.StartDefaultSyntaxValue)) {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
@@ -154,7 +154,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         return binder.BindType(syntax.type, diagnostics);
     }
 
-    private ConstantValue MakeDefaultValue(BelteDiagnosticQueue diagnostics) {
+    private TypeOrConstant MakeDefaultValue(BelteDiagnosticQueue diagnostics) {
         var syntax = (ParameterSyntax)syntaxReference.node;
 
         if (syntax.defaultValue is null)
@@ -191,7 +191,12 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         }
 
         // TODO Error checking, i.e. "must be compile-time constant"
-        return convertedExpression.constantValue;
+        var constant = convertedExpression.constantValue;
+
+        if (constant is not null)
+            return new TypeOrConstant(constant);
+
+        return new TypeOrConstant((convertedExpression as BoundTypeExpression).type);
     }
 
     private Binder GetDefaultValueBinder(SyntaxNode syntax) {
