@@ -16,7 +16,11 @@ internal struct SymbolCompletionState {
         }
     }
 
-    internal bool HasComplete(CompletionParts part) {
+    internal void DefaultForceComplete() {
+        NotePartComplete(CompletionParts.All);
+    }
+
+    internal readonly bool HasComplete(CompletionParts part) {
         return (_completeParts & (int)part) == (int)part;
     }
 
@@ -28,7 +32,7 @@ internal struct SymbolCompletionState {
         return (bits & (bits - 1)) == 0;
     }
 
-    internal void SpinWaitComplete(CompletionParts part) {
+    internal readonly void SpinWaitComplete(CompletionParts part) {
         if (HasComplete(part))
             return;
 
