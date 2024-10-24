@@ -15,7 +15,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)
     /// </summary>
     public DiagnosticQueue() {
-        _diagnostics = new List<T>();
+        _diagnostics = [];
     }
 
     /// <summary>
@@ -53,12 +53,21 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     public Diagnostic[] ToArray() => _diagnostics.ToArray();
 
     /// <summary>
-    /// Checks if any Diagnostics of given type.
+    /// Checks if the queue contains any Diagnostics of the given severity.
     /// </summary>
-    /// <param name="type">Type to check for, ignores all other Diagnostics.</param>
-    /// <returns>If any Diagnostics of type.</returns>
-    public bool Any(DiagnosticSeverity type) {
-        return _diagnostics.Where(d => d.info.severity == type).Any();
+    /// <param name="severity">The severity to look for.</param>
+    /// <returns>If any were found.</returns>
+    public bool Any(DiagnosticSeverity severity) {
+        return _diagnostics.Any(d => d.info.severity == severity);
+    }
+
+    /// <summary>
+    /// Checks if the queue contains any Diagnostics of the given severity or higher.
+    /// </summary>
+    /// <param name="severity">The minimum severity to look for.</param>
+    /// <returns>If any were found.</returns>
+    public bool AnyAbove(DiagnosticSeverity severity) {
+        return _diagnostics.Any(d => (int)d.info.severity >= (int)severity);
     }
 
     /// <summary>

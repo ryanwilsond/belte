@@ -185,6 +185,16 @@ internal static class ConstraintsHelpers {
         return constraintClauses;
     }
 
+    internal static void CheckAllConstraints(
+        this TypeSymbol type,
+        Compilation compilation,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics) {
+        // var boxedArgs = CheckConstraintsArgsBoxed.Allocate(compilation, includeNullability: false, NoLocation.Singleton, diagnostics);
+        // type.CheckAllConstraints(boxedArgs);
+        // TODO
+    }
+
     private static bool IsEncompassedBy(TypeSymbol a, TypeSymbol b) {
         return Conversion.HasIdentityOrImplicitConversion(a, b) || Conversion.HasBoxingConversion(a, b);
     }

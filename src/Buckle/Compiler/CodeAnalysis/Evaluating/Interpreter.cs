@@ -55,7 +55,7 @@ internal sealed class Interpreter {
             result = previous.Evaluate(variables, abort);
 
             // ? If any diagnostics are found, we quit early. Is this what we want though?
-            if (result.diagnostics.Errors().Any())
+            if (result.diagnostics.AnyErrors())
                 break;
         }
 

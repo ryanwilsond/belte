@@ -117,7 +117,7 @@ public sealed class Compiler {
 
             diagnostics.Move(compilation.diagnostics);
 
-            if (diagnostics.Errors().Any())
+            if (diagnostics.AnyErrors())
                 return;
 
             if (state.noOut)

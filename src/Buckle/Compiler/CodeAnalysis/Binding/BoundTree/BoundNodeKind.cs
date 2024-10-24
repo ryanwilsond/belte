@@ -48,10 +48,11 @@ internal enum BoundNodeKind : byte {
     TryStatement,
     ReturnStatement,
     NopStatement,
-    FieldDeclarationStatement,
     BreakStatement,
     ContinueStatement,
 
     VariableDeclaration,
+    FieldEqualsValue,
+    ParameterEqualsValue,
     MethodGroup,
 }

@@ -176,7 +176,7 @@ internal sealed class OverloadResolution {
                 }
             }
 
-            if (methods.Length == 1 && _binder.diagnostics.Errors().Any()) {
+            if (methods.Length == 1 && _binder.diagnostics.AnyErrors()) {
                 CleanUpDiagnostics(methods, tempDiagnostics);
                 return OverloadResolutionResult<MethodSymbol>.Failed();
             }
@@ -396,7 +396,7 @@ internal sealed class OverloadResolution {
                 );
             }
 
-            if (symbols.Length == 1 && _binder.diagnostics.Errors().Any()) {
+            if (symbols.Length == 1 && _binder.diagnostics.AnyErrors()) {
                 CleanUpDiagnostics(symbols, tempDiagnostics);
                 return OverloadResolutionResult<ISymbolWithTemplates>.Failed();
             }

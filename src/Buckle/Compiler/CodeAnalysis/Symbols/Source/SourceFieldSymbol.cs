@@ -19,7 +19,7 @@ internal abstract class SourceFieldSymbol : FieldSymbolWithModifiers {
 
     internal bool isNew => (_modifiers & DeclarationModifiers.New) != 0;
 
-    private protected void CheckAcccessibility(BelteDiagnosticQueue diagnostics) {
+    private protected void CheckAccessibility(BelteDiagnosticQueue diagnostics) {
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, errorLocation);
     }
 

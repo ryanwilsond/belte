@@ -290,7 +290,6 @@ internal partial class Binder {
             : (parameter as TemplateParameterSymbol).underlyingType.type;
 
         var result = new BoundParameterEqualsValue(
-            defaultValueSyntax,
             parameter,
             defaultValueBinder.GetDeclaredLocalsForScope(defaultValueSyntax),
             defaultValueBinder.GenerateConversionForAssignment(
@@ -302,6 +301,24 @@ internal partial class Binder {
         );
 
         return result;
+    }
+
+    internal BoundFieldEqualsValue BindFieldInitializer(
+        FieldSymbol field,
+        EqualsValueClauseSyntax initializer,
+        BelteDiagnosticQueue diagnostics) {
+        if (initializer is null)
+            return null;
+
+        var initializerBinder = GetBinder(initializer);
+        var result = initializerBinder.BindVariableOrAutoPropInitializerValue(
+            initializer,
+            field.refKind,
+            field.GetFieldType(initializerBinder.fieldsBeingBound).type,
+            diagnostics
+        );
+
+        return new BoundFieldEqualsValue(field, initializerBinder.GetDeclaredLocalsForScope(initializer), result);
     }
 
     #endregion

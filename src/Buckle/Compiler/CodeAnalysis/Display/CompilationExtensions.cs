@@ -57,7 +57,7 @@ public static class CompilationExtensions {
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
-        if (program.diagnostics.Errors().Any())
+        if (program.diagnostics.AnyErrors())
             return;
 
         void WriteTypeMembers(NamedTypeSymbol type, bool writeEnding = true) {

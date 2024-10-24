@@ -164,6 +164,7 @@ public enum DiagnosticCode : ushort {
     ERR_InconsistentAccessibilityClass = 153,
     ERR_StaticDeriveFromNotObject = 154,
     ERR_CannotDeriveTemplate = 155,
+    ERR_InconsistentAccessibilityField = 156,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -171,11 +171,23 @@ internal sealed class TemplateMap {
     }
 
     internal TemplateMap WithAlphaRename(
+        MethodSymbol oldOwner,
+        Symbol newOwner,
+        out ImmutableArray<TemplateParameterSymbol> newTemplateParameters) {
+        return WithAlphaRename(oldOwner.originalDefinition.templateParameters, newOwner, out newTemplateParameters);
+    }
+
+    internal TemplateMap WithAlphaRename(
         NamedTypeSymbol oldOwner,
         NamedTypeSymbol newOwner,
         out ImmutableArray<TemplateParameterSymbol> newTemplateParameters) {
-        var oldTemplateParameters = oldOwner.originalDefinition.templateParameters;
+        return WithAlphaRename(oldOwner.originalDefinition.templateParameters, newOwner, out newTemplateParameters);
+    }
 
+    internal TemplateMap WithAlphaRename(
+        ImmutableArray<TemplateParameterSymbol> oldTemplateParameters,
+        Symbol newOwner,
+        out ImmutableArray<TemplateParameterSymbol> newTemplateParameters) {
         if (oldTemplateParameters.Length == 0) {
             newTemplateParameters = [];
             return this;

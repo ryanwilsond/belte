@@ -27,6 +27,10 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
 
     internal sealed override TextLocation errorLocation => syntaxReference.location;
 
+    internal SyntaxTree syntaxTree => syntaxReference.syntaxTree;
+
+    internal BelteSyntaxNode syntaxNode => (BelteSyntaxNode)syntaxReference.node;
+
     internal sealed override ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress) {
         if ((object)_lazyConstantValue != ConstantValue.Unset)
             return _lazyConstantValue;

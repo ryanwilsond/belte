@@ -35,7 +35,7 @@ internal sealed class CSharpEmitter {
     /// <param name="outputPath">Where to put the emitted assembly.</param>
     /// <returns>Diagnostics.</returns>
     internal static BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
-        if (program.diagnostics.Errors().Any())
+        if (program.diagnostics.AnyErrors())
             return program.diagnostics;
 
         var stringWriter = Emit(program, Path.GetFileNameWithoutExtension(outputPath), out var diagnostics);

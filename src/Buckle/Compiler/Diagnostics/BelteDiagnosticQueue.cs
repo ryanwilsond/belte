@@ -70,6 +70,10 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
 
+    public bool AnyErrors() {
+        return AnyAbove(DiagnosticSeverity.Error);
+    }
+
     public DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
         return base.Push(new BelteDiagnostic(diagnostic));
     }

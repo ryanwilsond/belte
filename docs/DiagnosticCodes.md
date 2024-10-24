@@ -109,7 +109,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0096 | Error | cannot reference non-field or non-variable item |
 | BU0097 | Error | '{0}' is a type, which is not valid in this context |
 | BU0098 | Error | static classes cannot have constructors |
-| BU0099 | Error | cannot declare a variable with a static type |
+| BU0099 | Error | cannot declare a field or local with a static type |
 | BU0100 | Error | cannot create an instance of the static class '{0}' |
 | BU0101 | Error | cannot mark member as both {0} and {1} |
 | BU0102 | Error | cannot assign to an instance member in a method marked as constant |
@@ -166,6 +166,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0153 | Error | inconsistent accessibility: class '{0}' is less accessible than class '{1}' |
 | BU0154 | Error | cannot derive from type '{0}'; static classes must derive from Object |
 | BU0155 | Error | cannot derive from template parameter '{0}' |
+| BU0156 | Error | inconsistent accessibility: type '{0}' is less accessible than field '{1}' |
 
 ## Command Line Diagnostics
 

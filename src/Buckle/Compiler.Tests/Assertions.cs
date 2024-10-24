@@ -77,7 +77,7 @@ internal static class Assertions {
         var tempDiagnostics = new BelteDiagnosticQueue();
         var treeDiagnostics = syntaxTree.GetDiagnostics();
 
-        if (treeDiagnostics.Errors().Any()) {
+        if (treeDiagnostics.AnyErrors()) {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
             var compilation = Compilation.CreateScript(

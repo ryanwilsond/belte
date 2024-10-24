@@ -10,10 +10,10 @@ internal sealed class ConstructedMethodSymbol : SubstitutedMethodSymbol {
             constructedFrom.containingType,
             new TemplateMap(
                 constructedFrom.containingType,
-                ((MethodSymbol)constructedFrom.originalDefinition).templateParameters,
+                constructedFrom.originalDefinition.templateParameters,
                 templateArguments
             ),
-            (MethodSymbol)constructedFrom.originalDefinition,
+            constructedFrom.originalDefinition,
             constructedFrom) {
         this.templateArguments = templateArguments;
     }

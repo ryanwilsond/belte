@@ -121,6 +121,8 @@ internal abstract class Symbol : ISymbol {
         return true;
     }
 
+    internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
+
     internal NamespaceOrTypeSymbol ContainingNamespaceOrType() {
         if (containingSymbol is not null) {
             switch (containingSymbol.kind) {

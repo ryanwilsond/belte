@@ -959,7 +959,7 @@ internal static class Error {
     /// BU0099. Run `buckle --explain BU0099` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic StaticVariable(TextLocation location) {
-        var message = $"cannot declare a variable with a static type";
+        var message = $"cannot declare a field or local with a static type";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticVariable), location, message);
     }
 
@@ -1448,6 +1448,18 @@ internal static class Error {
     internal static BelteDiagnostic CannotDeriveTemplate(TextLocation location, TypeSymbol type) {
         var message = $"cannot derive from template parameter '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveTemplate), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0156. Run `buckle --explain BU0156` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityField(
+        TextLocation location,
+        TypeSymbol type,
+        FieldSymbol field) {
+        var message = $"inconsistent accessibility: type '{type}' is less accessible than field '{field}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityField), location, message);
         // TODO add this to resource doc after finding example
     }
 

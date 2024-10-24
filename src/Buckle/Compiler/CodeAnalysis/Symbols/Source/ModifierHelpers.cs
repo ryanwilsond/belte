@@ -6,6 +6,23 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class ModifierHelpers {
+    internal static DeclarationModifiers CreateAndCheckNonTypeMemberModifiers(
+        SyntaxTokenList modifiers,
+        DeclarationModifiers defaultAccess,
+        DeclarationModifiers allowedModifiers,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics,
+        out bool hasErrors) {
+        var result = CreateModifiers(modifiers, diagnostics, out var creationErrors);
+        result = CheckModifiers(false, result, allowedModifiers, errorLocation, diagnostics, out var checkErrors);
+        hasErrors = creationErrors | checkErrors;
+
+        if ((result & DeclarationModifiers.AccessibilityMask) == 0)
+            result |= defaultAccess;
+
+        return result;
+    }
+
     internal static DeclarationModifiers CreateModifiers(
         SyntaxTokenList modifierTokens,
         BelteDiagnosticQueue diagnostics,

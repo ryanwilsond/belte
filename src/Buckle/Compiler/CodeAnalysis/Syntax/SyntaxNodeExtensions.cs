@@ -1,10 +1,11 @@
 using System;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
-internal static class SyntaxExtensions {
+internal static class SyntaxNodeExtensions {
     internal static void VisitRankSpecifiers<TArg>(
         this TypeSyntax type,
         Action<ArrayRankSpecifierSyntax, TArg> action, in TArg argument) {
@@ -58,5 +59,16 @@ internal static class SyntaxExtensions {
         }
 
         stack.Free();
+    }
+
+    internal static TypeSyntax SkipRef(this TypeSyntax syntax, out RefKind refKind) {
+        if (syntax.kind == SyntaxKind.ReferenceType) {
+            var refType = (ReferenceTypeSyntax)syntax;
+            refKind = refType.constKeyword is not null ? RefKind.RefConst : RefKind.Ref;
+            return refType.type;
+        }
+
+        refKind = RefKind.None;
+        return syntax;
     }
 }

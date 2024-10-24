@@ -327,7 +327,7 @@ public sealed partial class BelteRepl : Repl {
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.Errors().Any()) {
+        if (!handle.diagnostics.AnyErrors()) {
             result = compilation.Evaluate(state.variables, _abortEvaluation);
 
             if (result.lastOutputWasPrint)
@@ -344,7 +344,7 @@ public sealed partial class BelteRepl : Repl {
                 handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
-        var hasErrors = handle.diagnostics.Errors().Any();
+        var hasErrors = handle.diagnostics.AnyErrors();
 
         if (handle.diagnostics.Any()) {
             if (_hasDiagnosticHandle) {

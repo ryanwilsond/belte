@@ -1341,7 +1341,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot declare a variable with a static type
+            cannot declare a field or local with a static type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
