@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// <summary>
 /// All binary operator types.
 /// </summary>
-internal enum BoundBinaryOperatorKind {
+internal enum BoundBinaryOperatorKind : byte {
     Addition,
     Subtraction,
     Multiplication,

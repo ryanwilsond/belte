@@ -19,7 +19,7 @@ public static class CompilationExtensions {
     public static void EmitTree(this Compilation self, DisplayText text) {
         var entryPoint = self.globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
 
-        if (entryPoint != null) {
+        if (entryPoint is not null) {
             EmitTree(self, entryPoint, text);
         } else {
             var program = self.GetProgram();
@@ -41,7 +41,7 @@ public static class CompilationExtensions {
     public static void EmitTree(this Compilation self, string name, DisplayText text) {
         var program = self.GetProgram();
         var pair = LookupMethodFromParentsFromName(program, name);
-        SymbolDisplay.DisplaySymbol(text, pair.Item1);
+        SymbolDisplay.AppendToDisplayText(text, pair.Item1);
         text.Write(CreateSpace());
         DisplayText.DisplayNode(text, pair.Item2);
     }
@@ -57,12 +57,12 @@ public static class CompilationExtensions {
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
-        if (program.diagnostics.Errors().Any())
+        if (program.diagnostics.AnyErrors())
             return;
 
         void WriteTypeMembers(NamedTypeSymbol type, bool writeEnding = true) {
             try {
-                var members = type.GetMembers();
+                var members = type.GetMembersPublic();
 
                 text.Write(CreateSpace());
                 text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));

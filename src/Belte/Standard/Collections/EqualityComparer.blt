@@ -1,5 +1,5 @@
 
-abstract class EqualityComparer<type T> {
+abstract class EqualityComparer<type! T> {
     public abstract bool! Equals(T x, T y);
 
     public abstract int! GetHashCode(T obj);
@@ -28,7 +28,7 @@ abstract class EqualityComparer<type T> {
     }
 }
 
-sealed class PrimitiveEqualityComparer<type T> extends EqualityComparer<T> {
+sealed class PrimitiveEqualityComparer<type! T> extends EqualityComparer<T> {
     public override bool! Equals(T x, T y) {
         if (x is null || y is null)
             return false;
@@ -41,7 +41,7 @@ sealed class PrimitiveEqualityComparer<type T> extends EqualityComparer<T> {
     }
 }
 
-sealed class ObjectEqualityComparer<type T> extends EqualityComparer<T> {
+sealed class ObjectEqualityComparer<type! T> extends EqualityComparer<T> {
     public override bool! Equals(T x, T y) {
         return ToObject(x).Equals(ToObject(y));
     }

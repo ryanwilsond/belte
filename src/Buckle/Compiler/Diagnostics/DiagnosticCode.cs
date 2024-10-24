@@ -4,7 +4,7 @@ namespace Buckle.Diagnostics;
 /// <summary>
 /// All codes used to represent each possible error and warning uniquely.
 /// </summary>
-public enum DiagnosticCode : int {
+public enum DiagnosticCode : ushort {
     // Never modify these codes after a release, as that would break backwards compatibility.
     // Instead mark unused errors and warnings in the docs, and append new errors and warnings to use new codes.
 
@@ -106,7 +106,7 @@ public enum DiagnosticCode : int {
     ERR_TemplateMustBeConstant = 95,
     ERR_CannotReferenceNonField = 96,
     ERR_CannotUseType = 97,
-    ERR_StaticConstructor = 98,
+    ERR_ConstructorInStaticClass = 98,
     ERR_StaticVariable = 99,
     ERR_CannotConstructStatic = 100,
     ERR_ConflictingModifiers = 101,
@@ -152,6 +152,19 @@ public enum DiagnosticCode : int {
     ERR_AbstractMemberInNonAbstractType = 141,
     ERR_TypeDoesNotImplementAbstract = 142,
     ERR_MissingOperatorPair = 143,
+    ERR_InvalidExpressionTerm = 144,
+    WRN_ProtectedMemberInSealedType = 145,
+    ERR_MultipleAccessibilities = 146,
+    ERR_CircularConstraint = 147,
+    ERR_TemplateObjectBaseWithPrimitiveBase = 148,
+    ERR_TemplateBaseConstraintConflict = 149,
+    ERR_TemplateBaseBothObjectAndPrimitive = 150,
+    ERR_MemberNameSameAsType = 151,
+    ERR_CircularBase = 152,
+    ERR_InconsistentAccessibilityClass = 153,
+    ERR_StaticDeriveFromNotObject = 154,
+    ERR_CannotDeriveTemplate = 155,
+    ERR_InconsistentAccessibilityField = 156,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

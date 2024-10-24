@@ -11,7 +11,7 @@ internal sealed partial class ChildSyntaxList {
             private GreenNode _currentChild;
 
             internal Enumerator(GreenNode node) {
-                if (node != null) {
+                if (node is not null) {
                     _node = node;
                     _childIndex = node.slotCount;
                     _listIndex = -1;
@@ -26,8 +26,8 @@ internal sealed partial class ChildSyntaxList {
             }
 
             public bool MoveNext() {
-                if (_node != null) {
-                    if (_list != null) {
+                if (_node is not null) {
+                    if (_list is not null) {
                         if (--_listIndex >= 0) {
                             _currentChild = _list.GetSlot(_listIndex);
                             return true;

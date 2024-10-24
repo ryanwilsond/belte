@@ -292,7 +292,7 @@ internal sealed partial class ILEmitter {
             EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
         }
 
-        if (program.entryPoint != null)
+        if (program.entryPoint is not null)
             _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.entryPoint);
     }
 
@@ -373,7 +373,7 @@ internal sealed partial class ILEmitter {
     }
 
     private void ThrowRequiredTypeNotFound(string buckleName, string metadataName) {
-        var message = buckleName != null
+        var message = buckleName is not null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
 
@@ -384,7 +384,7 @@ internal sealed partial class ILEmitter {
         var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
         var nameList = string.Join(", ", assemblyNames);
 
-        var message = buckleName != null
+        var message = buckleName is not null
             ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
             : $"could not resolve type '{metadataName}' with the given references";
 
@@ -697,7 +697,7 @@ internal sealed partial class ILEmitter {
         if (variableType.typeSymbol is StructSymbol) {
             iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
         } else if (variableType.isNullable &&
-            !BoundConstant.IsNull(statement.declaration.initializer.constantValue) &&
+            !ConstantValue.IsNull(statement.declaration.initializer.constantValue) &&
             variableType.dimensions < 1) {
             iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.declaration.initializer.type));
         } else if (!preset) {
@@ -725,8 +725,8 @@ internal sealed partial class ILEmitter {
         ret
 
         */
-        if (statement.expression != null) {
-            if (_insideMain && BoundConstant.IsNull(statement.expression.constantValue))
+        if (statement.expression is not null) {
+            if (_insideMain && ConstantValue.IsNull(statement.expression.constantValue))
                 iLProcessor.Emit(OpCodes.Ldc_I4_0);
             else
                 EmitExpression(iLProcessor, statement.expression);
@@ -889,7 +889,7 @@ internal sealed partial class ILEmitter {
     }
 
     private void EmitExpression(ILProcessor iLProcessor, BoundExpression expression) {
-        if (expression.constantValue != null) {
+        if (expression.constantValue is not null) {
             EmitConstantExpression(iLProcessor, expression);
             return;
         }
@@ -943,8 +943,8 @@ internal sealed partial class ILEmitter {
         EmitBoundConstant(iLProcessor, expression.constantValue, expression.type);
     }
 
-    private void EmitBoundConstant(ILProcessor iLProcessor, BoundConstant constant, BoundType type) {
-        if (BoundConstant.IsNull(constant)) {
+    private void EmitBoundConstant(ILProcessor iLProcessor, ConstantValue constant, BoundType type) {
+        if (ConstantValue.IsNull(constant)) {
             if (type.typeSymbol is StructSymbol)
                 iLProcessor.Emit(OpCodes.Ldnull);
             else
@@ -955,7 +955,7 @@ internal sealed partial class ILEmitter {
 
         var expressionType = type.typeSymbol;
 
-        if (constant.value is ImmutableArray<BoundConstant> ia) {
+        if (constant.value is ImmutableArray<ConstantValue> ia) {
             for (var i = 0; i < ia.Length; i++) {
                 var item = ia[i];
                 iLProcessor.Emit(OpCodes.Dup);
@@ -1206,7 +1206,7 @@ internal sealed partial class ILEmitter {
 
         switch (nodes.Count) {
             case 0:
-                iLProcessor.Emit(OpCodes.Ldstr, string.Empty);
+                iLProcessor.Emit(OpCodes.Ldstr, "");
                 break;
             case 1:
                 EmitExpression(iLProcessor, nodes[0]);
@@ -1273,7 +1273,7 @@ internal sealed partial class ILEmitter {
             StringBuilder sb = null;
 
             foreach (var node in nodes) {
-                if (node.constantValue != null) {
+                if (node.constantValue is not null) {
                     var stringValue = (string)node.constantValue.value;
 
                     if (string.IsNullOrEmpty(stringValue))
@@ -1481,13 +1481,13 @@ internal sealed partial class ILEmitter {
     }
 
     private void EmitCastExpression(ILProcessor iLProcessor, BoundCastExpression expression) {
-        if (BoundConstant.IsNull(expression.expression.constantValue)) {
+        if (ConstantValue.IsNull(expression.operand.constantValue)) {
             EmitExpression(iLProcessor, new BoundLiteralExpression(null, expression.type));
             return;
         }
 
-        EmitExpression(iLProcessor, expression.expression);
-        var subExpressionType = expression.expression.type;
+        EmitExpression(iLProcessor, expression.operand);
+        var subExpressionType = expression.operand.type;
         var expressionType = expression.type;
 
         var needsBoxing = subExpressionType.typeSymbol == TypeSymbol.Int ||

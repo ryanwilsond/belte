@@ -1,177 +1,207 @@
+using System;
 using System.Collections.Immutable;
-using System.Text;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 /// <summary>
-/// A method symbol.
+/// Represents a method or method-like symbol (including constructor or operator).
 /// </summary>
-internal sealed class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplates {
-    private string _signature = null;
+internal abstract class MethodSymbol : Symbol, ISymbolWithTemplates {
+    private ParameterSignature _lazyParameterSignature;
 
-    protected override Symbol _originalDefinition { get; }
-
-    /// <summary>
-    /// Creates a <see cref="MethodSymbol" />.
-    /// </summary>
-    /// <param name="name">Name of method.</param>
-    /// <param name="parameters">Parameters of method.</param>
-    /// <param name="type"><see cref="BoundType" /> of return type.</param>
-    /// <param name="declaration">Declaration of method.</param>
-    /// <param name="originalDefinition">
-    /// The symbol that has our entry in the global method map. This is used to locate the body of this method.
-    /// </param>
-    internal MethodSymbol(
-        string name,
-        ImmutableArray<ParameterSymbol> templateParameters,
-        ImmutableArray<BoundExpression> templateConstraints,
-        ImmutableArray<ParameterSymbol> parameters,
-        BoundType type,
-        BaseMethodDeclarationSyntax declaration = null,
-        MethodSymbol originalDefinition = null,
-        DeclarationModifiers modifiers = DeclarationModifiers.None,
-        Accessibility accessibility = Accessibility.NotApplicable)
-        : base(name, accessibility) {
-        this.type = type;
-        this.parameters = parameters;
-        this.declaration = declaration;
-        _originalDefinition = originalDefinition;
-        declarationModifiers = modifiers;
-        this.templateParameters = templateParameters;
-        this.templateConstraints = templateConstraints;
-    }
+    private protected MethodSymbol() { }
 
     public override SymbolKind kind => SymbolKind.Method;
 
-    public override bool isStatic => (declarationModifiers & DeclarationModifiers.Static) != 0;
+    public abstract ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
-    public override bool isAbstract => (declarationModifiers & DeclarationModifiers.Abstract) != 0;
+    public abstract ImmutableArray<BoundExpression> templateConstraints { get; }
 
-    public override bool isVirtual => (declarationModifiers & DeclarationModifiers.Virtual) != 0;
+    public abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
-    public override bool isOverride => (declarationModifiers & DeclarationModifiers.Override) != 0;
+    public virtual TemplateMap templateSubstitution => null;
 
-    public override bool isSealed => false;
+    internal abstract RefKind refKind { get; }
 
-    public ImmutableArray<ParameterSymbol> templateParameters { get; set; }
+    internal abstract bool returnsVoid { get; }
 
-    public ImmutableArray<BoundExpression> templateConstraints { get; set; }
+    internal abstract TypeWithAnnotations returnTypeWithAnnotations { get; }
 
-    public DeclarationModifiers declarationModifiers { get; }
+    internal abstract MethodKind methodKind { get; }
 
-    public new MethodSymbol originalDefinition => _originalDefinition as MethodSymbol;
+    internal abstract int arity { get; }
 
-    internal bool isConstant => (declarationModifiers & DeclarationModifiers.Const) != 0;
+    internal abstract ImmutableArray<ParameterSymbol> parameters { get; }
 
-    internal bool isLowLevel => (declarationModifiers & DeclarationModifiers.LowLevel) != 0;
+    internal abstract bool isConst { get; }
 
-    internal int arity => templateParameters.Length;
+    internal abstract bool hidesBaseMethodsByName { get; }
 
-    /// <summary>
-    /// All parameters (see <see cref="ParameterSymbol" />).
-    /// </summary>
-    internal ImmutableArray<ParameterSymbol> parameters { get; }
+    internal abstract bool hasSpecialName { get; }
 
-    /// <summary>
-    /// <see cref="BoundType" /> of method return type.
-    /// </summary>
-    internal BoundType type { get; }
+    internal virtual int parameterCount => parameters.Length;
 
-    /// <summary>
-    /// Declaration of method (see <see cref="BaseMethodDeclarationSyntax">).
-    /// </summary>
-    internal BaseMethodDeclarationSyntax declaration { get; }
+    internal virtual MethodSymbol constructedFrom => this;
 
-    /// <summary>
-    /// Gets a string representation of the method signature without the return type or parameter names.
-    /// </summary>
-    public string Signature() {
-        if (_signature is null)
-            GenerateSignature();
+    internal virtual bool requiresInstanceReceiver => !isStatic;
 
-        return _signature;
-    }
+    internal virtual bool isTemplateMethod => arity != 0;
 
-    /// <summary>
-    /// Creates a new method symbol with different parameters, but everything else is identical.
-    /// </summary>
-    internal MethodSymbol UpdateParameters(ImmutableArray<ParameterSymbol> parameters) {
-        return new MethodSymbol(name, templateParameters, templateConstraints, parameters, type, declaration, this);
-    }
+    internal virtual OverriddenOrHiddenMembersResult overriddenOrHiddenMembers => this.MakeOverriddenOrHiddenMembers();
 
-    /// <summary>
-    /// If the given symbol refers to this one.
-    /// </summary>
-    internal bool RefersTo(MethodSymbol symbol) {
-        if (symbol is null)
-            return false;
+    internal virtual MethodSymbol reducedFrom => null;
 
-        return GetRootMethod() == symbol.GetRootMethod();
-    }
+    internal virtual TypeSymbol receiverType => containingType;
 
-    /// <summary>
-    /// Gets the most original definition (recursively) of this method. If no explicit original definition exists,
-    /// returns this.
-    /// </summary>
-    internal MethodSymbol GetRootMethod() {
-        if (originalDefinition == null)
-            return this;
+    internal new virtual MethodSymbol originalDefinition => this;
 
-        return originalDefinition.GetRootMethod();
-    }
+    internal new bool isDefinition => (object)this == originalDefinition;
 
-    public override int GetHashCode() {
-        unchecked {
-            var hash = 17;
+    private protected sealed override Symbol _originalSymbolDefinition => originalDefinition;
 
-            hash = hash * 23 + templateParameters.GetHashCode();
-            hash = hash * 23 + templateConstraints.GetHashCode();
-            hash = hash * 23 + declarationModifiers.GetHashCode();
-            hash = hash * 23 + parameters.GetHashCode();
-            hash = hash * 23 + type.GetHashCode();
-            hash = hash * 23 + name.GetHashCode();
-            hash = hash * 23 + accessibility.GetHashCode();
-            hash = hash * 23 + (originalDefinition is null ? 0 : originalDefinition.GetHashCode());
-            hash = hash * 23 + (declaration is null ? 0 : declaration.GetHashCode());
+    internal TypeSymbol returnType => returnTypeWithAnnotations.type;
 
-            return hash;
+    internal bool returnsByRef => refKind == RefKind.Ref;
+
+    internal bool returnsByRefConst => refKind == RefKind.RefConst;
+
+    internal bool isEntryPointCandidate
+        => isStatic && !isAbstract && !isVirtual && name == WellKnownMemberNames.EntryPointMethodName;
+
+    internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
+        get {
+            ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);
+            return _lazyParameterSignature.parameterTypesWithAnnotations;
         }
     }
 
-    private void GenerateSignature() {
-        var signature = new StringBuilder(name);
-        var isFirst = true;
+    internal ImmutableArray<RefKind> parameterRefKinds {
+        get {
+            ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);
+            return _lazyParameterSignature.parameterRefKinds;
+        }
+    }
 
-        if (templateParameters.Length > 0) {
-            signature.Append('<');
+    internal MethodSymbol overriddenMethod {
+        get {
+            if (isOverride && ReferenceEquals(constructedFrom, this)) {
+                if (isDefinition)
+                    return (MethodSymbol)overriddenOrHiddenMembers.GetOverriddenMember();
 
-            foreach (var templateParameter in templateParameters) {
-                if (isFirst)
-                    isFirst = false;
-                else
-                    signature.Append(',');
-
-                signature.Append(templateParameter.type.ToString());
+                return (MethodSymbol)OverriddenOrHiddenMembersResult.GetOverriddenMember(
+                    this,
+                    originalDefinition.overriddenMethod
+                );
             }
 
-            signature.Append('>');
+            return null;
+        }
+    }
+
+    internal TypeSymbol GetParameterType(int index) {
+        return parameterTypesWithAnnotations[index].type;
+    }
+
+    internal MethodSymbol Construct(ImmutableArray<TypeOrConstant> templateArguments) {
+        if (!ReferenceEquals(this, constructedFrom) || arity == 0)
+            throw new InvalidOperationException();
+
+        if (templateArguments.IsDefault)
+            throw new ArgumentNullException(nameof(templateArguments));
+
+        if (templateArguments.Any(NamedTypeSymbol.TypeOrConstantIsNullFunction))
+            throw new ArgumentException("Type argument cannot be null", nameof(templateArguments));
+
+        if (templateArguments.Length != arity)
+            throw new ArgumentException("Wrong number of template arguments", nameof(templateArguments));
+
+        if (ConstructedNamedTypeSymbol.TemplateParametersMatchTemplateArguments(templateParameters, templateArguments))
+            return this;
+
+        return new ConstructedMethodSymbol(this, templateArguments);
+    }
+
+    internal MethodSymbol AsMember(NamedTypeSymbol newOwner) {
+        return newOwner.isDefinition ? this : new SubstitutedMethodSymbol(newOwner, this);
+    }
+
+    internal static bool CanOverrideOrHide(MethodKind kind) {
+        switch (kind) {
+            case MethodKind.Constructor:
+            case MethodKind.Builtin:
+                return false;
+            case MethodKind.LocalFunction:
+            case MethodKind.Operator:
+            case MethodKind.Ordinary:
+                return true;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
+    }
+
+    internal bool CanBeHiddenByMemberKind(SymbolKind hidingMemberKind) {
+        switch (hidingMemberKind) {
+            case SymbolKind.ErrorType:
+            case SymbolKind.NamedType:
+            case SymbolKind.Method:
+                return CanBeHiddenByMethodPropertyOrType();
+            case SymbolKind.Field:
+                return true;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(hidingMemberKind);
+        }
+    }
+
+    internal MethodSymbol GetLeastOverriddenMethod(NamedTypeSymbol accessingType) {
+        return GetLeastOverriddenMethodCore(accessingType, false);
+    }
+
+    internal ImmutableArray<TypeOrConstant> GetTemplateParametersAsTemplateArguments() {
+        return TemplateMap.TemplateParametersAsTypeOrConstants(templateParameters);
+    }
+
+    internal MethodSymbol GetConstructedLeastOverriddenMethod(
+        NamedTypeSymbol accessingType,
+        bool requireSameReturnType) {
+        var m = constructedFrom.GetLeastOverriddenMethodCore(accessingType, requireSameReturnType);
+        return m.isTemplateMethod ? m.Construct(templateArguments) : m;
+    }
+
+    private MethodSymbol GetLeastOverriddenMethodCore(NamedTypeSymbol accessingType, bool requireSameReturnType) {
+        accessingType = accessingType?.originalDefinition;
+        var m = this;
+
+        while (m.isOverride && !m.hidesBaseMethodsByName) {
+            var overridden = m.overriddenMethod;
+
+            if (overridden is null ||
+                (accessingType is not null && !AccessCheck.IsSymbolAccessible(overridden, accessingType)) ||
+                (requireSameReturnType && returnType.Equals(overridden.returnType, TypeCompareKind.AllIgnoreOptions))) {
+                break;
+            }
+
+            m = overridden;
         }
 
-        signature.Append('(');
-        isFirst = true;
+        return m;
+    }
 
-        foreach (var parameter in parameters) {
-            if (isFirst)
-                isFirst = false;
-            else
-                signature.Append(',');
-
-            signature.Append(parameter.type.ToString());
+    private bool CanBeHiddenByMethodPropertyOrType() {
+        switch (methodKind) {
+            case MethodKind.Constructor:
+                return false;
+            default:
+                return true;
         }
+    }
 
-        signature.Append(')');
-        _signature = signature.ToString();
+    internal override bool Equals(Symbol other, TypeCompareKind compareKind) {
+        if (other is SubstitutedMethodSymbol sms)
+            return sms.Equals(this, compareKind);
+
+        return base.Equals(other, compareKind);
     }
 }

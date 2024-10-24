@@ -16,10 +16,14 @@ public static class SymbolDisplay {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to convert to rich text.</param>
     /// <returns>New <see cref="DisplayText" /> representing the <see cref="Symbol" />.</returns>
-    internal static DisplayText DisplaySymbol(Symbol symbol) {
+    internal static DisplayText ToDisplayText(Symbol symbol, SymbolDisplayFormat format = null) {
         var text = new DisplayText();
-        DisplaySymbol(text, symbol);
+        AppendToDisplayText(text, symbol, format);
         return text;
+    }
+
+    internal static string ToDisplayString(Symbol symbol, SymbolDisplayFormat format = null) {
+        return ToDisplayText(symbol, format).ToString();
     }
 
     /// <summary>
@@ -27,20 +31,20 @@ public static class SymbolDisplay {
     /// </summary>
     /// <param name="text"><see cref="DisplayText" /> to add to.</param>
     /// <param name="symbol"><see cref="Symbol" /> to add (not modified).</param>
-    public static void DisplaySymbol(DisplayText text, ISymbol symbol, bool includeVariableTypes = false) {
+    public static void AppendToDisplayText(DisplayText text, ISymbol symbol, SymbolDisplayFormat format = null) {
         switch (symbol.kind) {
             case SymbolKind.Method:
                 DisplayMethod(text, (MethodSymbol)symbol);
                 break;
-            case SymbolKind.LocalVariable:
-            case SymbolKind.GlobalVariable:
+            case SymbolKind.Local:
+            case SymbolKind.Global:
             case SymbolKind.Parameter:
                 DisplayVariable(text, (VariableSymbol)symbol, includeVariableTypes);
                 break;
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol);
                 break;
-            case SymbolKind.Type:
+            case SymbolKind.NamedType:
                 DisplayType(text, (TypeSymbol)symbol);
                 break;
             default:
@@ -51,7 +55,7 @@ public static class SymbolDisplay {
     private static void DisplayContainedNames(DisplayText text, ISymbol symbol) {
         var currentSymbol = symbol as Symbol;
 
-        while (currentSymbol.containingType != null) {
+        while (currentSymbol.containingType is not null) {
             text.Write(CreateType(currentSymbol.containingType.name));
             text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
 
@@ -150,7 +154,7 @@ public static class SymbolDisplay {
     private static void DisplayMethod(DisplayText text, MethodSymbol symbol) {
         DisplayModifiers(text, symbol);
 
-        if (symbol.type != null) {
+        if (symbol.type is not null) {
             DisplayText.DisplayNode(text, symbol.type);
             text.Write(CreateSpace());
         }
@@ -178,13 +182,13 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
-        if (symbol.accessibility == Accessibility.Public) {
+        if (symbol.declaredAccessibility == Accessibility.Public) {
             text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
             text.Write(CreateSpace());
-        } else if (symbol.accessibility == Accessibility.Protected) {
+        } else if (symbol.declaredAccessibility == Accessibility.Protected) {
             text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
             text.Write(CreateSpace());
-        } else if (symbol.accessibility == Accessibility.Private) {
+        } else if (symbol.declaredAccessibility == Accessibility.Private) {
             text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
             text.Write(CreateSpace());
         }

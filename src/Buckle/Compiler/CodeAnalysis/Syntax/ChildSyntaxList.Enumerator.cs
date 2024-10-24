@@ -49,7 +49,7 @@ public sealed partial class ChildSyntaxList {
             while (MoveNext()) {
                 var nodeValue = ItemInternalAsNode(_node, _childIndex);
 
-                if (nodeValue != null) {
+                if (nodeValue is not null) {
                     return nodeValue;
                 }
             }

@@ -109,7 +109,7 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0096 | Error | cannot reference non-field or non-variable item |
 | BU0097 | Error | '{0}' is a type, which is not valid in this context |
 | BU0098 | Error | static classes cannot have constructors |
-| BU0099 | Error | cannot declare a variable with a static type |
+| BU0099 | Error | cannot declare a field or local with a static type |
 | BU0100 | Error | cannot create an instance of the static class '{0}' |
 | BU0101 | Error | cannot mark member as both {0} and {1} |
 | BU0102 | Error | cannot assign to an instance member in a method marked as constant |
@@ -154,6 +154,19 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | BU0141 | Error | '{0}' cannot be marked abstract because it is not contained by an abstract type |
 | BU0142 | Error | '{0}' must implement inherited abstract member '{1}.{2}' |
 | BU0143 | Error | operator '{0}' requires a matching operator '{1}' to also be defined |
+| BU0144 | Error | invalid expression term '{0}' |
+| BU0145 | Warning | new protected member declared in sealed type; no different than private |
+| BU0146 | Error | cannot apply multiple accessibility modifiers |
+| BU0147 | Error | template parameters '{0}' and '{1}' form a circular constraint |
+| BU0148 | Error | template parameter '{0}' cannot be used as a constraint for template parameter '{1}' |
+| BU0149 | Error | template parameter '{templateParameter}' cannot be constrained to both types '{base1}' and '{base2}' |
+| BU0150 | Error | template parameter '{templateParameter}' cannot be constrained as both an Object type and Primitive type |
+| BU0151 | Error | cannot declare a member with the same name as the enclosing type '{0}' |
+| BU0152 | Error | circular base dependency involving '{0}' and '{1}' |
+| BU0153 | Error | inconsistent accessibility: class '{0}' is less accessible than class '{1}' |
+| BU0154 | Error | cannot derive from type '{0}'; static classes must derive from Object |
+| BU0155 | Error | cannot derive from template parameter '{0}' |
+| BU0156 | Error | inconsistent accessibility: type '{0}' is less accessible than field '{1}' |
 
 ## Command Line Diagnostics
 

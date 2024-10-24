@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -11,7 +12,7 @@ internal sealed class BoundThrowExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.ThrowExpression;
 
-    internal override BoundType type => exception.type;
+    internal override TypeSymbol type => exception.type;
 
     internal BoundExpression exception { get; }
 }

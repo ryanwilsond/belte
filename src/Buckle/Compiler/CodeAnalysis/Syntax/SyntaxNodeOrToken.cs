@@ -39,7 +39,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// <summary>
     /// The underlying <see cref="SyntaxNode" /> or parent of the token.
     /// </summary>
-    public SyntaxNode parent => _token != null ? _nodeOrParent : _nodeOrParent?.parent;
+    public SyntaxNode parent => _token is not null ? _nodeOrParent : _nodeOrParent?.parent;
 
     /// <summary>
     /// The position of the <see cref="SyntaxNode" />.
@@ -86,10 +86,10 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// </summary>
     public TextSpan span {
         get {
-            if (_token != null)
+            if (_token is not null)
                 return AsToken().span;
 
-            if (_nodeOrParent != null)
+            if (_nodeOrParent is not null)
                 return _nodeOrParent.span;
 
             return null;
@@ -101,10 +101,10 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// </summary>
     public TextSpan fullSpan {
         get {
-            if (_token != null)
+            if (_token is not null)
                 return new TextSpan(position, _token.fullWidth);
 
-            if (_nodeOrParent != null)
+            if (_nodeOrParent is not null)
                 return _nodeOrParent.fullSpan;
 
             return null;
@@ -134,7 +134,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// wrapping a <see cref="SyntaxToken" />.
     /// </summary>
     public SyntaxToken AsToken() {
-        if (_token != null)
+        if (_token is not null)
             return new SyntaxToken(_nodeOrParent, _token, position, _tokenIndex);
 
         return null;
@@ -163,7 +163,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// wrapping a <see cref="SyntaxNode" />.
     /// </summary>
     public SyntaxNode AsNode() {
-        if (_token != null)
+        if (_token is not null)
             return null;
 
         return _nodeOrParent;

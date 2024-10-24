@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Diagnostics;
 
@@ -8,6 +9,15 @@ namespace Buckle.Diagnostics;
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+    private static readonly ObjectPool<BelteDiagnosticQueue> Pool
+        = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
+
+    private readonly ObjectPool<BelteDiagnosticQueue> _pool;
+
+    private BelteDiagnosticQueue(ObjectPool<BelteDiagnosticQueue> pool) : base() {
+        _pool = pool;
+    }
+
     /// <summary>
     /// Creates a <see cref="BelteDiagnosticQueue" /> with no Diagnostics.
     /// </summary>
@@ -60,11 +70,26 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
 
-    public void Push<T>(T diagnostic) where T : Diagnostic {
-        base.Push(new BelteDiagnostic(diagnostic));
+    public bool AnyErrors() {
+        return AnyAbove(DiagnosticSeverity.Error);
     }
 
-    public new void Push(BelteDiagnostic diagnostic) {
-        base.Push(diagnostic);
+    public DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
+        return base.Push(new BelteDiagnostic(diagnostic));
+    }
+
+    public new DiagnosticInfo Push(BelteDiagnostic diagnostic) {
+        return base.Push(diagnostic);
+    }
+
+    internal static BelteDiagnosticQueue GetInstance() {
+        return Pool.Allocate();
+    }
+
+    internal void Free() {
+        if (_pool is not null) {
+            Clear();
+            _pool.Free(this);
+        }
     }
 }

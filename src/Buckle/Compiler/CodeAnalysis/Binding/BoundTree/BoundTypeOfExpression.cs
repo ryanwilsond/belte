@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -5,13 +6,11 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound typeof expression, bound from a <see cref="Syntax.TypeOfExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundTypeOfExpression : BoundExpression {
-    internal BoundTypeOfExpression(BoundType type) {
-        typeOfType = type;
+    internal BoundTypeOfExpression(TypeSymbol type) {
+        this.type = type;
     }
-
-    internal BoundType typeOfType { get; }
 
     internal override BoundNodeKind kind => BoundNodeKind.TypeOfExpression;
 
-    internal override BoundType type => BoundType.CopyWith(BoundType.Type, isLiteral: true);
+    internal override TypeSymbol type { get; }
 }

@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter {
-    private enum NetMethodReference {
+    private enum NetMethodReference : byte {
         ConsoleWrite,
         ConsoleWriteLine,
         ConsoleWriteLineNoArgs,

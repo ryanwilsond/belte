@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;

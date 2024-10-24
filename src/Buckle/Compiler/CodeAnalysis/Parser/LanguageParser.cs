@@ -352,7 +352,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             ? ParseTemplateParameterList()
             : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
-            ? ParseTemplateParameterConstraintClauseList()
+            ? ParseTemplateConstraintClauseList()
             : null;
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
@@ -387,7 +387,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             ? ParseBaseType()
             : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
-            ? ParseTemplateParameterConstraintClauseList()
+            ? ParseTemplateConstraintClauseList()
             : null;
 
         var openBrace = Match(SyntaxKind.OpenBraceToken);
@@ -417,23 +417,23 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.BaseType(extendsKeyword, baseType);
     }
 
-    private TemplateParameterConstraintClauseListSyntax ParseTemplateParameterConstraintClauseList() {
+    private TemplateConstraintClauseListSyntax ParseTemplateConstraintClauseList() {
         var whereKeyword = Match(SyntaxKind.WhereKeyword);
         var openBrace = Match(SyntaxKind.OpenBraceToken);
-        var constraintClauses = SyntaxListBuilder<TemplateParameterConstraintClauseSyntax>.Create();
+        var constraintClauses = SyntaxListBuilder<TemplateConstraintClauseSyntax>.Create();
 
         var lastTokenPosition = -1;
 
         while (IsMakingProgress(ref lastTokenPosition)) {
             if (currentToken.kind is not SyntaxKind.CloseBraceToken and not SyntaxKind.EndOfFileToken) {
-                var constraintClause = ParseTemplateParameterConstraintClause();
+                var constraintClause = ParseTemplateConstraintClause();
                 constraintClauses.Add(constraintClause);
             }
         }
 
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
-        return SyntaxFactory.TemplateParameterConstraintClauseList(
+        return SyntaxFactory.TemplateConstraintClauseList(
             whereKeyword,
             openBrace,
             constraintClauses.ToList(),
@@ -441,29 +441,39 @@ internal sealed partial class LanguageParser : SyntaxParser {
         );
     }
 
-    private TemplateParameterConstraintClauseSyntax ParseTemplateParameterConstraintClause() {
-        IdentifierNameSyntax name = null;
-        SyntaxToken extendsKeyword = null;
-        SimpleNameSyntax type = null;
-        SyntaxToken semicolon = null;
-        ExpressionStatementSyntax expressionStatement = null;
+    private TemplateConstraintClauseSyntax ParseTemplateConstraintClause() {
+        TemplateExtendsConstraintClauseSyntax extendConstraint = null;
+        TemplateIsConstraintClauseSyntax isConstraint = null;
+        ExpressionStatementSyntax expressionConstraint = null;
 
-        if (Peek(1).kind == SyntaxKind.ExtendsKeyword) {
-            name = ParseIdentifierName();
-            extendsKeyword = Match(SyntaxKind.ExtendsKeyword);
-            type = ParseSimpleName();
-            semicolon = Match(SyntaxKind.SemicolonToken);
-        } else {
-            expressionStatement = (ExpressionStatementSyntax)ParseExpressionStatement();
-        }
+        if (Peek(1).kind == SyntaxKind.ExtendsKeyword)
+            extendConstraint = ParseTemplateExtendConstraintClause();
+        else if (Peek(1).kind == SyntaxKind.IsKeyword)
+            isConstraint = ParseTemplateIsConstraintClause();
+        else
+            expressionConstraint = (ExpressionStatementSyntax)ParseExpressionStatement();
 
-        return SyntaxFactory.TemplateParameterConstraintClause(
-            name,
-            extendsKeyword,
-            type,
-            semicolon,
-            expressionStatement
+        return SyntaxFactory.TemplateConstraintClause(
+            extendConstraint,
+            isConstraint,
+            expressionConstraint
         );
+    }
+
+    private TemplateExtendsConstraintClauseSyntax ParseTemplateExtendConstraintClause() {
+        var name = ParseIdentifierName();
+        var extendsKeyword = Match(SyntaxKind.ExtendsKeyword);
+        var type = ParseSimpleName();
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.TemplateExtendsConstraintClause(name, extendsKeyword, type, semicolon);
+    }
+
+    private TemplateIsConstraintClauseSyntax ParseTemplateIsConstraintClause() {
+        var name = ParseIdentifierName();
+        var isKeyword = Match(SyntaxKind.IsKeyword);
+        var keyword = MatchTwo(SyntaxKind.PrimitiveKeyword, SyntaxKind.NotnullKeyword);
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.TemplateIsConstraintClause(name, isKeyword, keyword, semicolon);
     }
 
     private ConstructorDeclarationSyntax ParseConstructorDeclaration(
@@ -502,7 +512,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
         var parameterList = ParseParameterList();
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
-            ? ParseTemplateParameterConstraintClauseList()
+            ? ParseTemplateConstraintClauseList()
             : null;
         BlockStatementSyntax body = null;
         SyntaxToken semicolon = null;
@@ -566,7 +576,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
         var parameterList = ParseParameterList();
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
-            ? ParseTemplateParameterConstraintClauseList()
+            ? ParseTemplateConstraintClauseList()
             : null;
         var body = (BlockStatementSyntax)ParseBlockStatement();
 
@@ -666,16 +676,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ParameterSyntax ParseParameter() {
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
+        var defaultValue = currentToken.kind == SyntaxKind.EqualsToken
+            ? ParseEqualsValueClause(false)
+            : null;
 
-        SyntaxToken equals = null;
-        ExpressionSyntax defaultValue = null;
-
-        if (currentToken.kind == SyntaxKind.EqualsToken) {
-            equals = EatToken();
-            defaultValue = ParseNonAssignmentExpression();
-        }
-
-        return SyntaxFactory.Parameter(type, identifier, equals, defaultValue);
+        return SyntaxFactory.Parameter(type, identifier, defaultValue);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {
@@ -953,7 +958,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var innerIf = (IfStatementSyntax)inner;
             offset += innerIf.GetSlotOffset(4);
 
-            if (innerIf.elseClause != null && innerIf.then.kind != SyntaxKind.BlockStatement) {
+            if (innerIf.elseClause is not null && innerIf.then.kind != SyntaxKind.BlockStatement) {
                 var elseOffset = offset + innerIf.then.fullWidth + innerIf.elseClause.GetLeadingTriviaWidth();
 
                 then = AddDiagnostic(
@@ -972,7 +977,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         var elseClause = ParseElseClause();
 
-        if (elseClause != null && then.kind != SyntaxKind.BlockStatement && nestedIf) {
+        if (elseClause is not null && then.kind != SyntaxKind.BlockStatement && nestedIf) {
             elseClause = AddDiagnostic(
                 elseClause,
                 Error.AmbiguousElse(),
@@ -1103,14 +1108,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var operatorToken = EatToken();
 
             if (operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
-                var operand = ParsePrimaryExpression();
+                var operand = ParsePrimaryExpression(unaryPrecedence);
                 left = SyntaxFactory.PrefixExpression(operatorToken, operand);
             } else {
                 var operand = ParseOperatorExpression(unaryPrecedence);
                 left = SyntaxFactory.UnaryExpression(operatorToken, operand);
             }
         } else {
-            left = ParsePrimaryExpression();
+            left = ParsePrimaryExpression(parentPrecedence);
         }
 
         while (true) {
@@ -1175,7 +1180,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return left;
     }
 
-    private ExpressionSyntax ParsePrimaryExpressionInternal() {
+    private ExpressionSyntax ParsePrimaryExpressionInternal(int parentPrecedence) {
         switch (currentToken.kind) {
             case SyntaxKind.OpenParenToken:
                 if (PeekIsCastExpression())
@@ -1195,8 +1200,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNullLiteral();
             case SyntaxKind.OpenBraceToken:
                 return ParseInitializerListOrDictionaryExpression();
-            case SyntaxKind.RefKeyword:
-                return ParseReferenceExpression();
             case SyntaxKind.TypeOfKeyword:
                 return ParseTypeOfExpression();
             case SyntaxKind.NameOfKeyword:
@@ -1209,6 +1212,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseBaseExpression();
             case SyntaxKind.ThrowKeyword:
                 return ParseThrowExpression();
+            case SyntaxKind.RefKeyword when parentPrecedence == 0:
+                return ParseReferenceExpression();
+            case SyntaxKind.RefKeyword when parentPrecedence > 0:
+                return AddDiagnostic(ParseReferenceExpression(), Error.InvalidExpressionTerm(SyntaxKind.RefKeyword));
             case SyntaxKind.IdentifierToken:
             default:
                 return ParseLastCaseName();
@@ -1216,18 +1223,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {
-        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax expression) {
-            return currentToken.kind switch {
-                SyntaxKind.OpenParenToken => ParseCallExpression(expression),
-                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
-                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
-                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken
-                    => ParsePostfixExpression(expression),
-                _ => expression,
-            };
-        }
-
-        left ??= ParsePrimaryExpressionInternal();
+        left ??= ParsePrimaryExpressionInternal(parentPrecedence);
 
         while (true) {
             var startToken = currentToken;
@@ -1244,6 +1240,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         return left;
+
+        ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax expression) {
+            return currentToken.kind switch {
+                SyntaxKind.OpenParenToken => ParseCallExpression(expression),
+                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
+                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
+                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken
+                    => ParsePostfixExpression(expression),
+                _ => expression,
+            };
+        }
     }
 
     private ExpressionSyntax ParseCastExpression() {
@@ -1667,7 +1674,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken ||
             (currentToken.kind == SyntaxKind.IdentifierToken &&
              Peek(1).kind is SyntaxKind.EqualsToken or SyntaxKind.SemicolonToken)) {
-            type = SyntaxFactory.EmptyName();
+            if (constAsType)
+                // The Binder will see this and know to check the declaration modifiers to distinguish between
+                // const and constexpr
+                // TODO Make sure this fix work
+                type = SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.ConstKeyword));
+            else
+                type = SyntaxFactory.EmptyName();
         } else {
             type = ParseUnderlyingType();
         }

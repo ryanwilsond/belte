@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -11,8 +12,6 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A scope of code.
 /// </summary>
 internal sealed class BoundScope {
-    private readonly bool _isBlock;
-
     private List<Symbol> _symbols;
     private List<Symbol> _assignedSymbols;
     private BoundScope _parent;
@@ -21,9 +20,8 @@ internal sealed class BoundScope {
     /// Creates a new scope with an optional parent.
     /// </summary>
     /// <param name="parent">Enclosing scope.</param>
-    internal BoundScope(BoundScope parent, bool isBlock = false) {
+    internal BoundScope(BoundScope parent) {
         _parent = parent;
-        _isBlock = isBlock;
     }
 
     internal BoundScope parent {
@@ -95,7 +93,7 @@ internal sealed class BoundScope {
     /// <typeparam name="T">Type of <see cref="Symbol" /> to search for.</typeparam>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal T LookupSymbol<T>(string name, bool isStaticLookup = false) where T : Symbol {
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 if (symbol.name == name && symbol is T && (isStaticLookup ? symbol.containingType is null : true))
                     return symbol as T;
@@ -112,7 +110,7 @@ internal sealed class BoundScope {
     /// <param name="declaration">The declaration used to previously declare the <see cref="Symbol" />.</param>
     /// <returns><see cref="Symbol" /> if found, null otherwise.</returns>
     internal Symbol LookupSymbolDirect(SyntaxNode declaration) {
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 if (symbol is NamedTypeSymbol n && n.declaration == declaration)
                     return symbol;
@@ -148,7 +146,7 @@ internal sealed class BoundScope {
         ref var symbols = ref _symbols;
 
         while (true) {
-            if (symbols != null) {
+            if (symbols is not null) {
                 for (var i = 0; i < symbols.Count; i++) {
                     if (symbols[i] == currentSymbol) {
                         if (newSymbol is ClassSymbol cs) {
@@ -222,16 +220,18 @@ internal sealed class BoundScope {
     }
 
     private ImmutableArray<Symbol> LookupOverloadsInternal(
-        string name, bool strict = false, ImmutableArray<Symbol>? current = null) {
-        var overloads = ImmutableArray.CreateBuilder<Symbol>();
+        string name,
+        bool strict = false,
+        ImmutableArray<Symbol>? current = null) {
+        var overloads = ArrayBuilder<Symbol>.GetInstance();
 
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 // If it is a nested function, the name will be something like <funcName>g__name
                 if (symbol.name != name && (strict || !symbol.name.Contains($">g__{name}")))
                     continue;
 
-                if (current != null) {
+                if (current is not null) {
                     var skip = false;
 
                     foreach (var cs in current.Value) {
@@ -254,17 +254,17 @@ internal sealed class BoundScope {
             }
         }
 
-        if (parent != null) {
+        if (parent is not null) {
             overloads.AddRange(parent?.LookupOverloadsInternal(
                 name,
                 strict: strict,
                 current: current is null
-                    ? overloads.ToImmutable()
-                    : overloads.ToImmutable().AddRange(current.Value))
+                    ? overloads.ToImmutableAndFree()
+                    : overloads.ToImmutableAndFree().AddRange(current.Value))
             );
         }
 
-        return overloads.ToImmutable();
+        return overloads.ToImmutableAndFree();
     }
 
     private bool TryDeclareSymbol<T>(T symbol, bool strictMethod = false) where T : Symbol {
@@ -317,14 +317,14 @@ internal sealed class BoundScope {
     }
 
     private bool Contains(string name) {
-        if (_symbols != null) {
+        if (_symbols is not null) {
             foreach (var symbol in _symbols) {
                 if (symbol.name == name)
                     return true;
             }
         }
 
-        return _isBlock ? (parent is null ? false : parent.Contains(name)) : false;
+        return false;
     }
 
     private ImmutableArray<T> GetDeclaredSymbols<T>() where T : Symbol {

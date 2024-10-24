@@ -9,14 +9,14 @@ internal static class GreenNodeExtensions {
     /// Converts a <see cref="SyntaxNode" /> to a <see cref="SyntaxList<T>" />.
     /// </summary>
     internal static SyntaxList<T> ToGreenList<T>(this SyntaxNode node) where T : GreenNode {
-        return node != null ? ToGreenList<T>(node.green) : null;
+        return node is not null ? ToGreenList<T>(node.green) : null;
     }
 
     /// <summary>
     /// Converts a <see cref="SyntaxNode" /> to a <see cref="SeparatedSyntaxList<T>" />.
     /// </summary>
     internal static SeparatedSyntaxList<T> ToGreenSeparatedList<T>(this SyntaxNode node) where T : GreenNode {
-        return node != null ? new SeparatedSyntaxList<T>(ToGreenList<T>(node.green)) : null;
+        return node is not null ? new SeparatedSyntaxList<T>(ToGreenList<T>(node.green)) : null;
     }
 
     /// <summary>

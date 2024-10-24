@@ -104,7 +104,11 @@ internal static class Error {
     /// BU0007. Run `buckle --explain BU0007` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic CannotConvertImplicitly(
-        TextLocation location, BoundType from, BoundType to, int argument, bool canAssert) {
+        TextLocation location,
+        BoundType from,
+        BoundType to,
+        int argument,
+        bool canAssert) {
         var message =
             $"cannot convert from type '{from}' to '{to}' implicitly; " +
             "an explicit conversion exists (are you missing a cast?)";
@@ -151,7 +155,11 @@ internal static class Error {
     /// BU0011. Run `buckle --explain BU0011` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic InvalidBinaryOperatorUse(
-        TextLocation location, string op, BoundType left, BoundType right, bool isCompound) {
+        TextLocation location,
+        string op,
+        BoundType left,
+        BoundType right,
+        bool isCompound) {
         var operatorWord = isCompound ? "compound" : "binary";
         var message = $"{operatorWord} operator '{op}' is not defined for types '{left}' and '{right}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidBinaryOperatorUse), location, message);
@@ -721,8 +729,8 @@ internal static class Error {
     /// <summary>
     /// BU0074. Run `buckle --explain BU0074` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic ModifierAlreadyApplied(TextLocation location, string name) {
-        var message = $"modifier '{name}' has already been applied to this item";
+    internal static BelteDiagnostic ModifierAlreadyApplied(TextLocation location, SyntaxToken modifier) {
+        var message = $"modifier '{modifier.text}' has already been applied to this item";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ModifierAlreadyApplied), location, message);
     }
 
@@ -942,16 +950,16 @@ internal static class Error {
     /// <summary>
     /// BU0098. Run `buckle --explain BU0098` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic StaticConstructor(TextLocation location) {
+    internal static BelteDiagnostic ConstructorInStaticClass(TextLocation location) {
         var message = $"static classes cannot have constructors";
-        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticConstructor), location, message);
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_ConstructorInStaticClass), location, message);
     }
 
     /// <summary>
     /// BU0099. Run `buckle --explain BU0099` on the command line for more info.
     /// </summary>
     internal static BelteDiagnostic StaticVariable(TextLocation location) {
-        var message = $"cannot declare a variable with a static type";
+        var message = $"cannot declare a field or local with a static type";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticVariable), location, message);
     }
 
@@ -1135,8 +1143,8 @@ internal static class Error {
     /// <summary>
     /// BU0121. Run `buckle --explain BU0121` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotDerivePrimitive(TextLocation location, string typeName) {
-        var message = $"cannot derive from primitive type '{typeName}'";
+    internal static BelteDiagnostic CannotDerivePrimitive(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from primitive type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDerivePrimitive), location, message);
     }
 
@@ -1242,16 +1250,16 @@ internal static class Error {
     /// <summary>
     /// BU0134. Run `buckle --explain BU0134` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotDeriveSealed(TextLocation location, string typeName) {
-        var message = $"cannot derive from sealed type '{typeName}'";
+    internal static BelteDiagnostic CannotDeriveSealed(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from sealed type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveSealed), location, message);
     }
 
     /// <summary>
     /// BU0135. Run `buckle --explain BU0135` on the command line for more info.
     /// </summary>
-    internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, string typeName) {
-        var message = $"cannot derive from static type '{typeName}'";
+    internal static BelteDiagnostic CannotDeriveStatic(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from static type '{type}'";
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveStatic), location, message);
     }
 
@@ -1327,6 +1335,134 @@ internal static class Error {
         return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MissingOperatorPair), location, message);
     }
 
+    /// <summary>
+    /// BU0144. Run `buckle --explain BU0144` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic InvalidExpressionTerm(SyntaxKind kind) {
+        var message = $"invalid expression term {kind}";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidExpressionTerm), message);
+    }
+
+    /// <summary>
+    /// BU0146. Run `buckle --explain BU0146` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MultipleAccessibilities(TextLocation location) {
+        var message = $"cannot apply multiple accessibility modifiers";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleAccessibilities), location, message);
+    }
+
+    /// <summary>
+    /// BU0147. Run `buckle --explain BU0147` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CircularConstraint(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter1,
+        TemplateParameterSymbol templateParameter2) {
+        var message = $"template parameters '{templateParameter1}' and '{templateParameter2}' form a circular " +
+            "constraint";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CircularConstraint), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0148. Run `buckle --explain BU0148` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TemplateObjectBaseWithPrimitiveBase(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter1,
+        TemplateParameterSymbol templateParameter2) {
+        var message = $"template parameter '{templateParameter2}' cannot be used as a constraint for template " +
+            $"parameter '{templateParameter1}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateObjectBaseWithPrimitiveBase), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0149. Run `buckle --explain BU0149` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TemplateBaseConstraintConflict(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter,
+        TypeSymbol base1,
+        TypeSymbol base2) {
+        var message = $"template parameter '{templateParameter}' cannot be constrained to both types '{base1}' and " +
+            $"'{base2}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateBaseConstraintConflict), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0150. Run `buckle --explain BU0150` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic TemplateBaseBothObjectAndPrimitive(
+        TextLocation location,
+        TemplateParameterSymbol templateParameter) {
+        var message = $"template parameter '{templateParameter}' cannot be constrained as both an Object type " +
+            "and Primitive type";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_TemplateBaseBothObjectAndPrimitive), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0151. Run `buckle --explain BU0151` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic MemberNameSameAsType(TextLocation location, string name) {
+        var message = $"cannot declare a member with the same name as the enclosing type '{name}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_MemberNameSameAsType), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0152. Run `buckle --explain BU0152` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CircularBase(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
+        var message = $"circular base dependency involving '{type1}' and '{type2}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CircularBase), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0153. Run `buckle --explain BU0153` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityClass(
+        TextLocation location,
+        NamedTypeSymbol type1,
+        NamedTypeSymbol type2) {
+        var message = $"inconsistent accessibility: class '{type1}' is less accessible than class '{type2}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityClass), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0154. Run `buckle --explain BU0154` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic StaticDeriveFromNotObject(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from type '{type}'; static classes must derive from Object";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_StaticDeriveFromNotObject), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0155. Run `buckle --explain BU0155` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic CannotDeriveTemplate(TextLocation location, TypeSymbol type) {
+        var message = $"cannot derive from template parameter '{type}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_CannotDeriveTemplate), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
+    /// <summary>
+    /// BU0156. Run `buckle --explain BU0156` on the command line for more info.
+    /// </summary>
+    internal static BelteDiagnostic InconsistentAccessibilityField(
+        TextLocation location,
+        TypeSymbol type,
+        FieldSymbol field) {
+        var message = $"inconsistent accessibility: type '{type}' is less accessible than field '{field}'";
+        return new BelteDiagnostic(ErrorInfo(DiagnosticCode.ERR_InconsistentAccessibilityField), location, message);
+        // TODO add this to resource doc after finding example
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
@@ -1334,9 +1470,9 @@ internal static class Error {
     private static string DiagnosticText(SyntaxKind type, bool sayToken = true) {
         var factValue = SyntaxFacts.GetText(type);
 
-        if (factValue != null && type.IsToken() && sayToken)
+        if (factValue is not null && type.IsToken() && sayToken)
             return $"token '{factValue}'";
-        else if (factValue != null)
+        else if (factValue is not null)
             return $"'{factValue}'";
 
         if (type.ToString().EndsWith("Statement")) {

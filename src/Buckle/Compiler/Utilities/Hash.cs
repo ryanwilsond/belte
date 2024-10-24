@@ -20,10 +20,14 @@ internal static class Hash {
         return CombineFNVHash(FnvOffsetBias, text);
     }
 
+    internal static int Combine(int newKey, int currentKey) {
+        return unchecked((currentKey * (int)0xA5555529) + newKey);
+    }
+
     internal static int Combine<T>(T newKeyPart, int currentKey) where T : class? {
         var hash = unchecked(currentKey * (int)0xA5555529);
 
-        if (newKeyPart != null) {
+        if (newKeyPart is not null) {
             return unchecked(hash + newKeyPart.GetHashCode());
         }
 

@@ -19,7 +19,7 @@ internal partial class SyntaxToken : BelteSyntaxNode {
             _flags |= NodeFlags.IsMissing;
         }
 
-        internal override string text => string.Empty;
+        internal override string text => "";
 
         internal override object value => null;
 

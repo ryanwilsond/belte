@@ -2,6 +2,7 @@ using System;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Authoring;
 
@@ -16,18 +17,20 @@ public static class Classifier {
     /// <param name="span">What segment of the <see cref="SyntaxTree" /> to classify.</param>
     /// <returns>All Classifications made within the <see cref="TextSpan" /> of the <see cref="SyntaxTree" />.</returns>
     public static ImmutableArray<ClassifiedSpan> Classify(SyntaxTree syntaxTree, TextSpan span) {
-        var result = ImmutableArray.CreateBuilder<ClassifiedSpan>();
+        var result = ArrayBuilder<ClassifiedSpan>.GetInstance();
         ClassifyNode(syntaxTree.GetRoot(), span, result);
-
-        return result.ToImmutable();
+        return result.ToImmutableAndFree();
     }
 
     private static void ClassifyNode(
-        SyntaxNodeOrToken node, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName = false) {
+        SyntaxNodeOrToken node,
+        TextSpan span,
+        ArrayBuilder<ClassifiedSpan> result,
+        bool isTypeName = false) {
         if (node is null)
             return;
 
-        if (node.fullSpan != null && !node.fullSpan.OverlapsWith(span))
+        if (node.fullSpan is not null && !node.fullSpan.OverlapsWith(span))
             return;
 
         if (node.isToken) {
@@ -55,7 +58,10 @@ public static class Classifier {
     }
 
     private static void ClassifyToken(
-        SyntaxToken token, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
+        SyntaxToken token,
+        TextSpan span,
+        ArrayBuilder<ClassifiedSpan> result,
+        bool isTypeName) {
         foreach (var trivia in token.leadingTrivia)
             ClassifyTrivia(trivia, span, result);
 
@@ -65,13 +71,16 @@ public static class Classifier {
             ClassifyTrivia(trivia, span, result);
     }
 
-    private static void ClassifyTrivia(
-        SyntaxTrivia trivia, TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result) {
+    private static void ClassifyTrivia(SyntaxTrivia trivia, TextSpan span, ArrayBuilder<ClassifiedSpan> result) {
         AddClassification(trivia.kind, trivia.span, span, result, false);
     }
 
-    private static void AddClassification(SyntaxKind elementKind, TextSpan elementSpan,
-        TextSpan span, ImmutableArray<ClassifiedSpan>.Builder result, bool isTypeName) {
+    private static void AddClassification(
+        SyntaxKind elementKind,
+        TextSpan elementSpan,
+        TextSpan span,
+        ArrayBuilder<ClassifiedSpan> result,
+        bool isTypeName) {
         if (!elementSpan.OverlapsWith(span))
             return;
 

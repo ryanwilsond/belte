@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -37,15 +38,15 @@ internal abstract class BoundTreeRewriter {
         };
     }
 
-    protected virtual BoundStatement RewriteContinueStatement(BoundContinueStatement statement) {
+    private protected virtual BoundStatement RewriteContinueStatement(BoundContinueStatement statement) {
         return statement;
     }
 
-    protected virtual BoundStatement RewriteBreakStatement(BoundBreakStatement statement) {
+    private protected virtual BoundStatement RewriteBreakStatement(BoundBreakStatement statement) {
         return statement;
     }
 
-    protected virtual BoundStatement RewriteTryStatement(BoundTryStatement statement) {
+    private protected virtual BoundStatement RewriteTryStatement(BoundTryStatement statement) {
         var body = (BoundBlockStatement)RewriteBlockStatement(statement.body);
         var catchBody = statement.catchBody is null
             ? null
@@ -61,11 +62,11 @@ internal abstract class BoundTreeRewriter {
         return new BoundTryStatement(body, catchBody, finallyBody);
     }
 
-    protected virtual BoundStatement RewriteNopStatement(BoundNopStatement statement) {
+    private protected virtual BoundStatement RewriteNopStatement(BoundNopStatement statement) {
         return statement;
     }
 
-    protected virtual BoundStatement RewriteReturnStatement(BoundReturnStatement statement) {
+    private protected virtual BoundStatement RewriteReturnStatement(BoundReturnStatement statement) {
         var expression = statement.expression is null ? null : RewriteExpression(statement.expression);
 
         if (expression == statement.expression)
@@ -74,7 +75,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundReturnStatement(expression);
     }
 
-    protected virtual BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
+    private protected virtual BoundStatement RewriteDoWhileStatement(BoundDoWhileStatement statement) {
         var body = RewriteStatement(statement.body);
         var condition = RewriteExpression(statement.condition);
 
@@ -84,15 +85,15 @@ internal abstract class BoundTreeRewriter {
         return new BoundDoWhileStatement(body, condition, statement.breakLabel, statement.continueLabel);
     }
 
-    protected virtual BoundStatement RewriteLabelStatement(BoundLabelStatement statement) {
+    private protected virtual BoundStatement RewriteLabelStatement(BoundLabelStatement statement) {
         return statement;
     }
 
-    protected virtual BoundStatement RewriteGotoStatement(BoundGotoStatement statement) {
+    private protected virtual BoundStatement RewriteGotoStatement(BoundGotoStatement statement) {
         return statement;
     }
 
-    protected virtual BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+    private protected virtual BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
         var condition = RewriteExpression(statement.condition);
 
         if (condition == statement.condition)
@@ -101,7 +102,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundConditionalGotoStatement(statement.label, condition, statement.jumpIfTrue);
     }
 
-    protected virtual BoundStatement RewriteExpressionStatement(BoundExpressionStatement statement) {
+    private protected virtual BoundStatement RewriteExpressionStatement(BoundExpressionStatement statement) {
         var expression = RewriteExpression(statement.expression);
 
         if (expression == statement.expression)
@@ -110,7 +111,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundExpressionStatement(expression);
     }
 
-    protected virtual BoundStatement RewriteForStatement(BoundForStatement statement) {
+    private protected virtual BoundStatement RewriteForStatement(BoundForStatement statement) {
         var condition = RewriteExpression(statement.condition);
         var initializer = RewriteStatement(statement.initializer);
         var step = RewriteExpression(statement.step);
@@ -124,7 +125,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundForStatement(initializer, condition, step, body, statement.breakLabel, statement.continueLabel);
     }
 
-    protected virtual BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
+    private protected virtual BoundStatement RewriteWhileStatement(BoundWhileStatement statement) {
         var condition = RewriteExpression(statement.condition);
         var body = RewriteStatement(statement.body);
 
@@ -134,7 +135,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundWhileStatement(condition, body, statement.breakLabel, statement.continueLabel);
     }
 
-    protected virtual BoundStatement RewriteIfStatement(BoundIfStatement statement) {
+    private protected virtual BoundStatement RewriteIfStatement(BoundIfStatement statement) {
         var condition = RewriteExpression(statement.condition);
         var then = RewriteStatement(statement.then);
         var elseStatement = statement.elseStatement is null ? null : RewriteStatement(statement.elseStatement);
@@ -145,7 +146,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundIfStatement(condition, then, elseStatement);
     }
 
-    protected virtual BoundStatement RewriteLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
+    private protected virtual BoundStatement RewriteLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
         var initializer = RewriteExpression(statement.declaration.initializer);
 
         if (initializer == statement.declaration.initializer)
@@ -156,15 +157,15 @@ internal abstract class BoundTreeRewriter {
         );
     }
 
-    protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
-        ImmutableArray<BoundStatement>.Builder builder = null;
+    private protected virtual BoundStatement RewriteBlockStatement(BoundBlockStatement statement) {
+        ArrayBuilder<BoundStatement> builder = null;
 
         for (var i = 0; i < statement.statements.Length; i++) {
             var oldStatement = statement.statements[i];
             var newStatement = RewriteStatement(oldStatement);
 
             if (newStatement != oldStatement && builder is null) {
-                builder = ImmutableArray.CreateBuilder<BoundStatement>(statement.statements.Length);
+                builder = ArrayBuilder<BoundStatement>.GetInstance(statement.statements.Length);
 
                 for (var j = 0; j < i; j++)
                     builder.Add(statement.statements[j]);
@@ -176,11 +177,11 @@ internal abstract class BoundTreeRewriter {
         if (builder is null)
             return statement;
 
-        return new BoundBlockStatement(builder.MoveToImmutable());
+        return new BoundBlockStatement(builder.ToImmutableAndFree());
     }
 
     internal virtual BoundExpression RewriteExpression(BoundExpression expression) {
-        if (expression.constantValue != null)
+        if (expression.constantValue is not null)
             return RewriteConstantExpression(expression);
 
         switch (expression.kind) {
@@ -237,19 +238,19 @@ internal abstract class BoundTreeRewriter {
         }
     }
 
-    protected virtual BoundExpression RewriteType(BoundType expression) {
+    private protected virtual BoundExpression RewriteType(BoundType expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteThisExpression(BoundThisExpression expression) {
+    private protected virtual BoundExpression RewriteThisExpression(BoundThisExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteBaseExpression(BoundBaseExpression expression) {
+    private protected virtual BoundExpression RewriteBaseExpression(BoundBaseExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteThrowExpression(BoundThrowExpression expression) {
+    private protected virtual BoundExpression RewriteThrowExpression(BoundThrowExpression expression) {
         var exception = RewriteExpression(expression.exception);
 
         if (exception == expression.exception)
@@ -258,8 +259,8 @@ internal abstract class BoundTreeRewriter {
         return new BoundThrowExpression(exception);
     }
 
-    protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
-        if (expression.constantValue.value is ImmutableArray<BoundConstant>)
+    private protected virtual BoundExpression RewriteConstantExpression(BoundExpression expression) {
+        if (expression.constantValue.value is ImmutableArray<ConstantValue>)
             return new BoundInitializerListExpression(expression.constantValue, expression.type);
         else if (expression is not BoundTypeWrapper)
             return new BoundLiteralExpression(expression.constantValue.value, expression.type);
@@ -267,7 +268,7 @@ internal abstract class BoundTreeRewriter {
             return expression;
     }
 
-    protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
+    private protected virtual BoundExpression RewritePrefixExpression(BoundPrefixExpression expression) {
         var operand = RewriteExpression(expression.operand);
 
         if (operand == expression.operand)
@@ -276,7 +277,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundPrefixExpression(expression.op, operand);
     }
 
-    protected virtual BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
+    private protected virtual BoundExpression RewritePostfixExpression(BoundPostfixExpression expression) {
         var operand = RewriteExpression(expression.operand);
 
         if (operand == expression.operand)
@@ -285,7 +286,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundPostfixExpression(operand, expression.op, expression.isOwnStatement);
     }
 
-    protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
+    private protected virtual BoundExpression RewriteMemberAccessExpression(BoundMemberAccessExpression expression) {
         var left = RewriteExpression(expression.left);
         var right = RewriteExpression(expression.right);
 
@@ -300,7 +301,7 @@ internal abstract class BoundTreeRewriter {
         );
     }
 
-    protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {
+    private protected virtual BoundExpression RewriteObjectCreationExpression(BoundObjectCreationExpression expression) {
         if (expression.viaConstructor) {
             var arguments = RewriteArguments(expression.arguments);
 
@@ -313,7 +314,7 @@ internal abstract class BoundTreeRewriter {
         }
     }
 
-    protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+    private protected virtual BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
         var left = RewriteExpression(expression.left);
         var center = RewriteExpression(expression.center);
         var right = RewriteExpression(expression.right);
@@ -324,15 +325,15 @@ internal abstract class BoundTreeRewriter {
         return new BoundTernaryExpression(left, expression.op, center, right);
     }
 
-    protected virtual BoundExpression RewriteTypeOfExpression(BoundTypeOfExpression expression) {
+    private protected virtual BoundExpression RewriteTypeOfExpression(BoundTypeOfExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteReferenceExpression(BoundReferenceExpression expression) {
+    private protected virtual BoundExpression RewriteReferenceExpression(BoundReferenceExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
+    private protected virtual BoundExpression RewriteIndexExpression(BoundIndexExpression expression) {
         var index = RewriteExpression(expression.index);
 
         if (index == expression.index)
@@ -341,8 +342,8 @@ internal abstract class BoundTreeRewriter {
         return new BoundIndexExpression(expression.expression, index, expression.isNullConditional);
     }
 
-    protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
-        ImmutableArray<BoundExpression>.Builder builder = null;
+    private protected virtual BoundExpression RewriteInitializerListExpression(BoundInitializerListExpression expression) {
+        ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < expression.items.Length; i++) {
             var oldItem = expression.items[i];
@@ -350,7 +351,7 @@ internal abstract class BoundTreeRewriter {
 
             if (newItem != oldItem) {
                 if (builder is null) {
-                    builder = ImmutableArray.CreateBuilder<BoundExpression>(expression.items.Length);
+                    builder = ArrayBuilder<BoundExpression>.GetInstance(expression.items.Length);
 
                     for (var j = 0; j < i; j++)
                         builder.Add(expression.items[j]);
@@ -363,15 +364,15 @@ internal abstract class BoundTreeRewriter {
         if (builder is null)
             return expression;
 
-        return new BoundInitializerListExpression(builder.MoveToImmutable(), expression.type);
+        return new BoundInitializerListExpression(builder.ToImmutableAndFree(), expression.type);
     }
 
-    protected virtual BoundExpression RewriteInitializerDictionaryExpression(
+    private protected virtual BoundExpression RewriteInitializerDictionaryExpression(
         BoundInitializerDictionaryExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteCompoundAssignmentExpression(
+    private protected virtual BoundExpression RewriteCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression) {
         var left = RewriteExpression(expression.left);
         var right = RewriteExpression(expression.right);
@@ -382,16 +383,16 @@ internal abstract class BoundTreeRewriter {
         return new BoundCompoundAssignmentExpression(left, expression.op, right);
     }
 
-    protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
-        var rewrote = RewriteExpression(expression.expression);
+    private protected virtual BoundExpression RewriteCastExpression(BoundCastExpression expression) {
+        var rewrote = RewriteExpression(expression.operand);
 
-        if (rewrote == expression.expression)
+        if (rewrote == expression.operand)
             return expression;
 
         return new BoundCastExpression(expression.type, rewrote);
     }
 
-    protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
+    private protected virtual BoundExpression RewriteCallExpression(BoundCallExpression expression) {
         var rewrote = RewriteExpression(expression.expression);
         var arguments = RewriteArguments(expression.arguments);
 
@@ -401,15 +402,15 @@ internal abstract class BoundTreeRewriter {
         return new BoundCallExpression(rewrote, expression.method, arguments.Value, expression.templateArguments);
     }
 
-    protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {
+    private protected virtual BoundExpression RewriteErrorExpression(BoundErrorExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteEmptyExpression(BoundEmptyExpression expression) {
+    private protected virtual BoundExpression RewriteEmptyExpression(BoundEmptyExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
+    private protected virtual BoundExpression RewriteBinaryExpression(BoundBinaryExpression expression) {
         var left = RewriteExpression(expression.left);
         var right = RewriteExpression(expression.right);
 
@@ -419,15 +420,15 @@ internal abstract class BoundTreeRewriter {
         return new BoundBinaryExpression(left, expression.op, right);
     }
 
-    protected virtual BoundExpression RewriteLiteralExpression(BoundLiteralExpression expression) {
+    private protected virtual BoundExpression RewriteLiteralExpression(BoundLiteralExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteVariableExpression(BoundVariableExpression expression) {
+    private protected virtual BoundExpression RewriteVariableExpression(BoundVariableExpression expression) {
         return expression;
     }
 
-    protected virtual BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
+    private protected virtual BoundExpression RewriteAssignmentExpression(BoundAssignmentExpression expression) {
         var left = RewriteExpression(expression.left);
         var right = RewriteExpression(expression.right);
 
@@ -437,7 +438,7 @@ internal abstract class BoundTreeRewriter {
         return new BoundAssignmentExpression(left, right);
     }
 
-    protected virtual BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
+    private protected virtual BoundExpression RewriteUnaryExpression(BoundUnaryExpression expression) {
         var operand = RewriteExpression(expression.operand);
 
         if (operand == expression.operand)
@@ -447,7 +448,7 @@ internal abstract class BoundTreeRewriter {
     }
 
     private ImmutableArray<BoundExpression>? RewriteArguments(ImmutableArray<BoundExpression> arguments) {
-        ImmutableArray<BoundExpression>.Builder builder = null;
+        ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < arguments.Length; i++) {
             var oldArgument = arguments[i];
@@ -455,7 +456,7 @@ internal abstract class BoundTreeRewriter {
 
             if (newArgument != oldArgument) {
                 if (builder is null) {
-                    builder = ImmutableArray.CreateBuilder<BoundExpression>(arguments.Length);
+                    builder = ArrayBuilder<BoundExpression>.GetInstance(arguments.Length);
 
                     for (var j = 0; j < i; j++)
                         builder.Add(arguments[j]);
@@ -465,6 +466,6 @@ internal abstract class BoundTreeRewriter {
             builder?.Add(newArgument);
         }
 
-        return builder?.MoveToImmutable();
+        return builder?.ToImmutableAndFree();
     }
 }

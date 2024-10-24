@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -5,11 +6,11 @@ namespace Buckle.CodeAnalysis.Binding;
 /// A bound this expression, bound from a <see cref="Syntax.ThisExpressionSyntax" />.
 /// </summary>
 internal sealed class BoundThisExpression : BoundExpression {
-    internal BoundThisExpression(BoundType type) {
+    internal BoundThisExpression(TypeSymbol type) {
         this.type = type;
     }
 
     internal override BoundNodeKind kind => BoundNodeKind.ThisExpression;
 
-    internal override BoundType type { get; }
+    internal override TypeSymbol type { get; }
 }

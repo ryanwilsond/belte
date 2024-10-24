@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries.Standard;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
@@ -30,13 +30,13 @@ internal sealed class Expander : BoundTreeExpander {
         return Simplify(ExpandStatement(statement));
     }
 
-    protected override List<BoundStatement> ExpandLocalDeclarationStatement(
+    private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
         _localNames.Add(statement.declaration.variable.name);
         return base.ExpandLocalDeclarationStatement(statement);
     }
 
-    protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
+    private protected override List<BoundStatement> ExpandCompoundAssignmentExpression(
         BoundCompoundAssignmentExpression expression,
         out BoundExpression replacement) {
         _compoundAssignmentDepth++;
@@ -61,7 +61,7 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
-    protected override List<BoundStatement> ExpandCallExpression(
+    private protected override List<BoundStatement> ExpandCallExpression(
         BoundCallExpression expression,
         out BoundExpression replacement) {
         if (_operatorDepth > 0) {
@@ -85,7 +85,7 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         if (transpilerMode && expression.method.containingType == StandardLibrary.Math) {
             var statements = ExpandExpression(expression.expression, out var expressionReplacement);
-            var replacementArguments = ImmutableArray.CreateBuilder<BoundExpression>();
+            var replacementArguments = ArrayBuilder<BoundExpression>.GetInstance();
 
             foreach (var argument in expression.arguments) {
                 var tempLocal = GenerateTempLocal(argument.type);
@@ -100,7 +100,7 @@ internal sealed class Expander : BoundTreeExpander {
             replacement = new BoundCallExpression(
                 expressionReplacement,
                 expression.method,
-                replacementArguments.ToImmutable(),
+                replacementArguments.ToImmutableAndFree(),
                 expression.templateArguments
             );
 
@@ -111,7 +111,7 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
-    protected override List<BoundStatement> ExpandBinaryExpression(
+    private protected override List<BoundStatement> ExpandBinaryExpression(
         BoundBinaryExpression expression,
         out BoundExpression replacement) {
         _operatorDepth++;
@@ -139,7 +139,7 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
-    protected override List<BoundStatement> ExpandTernaryExpression(
+    private protected override List<BoundStatement> ExpandTernaryExpression(
         BoundTernaryExpression expression,
         out BoundExpression replacement) {
         _operatorDepth++;
@@ -168,7 +168,7 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
-    protected override List<BoundStatement> ExpandInitializerDictionaryExpression(
+    private protected override List<BoundStatement> ExpandInitializerDictionaryExpression(
         BoundInitializerDictionaryExpression expression,
         out BoundExpression replacement) {
         // TODO Add a way where if _operatorDepth == 0 a temp local isn't made if this is a variable initializer
@@ -198,7 +198,7 @@ internal sealed class Expander : BoundTreeExpander {
         return statements;
     }
 
-    private LocalVariableSymbol GenerateTempLocal(BoundType type) {
+    private LocalSymbol GenerateTempLocal(BoundType type) {
         string name;
         do {
             name = $"temp{_tempCount++}";

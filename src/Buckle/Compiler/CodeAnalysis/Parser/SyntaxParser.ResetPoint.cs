@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxParser {
-    protected readonly struct ResetPoint {
+    private protected readonly struct ResetPoint {
         internal readonly int position;
         internal readonly GreenNode prevTokenTrailingTrivia;
 

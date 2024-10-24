@@ -48,9 +48,8 @@ internal sealed partial class ChangedText : SourceText {
             return this;
     }
 
-    protected override void EnsureLines() {
-        if (_lines is null)
-            _lines = _newText.GetLines();
+    private protected override void EnsureLines() {
+        _lines ??= _newText.GetLines();
     }
 
     internal override ImmutableArray<TextChangeRange> GetChangeRanges(SourceText oldText) {
@@ -68,7 +67,7 @@ internal sealed partial class ChangedText : SourceText {
                 return Merge(changes);
         }
 
-        if (actualOldText != null && actualOldText.GetChangeRanges(oldText).Length == 0)
+        if (actualOldText is not null && actualOldText.GetChangeRanges(oldText).Length == 0)
             // Checks if the given oldText is equal to what we reference, if so our changes must be accurate
             return _info.changeRanges;
 
@@ -80,7 +79,7 @@ internal sealed partial class ChangedText : SourceText {
     }
 
     private bool IsChangedFrom(SourceText oldText) {
-        for (var info = _info; info != null; info = info.previous) {
+        for (var info = _info; info is not null; info = info.previous) {
 
             if (info.weakOldText.TryGetTarget(out var temp) && temp == oldText)
                 return true;
@@ -95,7 +94,7 @@ internal sealed partial class ChangedText : SourceText {
         var change = newText._info;
         builder.Add(change.changeRanges);
 
-        while (change != null) {
+        while (change is not null) {
             change.weakOldText.TryGetTarget(out var actualOldText);
 
             if (actualOldText == oldText)
@@ -103,7 +102,7 @@ internal sealed partial class ChangedText : SourceText {
 
             change = change.previous;
 
-            if (change != null)
+            if (change is not null)
                 builder.Insert(0, change.changeRanges);
         }
 

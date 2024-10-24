@@ -10,7 +10,7 @@ internal sealed class BoundMethodGroup : BoundExpression {
     internal BoundMethodGroup(
         string name,
         ImmutableArray<MethodSymbol> methods,
-        ImmutableArray<BoundTypeOrConstant> templateArguments) {
+        ImmutableArray<TypeOrConstant> templateArguments) {
         this.name = name;
         this.methods = methods;
         this.templateArguments = templateArguments;
@@ -18,11 +18,11 @@ internal sealed class BoundMethodGroup : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.MethodGroup;
 
-    internal override BoundType type => BoundType.MethodGroup;
+    internal override TypeSymbol type => TypeSymbol.Func;
 
     internal string name { get; }
 
     internal ImmutableArray<MethodSymbol> methods { get; }
 
-    internal ImmutableArray<BoundTypeOrConstant> templateArguments { get; }
+    internal ImmutableArray<TypeOrConstant> templateArguments { get; }
 }

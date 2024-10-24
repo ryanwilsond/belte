@@ -12,14 +12,14 @@ internal abstract partial class SyntaxParser {
     private static readonly ObjectPool<BlendedNode[]> BlendedNodesPool =
         new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
 
-    protected readonly Lexer _lexer;
+    private protected readonly Lexer _lexer;
     private readonly LexerMode _mode;
     private readonly bool _isIncremental;
     private readonly SyntaxTree _syntaxTree;
     private readonly Blender _firstBlender;
     private readonly List<Diagnostic> _futureDiagnostics;
 
-    protected SyntaxToken _currentToken;
+    private protected SyntaxToken _currentToken;
     private ArrayElement<SyntaxToken>[] _lexedTokens;
     private BlendedNode[] _blendedTokens;
     private BlendedNode _currentNode;
@@ -27,7 +27,7 @@ internal abstract partial class SyntaxParser {
     private int _tokenOffset;
     private int _tokenCount;
 
-    protected SyntaxParser(
+    private protected SyntaxParser(
         Lexer lexer,
         LexerMode mode,
         SyntaxNode oldTree,
@@ -37,7 +37,7 @@ internal abstract partial class SyntaxParser {
         _syntaxTree = lexer.syntaxTree;
         _lexer = lexer;
         _mode = mode;
-        _isIncremental = oldTree != null;
+        _isIncremental = oldTree is not null;
 
         if (_isIncremental) {
             _firstBlender = new Blender(_lexer, oldTree, changes);
@@ -63,7 +63,7 @@ internal abstract partial class SyntaxParser {
         get {
             var node = _currentNode.node;
 
-            if (node != null)
+            if (node is not null)
                 return node;
 
             ReadCurrentNode();
@@ -87,23 +87,23 @@ internal abstract partial class SyntaxParser {
         }
     }
 
-    protected static bool NoTriviaBetween(SyntaxToken token1, SyntaxToken token2) {
+    private protected static bool NoTriviaBetween(SyntaxToken token1, SyntaxToken token2) {
         return token1.GetTrailingTriviaWidth() == 0 && token2.GetLeadingTriviaWidth() == 0;
     }
 
-    protected ResetPoint GetResetPoint() {
+    private protected ResetPoint GetResetPoint() {
         return new ResetPoint(_tokenOffset, _prevTokenTrailingTrivia);
     }
 
-    protected void Reset(ResetPoint resetPoint) {
+    private protected void Reset(ResetPoint resetPoint) {
         _tokenOffset = resetPoint.position;
         _prevTokenTrailingTrivia = resetPoint.prevTokenTrailingTrivia;
         _currentToken = null;
         _currentNode = null;
 
-        if (_blendedTokens != null) {
+        if (_blendedTokens is not null) {
             for (var i = _tokenOffset; i < _tokenCount; i++) {
-                if (_blendedTokens[i].token == null) {
+                if (_blendedTokens[i].token is null) {
                     _tokenCount = i;
 
                     if (_tokenCount == _tokenOffset)
@@ -115,7 +115,7 @@ internal abstract partial class SyntaxParser {
         }
     }
 
-    protected T AddDiagnostic<T>(T node, Diagnostic diagnostic) where T : BelteSyntaxNode {
+    private protected T AddDiagnostic<T>(T node, Diagnostic diagnostic) where T : BelteSyntaxNode {
         if (!node.isFabricated) {
             return WithAdditionalDiagnostics(
                 node, new SyntaxDiagnostic(diagnostic, node.GetLeadingTriviaWidth(), node.width)
@@ -146,11 +146,11 @@ internal abstract partial class SyntaxParser {
         return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
     }
 
-    protected T AddDiagnostic<T>(T node, Diagnostic diagnostic, int offset, int width) where T : BelteSyntaxNode {
+    private protected T AddDiagnostic<T>(T node, Diagnostic diagnostic, int offset, int width) where T : BelteSyntaxNode {
         return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
     }
 
-    protected T WithFutureDiagnostics<T>(T node) where T : BelteSyntaxNode {
+    private protected T WithFutureDiagnostics<T>(T node) where T : BelteSyntaxNode {
         if (_futureDiagnostics.Count == 0)
             return node;
 
@@ -163,7 +163,7 @@ internal abstract partial class SyntaxParser {
         return WithAdditionalDiagnostics(node, diagnostics);
     }
 
-    protected T WithAdditionalDiagnostics<T>(T node, params Diagnostic[] diagnostics) where T : BelteSyntaxNode {
+    private protected T WithAdditionalDiagnostics<T>(T node, params Diagnostic[] diagnostics) where T : BelteSyntaxNode {
         var existingDiagnostics = node.GetDiagnostics();
         var existingLength = existingDiagnostics.Length;
 
@@ -177,10 +177,10 @@ internal abstract partial class SyntaxParser {
         }
     }
 
-    protected void GetDiagnosticSpanForMissingToken(out int offset, out int width) {
+    private protected void GetDiagnosticSpanForMissingToken(out int offset, out int width) {
         var trivia = _prevTokenTrailingTrivia;
 
-        if (trivia != null) {
+        if (trivia is not null) {
             var triviaList = new SyntaxList<BelteSyntaxNode>(trivia);
             var prevTokenHasEndOfLineTrivia = triviaList.Any(SyntaxKind.EndOfLineTrivia);
 
@@ -196,13 +196,13 @@ internal abstract partial class SyntaxParser {
         width = ct.width;
     }
 
-    protected T AddLeadingSkippedSyntax<T>(T node, GreenNode skippedSyntax) where T : BelteSyntaxNode {
+    private protected T AddLeadingSkippedSyntax<T>(T node, GreenNode skippedSyntax) where T : BelteSyntaxNode {
         var oldToken = (node as SyntaxToken) ?? (SyntaxToken)node.GetFirstTerminal();
         var newToken = AddSkippedSyntax(oldToken, skippedSyntax, isTrailing: false);
         return SyntaxFirstTokenReplacer.Replace(node, newToken, skippedSyntax.fullWidth);
     }
 
-    protected SyntaxToken AddSkippedSyntax(SyntaxToken target, GreenNode skippedSyntax, bool isTrailing) {
+    private protected SyntaxToken AddSkippedSyntax(SyntaxToken target, GreenNode skippedSyntax, bool isTrailing) {
         var builder = new SyntaxListBuilder(4);
 
         SyntaxDiagnostic diagnostic = null;
@@ -231,7 +231,7 @@ internal abstract partial class SyntaxParser {
                 } else {
                     var existing = (SyntaxDiagnostic)token.GetDiagnostics().FirstOrDefault();
 
-                    if (existing != null) {
+                    if (existing is not null) {
                         diagnostic = existing;
                         diagnosticOffset = currentOffset;
                     }
@@ -242,7 +242,7 @@ internal abstract partial class SyntaxParser {
             } else if (node.containsDiagnostics && diagnostic is null) {
                 var existing = (SyntaxDiagnostic)node.GetDiagnostics().FirstOrDefault();
 
-                if (existing != null) {
+                if (existing is not null) {
                     diagnostic = existing;
                     diagnosticOffset = currentOffset;
                 }
@@ -273,7 +273,7 @@ internal abstract partial class SyntaxParser {
             triviaOffset = 0;
         }
 
-        if (diagnostic != null) {
+        if (diagnostic is not null) {
             var newOffset = triviaOffset + diagnosticOffset + diagnostic.offset;
             target = WithAdditionalDiagnostics(target, new SyntaxDiagnostic(diagnostic, newOffset, diagnostic.width));
         }
@@ -281,11 +281,11 @@ internal abstract partial class SyntaxParser {
         return target;
     }
 
-    protected void AddDiagnosticToNextToken(Diagnostic diagnostic) {
+    private protected void AddDiagnosticToNextToken(Diagnostic diagnostic) {
         _futureDiagnostics.Add(diagnostic);
     }
 
-    protected SyntaxNode EatNode() {
+    private protected SyntaxNode EatNode() {
         var saved = currentNode;
 
         if (_tokenOffset >= _blendedTokens.Length)
@@ -300,7 +300,7 @@ internal abstract partial class SyntaxParser {
         return saved;
     }
 
-    protected SyntaxToken EatToken(bool stallDiagnostics = false) {
+    private protected SyntaxToken EatToken(bool stallDiagnostics = false) {
         var saved = currentToken;
 
         if (!stallDiagnostics)
@@ -310,24 +310,24 @@ internal abstract partial class SyntaxParser {
         return saved;
     }
 
-    protected void ReadCurrentNode() {
+    private protected void ReadCurrentNode() {
         if (_tokenOffset == 0)
             _currentNode = _firstBlender.ReadNode();
         else
             _currentNode = _blendedTokens[_tokenOffset - 1].blender.ReadNode();
     }
 
-    protected SyntaxToken FetchCurrentToken() {
+    private protected SyntaxToken FetchCurrentToken() {
         if (_tokenOffset >= _tokenCount)
             AddNewToken();
 
-        if (_blendedTokens != null)
+        if (_blendedTokens is not null)
             return _blendedTokens[_tokenOffset].token;
         else
             return _lexedTokens[_tokenOffset];
     }
 
-    protected void AddLexedToken(SyntaxToken token) {
+    private protected void AddLexedToken(SyntaxToken token) {
         if (_tokenCount >= _lexedTokens.Length) {
             var temp = new ArrayElement<SyntaxToken>[_lexedTokens.Length * 2];
             Array.Copy(_lexedTokens, temp, _lexedTokens.Length);
@@ -338,12 +338,12 @@ internal abstract partial class SyntaxParser {
         _tokenCount++;
     }
 
-    protected void AddNewToken() {
-        if (_blendedTokens != null) {
+    private protected void AddNewToken() {
+        if (_blendedTokens is not null) {
             if (_tokenCount > 0) {
                 AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken());
             } else {
-                if (_currentNode?.token != null)
+                if (_currentNode?.token is not null)
                     AddToken(_currentNode);
                 else
                     AddToken(_firstBlender.ReadToken());
@@ -353,7 +353,7 @@ internal abstract partial class SyntaxParser {
         }
     }
 
-    protected void AddToken(in BlendedNode token) {
+    private protected void AddToken(in BlendedNode token) {
         if (_tokenCount >= _blendedTokens.Length)
             AddTokenSlot();
 
@@ -361,17 +361,17 @@ internal abstract partial class SyntaxParser {
         _tokenCount++;
     }
 
-    protected void AddTokenSlot() {
+    private protected void AddTokenSlot() {
         var old = _blendedTokens;
         Array.Resize(ref _blendedTokens, _blendedTokens.Length * 2);
         BlendedNodesPool.ForgetTrackedObject(old, replacement: _blendedTokens);
     }
 
-    protected SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null, bool report = true) {
+    private protected SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null, bool report = true) {
         if (currentToken.kind == kind)
             return EatToken();
 
-        if (nextWanted != null && currentToken.kind == nextWanted) {
+        if (nextWanted is not null && currentToken.kind == nextWanted) {
             if (report) {
                 return AddDiagnostic(
                     WithFutureDiagnostics(SyntaxFactory.Missing(kind)),
@@ -413,7 +413,7 @@ internal abstract partial class SyntaxParser {
         }
     }
 
-    protected SyntaxToken MatchTwo(SyntaxKind kind1, SyntaxKind kind2, bool report = true) {
+    private protected SyntaxToken MatchTwo(SyntaxKind kind1, SyntaxKind kind2, bool report = true) {
         if (currentToken.kind == kind1)
             return Match(kind1, report: report);
         else if (currentToken.kind == kind2)
@@ -450,17 +450,17 @@ internal abstract partial class SyntaxParser {
         }
     }
 
-    protected void MoveToNextToken() {
+    private protected void MoveToNextToken() {
         _prevTokenTrailingTrivia = _currentToken.GetTrailingTrivia();
         _currentToken = null;
 
-        if (_blendedTokens != null)
+        if (_blendedTokens is not null)
             _currentNode = null;
 
         _tokenOffset++;
     }
 
-    protected SyntaxToken Peek(int offset) {
+    private protected SyntaxToken Peek(int offset) {
         var index = _tokenOffset + offset;
 
         while (index >= _tokenCount)
@@ -469,13 +469,13 @@ internal abstract partial class SyntaxParser {
         if (index < 0)
             index = 0;
 
-        if (_blendedTokens != null)
+        if (_blendedTokens is not null)
             return _blendedTokens[index].token;
         else
             return _lexedTokens[index];
     }
 
-    protected bool IsMakingProgress(ref int lastTokenPosition) {
+    private protected bool IsMakingProgress(ref int lastTokenPosition) {
         if (_tokenOffset > lastTokenPosition) {
             lastTokenPosition = _tokenOffset;
             return true;

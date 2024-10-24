@@ -1319,7 +1319,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0098_StaticConstructor() {
+    public void Reports_Error_BU0098_ConstructorInStaticClass() {
         var text = @"
             static class A {
                 [constructor]() { }
@@ -1341,7 +1341,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot declare a variable with a static type
+            cannot declare a field or local with a static type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -89,7 +89,7 @@ public sealed class DisplayText {
     /// <param name="text">Existing text.</param>
     /// <param name="node"><see cref="BoundNode" /> to append.</param>
     internal static void DisplayNode(DisplayText text, BoundNode node) {
-        if (node is BoundExpression be && be.constantValue != null) {
+        if (node is BoundExpression be && be.constantValue is not null) {
             DisplayConstant(text, be.constantValue);
             return;
         }
@@ -97,9 +97,6 @@ public sealed class DisplayText {
         switch (node.kind) {
             case BoundNodeKind.VariableDeclaration:
                 DisplayVariableDeclaration(text, (BoundVariableDeclaration)node);
-                break;
-            case BoundNodeKind.Type:
-                DisplayType(text, (BoundType)node);
                 break;
             case BoundNodeKind.NopStatement:
                 DisplayNopStatement(text, (BoundNopStatement)node);
@@ -139,6 +136,9 @@ public sealed class DisplayText {
                 break;
             case BoundNodeKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
+                break;
+            case BoundNodeKind.TypeExpression:
+                DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
             case BoundNodeKind.TernaryExpression:
                 DisplayTernaryExpression(text, (BoundTernaryExpression)node);
@@ -212,10 +212,10 @@ public sealed class DisplayText {
     }
 
     /// <summary>
-    /// Renders a <see cref="BoundConstant" /> and appends it to the given <see cref="DisplayText" />.
+    /// Renders a <see cref="ConstantValue" /> and appends it to the given <see cref="DisplayText" />.
     /// </summary>
-    internal static void DisplayConstant(DisplayText text, BoundConstant constant) {
-        if (constant.value is ImmutableArray<BoundConstant> il) {
+    internal static void DisplayConstant(DisplayText text, ConstantValue constant) {
+        if (constant.value is ImmutableArray<ConstantValue> il) {
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
             var isFirst = true;
 
@@ -347,6 +347,10 @@ public sealed class DisplayText {
             text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
     }
 
+    private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
+        SymbolDisplay.DisplaySymbol(text, node.type);
+    }
+
     private static void DisplayNopStatement(DisplayText text, BoundNopStatement _) {
         text.Write(CreateKeyword("nop"));
         text.Write(CreateLine());
@@ -373,14 +377,14 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         DisplayBlockStatement(text, node.body, false);
 
-        if (node.catchBody != null) {
+        if (node.catchBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
             text.Write(CreateSpace());
             DisplayBlockStatement(text, node.catchBody, false);
         }
 
-        if (node.finallyBody != null) {
+        if (node.finallyBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.FinallyKeyword));
             text.Write(CreateSpace());
@@ -393,7 +397,7 @@ public sealed class DisplayText {
     private static void DisplayReturnStatement(DisplayText text, BoundReturnStatement node) {
         text.Write(CreateKeyword(SyntaxKind.ReturnKeyword));
 
-        if (node.expression != null) {
+        if (node.expression is not null) {
             text.Write(CreateSpace());
             DisplayNode(text, node.expression);
         }
@@ -504,7 +508,7 @@ public sealed class DisplayText {
         DisplayNestedStatement(text, node.then);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
 
-        if (node.elseStatement != null) {
+        if (node.elseStatement is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.ElseKeyword));
             text.Write(CreateSpace());
@@ -615,7 +619,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-        DisplayNode(text, node.expression);
+        DisplayNode(text, node.operand);
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {

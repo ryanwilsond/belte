@@ -26,7 +26,7 @@ internal static class Assertions {
             new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
         );
 
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
 
         if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -47,7 +47,7 @@ internal static class Assertions {
             new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
         );
 
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -77,14 +77,14 @@ internal static class Assertions {
         var tempDiagnostics = new BelteDiagnosticQueue();
         var treeDiagnostics = syntaxTree.GetDiagnostics();
 
-        if (treeDiagnostics.Errors().Any()) {
+        if (treeDiagnostics.AnyErrors()) {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
             var compilation = Compilation.CreateScript(
                 new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
             );
 
-            var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+            var result = compilation.Evaluate(new Dictionary<IDataContainerSymbol, EvaluatorObject>(), false);
             tempDiagnostics = result.diagnostics;
         }
 

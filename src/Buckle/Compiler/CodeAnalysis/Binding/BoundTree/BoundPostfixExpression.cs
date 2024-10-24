@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -22,7 +23,7 @@ internal sealed class BoundPostfixExpression : BoundExpression {
     /// </summary>
     internal bool isOwnStatement { get; }
 
-    internal override BoundType type => op.type;
+    internal override TypeSymbol type => op.type;
 
     internal override BoundNodeKind kind => BoundNodeKind.PostfixExpression;
 }

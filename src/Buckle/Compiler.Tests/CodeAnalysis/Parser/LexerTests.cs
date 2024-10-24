@@ -149,7 +149,7 @@ public sealed class LexerTests {
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
                          and not SyntaxKind.HashToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
-            .Where(t => t.text != null);
+            .Where(t => t.text is not null);
 
         var dynamicTokens = new[] {
             (SyntaxKind.NumericLiteralToken, "1"),

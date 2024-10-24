@@ -81,7 +81,7 @@ public sealed class Compiler {
         var textsCount = 0;
 
         foreach (var task in state.tasks) {
-            if (task.fileContent.text != null) {
+            if (task.fileContent.text is not null) {
                 textLength += task.fileContent.text.Length;
                 textsCount++;
             }
@@ -117,7 +117,7 @@ public sealed class Compiler {
 
             diagnostics.Move(compilation.diagnostics);
 
-            if (diagnostics.Errors().Any())
+            if (diagnostics.AnyErrors())
                 return;
 
             if (state.noOut)
@@ -137,7 +137,7 @@ public sealed class Compiler {
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
                     result = compilation.Evaluate(
-                        new Dictionary<IVariableSymbol, EvaluatorObject>(),
+                        new Dictionary<IDataContainerSymbol, EvaluatorObject>(),
                         (ValueWrapper<bool>)parameter,
                         state.verboseMode
                     );
@@ -173,7 +173,7 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 result = compilation.Interpret(
-                    new Dictionary<IVariableSymbol, EvaluatorObject>(),
+                    new Dictionary<IDataContainerSymbol, EvaluatorObject>(),
                     (ValueWrapper<bool>)parameter
                 );
             }

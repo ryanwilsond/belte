@@ -24,7 +24,7 @@ internal sealed partial class ChangedText {
             var lastInfo = this;
 
             // Look for last info in the chain that still has a reference to old text
-            for (var info = this; info != null; info = info.previous) {
+            for (var info = this; info is not null; info = info.previous) {
 
                 if (info.weakOldText.TryGetTarget(out _))
                     lastInfo = info;
@@ -32,7 +32,7 @@ internal sealed partial class ChangedText {
 
             // Break the chain for any infos beyond that so they get garbage collected
             ChangeInfo previous;
-            while (lastInfo != null) {
+            while (lastInfo is not null) {
                 previous = lastInfo.previous;
                 lastInfo.previous = null;
                 lastInfo = previous;

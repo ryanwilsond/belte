@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -18,9 +19,9 @@ internal sealed class BoundBinaryExpression : BoundExpression {
 
     internal override BoundNodeKind kind => BoundNodeKind.BinaryExpression;
 
-    internal override BoundType type => op.type;
+    internal override TypeSymbol type => op.type;
 
-    internal override BoundConstant constantValue { get; }
+    internal override ConstantValue constantValue { get; }
 
     internal BoundExpression left { get; }
 

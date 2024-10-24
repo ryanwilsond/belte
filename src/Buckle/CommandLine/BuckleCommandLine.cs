@@ -43,7 +43,7 @@ public static partial class BuckleCommandLine {
             state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains)
         };
 
-        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error != null;
+        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error is not null;
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), compiler.me, compiler.state);
@@ -111,7 +111,7 @@ public static partial class BuckleCommandLine {
         if (dialogs.help)
             ShowHelpDialog();
 
-        if (dialogs.error != null && !multipleExplains)
+        if (dialogs.error is not null && !multipleExplains)
             ShowErrorHelp(dialogs.error, out diagnostics);
 
         return diagnostics;
@@ -224,7 +224,7 @@ public static partial class BuckleCommandLine {
 
     private static void PrettyPrintDiagnostic(BelteDiagnostic diagnostic, ConsoleColor? textColor) {
         void ResetColor() {
-            if (textColor != null)
+            if (textColor is not null)
                 Console.ForegroundColor = textColor.Value;
             else
                 Console.ResetColor();
@@ -277,7 +277,7 @@ public static partial class BuckleCommandLine {
                 break;
         }
 
-        if (diagnostic.info.code != null && diagnostic.info.code > 0)
+        if (diagnostic.info.code is not null && diagnostic.info.code > 0)
             Console.Write($" {diagnostic.info}: ");
         else
             Console.Write(": ");
@@ -335,7 +335,7 @@ public static partial class BuckleCommandLine {
         var previous = Console.ForegroundColor;
 
         void ResetColor() {
-            if (textColor != null)
+            if (textColor is not null)
                 Console.ForegroundColor = textColor.Value;
             else
                 Console.ResetColor();
@@ -437,7 +437,7 @@ public static partial class BuckleCommandLine {
         var worst = diagnostics.ToList().Select(d => (int)d.info.severity).Max();
         var diagnostic = diagnostics.Pop();
 
-        while (diagnostic != null) {
+        while (diagnostic is not null) {
             ResolveDiagnostic(diagnostic, me, state, textColor);
             diagnostic = diagnostics.Pop();
         }
@@ -652,7 +652,7 @@ public static partial class BuckleCommandLine {
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameO());
             } else if (arg.StartsWith("--explain")) {
-                if (tempDialogs.error != null) {
+                if (tempDialogs.error is not null) {
                     multipleExplains = true;
                     continue;
                 }
@@ -750,7 +750,7 @@ public static partial class BuckleCommandLine {
         dialogs = tempDialogs;
         diagnostics.Move(diagnosticsCL);
 
-        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error != null)
+        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error is not null)
             return state;
 
         state.tasks = tasks.ToArray();

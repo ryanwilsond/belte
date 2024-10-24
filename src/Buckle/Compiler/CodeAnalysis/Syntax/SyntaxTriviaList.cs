@@ -64,7 +64,7 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
     /// </summary>
     public SyntaxTrivia this[int index] {
         get {
-            if (node != null) {
+            if (node is not null) {
                 if (node.isList) {
                     if (unchecked((uint)index < (uint)node.slotCount)) {
                         return new SyntaxTrivia(
@@ -95,7 +95,7 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
     }
 
     internal bool Any() {
-        return node != null;
+        return node is not null;
     }
 
     public Enumerator GetEnumerator() {
