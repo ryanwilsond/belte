@@ -38,7 +38,21 @@
                 "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Generated"
             ],
             "cwd": "${workspaceFolder}",
-            "console": "externalTerminal",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+        },
+        {
+            "name": "Debug BoundNode Generator",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build boundtree generator debug",
+            "program": "${workspaceFolder}/src/Buckle/SourceGenerators/BoundTreeGenerator/bin/Debug/net8.0/BoundTreeGenerator.dll",
+            "args": [
+                "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Binding/BoundTree/BoundNodes.xml",
+                "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Generated"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
             "stopAtEntry": false,
         },
         {
