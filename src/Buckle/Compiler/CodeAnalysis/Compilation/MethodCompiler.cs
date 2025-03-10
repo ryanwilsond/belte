@@ -187,6 +187,9 @@ internal sealed class MethodCompiler {
             }
         }
 
+        foreach (var synthesizedMethod in state.synthesizedMethods)
+            _methodBodies.Add(synthesizedMethod.Item1, synthesizedMethod.Item2);
+
         state.Free();
     }
 

@@ -36,6 +36,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.BreakStatement => ExpandBreakStatement((BoundBreakStatement)statement),
             BoundKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
             BoundKind.ErrorStatement => ExpandErrorStatement((BoundErrorStatement)statement),
+            BoundKind.LocalFunctionStatement => ExpandLocalFunctionStatement((BoundLocalFunctionStatement)statement),
             _ => throw new BelteInternalException($"ExpandStatement: unexpected expression type '{statement.kind}'"),
         };
     }
@@ -47,6 +48,12 @@ internal abstract class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandNopStatement(BoundNopStatement statement) {
         return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandLocalFunctionStatement(BoundLocalFunctionStatement statement) {
+        // ExpandBlockStatement always returns a single block statement
+        var newBody = (BoundBlockStatement)ExpandBlockStatement(statement.body)[0];
+        return [new BoundLocalFunctionStatement(statement.syntax, statement.symbol, newBody)];
     }
 
     private protected virtual List<BoundStatement> ExpandBlockStatement(BoundBlockStatement statement) {

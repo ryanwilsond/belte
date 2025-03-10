@@ -21,11 +21,7 @@ internal sealed class TypeCompilationState {
 
     internal NamedTypeSymbol type { get; }
 
-    internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods {
-        get {
-            return _synthesizedMethods;
-        }
-    }
+    internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods => _synthesizedMethods;
 
     internal void Free() {
         _constructorInitializers = null;

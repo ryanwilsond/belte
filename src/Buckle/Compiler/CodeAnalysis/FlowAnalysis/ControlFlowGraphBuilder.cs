@@ -71,6 +71,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.TryStatement:
                     case BoundKind.LabelStatement:
+                    case BoundKind.LocalFunctionStatement:
                         if (isLastStatement)
                             Connect(current, next);
 

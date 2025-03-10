@@ -165,7 +165,6 @@ done:
         BelteDiagnosticQueue diagnostics) {
         var builder = NameToObjectPool.Allocate();
         var globals = new Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>>();
-        var methods = new List<MethodDeclarationSyntax>();
 
         foreach (var declaration in _declarations) {
             if (declaration is GlobalStatementSyntax g) {
@@ -178,15 +177,13 @@ done:
                     globalsBuilder.Add(g);
                     globals.Add(sourceText, globalsBuilder);
                 }
-            } else if (declaration is MethodDeclarationSyntax m) {
-                methods.Add(m);
             } else {
                 var symbol = BuildSymbol(declaration, diagnostics);
                 ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
             }
         }
 
-        BuildProgram(diagnostics, builder, globals, methods);
+        BuildProgram(builder, globals);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -205,11 +202,9 @@ done:
     }
 
     private void BuildProgram(
-        BelteDiagnosticQueue diagnostics,
         PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals,
-        List<MethodDeclarationSyntax> methods) {
-        if (globals.Count > 0 || methods.Count > 0) {
+        Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals) {
+        if (globals.Count > 0) {
             var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
             var program = new SynthesizedProgram(
                 this,
@@ -220,34 +215,9 @@ done:
             );
 
             var membersBuilder = ArrayBuilder<Symbol>.GetInstance();
-            var localFunctionStatements = ArrayBuilder<GlobalStatementSyntax>.GetInstance();
-
-            foreach (var method in methods) {
-                var localFunction = SyntaxFactory.GlobalStatement(
-                    SyntaxFactory.List<AttributeListSyntax>(),
-                    null,
-                    SyntaxFactory.LocalFunctionStatement(
-                        method.attributeLists,
-                        method.modifiers,
-                        method.returnType,
-                        method.identifier,
-                        method.parameterList,
-                        method.body
-                    )
-                );
-
-                localFunctionStatements.Add(localFunction);
-            }
-
-            var attributedMethods = false;
 
             foreach (var keyValuePair in globals) {
                 var statements = keyValuePair.Value;
-
-                if (!attributedMethods) {
-                    attributedMethods = true;
-                    statements.AddRange(localFunctionStatements.ToImmutableAndFree());
-                }
 
                 var entryPoint = new SynthesizedEntryPoint(
                     program,
@@ -257,17 +227,6 @@ done:
                 );
 
                 membersBuilder.Add(entryPoint);
-            }
-
-            if (!attributedMethods) {
-                var emptyEntryPoint = new SynthesizedEntryPoint(
-                    program,
-                    returnType,
-                    localFunctionStatements.ToImmutableAndFree(),
-                    _declarations[0].syntaxTree.GetCompilationUnitRoot()
-                );
-
-                membersBuilder.Add(emptyEntryPoint);
             }
 
             program.FinishProgram(membersBuilder.ToImmutableAndFree());

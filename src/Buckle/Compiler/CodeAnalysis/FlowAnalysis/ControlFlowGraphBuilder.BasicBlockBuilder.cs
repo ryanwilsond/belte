@@ -32,6 +32,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.ExpressionStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.TryStatement:
+                    case BoundKind.LocalFunctionStatement:
                         _statements.Add(statement);
                         break;
                     default:

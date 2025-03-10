@@ -294,8 +294,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsOperatorDeclaration())
             return ParseOperatorDeclaration(attributeLists, modifiers);
 
-        if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements))
-            return ParseMethodDeclaration(attributeLists, modifiers);
+        if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements)) {
+            if (allowGlobalStatements) {
+                var localFunction = ParseLocalFunctionDeclaration(attributeLists, modifiers);
+                return SyntaxFactory.GlobalStatement(null, null, localFunction);
+            } else {
+                return ParseMethodDeclaration(attributeLists, modifiers);
+            }
+        }
 
         switch (currentToken.kind) {
             case SyntaxKind.StructKeyword:

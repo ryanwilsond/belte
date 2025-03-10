@@ -154,10 +154,16 @@ internal class LocalScopeBinder : Binder {
                         }, (localScopeBinder: this, locals, localDeclarationBinder: localFunctionDeclarationBinder));
                     }
 
-                    foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
-                        constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
-                            FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
-                        }, (localScopeBinder: this, locals, localDeclarationBinder: localFunctionDeclarationBinder));
+                    if (decl.constraintClauseList is not null) {
+                        foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
+                            constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                                FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
+                            }, (
+                                localScopeBinder: this,
+                                locals,
+                                localDeclarationBinder: localFunctionDeclarationBinder
+                            ));
+                        }
                     }
                 }
                 break;
