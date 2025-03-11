@@ -140,10 +140,11 @@ internal sealed class MethodCompiler {
                 case NamedTypeSymbol n:
                     CompileNamedType(n);
                     break;
-                case MethodSymbol m:
-                    var _ = new Binder.ProcessedFieldInitializers();
-                    CompileMethod(m, ref _, null);
-                    break;
+                    // TODO Namespaces can only contain named types currently?
+                    // case MethodSymbol m:
+                    //     var _ = new Binder.ProcessedFieldInitializers();
+                    //     CompileMethod(m, ref _, null);
+                    //     break;
             }
         }
     }
@@ -168,8 +169,6 @@ internal sealed class MethodCompiler {
 
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
             var member = members[ordinal];
-            // TODO Does CompileMethod (specifically Lowerer.Lower) need ordinal?
-            // Maybe its for raising local functions signature in the case of overloads with the same containing name?
 
             switch (member) {
                 case NamedTypeSymbol n:
@@ -177,7 +176,7 @@ internal sealed class MethodCompiler {
                     break;
                 case MethodSymbol m:
                     var initializers = m.methodKind == MethodKind.Constructor ? processedInitializers : default;
-                    CompileMethod(m, ref initializers, state);
+                    CompileMethod(m, ordinal, ref initializers, state);
                     break;
                 case FieldSymbol f:
                     if (f.isConstExpr)
@@ -187,14 +186,17 @@ internal sealed class MethodCompiler {
             }
         }
 
-        foreach (var synthesizedMethod in state.synthesizedMethods)
-            _methodBodies.Add(synthesizedMethod.Item1, synthesizedMethod.Item2);
+        if (state.synthesizedMethods is not null) {
+            foreach (var synthesizedMethod in state.synthesizedMethods)
+                _methodBodies.Add(synthesizedMethod.Item1, synthesizedMethod.Item2);
+        }
 
         state.Free();
     }
 
     private void CompileMethod(
         MethodSymbol method,
+        int methodOrdinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
         if (method.isAbstract)
@@ -228,7 +230,7 @@ internal sealed class MethodCompiler {
             return;
         }
 
-        var loweredBody = LowerBody(method, body, state, currentDiagnostics);
+        var loweredBody = LowerBody(method, methodOrdinal, body, state, currentDiagnostics);
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);
@@ -236,15 +238,13 @@ internal sealed class MethodCompiler {
 
     private static BoundBlockStatement LowerBody(
         MethodSymbol method,
+        int methodOrdinal,
         BoundBlockStatement body,
         TypeCompilationState state,
         BelteDiagnosticQueue currentDiagnostics) {
         var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
 
-        // TODO closure resolution of local functions
-        LocalFunctionRewriter.Rewrite(loweredBody, state.type, method, state, currentDiagnostics);
-
-        return loweredBody;
+        return LocalFunctionRewriter.Rewrite(loweredBody, state.type, method, methodOrdinal, state, currentDiagnostics);
     }
 
     private static BoundBlockStatement BindMethodBody(

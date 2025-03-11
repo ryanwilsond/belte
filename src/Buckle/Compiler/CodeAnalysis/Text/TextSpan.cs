@@ -50,6 +50,10 @@ public sealed class TextSpan {
         return start < span.end && end > span.start;
     }
 
+    public bool IntersectsWith(TextSpan span) {
+        return span.start <= end && span.end >= start;
+    }
+
     /// <summary>
     /// Determines whether the position lies within the span.
     /// </summary>

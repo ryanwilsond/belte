@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 
 namespace Buckle.CodeAnalysis;
@@ -31,5 +32,15 @@ internal static partial class IEnumerableExtensions {
 
     internal static IOrderedEnumerable<T> OrderByDescending<T>(this IEnumerable<T> source, Comparison<T> compare) {
         return source.OrderByDescending(Comparer<T>.Create(compare));
+    }
+
+    internal static ImmutableArray<T> ToImmutableArrayOrEmpty<T>(this IEnumerable<T>? items) {
+        if (items is null)
+            return [];
+
+        if (items is ImmutableArray<T> array)
+            return array.NullToEmpty();
+
+        return ImmutableArray.CreateRange(items);
     }
 }
