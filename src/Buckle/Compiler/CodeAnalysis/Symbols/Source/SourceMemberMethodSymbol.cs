@@ -204,6 +204,25 @@ done:
             diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
     }
 
+    private protected static Flags MakeFlags(
+        MethodKind methodKind,
+        RefKind refKind,
+        DeclarationModifiers declarationModifiers,
+        bool returnsVoid,
+        bool returnsVoidIsSet,
+        bool hasAnyBody,
+        bool hasThisInitializer) {
+        return new Flags(
+            methodKind,
+            refKind,
+            declarationModifiers,
+            returnsVoid,
+            returnsVoidIsSet,
+            hasAnyBody,
+            hasThisInitializer
+        );
+    }
+
     private protected void LazyMethodChecks() {
         if (!_state.HasComplete(CompletionParts.FinishMethodChecks)) {
             var lockObject = _methodChecksLockObject;

@@ -10,7 +10,8 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed class TypeCompilationState {
     private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
-    private ArrayBuilder<(MethodSymbol, BoundBlockStatement)> _synthesizedMethods;
+
+    internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods;
 
     internal TypeCompilationState(NamedTypeSymbol type, Compilation compilation) {
         this.type = type;
@@ -21,17 +22,13 @@ internal sealed class TypeCompilationState {
 
     internal NamedTypeSymbol type { get; }
 
-    internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods => _synthesizedMethods;
-
     internal void Free() {
         _constructorInitializers = null;
     }
 
     internal void AddSynthesizedMethod(MethodSymbol symbol, BoundBlockStatement body) {
-        if (_synthesizedMethods is null)
-            _synthesizedMethods = ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance();
-
-        _synthesizedMethods.Add((symbol, body));
+        synthesizedMethods ??= ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance();
+        synthesizedMethods.Add((symbol, body));
     }
 
     internal void ReportConstructorInitializerCycles(

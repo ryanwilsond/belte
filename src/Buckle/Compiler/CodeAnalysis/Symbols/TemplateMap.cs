@@ -5,7 +5,17 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class TemplateMap {
+    private static readonly TemplateMap _empty = new TemplateMap();
+    private static readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _emptyDictionary
+        = new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
+
+    internal static TemplateMap Empty => _empty;
+
     private readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _mapping;
+
+    private TemplateMap() {
+        _mapping = _emptyDictionary;
+    }
 
     internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TypeOrConstant> to) {
         _mapping = new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
@@ -230,6 +240,29 @@ internal sealed class TemplateMap {
 
         newTemplateParameters = newTypeParametersBuilder.ToImmutableAndFree();
         return result;
+    }
+
+    internal TemplateMap WithConcatAlphaRename(
+        MethodSymbol oldOwner,
+        Symbol newOwner,
+        out ImmutableArray<TemplateParameterSymbol> newTypeParameters,
+        out ImmutableArray<TemplateParameterSymbol> oldTypeParameters,
+        MethodSymbol stopAt = null) {
+        var parameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+
+        while (oldOwner is not null && oldOwner != stopAt) {
+            var currentParameters = oldOwner.originalDefinition.templateParameters;
+
+            for (var i = currentParameters.Length - 1; i >= 0; i--)
+                parameters.Add(currentParameters[i]);
+
+            oldOwner = oldOwner.containingSymbol.originalDefinition as MethodSymbol;
+        }
+
+        parameters.ReverseContents();
+
+        oldTypeParameters = parameters.ToImmutableAndFree();
+        return WithAlphaRename(oldTypeParameters, newOwner, out newTypeParameters);
     }
 
     internal static ImmutableArray<TypeOrConstant> TemplateParametersAsTypeOrConstants(
