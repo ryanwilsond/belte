@@ -18,6 +18,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
     private readonly Dictionary<BoundNode, ClosureEnvironment> _frames = [];
     private readonly Dictionary<NamedTypeSymbol, Symbol> _framePointers = [];
     private readonly Dictionary<ParameterSymbol, ParameterSymbol> _parameterMap = [];
+    private readonly List<Analysis> _previousAnalyses;
 
     private MethodSymbol _currentMethod;
     private ParameterSymbol _currentFrameThis;
@@ -34,7 +35,8 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         ParameterSymbol thisParameter,
         MethodSymbol method,
         MethodSymbol substitutedSourceMethod,
-        TypeCompilationState compilationState) {
+        TypeCompilationState compilationState,
+        List<Analysis> previousAnalyses) {
         _analysis = analysis;
         _topLevelMethod = method;
         _currentMethod = method;
@@ -43,6 +45,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         _substitutedSourceMethod = substitutedSourceMethod;
         _innermostFramePointer = _currentFrameThis = thisParameter;
         _framePointers[thisType] = thisParameter;
+        _previousAnalyses = previousAnalyses;
     }
 
     internal static BoundBlockStatement Rewrite(
@@ -52,6 +55,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         int methodOrdinal,
         MethodSymbol substitutedSourceMethod,
         TypeCompilationState state,
+        List<Analysis> previousAnalyses,
         BelteDiagnosticQueue diagnostics) {
         var analysis = Analysis.Analyze(loweredBody, method, methodOrdinal, state);
         var rewriter = new LocalFunctionRewriter(
@@ -60,7 +64,8 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
             null, // TODO Check if we can actually synthesize this
             method,
             substitutedSourceMethod,
-            state
+            state,
+            previousAnalyses
         );
 
         rewriter.SynthesizeClosureEnvironments();
@@ -77,7 +82,8 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
             }
         }
 
-        analysis.Free();
+        // analysis.Free();
+        previousAnalyses.Add(analysis);
         return body;
     }
 
@@ -269,7 +275,12 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         out MethodSymbol method,
         ref ImmutableArray<BoundExpression> arguments,
         ref ImmutableArray<RefKind> argRefKinds) {
-        var function = Analysis.GetNestedFunctionInTree(_analysis.scopeTree, localFunc.originalDefinition);
+        var function = Analysis.GetNestedFunctionInTree(
+            _analysis.scopeTree,
+            localFunc.originalDefinition,
+            _previousAnalyses
+        );
+
         var loweredSymbol = function.synthesizedLoweredMethod;
 
         var frameCount = loweredSymbol.extraSynthesizedParameterCount;
@@ -392,6 +403,20 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         }
 
         return builder.ToImmutableAndFree();
+    }
+
+    internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
+        if (_parameterMap.TryGetValue(node.parameter, out var replacementParameter)) {
+            return new BoundParameterExpression(
+                node.syntax,
+                replacementParameter,
+                null,
+                replacementParameter.type,
+                node.hasErrors
+            );
+        }
+
+        return base.VisitParameterExpression(node);
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
@@ -594,7 +619,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         out BoundNode lambdaScope,
         out int topLevelMethodOrdinal,
         out int methodOrdinal) {
-        var function = Analysis.GetNestedFunctionInTree(_analysis.scopeTree, node.symbol);
+        var function = Analysis.GetNestedFunctionInTree(_analysis.scopeTree, node.symbol, _previousAnalyses);
         var synthesizedMethod = function.synthesizedLoweredMethod;
 
         closureKind = synthesizedMethod.closureKind;
@@ -616,9 +641,8 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
 
         // _compilationState.synthesizedMethods.AddSynthesizedDefinition(translatedLambdaContainer, synthesizedMethod.GetCciAdapter());
 
-        foreach (var parameter in node.symbol.parameters) {
+        foreach (var parameter in node.symbol.parameters)
             _parameterMap.Add(parameter, synthesizedMethod.parameters[parameter.ordinal]);
-        }
 
         // rewrite the lambda body as the generated method's body
         var oldMethod = _currentMethod;

@@ -198,10 +198,16 @@ public sealed class Compiler {
     }
 
     private void LogParseTime(Stopwatch timer, int count) {
+        if (timer is null)
+            return;
+
         Log(timer, $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds} ms");
     }
 
     private void LogCompilationTime(Stopwatch timer) {
+        if (timer is null)
+            return;
+
         Log(timer, $"Total compilation time: {timer.ElapsedMilliseconds} ms");
     }
 

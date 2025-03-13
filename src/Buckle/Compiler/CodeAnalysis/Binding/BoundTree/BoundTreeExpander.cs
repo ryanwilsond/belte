@@ -493,7 +493,14 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandCallExpression(
         BoundCallExpression expression,
         out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.receiver, out var newReceiver);
+        List<BoundStatement> statements;
+        BoundExpression newReceiver = null;
+
+        if (expression.receiver is not null)
+            statements = ExpandExpression(expression.receiver, out newReceiver);
+        else
+            statements = [];
+
         statements.AddRange(ExpandArguments(expression.arguments, out var newArguments));
 
         replacement = expression.Update(

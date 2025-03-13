@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -31,6 +32,7 @@ public sealed class Compilation {
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
     private BoundProgram _lazyBoundProgram;
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
+    private List<LocalFunctionRewriter.Analysis> _lazyPreviousAnalyses;
 
     private Compilation(
         string assemblyName,
@@ -90,6 +92,17 @@ public sealed class Compilation {
             }
 
             return _lazyGlobalNamespace;
+        }
+    }
+
+    internal List<LocalFunctionRewriter.Analysis> previousAnalyses {
+        get {
+            if (_lazyPreviousAnalyses is null) {
+                var result = previous?.previousAnalyses ?? [];
+                Interlocked.CompareExchange(ref _lazyPreviousAnalyses, result, null);
+            }
+
+            return _lazyPreviousAnalyses;
         }
     }
 

@@ -230,7 +230,14 @@ internal sealed class MethodCompiler {
             return;
         }
 
-        var loweredBody = LowerBody(method, methodOrdinal, body, state, currentDiagnostics);
+        var loweredBody = LowerBody(
+            method,
+            methodOrdinal,
+            body,
+            state,
+            _compilation.previousAnalyses,
+            currentDiagnostics
+        );
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);
@@ -241,6 +248,7 @@ internal sealed class MethodCompiler {
         int methodOrdinal,
         BoundBlockStatement body,
         TypeCompilationState state,
+        List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics) {
         var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
 
@@ -252,6 +260,7 @@ internal sealed class MethodCompiler {
             methodOrdinal,
             null,
             state,
+            previousAnalyses,
             currentDiagnostics
         );
     }
@@ -324,8 +333,12 @@ internal sealed class MethodCompiler {
                 var statement = entryPoint.statements[i];
                 var boundStatement = bodyBinder.BindStatement(statement.statement, diagnostics);
 
-                if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e)
-                    boundStatement = new BoundReturnStatement(syntax, RefKind.None, e.expression);
+                if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e) {
+                    var expression = e.expression;
+
+                    if (!expression.type.IsVoidType())
+                        boundStatement = new BoundReturnStatement(syntax, RefKind.None, e.expression);
+                }
 
                 bodyBuilder.Add(boundStatement);
             }

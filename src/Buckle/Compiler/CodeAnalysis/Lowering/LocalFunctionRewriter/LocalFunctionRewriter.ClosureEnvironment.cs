@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed partial class LocalFunctionRewriter {
     [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
-    private sealed class ClosureEnvironment {
+    internal sealed class ClosureEnvironment {
         internal readonly SetWithInsertionOrder<Symbol> capturedVariables;
         internal readonly bool isStruct;
 

@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed partial class LocalFunctionRewriter {
-    private sealed class NestedFunction {
+    internal sealed class NestedFunction {
         internal readonly MethodSymbol originalMethodSymbol;
         internal readonly SyntaxReference blockSyntax;
         internal readonly PooledHashSet<Symbol> capturedVariables = PooledHashSet<Symbol>.GetInstance();

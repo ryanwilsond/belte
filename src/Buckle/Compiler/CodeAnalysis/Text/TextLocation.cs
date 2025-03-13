@@ -63,6 +63,10 @@ public sealed class TextLocation {
     /// </summary>
     public int endCharacter => span.end - text.GetLine(startLine).start;
 
+    public bool Equals(TextLocation other) {
+        return text == other.text && span.start == other.span.start && span.length == other.span.length;
+    }
+
     private string GetDebuggerDisplay() {
         return GetType().Name + "(" + fileName + "@" + (startLine + 1) + ":" + (startCharacter + 1) + ")";
     }

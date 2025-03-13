@@ -210,7 +210,7 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
 
         if (possibleScopeBinder is not null) {
             foreach (var candidate in possibleScopeBinder.localFunctions) {
-                if (candidate.location == node.identifier.location)
+                if (candidate.location.Equals(node.identifier.location))
                     match = candidate;
             }
         }

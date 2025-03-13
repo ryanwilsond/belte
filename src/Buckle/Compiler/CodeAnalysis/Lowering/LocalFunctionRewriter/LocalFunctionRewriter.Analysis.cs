@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -9,7 +10,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed partial class LocalFunctionRewriter {
-    private sealed class Analysis : BoundTreeWalkerWithStackGuardWithoutRecursionOnLeftOfBinaryOperator {
+    internal sealed class Analysis : BoundTreeWalkerWithStackGuardWithoutRecursionOnLeftOfBinaryOperator {
         internal readonly Scope scopeTree;
 
         private readonly MethodSymbol _topLevelMethod;
@@ -50,8 +51,24 @@ internal sealed partial class LocalFunctionRewriter {
             return analysis;
         }
 
-        internal static NestedFunction GetNestedFunctionInTree(Scope treeRoot, MethodSymbol functionSymbol) {
-            return Helper(treeRoot) ?? throw ExceptionUtilities.Unreachable();
+        internal static NestedFunction GetNestedFunctionInTree(
+            Scope treeRoot,
+            MethodSymbol functionSymbol,
+            List<Analysis> previousAnalyses) {
+            var nestedFunction = Helper(treeRoot);
+
+            if (nestedFunction is null) {
+                foreach (var previous in previousAnalyses) {
+                    nestedFunction = Helper(previous.scopeTree);
+
+                    if (nestedFunction is not null)
+                        return nestedFunction;
+                }
+            } else {
+                return nestedFunction;
+            }
+
+            throw ExceptionUtilities.Unreachable();
 
             NestedFunction Helper(Scope scope) {
                 foreach (var function in scope.nestedFunctions) {

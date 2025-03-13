@@ -286,7 +286,7 @@ public sealed partial class BelteRepl : Repl {
     private void LoadLibraries() {
         var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
         state.baseCompilation = compilation;
-        compilation.Evaluate(_abortEvaluation);
+        // compilation.Evaluate(_abortEvaluation);
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {

@@ -473,7 +473,7 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort) {
         var receiverObject = default(EvaluatorObject);
 
-        if (receiver is not null) {
+        if (receiver is not null && !method.isStatic) {
             receiverObject = EvaluateExpression(receiver, abort);
             var dereferencedReceiver = Dereference(receiverObject);
 

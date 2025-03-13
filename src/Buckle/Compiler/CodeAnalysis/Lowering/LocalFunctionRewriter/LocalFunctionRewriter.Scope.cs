@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed partial class LocalFunctionRewriter {
-    private sealed class Scope {
+    internal sealed class Scope {
         internal readonly Scope parent;
         internal readonly ArrayBuilder<Scope> nestedScopes = ArrayBuilder<Scope>.GetInstance();
         internal readonly ArrayBuilder<NestedFunction> nestedFunctions = ArrayBuilder<NestedFunction>.GetInstance();
