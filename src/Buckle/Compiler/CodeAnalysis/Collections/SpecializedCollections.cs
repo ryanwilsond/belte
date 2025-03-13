@@ -14,4 +14,8 @@ internal static partial class SpecializedCollections {
     internal static IReadOnlySet<T> EmptyReadOnlySet<T>() {
         return Empty.Set<T>.Instance;
     }
+
+    internal static IEnumerable<T> SingletonEnumerable<T>(T value) {
+        return new Singleton.List<T>(value);
+    }
 }

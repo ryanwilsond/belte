@@ -253,6 +253,9 @@ public sealed class DisplayText {
             case BoundKind.MethodGroup:
                 DisplayMethodGroup(text, (BoundMethodGroup)node);
                 break;
+            case BoundKind.LocalFunctionStatement:
+                DisplayLocalFunctionStatement(text, (BoundLocalFunctionStatement)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -447,6 +450,11 @@ public sealed class DisplayText {
             DisplayNode(text, node.expression);
         }
 
+        text.Write(CreateLine());
+    }
+
+    private static void DisplayLocalFunctionStatement(DisplayText text, BoundLocalFunctionStatement node) {
+        SymbolDisplay.AppendToDisplayText(text, node.symbol);
         text.Write(CreateLine());
     }
 

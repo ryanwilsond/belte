@@ -12,7 +12,7 @@ internal sealed partial class LocalFunctionRewriter {
         internal readonly bool isStruct;
 
         internal ClosureEnvironment parent;
-        // internal SynthesizedClosureEnvironment synthesizedEnvironment;
+        internal SynthesizedClosureEnvironment synthesizedEnvironment;
 
         internal ClosureEnvironment(IEnumerable<Symbol> capturedVariables, bool isStruct) {
             this.capturedVariables = new SetWithInsertionOrder<Symbol>();

@@ -5,7 +5,6 @@ using System.Linq;
 
 namespace BoundTreeGenerator;
 
-
 /// <summary>
 /// Handles writing the bound node classes source file.
 /// </summary>
@@ -56,6 +55,7 @@ internal sealed partial class BoundNodeClassWriter {
         WriteBoundKindEnum();
         WriteNodes();
         WriteVisitor();
+        WriteWalker();
         WriteRewriter();
     }
 
@@ -458,15 +458,15 @@ internal sealed partial class BoundNodeClassWriter {
     }
 
     private void WriteClassHeader(TreeType node) {
-        var abstr = "";
+        var @abstract = "";
 
         if (node is AbstractNode and not Node)
-            abstr = "abstract ";
+            @abstract = "abstract ";
 
         else if (CanBeSealed(node))
-            abstr = "sealed ";
+            @abstract = "sealed ";
 
-        Write($"internal {abstr}partial class {node.Name} : {node.Base}");
+        Write($"internal {@abstract}partial class {node.Name} : {node.Base}");
         OpenBlock();
     }
 
@@ -631,6 +631,33 @@ internal sealed partial class BoundNodeClassWriter {
 
         foreach (var node in _tree.types.OfType<Node>())
             WriteLine($"internal virtual BoundNode Visit{StripBound(node.Name)}({node.Name} node) => this.DefaultVisit(node);");
+
+        CloseBlock();
+    }
+
+    private void WriteWalker() {
+        WriteLine();
+        Write("internal abstract partial class BoundTreeWalker : BoundTreeVisitor");
+        OpenBlock();
+
+        foreach (var node in _tree.types.OfType<Node>()) {
+            var fields = AllFields(node).Where(f => IsDerivedOrListOfDerived("BoundNode", f.Type) && !SkipInVisitor(f));
+
+            if (!fields.Any()) {
+                WriteLine($"{GetVisitFunctionDeclaration(node.Name, isOverride: true)} => null;");
+                continue;
+            }
+
+            Write(GetVisitFunctionDeclaration(node.Name, isOverride: true));
+            OpenBlock();
+
+            foreach (var field in fields)
+                WriteLine($"this.Visit{(IsNodeList(field.Type) ? "List" : "")}(node.{field.Name});");
+
+            WriteLine("return null;");
+            CloseBlock();
+            WriteLine();
+        }
 
         CloseBlock();
     }

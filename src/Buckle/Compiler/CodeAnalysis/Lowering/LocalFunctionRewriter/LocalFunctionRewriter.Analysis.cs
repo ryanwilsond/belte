@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -14,6 +15,9 @@ internal sealed partial class LocalFunctionRewriter {
         private readonly MethodSymbol _topLevelMethod;
         private readonly int _topLevelMethodOrdinal;
         private readonly TypeCompilationState _compilationState;
+
+        private int _ordinalCounter;
+        private int _closureCounter;
 
         private Analysis(
             Scope scopeTree,
@@ -44,6 +48,63 @@ internal sealed partial class LocalFunctionRewriter {
 
             analysis.InlineThisOnlyEnvironments();
             return analysis;
+        }
+
+        internal static NestedFunction GetNestedFunctionInTree(Scope treeRoot, MethodSymbol functionSymbol) {
+            return Helper(treeRoot) ?? throw ExceptionUtilities.Unreachable();
+
+            NestedFunction Helper(Scope scope) {
+                foreach (var function in scope.nestedFunctions) {
+                    if (function.originalMethodSymbol == functionSymbol)
+                        return function;
+                }
+
+                foreach (var nestedScope in scope.nestedScopes) {
+                    var found = Helper(nestedScope);
+
+                    if (found is not null)
+                        return found;
+                }
+
+                return null;
+            }
+        }
+
+        internal int GetTopLevelMethodOrdinal() {
+            return _ordinalCounter++;
+        }
+
+        internal int GetClosureOrdinal(ClosureEnvironment environment, SyntaxNode syntax) {
+            return _closureCounter++;
+
+            // TODO This shouldn't really matter
+            // var parentClosure = environment.Parent?.SynthesizedEnvironment;
+
+            // // Frames are created and assigned top-down, so the parent scope's environment has to be assigned at this point.
+            // // This may not be true if environments are merged in release build.
+            // Debug.Assert(_slotAllocator == null || environment.Parent is null || parentClosure is not null);
+
+            // rudeEdit = parentClosure?.RudeEdit;
+            // var parentClosureId = parentClosure?.ClosureId;
+
+            // var structCaptures = _slotAllocator != null && environment.IsStruct
+            //     ? environment.CapturedVariables.SelectAsArray(v => v is ThisParameterSymbol ? GeneratedNames.ThisProxyFieldName() : v.Name)
+            //     : default;
+
+            // DebugId closureId;
+            // if (rudeEdit == null &&
+            //     _slotAllocator != null &&
+            //     _slotAllocator.TryGetPreviousClosure(syntax, parentClosureId, structCaptures, out var previousClosureId, out rudeEdit) &&
+            //     rudeEdit == null) {
+            //     closureId = previousClosureId;
+            // } else {
+            //     closureId = new DebugId(closureDebugInfo.Count, _compilationState.ModuleBuilderOpt.CurrentGenerationOrdinal);
+            // }
+
+            // int syntaxOffset = _topLevelMethod.CalculateLocalSyntaxOffset(LambdaUtilities.GetDeclaratorPosition(syntax), syntax.SyntaxTree);
+            // closureDebugInfo.Add(new EncClosureInfo(new ClosureDebugInfo(syntaxOffset, closureId), parentClosureId, structCaptures));
+
+            // return closureId;
         }
 
         internal static void VisitNestedFunctions(Scope scope, Action<Scope, NestedFunction> action) {

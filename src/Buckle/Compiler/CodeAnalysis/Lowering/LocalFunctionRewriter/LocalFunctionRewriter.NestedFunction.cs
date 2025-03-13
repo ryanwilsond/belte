@@ -13,7 +13,7 @@ internal sealed partial class LocalFunctionRewriter {
             = ArrayBuilder<ClosureEnvironment>.GetInstance();
 
         internal ClosureEnvironment containingEnvironment;
-        // internal SynthesizedClosureMethod synthesizedLoweredMethod;
+        internal SynthesizedClosureMethod synthesizedLoweredMethod;
 
         internal NestedFunction(MethodSymbol symbol, SyntaxReference blockSyntax) {
             originalMethodSymbol = symbol;

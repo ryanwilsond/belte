@@ -244,7 +244,16 @@ internal sealed class MethodCompiler {
         BelteDiagnosticQueue currentDiagnostics) {
         var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
 
-        return LocalFunctionRewriter.Rewrite(loweredBody, state.type, method, methodOrdinal, state, currentDiagnostics);
+        // ? TODO Why do we have a substitutedMethodSymbol parameter here if it's never supplied?
+        return LocalFunctionRewriter.Rewrite(
+            loweredBody,
+            state.type,
+            method,
+            methodOrdinal,
+            null,
+            state,
+            currentDiagnostics
+        );
     }
 
     private static BoundBlockStatement BindMethodBody(
