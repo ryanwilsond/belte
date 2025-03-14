@@ -21,4 +21,5 @@ internal enum ConversionKind : byte {
     AnyUnboxing,
     AnyUnboxingImplicitNullable,
     AnyUnboxingExplicitNullable,
+    ListExpression,
 }

@@ -82,7 +82,10 @@ public static class SymbolDisplay {
 
             for (var i = 0; i < array.rank; i++) {
                 text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-                text.Write(CreateLiteral(array.sizes[i].ToString()));
+
+                if (array.sizes.Length > i)
+                    text.Write(CreateLiteral(array.sizes[i].ToString()));
+
                 text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
             }
 

@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -8,6 +10,65 @@ internal sealed class Conversions {
 
     internal Conversions(Binder binder) {
         _binder = binder;
+    }
+
+    internal static ListExpressionTypeKind GetListExpressionTypeKind(
+        TypeSymbol destination,
+        out TypeWithAnnotations elementType) {
+        if (destination is ArrayTypeSymbol arrayType) {
+            if (arrayType.isSZArray) {
+                elementType = arrayType.elementTypeWithAnnotations;
+                return ListExpressionTypeKind.Array;
+            }
+        }
+
+        elementType = null;
+        return ListExpressionTypeKind.None;
+    }
+
+    private Conversion GetImplicitListExpressionConversion(
+        BoundUnconvertedInitializerList listExpression,
+        TypeSymbol destination) {
+        var listExpressionConversion = GetListExpressionConversion(listExpression, destination);
+
+        if (listExpressionConversion.exists)
+            return listExpressionConversion;
+
+        if (destination.IsNullableType(out var underlyingDestination)) {
+            var underlyingConversion = GetListExpressionConversion(listExpression, underlyingDestination);
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+        }
+
+        return Conversion.None;
+    }
+
+    internal Conversion GetListExpressionConversion(BoundUnconvertedInitializerList node, TypeSymbol targetType) {
+        var listTypeKind = GetListExpressionTypeKind(targetType, out var elementTypeWithAnnotations);
+        var elementType = elementTypeWithAnnotations.type;
+
+        switch (listTypeKind) {
+            case ListExpressionTypeKind.None:
+                return Conversion.None;
+        }
+
+        var items = node.items;
+
+        var builder = ArrayBuilder<Conversion>.GetInstance(items.Length);
+
+        foreach (var element in items) {
+            var elementConversion = ClassifyImplicitConversionFromExpression(element, elementType);
+
+            if (!elementConversion.exists) {
+                builder.Free();
+                return Conversion.None;
+            }
+
+            builder.Add(elementConversion);
+        }
+
+        return Conversion.CreateListExpressionConversion(listTypeKind, elementType, builder.ToImmutableAndFree());
     }
 
     internal static Conversion FastClassifyConversion(TypeSymbol source, TypeSymbol target) {
@@ -61,6 +122,13 @@ internal sealed class Conversions {
     }
 
     internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+        if (sourceExpression is BoundUnconvertedInitializerList list) {
+            var listExpressionConversion = GetImplicitListExpressionConversion(list, target);
+
+            if (listExpressionConversion.exists)
+                return listExpressionConversion;
+        }
+
         var conversion = ClassifyConversionFromExpression(sourceExpression, target);
 
         if (conversion.isImplicit)

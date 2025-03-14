@@ -197,6 +197,9 @@ public enum DiagnosticCode : ushort {
     ERR_RefConditionalNeedsTwoRefs = 186,
     ERR_NullAssertAlwaysThrows = 187,
     ERR_NullAssertOnNonNullableType = 188,
+    ERR_CannotConvertToStatic = 189,
+    ERR_ArraySizeInDeclaration = 190,
+    ERR_ListNoTargetType = 191,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

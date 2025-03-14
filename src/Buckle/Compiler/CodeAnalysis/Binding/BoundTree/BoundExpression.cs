@@ -20,4 +20,13 @@ internal abstract partial class BoundExpression : BoundNode {
     internal bool IsLiteralNull() {
         return kind == BoundKind.LiteralExpression && ConstantValue.IsNull(constantValue);
     }
+
+    internal bool NeedsToBeConverted() {
+        switch (kind) {
+            case BoundKind.UnconvertedInitializerList:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

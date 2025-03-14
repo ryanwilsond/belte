@@ -1115,7 +1115,17 @@ internal static class Error {
 
     internal static BelteDiagnostic CannotConvertToStatic(TextLocation location, TypeSymbol type) {
         var message = $"cannot cast to static type '{type}'";
-        return CreateError(DiagnosticCode.ERR_NullAssertOnNonNullableType, location, message);
+        return CreateError(DiagnosticCode.ERR_CannotConvertToStatic, location, message);
+    }
+
+    internal static BelteDiagnostic ArraySizeInDeclaration(TextLocation location) {
+        var message = $"cannot specify array size in a declaration";
+        return CreateError(DiagnosticCode.ERR_ArraySizeInDeclaration, location, message);
+    }
+
+    internal static BelteDiagnostic ListNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the initializer list";
+        return CreateError(DiagnosticCode.ERR_ListNoTargetType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

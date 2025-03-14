@@ -141,6 +141,10 @@
   <Node Name="BoundInitializerList" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
+  <Node Name="BoundUnconvertedInitializerList" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="items" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </Node>
   <Node Name="BoundIsOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>

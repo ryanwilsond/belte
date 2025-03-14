@@ -51,6 +51,11 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         _uncommonData = new NestedUncommonData(nestedConversions);
     }
 
+    private Conversion(ConversionKind kind, UncommonData uncommonData = null) {
+        this.kind = kind;
+        _uncommonData = uncommonData;
+    }
+
     internal ConversionKind kind { get; }
 
     internal ImmutableArray<Conversion> underlyingConversions
@@ -132,6 +137,26 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         }
 
         return None;
+    }
+
+    internal ListExpressionTypeKind GetListExpressionTypeKind(out TypeSymbol elementType) {
+        if (_uncommonData is ListExpressionUncommonData listExpressionData) {
+            elementType = listExpressionData.elementType;
+            return listExpressionData.listExpressionTypeKind;
+        }
+
+        elementType = null;
+        return ListExpressionTypeKind.None;
+    }
+
+    internal static Conversion CreateListExpressionConversion(
+        ListExpressionTypeKind listExpressionTypeKind,
+        TypeSymbol elementType,
+        ImmutableArray<Conversion> elementConversions) {
+        return new Conversion(
+            ConversionKind.ListExpression,
+            new ListExpressionUncommonData(listExpressionTypeKind, elementType, elementConversions)
+        );
     }
 
     internal static Conversion MakeNullableConversion(ConversionKind kind, Conversion nestedConversion) {

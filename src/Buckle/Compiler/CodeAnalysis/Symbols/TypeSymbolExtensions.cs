@@ -28,6 +28,17 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    public static bool IsNullableType(this TypeSymbol type, out TypeSymbol underlyingType) {
+        if (type is NamedTypeSymbol nt
+            && nt.originalDefinition.specialType == SpecialType.Nullable) {
+            underlyingType = nt.templateArguments[0].type.type;
+            return true;
+        }
+
+        underlyingType = null;
+        return false;
+    }
+
     internal static string ToNullOrString(this TypeSymbol? type) {
         if (type is null)
             return "<null>";
