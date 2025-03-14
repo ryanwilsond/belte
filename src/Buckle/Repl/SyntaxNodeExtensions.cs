@@ -13,7 +13,7 @@ internal static class SyntaxNodeExtensions {
                 text.Write(CreatePunctuation(indent));
                 text.Write(CreatePunctuation("├─"));
                 text.Write(CreateRedNode($"Lead: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
-                text.Write(CreateLine());
+                text.WriteLine();
             }
         }
 
@@ -32,10 +32,10 @@ internal static class SyntaxNodeExtensions {
 
         if (node.isToken) {
             text.Write(CreateGreenNode($" [{node.span.start}..{node.span.end})"));
-            text.Write(CreateLine());
+            text.WriteLine();
         } else {
             text.Write(CreateBlueNode($" [{node.span.start}..{node.span.end})"));
-            text.Write(CreateLine());
+            text.WriteLine();
         }
 
         if (token is not null) {
@@ -46,7 +46,7 @@ internal static class SyntaxNodeExtensions {
                 text.Write(CreatePunctuation(indent));
                 text.Write(CreatePunctuation(triviaMarker));
                 text.Write(CreateRedNode($"Trail: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
-                text.Write(CreateLine());
+                text.WriteLine();
             }
         }
 

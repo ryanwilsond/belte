@@ -205,6 +205,7 @@ internal sealed class Evaluator {
 
         if (right.isExplicitReference) {
             left.reference = right.reference;
+            left.isReference = true;
             return;
         } else if (left.isExplicitReference) {
             left = Dereference(left);
@@ -393,8 +394,13 @@ internal sealed class Evaluator {
 
     private void EvaluateLocalDeclarationStatement(BoundLocalDeclarationStatement statement, ValueWrapper<bool> abort) {
         var value = EvaluateExpression(statement.declaration.initializer, abort);
+        var local = statement.declaration.dataContainer;
         _lastValue = default;
-        Create(statement.declaration.dataContainer, value);
+
+        if (local.isRef)
+            value.isExplicitReference = true;
+
+        Create(local, value);
     }
 
     #endregion
@@ -813,6 +819,10 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var right = EvaluateExpression(expression.right, abort);
+
+        if (expression.isRef)
+            right.isExplicitReference = true;
+
         Assign(left, right);
         return right;
     }
@@ -843,8 +853,8 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, TypeSymbol source, TypeSymbol target) {
         var dereferenced = Dereference(value);
-        target = target.GetNullableUnderlyingType();
-        source = source.GetNullableUnderlyingType();
+        target = target.StrippedType();
+        source = source.StrippedType();
 
         if (dereferenced.members is null) {
             var valueValue = Value(value);

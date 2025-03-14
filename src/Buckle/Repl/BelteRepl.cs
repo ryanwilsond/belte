@@ -295,7 +295,7 @@ public sealed partial class BelteRepl : Repl {
 
         if (state.showTokens) {
             IterateTokens(syntaxTree.GetRoot(), displayText);
-            displayText.Write(CreateLine());
+            displayText.WriteLine();
             WriteDisplayText(displayText);
         }
 
@@ -437,6 +437,10 @@ public sealed partial class BelteRepl : Repl {
             }
 
             writer.Write(" }");
+        } else if (value is ISymbol symbol) {
+            displayText.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            displayText.Write(CreateSpace());
+            SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.QualifiedNameFormat);
         } else {
             writer.Write(value);
         }
@@ -462,7 +466,7 @@ public sealed partial class BelteRepl : Repl {
 
         var displayText = new DisplayText();
         displayText.Write(CreatePunctuation($"loaded {files.Length} {keyword}"));
-        displayText.Write(CreateLine());
+        displayText.WriteLine();
         WriteDisplayText(displayText);
 
         var @out = Console.Out;
@@ -495,6 +499,50 @@ public sealed partial class BelteRepl : Repl {
             else
                 writer.Write(segment.text);
         }
+    }
+
+    private object EvaluatorObjectToNativeObject(EvaluatorObject evaluatorObject) {
+        if (evaluatorObject.isReference)
+            return evaluatorObject.publicReference;
+
+        var value = evaluatorObject.value;
+
+        if (value is EvaluatorObject e)
+            return EvaluatorObjectToNativeObject(e);
+        else if (value is EvaluatorObject[])
+            return CollectionValue(value as EvaluatorObject[]);
+
+        var members = evaluatorObject.publicMembers;
+
+        if (value is null && members is not null)
+            return DictionaryValue(members, evaluatorObject.publicType);
+
+        return value;
+    }
+
+    private Dictionary<object, object> DictionaryValue(Dictionary<ISymbol, EvaluatorObject> value, ITypeSymbol type) {
+        var dictionary = new Dictionary<object, object>();
+
+        foreach (var pair in value) {
+            if (pair.Key is IFieldSymbol) {
+                var name = pair.Key.containingSymbol.Equals(type)
+                    ? pair.Key.name
+                    : $"{pair.Key.containingSymbol.name}.{pair.Key.name}";
+
+                dictionary.Add(name, EvaluatorObjectToNativeObject(pair.Value));
+            }
+        }
+
+        return dictionary;
+    }
+
+    private object[] CollectionValue(EvaluatorObject[] value) {
+        var builder = new object[value.Length];
+
+        for (var i = 0; i < value.Length; i++)
+            builder[i] = EvaluatorObjectToNativeObject(value[i]);
+
+        return builder;
     }
 
     [MetaCommand("showTree", "Toggle display of the parse tree")]
@@ -543,35 +591,84 @@ public sealed partial class BelteRepl : Repl {
         EvaluateSubmission(text);
     }
 
-    [MetaCommand("list", "List all defined symbols")]
-    private void EvaluateList() {
-        var compilation = state.previous ?? EmptyCompilation;
-        var symbols = compilation.GetSymbols(true);
-        var displayText = new DisplayText();
+    [MetaCommand("list", "List [all|global|internal] symbols")]
+    private void EvaluateList(string mode = "global") {
+        if (mode != "all" && mode != "global" && mode != "internal") {
+            handle.diagnostics.Push(
+                new BelteDiagnostic(Diagnostics.Error.InvalidOption(mode, ["all", "global", "internal"]))
+            );
 
-        foreach (var symbol in symbols) {
-            if (symbol.name == "<Program>$") {
-                var programSymbol = symbol as INamedTypeSymbol;
-                var mainMethod = programSymbol.GetMembers()[0] as IMethodSymbol;
-                var locals = CompilationExtensions.GetMethodLocals(mainMethod);
+            if (_hasDiagnosticHandle)
+                _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            else
+                handle.diagnostics.Clear();
 
-                foreach (var local in locals) {
-                    // TODO consider adding some extra text here to denote which submission each local is from
-                    displayText.Write(local.ToDisplaySegments(SymbolDisplayFormat.Everything));
-                    displayText.Write(CreateLine());
-                }
-            } else {
-                displayText.Write(symbol.ToDisplaySegments(SymbolDisplayFormat.Everything));
-                displayText.Write(CreateLine());
-            }
+            return;
         }
 
-        WriteDisplayText(displayText);
+        var displayText = new DisplayText();
+
+        if (mode == "internal" || mode == "all") {
+            writer.WriteLine("Internal Symbols:");
+
+            var compilation = state.previous ?? EmptyCompilation;
+            var symbols = compilation.GetSymbols(true);
+
+            foreach (var symbol in symbols) {
+                displayText.Write(CreateIndent());
+                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.Everything);
+                displayText.WriteLine();
+            }
+
+            WriteDisplayText(displayText);
+        }
+
+        if (mode == "all")
+            writer.WriteLine();
+
+        if (mode == "global" || mode == "all") {
+            writer.WriteLine("Global Symbols:");
+
+            foreach (var variable in state.variables) {
+                displayText.Write(CreateIndent());
+                SymbolDisplay.AppendToDisplayText(displayText, variable.Key, SymbolDisplayFormat.Everything);
+                displayText.WriteLine();
+            }
+
+            WriteDisplayText(displayText);
+        }
+    }
+
+    [MetaCommand("dump", "Locate a symbol to show the contents of")]
+    private void EvaluateDump() {
+        writer.WriteLine("Dump no args called");
     }
 
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
+
+        // Prefer locals first
+        foreach (var variable in state.variables) {
+            var local = variable.Key;
+
+            if (local.name == signature) {
+                var localDisplayText = new DisplayText();
+                SymbolDisplay.AppendToDisplayText(localDisplayText, local, SymbolDisplayFormat.Everything);
+                localDisplayText.Write(CreateSpace());
+                localDisplayText.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+                localDisplayText.Write(CreateSpace());
+                WriteDisplayText(localDisplayText);
+
+                var localValue = EvaluatorObjectToNativeObject(variable.Value);
+                RenderResult(localValue);
+                writer.WriteLine();
+
+                return;
+            }
+        }
+
+        // Then do a deeper search for non-local symbols
         var compilation = state.previous ?? EmptyCompilation;
         var allSymbols = compilation.GetSymbols(true);
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;

@@ -23,7 +23,7 @@ public static class CompilationExtensions {
             if (isFirst)
                 isFirst = false;
             else
-                text.Write(CreateLine());
+                text.WriteLine();
 
             EmitTree(compilation, type, text);
         }
@@ -32,7 +32,7 @@ public static class CompilationExtensions {
             if (isFirst)
                 isFirst = false;
             else
-                text.Write(CreateLine());
+                text.WriteLine();
 
             EmitTree(compilation, pair.Key, text);
         }
@@ -49,13 +49,15 @@ public static class CompilationExtensions {
     }
 
     public static ImmutableArray<IDataContainerSymbol> GetMethodLocals(IMethodSymbol method) {
-        // TODO need to skip every other
-        if (method is SourceMethodSymbol s)
-            return s.outerBinder.next.locals.Where((x, i) => i % 2 == 0).ToImmutableArray().CastArray<IDataContainerSymbol>();
-        else if (method is SynthesizedEntryPoint e)
-            return e.programBinder.locals.Where((x, i) => i % 2 == 0).ToImmutableArray().CastArray<IDataContainerSymbol>();
-        else
+        if (method is SourceMethodSymbol s) {
+            return s.outerBinder.next.locals.Where((x, i) => i % 2 == 0)
+                .ToImmutableArray().CastArray<IDataContainerSymbol>();
+        } else if (method is SynthesizedEntryPoint e) {
+            return e.programBinder.locals.Where((x, i) => i % 2 == 0)
+                .ToImmutableArray().CastArray<IDataContainerSymbol>();
+        } else {
             return [];
+        }
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
@@ -67,18 +69,27 @@ public static class CompilationExtensions {
                 DisplayText.DisplayNode(text, body);
             } else {
                 text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                text.Write(CreateLine());
+                text.WriteLine();
             }
         } else if (symbol is NamedTypeSymbol namedType) {
             SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
             WriteTypeMembers(namedType);
         } else if (symbol is DataContainerSymbol v) {
             SymbolDisplay.AppendToDisplayText(text, v, SymbolDisplayFormat.Everything);
+            var type = v.type.StrippedType();
 
-            if (v.type is NamedTypeSymbol s)
+            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
                 WriteTypeMembers(s);
             else
-                text.Write(CreateLine());
+                text.WriteLine();
+        } else if (symbol is FieldSymbol f) {
+            SymbolDisplay.AppendToDisplayText(text, f, SymbolDisplayFormat.Everything);
+            var type = f.type.StrippedType();
+
+            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                WriteTypeMembers(s);
+            else
+                text.WriteLine();
         }
 
         void WriteTypeMembers(NamedTypeSymbol type) {
@@ -90,14 +101,14 @@ public static class CompilationExtensions {
             text.indent++;
 
             foreach (var member in members) {
-                text.Write(CreateLine());
+                text.WriteLine();
                 SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.Everything);
-                text.Write(CreateLine());
+                text.WriteLine();
             }
 
             text.indent--;
             text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
-            text.Write(CreateLine());
+            text.WriteLine();
         }
     }
 }

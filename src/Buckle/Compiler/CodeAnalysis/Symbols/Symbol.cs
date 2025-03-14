@@ -343,4 +343,6 @@ internal abstract class Symbol : ISymbol {
     }
 
     ISymbol ISymbol.containingSymbol => containingSymbol;
+
+    Compilation ISymbol.declaringCompilation => declaringCompilation;
 }

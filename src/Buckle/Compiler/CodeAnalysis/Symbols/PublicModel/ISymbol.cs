@@ -27,6 +27,8 @@ public interface ISymbol {
     /// </summary>
     ISymbol containingSymbol { get; }
 
+    Compilation declaringCompilation { get; }
+
     string ToDisplayString(SymbolDisplayFormat format = null);
 
     ImmutableArray<DisplayTextSegment> ToDisplaySegments(SymbolDisplayFormat format = null);

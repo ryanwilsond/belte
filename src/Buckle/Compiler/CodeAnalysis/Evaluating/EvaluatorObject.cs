@@ -59,9 +59,16 @@ public sealed class EvaluatorObject {
         this.type = type;
     }
 
-    internal object value { get; set; }
+    public object value { get; internal set; }
 
-    internal bool isReference { get; set; }
+    public bool isReference { get; internal set; }
+
+    public ISymbol publicReference => reference;
+
+    public Dictionary<ISymbol, EvaluatorObject> publicMembers
+        => members?.ToDictionary(item => (ISymbol)item.Key, item => item.Value);
+
+    public ITypeSymbol publicType => type;
 
     internal bool isExplicitReference { get; set; }
 

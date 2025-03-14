@@ -220,3 +220,4 @@ A more in-depth explanation on any diagnostic can be seen using the Buckle progr
 | RE0006 | Error | no such method with the signature '{0}' exists |
 | RE0007 | Error | '{0}' is ambiguous between |
 | RE0008 | Error | failed to generate IL: cannot reference locals or globals from previous submissions with the '#showIL' toggle on |
+| RE0009 | Error | invalid argument '{0}'; expected {1} |

@@ -71,6 +71,8 @@ public sealed class DisplayText {
             _writeIndent = true;
     }
 
+    public void WriteLine() => Write(CreateLine());
+
     /// <summary>
     /// Appends multiple <see cref="DisplayTextSegment" /> to the end of this <see cref="DisplayText" />.
     /// </summary>
@@ -387,12 +389,12 @@ public sealed class DisplayText {
 
     private static void DisplayBreakStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.BreakKeyword));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayContinueStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayGlobalStatement(DisplayText text, BoundGlobalStatement node) {
@@ -401,12 +403,12 @@ public sealed class DisplayText {
 
     private static void DisplayNopStatement(DisplayText text) {
         text.Write(CreateKeyword("nop"));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayBlockStatement(DisplayText text, BoundBlockStatement node, bool newLine = true) {
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
 
         text.indent++;
 
@@ -417,7 +419,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
 
         if (newLine)
-            text.Write(CreateLine());
+            text.WriteLine();
     }
 
     private static void DisplayTryStatement(DisplayText text, BoundTryStatement node) {
@@ -439,7 +441,7 @@ public sealed class DisplayText {
             DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
         }
 
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayReturnStatement(DisplayText text, BoundReturnStatement node) {
@@ -450,12 +452,12 @@ public sealed class DisplayText {
             DisplayNode(text, node.expression);
         }
 
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayLocalFunctionStatement(DisplayText text, BoundLocalFunctionStatement node) {
         SymbolDisplay.AppendToDisplayText(text, node.symbol);
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayNestedStatement(DisplayText text, BoundStatement node) {
@@ -474,7 +476,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.DoKeyword));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
         DisplayNestedStatement(text, node.body);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         text.Write(CreateSpace());
@@ -483,7 +485,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.condition);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayConditionalGotoStatement(DisplayText text, BoundConditionalGotoStatement node) {
@@ -494,7 +496,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(node.jumpIfTrue ? "if" : "unless"));
         text.Write(CreateSpace());
         DisplayNode(text, node.condition);
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayLabelStatement(DisplayText text, BoundLabelStatement node) {
@@ -504,7 +506,7 @@ public sealed class DisplayText {
 
         text.Write(CreatePunctuation(node.label.name));
         text.Write(CreatePunctuation(SyntaxKind.ColonToken));
-        text.Write(CreateLine());
+        text.WriteLine();
 
         if (unindent)
             text.indent++;
@@ -514,7 +516,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword("goto"));
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(node.label.name));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayForStatement(DisplayText text, BoundForStatement node) {
@@ -529,10 +531,10 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
         DisplayNestedStatement(text, node.body);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayWhileStatement(DisplayText text, BoundWhileStatement node) {
@@ -543,10 +545,10 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
         DisplayNestedStatement(text, node.body);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayIfStatement(DisplayText text, BoundIfStatement node) {
@@ -557,7 +559,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-        text.Write(CreateLine());
+        text.WriteLine();
         DisplayNestedStatement(text, node.consequence);
         text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
 
@@ -566,12 +568,12 @@ public sealed class DisplayText {
             text.Write(CreateKeyword(SyntaxKind.ElseKeyword));
             text.Write(CreateSpace());
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-            text.Write(CreateLine());
+            text.WriteLine();
             DisplayNestedStatement(text, node.alternative);
             text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         }
 
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayLocalDeclarationStatement(DisplayText text, BoundLocalDeclarationStatement node) {
@@ -593,12 +595,12 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
         DisplayNode(text, node.initializer);
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayExpressionStatement(DisplayText text, BoundExpressionStatement node) {
         DisplayNode(text, node.expression);
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 
     private static void DisplayFieldAccessExpression(
@@ -899,6 +901,6 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
         DisplayNode(text, value);
-        text.Write(CreateLine());
+        text.WriteLine();
     }
 }

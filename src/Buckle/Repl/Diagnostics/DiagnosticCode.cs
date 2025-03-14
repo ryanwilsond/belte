@@ -17,4 +17,5 @@ public enum DiagnosticCode : ushort {
     ERR_NoSuchMethod = 6,
     ERR_AmbiguousSignature = 7,
     ERR_FailedILGeneration = 8,
+    ERR_InvalidOption = 9,
 }

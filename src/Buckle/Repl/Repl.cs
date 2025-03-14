@@ -1030,11 +1030,27 @@ public abstract partial class Repl {
             args.Add(sb.ToString());
 
         var commandName = args.FirstOrDefault();
+        var argCount = args.Count;
 
-        if (args.Count > 0)
+        if (argCount > 0) {
             args.RemoveAt(0);
+            argCount--;
+        }
 
-        var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
+        var commandCandidates = _metaCommands.Where(mc => mc.name == commandName).ToArray();
+        MetaCommand command = null;
+
+        if (commandCandidates.Length == 1) {
+            command = commandCandidates[0];
+        } else if (commandCandidates.Length > 1) {
+            // TODO Implement are more thorough overload resolution algorithm when necessary
+            foreach (var candidate in commandCandidates) {
+                if (candidate.method.GetParameters().Length == argCount) {
+                    command = candidate;
+                    break;
+                }
+            }
+        }
 
         if (command is null) {
             AddDiagnostic(Diagnostics.Error.UnknownReplCommand(line));
@@ -1049,8 +1065,8 @@ public abstract partial class Repl {
 
         var parameters = command.method.GetParameters();
 
-        if (args.Count != parameters.Length) {
-            if (args.Count == command.method.GetParameters()
+        if (argCount != parameters.Length) {
+            if (argCount == command.method.GetParameters()
                 .Where(t => !t.HasDefaultValue).Count()) {
                 foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue))
                     args.Add(parameter.DefaultValue.ToString());

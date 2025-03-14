@@ -178,8 +178,8 @@ public sealed class Compilation {
         if (builder.AnyErrors())
             return EvaluationResult.Failed(builder);
 
-        var eval = new Evaluator(program, globals, options.arguments);
-        var evalResult = eval.Evaluate(abort, out var hasValue);
+        var evaluator = new Evaluator(program, globals, options.arguments);
+        var evalResult = evaluator.Evaluate(abort, out var hasValue);
 
         Log(logTime, timer, builder, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
@@ -187,9 +187,9 @@ public sealed class Compilation {
             evalResult,
             hasValue,
             builder,
-            eval.exceptions,
-            eval.lastOutputWasPrint,
-            eval.containsIO
+            evaluator.exceptions,
+            evaluator.lastOutputWasPrint,
+            evaluator.containsIO
         );
 
         return result;
