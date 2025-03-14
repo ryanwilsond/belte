@@ -409,7 +409,8 @@ public static class SymbolDisplay {
 
         DisplayTemplateParameters(text, namedType.templateParameters, format);
 
-        if (namedType.baseType is not null) {
+        if (namedType.baseType is not null &&
+            (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
             text.Write(CreateSpace());

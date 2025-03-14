@@ -49,8 +49,8 @@ public static class CompilationExtensions {
     }
 
     public static ImmutableArray<IDataContainerSymbol> GetMethodLocals(IMethodSymbol method) {
-        if (method is SourceMethodSymbol s) {
-            return s.outerBinder.next.locals.Where((x, i) => i % 2 == 0)
+        if (method is SourceMemberMethodSymbol s) {
+            return s.TryGetBodyBinder().next.locals.Where((x, i) => i % 2 == 0)
                 .ToImmutableArray().CastArray<IDataContainerSymbol>();
         } else if (method is SynthesizedEntryPoint e) {
             return e.programBinder.locals.Where((x, i) => i % 2 == 0)

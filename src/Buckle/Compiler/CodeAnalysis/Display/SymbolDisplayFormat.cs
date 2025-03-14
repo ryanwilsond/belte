@@ -23,7 +23,7 @@ public sealed class SymbolDisplayFormat {
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.Everything,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
-        memberOptions: SymbolDisplayMemberOptions.None,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
@@ -35,7 +35,9 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.Everything,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeKeywords
+        miscellaneousOptions:
+            SymbolDisplayMiscellaneousOptions.IncludeKeywords |
+            SymbolDisplayMiscellaneousOptions.IncludeBaseList
     );
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
@@ -43,7 +45,9 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.Everything,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeKeywords
+        miscellaneousOptions:
+            SymbolDisplayMiscellaneousOptions.IncludeKeywords |
+            SymbolDisplayMiscellaneousOptions.IncludeBaseList
     );
 
     private SymbolDisplayFormat(

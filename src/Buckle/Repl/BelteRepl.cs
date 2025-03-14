@@ -102,7 +102,7 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.variables = [];
+        state.globals = [];
         state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
         _changes.Clear();
@@ -334,7 +334,7 @@ public sealed partial class BelteRepl : Repl {
         Console.ForegroundColor = state.colorTheme.result;
 
         if (!handle.diagnostics.AnyErrors()) {
-            result = compilation.Evaluate(state.variables, _abortEvaluation);
+            result = compilation.Evaluate(state.globals, _abortEvaluation);
 
             if (result.lastOutputWasPrint)
                 writer.WriteLine();
@@ -591,11 +591,11 @@ public sealed partial class BelteRepl : Repl {
         EvaluateSubmission(text);
     }
 
-    [MetaCommand("list", "List [all|global|internal] symbols")]
+    [MetaCommand("list", "List [all|global|type] symbols")]
     private void EvaluateList(string mode = "global") {
-        if (mode != "all" && mode != "global" && mode != "internal") {
+        if (mode != "all" && mode != "global" && mode != "type") {
             handle.diagnostics.Push(
-                new BelteDiagnostic(Diagnostics.Error.InvalidOption(mode, ["all", "global", "internal"]))
+                new BelteDiagnostic(Diagnostics.Error.InvalidOption(mode, ["all", "global", "type"]))
             );
 
             if (_hasDiagnosticHandle)
@@ -608,8 +608,8 @@ public sealed partial class BelteRepl : Repl {
 
         var displayText = new DisplayText();
 
-        if (mode == "internal" || mode == "all") {
-            writer.WriteLine("Internal Symbols:");
+        if (mode == "type" || mode == "all") {
+            writer.WriteLine("Type Symbols:");
 
             var compilation = state.previous ?? EmptyCompilation;
             var symbols = compilation.GetSymbols(true);
@@ -629,9 +629,9 @@ public sealed partial class BelteRepl : Repl {
         if (mode == "global" || mode == "all") {
             writer.WriteLine("Global Symbols:");
 
-            foreach (var variable in state.variables) {
+            foreach (var global in state.globals) {
                 displayText.Write(CreateIndent());
-                SymbolDisplay.AppendToDisplayText(displayText, variable.Key, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(displayText, global.Key, SymbolDisplayFormat.Everything);
                 displayText.WriteLine();
             }
 
@@ -641,26 +641,255 @@ public sealed partial class BelteRepl : Repl {
 
     [MetaCommand("dump", "Locate a symbol to show the contents of")]
     private void EvaluateDump() {
-        writer.WriteLine("Dump no args called");
+        state.currentPage = Page.DumpLocator;
+        Console.CursorVisible = false;
+
+        var targetIndex = 0;
+        var select = false;
+        ISymbol currentSymbol = null;
+        var currentIsType = false;
+        var isAtTop = true;
+
+        var compilation = state.previous ?? EmptyCompilation;
+        var topLevelSymbols = compilation.GetSymbols(true);
+        var toplevelGlobals = state.globals.ToDictionary(item => (ISymbol)item.Key, item => item.Value);
+        var currentSymbols = topLevelSymbols;
+        var currentGlobals = toplevelGlobals;
+        EvaluatorObject currentGlobal = null;
+        Stack<(ISymbol, EvaluatorObject)> globalChain = [];
+
+        while (true) {
+            if (UpdatePage(select))
+                break;
+
+            var key = Console.ReadKey(true);
+            select = false;
+
+            if (key.Key == ConsoleKey.Enter) {
+                select = true;
+            } else if (key.Key == ConsoleKey.UpArrow) {
+                if (targetIndex > 0)
+                    targetIndex--;
+            } else if (key.Key == ConsoleKey.DownArrow) {
+                var pageLength = (currentSymbol is null ? 0 : 2) + currentSymbols.Length + currentGlobals.Count;
+
+                if (targetIndex < pageLength)
+                    targetIndex++;
+            }
+        }
+
+        Console.BackgroundColor = state.colorTheme.background;
+        Console.CursorVisible = true;
+        ReviveDocument();
+        state.currentPage = Page.Repl;
+
+        if (currentSymbol is not null) {
+            var displayText = new DisplayText();
+
+            displayText.Write(CreatePunctuation("#"));
+            displayText.Write(CreateKeyword("dump "));
+            DisplaySymbolName(displayText, currentSymbol);
+            displayText.WriteLine();
+
+            if (currentIsType) {
+                compilation.EmitTree(currentSymbol, displayText);
+                WriteDisplayText(displayText);
+            } else {
+                SymbolDisplay.AppendToDisplayText(displayText, currentSymbol, SymbolDisplayFormat.Everything);
+                displayText.Write(CreatePunctuation(" = "));
+                WriteDisplayText(displayText);
+                var localValue = EvaluatorObjectToNativeObject(currentGlobal);
+                RenderResult(localValue);
+                writer.WriteLine();
+            }
+        }
+
+        bool UpdatePage(bool select) {
+            var includeUp = currentSymbol is not null;
+
+            if (select) {
+                if (targetIndex == 0) {
+                    currentSymbol = null;
+                    return true;
+                } else if (targetIndex == 1 && includeUp) {
+                    if (currentIsType) {
+                        currentSymbol = currentSymbol.containingSymbol;
+
+                        if (currentSymbol.kind == SymbolKind.Namespace) {
+                            currentSymbol = null;
+                            currentSymbols = topLevelSymbols;
+                            currentGlobals = toplevelGlobals;
+                            isAtTop = true;
+                        }
+                    } else {
+                        if (globalChain.TryPop(out var both)) {
+                            currentSymbol = both.Item1;
+                            currentGlobal = both.Item2;
+                        } else {
+                            currentSymbol = null;
+                            currentGlobal = null;
+                            currentSymbols = topLevelSymbols;
+                            currentGlobals = toplevelGlobals;
+                            isAtTop = true;
+                        }
+                    }
+                } else if (targetIndex == 2 && includeUp) {
+                    return true;
+                } else {
+                    var trueIndex = targetIndex - (includeUp ? 3 : 1);
+
+                    if (isAtTop) {
+                        isAtTop = false;
+
+                        if (trueIndex >= currentSymbols.Length) {
+                            currentIsType = false;
+                            trueIndex -= currentSymbols.Length;
+                            currentSymbols = [];
+                        } else {
+                            currentGlobals = [];
+                            currentIsType = true;
+                        }
+                    }
+
+                    if (currentIsType) {
+                        currentSymbol = currentSymbols[trueIndex];
+                    } else {
+                        (currentSymbol, currentGlobal) = currentGlobals.ElementAt(trueIndex);
+                        globalChain.Push((currentSymbol, currentGlobal));
+                    }
+                }
+
+                if (currentSymbol is not null) {
+                    if (currentIsType) {
+                        currentSymbols = currentSymbol switch {
+                            INamedTypeSymbol namedType => namedType.GetMembers(),
+                            IMethodSymbol method => CompilationExtensions.GetMethodLocals(method)
+                                                        .Cast<ISymbol>().ToImmutableArray(),
+                            _ => [],
+                        };
+                    } else {
+                        currentGlobals = currentGlobal.publicMembers ?? [];
+                    }
+                }
+
+                includeUp = currentSymbol is not null;
+                targetIndex = includeUp ? 2 : 1;
+
+                if (!includeUp &&
+                    ((currentIsType && currentSymbols.Length == 0) || (!currentIsType && currentGlobals.Count == 0))) {
+                    targetIndex--;
+                }
+            }
+
+            Console.BackgroundColor = state.colorTheme.background;
+            Console.Clear();
+            var pageText = new DisplayText();
+            pageText.Write(CreatePunctuation("#"));
+            pageText.Write(CreateKeyword("dump "));
+
+            if (currentSymbol is null)
+                pageText.Write(CreatePunctuation("[none]"));
+            else
+                DisplaySymbolName(pageText, currentSymbol);
+
+            WriteDisplayText(pageText);
+
+            writer.WriteLine();
+
+            var index = 2;
+            Console.ForegroundColor = state.colorTheme.textDefault;
+
+            if (targetIndex == 0)
+                Console.BackgroundColor = state.colorTheme.selection;
+
+            writer.SetCursorPosition(9, index++);
+            writer.Write("Exit");
+            Console.BackgroundColor = state.colorTheme.background;
+
+            if (includeUp) {
+                if (targetIndex == 1)
+                    Console.BackgroundColor = state.colorTheme.selection;
+
+                writer.SetCursorPosition(9, index++);
+                writer.Write("..");
+                Console.BackgroundColor = state.colorTheme.background;
+
+                if (targetIndex == 2)
+                    Console.BackgroundColor = state.colorTheme.selection;
+
+                writer.SetCursorPosition(9, index++);
+                writer.Write("Select Current Symbol");
+                Console.BackgroundColor = state.colorTheme.background;
+            }
+
+            if (currentSymbols.Length > 0 && currentGlobals.Count > 0) {
+                writer.SetCursorPosition(0, index);
+                writer.WriteLine("Types:");
+            }
+
+            foreach (var symbol in currentSymbols) {
+                writer.SetCursorPosition(9, index++);
+
+                if (targetIndex == index - 3)
+                    Console.BackgroundColor = state.colorTheme.selection;
+                else
+                    Console.BackgroundColor = state.colorTheme.background;
+
+                SymbolDisplay.AppendToDisplayText(pageText, symbol, SymbolDisplayFormat.Everything);
+                WriteDisplayText(pageText);
+            }
+
+            if (currentSymbols.Length > 0 && currentGlobals.Count > 0) {
+                Console.BackgroundColor = state.colorTheme.background;
+                writer.SetCursorPosition(0, index);
+                writer.WriteLine("Globals:");
+            }
+
+            foreach (var global in currentGlobals) {
+                writer.SetCursorPosition(9, index++);
+
+                if (targetIndex == index - 3)
+                    Console.BackgroundColor = state.colorTheme.selection;
+                else
+                    Console.BackgroundColor = state.colorTheme.background;
+
+                SymbolDisplay.AppendToDisplayText(pageText, global.Key, SymbolDisplayFormat.Everything);
+                WriteDisplayText(pageText);
+            }
+
+            return false;
+        }
+
+        static void DisplaySymbolName(DisplayText text, ISymbol symbol) {
+            if (symbol.kind == SymbolKind.Local) {
+                SymbolDisplay.AppendToDisplayText(
+                    text,
+                    symbol.containingSymbol,
+                    SymbolDisplayFormat.QualifiedNameFormat
+                );
+
+                text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+            }
+
+            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.QualifiedNameFormat);
+        }
     }
 
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
 
-        // Prefer locals first
-        foreach (var variable in state.variables) {
-            var local = variable.Key;
+        // Prefer globals first
+        foreach (var global in state.globals) {
+            var local = global.Key;
 
             if (local.name == signature) {
                 var localDisplayText = new DisplayText();
                 SymbolDisplay.AppendToDisplayText(localDisplayText, local, SymbolDisplayFormat.Everything);
-                localDisplayText.Write(CreateSpace());
-                localDisplayText.Write(CreatePunctuation(SyntaxKind.EqualsToken));
-                localDisplayText.Write(CreateSpace());
+                localDisplayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(localDisplayText);
 
-                var localValue = EvaluatorObjectToNativeObject(variable.Value);
+                var localValue = EvaluatorObjectToNativeObject(global.Value);
                 RenderResult(localValue);
                 writer.WriteLine();
 
@@ -668,7 +897,7 @@ public sealed partial class BelteRepl : Repl {
             }
         }
 
-        // Then do a deeper search for non-local symbols
+        // Then do a deeper search for non-global symbols
         var compilation = state.previous ?? EmptyCompilation;
         var allSymbols = compilation.GetSymbols(true);
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
@@ -817,6 +1046,37 @@ public sealed partial class BelteRepl : Repl {
         foreach (var (name, _, _) in InUse)
             maxNameLength = name.Length > maxNameLength ? name.Length : maxNameLength;
 
+        var targetIndex = 2;
+        var index = 2;
+
+        foreach (var (_, _, theme) in InUse) {
+            if (state.colorTheme.GetType() == theme.GetType())
+                targetIndex = index;
+            else
+                index++;
+        }
+
+        while (true) {
+            UpdatePage(targetIndex);
+
+            var key = Console.ReadKey(true);
+
+            if (key.Key == ConsoleKey.Enter) {
+                Console.BackgroundColor = state.colorTheme.background;
+                break;
+            } else if (key.Key == ConsoleKey.UpArrow) {
+                if (targetIndex - 2 > 0)
+                    targetIndex--;
+            } else if (key.Key == ConsoleKey.DownArrow) {
+                if (targetIndex - 2 < InUse.Length - 1)
+                    targetIndex++;
+            }
+        }
+
+        Console.BackgroundColor = state.colorTheme.background;
+        ReviveDocument();
+        state.currentPage = Page.Repl;
+
         void UpdatePage(int targetIndex) {
             targetIndex -= 2;
             state.colorTheme = InUse[targetIndex].theme;
@@ -848,37 +1108,6 @@ public sealed partial class BelteRepl : Repl {
 
             writer.SetCursorPosition(7, targetIndex + 2);
         }
-
-        var targetIndex = 2;
-        var index = 2;
-
-        foreach (var (_, _, theme) in InUse) {
-            if (state.colorTheme.GetType() == theme.GetType())
-                targetIndex = index;
-            else
-                index++;
-        }
-
-        while (true) {
-            UpdatePage(targetIndex);
-
-            var key = Console.ReadKey(true);
-
-            if (key.Key == ConsoleKey.Enter) {
-                Console.BackgroundColor = state.colorTheme.background;
-                break;
-            } else if (key.Key == ConsoleKey.UpArrow) {
-                if (targetIndex - 2 > 0)
-                    targetIndex--;
-            } else if (key.Key == ConsoleKey.DownArrow) {
-                if (targetIndex - 2 < InUse.Length - 1)
-                    targetIndex++;
-            }
-        }
-
-        Console.BackgroundColor = state.colorTheme.background;
-        ReviveDocument();
-        state.currentPage = Page.Repl;
     }
 
     [MetaCommand("showWarnings", "Toggle display of warnings")]

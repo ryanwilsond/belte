@@ -8,5 +8,6 @@ public sealed partial class BelteRepl {
     internal enum Page : byte {
         Repl,
         Settings,
+        DumpLocator,
     }
 }
