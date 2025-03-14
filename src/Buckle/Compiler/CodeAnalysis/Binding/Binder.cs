@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -938,15 +939,18 @@ internal partial class Binder {
 
         BoundExpression result;
         if (destinationType.kind == SymbolKind.ArrayType) {
-            // result = BindArrayCreationWithInitializer(diagnostics, null,
-            //     (InitializerExpressionSyntax)node, (ArrayTypeSymbol)destinationType,
-            //     ImmutableArray<BoundExpression>.Empty);
-
-            // TODO arrays
-            result = null;
+            result = BindArrayCreationWithInitializer(
+                diagnostics,
+                null,
+                (InitializerListExpressionSyntax)node,
+                (ArrayTypeSymbol)destinationType,
+                []
+            );
         } else {
+            // TODO Pretty sure we can just do nothing and a conversion error will be produced somewhere
+            result = BindValue(node, diagnostics, valueKind);
             // result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)node, diagnostics, ErrorCode.ERR_ArrayInitToNonArrayType);
-            result = null;
+            // result = null;
         }
 
         return CheckValue(result, valueKind, diagnostics);
@@ -956,8 +960,171 @@ internal partial class Binder {
         BoundExpression expression,
         BindValueKind kind,
         BelteDiagnosticQueue diagnostics) {
-        // TODO check value
-        return expression;
+        switch (expression.kind) {
+            case BoundKind.UnconvertedInitializerList:
+                if (kind == BindValueKind.RValue)
+                    return expression;
+
+                break;
+        }
+
+        var hasResolutionErrors = false;
+
+        if (expression.kind == BoundKind.MethodGroup && kind != BindValueKind.RValueOrMethodGroup) {
+            var methodGroup = (BoundMethodGroup)expression;
+            var resolution = ResolveMethodGroup(methodGroup, analyzedArguments: null);
+            Symbol otherSymbol = null;
+            var resolvedToMethodGroup = resolution.methodGroup is not null;
+
+            if (!expression.hasErrors) diagnostics.PushRange(resolution.diagnostics);
+
+            hasResolutionErrors = resolution.hasAnyErrors;
+
+            if (hasResolutionErrors)
+                otherSymbol = resolution.otherSymbol;
+
+            resolution.Free();
+
+            if (!resolvedToMethodGroup) {
+                var receiver = methodGroup.receiver;
+
+                return new BoundErrorExpression(
+                    expression.syntax,
+                    methodGroup.resultKind,
+                    otherSymbol is null ? [] : [otherSymbol],
+                    receiver == null ? [] : [receiver],
+                    GetNonMethodMemberType(otherSymbol)
+                );
+            }
+        }
+
+        if (!hasResolutionErrors && CheckValueKind(expression.syntax, expression, kind, false, diagnostics) ||
+            expression.hasErrors && kind == BindValueKind.RValueOrMethodGroup) {
+            return expression;
+        }
+
+        var resultKind = (kind == BindValueKind.RValue || kind == BindValueKind.RValueOrMethodGroup)
+            ? LookupResultKind.NotAValue
+            : LookupResultKind.NotADataContainer;
+
+        return ToErrorExpression(expression, resultKind);
+    }
+
+    internal bool CheckValueKind(
+        SyntaxNode node,
+        BoundExpression expression,
+        BindValueKind valueKind,
+        bool checkingReceiver,
+        BelteDiagnosticQueue diagnostics) {
+        if (expression.hasErrors)
+            return false;
+
+        // TODO
+        return true;
+
+        // if (RequiresRValueOnly(valueKind))
+        //     return CheckNotNamespaceOrType(expression, diagnostics);
+
+        // if ((expression.constantValue is not null) || (expression.type.GetSpecialTypeSafe() == SpecialType.Void)) {
+        //     Error(diagnostics, GetStandardLvalueError(valueKind), node);
+        //     return false;
+        // }
+
+        // switch (expression.kind) {
+        //     case BoundKind.TypeExpression:
+        //         var type = (BoundTypeExpression)expression;
+        //         Error(diagnostics, ErrorCode.ERR_BadSKknown, node, type.Type, MessageID.IDS_SK_TYPE.Localize(), MessageID.IDS_SK_VARIABLE.Localize());
+        //         return false;
+        //     case BoundKind.MethodGroup:
+        //         // method groups can only be used as RValues except when taking the address of one
+        //         var methodGroup = (BoundMethodGroup)expression;
+        //         Error(diagnostics, GetMethodGroupOrFunctionPointerLvalueError(valueKind), node, methodGroup.Name, MessageID.IDS_MethodGroup.Localize());
+        //         return false;
+        //     case BoundKind.Conversion:
+        //         var conversion = (BoundConversion)expression;
+        //         // conversions are strict RValues, but unboxing has a specific error
+        //         if (conversion.ConversionKind == ConversionKind.Unboxing) {
+        //             Error(diagnostics, ErrorCode.ERR_UnboxNotLValue, node);
+        //             return false;
+        //         }
+        //         break;
+        //     case BoundKind.Parameter:
+        //         var parameter = (BoundParameter)expression;
+        //         return CheckParameterValueKind(node, parameter, valueKind, checkingReceiver, diagnostics);
+        //     case BoundKind.Local:
+        //         var local = (BoundLocal)expression;
+        //         return CheckLocalValueKind(node, local, valueKind, checkingReceiver, diagnostics);
+        //     case BoundKind.ThisReference:
+        //         // `this` is never ref assignable
+        //         if (RequiresRefAssignableVariable(valueKind)) {
+        //             Error(diagnostics, ErrorCode.ERR_RefLocalOrParamExpected, node);
+        //             return false;
+        //         }
+
+        //         // We will already have given an error for "this" used outside of a constructor,
+        //         // instance method, or instance accessor. Assume that "this" is a variable if it is in a struct.
+
+        //         // SPEC: when this is used in a primary-expression within an instance constructor of a struct,
+        //         // SPEC: it is classified as a variable.
+
+        //         // SPEC: When this is used in a primary-expression within an instance method or instance accessor
+        //         // SPEC: of a struct, it is classified as a variable.
+
+        //         // Note: RValueOnly is checked at the beginning of this method. Since we are here we need more than readable.
+        //         // "this" is readonly in members marked "readonly" and in members of readonly structs, unless we are in a constructor.
+        //         var isValueType = ((BoundThisReference)expression).Type.IsValueType;
+        //         if (!isValueType || (RequiresAssignableVariable(valueKind) && (this.ContainingMemberOrLambda as MethodSymbol)?.IsEffectivelyReadOnly == true)) {
+        //             ReportThisLvalueError(node, valueKind, isValueType, isPrimaryConstructorParameter: false, diagnostics);
+        //             return false;
+        //         }
+
+        //         return true;
+
+        //     case BoundKind.Call:
+        //         var call = (BoundCall)expression;
+        //         return CheckMethodReturnValueKind(call.Method, call.Syntax, node, valueKind, checkingReceiver, diagnostics);
+
+        //     case BoundKind.ConditionalOperator:
+        //         if (RequiresRefAssignableVariable(valueKind)) {
+        //             Error(diagnostics, ErrorCode.ERR_RefLocalOrParamExpected, node);
+        //             return false;
+        //         }
+
+        //         var conditional = (BoundConditionalOperator)expression;
+
+        //         // byref conditional defers to its operands
+        //         if (conditional.IsRef &&
+        //             (CheckValueKind(conditional.Consequence.Syntax, conditional.Consequence, valueKind, checkingReceiver: false, diagnostics: diagnostics) &
+        //             CheckValueKind(conditional.Alternative.Syntax, conditional.Alternative, valueKind, checkingReceiver: false, diagnostics: diagnostics))) {
+        //             return true;
+        //         }
+
+        //         // report standard lvalue error
+        //         break;
+
+        //     case BoundKind.FieldAccess: {
+        //             var fieldAccess = (BoundFieldAccess)expression;
+        //             return CheckFieldValueKind(node, fieldAccess, valueKind, checkingReceiver, diagnostics);
+        //         }
+
+        //     case BoundKind.AssignmentOperator:
+        //         // Cannot ref-assign to a ref assignment.
+        //         if (RequiresRefAssignableVariable(valueKind)) {
+        //             Error(diagnostics, ErrorCode.ERR_RefLocalOrParamExpected, node);
+        //             return false;
+        //         }
+
+        //         var assignment = (BoundAssignmentOperator)expression;
+        //         return CheckSimpleAssignmentValueKind(node, assignment, valueKind, diagnostics);
+
+        //     case BoundKind.ValuePlaceholder:
+        //         // Strict RValue
+        //         break;
+        // }
+
+        // // At this point we should have covered all the possible cases for anything that is not a strict RValue.
+        // Error(diagnostics, GetStandardLvalueError(valueKind), node);
+        // return false;
     }
 
     private BoundExpression BindConstructorInitializerCore(
@@ -1024,18 +1191,36 @@ internal partial class Binder {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
     }
 
-    private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var firstToken = node.GetFirstToken();
-        diagnostics.Push(Error.UnexpectedToken(firstToken.location, firstToken.kind));
-        return new BoundErrorExpression(
-            node,
-            LookupResultKind.Empty,
-            [],
-            [BindToTypeForErrorRecovery(
-                BindValue(node.expression, BelteDiagnosticQueue.Discarded, BindValueKind.RefersToLocation)
-            )],
-            CreateErrorType("ref")
-        );
+    private BoundExpression ToErrorExpression(
+        BoundExpression expression,
+        LookupResultKind resultKind = LookupResultKind.Empty) {
+        var resultType = expression.type;
+        var expressionKind = expression.kind;
+
+        if (expression.hasErrors && resultType is not null)
+            return expression;
+
+        if (expressionKind == BoundKind.ErrorExpression) {
+            var errorExpression = (BoundErrorExpression)expression;
+
+            return errorExpression.Update(
+                resultKind,
+                errorExpression.symbols,
+                errorExpression.childBoundNodes,
+                resultType
+            );
+        } else {
+            var symbols = ArrayBuilder<Symbol>.GetInstance();
+            expression.GetExpressionSymbols(symbols);
+
+            return new BoundErrorExpression(
+                expression.syntax,
+                resultKind,
+                symbols.ToImmutableAndFree(),
+                [BindToTypeForErrorRecovery(expression)],
+                resultType ?? CreateErrorType()
+            );
+        }
     }
 
     private BoundExpression BindNameOfExpression(NameOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -1204,6 +1389,25 @@ internal partial class Binder {
         diagnostics.Push(Error.CannotConvertImplicitly(syntax.location, operand.type, targetType));
     }
 
+    private BoundArrayCreationExpression BindArrayCreationWithInitializer(
+        BelteDiagnosticQueue diagnostics,
+        ExpressionSyntax creationSyntax,
+        InitializerListExpressionSyntax initSyntax,
+        ArrayTypeSymbol type,
+        ImmutableArray<BoundExpression> sizes,
+        ImmutableArray<BoundExpression> boundInitializerExpression = default,
+        bool hasErrors = false) {
+        // TODO Double check this method thoroughly
+        // We completely scrapped what was here before
+        BoundExpression initializerList = BindInitializerListExpression(initSyntax, diagnostics);
+        initializerList = GenerateConversionForAssignment(type, initializerList, diagnostics);
+
+        hasErrors = hasErrors || initializerList.hasErrors;
+        var nonNullSyntax = (SyntaxNode)creationSyntax ?? initSyntax;
+
+        return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
+    }
+
     private protected BoundExpression BindObjectCreationExpression(
         ObjectCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
@@ -1277,7 +1481,13 @@ internal partial class Binder {
             }
         }
 
-        return MakeBadExpressionForObjectCreation(node, templateParameter, analyzedArguments, typeSyntax, diagnostics);
+        return MakeErrorExpressionForObjectCreation(
+            node,
+            templateParameter,
+            analyzedArguments,
+            typeSyntax,
+            diagnostics
+        );
     }
 
     private static bool TemplateParameterHasParameterlessConstructor(
@@ -1306,7 +1516,7 @@ internal partial class Binder {
 
             if (type.isStatic) {
                 diagnostics.Push(Error.CannotCreateStatic(node.location, type));
-                return MakeBadExpressionForObjectCreation(node, type, analyzedArguments, node.type, diagnostics);
+                return MakeErrorExpressionForObjectCreation(node, type, analyzedArguments, node.type, diagnostics);
             }
 
             return BindClassCreationExpression(node, typeName, node.type, type, analyzedArguments, diagnostics);
@@ -1315,7 +1525,7 @@ internal partial class Binder {
         }
     }
 
-    private BoundExpression MakeBadExpressionForObjectCreation(
+    private BoundExpression MakeErrorExpressionForObjectCreation(
         SyntaxNode node,
         TypeSymbol type,
         AnalyzedArguments analyzedArguments,
@@ -1325,7 +1535,7 @@ internal partial class Binder {
             node,
             LookupResultKind.NotCreatable,
             [type],
-            [.. analyzedArguments.arguments],
+            BuildArgumentsForErrorRecovery(analyzedArguments),
             type
         );
     }
@@ -1366,7 +1576,7 @@ internal partial class Binder {
             );
         }
 
-        return CreateBadClassCreationExpression(
+        return CreateErrorClassCreationExpression(
             node,
             typeNode,
             type,
@@ -1546,7 +1756,7 @@ internal partial class Binder {
         return creation;
     }
 
-    private BoundExpression CreateBadClassCreationExpression(
+    private BoundExpression CreateErrorClassCreationExpression(
         SyntaxNode node,
         SyntaxNode typeNode,
         NamedTypeSymbol type,
@@ -1578,7 +1788,7 @@ internal partial class Binder {
             node,
             resultKind,
             [.. candidateConstructors],
-            [.. analyzedArguments.arguments],
+            BuildArgumentsForErrorRecovery(analyzedArguments),
             type
         );
     }
@@ -1596,18 +1806,26 @@ internal partial class Binder {
     }
 
     internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var expr = BindValue(node, diagnostics, BindValueKind.RValue);
+        var expression = BindValue(node, diagnostics, BindValueKind.RValue);
         var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
 
-        if (expr.hasErrors)
-            return new BoundCastExpression(node, expr, Conversion.None, null, boolean, true);
+        if (expression.hasErrors) {
+            return new BoundCastExpression(
+                node,
+                BindToTypeForErrorRecovery(expression),
+                Conversion.None,
+                null,
+                boolean,
+                true
+            );
+        }
 
-        var conversion = conversions.ClassifyConversionFromExpression(expr, boolean);
+        var conversion = conversions.ClassifyConversionFromExpression(expression, boolean);
 
         if (conversion.isImplicit) {
             if (conversion.kind == ConversionKind.Identity) {
-                if (expr.kind == BoundKind.AssignmentOperator) {
-                    var assignment = (BoundAssignmentOperator)expr;
+                if (expression.kind == BoundKind.AssignmentOperator) {
+                    var assignment = (BoundAssignmentOperator)expression;
 
                     if (assignment.right.kind == BoundKind.LiteralExpression &&
                         assignment.right.constantValue.specialType == SpecialType.Bool) {
@@ -1618,8 +1836,8 @@ internal partial class Binder {
             }
 
             return CreateConversion(
-                node: expr.syntax,
-                source: expr,
+                node: expression.syntax,
+                source: expression,
                 conversion: conversion,
                 isCast: false,
                 destination: boolean,
@@ -1627,10 +1845,10 @@ internal partial class Binder {
             );
         }
 
-        expr = BindToNaturalType(expr, diagnostics);
+        expression = BindToNaturalType(expression, diagnostics);
         var best = UnaryOperatorOverloadResolution(
             UnaryOperatorKind.True,
-            expr,
+            expression,
             node,
             diagnostics,
             out var resultKind,
@@ -1638,14 +1856,14 @@ internal partial class Binder {
         );
 
         if (!best.hasValue) {
-            GenerateImplicitConversionError(diagnostics, node, conversion, expr, boolean);
-            return new BoundCastExpression(node, expr, Conversion.None, null, boolean, true);
+            GenerateImplicitConversionError(diagnostics, node, conversion, expression, boolean);
+            return new BoundCastExpression(node, expression, Conversion.None, null, boolean, true);
         }
 
         var signature = best.signature;
         var resultOperand = CreateConversion(
             node,
-            expr,
+            expression,
             best.conversion,
             isCast: false,
             destination: best.signature.operandType,
@@ -1720,7 +1938,7 @@ internal partial class Binder {
                         node,
                         LookupResultKind.WrongTemplate,
                         [symbol],
-                        [expression],
+                        [BindToTypeForErrorRecovery(expression)],
                         expression.type,
                         isError
                     );
@@ -2030,6 +2248,20 @@ internal partial class Binder {
         return new BoundTypeExpression(node, null, CreateErrorType("ref"));
     }
 
+    private BoundExpression BindReferenceExpression(ReferenceExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var firstToken = node.GetFirstToken();
+        diagnostics.Push(Error.UnexpectedToken(firstToken.location, firstToken.kind));
+        return new BoundErrorExpression(
+            node,
+            LookupResultKind.Empty,
+            [],
+            [BindToTypeForErrorRecovery(
+                BindValue(node.expression, BelteDiagnosticQueue.Discarded, BindValueKind.RefersToLocation)
+            )],
+            CreateErrorType("ref")
+        );
+    }
+
     private BoundExpression BindQualifiedName(QualifiedNameSyntax node, BelteDiagnosticQueue diagnostics) {
         // TODO Some languages allow "Color Color" member access where the instance name is the same as the type name
         // In which case we would need a special handler for this "BindLeftOfPotentialColorColorMemberAccess"
@@ -2104,7 +2336,7 @@ internal partial class Binder {
                             );
                         } else if (lookupResult.isClear) {
                             // Error(diagnostics, ErrorCode.ERR_LookupInTypeVariable, boundLeft.Syntax, leftType);
-                            // return BadExpression(node, LookupResultKind.NotAValue, boundLeft);
+                            // return ErrorExpression(node, LookupResultKind.NotAValue, boundLeft);
                             // TODO error, is this a reachable error?
                             return ErrorExpression(node, LookupResultKind.NotAValue, boundLeft);
                         }
@@ -2222,7 +2454,7 @@ internal partial class Binder {
             node,
             lookupKind,
             symbol is null ? [] : [symbol],
-            boundLeft is null ? [] : [boundLeft],
+            boundLeft is null ? [] : [BindToTypeForErrorRecovery(boundLeft)],
             GetNonMethodMemberType(symbol)
         );
     }
@@ -2709,7 +2941,7 @@ internal partial class Binder {
             if (!boundExpression.hasErrors)
                 diagnostics.Push(Error.CannotCallNonMethod(expression.location, methodName));
 
-            result = CreateBadCall(node, boundExpression, LookupResultKind.NotInvocable, analyzedArguments);
+            result = CreateErrorCall(node, boundExpression, LookupResultKind.NotInvocable, analyzedArguments);
         }
 
         return result;
@@ -2717,8 +2949,6 @@ internal partial class Binder {
 
     internal MethodGroupResolution ResolveMethodGroup(
         BoundMethodGroup node,
-        SyntaxNode expression,
-        string methodName,
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null) {
@@ -2817,13 +3047,7 @@ internal partial class Binder {
         BoundMethodGroup methodGroup,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
-        var resolution = ResolveMethodGroup(
-            methodGroup,
-            expression,
-            methodName,
-            analyzedArguments
-        );
-
+        var resolution = ResolveMethodGroup(methodGroup, analyzedArguments);
         diagnostics.PushRange(resolution.diagnostics);
 
         BoundExpression result;
@@ -2837,7 +3061,7 @@ internal partial class Binder {
                 resultKind = methodGroup.resultKind;
             }
 
-            result = CreateBadCall(syntax, methodGroup.receiver, resultKind, analyzedArguments);
+            result = CreateErrorCall(syntax, methodGroup.receiver, resultKind, analyzedArguments);
         } else if (!resolution.isEmpty) {
             if (resolution.resultKind != LookupResultKind.Viable) {
                 if (resolution.methodGroup is not null) {
@@ -2852,7 +3076,7 @@ internal partial class Binder {
                     );
                 }
 
-                result = CreateBadCall(syntax, methodGroup, methodGroup.resultKind, analyzedArguments);
+                result = CreateErrorCall(syntax, methodGroup, methodGroup.resultKind, analyzedArguments);
             } else {
                 result = BindCallExpressionContinued(
                     syntax,
@@ -2865,7 +3089,7 @@ internal partial class Binder {
                 );
             }
         } else {
-            result = CreateBadCall(syntax, methodGroup, methodGroup.resultKind, analyzedArguments);
+            result = CreateErrorCall(syntax, methodGroup, methodGroup.resultKind, analyzedArguments);
         }
 
         resolution.Free();
@@ -2917,7 +3141,7 @@ internal partial class Binder {
                 );
             }
 
-            return CreateBadCall(node, methodGroup.receiver, methodGroup.resultKind, analyzedArguments);
+            return CreateErrorCall(node, methodGroup.receiver, methodGroup.resultKind, analyzedArguments);
         }
 
         var methodResult = result.bestResult;
@@ -3043,7 +3267,7 @@ internal partial class Binder {
         return builder.ToImmutableAndFree();
     }
 
-    private BoundCallExpression CreateBadCall(
+    private BoundCallExpression CreateErrorCall(
         SyntaxNode node,
         BoundExpression receiver,
         LookupResultKind resultKind,
@@ -3052,12 +3276,12 @@ internal partial class Binder {
         var methodContainer = receiver.type ?? containingType;
         var method = new ErrorMethodSymbol(methodContainer, returnType, "");
 
-        var args = analyzedArguments.arguments.ToImmutable();
+        var args = BuildArgumentsForErrorRecovery(analyzedArguments);
         var argRefKinds = analyzedArguments.refKinds.ToImmutable();
 
         return new BoundCallExpression(
             node,
-            receiver,
+            BindToTypeForErrorRecovery(receiver),
             method,
             args,
             argRefKinds,
@@ -3066,6 +3290,73 @@ internal partial class Binder {
             method.returnType,
             true
         );
+    }
+
+    private ImmutableArray<BoundExpression> BuildArgumentsForErrorRecovery(AnalyzedArguments analyzedArguments) {
+        return BuildArgumentsForErrorRecovery(analyzedArguments, Enumerable.Empty<ImmutableArray<ParameterSymbol>>());
+    }
+
+    private ImmutableArray<BoundExpression> BuildArgumentsForErrorRecovery(
+        AnalyzedArguments analyzedArguments,
+        IEnumerable<ImmutableArray<ParameterSymbol>> parameterListList) {
+        var argumentCount = analyzedArguments.arguments.Count;
+        var newArguments = ArrayBuilder<BoundExpression>.GetInstance(argumentCount);
+        newArguments.AddRange(analyzedArguments.arguments);
+
+        for (var i = 0; i < argumentCount; i++) {
+            var argument = newArguments[i];
+
+            switch (argument.kind) {
+                case BoundKind.ParameterExpression:
+                case BoundKind.DataContainerExpression:
+                    newArguments[i] = BindToTypeForErrorRecovery(argument);
+                    break;
+                default:
+                    newArguments[i] = BindToTypeForErrorRecovery(argument, GetCorrespondingParameterTypeLocal(i));
+                    break;
+            }
+        }
+
+        return newArguments.ToImmutableAndFree();
+
+        TypeSymbol GetCorrespondingParameterTypeLocal(int i) {
+            TypeSymbol candidateType = null;
+
+            foreach (var parameterList in parameterListList) {
+                var parameterType = GetCorrespondingParameterType(analyzedArguments, i, parameterList);
+
+                if (parameterType is not null) {
+                    if (candidateType is null) {
+                        candidateType = parameterType;
+                    } else if (!candidateType.Equals(
+                        parameterType,
+                        TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) {
+                        candidateType = null;
+                        break;
+                    }
+                }
+            }
+
+            return candidateType;
+        }
+    }
+
+    private static TypeSymbol GetCorrespondingParameterType(
+        AnalyzedArguments analyzedArguments,
+        int i,
+        ImmutableArray<ParameterSymbol> parameterList) {
+        var name = analyzedArguments.Name(i);
+
+        if (name is not null) {
+            foreach (var parameter in parameterList) {
+                if (parameter.name == name)
+                    return parameter.type;
+            }
+
+            return null;
+        }
+
+        return (i < parameterList.Length) ? parameterList[i].type : null;
     }
 
     private void BindArgumentsAndNames(
@@ -3298,7 +3589,7 @@ internal partial class Binder {
     private BoundExpression BindIsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var isIsntOperator = node.operatorToken.kind == SyntaxKind.IsntKeyword;
         var resultType = (TypeSymbol)CorLibrary.GetSpecialType(SpecialType.Bool);
-        var operand = BindValue(node.left, diagnostics, BindValueKind.RValue);
+        var operand = BindRValueWithoutTargetType(node.left, diagnostics);
 
         if (node.right is LiteralExpressionSyntax l && l.token.value is null) {
             if (ConstantValue.IsNotNull(operand.constantValue)) {
@@ -3340,7 +3631,7 @@ internal partial class Binder {
     }
 
     private BoundExpression BindAsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var operand = BindValue(node.left, diagnostics, BindValueKind.RValue);
+        var operand = BindRValueWithoutTargetType(node.left, diagnostics);
         var targetTypeWithAnnotations = BindType(node.right, diagnostics);
         var targetType = targetTypeWithAnnotations.type;
         var targetTypeKind = targetType.typeKind;
@@ -3462,8 +3753,11 @@ internal partial class Binder {
         leftOperand = BindToNaturalType(leftOperand, diagnostics);
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
 
-        if (leftOperand.hasErrors || rightOperand.hasErrors)
+        if (leftOperand.hasErrors || rightOperand.hasErrors) {
+            leftOperand = BindToTypeForErrorRecovery(leftOperand);
+            rightOperand = BindToTypeForErrorRecovery(rightOperand);
             return new BoundNullCoalescingOperator(node, leftOperand, rightOperand, null, CreateErrorType(), true);
+        }
 
         var optLeftType = leftOperand.type;
         var optRightType = rightOperand.type;
@@ -3579,6 +3873,8 @@ internal partial class Binder {
         BoundExpression leftOperand,
         BoundExpression rightOperand,
         BelteDiagnosticQueue diagnostics) {
+        leftOperand = BindToTypeForErrorRecovery(leftOperand);
+        rightOperand = BindToTypeForErrorRecovery(rightOperand);
         diagnostics.Push(Error.InvalidBinaryOperatorUse(
             node.location,
             SyntaxFacts.GetText(node.operatorToken.kind),
@@ -3607,11 +3903,11 @@ internal partial class Binder {
             binary = childAsBinary;
         }
 
-        var left = BindValue(child, diagnostics, BindValueKind.RValue);
+        var left = BindRValueWithoutTargetType(child, diagnostics);
 
         do {
             binary = (BinaryExpressionSyntax)child.parent;
-            var right = BindValue(binary.right, diagnostics, BindValueKind.RValue);
+            var right = BindRValueWithoutTargetType(binary.right, diagnostics);
             left = BindConditionalLogicalOperator(binary, left, right, diagnostics);
             child = binary;
         } while ((object)child != node);
@@ -3778,12 +4074,42 @@ internal partial class Binder {
             diagnostics.Push(Error.InvalidUnaryOperatorUse(node.location, operatorName, operand.type));
     }
 
+    private TypeSymbol GetBinaryOperatorErrorType(BinaryOperatorKind kind) {
+        switch (kind) {
+            case BinaryOperatorKind.Equal:
+            case BinaryOperatorKind.NotEqual:
+            case BinaryOperatorKind.GreaterThan:
+            case BinaryOperatorKind.LessThan:
+            case BinaryOperatorKind.GreaterThanOrEqual:
+            case BinaryOperatorKind.LessThanOrEqual:
+                return CorLibrary.GetSpecialType(SpecialType.Bool);
+            default:
+                return CreateErrorType();
+        }
+    }
+
     private BoundExpression BindSimpleBinaryOperator(
         BinaryExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
         BoundExpression left,
         BoundExpression right) {
         var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
+
+        if (left.hasErrors || right.hasErrors) {
+            left = BindToTypeForErrorRecovery(left);
+            right = BindToTypeForErrorRecovery(right);
+
+            return new BoundBinaryOperator(
+                node,
+                left,
+                right,
+                kind,
+                null,
+                GetBinaryOperatorErrorType(kind),
+                true
+            );
+        }
+
         var leftNull = left.IsLiteralNull();
         var rightNull = right.IsLiteralNull();
         var isEquality = kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual;
@@ -4440,8 +4766,11 @@ internal partial class Binder {
         var leftOperand = BindValue(node.left, diagnostics, BindValueKind.CompoundAssignment);
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
 
-        if (leftOperand.hasErrors || rightOperand.hasErrors)
+        if (leftOperand.hasErrors || rightOperand.hasErrors) {
+            leftOperand = BindToTypeForErrorRecovery(leftOperand);
+            rightOperand = BindToTypeForErrorRecovery(rightOperand);
             return new BoundNullCoalescingAssignmentOperator(node, leftOperand, rightOperand, CreateErrorType(), true);
+        }
 
         var leftType = leftOperand.type;
 
@@ -4487,6 +4816,9 @@ internal partial class Binder {
             rightOperand.type
         ));
 
+        leftOperand = BindToTypeForErrorRecovery(leftOperand);
+        rightOperand = BindToTypeForErrorRecovery(rightOperand);
+
         return new BoundNullCoalescingAssignmentOperator(node, leftOperand, rightOperand, CreateErrorType(), true);
     }
 
@@ -4496,6 +4828,8 @@ internal partial class Binder {
         var kind = SyntaxKindToBinaryOperatorKind(node.assignmentToken.kind);
 
         if (left.hasErrors || right.hasErrors) {
+            left = BindToTypeForErrorRecovery(left);
+            right = BindToTypeForErrorRecovery(right);
             return new BoundCompoundAssignmentOperator(
                 node,
                 left,
@@ -4526,6 +4860,9 @@ internal partial class Binder {
             diagnostics.Push(
                 Error.InvalidBinaryOperatorUse(node.location, node.assignmentToken.text, left.type, right.type)
             );
+
+            left = BindToTypeForErrorRecovery(left);
+            right = BindToTypeForErrorRecovery(right);
 
             return new BoundCompoundAssignmentOperator(
                 node,
@@ -4617,13 +4954,21 @@ internal partial class Binder {
         BoundExpression op2,
         bool isRef,
         BelteDiagnosticQueue diagnostics) {
-        if (!op1.hasErrors) {
+        var hasErrors = op1.hasErrors || op2.hasErrors;
+
+        if (op1.type is { } lhsType && !lhsType.IsErrorType()) {
+            if (op1.hasErrors)
+                op1 = BindToTypeForErrorRecovery(op1);
+
             op2 = GenerateConversionForAssignment(
-                op1.type,
+                lhsType,
                 op2,
-                diagnostics,
+                hasErrors ? BelteDiagnosticQueue.Discarded : diagnostics,
                 isRef ? ConversionForAssignmentFlags.RefAssignment : ConversionForAssignmentFlags.None
             );
+        } else {
+            op1 = BindToTypeForErrorRecovery(op1);
+            op2 = BindToTypeForErrorRecovery(op2);
         }
 
         var type = op1.type;
@@ -5823,7 +6168,11 @@ symIsHidden:;
 
         return new BoundLocalDeclarationStatement(
             associatedSyntaxNode,
-            new BoundDataContainerDeclaration(declaration, localSymbol, initializer),
+            new BoundDataContainerDeclaration(
+                declaration,
+                localSymbol,
+                hasErrors ? BindToTypeForErrorRecovery(initializer) : initializer
+            ),
             hasErrors | nameConflict
         );
     }
@@ -6004,13 +6353,18 @@ symIsHidden:;
             }
         }
 
-        return new BoundReturnStatement(node, refKind, argument, hasErrors);
+        return new BoundReturnStatement(
+            node,
+            refKind,
+            hasErrors ? BindToTypeForErrorRecovery(argument) : argument,
+            hasErrors
+        );
     }
 
     private BoundExpressionStatement BindExpressionStatement(
         ExpressionStatementSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        var expression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
+        var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
 
         if (!compilation.options.isScript) {
             if (expression is not BoundCallExpression

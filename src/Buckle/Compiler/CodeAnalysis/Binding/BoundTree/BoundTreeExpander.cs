@@ -653,7 +653,8 @@ internal abstract class BoundTreeExpander {
         BoundArrayCreationExpression expression,
         out BoundExpression replacement) {
         var statements = ExpandArguments(expression.sizes, out var newSizes);
-        replacement = expression.Update(newSizes, expression.type);
+        statements.AddRange(ExpandExpression(expression.initializer, out var newInitializer));
+        replacement = expression.Update(newSizes, newInitializer, expression.type);
         return statements;
     }
 

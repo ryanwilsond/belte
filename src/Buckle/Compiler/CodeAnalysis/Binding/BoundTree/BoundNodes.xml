@@ -66,6 +66,7 @@
   </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="initializer" Type="BoundExpression?"/>
   </Node>
   <Node Name="BoundAsOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
