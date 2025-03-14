@@ -843,6 +843,8 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, TypeSymbol source, TypeSymbol target) {
         var dereferenced = Dereference(value);
+        target = target.GetNullableUnderlyingType();
+        source = source.GetNullableUnderlyingType();
 
         if (dereferenced.members is null) {
             var valueValue = Value(value);

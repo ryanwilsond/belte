@@ -929,6 +929,7 @@ internal partial class Binder {
             SyntaxKind.AssignmentExpression => BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics),
             SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
             SyntaxKind.NameOfExpression => BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics),
+            SyntaxKind.CastExpression => BindCastExpression((CastExpressionSyntax)node, diagnostics),
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
@@ -941,8 +942,6 @@ internal partial class Binder {
                 return BindCastExpression((CastExpressionSyntax)expression);
             case SyntaxKind.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
-            case SyntaxKind.NameOfExpression:
-                return BindNameOfExpression((NameOfExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)expression);
                 */
@@ -965,19 +964,19 @@ internal partial class Binder {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
     }
 
-    private BoundExpression BindNameOfExpression(NameOfExpressionSyntax syntax, BelteDiagnosticQueue diagnostics) {
-        var binder = GetBinder(syntax);
-        return binder.BindNameOfInternal(syntax, diagnostics);
+    private BoundExpression BindNameOfExpression(NameOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var binder = GetBinder(node);
+        return binder.BindNameOfInternal(node, diagnostics);
     }
 
-    private BoundExpression BindNameOfInternal(NameOfExpressionSyntax syntax, BelteDiagnosticQueue diagnostics) {
-        var nameSyntax = syntax.name;
+    private BoundExpression BindNameOfInternal(NameOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var nameSyntax = node.name;
         var name = GetNameFromSyntax(nameSyntax);
         // This is just to collect diagnostics
         BindExpression(nameSyntax, diagnostics);
 
         return new BoundLiteralExpression(
-            syntax,
+            node,
             new ConstantValue(name, SpecialType.String),
             CorLibrary.GetSpecialType(SpecialType.String)
         );
@@ -990,6 +989,113 @@ internal partial class Binder {
             QualifiedNameSyntax qualified => qualified.right.identifier.text,
             _ => throw ExceptionUtilities.UnexpectedValue(name.kind),
         };
+    }
+
+    private BoundExpression BindCastExpression(CastExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindValue(node.expression, diagnostics, BindValueKind.RValue);
+        var targetTypeWithAnnotations = BindType(node.type, diagnostics);
+        var targetType = targetTypeWithAnnotations.type;
+
+        if (targetType.IsNullableType() &&
+            !operand.hasErrors &&
+            operand.type is not null &&
+            !operand.type.IsNullableType() &&
+            !TypeSymbol.Equals(
+                targetType.GetNullableUnderlyingType(),
+                operand.type,
+                TypeCompareKind.ConsiderEverything)) {
+            return BindExplicitNullableCastFromNonNullable(node, operand, targetTypeWithAnnotations, diagnostics);
+        }
+
+        return BindCastCore(node, operand, targetTypeWithAnnotations, diagnostics);
+    }
+
+    private BoundExpression BindExplicitNullableCastFromNonNullable(
+        ExpressionSyntax node,
+        BoundExpression operand,
+        TypeWithAnnotations targetTypeWithAnnotations,
+        BelteDiagnosticQueue diagnostics) {
+        var underlyingTargetTypeWithAnnotations = targetTypeWithAnnotations.type
+            .GetNullableUnderlyingTypeWithAnnotations();
+
+        var underlyingConversion = conversions.ClassifyBuiltInConversion(
+            operand.type,
+            underlyingTargetTypeWithAnnotations.type
+        );
+
+        if (!underlyingConversion.exists)
+            return BindCastCore(node, operand, targetTypeWithAnnotations, diagnostics);
+
+        var queue1 = BelteDiagnosticQueue.GetInstance();
+
+        try {
+            var underlyingExpression = BindCastCore(node, operand, underlyingTargetTypeWithAnnotations, queue1);
+
+            if (underlyingExpression.constantValue is not null &&
+                !underlyingExpression.hasErrors && !queue1.AnyErrors()) {
+                diagnostics.PushRange(queue1);
+                return BindCastCore(node, underlyingExpression, targetTypeWithAnnotations, diagnostics);
+            }
+
+            var queue2 = BelteDiagnosticQueue.GetInstance();
+
+            var result = BindCastCore(node, operand, targetTypeWithAnnotations, queue2);
+
+            if (queue1.AnyErrors() && !queue2.AnyErrors())
+                diagnostics.PushRange(queue1);
+
+            diagnostics.PushRangeAndFree(queue2);
+            return result;
+        } finally {
+            queue1.Free();
+        }
+    }
+
+    private BoundExpression BindCastCore(
+        ExpressionSyntax node,
+        BoundExpression operand,
+        TypeWithAnnotations targetTypeWithAnnotations,
+        BelteDiagnosticQueue diagnostics) {
+        var targetType = targetTypeWithAnnotations.type;
+        var conversion = conversions.ClassifyConversionFromExpression(operand, targetType);
+        // var conversionGroup = new ConversionGroup(conversion, targetTypeWithAnnotations);
+        var suppressErrors = operand.hasErrors || targetType.IsErrorType();
+        var hasErrors = !conversion.exists || targetType.isStatic;
+
+        if (hasErrors && !suppressErrors)
+            GenerateExplicitConversionErrors(diagnostics, node, conversion, operand, targetType);
+
+        return CreateConversion(
+            node,
+            operand,
+            conversion,
+            isCast: true,
+            destination: targetType,
+            diagnostics: diagnostics,
+            hasErrors: hasErrors | suppressErrors
+        );
+    }
+
+    private void GenerateExplicitConversionErrors(
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
+        Conversion conversion,
+        BoundExpression operand,
+        TypeSymbol targetType) {
+        if (operand.hasErrors || targetType.IsErrorType())
+            return;
+
+        if (targetType.isStatic) {
+            diagnostics.Push(Error.CannotConvertToStatic(syntax.location, targetType));
+            return;
+        }
+
+        if (!targetType.IsNullableType() && operand.IsLiteralNull()) {
+            diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+            return;
+        }
+
+        diagnostics.Push(Error.CannotConvertImplicitly(syntax.location, operand.type, targetType));
     }
 
     private protected BoundExpression BindObjectCreationExpression(

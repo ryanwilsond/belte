@@ -1113,6 +1113,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullAssertOnNonNullableType, location, message);
     }
 
+    internal static BelteDiagnostic CannotConvertToStatic(TextLocation location, TypeSymbol type) {
+        var message = $"cannot cast to static type '{type}'";
+        return CreateError(DiagnosticCode.ERR_NullAssertOnNonNullableType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
