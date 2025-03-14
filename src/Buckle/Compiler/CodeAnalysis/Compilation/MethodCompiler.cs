@@ -236,6 +236,7 @@ internal sealed class MethodCompiler {
             body,
             state,
             _compilation.previousAnalyses,
+            _compilation.options.buildMode,
             currentDiagnostics
         );
 
@@ -249,20 +250,26 @@ internal sealed class MethodCompiler {
         BoundBlockStatement body,
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
+        BuildMode buildMode,
         BelteDiagnosticQueue currentDiagnostics) {
         var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
 
-        // ? TODO Why do we have a substitutedMethodSymbol parameter here if it's never supplied?
-        return LocalFunctionRewriter.Rewrite(
-            loweredBody,
-            state.type,
-            method,
-            methodOrdinal,
-            null,
-            state,
-            previousAnalyses,
-            currentDiagnostics
-        );
+        // ? C# handles closure a little different than we do so we just let the C# compiler handle that itself
+        if (buildMode != BuildMode.CSharpTranspile) {
+            // ? TODO Why do we have a substitutedMethodSymbol parameter here if it's never supplied?
+            loweredBody = LocalFunctionRewriter.Rewrite(
+                loweredBody,
+                state.type,
+                method,
+                methodOrdinal,
+                null,
+                state,
+                previousAnalyses,
+                currentDiagnostics
+            );
+        }
+
+        return loweredBody;
     }
 
     private static BoundBlockStatement BindMethodBody(

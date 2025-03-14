@@ -218,6 +218,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         return match;
     }
 
+    internal override void VisitNameOfExpression(NameOfExpressionSyntax node) {
+        var nameOfBinder = new NameofBinder(node.name, _enclosing, null, null);
+        AddToMap(node, nameOfBinder);
+        Visit(node.name, nameOfBinder);
+    }
+
     internal override void VisitEqualsValueClause(EqualsValueClauseSyntax node) {
         var valueBinder = new ExpressionVariableBinder(node, _enclosing);
         AddToMap(node, valueBinder);

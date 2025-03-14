@@ -928,6 +928,7 @@ internal partial class Binder {
             SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
             SyntaxKind.AssignmentExpression => BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics),
             SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
+            SyntaxKind.NameOfExpression => BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics),
             /*
             case SyntaxKind.InitializerListExpression:
                 return BindInitializerListExpression((InitializerListExpressionSyntax)expression, initializerListType);
@@ -944,8 +945,6 @@ internal partial class Binder {
                 return BindNameOfExpression((NameOfExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)expression);
-            case SyntaxKind.ArrayType when allowTypes:
-                return BindType((TypeSyntax)expression, explicitly: true);
                 */
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
@@ -964,6 +963,33 @@ internal partial class Binder {
 
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax) {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
+    }
+
+    private BoundExpression BindNameOfExpression(NameOfExpressionSyntax syntax, BelteDiagnosticQueue diagnostics) {
+        var binder = GetBinder(syntax);
+        return binder.BindNameOfInternal(syntax, diagnostics);
+    }
+
+    private BoundExpression BindNameOfInternal(NameOfExpressionSyntax syntax, BelteDiagnosticQueue diagnostics) {
+        var nameSyntax = syntax.name;
+        var name = GetNameFromSyntax(nameSyntax);
+        // This is just to collect diagnostics
+        BindExpression(nameSyntax, diagnostics);
+
+        return new BoundLiteralExpression(
+            syntax,
+            new ConstantValue(name, SpecialType.String),
+            CorLibrary.GetSpecialType(SpecialType.String)
+        );
+    }
+
+    private string GetNameFromSyntax(NameSyntax name) {
+        return name switch {
+            IdentifierNameSyntax identifier => identifier.identifier.text,
+            TemplateNameSyntax template => template.identifier.text,
+            QualifiedNameSyntax qualified => qualified.right.identifier.text,
+            _ => throw ExceptionUtilities.UnexpectedValue(name.kind),
+        };
     }
 
     private protected BoundExpression BindObjectCreationExpression(
