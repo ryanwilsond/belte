@@ -427,6 +427,8 @@ internal sealed class Evaluator {
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
+            BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
+            BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -438,6 +440,23 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateInitializerList(BoundInitializerList node, ValueWrapper<bool> abort) {
+        var builder = new EvaluatorObject[node.items.Length];
+
+        for (var i = 0; i < node.items.Length; i++)
+            builder[i] = EvaluateExpression(node.items[i], abort);
+
+        return new EvaluatorObject(builder, node.type);
+    }
+
+    private EvaluatorObject EvaluateArrayAccessExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {
+        var receiver = EvaluateExpression(node.receiver, abort);
+        var index = EvaluateExpression(node.index, abort);
+        var array = (EvaluatorObject[])Value(receiver);
+        var indexValue = (int)Value(index);
+        return array[indexValue];
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(

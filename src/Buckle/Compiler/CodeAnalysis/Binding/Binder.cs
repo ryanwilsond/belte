@@ -934,6 +934,9 @@ internal partial class Binder {
         TypeSymbol destinationType,
         BindValueKind valueKind,
         BelteDiagnosticQueue diagnostics) {
+        return BindValue(node, diagnostics, valueKind);
+        // TODO Do we want to distinguish collection expressions from array initializers?
+
         if (node.kind != SyntaxKind.InitializerListExpression)
             return BindValue(node, diagnostics, valueKind);
 
@@ -1162,11 +1165,10 @@ internal partial class Binder {
             SyntaxKind.CastExpression => BindCastExpression((CastExpressionSyntax)node, diagnostics),
             SyntaxKind.InitializerListExpression => BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics),
             SyntaxKind.ReferenceExpression => BindReferenceExpression((ReferenceExpressionSyntax)node, diagnostics),
+            SyntaxKind.IndexExpression => BindIndexExpression((IndexExpressionSyntax)node, diagnostics),
             /*
             case SyntaxKind.InitializerDictionaryExpression:
                 return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)expression);
-            case SyntaxKind.IndexExpression:
-                return BindIndexExpression((IndexExpressionSyntax)expression);
             case SyntaxKind.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
@@ -1248,6 +1250,35 @@ internal partial class Binder {
             QualifiedNameSyntax qualified => qualified.right.identifier.text,
             _ => throw ExceptionUtilities.UnexpectedValue(name.kind),
         };
+    }
+
+    private BoundExpression BindIndexExpression(IndexExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var boundExpression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
+        var boundOperand = BindValue(node.index, diagnostics, BindValueKind.RValue);
+        var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+
+        if (boundOperand.type is not null && boundOperand.type.IsNullableType())
+            intType = CorLibrary.GetNullableType(SpecialType.Int);
+
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(boundOperand, intType);
+
+        if (!conversion.exists)
+            GenerateImplicitConversionError(diagnostics, node, conversion, boundOperand, intType);
+
+        var boundConversion = CreateConversion(boundOperand, conversion, intType, diagnostics);
+        var hasErrors = false;
+        var type = boundExpression.type.StrippedType();
+
+        if (type is not ArrayTypeSymbol arrayType) {
+            diagnostics.Push(Error.CannotApplyIndexing(node.location, boundExpression.type));
+            hasErrors = true;
+        } else {
+            type = arrayType.elementType;
+        }
+
+        var constantValue = ConstantFolding.FoldIndex(boundExpression, boundConversion, type);
+
+        return new BoundArrayAccessExpression(node, boundExpression, boundConversion, constantValue, type, hasErrors);
     }
 
     private BoundUnconvertedInitializerList BindInitializerListExpression(
@@ -1398,7 +1429,6 @@ internal partial class Binder {
         ImmutableArray<BoundExpression> boundInitializerExpression = default,
         bool hasErrors = false) {
         // TODO Double check this method thoroughly
-        // We completely scrapped what was here before
         BoundExpression initializerList = BindInitializerListExpression(initSyntax, diagnostics);
         initializerList = GenerateConversionForAssignment(type, initializerList, diagnostics);
 

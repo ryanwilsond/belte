@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -15,7 +14,7 @@ internal sealed class Conversions {
     internal static ListExpressionTypeKind GetListExpressionTypeKind(
         TypeSymbol destination,
         out TypeWithAnnotations elementType) {
-        if (destination is ArrayTypeSymbol arrayType) {
+        if (destination.StrippedType() is ArrayTypeSymbol arrayType) {
             if (arrayType.isSZArray) {
                 elementType = arrayType.elementTypeWithAnnotations;
                 return ListExpressionTypeKind.Array;
@@ -46,7 +45,7 @@ internal sealed class Conversions {
 
     internal Conversion GetListExpressionConversion(BoundUnconvertedInitializerList node, TypeSymbol targetType) {
         var listTypeKind = GetListExpressionTypeKind(targetType, out var elementTypeWithAnnotations);
-        var elementType = elementTypeWithAnnotations.type;
+        var elementType = elementTypeWithAnnotations?.type;
 
         switch (listTypeKind) {
             case ListExpressionTypeKind.None:
@@ -101,6 +100,11 @@ internal sealed class Conversions {
                 return Conversion.None;
         }
 
+        var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
+
+        if (result.exists)
+            return result;
+
         return Conversion.Classify(sourceExpression.type, target);
     }
 
@@ -109,6 +113,11 @@ internal sealed class Conversions {
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
+        var result = ClassifyImplicitConversionFromType(source, target);
+
+        if (result.exists)
+            return result;
+
         return Conversion.Classify(source, target);
     }
 
@@ -129,55 +138,16 @@ internal sealed class Conversions {
                 return listExpressionConversion;
         }
 
-        var conversion = ClassifyConversionFromExpression(sourceExpression, target);
+        var conversion = FastClassifyConversion(sourceExpression.type, target);
+
+        if (conversion.exists && conversion.isImplicit)
+            return conversion;
+
+        conversion = Conversion.Classify(sourceExpression.type, target);
 
         if (conversion.isImplicit)
             return conversion;
 
         return Conversion.None;
-        // var sourceType = sourceExpression.Type;
-
-        // if (sourceType is { } && HasIdentityConversionInternal(sourceType, destination))
-        //     return Conversion.Identity;
-
-        // var conversion = ClassifyImplicitBuiltInConversionFromExpression(sourceExpression, sourceType, destination);
-
-        // if (conversion.Exists)
-        //     return conversion;
-
-        // if (sourceType is { }) {
-        //     // Try using the short-circuit "fast-conversion" path.
-        //     Conversion fastConversion = FastClassifyConversion(sourceType, destination);
-        //     if (fastConversion.Exists) {
-        //         if (fastConversion.IsImplicit) {
-        //             return fastConversion;
-        //         }
-        //     } else {
-        //         conversion = ClassifyImplicitBuiltInConversionSlow(sourceType, destination, ref useSiteInfo);
-        //         if (conversion.Exists) {
-        //             return conversion;
-        //         }
-        //     }
-        // } else if (sourceExpression.GetFunctionType() is { } sourceFunctionType) {
-        //     if (HasImplicitFunctionTypeConversion(sourceFunctionType, destination, ref useSiteInfo)) {
-        //         return Conversion.FunctionType;
-        //     }
-        // }
-
-        // conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceType, destination, ref useSiteInfo);
-        // if (conversion.Exists) {
-        //     return conversion;
-        // }
-
-        // // The switch expression conversion is "lowest priority", so that if there is a conversion from the expression's
-        // // type it will be preferred over the switch expression conversion.  Technically, we would want the language
-        // // specification to say that the switch expression conversion only "exists" if there is no implicit conversion
-        // // from the type, and we accomplish that by making it lowest priority.  The same is true for the conditional
-        // // expression conversion.
-        // conversion = GetSwitchExpressionConversion(sourceExpression, destination, ref useSiteInfo);
-        // if (conversion.Exists) {
-        //     return conversion;
-        // }
-        // return GetConditionalExpressionConversion(sourceExpression, destination, ref useSiteInfo);
     }
 }
