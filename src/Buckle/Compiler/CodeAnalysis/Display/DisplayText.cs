@@ -731,8 +731,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
-        DisplayNode(text, node.receiver);
-        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        if (node.receiver is not null) {
+            DisplayNode(text, node.receiver);
+            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        }
+
         text.Write(CreateIdentifier(node.method.name));
         DisplayArguments(text, node.arguments);
     }

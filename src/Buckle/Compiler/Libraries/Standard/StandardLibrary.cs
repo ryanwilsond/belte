@@ -247,126 +247,126 @@ internal static partial class StandardLibrary {
             //     => { return System.IO.File.ReadAllText((string)a); }) },
             // { File.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             //     => { System.IO.File.WriteAllText((string)a, (string)b); return null; }) },
-            // { Math.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Abs(Convert.ToDouble(a)); }) },
-            // { Math.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Abs(Convert.ToDouble(a)); }) },
-            // { Math.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Abs((int)a); }) },
-            // { Math.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Abs((int)a); }) },
-            // { Math.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Acos(Convert.ToDouble(a)); }) },
-            // { Math.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Acos(Convert.ToDouble(a)); }) },
-            // { Math.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Acosh(Convert.ToDouble(a)); }) },
-            // { Math.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Acosh(Convert.ToDouble(a)); }) },
-            // { Math.members[10].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Asin(Convert.ToDouble(a)); }) },
-            // { Math.members[11].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Asin(Convert.ToDouble(a)); }) },
-            // { Math.members[12].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Asinh(Convert.ToDouble(a)); }) },
-            // { Math.members[13].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Asinh(Convert.ToDouble(a)); }) },
-            // { Math.members[14].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Atan(Convert.ToDouble(a)); }) },
-            // { Math.members[15].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Atan(Convert.ToDouble(a)); }) },
-            // { Math.members[16].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Atanh(Convert.ToDouble(a)); }) },
-            // { Math.members[17].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Atanh(Convert.ToDouble(a)); }) },
-            // { Math.members[18].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Ceiling(Convert.ToDouble(a)); }) },
-            // { Math.members[19].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Ceiling(Convert.ToDouble(a)); }) },
-            // { Math.members[20].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || a is null || a is null ? null : System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
-            // { Math.members[21].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
-            // { Math.members[22].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || a is null || a is null ? null : System.Math.Clamp((int)a, (int)b, (int)c); }) },
-            // { Math.members[23].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Clamp((int)a, (int)b, (int)c); }) },
-            // { Math.members[24].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Cos(Convert.ToDouble(a)); }) },
-            // { Math.members[25].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Cos(Convert.ToDouble(a)); }) },
-            // { Math.members[26].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Cosh(Convert.ToDouble(a)); }) },
-            // { Math.members[27].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Cosh(Convert.ToDouble(a)); }) },
-            // { Math.members[28].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Exp(Convert.ToDouble(a)); }) },
-            // { Math.members[29].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Exp(Convert.ToDouble(a)); }) },
-            // { Math.members[30].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Floor(Convert.ToDouble(a)); }) },
-            // { Math.members[31].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Floor(Convert.ToDouble(a)); }) },
-            // { Math.members[32].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { if (a is null || b is null || c is null) return null; var rate = Convert.ToDouble(c); var start = Convert.ToDouble(a); return start + rate * (Convert.ToDouble(b) - start); }) },
-            // { Math.members[33].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { var rate = Convert.ToDouble(c); return Convert.ToDouble(a) * (1 - rate) + Convert.ToDouble(b) * rate; }) },
-            // { Math.members[34].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || b is null ? null : System.Math.Log(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[35].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Log(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[36].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Log(Convert.ToDouble(a)); }) },
-            // { Math.members[37].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Log(Convert.ToDouble(a)); }) },
-            // { Math.members[38].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || b is null ? null : System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[39].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[40].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || b is null ? null : System.Math.Max((int)a, (int)b); }) },
-            // { Math.members[41].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Max((int)a, (int)b); }) },
-            // { Math.members[42].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || b is null ? null : System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[43].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[44].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || b is null ? null : System.Math.Min((int)a, (int)b); }) },
-            // { Math.members[45].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Min((int)a, (int)b); }) },
-            // { Math.members[46].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[47].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
-            // { Math.members[48].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Round(Convert.ToDouble(a)); }) },
-            // { Math.members[49].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Round(Convert.ToDouble(a)); }) },
-            // { Math.members[50].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Sin(Convert.ToDouble(a)); }) },
-            // { Math.members[51].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Sin(Convert.ToDouble(a)); }) },
-            // { Math.members[52].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Sinh(Convert.ToDouble(a)); }) },
-            // { Math.members[53].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Sinh(Convert.ToDouble(a)); }) },
-            // { Math.members[54].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Sqrt(Convert.ToDouble(a)); }) },
-            // { Math.members[55].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Sqrt(Convert.ToDouble(a)); }) },
-            // { Math.members[56].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Tan(Convert.ToDouble(a)); }) },
-            // { Math.members[57].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Tan(Convert.ToDouble(a)); }) },
-            // { Math.members[58].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Tanh(Convert.ToDouble(a)); }) },
-            // { Math.members[59].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Tanh(Convert.ToDouble(a)); }) },
-            // { Math.members[60].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
-            // { Math.members[61].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
+            { "Math_Abs_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Abs(Convert.ToDouble(a)); }) },
+            { "Math_Abs_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Abs(Convert.ToDouble(a)); }) },
+            { "Math_Abs_I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Abs((int)a); }) },
+            { "Math_Abs_I", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Abs((int)a); }) },
+            { "Math_Acos_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Acos(Convert.ToDouble(a)); }) },
+            { "Math_Acos_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Acos(Convert.ToDouble(a)); }) },
+            { "Math_Acosh_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Acosh(Convert.ToDouble(a)); }) },
+            { "Math_Acosh_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Acosh(Convert.ToDouble(a)); }) },
+            { "Math_Asin_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Asin(Convert.ToDouble(a)); }) },
+            { "Math_Asin_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Asin(Convert.ToDouble(a)); }) },
+            { "Math_Asinh_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Asinh(Convert.ToDouble(a)); }) },
+            { "Math_Asinh_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Asinh(Convert.ToDouble(a)); }) },
+            { "Math_Atan_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Atan(Convert.ToDouble(a)); }) },
+            { "Math_Atan_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Atan(Convert.ToDouble(a)); }) },
+            { "Math_Atanh_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Atanh(Convert.ToDouble(a)); }) },
+            { "Math_Atanh_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Atanh(Convert.ToDouble(a)); }) },
+            { "Math_Ceiling_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Ceiling(Convert.ToDouble(a)); }) },
+            { "Math_Ceiling_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Ceiling(Convert.ToDouble(a)); }) },
+            { "Math_Clamp_D?D?D?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
+            { "Math_Clamp_DDD", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
+            { "Math_Clamp_I?I?I?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((int)a, (int)b, (int)c); }) },
+            { "Math_Clamp_III", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((int)a, (int)b, (int)c); }) },
+            { "Math_Cos_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Cos(Convert.ToDouble(a)); }) },
+            { "Math_Cos_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Cos(Convert.ToDouble(a)); }) },
+            { "Math_Cosh_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Cosh(Convert.ToDouble(a)); }) },
+            { "Math_Cosh_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Cosh(Convert.ToDouble(a)); }) },
+            { "Math_Exp_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Exp(Convert.ToDouble(a)); }) },
+            { "Math_Exp_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Exp(Convert.ToDouble(a)); }) },
+            { "Math_Floor_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Floor(Convert.ToDouble(a)); }) },
+            { "Math_Floor_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Floor(Convert.ToDouble(a)); }) },
+            { "Math_Lerp_D?D?D?", new Func<object, object, object, object>((a, b, c)
+                => { if (a is null || b is null || c is null) return null; var rate = Convert.ToDouble(c); var start = Convert.ToDouble(a); return start + rate * (Convert.ToDouble(b) - start); }) },
+            { "Math_Lerp_DDD", new Func<object, object, object, object>((a, b, c)
+                => { var rate = Convert.ToDouble(c); return Convert.ToDouble(a) * (1 - rate) + Convert.ToDouble(b) * rate; }) },
+            { "Math_Log_D?D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Log(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Log_DD", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Log(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Log_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Log(Convert.ToDouble(a)); }) },
+            { "Math_Log_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Log(Convert.ToDouble(a)); }) },
+            { "Math_Max_D?D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Max_DD", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Max_I?I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Max((int)a, (int)b); }) },
+            { "Math_Max_II", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Max((int)a, (int)b); }) },
+            { "Math_Min_D?D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Min_DD", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Min_I?I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Min((int)a, (int)b); }) },
+            { "Math_Min_II", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Min((int)a, (int)b); }) },
+            { "Math_Pow_D?D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Pow_DD", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Round_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Round(Convert.ToDouble(a)); }) },
+            { "Math_Round_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Round(Convert.ToDouble(a)); }) },
+            { "Math_Sin_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sin(Convert.ToDouble(a)); }) },
+            { "Math_Sin_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sin(Convert.ToDouble(a)); }) },
+            { "Math_Sinh_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sinh(Convert.ToDouble(a)); }) },
+            { "Math_Sinh_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sinh(Convert.ToDouble(a)); }) },
+            { "Math_Sqrt_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sqrt(Convert.ToDouble(a)); }) },
+            { "Math_Sqrt_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sqrt(Convert.ToDouble(a)); }) },
+            { "Math_Tan_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Tan(Convert.ToDouble(a)); }) },
+            { "Math_Tan_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Tan(Convert.ToDouble(a)); }) },
+            { "Math_Tanh_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Tanh(Convert.ToDouble(a)); }) },
+            { "Math_Tanh_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Tanh(Convert.ToDouble(a)); }) },
+            { "Math_Truncate_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
+            { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
         };
     }
 }

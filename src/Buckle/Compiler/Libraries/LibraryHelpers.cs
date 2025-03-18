@@ -31,8 +31,16 @@ internal static class LibraryHelpers {
         if (method.parameterCount > 0) {
             stringBuilder.Append('_');
 
-            foreach (var parameter in method.parameters)
-                stringBuilder.Append(parameter.type.name.First());
+            foreach (var parameter in method.parameters) {
+                var type = parameter.type;
+
+                if (type.specialType == SpecialType.Nullable) {
+                    stringBuilder.Append(char.ToUpper(type.GetNullableUnderlyingType().name.First()));
+                    stringBuilder.Append('?');
+                } else {
+                    stringBuilder.Append(char.ToUpper(type.name.First()));
+                }
+            }
 
         }
 

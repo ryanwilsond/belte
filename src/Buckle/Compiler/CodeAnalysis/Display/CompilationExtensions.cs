@@ -82,6 +82,10 @@ public static class CompilationExtensions {
                 WriteTypeMembers(s);
             else
                 text.WriteLine();
+
+            if (v.constantValue is not null) {
+                // TODO Write constant value
+            }
         } else if (symbol is FieldSymbol f) {
             SymbolDisplay.AppendToDisplayText(text, f, SymbolDisplayFormat.Everything);
             var type = f.type.StrippedType();
@@ -90,6 +94,10 @@ public static class CompilationExtensions {
                 WriteTypeMembers(s);
             else
                 text.WriteLine();
+
+            if (f.constantValue is not null) {
+                // TODO Write constant value
+            }
         }
 
         void WriteTypeMembers(NamedTypeSymbol type) {

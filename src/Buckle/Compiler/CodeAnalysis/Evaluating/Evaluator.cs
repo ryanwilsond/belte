@@ -916,8 +916,8 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
-        if ((object)method.containingType == StandardLibrary.Console ||
-            (object)method.containingType == StandardLibrary.Math) {
+        if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.Math.underlyingNamedType)) {
             var mapKey = LibraryHelpers.BuildMapKey(method);
             var function = StandardLibrary.EvaluatorMap[mapKey];
 
