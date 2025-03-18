@@ -2624,19 +2624,18 @@ internal partial class Binder {
         );
 
         if (symbol is null) {
-            result = null;
-            // TODO templates
-            // result = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
-            //     node,
-            //     typeArgumentsSyntax,
-            //     typeArgumentsWithAnnotations,
-            //     left,
-            //     plainName,
-            //     members,
-            //     lookupResult,
-            //     methodGroupFlags,
-            //     wasError,
-            //     diagnostics);
+            result = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+                node,
+                templateArgumentsSyntax,
+                templateArguments.IsDefaultOrEmpty ? [] : templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                left,
+                plainName,
+                members,
+                lookupResult,
+                methodGroupFlags,
+                wasError,
+                diagnostics
+            );
         } else {
             if (left is not null)
                 left = BindToNaturalType(left, diagnostics);

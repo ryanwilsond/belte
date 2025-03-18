@@ -260,6 +260,24 @@ internal sealed partial class OverloadResolution {
                 checkOverriddenOrHidden: checkOverriddenOrHidden
             );
         }
+
+        TempTakeFirstValid(results);
+
+        void TempTakeFirstValid(ArrayBuilder<MemberResolutionResult<T>> results) {
+            var seenValid = false;
+
+            for (var i = 0; i < results.Count; i++) {
+                var result = results[i];
+
+                if (result.isValid) {
+                    if (seenValid)
+                        // ! The actually result here is arbitrary (not used)
+                        results[i] = result.WithResult(MemberAnalysisResult.LessDerived());
+                    else
+                        seenValid = true;
+                }
+            }
+        }
     }
 
     private void AddMemberToCandidateSet<T>(

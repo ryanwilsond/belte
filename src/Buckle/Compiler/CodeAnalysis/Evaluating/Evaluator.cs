@@ -912,10 +912,28 @@ internal sealed class Evaluator {
         out object result,
         out bool printed,
         out bool io) {
-        // TODO
         printed = false;
         io = false;
         result = null;
-        return false;
+
+        if ((object)method.containingType == StandardLibrary.Console ||
+            (object)method.containingType == StandardLibrary.Math) {
+            var mapKey = LibraryHelpers.BuildMapKey(method);
+            var function = StandardLibrary.EvaluatorMap[mapKey];
+
+            var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
+
+            result = arguments.Length switch {
+                0 => function(null, null, null),
+                1 => function(valueArguments[0], null, null),
+                2 => function(valueArguments[0], valueArguments[1], null),
+                3 => function(valueArguments[0], valueArguments[1], valueArguments[2]),
+                _ => throw ExceptionUtilities.UnexpectedValue(arguments.Length),
+            };
+
+            return true;
+        } else {
+            return false;
+        }
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
@@ -19,6 +20,23 @@ internal static class LibraryHelpers {
 
             return _lazyStringList.type;
         }
+    }
+
+    internal static string BuildMapKey(MethodSymbol method) {
+        var stringBuilder = new StringBuilder();
+        stringBuilder.Append(method.containingType.name);
+        stringBuilder.Append('_');
+        stringBuilder.Append(method.name);
+
+        if (method.parameterCount > 0) {
+            stringBuilder.Append('_');
+
+            foreach (var parameter in method.parameters)
+                stringBuilder.Append(parameter.type.name.First());
+
+        }
+
+        return stringBuilder.ToString();
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
@@ -239,6 +257,7 @@ internal static class LibraryHelpers {
                 defaultValue: constantValue
             );
 
+            builder.Add(synthesizedParameter);
             i++;
         }
 

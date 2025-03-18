@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
@@ -10,6 +11,7 @@ internal static partial class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyFile;
     private static SynthesizedFinishedNamedTypeSymbol _lazyConsole;
     private static SynthesizedFinishedNamedTypeSymbol _lazyMath;
+    private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
     internal static SynthesizedFinishedNamedTypeSymbol Directory {
         get {
@@ -44,6 +46,15 @@ internal static partial class StandardLibrary {
                 Interlocked.CompareExchange(ref _lazyMath, GenerateMath(), null);
 
             return _lazyMath;
+        }
+    }
+
+    internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
+        get {
+            if (_lazyEvaluatorMap is null)
+                Interlocked.CompareExchange(ref _lazyEvaluatorMap, GenerateEvaluatorMap(), null);
+
+            return _lazyEvaluatorMap;
         }
     }
 
@@ -184,16 +195,178 @@ internal static partial class StandardLibrary {
         ]);
     }
 
-    // TODO Should probably reevaluate what to do about method implementations
-    // The method map was efficient but very messy to setup
-    // Will be some sort of map, but hopefully less messy (make sure to lock to avoid race conditions)
-    // Easiest way is to just create unique string names? Then give SynthesizedFinishedMethodSymbol its own field
-    // Set hasSpecialName to true? (Only do this after implemented what this field is actually for)
-    // Call it `corName` or `stlName` or `standardLibraryName` or something
-    // Could also just attach all of the map data (C# string and Evaluator function) directly on the method symbol to
-    // Avoid needing to do a lookup. This is NOT less space efficient because we shouldn't be creating multiple copies
-    // Of these symbols. Could then in the Evaluator just be like
-    // "Is the ContainingSymbol Console, Math, etc.? Ok now I will as cast this to the Synthesized and invoke the
-    // function"
-    // Or "Is the ContainingSymbol Console, Math, etc.? Ok now I will lookup the map using the unique string name"
+    private static Dictionary<string, Func<object, object, object, object>> GenerateEvaluatorMap() {
+        return new Dictionary<string, Func<object, object, object, object>>() {
+            { "Console_GetWidth", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
+            { "Console_GetHeight", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) return System.Console.WindowHeight; return null; }) },
+            { "Console_Input", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) return System.Console.ReadLine(); return null; }) },
+            { "Console_PrintLine", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            { "Console_PrintLine_S", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            { "Console_PrintLine_A", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            { "Console_PrintLine_O", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
+            { "Console_Print_S", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+            { "Console_Print_A", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+            { "Console_Print_O", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+            { "Console_ResetColor", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
+            { "Console_SetForegroundColor_I", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)a; return null; }) },
+            { "Console_SetBackgroundColor_I", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
+            { "Console_SetCursorPosition_II", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition((int?)a ?? System.Console.CursorLeft, (int?)b ?? System.Console.CursorTop); } return null; }) },
+            // { Directory.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
+            // { Directory.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.Directory.Delete((string)a, true); return null; }) },
+            // { Directory.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.IO.Directory.Exists((string)a); }) },
+            // { Directory.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.IO.Directory.GetCurrentDirectory(); }) },
+            // { File.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.File.AppendAllText((string)a, (string)b); return null; }) },
+            // { File.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.File.Create((string)a); return null; }) },
+            // { File.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.File.Copy((string)a, (string)b); return null; }) },
+            // { File.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.File.Delete((string)a); return null; }) },
+            // { File.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.IO.File.Exists((string)a); }) },
+            // { File.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.IO.File.ReadAllText((string)a); }) },
+            // { File.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { System.IO.File.WriteAllText((string)a, (string)b); return null; }) },
+            // { Math.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Abs(Convert.ToDouble(a)); }) },
+            // { Math.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Abs(Convert.ToDouble(a)); }) },
+            // { Math.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Abs((int)a); }) },
+            // { Math.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Abs((int)a); }) },
+            // { Math.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Acos(Convert.ToDouble(a)); }) },
+            // { Math.members[7].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Acos(Convert.ToDouble(a)); }) },
+            // { Math.members[8].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Acosh(Convert.ToDouble(a)); }) },
+            // { Math.members[9].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Acosh(Convert.ToDouble(a)); }) },
+            // { Math.members[10].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Asin(Convert.ToDouble(a)); }) },
+            // { Math.members[11].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Asin(Convert.ToDouble(a)); }) },
+            // { Math.members[12].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Asinh(Convert.ToDouble(a)); }) },
+            // { Math.members[13].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Asinh(Convert.ToDouble(a)); }) },
+            // { Math.members[14].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Atan(Convert.ToDouble(a)); }) },
+            // { Math.members[15].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Atan(Convert.ToDouble(a)); }) },
+            // { Math.members[16].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Atanh(Convert.ToDouble(a)); }) },
+            // { Math.members[17].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Atanh(Convert.ToDouble(a)); }) },
+            // { Math.members[18].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Ceiling(Convert.ToDouble(a)); }) },
+            // { Math.members[19].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Ceiling(Convert.ToDouble(a)); }) },
+            // { Math.members[20].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || a is null || a is null ? null : System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
+            // { Math.members[21].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
+            // { Math.members[22].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || a is null || a is null ? null : System.Math.Clamp((int)a, (int)b, (int)c); }) },
+            // { Math.members[23].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Clamp((int)a, (int)b, (int)c); }) },
+            // { Math.members[24].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Cos(Convert.ToDouble(a)); }) },
+            // { Math.members[25].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Cos(Convert.ToDouble(a)); }) },
+            // { Math.members[26].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Cosh(Convert.ToDouble(a)); }) },
+            // { Math.members[27].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Cosh(Convert.ToDouble(a)); }) },
+            // { Math.members[28].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Exp(Convert.ToDouble(a)); }) },
+            // { Math.members[29].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Exp(Convert.ToDouble(a)); }) },
+            // { Math.members[30].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Floor(Convert.ToDouble(a)); }) },
+            // { Math.members[31].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Floor(Convert.ToDouble(a)); }) },
+            // { Math.members[32].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { if (a is null || b is null || c is null) return null; var rate = Convert.ToDouble(c); var start = Convert.ToDouble(a); return start + rate * (Convert.ToDouble(b) - start); }) },
+            // { Math.members[33].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { var rate = Convert.ToDouble(c); return Convert.ToDouble(a) * (1 - rate) + Convert.ToDouble(b) * rate; }) },
+            // { Math.members[34].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || b is null ? null : System.Math.Log(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[35].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Log(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[36].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Log(Convert.ToDouble(a)); }) },
+            // { Math.members[37].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Log(Convert.ToDouble(a)); }) },
+            // { Math.members[38].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || b is null ? null : System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[39].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[40].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || b is null ? null : System.Math.Max((int)a, (int)b); }) },
+            // { Math.members[41].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Max((int)a, (int)b); }) },
+            // { Math.members[42].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || b is null ? null : System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[43].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[44].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || b is null ? null : System.Math.Min((int)a, (int)b); }) },
+            // { Math.members[45].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Min((int)a, (int)b); }) },
+            // { Math.members[46].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[47].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            // { Math.members[48].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Round(Convert.ToDouble(a)); }) },
+            // { Math.members[49].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Round(Convert.ToDouble(a)); }) },
+            // { Math.members[50].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Sin(Convert.ToDouble(a)); }) },
+            // { Math.members[51].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Sin(Convert.ToDouble(a)); }) },
+            // { Math.members[52].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Sinh(Convert.ToDouble(a)); }) },
+            // { Math.members[53].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Sinh(Convert.ToDouble(a)); }) },
+            // { Math.members[54].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Sqrt(Convert.ToDouble(a)); }) },
+            // { Math.members[55].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Sqrt(Convert.ToDouble(a)); }) },
+            // { Math.members[56].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Tan(Convert.ToDouble(a)); }) },
+            // { Math.members[57].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Tan(Convert.ToDouble(a)); }) },
+            // { Math.members[58].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Tanh(Convert.ToDouble(a)); }) },
+            // { Math.members[59].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Tanh(Convert.ToDouble(a)); }) },
+            // { Math.members[60].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
+            // { Math.members[61].GetHashCode(), new Func<object, object, object, object>((a, b, c)
+            //     => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
+        };
+    }
 }
