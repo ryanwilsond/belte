@@ -185,6 +185,16 @@ done:
 
         BuildProgram(builder, globals);
 
+        if (!Compilation.KeepLookingForCorTypes) {
+            foreach (var libraryType in StandardLibrary.GetTypes()) {
+                ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
+                    builder,
+                    libraryType.name.AsMemory(),
+                    libraryType
+                );
+            }
+        }
+
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
             ReadOnlyMemoryOfCharComparer.Instance

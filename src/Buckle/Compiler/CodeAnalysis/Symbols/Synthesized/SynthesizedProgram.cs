@@ -68,6 +68,10 @@ internal sealed class SynthesizedProgram : NamedTypeSymbol {
 
     internal override bool isSimpleProgram => true;
 
+    internal override LexicalSortKey GetLexicalSortKey() {
+        return LexicalSortKey.GetSynthesizedMemberKey(0);
+    }
+
     internal void FinishProgram(ImmutableArray<Symbol> members) {
         _allMembers = members;
     }

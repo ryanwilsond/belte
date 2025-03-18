@@ -24,5 +24,7 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
 
     internal override ImmutableArray<ParameterSymbol> parameters { get; }
 
+    internal override int parameterCount => parameters.Length;
+
     internal override Symbol containingSymbol { get; }
 }

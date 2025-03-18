@@ -10,7 +10,7 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries.Standard;
+using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 

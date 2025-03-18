@@ -429,6 +429,7 @@ internal sealed class Evaluator {
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
             BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
+            BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
             _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
         };
     }
@@ -449,6 +450,15 @@ internal sealed class Evaluator {
             builder[i] = EvaluateExpression(node.items[i], abort);
 
         return new EvaluatorObject(builder, node.type);
+    }
+
+    private EvaluatorObject EvaluateTypeExpression(BoundTypeExpression node, ValueWrapper<bool> abort) {
+        // This should only ever be called when an invalid expression statement makes it through binding without err
+        // because script compilation ignores normal expression statement restrictions.
+        //
+        // `Console;`
+        //
+        return EvaluatorObject.Null;
     }
 
     private EvaluatorObject EvaluateArrayAccessExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {

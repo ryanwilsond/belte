@@ -12,10 +12,10 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbol {
-    private ImmutableArray<Symbol> _allMembers;
+    private readonly ImmutableArray<Symbol> _allMembers;
+
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
-    private bool _allMembersIsSorted;
 
     internal SynthesizedFinishedNamedTypeSymbol(
         NamedTypeSymbol underlyingType,
@@ -44,23 +44,16 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
 
     internal override bool isSimpleProgram { get; }
 
+    internal override LexicalSortKey GetLexicalSortKey() {
+        return LexicalSortKey.NotInSource;
+    }
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {
-        if (_allMembersIsSorted)
-            return _allMembers;
-
-        var allMembers = _allMembers;
-
-        if (allMembers.Length > 1) {
-            allMembers = allMembers.Sort(LexicalOrderSymbolComparer.Instance);
-            ImmutableInterlocked.InterlockedExchange(ref _allMembers, allMembers);
-        }
-
-        _allMembersIsSorted = true;
-        return allMembers;
+        return _allMembers;
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {

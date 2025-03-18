@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using Buckle.CodeAnalysis;
@@ -12,7 +11,7 @@ namespace Buckle;
 /// </summary>
 public static class CompilerHelpers {
     /// <summary>
-    /// Creates and returns the SyntaxTrees for loaded libraries.
+    /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
     public static Compilation LoadLibraries(CompilationOptions options) {
         var assembly = Assembly.GetExecutingAssembly();
@@ -34,10 +33,9 @@ public static class CompilerHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var compilation = Compilation.Create("StandardLibrary", options, syntaxTrees.ToArray());
-        // TODO Consider keeping track of any diagnostics that (shouldn't) appear here
-        compilation.GetDiagnostics();
+        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        corLibrary.GetDiagnostics();
 
-        return compilation;
+        return corLibrary;
     }
 }
