@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -5199,6 +5200,7 @@ internal partial class Binder {
 
         if (result.kind == LookupResultKind.Empty) {
             var error = Error.UndefinedSymbol(where.location, simpleName);
+            diagnostics.Push(error);
 
             return new ExtendedErrorTypeSymbol(
                 qualifier ?? compilation.globalNamespaceInternal,
@@ -6240,15 +6242,14 @@ symIsHidden:;
             return null;
         }
 
-        // TODO Implicit initializer lists/dictionaries
-        // if (initializer.kind == SyntaxKind.InitializerListExpression) {
-        //     var result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)initializer,
-        //         diagnostics, ErrorCode.ERR_ImplicitlyTypedVariableAssignedArrayInitializer, errorSyntax);
+        var value = BindValue(initializer, diagnostics, valueKind);
+        var expression = BindToNaturalType(value, diagnostics);
 
-        //     return CheckValue(result, valueKind, diagnostics);
-        // }
+        if (!expression.hasErrors && !expression.HasExpressionType()) {
+            // TODO Reachable error?
+        }
 
-        return BindValue(initializer, diagnostics, valueKind);
+        return expression;
     }
 
     private BoundExpression BindArrayDimension(
@@ -6259,6 +6260,15 @@ symIsHidden:;
             return null;
 
         return BindValue(dimension, diagnostics, BindValueKind.RValue);
+    }
+
+    internal ArrayTypeSymbol CreateArrayTypeSymbol(TypeSymbol elementType, int rank = 1) {
+        ArgumentNullException.ThrowIfNull(elementType);
+
+        if (rank < 1)
+            throw new ArgumentException(null, nameof(rank));
+
+        return ArrayTypeSymbol.CreateArray(new TypeWithAnnotations(elementType, true), rank);
     }
 
     internal bool ValidateDeclarationNameConflictsInScope(Symbol symbol, BelteDiagnosticQueue diagnostics) {

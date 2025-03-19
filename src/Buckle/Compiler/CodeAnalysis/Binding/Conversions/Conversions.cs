@@ -96,6 +96,10 @@ internal sealed class Conversions {
         if (result.exists)
             return result;
 
+        if (sourceExpression is BoundUnconvertedInitializerList)
+            // We tried our best. There are no built-in conversions for lists.
+            return result;
+
         return Conversion.Classify(sourceExpression.type, target);
     }
 
@@ -122,6 +126,10 @@ internal sealed class Conversions {
 
             if (listExpressionConversion.exists)
                 return listExpressionConversion;
+
+            // TODO Eventually we will handle user conversions, but right now if we can't immediately convert this
+            // we won't be able to
+            return listExpressionConversion;
         }
 
         if (sourceExpression.IsLiteralNull()) {
