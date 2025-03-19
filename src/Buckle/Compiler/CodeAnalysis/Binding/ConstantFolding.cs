@@ -46,7 +46,7 @@ internal static class ConstantFolding {
 
         var leftValue = leftConstant.value;
         var rightValue = rightConstant.value;
-        var specialType = type.specialType;
+        var specialType = type.StrippedType().specialType;
 
         if (opKind is BinaryOperatorKind.Equal)
             return new ConstantValue(Equals(leftValue, rightValue));
@@ -261,8 +261,6 @@ internal static class ConstantFolding {
             return null;
 
         var specialType = type.type.StrippedType().specialType;
-
-        // TODO Does this need to be inside a try-catch?
         var castedValue = LiteralUtilities.Cast(expression.constantValue.value, type);
         return new ConstantValue(castedValue, specialType);
     }

@@ -1445,7 +1445,7 @@ internal partial class Binder {
                 break;
         }
 
-        diagnostics.Push(Error.CannotConvertImplicitly(syntax.location, operand.type, targetType));
+        diagnostics.Push(Error.CannotConvert(syntax.location, operand.type, targetType));
     }
 
     private BoundArrayCreationExpression BindArrayCreationWithInitializer(
@@ -3972,10 +3972,11 @@ internal partial class Binder {
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
 
-        var operandType = operand.type;
-        var conversion = conversions.ClassifyBuiltInConversion(operandType, targetType);
-        var cast = CreateConversion(node.left, operand, conversion, false, targetType, diagnostics);
-        return new BoundIsOperator(node, cast, boundType, isIsntOperator, null, resultType);
+        // TODO We might want to consider checking for casts if we use `is` for pattern matching
+        // var operandType = operand.type;
+        // var conversion = conversions.ClassifyBuiltInConversion(operandType, targetType);
+        // var cast = CreateConversion(node.left, operand, conversion, false, targetType, diagnostics);
+        return new BoundIsOperator(node, operand, boundType, isIsntOperator, null, resultType);
     }
 
     private BoundExpression BindAsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -6977,7 +6978,7 @@ symIsHidden:;
         } else if (!conversion.exists ||
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
                 ? !conversion.isImplicit
-                : (conversion.isExplicit && (flags & ConversionForAssignmentFlags.PredefinedOperator) == 0))) {
+                : (conversion.isExplicit && ((flags & ConversionForAssignmentFlags.PredefinedOperator) == 0)))) {
             if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0)
                 GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
 

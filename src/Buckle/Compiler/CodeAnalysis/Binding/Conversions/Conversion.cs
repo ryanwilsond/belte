@@ -127,6 +127,11 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
         }
 
+        if (source.IsNullableType() && target.IsNullableType()) {
+            var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
+            return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+        }
+
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
             return new Conversion(EasyOut.Classify(source, target));
 

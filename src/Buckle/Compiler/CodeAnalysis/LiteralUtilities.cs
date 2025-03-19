@@ -21,7 +21,7 @@ internal static class LiteralUtilities {
         if (value is null)
             return null;
 
-        return Cast(value, targetType.type);
+        return Cast(value, targetType.type.StrippedType());
     }
 
     internal static object Cast(object value, TypeSymbol targetType) {

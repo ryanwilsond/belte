@@ -162,6 +162,9 @@ public sealed class DisplayText {
             case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
+            case BoundKind.UnconvertedInitializerList:
+                DisplayUnconvertedInitializerList(text, (BoundUnconvertedInitializerList)node);
+                break;
             case BoundKind.UnaryOperator:
                 DisplayUnaryOperator(text, (BoundUnaryOperator)node);
                 break;
@@ -762,12 +765,20 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
+    private static void DisplayUnconvertedInitializerList(DisplayText text, BoundUnconvertedInitializerList node) {
+        DisplayListCore(text, node.items);
+    }
+
     private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {
+        DisplayListCore(text, node.items);
+    }
+
+    private static void DisplayListCore(DisplayText text, ImmutableArray<BoundExpression> items) {
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
 
         var isFirst = true;
 
-        foreach (var item in node.items) {
+        foreach (var item in items) {
             if (isFirst) {
                 isFirst = false;
             } else {
