@@ -93,10 +93,7 @@ internal sealed class Conversions {
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
 
-        if (result.exists)
-            return result;
-
-        if (sourceExpression is BoundUnconvertedInitializerList)
+        if (result.exists || sourceExpression is BoundUnconvertedInitializerList || sourceExpression.IsLiteralNull())
             // We tried our best. There are no built-in conversions for lists.
             return result;
 

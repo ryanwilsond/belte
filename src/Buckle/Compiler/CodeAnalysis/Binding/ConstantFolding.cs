@@ -260,7 +260,7 @@ internal static class ConstantFolding {
         if (expression.constantValue.value is null && !type.isNullable)
             return null;
 
-        var specialType = type.specialType;
+        var specialType = type.type.StrippedType().specialType;
 
         // TODO Does this need to be inside a try-catch?
         var castedValue = LiteralUtilities.Cast(expression.constantValue.value, type);

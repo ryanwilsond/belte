@@ -2167,7 +2167,7 @@ internal partial class Binder {
                     return new BoundParameterExpression(
                         node,
                         parameter,
-                        parameter.explicitDefaultConstantValue,
+                        null,
                         parameter.type,
                         isError
                     );
@@ -3220,13 +3220,38 @@ internal partial class Binder {
         if (!method.requiresInstanceReceiver && receiver is not null /*&& receiver.WasCompilerGenerated*/)
             receiver = null;
 
-        var argNames = analyzedArguments.GetNames();
-        var argRefKinds = analyzedArguments.refKinds.ToImmutableOrNull();
-        var args = analyzedArguments.arguments.ToImmutable();
-
         // TODO how to check for compiler generation?
         if (!gotError && method.requiresInstanceReceiver && receiver is not null && receiver.kind == BoundKind.ThisExpression /*&& receiver.WasCompilerGenerated*/) {
             gotError = IsRefOrOutThisParameterCaptured(node, diagnostics);
+        }
+
+        ImmutableArray<BoundExpression> args;
+        ImmutableArray<RefKind> argRefKinds;
+
+        if (argsToParams.IsDefault) {
+            args = analyzedArguments.arguments.ToImmutable();
+            argRefKinds = analyzedArguments.refKinds.ToImmutableOrNull();
+        } else {
+            // Could rearrange the arguments during lowering,
+            // but this prevents any issues with walking the lowerer multiple times
+            var arguments = analyzedArguments.arguments;
+            var refKinds = analyzedArguments.refKinds;
+            var argCount = arguments.Count;
+            var argRefKindCount = refKinds.Count;
+
+            var argsBuilder = new BoundExpression[argCount];
+            var argRefKindsBuilder = new RefKind[argCount];
+
+            for (var i = 0; i < argsToParams.Length; i++) {
+                var target = argsToParams[i];
+                argsBuilder[target] = arguments[i];
+
+                if (i < argRefKindCount)
+                    argRefKindsBuilder[target] = refKinds[i];
+            }
+
+            args = argsBuilder.ToImmutableArray();
+            argRefKinds = argRefKindCount == 0 ? default : argRefKindsBuilder.ToImmutableArray();
         }
 
         return new BoundCallExpression(
@@ -3268,8 +3293,131 @@ internal partial class Binder {
         BoundExpression receiver,
         out ImmutableArray<int> argsToParams)
         where TMember : Symbol {
-        // TODO
-        argsToParams = default;
+        var result = methodResult.result;
+        var arguments = analyzedArguments.arguments;
+        var parameters = methodResult.leastOverriddenMember.GetParameters();
+
+        for (var arg = 0; arg < arguments.Count; arg++) {
+            var argument = arguments[arg];
+
+            if (!argument.hasErrors) {
+                var argRefKind = analyzedArguments.RefKind(arg);
+                var argNumber = arg + 1;
+
+                // Warn for `ref`/`in` or None/`ref readonly` mismatch.
+                if (argRefKind == RefKind.Ref) {
+                } else if (argRefKind == RefKind.None &&
+                    GetCorrespondingParameter(in result, parameters, arg).refKind == RefKind.RefConst) {
+                    if (!CheckValueKind(
+                        argument.syntax,
+                        argument,
+                        BindValueKind.RefersToLocation,
+                        checkingReceiver: false,
+                        BelteDiagnosticQueue.Discarded)) {
+                        // TODO Check this
+                        // diagnostics.Add(
+                        //     ErrorCode.WRN_RefReadonlyNotVariable,
+                        //     argument.Syntax,
+                        //     argNumber);
+                    } else if (arg != 0) {
+                        if (CheckValueKind(
+                            argument.syntax,
+                            argument,
+                            BindValueKind.Assignable,
+                            checkingReceiver: false,
+                            BelteDiagnosticQueue.Discarded)) {
+                            // TODO Check this
+                            // Argument {0} should be passed with 'ref' or 'in' keyword
+                            // diagnostics.Add(
+                            //     ErrorCode.WRN_ArgExpectedRefOrIn,
+                            //     argument.Syntax,
+                            //     argNumber);
+                        } else {
+                            // TODO Check this
+                            // Argument {0} should be passed with the 'in' keyword
+                            // diagnostics.Add(
+                            //     ErrorCode.WRN_ArgExpectedIn,
+                            //     argument.Syntax,
+                            //     argNumber);
+                        }
+                    }
+                }
+            }
+
+            var paramNum = result.ParameterFromArgument(arg);
+            arguments[arg] = CoerceArgument(
+                in methodResult,
+                receiver,
+                parameters,
+                argument,
+                arg,
+                parameters[paramNum].typeWithAnnotations,
+                diagnostics
+            );
+        }
+
+        argsToParams = result.argsToParams;
+        return;
+
+        BoundExpression CoerceArgument(
+            in MemberResolutionResult<TMember> methodResult,
+            BoundExpression receiver,
+            ImmutableArray<ParameterSymbol> parameters,
+            BoundExpression argument,
+            int arg,
+            TypeWithAnnotations parameterTypeWithAnnotations,
+            BelteDiagnosticQueue diagnostics) {
+            var result = methodResult.result;
+            var kind = result.ConversionForArg(arg);
+            var coercedArgument = argument;
+
+            if (!kind.isIdentity) {
+                coercedArgument = CreateConversion(
+                    argument.syntax,
+                    argument,
+                    kind,
+                    isCast: false,
+                    parameterTypeWithAnnotations.type,
+                    diagnostics
+                );
+            } else if (argument.NeedsToBeConverted()) {
+                coercedArgument = BindToNaturalType(argument, diagnostics);
+            }
+
+            return coercedArgument;
+        }
+
+        static ParameterSymbol GetCorrespondingParameter(
+            in MemberAnalysisResult result,
+            ImmutableArray<ParameterSymbol> parameters,
+            int arg) {
+            var paramNum = result.ParameterFromArgument(arg);
+            return parameters[paramNum];
+        }
+    }
+
+    internal static ParameterSymbol? GetCorrespondingParameter(
+        int argumentOrdinal,
+        ImmutableArray<ParameterSymbol> parameters,
+        ImmutableArray<int> argsToParamsOpt) {
+        var n = parameters.Length;
+        ParameterSymbol parameter;
+
+        if (argsToParamsOpt.IsDefault) {
+            if (argumentOrdinal < n)
+                parameter = parameters[argumentOrdinal];
+            else
+                parameter = null;
+        } else {
+            var parameterOrdinal = argsToParamsOpt[argumentOrdinal];
+
+            if (parameterOrdinal < n)
+                parameter = parameters[parameterOrdinal];
+            else
+                parameter = null;
+        }
+
+        return parameter;
     }
 
     internal void BindDefaultArguments(
@@ -3282,8 +3430,138 @@ internal partial class Binder {
         out BitVector defaultArguments,
         bool enableCallerInfo,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
-        defaultArguments = default;
+        var paramsIndex = parameters.Length - 1;
+        var visitedParameters = BitVector.Create(parameters.Length);
+
+        for (var i = 0; i < argumentsBuilder.Count; i++) {
+            var parameter = GetCorrespondingParameter(i, parameters, argsToParams);
+
+            if (parameter is not null)
+                visitedParameters[parameter.ordinal] = true;
+        }
+
+        var haveDefaultArguments = !parameters.All(
+            static (param, visitedParameters) => visitedParameters[param.ordinal], visitedParameters
+        );
+
+        if (!haveDefaultArguments) {
+            defaultArguments = default;
+            return;
+        }
+
+        ArrayBuilder<int>? argsToParamsBuilder = null;
+        if (!argsToParams.IsDefault) {
+            argsToParamsBuilder = ArrayBuilder<int>.GetInstance(argsToParams.Length);
+            argsToParamsBuilder.AddRange(argsToParams);
+        }
+
+        if (haveDefaultArguments) {
+            var containingMember = this.containingMember;
+            defaultArguments = BitVector.Create(parameters.Length);
+            var lastIndex = ^0;
+            var argumentsCount = argumentsBuilder.Count;
+
+            foreach (var parameter in parameters.AsSpan()[..lastIndex]) {
+                if (!visitedParameters[parameter.ordinal]) {
+                    defaultArguments[argumentsBuilder.Count] = true;
+                    argumentsBuilder.Add(BindDefaultArgument(
+                        node,
+                        parameter,
+                        containingMember,
+                        enableCallerInfo,
+                        diagnostics,
+                        argumentsBuilder,
+                        argumentsCount,
+                        argsToParams
+                    ));
+
+                    if (argumentRefKindsBuilder is { Count: > 0 })
+                        argumentRefKindsBuilder.Add(RefKind.None);
+
+                    argsToParamsBuilder?.Add(parameter.ordinal);
+
+                    if (namesBuilder?.Count > 0)
+                        namesBuilder.Add(null);
+                }
+            }
+        } else {
+            defaultArguments = default;
+        }
+
+        if (argsToParamsBuilder is not null) {
+            argsToParams = argsToParamsBuilder.ToImmutableOrNull();
+            argsToParamsBuilder.Free();
+        }
+
+        BoundExpression BindDefaultArgument(
+            SyntaxNode syntax,
+            ParameterSymbol parameter,
+            Symbol containingMember,
+            bool enableCallerInfo,
+            BelteDiagnosticQueue diagnostics,
+            ArrayBuilder<BoundExpression> argumentsBuilder,
+            int argumentsCount,
+            ImmutableArray<int> argsToParamsOpt) {
+            var parameterType = parameter.type;
+
+            if (flags.Includes(BinderFlags.ParameterDefaultValue)) {
+                // TODO What to replace this with
+                // return new BoundDefaultExpression(syntax, parameterType) { WasCompilerGenerated = true };
+            }
+
+            var parameterDefaultValue = parameter.explicitDefaultConstantValue;
+            var defaultConstantValue = parameterDefaultValue.value;
+            // var callerSourceLocation = enableCallerInfo ? GetCallerLocation(syntax) : null;
+            BoundExpression defaultValue;
+
+            // TODO The [CallerLineNumber] attribute is neat
+            // if (callerSourceLocation is object && parameter.IsCallerLineNumber) {
+            //     int line = callerSourceLocation.SourceTree.GetDisplayLineNumber(callerSourceLocation.SourceSpan);
+            //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(line), Compilation.GetSpecialType(SpecialType.System_Int32)) { WasCompilerGenerated = true };
+            // } else if (callerSourceLocation is object && parameter.IsCallerFilePath) {
+            //     string path = callerSourceLocation.SourceTree.GetDisplayPath(callerSourceLocation.SourceSpan, Compilation.Options.SourceReferenceResolver);
+            //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(path), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
+            // } else if (callerSourceLocation is object && parameter.IsCallerMemberName && containingMember is not null) {
+            //     var memberName = containingMember.GetMemberCallerName();
+            //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(memberName), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
+            // } else if (callerSourceLocation is object
+            //       && !parameter.IsCallerMemberName
+            //       && Conversions.ClassifyBuiltInConversion(Compilation.GetSpecialType(SpecialType.System_String), parameterType, isChecked: false, ref discardedUseSiteInfo).Exists
+            //       && getArgumentIndex(parameter.CallerArgumentExpressionParameterIndex, argsToParamsOpt) is int argumentIndex
+            //       && argumentIndex > -1 && argumentIndex < argumentsCount) {
+            //     var argument = argumentsBuilder[argumentIndex];
+            //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(argument.Syntax.ToString()), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
+
+            // TODO Any issue with just creating a literal null instead of default expression?
+            // if (defaultConstantValue is null) {
+            //     defaultValue = new BoundDefaultExpression(syntax, parameterType) { WasCompilerGenerated = true };
+            // } else {
+            TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
+            defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
+            // }
+
+            var conversion = conversions.ClassifyConversionFromExpression(defaultValue, parameterType);
+
+            if (!conversion.exists)
+                GenerateImplicitConversionError(diagnostics, syntax, conversion, defaultValue, parameterType);
+
+            var isCast = conversion.isExplicit;
+            defaultValue = CreateConversion(
+                defaultValue.syntax,
+                defaultValue,
+                conversion,
+                isCast,
+                parameterType,
+                diagnostics
+            );
+
+            return defaultValue;
+
+            // static int GetArgumentIndex(int parameterIndex, ImmutableArray<int> argsToParamsOpt)
+            //     => argsToParamsOpt.IsDefault
+            //         ? parameterIndex
+            //         : argsToParamsOpt.IndexOf(parameterIndex);
+        }
     }
 
     private static TextLocation GetLocationForOverloadResolutionDiagnostic(SyntaxNode node, SyntaxNode expression) {

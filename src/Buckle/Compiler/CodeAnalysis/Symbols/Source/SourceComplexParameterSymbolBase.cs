@@ -1,6 +1,7 @@
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -54,6 +55,11 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
             _state.SpinWaitComplete(CompletionParts.EndDefaultSyntaxValue);
             return _lazyDefaultSyntaxValue;
         }
+    }
+
+    internal override void ForceComplete(TextLocation locationOpt) {
+        _ = explicitDefaultConstantValue;
+        _state.SpinWaitComplete(CompletionParts.ComplexParameterSymbolAll);
     }
 
     private ConstantValue MakeDefaultValue(
