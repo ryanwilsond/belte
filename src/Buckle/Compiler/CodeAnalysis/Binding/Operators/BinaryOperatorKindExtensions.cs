@@ -12,6 +12,10 @@ internal static class BinaryOperatorKindExtensions {
         return kind & BinaryOperatorKind.OpMask;
     }
 
+    internal static BinaryOperatorKind OperatorWithConditional(this BinaryOperatorKind kind) {
+        return kind & (BinaryOperatorKind.OpMask | BinaryOperatorKind.Conditional);
+    }
+
     internal static BinaryOperatorKind OperandTypes(this BinaryOperatorKind kind) {
         return kind & BinaryOperatorKind.TypeMask;
     }

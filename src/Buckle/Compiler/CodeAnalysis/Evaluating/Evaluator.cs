@@ -643,7 +643,7 @@ internal sealed class Evaluator {
         var isNot = expression.isNot;
 
         if (right.IsLiteralNull()) {
-            if (left.members is null && leftValue is null &&
+            if (dereferenced.members is null && leftValue is null &&
                 (expression.left.type.specialType != SpecialType.Type || left.type is null)) {
                 return new EvaluatorObject(!isNot, expression.type);
             }
@@ -700,7 +700,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
-        var opKind = expression.operatorKind.Operator();
+        var opKind = expression.operatorKind.OperatorWithConditional();
 
         if (opKind == BinaryOperatorKind.ConditionalAnd) {
             if (leftValue is null || !(bool)leftValue)
@@ -731,12 +731,22 @@ internal sealed class Evaluator {
         var right = EvaluateExpression(expression.right, abort);
         var rightValue = Value(right);
 
-        if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual
-            && expression.left.type.specialType == SpecialType.Type) {
-            if ((leftValue as TypeSymbol).Equals(rightValue as TypeSymbol))
-                return new EvaluatorObject(opKind == BinaryOperatorKind.Equal, expression.type);
-            else
-                return new EvaluatorObject(opKind == BinaryOperatorKind.NotEqual, expression.type);
+        if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
+            if (expression.left.type.specialType == SpecialType.Type) {
+                if ((leftValue as TypeSymbol).Equals(rightValue as TypeSymbol))
+                    return new EvaluatorObject(opKind == BinaryOperatorKind.Equal, expression.type);
+                else
+                    return new EvaluatorObject(opKind == BinaryOperatorKind.NotEqual, expression.type);
+            }
+
+            if (expression.left.type.specialType == SpecialType.Object) {
+                // Reference equality
+                // TODO Bug check this
+                return new EvaluatorObject(
+                    (opKind != BinaryOperatorKind.Equal) ^ (left == right),
+                    expression.type
+                );
+            }
         }
 
         if (leftValue is null || rightValue is null)

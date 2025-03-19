@@ -24,6 +24,8 @@ internal partial class Binder {
 
     #region Internal Model
 
+    [ThreadStatic] private static PooledDictionary<SyntaxNode, int>? LambdaBindings;
+
     private protected OverloadResolution _lazyOverloadResolution;
     private protected Conversions _lazyConversions;
 
@@ -3840,8 +3842,9 @@ internal partial class Binder {
         if (!HasThis(true, out var inStaticContext)) {
             if (inStaticContext)
                 diagnostics.Push(Error.CannotUseThisInStaticMethod(node.location));
-            else
-                diagnostics.Push(Error.CannotUseThis(node.location));
+            // TODO Just having this here doesn't seem right, but..
+            // else
+            //     diagnostics.Push(Error.CannotUseThis(node.location));
         } else {
             hasErrors = IsRefOrOutThisParameterCaptured(node.keyword, diagnostics);
         }
@@ -6851,7 +6854,131 @@ symIsHidden:;
         ImmutableArray<ImmutableArray<FieldInitializer>> fieldInitializers,
         BelteDiagnosticQueue diagnostics,
         ref ProcessedFieldInitializers processedInitializers) {
-        // TODO field initializers
+        var diagsForInstanceInitializers = BelteDiagnosticQueue.GetInstance();
+        processedInitializers.boundInitializers = BindFieldInitializers(
+            compilation,
+            fieldInitializers,
+            diagsForInstanceInitializers
+        );
+
+        processedInitializers.hasErrors = diagsForInstanceInitializers.AnyErrors();
+        diagnostics.PushRange(diagsForInstanceInitializers);
+        diagsForInstanceInitializers.Free();
+    }
+
+    internal static ImmutableArray<BoundInitializer> BindFieldInitializers(
+        Compilation compilation,
+        ImmutableArray<ImmutableArray<FieldInitializer>> initializers,
+        BelteDiagnosticQueue diagnostics) {
+        if (initializers.IsEmpty)
+            return [];
+
+        var boundInitializers = ArrayBuilder<BoundInitializer>.GetInstance();
+        BindRegularFieldInitializers(compilation, initializers, boundInitializers, diagnostics);
+        return boundInitializers.ToImmutableAndFree();
+    }
+
+    internal Binder GetFieldInitializerBinder(
+        FieldSymbol fieldSymbol,
+        bool suppressBinderFlagsFieldInitializer = false) {
+        var binder = this;
+        return new LocalScopeBinder(binder).WithAdditionalFlagsAndContainingMember(
+            suppressBinderFlagsFieldInitializer ? BinderFlags.None : BinderFlags.FieldInitializer,
+            fieldSymbol
+        );
+    }
+
+    internal static void BindRegularFieldInitializers(
+        Compilation compilation,
+        ImmutableArray<ImmutableArray<FieldInitializer>> initializers,
+        ArrayBuilder<BoundInitializer> boundInitializers,
+        BelteDiagnosticQueue diagnostics) {
+
+        foreach (var siblingInitializers in initializers) {
+            BinderFactory binderFactory = null;
+
+            foreach (var initializer in siblingInitializers) {
+                var fieldSymbol = initializer.field;
+
+                if (!fieldSymbol.isConstExpr) {
+                    var syntaxRef = initializer.syntax;
+
+                    switch (syntaxRef.node) {
+                        case EqualsValueClauseSyntax initializerNode:
+                            binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
+                            var parentBinder = binderFactory.GetBinder(initializerNode);
+                            parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
+
+                            var boundInitializer = BindFieldInitializer(
+                                parentBinder,
+                                fieldSymbol,
+                                initializerNode,
+                                diagnostics
+                            );
+
+                            boundInitializers.Add(boundInitializer);
+                            break;
+                        default:
+                            throw ExceptionUtilities.Unreachable();
+                    }
+                }
+            }
+        }
+    }
+
+    private static BoundFieldEqualsValue BindFieldInitializer(
+        Binder binder,
+        FieldSymbol fieldSymbol,
+        EqualsValueClauseSyntax equalsValueClauseNode,
+        BelteDiagnosticQueue diagnostics) {
+        var fieldsBeingBound = binder.fieldsBeingBound;
+        var isImplicitlyTypedField = fieldSymbol is SourceMemberFieldSymbolFromDeclarator sourceField &&
+            sourceField.FieldTypeInferred(fieldsBeingBound);
+
+        var initializerDiagnostics = isImplicitlyTypedField ? BelteDiagnosticQueue.Discarded : diagnostics;
+
+        binder = new ExecutableCodeBinder(equalsValueClauseNode, fieldSymbol, new LocalScopeBinder(binder));
+        var boundInitValue = binder.BindWithLambdaBindingCountDiagnostics(
+            equalsValueClauseNode,
+            fieldSymbol,
+            initializerDiagnostics,
+            static (binder, equalsValueClauseNode, fieldSymbol, initializerDiagnostics)
+                => binder.BindFieldInitializer(fieldSymbol, equalsValueClauseNode, initializerDiagnostics)
+        );
+
+        return boundInitValue;
+    }
+
+    internal TResult BindWithLambdaBindingCountDiagnostics<TSyntax, TArg, TResult>(
+        TSyntax syntax,
+        TArg arg,
+        BelteDiagnosticQueue diagnostics,
+        Func<Binder, TSyntax, TArg, BelteDiagnosticQueue, TResult> bind)
+        where TSyntax : SyntaxNode
+        where TResult : BoundNode {
+        var bindings = PooledDictionary<SyntaxNode, int>.GetInstance();
+        LambdaBindings = bindings;
+
+        try {
+            var result = bind(this, syntax, arg, diagnostics);
+
+            foreach (var pair in bindings) {
+                const int MaxLambdaBinding = 100;
+                var count = pair.Value;
+
+                if (count > MaxLambdaBinding) {
+                    // TODO Useless right now
+                    throw ExceptionUtilities.Unreachable();
+                    // var truncatedToHundreds = count / 100 * 100;
+                    // diagnostics.Add(ErrorCode.INF_TooManyBoundLambdas, GetAnonymousFunctionLocation(pair.Key), truncatedToHundreds);
+                }
+            }
+
+            return result;
+        } finally {
+            bindings.Free();
+            LambdaBindings = null;
+        }
     }
 
     internal BoundExpressionStatement BindImplicitConstructorInitializer(

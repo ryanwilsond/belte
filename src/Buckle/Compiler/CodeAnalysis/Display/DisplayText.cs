@@ -612,7 +612,7 @@ public sealed class DisplayText {
         bool conditional = false) {
         DisplayNode(text, node.receiver);
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
-        SymbolDisplay.AppendToDisplayText(text, node.field, SymbolDisplayFormat.Everything);
+        text.Write(CreateIdentifier(node.field.name));
     }
 
     private static void DisplayArrayAccessExpression(
@@ -874,11 +874,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.dataContainer, SymbolDisplayFormat.QualifiedNameFormat);
+        text.Write(CreateIdentifier(node.dataContainer.name));
     }
 
     private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.parameter, SymbolDisplayFormat.ErrorMessageFormat);
+        text.Write(CreateIdentifier(node.parameter.name));
     }
 
     private static void DisplayUnaryOperator(DisplayText text, BoundUnaryOperator node) {

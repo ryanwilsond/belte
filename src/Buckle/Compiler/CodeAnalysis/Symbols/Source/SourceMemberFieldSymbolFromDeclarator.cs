@@ -8,6 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberFieldSymbol {
     private TypeAndRefKind _lazyTypeAndRefKind;
+    private int _lazyFieldTypeInferred;
 
     internal SourceMemberFieldSymbolFromDeclarator(
         NamedTypeSymbol containingType,
@@ -42,6 +43,11 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     internal override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
         type.CheckAllConstraints(declaringCompilation, errorLocation, diagnostics);
         base.AfterAddingTypeMembersChecks(diagnostics);
+    }
+
+    internal bool FieldTypeInferred(ConsList<FieldSymbol> fieldsBeingBound) {
+        GetFieldType(fieldsBeingBound);
+        return _lazyFieldTypeInferred != 0 || Volatile.Read(ref _lazyFieldTypeInferred) != 0;
     }
 
     private protected sealed override ConstantValue MakeConstantValue(

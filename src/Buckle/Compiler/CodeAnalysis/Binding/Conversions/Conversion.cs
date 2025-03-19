@@ -119,17 +119,23 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
 
         if (source.IsNullableType() && !target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target);
-            return new Conversion(ConversionKind.ExplicitNullable, [underlyingConversion]);
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ExplicitNullable, [underlyingConversion]);
         }
 
         if (!source.IsNullableType() && target.IsNullableType()) {
             var underlyingConversion = Classify(source, target.StrippedType());
-            return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
         }
 
         if (source.IsNullableType() && target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
-            return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
         }
 
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
