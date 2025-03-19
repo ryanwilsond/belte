@@ -80,6 +80,11 @@ internal static class Warning {
         return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NeverGivenType), location, message);
     }
 
+    internal static BelteDiagnostic PossibleMistakenEmptyStatement(TextLocation location) {
+        var message = "possible mistaken empty statement";
+        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_PossibleMistakenEmptyStatement), location, message);
+    }
+
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Warning);
     }

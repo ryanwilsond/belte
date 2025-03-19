@@ -10,7 +10,7 @@ internal static partial class SyntaxFactory {
     /// Creates a <see cref="SyntaxToken" />.
     /// </summary>
     internal static SyntaxToken Token(SyntaxKind kind) {
-        return new SyntaxToken(kind, null, null);
+        return new SyntaxToken.MissingToken(kind, null, null);
     }
 
     /// <summary>

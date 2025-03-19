@@ -212,6 +212,18 @@ internal partial class Binder {
         return new BoundBlockStatement(statement.syntax, [statement], locals, []);
     }
 
+    internal BoundStatement WrapWithVariablesAndLocalFunctionsIfAny(
+        BelteSyntaxNode scopeDesignator,
+        BoundStatement statement) {
+        var locals = GetDeclaredLocalsForScope(scopeDesignator);
+        var localFunctions = GetDeclaredLocalFunctionsForScope(scopeDesignator);
+
+        if (locals.IsEmpty && localFunctions.IsEmpty)
+            return statement;
+
+        return new BoundBlockStatement(statement.syntax, [statement], locals, localFunctions);
+    }
+
     #endregion
 
     #region Constraints
@@ -558,7 +570,7 @@ internal partial class Binder {
     }
 
     private ImmutableArray<(string, TypeOrConstant)> BindTemplateArguments(
-        SeparatedSyntaxList<ArgumentSyntax> templateArguments,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArguments,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         var arguments = ArrayBuilder<(string, TypeOrConstant)>.GetInstance(templateArguments.Count);
@@ -570,13 +582,13 @@ internal partial class Binder {
     }
 
     private (string, TypeOrConstant) BindTemplateArgument(
-        ArgumentSyntax templateArgument,
+        BaseArgumentSyntax templateArgument,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        var name = templateArgument.identifier.text;
-        var value = BindExpression(templateArgument.expression, diagnostics);
-
         // TODO Implement normal arguments first
+        // var name = templateArgument.identifier.text;
+        // var value = BindExpression(templateArgument.expression, diagnostics);
+
         // return (name, value);
         return (null, null);
     }
@@ -2019,7 +2031,7 @@ internal partial class Binder {
 
     private BoundMethodGroup ConstructBoundMemberGroupAndReportOmittedTypeArguments(
         SyntaxNode syntax,
-        SeparatedSyntaxList<ArgumentSyntax> templateArgumentsSyntax,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
         ImmutableArray<TypeOrConstant> templateArguments,
         BoundExpression receiver,
         string plainName,
@@ -2545,7 +2557,7 @@ internal partial class Binder {
         BoundExpression boundLeft,
         string rightName,
         int rightArity,
-        SeparatedSyntaxList<ArgumentSyntax> templateArgumentsSyntax,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
         ImmutableArray<(string, TypeOrConstant)> templateArguments,
         bool called,
         bool indexed,
@@ -2621,7 +2633,7 @@ internal partial class Binder {
         int arity,
         bool indexed,
         BoundExpression left,
-        SeparatedSyntaxList<ArgumentSyntax> templateArgumentsSyntax,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
         ImmutableArray<(string, TypeOrConstant)> templateArguments,
         LookupResult lookupResult,
         BoundMethodGroupFlags methodGroupFlags,
@@ -3699,20 +3711,33 @@ internal partial class Binder {
         AnalyzedArguments result,
         BelteDiagnosticQueue diagnostics,
         ref bool hadError,
-        ArgumentSyntax argumentSyntax) {
-        var refKind = argumentSyntax.refKeyword is null ? RefKind.None : RefKind.Ref;
-        var boundArgument = BindValue(
-            argumentSyntax.expression,
-            diagnostics,
-            refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
-        );
+        BaseArgumentSyntax argumentSyntax) {
+        RefKind refKind;
+        BoundExpression boundArgument;
+        SyntaxToken identifier;
+
+        if (argumentSyntax is OmittedArgumentSyntax omitted) {
+            refKind = RefKind.None;
+            identifier = null;
+            boundArgument = new BoundLiteralExpression(omitted, new ConstantValue(null), null);
+        } else if (argumentSyntax is ArgumentSyntax normal) {
+            refKind = normal.refKeyword is null ? RefKind.None : RefKind.Ref;
+            identifier = normal.identifier;
+            boundArgument = BindValue(
+                normal.expression,
+                diagnostics,
+                refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
+            );
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
 
         BindArgumentAndName(
             result,
             diagnostics,
             argumentSyntax,
             boundArgument,
-            argumentSyntax.identifier,
+            identifier,
             refKind
         );
     }
@@ -6249,9 +6274,8 @@ symIsHidden:;
             SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
             SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
             SyntaxKind.LocalFunctionStatement => BindLocalFunctionStatement((LocalFunctionStatementSyntax)node, diagnostics),
+            SyntaxKind.IfStatement => BindIfStatement((IfStatementSyntax)node, diagnostics),
             /*
-            case SyntaxKind.IfStatement:
-                return BindIfStatement((IfStatementSyntax)syntax);
             case SyntaxKind.WhileStatement:
                 return BindWhileStatement((WhileStatementSyntax)syntax);
             case SyntaxKind.ForStatement:
@@ -6267,6 +6291,55 @@ symIsHidden:;
             */
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    internal BoundStatement BindPossibleEmbeddedStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        Binder binder;
+
+        switch (node.kind) {
+            case SyntaxKind.LocalDeclarationStatement:
+                diagnostics.Push(Error.BadEmbeddedStatement(node.location));
+                goto case SyntaxKind.ExpressionStatement;
+            case SyntaxKind.ExpressionStatement:
+            case SyntaxKind.IfStatement:
+            case SyntaxKind.ReturnStatement:
+                binder = GetBinder(node);
+                return binder.WrapWithVariablesIfAny(node, binder.BindStatement(node, diagnostics));
+            case SyntaxKind.LocalFunctionStatement:
+                diagnostics.Push(Error.BadEmbeddedStatement(node.location));
+                binder = GetBinder(node);
+                return binder.WrapWithVariablesAndLocalFunctionsIfAny(node, binder.BindStatement(node, diagnostics));
+            case SyntaxKind.EmptyStatement:
+                var emptyStatement = (EmptyStatementSyntax)node;
+
+                if (!emptyStatement.semicolon.isFabricated) {
+                    switch (node.parent.kind) {
+                        case SyntaxKind.ForStatement:
+                        case SyntaxKind.WhileStatement:
+                            if (emptyStatement.semicolon.GetNextToken().kind != SyntaxKind.OpenBraceToken)
+                                break;
+
+                            goto default;
+                        default:
+                            diagnostics.Push(Warning.PossibleMistakenEmptyStatement(node.location));
+                            break;
+                    }
+                }
+
+                goto default;
+            default:
+                return BindStatement(node, diagnostics);
+        }
+    }
+
+    private BoundIfStatement BindIfStatement(IfStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var condition = BindBooleanExpression(node.condition, diagnostics);
+        var consequence = BindPossibleEmbeddedStatement(node.then, diagnostics);
+        var alternative = (node.elseClause is null)
+            ? null
+            : BindPossibleEmbeddedStatement(node.elseClause.body, diagnostics);
+
+        return new BoundIfStatement(node, condition, consequence, alternative);
     }
 
     private BoundStatement BindLocalFunctionStatement(

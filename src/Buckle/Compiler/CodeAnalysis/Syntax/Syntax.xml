@@ -29,12 +29,14 @@
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
-  <Node Name="ArgumentSyntax" Base="SyntaxNode">
+  <AbstractNode Name="BaseArgumentSyntax" Base="SyntaxNode">
+  </AbstractNode>
+  <Node Name="ArgumentSyntax" Base="BaseArgumentSyntax">
     <Kind Name="Argument"/>
     <Field Name="identifier" Type="SyntaxToken" Optional="true">
       <Kind Name="IdentifierToken"/>
@@ -46,6 +48,12 @@
       <Kind Name="RefKeyword"/>
     </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="OmittedArgumentSyntax" Base="BaseArgumentSyntax">
+    <Kind Name="OmittedArgument"/>
+    <Field Name="omittedArgumentToken" Type="SyntaxToken">
+      <Kind Name="OmittedArgumentToken"/>
+    </Field>
   </Node>
   <Node Name="ParameterListSyntax" Base="SyntaxNode">
     <Kind Name="ParameterList"/>
@@ -70,7 +78,7 @@
     <Field Name="openAngleBracket" Type="SyntaxToken">
       <Kind Name="LessThanToken"/>
     </Field>
-    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;"/>
     <Field Name="closeAngleBracket" Type="SyntaxToken">
       <Kind Name="GreaterThanToken"/>
     </Field>

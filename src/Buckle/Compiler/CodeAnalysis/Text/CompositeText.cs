@@ -198,23 +198,12 @@ internal sealed class CompositeText : SourceText {
     }
 
     private bool CheckCopyToArguments(int sourceIndex, char[] destination, int destinationIndex, int count) {
-        if (destination is null)
-            throw new BelteInternalException("CheckCopyToArguments", new ArgumentNullException(nameof(destination)));
-
-        if (sourceIndex < 0) {
-            throw new BelteInternalException(
-                "CheckCopyToArguments", new ArgumentOutOfRangeException(nameof(sourceIndex))
-            );
-        }
-
-        if (destinationIndex < 0) {
-            throw new BelteInternalException(
-                "CheckCopyToArguments", new ArgumentOutOfRangeException(nameof(destinationIndex))
-            );
-        }
+        ArgumentNullException.ThrowIfNull(destination);
+        ArgumentOutOfRangeException.ThrowIfNegative(sourceIndex);
+        ArgumentOutOfRangeException.ThrowIfNegative(destinationIndex);
 
         if (count < 0 || count > length - sourceIndex || count > destination.Length - destinationIndex)
-            throw new BelteInternalException("CheckCopyToArguments", new ArgumentOutOfRangeException(nameof(count)));
+            throw new ArgumentOutOfRangeException(nameof(count));
 
         return count > 0;
     }

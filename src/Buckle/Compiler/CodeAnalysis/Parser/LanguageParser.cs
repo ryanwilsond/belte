@@ -1474,7 +1474,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ArgumentList(openParenthesis, arguments, closeParenthesis);
     }
 
-    private SeparatedSyntaxList<ArgumentSyntax> ParseArguments(SyntaxKind closeBracket) {
+    private SeparatedSyntaxList<BaseArgumentSyntax> ParseArguments(SyntaxKind closeBracket) {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextArgument = true;
 
@@ -1484,7 +1484,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     var argument = ParseArgument();
                     nodesAndSeparators.Add(argument);
                 } else {
-                    nodesAndSeparators.Add(null);
+                    nodesAndSeparators.Add(
+                        SyntaxFactory.OmittedArgument(SyntaxFactory.Token(SyntaxKind.OmittedArgumentToken))
+                    );
                 }
 
                 if (currentToken.kind == SyntaxKind.CommaToken) {
@@ -1496,7 +1498,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             }
         }
 
-        return new SeparatedSyntaxList<ArgumentSyntax>(nodesAndSeparators.ToList());
+        return new SeparatedSyntaxList<BaseArgumentSyntax>(nodesAndSeparators.ToList());
     }
 
     private ArgumentSyntax ParseArgument() {

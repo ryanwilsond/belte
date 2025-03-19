@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -37,7 +39,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
             BoundKind.ErrorStatement => ExpandErrorStatement((BoundErrorStatement)statement),
             BoundKind.LocalFunctionStatement => ExpandLocalFunctionStatement((BoundLocalFunctionStatement)statement),
-            _ => throw new BelteInternalException($"ExpandStatement: unexpected expression type '{statement.kind}'"),
+            _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
 
@@ -233,7 +235,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.ThrowExpression => ExpandThrowExpression((BoundThrowExpression)expression, out replacement),
             BoundKind.TypeExpression => ExpandTypeExpression((BoundTypeExpression)expression, out replacement),
             BoundKind.ParameterExpression => ExpandParameterExpression((BoundParameterExpression)expression, out replacement),
-            _ => throw new BelteInternalException($"ExpandExpression: unexpected expression type '{expression.kind}'"),
+            _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
 

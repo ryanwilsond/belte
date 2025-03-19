@@ -1156,6 +1156,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NamedArgumentUsedInPositional, location, message);
     }
 
+    internal static BelteDiagnostic BadEmbeddedStatement(TextLocation location) {
+        var message = $"embedded statement cannot be a declaration";
+        return CreateError(DiagnosticCode.ERR_BadEmbeddedStatement, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

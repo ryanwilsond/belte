@@ -40,6 +40,56 @@ internal sealed class SyntaxNavigator {
         return GetLastToken(current, GetPredicateFunction(includeZeroWidth), GetStepIntoFunction(includeSkipped));
     }
 
+    internal SyntaxToken GetNextToken(SyntaxToken current, bool includeZeroWidth, bool includeSkipped) {
+        return GetNextToken(current, GetPredicateFunction(includeZeroWidth), GetStepIntoFunction(includeSkipped));
+    }
+
+    internal SyntaxToken GetNextToken(
+        SyntaxToken current,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool> stepInto) {
+        return GetNextToken(current, predicate, stepInto is not null, stepInto);
+    }
+
+    internal SyntaxToken GetNextToken(
+        SyntaxToken current,
+        Func<SyntaxToken, bool> predicate,
+        bool searchInsideCurrentTokenTrailingTrivia,
+        Func<SyntaxTrivia, bool> stepInto) {
+        if (current.parent is not null) {
+            if (searchInsideCurrentTokenTrailingTrivia) {
+                var firstToken = GetFirstToken(current.trailingTrivia, predicate, stepInto!);
+
+                if (firstToken.kind != SyntaxKind.None)
+                    return firstToken;
+            }
+
+            var returnNext = false;
+
+            foreach (var child in current.parent.ChildNodesAndTokens()) {
+                if (returnNext) {
+                    if (child.isToken) {
+                        var token = GetFirstToken(child.AsToken(), predicate, stepInto);
+
+                        if (token.kind != SyntaxKind.None)
+                            return token;
+                    } else {
+                        var token = GetFirstToken(child.AsNode()!, predicate, stepInto);
+
+                        if (token.kind != SyntaxKind.None)
+                            return token;
+                    }
+                } else if (child.isToken && child.AsToken() == current) {
+                    returnNext = true;
+                }
+            }
+
+            return GetNextToken(current.parent, predicate, stepInto);
+        }
+
+        return default;
+    }
+
     internal SyntaxToken GetNextToken(
         SyntaxNode node,
         Func<SyntaxToken, bool> predicate,
@@ -72,7 +122,9 @@ internal sealed class SyntaxNavigator {
     }
 
     private SyntaxToken GetFirstToken(
-        SyntaxNode current, Func<SyntaxToken, bool>? predicate, Func<SyntaxTrivia, bool>? stepInto) {
+        SyntaxNode current,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool> stepInto) {
         var stack = ChildEnumeratorStackPool.Allocate();
 
         try {
@@ -106,7 +158,9 @@ internal sealed class SyntaxNavigator {
     }
 
     private SyntaxToken GetLastToken(
-        SyntaxNode current, Func<SyntaxToken, bool> predicate, Func<SyntaxTrivia, bool> stepInto) {
+        SyntaxNode current,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool> stepInto) {
         var stack = ChildReversedEnumeratorStackPool.Allocate();
 
         try {

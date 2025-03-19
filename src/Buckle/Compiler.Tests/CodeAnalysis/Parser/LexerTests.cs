@@ -43,6 +43,7 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanGreaterThanToken);
         untestedTokenTypes.Remove(SyntaxKind.HashToken);
         untestedTokenTypes.Remove(SyntaxKind.EndOfDirectiveToken);
+        untestedTokenTypes.Remove(SyntaxKind.OmittedArgumentToken);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);

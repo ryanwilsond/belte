@@ -343,6 +343,24 @@ internal sealed class Evaluator {
                         EvaluateLocalDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
+                    case BoundKind.LabelStatement:
+                        index++;
+                        break;
+                    case BoundKind.GotoStatement:
+                        var gs = (BoundGotoStatement)s;
+                        index = labelToIndex[gs.label];
+                        break;
+                    case BoundKind.ConditionalGotoStatement:
+                        var cgs = (BoundConditionalGotoStatement)s;
+                        var condition = EvaluateExpression(cgs.condition, abort);
+                        var conditionValue = (bool)Value(condition);
+
+                        if (conditionValue == cgs.jumpIfTrue)
+                            index = labelToIndex[cgs.label];
+                        else
+                            index++;
+
+                        break;
                     case BoundKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
                         _lastValue = returnStatement.expression is null
@@ -359,9 +377,7 @@ internal sealed class Evaluator {
             }
 
             return _lastValue;
-            // } catch (Exception e) when (e is not BelteInternalException) {
-            // TODO temp for exception tracing, delete
-        } catch (BelteInternalException e) {
+        } catch (Exception e) {
             if (abort)
                 return EvaluatorObject.Null;
 
@@ -430,7 +446,7 @@ internal sealed class Evaluator {
             BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
-            _ => throw new BelteInternalException($"EvaluateExpression: unexpected node '{expression.kind}'"),
+            _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
 
@@ -508,9 +524,8 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort) {
         var receiverObject = default(EvaluatorObject);
 
-        // if (receiver is not null && !method.isStatic) {
-        // TODO confirm this logic in effect didn't change
-        if (method.callingConvention == CallingConvention.HasThis) {
+        // Have to check receiver too because constructors don't have receivers
+        if (receiver is not null && method.callingConvention == CallingConvention.HasThis) {
             receiverObject = EvaluateExpression(receiver, abort);
             var dereferencedReceiver = Dereference(receiverObject);
 

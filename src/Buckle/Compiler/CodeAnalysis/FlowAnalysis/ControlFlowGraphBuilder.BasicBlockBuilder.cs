@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
@@ -36,7 +37,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         _statements.Add(statement);
                         break;
                     default:
-                        throw new BelteInternalException($"Build: unexpected statement '{statement.kind}'");
+                        throw ExceptionUtilities.UnexpectedValue(statement.kind);
                 }
             }
 

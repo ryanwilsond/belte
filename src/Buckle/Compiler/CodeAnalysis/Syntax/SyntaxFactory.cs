@@ -269,7 +269,7 @@ public static partial class SyntaxFactory {
     /// <summary>
     /// Creates an argument list.
     /// </summary>
-    public static ArgumentListSyntax ArgumentList(params ArgumentSyntax[] arguments) {
+    public static ArgumentListSyntax ArgumentList(params BaseArgumentSyntax[] arguments) {
         return ArgumentList(
             Token(SyntaxKind.OpenParenToken),
             SeparatedList(arguments),

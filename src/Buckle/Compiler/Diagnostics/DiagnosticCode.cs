@@ -206,6 +206,8 @@ public enum DiagnosticCode : ushort {
     ERR_NoCorrespondingArgument = 195,
     ERR_BadNonTrailingNamedArgument = 196,
     ERR_NamedArgumentUsedInPositional = 197,
+    WRN_PossibleMistakenEmptyStatement = 198,
+    ERR_BadEmbeddedStatement = 199,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

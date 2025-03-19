@@ -238,7 +238,7 @@ public abstract partial class SyntaxNode {
             return endOfFile;
 
         if (!fullSpan.Contains(position))
-            throw new BelteInternalException("FindToken", new ArgumentOutOfRangeException(nameof(position)));
+            throw new ArgumentOutOfRangeException(nameof(position));
 
         SyntaxNodeOrToken currentNode = this;
 

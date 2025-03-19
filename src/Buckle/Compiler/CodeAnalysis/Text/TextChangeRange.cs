@@ -124,7 +124,7 @@ internal sealed partial class TextChangeRange {
                     );
                     return;
                 } else if (last.span.end > change.span.start) {
-                    throw new BelteInternalException("Merge.Add", new ArgumentOutOfRangeException(nameof(change)));
+                    throw new ArgumentOutOfRangeException(nameof(change));
                 }
             }
 
@@ -216,7 +216,7 @@ internal sealed partial class TextChangeRange {
         }
 
         if (!((oldIndex == oldChanges.Length) ^ (newIndex == newChanges.Length)))
-            throw new BelteInternalException("Merge", new InvalidOperationException());
+            throw new InvalidOperationException();
 
         while (oldIndex < oldChanges.Length) {
             AddAndAdjustOldDelta(builder, ref oldDelta, oldChange);

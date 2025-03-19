@@ -153,6 +153,13 @@ public sealed class SyntaxToken {
         }
     }
 
+    public SyntaxToken GetNextToken(bool includeZeroWidth = false, bool includeSkipped = false) {
+        if (node is null)
+            return default;
+
+        return SyntaxNavigator.Instance.GetNextToken(this, includeZeroWidth, includeSkipped);
+    }
+
     public override string ToString() {
         return node is not null ? node.ToString() : "";
     }

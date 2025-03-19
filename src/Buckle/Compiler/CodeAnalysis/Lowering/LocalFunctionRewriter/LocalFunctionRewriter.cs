@@ -673,6 +673,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         if (node.body is BoundBlockStatement block) {
             // var body = AddStatementsIfNeeded((BoundStatement)VisitBlock(block));
             var body = (BoundBlockStatement)VisitBlockStatement(block);
+            body = Lowerer.Flatten(synthesizedMethod, body);
             // CheckLocalsDefined(body);
             AddSynthesizedMethod(synthesizedMethod, body);
         }

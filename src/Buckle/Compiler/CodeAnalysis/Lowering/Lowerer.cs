@@ -568,7 +568,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    private static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
+    internal static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
         var syntax = statement.syntax;
         var statementsBuilder = ArrayBuilder<BoundStatement>.GetInstance();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance();

@@ -246,7 +246,7 @@
   <Node Name="BoundIfStatement" Base="BoundStatement">
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="consequence" Type="BoundStatement"/>
-    <Field Name="alternative" Type="BoundStatement"/>
+    <Field Name="alternative" Type="BoundStatement?"/>
   </Node>
   <Node Name="BoundLabelStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>

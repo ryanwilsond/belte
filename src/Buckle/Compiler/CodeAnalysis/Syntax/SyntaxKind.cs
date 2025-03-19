@@ -197,6 +197,8 @@ public enum SyntaxKind : ushort {
 
     // Lists
     Argument,
+    OmittedArgument,
+    OmittedArgumentToken,
     ArgumentList,
     Parameter,
     ParameterList,

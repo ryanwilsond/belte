@@ -220,17 +220,17 @@ public sealed class EvaluatorTests {
     [InlineData("int F(int a = 3) { return a; } return F();", 3)]
     [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, c: 2, a: 9);", 15)]
     [InlineData("int F(int a, int b, int c = 6) { return a + b * c; } return F(b: 3, a: 9);", 27)]
-    // [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1, 2);", 3)]
-    // [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1,);", 2)]
-    // [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
-    // [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
-    // [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
-    /*
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1, 2);", 3)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(1,);", 2)]
+    [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
+    [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
+    [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
     // If statements
     [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
     [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
+    /*
     // For statements
     [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
     [InlineData("int result = 0; for (int i = 0; i < 5; i++) { result++; } return result;", 5)]

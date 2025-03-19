@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -128,7 +127,7 @@ internal static class SyntaxFacts {
     internal static SyntaxKind GetTernaryOperatorPair(this SyntaxKind type) {
         return type switch {
             SyntaxKind.QuestionToken => SyntaxKind.ColonToken,
-            _ => throw new BelteInternalException($"GetTernaryOperatorPair: unknown right operator '{type}'"),
+            _ => throw ExceptionUtilities.UnexpectedValue(type),
         };
     }
 
