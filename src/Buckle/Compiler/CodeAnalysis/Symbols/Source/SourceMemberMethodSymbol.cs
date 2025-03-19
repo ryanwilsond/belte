@@ -71,6 +71,20 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
 
     internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
 
+    internal sealed override CallingConvention callingConvention {
+        get {
+            var cc = CallingConvention.Default;
+
+            if (isTemplateMethod)
+                cc |= CallingConvention.Template;
+
+            if (!isStatic)
+                cc |= CallingConvention.HasThis;
+
+            return cc;
+        }
+    }
+
     internal override bool isDeclaredConst => (_modifiers & DeclarationModifiers.Const) != 0;
 
     internal bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;

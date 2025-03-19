@@ -73,6 +73,8 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
     internal override TextLocation location => null;
 
+    internal override CallingConvention callingConvention => 0;
+
     internal SyntaxTree syntaxTree => syntaxNode.syntaxTree;
 
     internal SyntaxNode syntaxNode => compilationUnit;

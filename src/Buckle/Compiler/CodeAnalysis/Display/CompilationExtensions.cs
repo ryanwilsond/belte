@@ -3,6 +3,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Display;

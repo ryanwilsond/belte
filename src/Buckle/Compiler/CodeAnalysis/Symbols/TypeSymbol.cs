@@ -96,6 +96,10 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return typeKind == TypeKind.Class;
     }
 
+    internal bool IsArray() {
+        return typeKind == TypeKind.Array;
+    }
+
     internal bool IsStructType() {
         return typeKind == TypeKind.Struct;
     }

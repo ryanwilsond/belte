@@ -65,4 +65,6 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
     internal override TypeWithAnnotations returnTypeWithAnnotations { get; }
 
     internal override bool hidesBaseMethodsByName => false;
+
+    internal override CallingConvention callingConvention => CallingConvention.Default;
 }

@@ -33,6 +33,10 @@ internal abstract partial class BoundExpression : BoundNode {
         }
     }
 
+    internal bool HasExpressionType() {
+        return type is not null;
+    }
+
     internal void GetExpressionSymbols(ArrayBuilder<Symbol> symbols) {
         switch (kind) {
             case BoundKind.MethodGroup:

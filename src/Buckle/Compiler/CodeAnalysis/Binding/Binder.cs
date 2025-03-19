@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -639,6 +637,23 @@ internal partial class Binder {
     #endregion
 
     #region Expressions
+
+    internal static bool WasImplicitReceiver(BoundExpression receiver) {
+        if (receiver is null)
+            return true;
+
+        return receiver.kind switch {
+            BoundKind.ThisExpression => true,
+            _ => false,
+        };
+    }
+
+    internal static bool IsMemberAccessedThroughType(BoundExpression receiver) {
+        if (receiver is null)
+            return false;
+
+        return receiver.kind == BoundKind.TypeExpression;
+    }
 
     internal BoundExpression BindExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         return BindExpressionInternal(node, diagnostics, false, false);
@@ -3437,7 +3452,7 @@ internal partial class Binder {
                 hasRefKinds = true;
                 var argCount = result.arguments.Count;
 
-                for (var i = 0; i < argCount; ++i)
+                for (var i = 0; i < argCount; i++)
                     result.refKinds.Add(RefKind.None);
             }
         }
@@ -3451,7 +3466,7 @@ internal partial class Binder {
             if (!hasNames) {
                 var argCount = result.arguments.Count;
 
-                for (var i = 0; i < argCount; ++i)
+                for (var i = 0; i < argCount; i++)
                     result.names.Add(null);
             }
 

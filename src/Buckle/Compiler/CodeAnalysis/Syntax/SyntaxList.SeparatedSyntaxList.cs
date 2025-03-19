@@ -32,7 +32,7 @@ public partial class SyntaxList {
 
             if (valueIndex > 1
                 && GetCachedSlot(valueIndex - 2) is null
-                && (valueIndex >= green.slotCount - 2 || GetCachedSlot(valueIndex + 2) is { })) {
+                && (valueIndex >= green.slotCount - 2 || GetCachedSlot(valueIndex + 2) is not null)) {
                 return GetChildPositionFromEnd(index);
             }
 

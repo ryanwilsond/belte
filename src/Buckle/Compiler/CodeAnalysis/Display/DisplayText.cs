@@ -734,9 +734,13 @@ public sealed class DisplayText {
         if (node.receiver is not null) {
             DisplayNode(text, node.receiver);
             text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+            text.Write(CreateIdentifier(node.method.name));
+        } else {
+            // Static methods drop their receiver (it's functionally not used)
+            // but we want to add it back here for clarity
+            SymbolDisplay.AppendToDisplayText(text, node.method, SymbolDisplayFormat.QualifiedNameFormat);
         }
 
-        text.Write(CreateIdentifier(node.method.name));
         DisplayArguments(text, node.arguments);
     }
 

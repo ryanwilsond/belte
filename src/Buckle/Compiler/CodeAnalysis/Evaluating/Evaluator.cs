@@ -508,7 +508,9 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort) {
         var receiverObject = default(EvaluatorObject);
 
-        if (receiver is not null && !method.isStatic) {
+        // if (receiver is not null && !method.isStatic) {
+        // TODO confirm this logic in effect didn't change
+        if (method.callingConvention == CallingConvention.HasThis) {
             receiverObject = EvaluateExpression(receiver, abort);
             var dereferencedReceiver = Dereference(receiverObject);
 
@@ -528,6 +530,8 @@ internal sealed class Evaluator {
         }
 
         var locals = new Dictionary<Symbol, EvaluatorObject>();
+
+        if (method.callingConvention == CallingConvention.Template) ;
         // AddTemplatesToLocals(method.templateParameters, method.templateArguments, locals, abort);
 
         for (var i = 0; i < arguments.Length; i++) {

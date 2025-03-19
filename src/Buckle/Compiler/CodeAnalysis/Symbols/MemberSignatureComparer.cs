@@ -10,6 +10,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         considerName: true,
         considerReturnType: false,
         considerTemplateConstraints: false,
+        considerCallingConvention: false,
         considerRefKind: true,
         typeComparison: TypeCompareKind.AllIgnoreOptions
     );
@@ -18,14 +19,25 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         considerName: true,
         considerReturnType: true,
         considerTemplateConstraints: false,
+        considerCallingConvention: false,
         considerRefKind: true,
         typeComparison: TypeCompareKind.IgnoreNullability
+    );
+
+    internal static readonly MemberSignatureComparer SloppyOverrideComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        considerRefKind: false,
+        typeComparison: TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability
     );
 
     internal static readonly MemberSignatureComparer IgnoreRefComparer = new MemberSignatureComparer(
         considerName: true,
         considerReturnType: true,
         considerTemplateConstraints: false,
+        considerCallingConvention: true,
         considerRefKind: false,
         typeComparison: TypeCompareKind.IgnoreNullability
     );
@@ -33,6 +45,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
     private readonly bool _considerName;
     private readonly bool _considerReturnType;
     private readonly bool _considerTemplateConstraints;
+    private readonly bool _considerCallingConvention;
     private readonly bool _considerArity;
     private readonly bool _considerRefKind;
     private readonly TypeCompareKind _typeComparison;
@@ -41,12 +54,14 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         bool considerName,
         bool considerReturnType,
         bool considerTemplateConstraints,
+        bool considerCallingConvention,
         bool considerRefKind,
         bool considerArity = true,
         TypeCompareKind typeComparison = TypeCompareKind.ConsiderEverything) {
         _considerName = considerName;
         _considerReturnType = considerReturnType;
         _considerTemplateConstraints = considerTemplateConstraints;
+        _considerCallingConvention = considerCallingConvention;
         _considerArity = considerArity;
         _considerRefKind = considerRefKind;
         _typeComparison = typeComparison;
@@ -66,6 +81,9 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
             return false;
 
         if (member1.GetParameterCount() != member2.GetParameterCount())
+            return false;
+
+        if (_considerCallingConvention && GetCallingConvention(member1) != GetCallingConvention(member2))
             return false;
 
         var templateMap1 = GetTemplateMap(member1);
@@ -287,5 +305,14 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         return templateParameters.IsEmpty
             ? null
             : new TemplateMap(templateParameters, IndexedTemplateParameterSymbol.Take(member.GetMemberArity()));
+    }
+
+    private static CallingConvention GetCallingConvention(Symbol member) {
+        switch (member.kind) {
+            case SymbolKind.Method:
+                return ((MethodSymbol)member).callingConvention;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(member.kind);
+        }
     }
 }

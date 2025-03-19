@@ -91,15 +91,6 @@ internal sealed class Conversions {
     }
 
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
-        if (sourceExpression.IsLiteralNull()) {
-            if (target.IsNullableType())
-                return Conversion.NullLiteral;
-            else if (target.isObjectType)
-                return Conversion.ImplicitReference;
-            else
-                return Conversion.None;
-        }
-
         var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
 
         if (result.exists)
@@ -113,11 +104,6 @@ internal sealed class Conversions {
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
-        var result = ClassifyImplicitConversionFromType(source, target);
-
-        if (result.exists)
-            return result;
-
         return Conversion.Classify(source, target);
     }
 
@@ -136,6 +122,15 @@ internal sealed class Conversions {
 
             if (listExpressionConversion.exists)
                 return listExpressionConversion;
+        }
+
+        if (sourceExpression.IsLiteralNull()) {
+            if (target.IsNullableType())
+                return Conversion.NullLiteral;
+            else if (target.isObjectType)
+                return Conversion.ImplicitReference;
+            else
+                return Conversion.None;
         }
 
         var conversion = FastClassifyConversion(sourceExpression.type, target);

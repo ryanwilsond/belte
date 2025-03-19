@@ -49,4 +49,6 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
     internal override bool hasSpecialName => underlyingMethod.hasSpecialName;
 
     internal override bool isDeclaredConst => underlyingMethod.isDeclaredConst;
+
+    internal override CallingConvention callingConvention => underlyingMethod.callingConvention;
 }

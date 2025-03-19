@@ -24,7 +24,7 @@ internal class ParameterSignature {
         var types = ArrayBuilder<TypeWithAnnotations>.GetInstance();
         ArrayBuilder<RefKind> refs = null;
 
-        for (var param = 0; param < parameters.Length; ++param) {
+        for (var param = 0; param < parameters.Length; param++) {
             var parameter = parameters[param];
             types.Add(parameter.typeWithAnnotations);
 

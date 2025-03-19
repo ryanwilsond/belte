@@ -109,6 +109,14 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return result;
     }
 
+    internal void GetAllTypeArguments(ref TemporaryArray<TypeSymbol> builder) {
+        var outer = containingType;
+        outer?.GetAllTypeArguments(ref builder);
+
+        foreach (var argument in templateArguments)
+            builder.Add(argument.type.type);
+    }
+
     internal void GetAllTypeParameters(ArrayBuilder<TemplateParameterSymbol> result) {
         containingType?.GetAllTypeParameters(result);
         result.AddRange(templateParameters);

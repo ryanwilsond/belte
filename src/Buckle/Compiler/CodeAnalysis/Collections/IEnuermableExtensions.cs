@@ -43,4 +43,22 @@ internal static partial class IEnumerableExtensions {
 
         return ImmutableArray.CreateRange(items);
     }
+
+    internal static T FirstOrDefault<T, TArg>(this IEnumerable<T> source, Func<T, TArg, bool> predicate, TArg arg) {
+        foreach (var item in source) {
+            if (predicate(item, arg))
+                return item;
+        }
+
+        return default;
+    }
+
+    internal static bool Any<T, TArg>(this IEnumerable<T> source, Func<T, TArg, bool> predicate, TArg arg) {
+        foreach (var item in source) {
+            if (predicate(item, arg))
+                return true;
+        }
+
+        return false;
+    }
 }

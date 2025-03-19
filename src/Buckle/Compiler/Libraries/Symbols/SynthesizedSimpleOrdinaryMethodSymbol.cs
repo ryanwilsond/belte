@@ -65,4 +65,6 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
     internal override SyntaxReference syntaxReference => null;
 
     internal override TextLocation location => null;
+
+    internal override CallingConvention callingConvention => CallingConvention.Default;
 }

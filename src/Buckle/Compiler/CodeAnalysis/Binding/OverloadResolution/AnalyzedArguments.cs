@@ -60,7 +60,7 @@ internal sealed class AnalyzedArguments {
 
         var builder = ArrayBuilder<string?>.GetInstance(names.Count);
 
-        for (var i = 0; i < names.Count; ++i)
+        for (var i = 0; i < names.Count; i++)
             builder.Add(Name(i));
 
         return builder.ToImmutableAndFree();

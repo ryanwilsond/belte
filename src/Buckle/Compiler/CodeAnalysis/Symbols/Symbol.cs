@@ -191,6 +191,20 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal ImmutableArray<TypeWithAnnotations> GetParameterTypes() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameterTypesWithAnnotations,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
+    internal ImmutableArray<RefKind> GetParameterRefKinds() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameterRefKinds,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
     internal ImmutableArray<ParameterSymbol> GetParameters() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).parameters,

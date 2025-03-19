@@ -63,6 +63,8 @@ internal sealed class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSy
 
     internal override bool isImplicitlyDeclared => true;
 
+    internal override CallingConvention callingConvention => CallingConvention.HasThis;
+
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCtor;
     }

@@ -106,7 +106,7 @@ public sealed class Compilation {
         }
     }
 
-    public ImmutableArray<ISymbol> GetSymbols(bool includePreviousCompilations = false) {
+    public ImmutableArray<ISymbol> GetSymbols(bool includePreviousCompilations = false, bool includeExternal = false) {
         if (!includePreviousCompilations)
             return globalNamespace.GetMembers();
 
@@ -116,7 +116,15 @@ public sealed class Compilation {
         var current = this;
 
         while (current is not null) {
-            builder.AddRange(current.globalNamespace.GetMembers());
+            if (includeExternal) {
+                builder.AddRange(current.globalNamespace.GetMembers());
+            } else {
+                foreach (var member in current.globalNamespace.GetMembers()) {
+                    if (member is not SynthesizedFinishedNamedTypeSymbol)
+                        builder.Add(member);
+                }
+            }
+
             current = current.previous;
         }
 

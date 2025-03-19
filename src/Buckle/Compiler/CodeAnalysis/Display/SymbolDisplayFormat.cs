@@ -6,9 +6,7 @@ public sealed class SymbolDisplayFormat {
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
-        // TODO This was the commented line previously for an unknown reason
-        // parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        parameterOptions: SymbolDisplayParameterOptions.IncludeName,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable
     );
 

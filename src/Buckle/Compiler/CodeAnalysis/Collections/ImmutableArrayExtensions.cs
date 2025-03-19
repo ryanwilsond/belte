@@ -102,6 +102,31 @@ internal static class ImmutableArrayExtensions {
         return first.AddRange(second);
     }
 
+    internal static bool All<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate) {
+        // immutableArray.ThrowNullRefIfNotInitialized();
+        // Requires.NotNull(predicate, nameof(predicate));
+
+        foreach (var v in immutableArray!) {
+            if (!predicate(v))
+                return false;
+        }
+
+        return true;
+    }
+
+    internal static bool All<T, TArg>(this ImmutableArray<T> array, Func<T, TArg, bool> predicate, TArg arg) {
+        var n = array.Length;
+
+        for (var i = 0; i < n; i++) {
+            var a = array[i];
+
+            if (!predicate(a, arg))
+                return false;
+        }
+
+        return true;
+    }
+
     internal static ImmutableArray<T> NullToEmpty<T>(this ImmutableArray<T> array) {
         return array.IsDefault ? [] : array;
     }
@@ -183,13 +208,30 @@ internal static class ImmutableArrayExtensions {
         }
     }
 
+    internal static T FirstOrDefault<T>(this ImmutableArray<T> immutableArray) {
+        // return immutableArray.array!.Length > 0 ? immutableArray.array[0] : default;
+        // TODO Why can't we access `array` like in the above example?
+        return immutableArray!.Length > 0 ? immutableArray[0] : default;
+    }
+
+    internal static T FirstOrDefault<T>(this ImmutableArray<T> immutableArray, Func<T, bool> predicate) {
+        // Requires.NotNull(predicate, nameof(predicate));
+
+        foreach (var v in immutableArray!) {
+            if (predicate(v))
+                return v;
+        }
+
+        return default;
+    }
+
     internal static int Count<T>(this ImmutableArray<T> items, Func<T, bool> predicate) {
         if (items.IsEmpty)
             return 0;
 
         var count = 0;
 
-        for (var i = 0; i < items.Length; ++i) {
+        for (var i = 0; i < items.Length; i++) {
             if (predicate(items[i]))
                 ++count;
         }

@@ -49,6 +49,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal abstract bool hasSpecialName { get; }
 
+    internal abstract CallingConvention callingConvention { get; }
+
     internal abstract bool isDeclaredConst { get; }
 
     // TODO This will also check if the containing type is const when const structs are added (if they are added)

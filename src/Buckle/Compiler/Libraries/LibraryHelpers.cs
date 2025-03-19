@@ -239,7 +239,11 @@ internal static class LibraryHelpers {
         bool isNullable,
         IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue, RefKind refKind)> parameters,
         DeclarationModifiers modifiers) {
-        var returnTypeWithAnnotations = new TypeWithAnnotations(type.knownType, isNullable);
+        var returnTypeWithAnnotations = new TypeWithAnnotations(type.knownType);
+
+        if (isNullable)
+            returnTypeWithAnnotations = returnTypeWithAnnotations.SetIsAnnotated();
+
         var method = new SynthesizedSimpleOrdinaryMethodSymbol(
             name,
             returnTypeWithAnnotations,
@@ -251,7 +255,11 @@ internal static class LibraryHelpers {
         var i = 0;
 
         foreach (var parameter in parameters) {
-            var parameterTypeWithAnnotations = new TypeWithAnnotations(parameter.type.knownType, parameter.isNullable);
+            var parameterTypeWithAnnotations = new TypeWithAnnotations(parameter.type.knownType);
+
+            if (parameter.isNullable)
+                parameterTypeWithAnnotations = parameterTypeWithAnnotations.SetIsAnnotated();
+
             var constantValue = parameter.defaultValue is null
                 ? null
                 : new ConstantValue(parameter.defaultValue, parameter.type.specialType);

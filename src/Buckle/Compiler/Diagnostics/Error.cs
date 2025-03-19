@@ -147,11 +147,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ParameterAlreadyDeclared, location, message);
     }
 
-    internal static BelteDiagnostic NoSuchParameter(
-        TextLocation location, string methodName, string parameterName, bool hasOverloads) {
-        var methodWord = hasOverloads ? "the best overload for" : "method";
-        var message = $"{methodWord} '{methodName}' does not have a parameter named '{parameterName}'";
-        return CreateError(DiagnosticCode.ERR_NoSuchParameter, location, message);
+    internal static BelteDiagnostic BadArgumentName(TextLocation location, string methodName, string name) {
+        var message = $"the best overload for '{methodName}' does not have a parameter named '{name}'";
+        return CreateError(DiagnosticCode.ERR_BadArgumentName, location, message);
     }
 
     internal static BelteDiagnostic MainAndGlobals(TextLocation location) {
@@ -399,9 +397,9 @@ internal static class Error {
         return ExpectedToken(DiagnosticText(type));
     }
 
-    internal static BelteDiagnostic NoMethodOverload(TextLocation location, string name) {
-        var message = $"no overload for method '{name}' matches parameter list";
-        return CreateError(DiagnosticCode.ERR_NoMethodOverload, location, message);
+    internal static BelteDiagnostic WrongArgumentCount(TextLocation location, string name, int argCount) {
+        var message = $"no overload for method '{name}' takes {argCount} arguments";
+        return CreateError(DiagnosticCode.ERR_WrongArgumentCount, location, message);
     }
 
     internal static BelteDiagnostic AmbiguousMethodOverload(TextLocation location, MethodSymbol[] symbols) {
@@ -590,9 +588,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_MemberIsInaccessible, location, message);
     }
 
-    internal static BelteDiagnostic NoConstructorOverload(TextLocation location, string name) {
-        var message = $"type '{name}' does not contain a constructor that matches the parameter list";
-        return CreateError(DiagnosticCode.ERR_NoConstructorOverload, location, message);
+    internal static BelteDiagnostic WrongConstructorArgumentCount(TextLocation location, string name, int argCount) {
+        var message = $"type '{name}' does not contain a constructor that takes {argCount} arguments";
+        return CreateError(DiagnosticCode.ERR_WrongConstructorArgumentCount, location, message);
     }
 
     internal static BelteDiagnostic InvalidModifier(TextLocation location, string name) {
@@ -1126,6 +1124,36 @@ internal static class Error {
     internal static BelteDiagnostic ListNoTargetType(TextLocation location) {
         var message = $"there is no target type for the initializer list";
         return CreateError(DiagnosticCode.ERR_ListNoTargetType, location, message);
+    }
+
+    internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
+        var message = $"a field initializer cannot reference non-static member '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);
+    }
+
+    internal static BelteDiagnostic ArgumentExtraRef(TextLocation location, string keyword, int arg) {
+        var message = $"argument {arg} may not be passed with the '{keyword}' keyword";
+        return CreateError(DiagnosticCode.ERR_ArgumentExtraRef, location, message);
+    }
+
+    internal static BelteDiagnostic ArgumentWrongRef(TextLocation location, string keyword, int arg) {
+        var message = $"argument {arg} must be passed with the '{keyword}' keyword";
+        return CreateError(DiagnosticCode.ERR_ArgumentWrongRef, location, message);
+    }
+
+    internal static BelteDiagnostic NoCorrespondingArgument(TextLocation location, string parameterName, Symbol member) {
+        var message = $"there is no argument given that corresponds to the required parameter '{parameterName}' of '{member}'";
+        return CreateError(DiagnosticCode.ERR_NoCorrespondingArgument, location, message);
+    }
+
+    internal static BelteDiagnostic BadNonTrailingNamedArgument(TextLocation location, string parameterName) {
+        var message = $"named argument '{parameterName}' is used out-of-position but is followed by an unnamed argument";
+        return CreateError(DiagnosticCode.ERR_BadNonTrailingNamedArgument, location, message);
+    }
+
+    internal static BelteDiagnostic NamedArgumentUsedInPositional(TextLocation location, string parameterName) {
+        var message = $"named argument '{parameterName}' specifies a parameter for which a positional argument has already been given";
+        return CreateError(DiagnosticCode.ERR_NamedArgumentUsedInPositional, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

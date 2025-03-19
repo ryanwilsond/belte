@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -137,7 +138,7 @@ internal sealed class MethodCompiler {
     private void CompileNamespace(NamespaceSymbol globalNamespace) {
         foreach (var member in globalNamespace.GetMembersUnordered()) {
             switch (member) {
-                case NamedTypeSymbol n:
+                case NamedTypeSymbol n when n is not SynthesizedFinishedNamedTypeSymbol:
                     CompileNamedType(n);
                     break;
                     // TODO Namespaces can only contain named types currently?
