@@ -613,12 +613,16 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateNullAssertOperator(
         BoundNullAssertOperator expression,
         ValueWrapper<bool> abort) {
-        var value = Dereference(EvaluateExpression(expression.operand, abort));
+        var value = EvaluateExpression(expression.operand, abort);
+        var dereferenced = Dereference(value);
 
-        if (value.members is null && Value(value) is null && expression.operand.type.specialType != SpecialType.Type)
+        if (dereferenced.members is null &&
+            Value(dereferenced) is null &&
+            expression.operand.type.specialType != SpecialType.Type) {
             throw new NullReferenceException();
+        }
 
-        return Copy(value);
+        return value;
     }
 
     private EvaluatorObject EvaluateAsOperator(BoundAsOperator expression, ValueWrapper<bool> abort) {
@@ -741,11 +745,9 @@ internal sealed class Evaluator {
 
             if (expression.left.type.specialType == SpecialType.Object) {
                 // Reference equality
-                // TODO Bug check this
-                return new EvaluatorObject(
-                    (opKind != BinaryOperatorKind.Equal) ^ (left == right),
-                    expression.type
-                );
+                var refEquals = left.reference == right.reference;
+                var positive = opKind == BinaryOperatorKind.Equal;
+                return new EvaluatorObject(positive == refEquals, expression.type);
             }
         }
 
