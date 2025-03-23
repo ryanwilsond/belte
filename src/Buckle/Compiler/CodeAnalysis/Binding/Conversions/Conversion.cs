@@ -117,6 +117,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.IsErrorType() || target.IsErrorType())
             return Identity;
 
+        // Handle nullable conversions
         if (source.IsNullableType() && !target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target);
 
@@ -124,26 +125,31 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                 return new Conversion(ConversionKind.ExplicitNullable, [underlyingConversion]);
         }
 
-        if (!source.IsNullableType() && target.IsNullableType()) {
-            var underlyingConversion = Classify(source, target.StrippedType());
-
-            if (underlyingConversion.exists)
-                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
-        }
-
-        if (source.IsNullableType() && target.IsNullableType()) {
+        if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
         }
 
+        // Handle most primitive conversions
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
             return new Conversion(EasyOut.Classify(source, target));
 
+        // Handle conversions with 'any' type that weren't picked up with the EasyOut
+        // We only allow using 'any' with other primitives, so the only type that the EasyOut couldn't pick up was
+        // array conversions
+        if (target.specialType == SpecialType.Any && source.specialType == SpecialType.Array)
+            return Implicit;
+
+        if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
+            return Explicit;
+
+        // EasyOut and our special array check covers all possible primitive conversions
         if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)
             return None;
 
+        // Finally we have some simple (to be expanded later) Object conversions
         if (source.Equals(target))
             return Identity;
 

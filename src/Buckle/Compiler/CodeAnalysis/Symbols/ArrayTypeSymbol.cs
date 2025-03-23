@@ -56,6 +56,8 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     public override TypeKind typeKind => TypeKind.Array;
 
+    public override SpecialType specialType => SpecialType.Array;
+
     public override bool isObjectType => false;
 
     public override bool isPrimitiveType => true;
