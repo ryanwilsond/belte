@@ -2796,7 +2796,7 @@ internal partial class Binder {
 
         ConstantValue constantValueOpt = null;
 
-        if (fieldSymbol.isConst && !isInsideNameof) {
+        if (fieldSymbol.isConstExpr && !isInsideNameof) {
             constantValueOpt = fieldSymbol.GetConstantValue(constantFieldsInProgress);
 
             if (constantValueOpt == ConstantValue.Unset)
@@ -2823,6 +2823,20 @@ internal partial class Binder {
             fieldType,
             hasError
         );
+    }
+
+    private bool IsBadBaseAccess(
+        SyntaxNode node,
+        BoundExpression receiver,
+        Symbol member,
+        BelteDiagnosticQueue diagnostics) {
+        if (receiver?.kind == BoundKind.BaseExpression && member.isAbstract) {
+            // TODO Error
+            // Error(diagnostics, ErrorCode.ERR_AbstractBaseCall, node, propertyOrEventSymbolOpt ?? member);
+            return true;
+        }
+
+        return false;
     }
 
     private bool CheckInstanceOrStatic(

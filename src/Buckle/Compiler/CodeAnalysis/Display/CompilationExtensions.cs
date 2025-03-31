@@ -79,32 +79,18 @@ public static class CompilationExtensions {
             SymbolDisplay.AppendToDisplayText(text, v, SymbolDisplayFormat.Everything);
             var type = v.type.StrippedType();
 
-            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol) {
+            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
                 WriteTypeMembers(s);
-            } else if (v.constantValue is not null) {
-                text.Write(CreateSpace());
-                text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
-                text.Write(CreateSpace());
-                DisplayText.DisplayConstant(text, v.constantValue);
+            else
                 text.WriteLine();
-            } else {
-                text.WriteLine();
-            }
         } else if (symbol is FieldSymbol f) {
             SymbolDisplay.AppendToDisplayText(text, f, SymbolDisplayFormat.Everything);
             var type = f.type.StrippedType();
 
-            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol) {
+            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
                 WriteTypeMembers(s);
-            } else if (f.constantValue is not null) {
-                text.Write(CreateSpace());
-                text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
-                text.Write(CreateSpace());
-                DisplayText.DisplayConstant(text, f.constantValue);
+            else
                 text.WriteLine();
-            } else {
-                text.WriteLine();
-            }
         }
 
         void WriteTypeMembers(NamedTypeSymbol type) {

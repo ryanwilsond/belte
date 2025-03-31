@@ -53,7 +53,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     private protected sealed override ConstantValue MakeConstantValue(
         HashSet<SourceFieldSymbolWithSyntaxReference> dependencies,
         BelteDiagnosticQueue diagnostics) {
-        if (!isConst || _variableDeclaration.initializer is null)
+        if (!isConstExpr || _variableDeclaration.initializer is null)
             return null;
 
         return ConstantValueHelpers.EvaluateFieldConstant(

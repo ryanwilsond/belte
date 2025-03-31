@@ -36,6 +36,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return optimizedBlock;
     }
 
+    internal override BoundNode Visit(BoundNode node) {
+        if (node is null)
+            return null;
+
+        if (node is BoundExpression e && e.constantValue is not null)
+            return VisitConstant(e);
+
+        return base.Visit(node);
+    }
+
+    private BoundNode VisitConstant(BoundExpression expression) {
+        // TODO Handle initializer list constants
+        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.type);
+    }
+
     internal override BoundNode VisitIfStatement(BoundIfStatement statement) {
         /*
 

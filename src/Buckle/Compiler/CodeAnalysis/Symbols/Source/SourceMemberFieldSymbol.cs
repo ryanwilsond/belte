@@ -46,6 +46,8 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
         );
 
         // TODO Any other error checking needed here?
+        if ((result & DeclarationModifiers.ConstExpr) != 0)
+            result |= DeclarationModifiers.Static;
 
         return result;
     }
