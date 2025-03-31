@@ -294,22 +294,22 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int a; public constructor(int b) { a = b; } } var myVar = new A(6); return myVar.a;", 6)]
     [InlineData("class A { public int a; public constructor(int b) { a = b; } public constructor(int b, int c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
     [InlineData("class A { public int a; public constructor(int b) { a = b; } public constructor(int b, int c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
+    // // For statements
+    // [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
+    // [InlineData("int result = 0; for (int i = 0; i < 5; i++) { result++; } return result;", 5)]
+    // [InlineData("int result; for (int i = 0; i <= 10; i++) { result = i; } return result;", 10)]
+    // [InlineData("int result = 1; for (int i = 10; i > 0; i--) { result += i; } return result;", 56)]
+    // // While statements
+    // [InlineData("int i = 0; int result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
+    // [InlineData("int i = 0; int result = 0; while (i < 5) { result++; i++; } return result;", 5)]
+    // [InlineData("int i = 0; int result; while (i <= 10) { result = i; i++; } return result;", 10)]
+    // [InlineData("int i = 10; int result = 1; while (i > 0) { result += i; i--; } return result;", 56)]
+    // // Do-While statements
+    // [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
+    // [InlineData("int result = 0; do { result++; } while (false); return result;", 1)]
+    // [InlineData("int result = 0; do { result++; } while (result < 0); return result;", 1)]
+    // [InlineData("int result = 10; do { result*=2; } while (result < 30); return result;", 40)]
     /*
-    // For statements
-    [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
-    [InlineData("int result = 0; for (int i = 0; i < 5; i++) { result++; } return result;", 5)]
-    [InlineData("int result; for (int i = 0; i <= 10; i++) { result = i; } return result;", 10)]
-    [InlineData("int result = 1; for (int i = 10; i > 0; i--) { result += i; } return result;", 56)]
-    // While statements
-    [InlineData("int i = 0; int result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
-    [InlineData("int i = 0; int result = 0; while (i < 5) { result++; i++; } return result;", 5)]
-    [InlineData("int i = 0; int result; while (i <= 10) { result = i; i++; } return result;", 10)]
-    [InlineData("int i = 10; int result = 1; while (i > 0) { result += i; i--; } return result;", 56)]
-    // Do-While statements
-    [InlineData("int result = 0; do { result++; } while (result < 10); return result;", 10)]
-    [InlineData("int result = 0; do { result++; } while (false); return result;", 1)]
-    [InlineData("int result = 0; do { result++; } while (result < 0); return result;", 1)]
-    [InlineData("int result = 10; do { result*=2; } while (result < 30); return result;", 40)]
     // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
     // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
     [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]

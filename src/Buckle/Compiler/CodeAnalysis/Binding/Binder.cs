@@ -6296,13 +6296,10 @@ symIsHidden:;
             SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
             SyntaxKind.LocalFunctionStatement => BindLocalFunctionStatement((LocalFunctionStatementSyntax)node, diagnostics),
             SyntaxKind.IfStatement => BindIfStatement((IfStatementSyntax)node, diagnostics),
+            SyntaxKind.WhileStatement => BindWhileStatement((WhileStatementSyntax)node, diagnostics),
+            SyntaxKind.DoWhileStatement => BindDoWhileStatement((DoWhileStatementSyntax)node, diagnostics),
+            SyntaxKind.ForStatement => BindForStatement((ForStatementSyntax)node, diagnostics),
             /*
-            case SyntaxKind.WhileStatement:
-                return BindWhileStatement((WhileStatementSyntax)syntax);
-            case SyntaxKind.ForStatement:
-                return BindForStatement((ForStatementSyntax)syntax);
-            case SyntaxKind.DoWhileStatement:
-                return BindDoWhileStatement((DoWhileStatementSyntax)syntax);
             case SyntaxKind.TryStatement:
                 return BindTryStatement((TryStatementSyntax)syntax);
             case SyntaxKind.BreakStatement:
@@ -6361,6 +6358,21 @@ symIsHidden:;
             : BindPossibleEmbeddedStatement(node.elseClause.body, diagnostics);
 
         return new BoundIfStatement(node, condition, consequence, alternative);
+    }
+
+    private BoundWhileStatement BindWhileStatement(WhileStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var loopBinder = GetBinder(node);
+        return loopBinder.BindWhileParts(diagnostics, loopBinder);
+    }
+
+    private BoundDoWhileStatement BindDoWhileStatement(DoWhileStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var loopBinder = GetBinder(node);
+        return loopBinder.BindDoWhileParts(diagnostics, loopBinder);
+    }
+
+    private BoundForStatement BindForStatement(ForStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var loopBinder = GetBinder(node);
+        return loopBinder.BindForParts(diagnostics, loopBinder);
     }
 
     private BoundStatement BindLocalFunctionStatement(

@@ -205,17 +205,17 @@ internal static partial class StandardLibrary {
                 => { if (!System.Console.IsOutputRedirected) return System.Console.ReadLine(); return null; }) },
             { "Console_PrintLine", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
-            { "Console_PrintLine_S", new Func<object, object, object, object>((a, b, c)
+            { "Console_PrintLine_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
-            { "Console_PrintLine_A", new Func<object, object, object, object>((a, b, c)
+            { "Console_PrintLine_A?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
-            { "Console_PrintLine_O", new Func<object, object, object, object>((a, b, c)
+            { "Console_PrintLine_O?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
-            { "Console_Print_S", new Func<object, object, object, object>((a, b, c)
+            { "Console_Print_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-            { "Console_Print_A", new Func<object, object, object, object>((a, b, c)
+            { "Console_Print_A?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-            { "Console_Print_O", new Func<object, object, object, object>((a, b, c)
+            { "Console_Print_O?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
             { "Console_ResetColor", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
@@ -223,7 +223,7 @@ internal static partial class StandardLibrary {
                 => { if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)a; return null; }) },
             { "Console_SetBackgroundColor_I", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
-            { "Console_SetCursorPosition_II", new Func<object, object, object, object>((a, b, c)
+            { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition((int?)a ?? System.Console.CursorLeft, (int?)b ?? System.Console.CursorTop); } return null; }) },
             // { Directory.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
             //     => { System.IO.Directory.CreateDirectory((string)a); return null; }) },

@@ -136,6 +136,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         return VisitBlockStatement(
             Block(syntax,
+                statement.locals,
                 Label(syntax, continueLabel),
                 GotoIfNot(syntax,
                     @goto: breakLabel,
@@ -169,6 +170,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         return VisitBlockStatement(
             Block(syntax,
+                statement.locals,
                 Label(syntax, continueLabel),
                 statement.body,
                 GotoIf(syntax,
@@ -209,8 +211,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return Visit(
             _expander.Expand(
                 Block(syntax,
+                    statement.locals,
                     statement.initializer,
                     While(syntax,
+                        statement.innerLocals,
                         condition,
                         Block(syntax,
                             statement.body,

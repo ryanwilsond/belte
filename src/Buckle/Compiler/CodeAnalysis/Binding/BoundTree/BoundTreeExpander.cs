@@ -107,6 +107,7 @@ internal abstract class BoundTreeExpander {
         statements.Add(
             new BoundWhileStatement(
                 syntax,
+                statement.locals,
                 conditionReplacement,
                 Simplify(syntax, ExpandStatement(statement.body)),
                 statement.breakLabel,
@@ -152,6 +153,7 @@ internal abstract class BoundTreeExpander {
         statements.Add(
             new BoundDoWhileStatement(
                 syntax,
+                statement.locals,
                 conditionReplacement,
                 Simplify(syntax, ExpandStatement(statement.body)),
                 statement.breakLabel,

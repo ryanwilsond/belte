@@ -27,6 +27,13 @@ internal static partial class BoundFactory {
         return new BoundBlockStatement(syntax, ImmutableArray.Create(statements), [], []);
     }
 
+    internal static BoundBlockStatement Block(
+        SyntaxNode syntax,
+        ImmutableArray<DataContainerSymbol> locals,
+        params BoundStatement[] statements) {
+        return new BoundBlockStatement(syntax, ImmutableArray.Create(statements), locals, []);
+    }
+
     internal static BoundLabelStatement Label(SyntaxNode syntax, LabelSymbol label) {
         return new BoundLabelStatement(syntax, label);
     }
@@ -52,11 +59,12 @@ internal static partial class BoundFactory {
 
     internal static BoundWhileStatement While(
         SyntaxNode syntax,
+        ImmutableArray<DataContainerSymbol> locals,
         BoundExpression condition,
         BoundStatement body,
         SynthesizedLabelSymbol breakLabel,
         SynthesizedLabelSymbol continueLabel) {
-        return new BoundWhileStatement(syntax, condition, body, breakLabel, continueLabel);
+        return new BoundWhileStatement(syntax, locals, condition, body, breakLabel, continueLabel);
     }
 
     internal static BoundCallExpression Call(

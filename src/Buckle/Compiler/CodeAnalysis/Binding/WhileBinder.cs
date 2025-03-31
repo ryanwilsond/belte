@@ -19,22 +19,16 @@ internal sealed class WhileBinder : LoopBinder {
 
     internal override BoundWhileStatement BindWhileParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         var node = (WhileStatementSyntax)_syntax;
-
-        // var condition = originalBinder.BindBooleanExpression(node.Condition, diagnostics);
-        // var body = originalBinder.BindPossibleEmbeddedStatement(node.Statement, diagnostics);
-        // return new BoundWhileStatement(node, this.Locals, condition, body, this.BreakLabel, this.ContinueLabel);
-        // TODO
-        return null;
+        var condition = originalBinder.BindBooleanExpression(node.condition, diagnostics);
+        var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics); ;
+        return new BoundWhileStatement(node, locals, condition, body, breakLabel, continueLabel);
     }
 
     internal override BoundDoWhileStatement BindDoWhileParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         var node = (DoWhileStatementSyntax)_syntax;
-
-        // var condition = originalBinder.BindBooleanExpression(node.Condition, diagnostics);
-        // var body = originalBinder.BindPossibleEmbeddedStatement(node.Statement, diagnostics);
-        // return new BoundDoWhileStatement(node, this.Locals, condition, body, this.BreakLabel, this.ContinueLabel);
-        // TODO
-        return null;
+        var condition = originalBinder.BindBooleanExpression(node.condition, diagnostics);
+        var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
+        return new BoundDoWhileStatement(node, locals, condition, body, breakLabel, continueLabel);
     }
 
     internal override ImmutableArray<DataContainerSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
