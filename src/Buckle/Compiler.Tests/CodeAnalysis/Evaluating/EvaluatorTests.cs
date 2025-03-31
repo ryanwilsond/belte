@@ -257,22 +257,22 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { int[] a = {1, 2, null}; return a[0]; }", 1)]
     [InlineData("lowlevel { int[] a = {1, 2, null}; return a[2]; }", null)]
     // Member access expressions
-    // [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 3; return myVar.num + 1;", 4)]
-    // [InlineData("class A { public int num; } class B { public A a; } B myVar = new B(); myVar.a = new A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
-    // [InlineData("class A { public int a; public int b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.b;", 6)]
-    // [InlineData("class A { public int a; public int b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
-    // [InlineData("class A { public int num; } A myVar; int a = myVar?.num; return a;", null)]
-    // [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 7; int a = myVar?.num; return a;", 7)]
-    // // This expression
-    // [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; this.a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
-    // [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
-    // [InlineData("class A { public int M() { return 1; } public int N() { int M() { return 2; } return M(); } } var myVar = new A(); return myVar.N();", 2)]
-    // [InlineData("class A { public int M() { return 1; } public int N() { int M() { return 2; } return this.M(); } } var myVar = new A(); return myVar.N();", 1)]
-    // // Static member access
-    // [InlineData("class A { public constexpr int a = 3; } return A.a;", 3)]
-    // [InlineData("class A { public constexpr int a; } return A.a;", null)]
-    // [InlineData("class A { public static int B() { return 0; } } return A.B();", 0)]
-    // [InlineData("class A { public static int B(int a) { return a + 3; } } return A.B(4);", 7)]
+    [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 3; return myVar.num + 1;", 4)]
+    [InlineData("class A { public int num; } class B { public A a; } B myVar = new B(); myVar.a = new A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
+    [InlineData("class A { public int a; public int b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.b;", 6)]
+    [InlineData("class A { public int a; public int b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
+    [InlineData("class A { public int num; } A myVar; int a = myVar?.num; return a;", null)]
+    [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 7; int a = myVar?.num; return a;", 7)]
+    // This expression
+    [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; this.a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
+    [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
+    [InlineData("class A { public int M() { return 1; } public int N() { int M() { return 2; } return M(); } } var myVar = new A(); return myVar.N();", 2)]
+    [InlineData("class A { public int M() { return 1; } public int N() { int M() { return 2; } return this.M(); } } var myVar = new A(); return myVar.N();", 1)]
+    // Static member access
+    [InlineData("class A { public constexpr int a = 3; } return A.a;", 3)]
+    [InlineData("class A { public constexpr int a; } return A.a;", null)]
+    [InlineData("class A { public static int B() { return 0; } } return A.B();", 0)]
+    [InlineData("class A { public static int B(int a) { return a + 3; } } return A.B(4);", 7)]
     // If statements
     [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
@@ -290,10 +290,10 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 5; { a = 3; } return a;", 3)]
     [InlineData("int a = 5; { int b = 3 + a; return b; } return a;", 8)]
     // Constructors
-    // [InlineData("class A { public constructor() { } }", null)]
-    // [InlineData("class A { public int a; public constructor(int b) { a = b; } } var myVar = new A(6); return myVar.a;", 6)]
-    // [InlineData("class A { public int a; public constructor(int b) { a = b; } public constructor(int b, int c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
-    // [InlineData("class A { public int a; public constructor(int b) { a = b; } public constructor(int b, int c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
+    [InlineData("class A { public constructor() { } }", null)]
+    [InlineData("class A { public int a; public constructor(int b) { a = b; } } var myVar = new A(6); return myVar.a;", 6)]
+    [InlineData("class A { public int a; public constructor(int b) { a = b; } public constructor(int b, int c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
+    [InlineData("class A { public int a; public constructor(int b) { a = b; } public constructor(int b, int c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
     /*
     // For statements
     [InlineData("int result = 1; for (int i = 0; i <= 10; i++) { result += result; } return result;", 2048)]

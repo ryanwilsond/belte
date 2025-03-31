@@ -148,22 +148,8 @@ internal sealed partial class OverloadResolution {
         foreach (var constructor in constructors)
             AddConstructorToCandidateSet(constructor, results, arguments, completeResults);
 
-        // TODO
-        // if (!dynamicResolution) {
-        //     if (!isEarlyAttributeBinding) {
-        //         // If we're still decoding early attributes, we can get into a cycle here where we attempt to decode early attributes,
-        //         // which causes overload resolution, which causes us to attempt to decode early attributes, etc. Concretely, this means
-        //         // that OverloadResolutionPriorityAttribute won't affect early bound attributes, so you can't use OverloadResolutionPriorityAttribute
-        //         // to adjust what constructor of OverloadResolutionPriorityAttribute is chosen. See `CycleOnOverloadResolutionPriorityConstructor_02` for
-        //         // an example.
-        //         RemoveLowerPriorityMembers<MemberResolutionResult<MethodSymbol>, MethodSymbol>(results);
-        //     }
-
-        //     // The best method of the set of candidate methods is identified. If a single best
-        //     // method cannot be identified, the method invocation is ambiguous, and a binding-time
-        //     // error occurs.
-        //     RemoveWorseMembers(results, arguments);
-        // }
+        RemoveLowerPriorityMembers<MemberResolutionResult<MethodSymbol>, MethodSymbol>(results);
+        RemoveWorseMembers(results, arguments);
 
         return;
     }
@@ -173,24 +159,38 @@ internal sealed partial class OverloadResolution {
         ArrayBuilder<MemberResolutionResult<MethodSymbol>> results,
         AnalyzedArguments arguments,
         bool completeResults) {
-        // TODO
-        // var normalResult = IsConstructorApplicableInNormalForm(constructor, arguments, completeResults, ref useSiteInfo);
-        // var result = normalResult;
-        // if (!normalResult.IsValid) {
-        //     if (IsValidParams(_binder, constructor, disallowExpandedNonArrayParams: false, out TypeWithAnnotations definitionElementType)) {
-        //         var expandedResult = IsConstructorApplicableInExpandedForm(constructor, arguments, definitionElementType, completeResults, ref useSiteInfo);
-        //         if (expandedResult.IsValid || completeResults) {
-        //             result = expandedResult;
-        //         }
-        //     }
-        // }
+        var normalResult = IsConstructorApplicableInNormalForm(constructor, arguments, completeResults);
+        var result = normalResult;
 
-        // // If the constructor has a use site diagnostic, we don't want to discard it because we'll have to report the diagnostic later.
-        // if (result.IsValid || completeResults || result.HasUseSiteDiagnosticToReportFor(constructor)) {
-        //     results.Add(new MemberResolutionResult<MethodSymbol>(constructor, constructor, result, hasTypeArgumentInferredFromFunctionType: false));
-        // }
-        var result = MemberAnalysisResult.Applicable([], [], false);
-        results.Add(new MemberResolutionResult<MethodSymbol>(constructor, constructor, result, false));
+        if (result.isValid || completeResults)
+            results.Add(new MemberResolutionResult<MethodSymbol>(constructor, constructor, result, false));
+    }
+
+    private MemberAnalysisResult IsConstructorApplicableInNormalForm(
+        MethodSymbol constructor,
+        AnalyzedArguments arguments,
+        bool completeResults) {
+        var argumentAnalysis = AnalyzeArguments(constructor, arguments, isMethodGroupConversion: false, false);
+
+        if (!argumentAnalysis.isValid)
+            return MemberAnalysisResult.ArgumentParameterMismatch(argumentAnalysis);
+
+        var effectiveParameters = GetEffectiveParametersInNormalForm(
+            constructor,
+            arguments.arguments.Count,
+            argumentAnalysis.argsToParams,
+            arguments.refKinds,
+            hasAnyRefOmittedArgument: out _
+        );
+
+        return IsApplicable(
+            constructor,
+            effectiveParameters,
+            arguments,
+            argumentAnalysis.argsToParams,
+            hasAnyRefOmittedArgument: false,
+            completeResults: completeResults
+        );
     }
 
     private bool CandidateOperators(
@@ -1377,7 +1377,7 @@ internal sealed partial class OverloadResolution {
         }
 
         MemberAnalysisResult result;
-        var conversionsArray = conversions != null ? conversions.ToImmutableAndFree() : default;
+        var conversionsArray = conversions is not null ? conversions.ToImmutableAndFree() : default;
 
         if (!badArguments.isNull) {
             result = MemberAnalysisResult.BadArgumentConversions(

@@ -5672,6 +5672,9 @@ internal partial class Binder {
         LookupOptions options,
         Binder originalBinder,
         bool diagnose) {
+        // TODO Consider moving this line
+        type = type.StrippedType();
+
         switch (type.typeKind) {
             case TypeKind.TemplateParameter:
                 LookupMembersInTemplateParameter(
