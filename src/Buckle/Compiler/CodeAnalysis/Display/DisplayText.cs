@@ -291,6 +291,10 @@ public sealed class DisplayText {
         }
     }
 
+    internal static void DisplayConstant(DisplayText text, object value) {
+        DisplayLiteralExpressionCore(text, value);
+    }
+
     /// <summary>
     /// Formats a literal into a string representation.
     /// </summary>
