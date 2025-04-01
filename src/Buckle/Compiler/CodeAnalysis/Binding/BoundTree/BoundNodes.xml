@@ -215,8 +215,12 @@
   <Node Name="BoundErrorStatement" Base="BoundStatement">
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
   </Node>
-  <Node Name="BoundBreakStatement" Base="BoundStatement"/>
-  <Node Name="BoundContinueStatement" Base="BoundStatement"/>
+  <Node Name="BoundBreakStatement" Base="BoundStatement">
+    <Field Name="label" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundContinueStatement" Base="BoundStatement">
+    <Field Name="label" Type="SynthesizedLabelSymbol"/>
+  </Node>
   <Node Name="BoundBlockStatement" Base="BoundStatement">
     <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

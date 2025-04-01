@@ -229,6 +229,32 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
+    internal override BoundNode VisitBreakStatement(BoundBreakStatement statement) {
+        /*
+
+        break;
+
+        ---->
+
+        goto <label>
+
+        */
+        return Goto(statement.syntax, statement.label);
+    }
+
+    internal override BoundNode VisitContinueStatement(BoundContinueStatement statement) {
+        /*
+
+        continue;
+
+        ---->
+
+        goto <label>
+
+        */
+        return Goto(statement.syntax, statement.label);
+    }
+
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
         /*
 

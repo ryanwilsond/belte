@@ -279,8 +279,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_UnknownType, location, message);
     }
 
-    internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location, string text) {
-        var message = $"{text} statements can only be used within a loop";
+    internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location) {
+        var message = $"break and continue statements can only be used within a loop";
         return CreateError(DiagnosticCode.ERR_InvalidBreakOrContinue, location, message);
     }
 

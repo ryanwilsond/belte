@@ -1867,7 +1867,7 @@ internal partial class Binder {
 
     internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindValue(node, diagnostics, BindValueKind.RValue);
-        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolean = CorLibrary.GetNullableType(SpecialType.Bool);
 
         if (expression.hasErrors) {
             return new BoundCastExpression(
@@ -6299,14 +6299,9 @@ symIsHidden:;
             SyntaxKind.WhileStatement => BindWhileStatement((WhileStatementSyntax)node, diagnostics),
             SyntaxKind.DoWhileStatement => BindDoWhileStatement((DoWhileStatementSyntax)node, diagnostics),
             SyntaxKind.ForStatement => BindForStatement((ForStatementSyntax)node, diagnostics),
-            /*
-            case SyntaxKind.TryStatement:
-                return BindTryStatement((TryStatementSyntax)syntax);
-            case SyntaxKind.BreakStatement:
-                return BindBreakStatement((BreakStatementSyntax)syntax);
-            case SyntaxKind.ContinueStatement:
-                return BindContinueStatement((ContinueStatementSyntax)syntax);
-            */
+            SyntaxKind.BreakStatement => BindBreakStatement((BreakStatementSyntax)node, diagnostics),
+            SyntaxKind.ContinueStatement => BindContinueStatement((ContinueStatementSyntax)node, diagnostics),
+            // SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -6373,6 +6368,28 @@ symIsHidden:;
     private BoundForStatement BindForStatement(ForStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var loopBinder = GetBinder(node);
         return loopBinder.BindForParts(diagnostics, loopBinder);
+    }
+
+    private BoundStatement BindBreakStatement(BreakStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var target = breakLabel;
+
+        if (target is null) {
+            diagnostics.Push(Error.InvalidBreakOrContinue(node.location));
+            return new BoundErrorStatement(node, [], hasErrors: true);
+        }
+
+        return new BoundBreakStatement(node, target);
+    }
+
+    private BoundStatement BindContinueStatement(ContinueStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var target = continueLabel;
+
+        if (target is null) {
+            diagnostics.Push(Error.InvalidBreakOrContinue(node.location));
+            return new BoundErrorStatement(node, [], hasErrors: true);
+        }
+
+        return new BoundContinueStatement(node, target);
     }
 
     private BoundStatement BindLocalFunctionStatement(
