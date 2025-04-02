@@ -268,7 +268,6 @@ internal static class Error {
         var message = $"called object {(name is null ? "" : $"'{name}' ")}is not a method";
         return CreateError(DiagnosticCode.ERR_CannotCallNonMethod, location, message);
     }
-
     internal static BelteDiagnostic InvalidExpressionStatement(TextLocation location) {
         var message = "only assignment and call expressions can be used as a statement";
         return CreateError(DiagnosticCode.ERR_InvalidExpressionStatement, location, message);
@@ -440,9 +439,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
     }
 
-    internal static BelteDiagnostic CannotAssign(TextLocation location) {
-        var message = "left side of assignment operation must be a variable, field, or indexer";
-        return CreateError(DiagnosticCode.ERR_CannotAssign, location, message);
+    internal static BelteDiagnostic AssignableLValueExpected(TextLocation location) {
+        var message = "left side of assignment operation must be a variable, parameter, field, or indexer";
+        return CreateError(DiagnosticCode.ERR_AssignableLValueExpected, location, message);
     }
 
     internal static BelteDiagnostic CannotOverloadNested(TextLocation location, string name) {
@@ -1159,6 +1158,51 @@ internal static class Error {
     internal static BelteDiagnostic BadEmbeddedStatement(TextLocation location) {
         var message = $"embedded statement cannot be a declaration";
         return CreateError(DiagnosticCode.ERR_BadEmbeddedStatement, location, message);
+    }
+
+    internal static BelteDiagnostic IncrementableLValueExpected(TextLocation location) {
+        var message = "left side of increment or decrement operation must be a variable, parameter, field, or indexer";
+        return CreateError(DiagnosticCode.ERR_IncrementableLValueExpected, location, message);
+    }
+
+    internal static BelteDiagnostic RefLocalOrParameterExpected(TextLocation location) {
+        var message = "left side of ref assignment must be a ref variable, ref field, ref parameter, or ref indexer";
+        return CreateError(DiagnosticCode.ERR_RefLocalOrParameterExpected, location, message);
+    }
+
+    internal static BelteDiagnostic RefLValueExpected(TextLocation location) {
+        var message = "ref value must be an assignable variable, field, parameter, or indexer";
+        return CreateError(DiagnosticCode.ERR_RefLValueExpected, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnLValueExpected(TextLocation location) {
+        var message = "an expression cannot be used in this context because it may not be passed or returned by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnLValueExpected, location, message);
+    }
+
+    internal static BelteDiagnostic InternalError(TextLocation location) {
+        var message = "internal non-fatal compiler error";
+        return CreateError(DiagnosticCode.ERR_InternalError, location, message);
+    }
+
+    internal static BelteDiagnostic BadSKKnown(Symbol symbol, string kind1, string kind2) {
+        var message = $"'{symbol}' is a {kind1} but is used like a {kind2}";
+        return CreateError(DiagnosticCode.ERR_BadSKKnown, null, message);
+    }
+
+    internal static BelteDiagnostic BadSKKnown(TextLocation location, Symbol symbol, string kind1, string kind2) {
+        var message = $"'{symbol}' is a {kind1} but is used like a {kind2}";
+        return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
+    }
+
+    internal static BelteDiagnostic NonInvocableMemberCalled(Symbol symbol) {
+        var message = $"non-invocable member '{symbol}' cannot be used like a method";
+        return CreateError(DiagnosticCode.ERR_NonInvocableMemberCalled, null, message);
+    }
+
+    internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
+        var message = $"'{symbol}' is a {kind}, which is not valid in the given context";
+        return CreateError(DiagnosticCode.ERR_BadSKUnknown, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

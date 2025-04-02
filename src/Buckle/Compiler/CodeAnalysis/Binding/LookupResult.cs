@@ -43,9 +43,11 @@ internal sealed class LookupResult {
     }
 
     internal static SingleLookupResult NotTypeOrNamespace(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
-        // TODO what is this error?
-        // var diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_BadSKknown, unwrappedSymbol.Name, unwrappedSymbol.GetKindText(), MessageID.IDS_SK_TYPE.Localize()) : null;
-        return new SingleLookupResult(LookupResultKind.NotAType, symbol, null);
+        var error = diagnose
+            ? Error.BadSKKnown(unwrappedSymbol, unwrappedSymbol.kind.Localize(), MessageID.IDS_SK_TYPE.Localize())
+            : null;
+
+        return new SingleLookupResult(LookupResultKind.NotAType, symbol, error);
     }
 
     internal static SingleLookupResult StaticInstanceMismatch(Symbol symbol, BelteDiagnostic error) {
@@ -57,8 +59,8 @@ internal sealed class LookupResult {
     }
 
     internal static SingleLookupResult NotInvocable(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
-        // var diagInfo = diagnose ? new CSDiagnosticInfo(ErrorCode.ERR_NonInvocableMemberCalled, unwrappedSymbol) : null;
-        return new SingleLookupResult(LookupResultKind.NotInvocable, symbol, /*diagInfo*/ null);
+        var error = diagnose ? Error.NonInvocableMemberCalled(unwrappedSymbol) : null;
+        return new SingleLookupResult(LookupResultKind.NotInvocable, symbol, error);
     }
 
     internal void Clear() {

@@ -70,7 +70,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotIncrement = 59,
     ERR_InvalidTernaryOperatorUse = 60,
     ERR_NoSuchMember = 61,
-    ERR_CannotAssign = 62,
+    ERR_AssignableLValueExpected = 62,
     ERR_CannotOverloadNested = 63,
     ERR_ConstantToNonConstantReference = 64,
     ERR_InvalidPrefixUse = 65,
@@ -208,6 +208,14 @@ public enum DiagnosticCode : ushort {
     ERR_NamedArgumentUsedInPositional = 197,
     WRN_PossibleMistakenEmptyStatement = 198,
     ERR_BadEmbeddedStatement = 199,
+    ERR_IncrementableLValueExpected = 200,
+    ERR_RefLocalOrParameterExpected = 201,
+    ERR_RefLValueExpected = 202,
+    ERR_RefReturnLValueExpected = 203,
+    ERR_InternalError = 204,
+    ERR_BadSKKnown = 205,
+    ERR_NonInvocableMemberCalled = 206,
+    ERR_BadSKUnknown = 207,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

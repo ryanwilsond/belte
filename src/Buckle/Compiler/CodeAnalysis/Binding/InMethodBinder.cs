@@ -131,8 +131,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
             }
         }
 
-        // diagnostics.Add(ErrorCode.ERR_InternalError, newLocation);
-        // TODO what is this error?
+        diagnostics.Push(Error.InternalError(newLocation));
         return true;
     }
 

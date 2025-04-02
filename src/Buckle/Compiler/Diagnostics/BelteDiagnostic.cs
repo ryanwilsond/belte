@@ -65,6 +65,13 @@ public sealed class BelteDiagnostic : Diagnostic {
         : this(diagnostic.info, null, diagnostic.message, diagnostic.suggestions) { }
 
     /// <summary>
+    /// Creates a <see cref="BelteDiagnostic" /> from an existing <see cref="BelteDiagnostic" /> (copies).
+    /// </summary>
+    /// <param name="diagnostic"><see cref="BelteDiagnostic" /> to copy (soft copy).</param>
+    public BelteDiagnostic(Diagnostic diagnostic, TextLocation location)
+        : this(diagnostic.info, location, diagnostic.message, diagnostic.suggestions) { }
+
+    /// <summary>
     /// Where the <see cref="BelteDiagnostic" /> is in the source code (what code produced the
     /// <see cref="BelteDiagnostic" />).
     /// </summary>

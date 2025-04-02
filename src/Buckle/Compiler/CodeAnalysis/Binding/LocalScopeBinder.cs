@@ -333,8 +333,7 @@ internal class LocalScopeBinder : Binder {
                 return true;
         }
 
-        // diagnostics.Add(ErrorCode.ERR_InternalError, newLocation);
-        // TODO what is this error?
+        diagnostics.Push(Error.InternalError(newLocation));
         return false;
     }
 
