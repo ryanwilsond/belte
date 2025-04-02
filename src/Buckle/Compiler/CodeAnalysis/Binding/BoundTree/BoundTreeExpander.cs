@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;

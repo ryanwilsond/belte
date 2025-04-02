@@ -132,7 +132,7 @@
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundFieldAccessExpression" Base="BoundExpression">
-    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="field" Type="FieldSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
