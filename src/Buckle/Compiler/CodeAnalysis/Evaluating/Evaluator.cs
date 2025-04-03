@@ -446,6 +446,7 @@ internal sealed class Evaluator {
             BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
+            BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)expression, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -457,6 +458,10 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateMethodGroup(BoundMethodGroup methodGroup, ValueWrapper<bool> _) {
+        return new EvaluatorObject(methodGroup, methodGroup.type);
     }
 
     private EvaluatorObject EvaluateInitializerList(BoundInitializerList node, ValueWrapper<bool> abort) {

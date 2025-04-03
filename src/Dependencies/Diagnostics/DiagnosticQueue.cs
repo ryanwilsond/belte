@@ -78,7 +78,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (diagnostic is not null)
             _diagnostics.Add(diagnostic);
 
-        return diagnostic.info;
+        return diagnostic?.info;
     }
 
     /// <summary>

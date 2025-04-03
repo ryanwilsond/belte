@@ -12,6 +12,7 @@ internal sealed partial class LocalFunctionRewriter {
     private sealed class ScopeTreeBuilder : BoundTreeWalkerWithStackGuardWithoutRecursionOnLeftOfBinaryOperator {
         private readonly Dictionary<Symbol, Scope> _localToScope = [];
         private readonly MethodSymbol _topLevelMethod;
+        private readonly CompilationOptions _options;
 
         private readonly PooledDictionary<LabelSymbol, ArrayBuilder<Scope>> _scopesAfterLabel
             = PooledDictionary<LabelSymbol, ArrayBuilder<Scope>>.GetInstance();
@@ -22,15 +23,16 @@ internal sealed partial class LocalFunctionRewriter {
         private NestedFunction _currentFunction;
         private bool _inExpressionTree;
 
-        private ScopeTreeBuilder(Scope rootScope, MethodSymbol topLevelMethod) {
+        private ScopeTreeBuilder(Scope rootScope, MethodSymbol topLevelMethod, CompilationOptions options) {
             _currentScope = rootScope;
             _labelsInScope.Push(ArrayBuilder<LabelSymbol>.GetInstance());
             _topLevelMethod = topLevelMethod;
+            _options = options;
         }
 
-        internal static Scope Build(BoundNode node, MethodSymbol topLevelMethod) {
+        internal static Scope Build(BoundNode node, MethodSymbol topLevelMethod, CompilationOptions options) {
             var rootScope = new Scope(parent: null, boundNode: node, containingFunction: null);
-            var builder = new ScopeTreeBuilder(rootScope, topLevelMethod);
+            var builder = new ScopeTreeBuilder(rootScope, topLevelMethod, options);
             builder.Build();
             return rootScope;
         }
@@ -48,8 +50,12 @@ internal sealed partial class LocalFunctionRewriter {
             _labelsInScope.Free();
         }
 
-        internal override BoundNode VisitMethodGroup(BoundMethodGroup node)
-            => throw ExceptionUtilities.Unreachable();
+        internal override BoundNode VisitMethodGroup(BoundMethodGroup node) {
+            if (_options.isScript)
+                return base.VisitMethodGroup(node);
+
+            throw ExceptionUtilities.Unreachable();
+        }
 
         internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
             var oldScope = _currentScope;

@@ -77,6 +77,13 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// </summary>
     public TextLocation location { get; }
 
+    public static BelteDiagnostic AddLocation(Diagnostic diagnostic, TextLocation location) {
+        if (diagnostic is null)
+            return null;
+
+        return new BelteDiagnostic(diagnostic, location);
+    }
+
     public override string ToString() {
         return DiagnosticFormatter.Format(this);
     }

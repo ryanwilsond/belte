@@ -1063,6 +1063,10 @@ internal partial class Binder {
         return !RequiresRValueOnly(kind);
     }
 
+    private static bool RequiresRefOrOut(BindValueKind kind) {
+        return (kind & BindValueKind.RefOrOut) == BindValueKind.RefOrOut;
+    }
+
     private static BelteDiagnostic GetStandardLValueError(BindValueKind kind, TextLocation location) {
         switch (kind) {
             case BindValueKind.CompoundAssignment:
@@ -1073,6 +1077,30 @@ internal partial class Binder {
             case BindValueKind.RefReturn:
             case BindValueKind.RefConst:
                 return Error.RefReturnLValueExpected(location);
+            case BindValueKind.RefAssignable:
+                return Error.RefLocalOrParameterExpected(location);
+        }
+
+        if (RequiresReferenceToLocation(kind))
+            return Error.RefLValueExpected(location);
+
+        throw ExceptionUtilities.UnexpectedValue(kind);
+    }
+
+    private static BelteDiagnostic GetThisLValueError(BindValueKind kind, bool isValueType, TextLocation location) {
+        switch (kind) {
+            case BindValueKind.CompoundAssignment:
+            case BindValueKind.Assignable:
+                return Error.ConstantAssignmentThis(location);
+            case BindValueKind.RefOrOut:
+                return Error.RefConstThis(location);
+            case BindValueKind.IncrementDecrement:
+                return isValueType
+                    ? Error.ConstantAssignmentThis(location)
+                    : Error.IncrementableLValueExpected(location);
+            case BindValueKind.RefReturn:
+            case BindValueKind.RefConst:
+                return Error.RefReturnThis(location);
             case BindValueKind.RefAssignable:
                 return Error.RefLocalOrParameterExpected(location);
         }
@@ -1113,9 +1141,15 @@ internal partial class Binder {
 
                 return false;
             case BoundKind.MethodGroup:
-                // method groups can only be used as RValues except when taking the address of one
                 var methodGroup = (BoundMethodGroup)expression;
-                Error(diagnostics, GetMethodGroupOrFunctionPointerLvalueError(valueKind), node, methodGroup.Name, MessageID.IDS_MethodGroup.Localize());
+
+                diagnostics.Push(GetMethodGroupLValueError(
+                    valueKind,
+                    node.location,
+                    methodGroup.name,
+                    MessageID.IDS_MethodGroup.Localize()
+                ));
+
                 return false;
             case BoundKind.CastExpression:
                 break;
@@ -1131,12 +1165,13 @@ internal partial class Binder {
                     return false;
                 }
 
-                // TODO Do we need this error?
-                // var isValueType = ((BoundThisExpression)expression).type.isPrimitiveType;
-                // if (!isValueType || (RequiresAssignableVariable(valueKind) && (this.ContainingMemberOrLambda as MethodSymbol)?.IsEffectivelyReadOnly == true)) {
-                //     ReportThisLvalueError(node, valueKind, isValueType, isPrimaryConstructorParameter: false, diagnostics);
-                //     return false;
-                // }
+                var isValueType = ((BoundThisExpression)expression).type.isPrimitiveType;
+
+                if (!isValueType || (RequiresAssignableVariable(valueKind) &&
+                    containingMember is MethodSymbol { isEffectivelyConst: true })) {
+                    ReportThisLValueError(node, valueKind, isValueType, diagnostics);
+                    return false;
+                }
 
                 return true;
             case BoundKind.CallExpression:
@@ -1186,37 +1221,64 @@ internal partial class Binder {
         return false;
     }
 
+    private static BelteDiagnostic GetMethodGroupLValueError(
+        BindValueKind valueKind,
+        TextLocation location,
+        string name,
+        string kind) {
+        if (RequiresReferenceToLocation(valueKind))
+            return Error.RefConstantLocalCause(location, name, kind);
+
+        return Error.AssignmentConstantLocalCause(location, name, kind);
+    }
+
+    private bool CheckParameterValueKind(
+        SyntaxNode node,
+        BoundParameterExpression parameter,
+        BindValueKind valueKind,
+        bool checkingReceiver,
+        BelteDiagnosticQueue diagnostics) {
+        var parameterSymbol = parameter.parameter;
+
+        if (parameterSymbol.refKind is RefKind.RefConst && RequiresAssignableVariable(valueKind)) {
+            ReportConstantError(parameterSymbol, node, valueKind, checkingReceiver, diagnostics);
+            return false;
+        } else if (parameterSymbol.refKind == RefKind.None && RequiresRefAssignableVariable(valueKind)) {
+            diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void ReportThisLValueError(
+        SyntaxNode node,
+        BindValueKind valueKind,
+        bool isValueType,
+        BelteDiagnosticQueue diagnostics) {
+        diagnostics.Push(GetThisLValueError(valueKind, isValueType, node.location));
+    }
+
     private bool CheckLocalValueKind(
         SyntaxNode node,
         BoundDataContainerExpression local,
         BindValueKind valueKind,
         bool checkingReceiver,
         BelteDiagnosticQueue diagnostics) {
-        CheckAddressOfInAsyncOrIteratorMethod(node, valueKind, diagnostics);
+        var localSymbol = local.dataContainer;
 
-        // Local constants are never variables. Local variables are sometimes
-        // not to be treated as variables, if they are fixed, declared in a using,
-        // or declared in a foreach.
-
-        LocalSymbol localSymbol = local.LocalSymbol;
         if (RequiresAssignableVariable(valueKind)) {
-            if (this.LockedOrDisposedVariables.Contains(localSymbol)) {
-                diagnostics.Add(ErrorCode.WRN_AssignmentToLockOrDispose, local.Syntax.Location, localSymbol);
-            }
-
-            // IsWritable means the variable is writable. If this is a ref variable, IsWritable
-            // does not imply anything about the storage location
-            if (localSymbol.RefKind == RefKind.RefReadOnly ||
-                (localSymbol.RefKind == RefKind.None && !localSymbol.IsWritableVariable)) {
-                ReportReadonlyLocalError(node, localSymbol, valueKind, checkingReceiver, diagnostics);
+            if (localSymbol.refKind == RefKind.RefConst ||
+                (localSymbol.refKind == RefKind.None && !localSymbol.isWritableVariable)) {
+                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
                 return false;
             }
         } else if (RequiresRefAssignableVariable(valueKind)) {
-            if (localSymbol.RefKind == RefKind.None) {
-                diagnostics.Add(ErrorCode.ERR_RefLocalOrParamExpected, node.Location);
+            if (localSymbol.refKind == RefKind.None) {
+                diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
                 return false;
-            } else if (!localSymbol.IsWritableVariable) {
-                ReportReadonlyLocalError(node, localSymbol, valueKind, checkingReceiver, diagnostics);
+            } else if (!localSymbol.isWritableVariable) {
+                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
                 return false;
             }
         }
@@ -1226,26 +1288,22 @@ internal partial class Binder {
 
     private protected bool CheckMethodReturnValueKind(
         MethodSymbol methodSymbol,
-        SyntaxNode callSyntaxOpt,
+        SyntaxNode callSyntax,
         SyntaxNode node,
         BindValueKind valueKind,
         bool checkingReceiver,
         BelteDiagnosticQueue diagnostics) {
         if (RequiresVariable(valueKind) && methodSymbol.refKind == RefKind.None) {
-            if (checkingReceiver) {
-                // TODO error
-                // Error is associated with expression, not node which may be distinct.
-                // Error(diagnostics, ErrorCode.ERR_ReturnNotLValue, callSyntaxOpt, methodSymbol);
-            } else {
+            if (checkingReceiver)
+                diagnostics.Push(Error.ReturnNotLValue(callSyntax.location, methodSymbol));
+            else
                 diagnostics.Push(GetStandardLValueError(valueKind, node.location));
-            }
 
             return false;
         }
 
         if (RequiresAssignableVariable(valueKind) && methodSymbol.refKind == RefKind.RefConst) {
-            // TODO error
-            // ReportReadOnlyError(methodSymbol, node, valueKind, checkingReceiver, diagnostics);
+            ReportConstantError(methodSymbol, node, valueKind, checkingReceiver, diagnostics);
             return false;
         }
 
@@ -1255,7 +1313,52 @@ internal partial class Binder {
         }
 
         return true;
+    }
 
+    private static void ReportConstantError(
+        Symbol symbol,
+        SyntaxNode node,
+        BindValueKind kind,
+        bool checkingReceiver,
+        BelteDiagnosticQueue diagnostics) {
+        var symbolKind = symbol.kind.Localize();
+        var index = (checkingReceiver ? 3 : 0) +
+            (kind == BindValueKind.RefReturn ? 0 : (RequiresRefOrOut(kind) ? 1 : 2));
+
+        diagnostics.Push(index switch {
+            0 => Error.RefReturnConstNotField(node.location, symbolKind, symbol),
+            1 => Error.RefConstNotField(node.location, symbolKind, symbol),
+            2 => Error.ConstantAssignmentNotField(node.location, symbolKind, symbol),
+            3 => Error.RefReturnConstNotField2(node.location, symbolKind, symbol),
+            4 => Error.RefConstNotField2(node.location, symbolKind, symbol),
+            5 => Error.ConstantAssignmentNotField2(node.location, symbolKind, symbol),
+        });
+    }
+
+    private static void ReportConstantFieldError(
+        FieldSymbol field,
+        SyntaxNode node,
+        BindValueKind kind,
+        bool checkingReceiver,
+        BelteDiagnosticQueue diagnostics) {
+        var index = (checkingReceiver ? 6 : 0) +
+            (field.isStatic ? 3 : 0) +
+            (kind == BindValueKind.RefReturn ? 0 : (RequiresRefOrOut(kind) ? 1 : 2));
+
+        diagnostics.Push(index switch {
+            0 => Error.RefReturnConstant(node.location),
+            1 => Error.RefConstant(node.location),
+            2 => Error.AssignmentConstantField(node.location),
+            3 => Error.RefReturnConstantStatic(node.location),
+            4 => Error.RefConstantStatic(node.location),
+            5 => Error.AssignmentConstantStatic(node.location),
+            6 => Error.RefReturnConstant2(node.location, field),
+            7 => Error.RefConstant2(node.location, field),
+            8 => Error.AssignmentConstantField2(node.location, field),
+            9 => Error.RefReturnConstantStatic2(node.location, field),
+            10 => Error.RefConstantStatic2(node.location, field),
+            11 => Error.AssignmentConstantStatic2(node.location, field),
+        });
     }
 
     private bool CheckSimpleAssignmentValueKind(
@@ -1283,8 +1386,7 @@ internal partial class Binder {
                 ? RequiresAssignableVariable(valueKind)
                 : RequiresRefAssignableVariable(valueKind)) &&
                 !CanModifyReadonlyField(fieldAccess.receiver is BoundThisExpression, fieldSymbol)) {
-                // TODO error
-                // ReportReadOnlyFieldError(fieldSymbol, node, valueKind, checkingReceiver, diagnostics);
+                ReportConstantFieldError(fieldSymbol, node, valueKind, checkingReceiver, diagnostics);
                 return false;
             }
         }
@@ -1296,8 +1398,7 @@ internal partial class Binder {
                 case RefKind.Ref:
                     return true;
                 case RefKind.RefConst:
-                    // TODO Error
-                    // ReportReadOnlyError(fieldSymbol, node, valueKind, checkingReceiver, diagnostics);
+                    ReportConstantError(fieldSymbol, node, valueKind, checkingReceiver, diagnostics);
                     return false;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(fieldSymbol.refKind);
@@ -1311,9 +1412,12 @@ internal partial class Binder {
                     return false;
                 case RefKind.Ref:
                 case RefKind.RefConst:
-                    // TODO error
-                    // return CheckIsValidReceiverForVariable(node, fieldAccess.ReceiverOpt, BindValueKind.Assignable, diagnostics);
-                    return true;
+                    return CheckIsValidReceiverForVariable(
+                        node,
+                        fieldAccess.receiver,
+                        BindValueKind.Assignable,
+                        diagnostics
+                    );
                 default:
                     throw ExceptionUtilities.UnexpectedValue(fieldSymbol.refKind);
             }
@@ -1331,13 +1435,18 @@ internal partial class Binder {
             }
         }
 
-        // TODO is `.isObjectType` a valid replacement for `.isReferenceType`?
         if (fieldSymbol.isStatic || fieldSymbol.containingType.isObjectType)
             return true;
 
-        // TODO error
-        // return CheckIsValidReceiverForVariable(node, fieldAccess.ReceiverOpt, valueKind, diagnostics);
-        return true;
+        return CheckIsValidReceiverForVariable(node, fieldAccess.receiver, valueKind, diagnostics);
+    }
+
+    private bool CheckIsValidReceiverForVariable(
+        SyntaxNode node,
+        BoundExpression receiver,
+        BindValueKind kind,
+        BelteDiagnosticQueue diagnostics) {
+        return CheckValueKind(node, receiver, kind, true, diagnostics);
     }
 
     private bool CanModifyReadonlyField(bool receiverIsThis, FieldSymbol fieldSymbol) {
@@ -1694,8 +1803,8 @@ internal partial class Binder {
         var type = typeWithAnnotations.type.StrippedType();
         var originalType = type;
 
-        // TODO what is this error
-        // if (typeWithAnnotations.NullableAnnotation.IsAnnotated() && !type.IsNullableType()) {
+        // TODO Not applicable. Do we want to add the reverse of this?
+        // if (typeWithAnnotations.isNullable && !type.IsNullableType()) {
         //     diagnostics.Add(ErrorCode.ERR_AnnotationDisallowedInObjectCreation, node.Location);
         // }
 
@@ -2229,7 +2338,7 @@ internal partial class Binder {
             expression = ErrorExpression(node);
 
             if (lookupResult.error is not null)
-                diagnostics.Push(new BelteDiagnostic(lookupResult.error, node.location));
+                diagnostics.Push(BelteDiagnostic.AddLocation(lookupResult.error, node.location));
             else
                 diagnostics.Push(Error.UndefinedSymbol(node.location, name));
         }
@@ -2277,7 +2386,7 @@ internal partial class Binder {
                     members.SelectAsArray(s => (MethodSymbol)s),
                     templateArguments,
                     lookupResult.singleSymbolOrDefault,
-                    new BelteDiagnostic(lookupResult.error, syntax.location),
+                    BelteDiagnostic.AddLocation(lookupResult.error, syntax.location),
                     methodGroupFlags,
                     receiver,
                     lookupResult.kind,
@@ -2719,7 +2828,7 @@ internal partial class Binder {
                 methods,
                 [],
                 methods.Length == 1 ? methods[0] : null,
-                new BelteDiagnostic(lookupError, node.location),
+                BelteDiagnostic.AddLocation(lookupError, node.location),
                 BoundMethodGroupFlags.None,
                 boundLeft,
                 lookupKind,
@@ -2763,7 +2872,7 @@ internal partial class Binder {
             return;
 
         if (lookupError is not null) {
-            diagnostics.Push(new BelteDiagnostic(lookupError, node.location));
+            diagnostics.Push(BelteDiagnostic.AddLocation(lookupError, node.location));
         } else {
             if (boundLeft.type is null)
                 diagnostics.Push(Error.NoSuchMember(name.location, boundLeft, plainName));
@@ -4612,16 +4721,7 @@ internal partial class Binder {
         if (node.operatorToken.kind == SyntaxKind.MinusToken && current.kind == SyntaxKind.ParenthesizedExpression) {
             if (result.kind == BoundKind.TypeExpression
                 && !(((ParenthesisExpressionSyntax)current).expression.kind == SyntaxKind.ParenthesizedExpression)) {
-                // TODO what is this error
-                // Error(diagnostics, ErrorCode.ERR_PossibleBadNegCast, node);
-            } else if (result.kind == BoundKind.ErrorExpression) {
-                var parenthesizedExpression = (ParenthesisExpressionSyntax)current;
-
-                if (parenthesizedExpression.expression.kind == SyntaxKind.IdentifierName
-                    && ((IdentifierNameSyntax)parenthesizedExpression.expression).identifier.text == "dynamic") {
-                    // TODO what is this error
-                    // Error(diagnostics, ErrorCode.ERR_PossibleBadNegCast, node);
-                }
+                diagnostics.Push(Error.PossibleBadNegativeCast(node.location));
             }
         }
 
@@ -6365,7 +6465,7 @@ symIsHidden:;
             if (!diagnose)
                 error = null;
             else if (inaccessibleViaQualifier)
-                error = Error.InvalidProtectedAccess(symbol.location, accessThroughType, containingType);
+                error = Error.InvalidProtectedAccess(symbol.location, symbol, accessThroughType, containingType);
             else
                 error = Error.MemberIsInaccessible(symbol.location, symbol);
 

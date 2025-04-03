@@ -36,7 +36,7 @@ internal sealed partial class LocalFunctionRewriter {
             MethodSymbol method,
             int topLevelMethodOrdinal,
             TypeCompilationState compilationState) {
-            var scopeTree = ScopeTreeBuilder.Build(loweredBody, method);
+            var scopeTree = ScopeTreeBuilder.Build(loweredBody, method, compilationState.compilation.options);
             var analysis = new Analysis(scopeTree, method, topLevelMethodOrdinal, compilationState);
 
             analysis.MakeAndAssignEnvironments();

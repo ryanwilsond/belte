@@ -13,4 +13,6 @@ internal enum MessageID : ushort {
     IDS_SK_LABEL = 7,
     IDS_SK_CONSTRUCTOR = 8,
     IDS_SK_ARRAY = 9,
+
+    IDS_MethodGroup = 10,
 }

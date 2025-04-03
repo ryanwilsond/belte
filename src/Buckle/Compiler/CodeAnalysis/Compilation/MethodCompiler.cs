@@ -344,8 +344,8 @@ internal sealed class MethodCompiler {
                 if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e) {
                     var expression = e.expression;
 
-                    if (expression.type?.IsVoidType() == false)
-                        boundStatement = new BoundReturnStatement(syntax, RefKind.None, e.expression);
+                    if (expression is BoundMethodGroup || expression.type?.IsVoidType() == false)
+                        boundStatement = new BoundReturnStatement(syntax, RefKind.None, expression);
                 }
 
                 bodyBuilder.Add(boundStatement);

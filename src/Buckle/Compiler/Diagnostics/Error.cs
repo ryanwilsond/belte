@@ -195,14 +195,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_VariableAlreadyDeclared, location, message);
     }
 
-    internal static BelteDiagnostic ConstantAssignment(TextLocation location, string name, bool isConstantReference) {
-        var constantWord = isConstantReference ? "constant reference" : "constant";
-        var constantPhrase = isConstantReference ? "with a reference " : "";
-        var message = $"'{name}' cannot be assigned to {constantPhrase}as it is a {constantWord}";
-
-        if (name is null)
-            message = "cannot assign to a constant";
-
+    internal static BelteDiagnostic ConstantAssignment(TextLocation location, Symbol symbol) {
+        var message = $"cannot assign to '{symbol}' because it is constant";
         return CreateError(DiagnosticCode.ERR_ConstantAssignment, location, message);
     }
 
@@ -1029,9 +1023,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_AmbiguousMember, location, message);
     }
 
-    internal static BelteDiagnostic InvalidProtectedAccess(TextLocation location, Symbol throughType, Symbol containingType) {
-        // TODO what should this message be
-        var message = $"";
+    internal static BelteDiagnostic InvalidProtectedAccess(TextLocation location, Symbol symbol, Symbol throughType, Symbol containingType) {
+        var message = $"cannot access protected member '{symbol}' via a qualifier of type '{throughType}'; the qualifier must be of type '{containingType}' (or derive from it)";
         return CreateError(DiagnosticCode.ERR_InvalidProtectedAccess, location, message);
     }
 
@@ -1203,6 +1196,130 @@ internal static class Error {
     internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
         var message = $"'{symbol}' is a {kind}, which is not valid in the given context";
         return CreateError(DiagnosticCode.ERR_BadSKUnknown, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstThis(TextLocation location) {
+        var message = "cannot use 'this' as a ref value because it is constant";
+        return CreateError(DiagnosticCode.ERR_RefConstLocal, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnThis(TextLocation location) {
+        var message = "cannot return 'this' by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnThis, location, message);
+    }
+
+    internal static BelteDiagnostic ConstantAssignmentThis(TextLocation location) {
+        var message = "cannot assign to 'this' because it is constant";
+        return CreateError(DiagnosticCode.ERR_ConstantAssignmentThis, location, message);
+    }
+
+    internal static BelteDiagnostic ReturnNotLValue(TextLocation location, MethodSymbol symbol) {
+        var message = $"cannot modify the return value of '{symbol}' because it is not variable";
+        return CreateError(DiagnosticCode.ERR_ReturnNotLValue, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnConstNotField(TextLocation location, string kind, Symbol symbol) {
+        var message = $"cannot return {kind} '{symbol}' by writable reference because it is constant";
+        return CreateError(DiagnosticCode.ERR_RefReturnConstNotField, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnConstNotField2(TextLocation location, string kind, Symbol symbol) {
+        var message = $"members of {kind} '{symbol}' cannot be returned by writable reference because it is constant";
+        return CreateError(DiagnosticCode.ERR_RefReturnConstNotField2, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstNotField(TextLocation location, string kind, Symbol symbol) {
+        var message = $"cannot use {kind} '{symbol}' as a ref value because it is constant";
+        return CreateError(DiagnosticCode.ERR_RefConstNotField, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstNotField2(TextLocation location, string kind, Symbol symbol) {
+        var message = $"members of {kind} '{symbol}' cannot be used as a ref value because it is constant";
+        return CreateError(DiagnosticCode.ERR_RefConstNotField2, location, message);
+    }
+
+    internal static BelteDiagnostic ConstantAssignmentNotField(TextLocation location, string kind, Symbol symbol) {
+        var message = $"cannot assign to {kind} '{symbol}' or use it as the right hand side of a ref assignment because it is constant";
+        return CreateError(DiagnosticCode.ERR_ConstantAssignmentNotField, location, message);
+    }
+
+    internal static BelteDiagnostic ConstantAssignmentNotField2(TextLocation location, string kind, Symbol symbol) {
+        var message = $"cannot assign to a member of {kind} '{symbol}' or use it as the right hand side of a ref assignment because it is constant";
+        return CreateError(DiagnosticCode.ERR_ConstantAssignmentNotField2, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnConstant(TextLocation location) {
+        var message = "a constant field cannot be returned by writable reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnConstant, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstant(TextLocation location) {
+        var message = "a constant field cannot be used as a ref value (except in a constructor)";
+        return CreateError(DiagnosticCode.ERR_RefConstant, location, message);
+    }
+
+    internal static BelteDiagnostic AssignmentConstantField(TextLocation location) {
+        var message = "a constant field cannot be assigned to (except in a constructor)";
+        return CreateError(DiagnosticCode.ERR_AssignmentConstantField, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnConstantStatic(TextLocation location) {
+        var message = "a static constant field cannot be returned by writable reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnConstantStatic, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstantStatic(TextLocation location) {
+        var message = "a static constant field cannot be used as a ref value";
+        return CreateError(DiagnosticCode.ERR_RefConstantStatic, location, message);
+    }
+
+    internal static BelteDiagnostic AssignmentConstantStatic(TextLocation location) {
+        var message = "a static constant field cannot be assigned to";
+        return CreateError(DiagnosticCode.ERR_AssignmentConstantStatic, location, message);
+    }
+    internal static BelteDiagnostic RefReturnConstant2(TextLocation location, Symbol field) {
+        var message = $"members of constant field '{field}' cannot be returned by writable reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnConstant2, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstant2(TextLocation location, Symbol field) {
+        var message = $"members of constant field '{field}' cannot be used as a ref value (except in a constructor)";
+        return CreateError(DiagnosticCode.ERR_RefConstant2, location, message);
+    }
+
+    internal static BelteDiagnostic AssignmentConstantField2(TextLocation location, Symbol field) {
+        var message = $"members of constant field '{field}' cannot be modified (except in a constructor)";
+        return CreateError(DiagnosticCode.ERR_AssignmentConstantField2, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnConstantStatic2(TextLocation location, Symbol field) {
+        var message = $"fields of static constant field '{field}' cannot be returned by writable reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnConstantStatic2, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstantStatic2(TextLocation location, Symbol field) {
+        var message = $"fields of static constant field '{field}' cannot be used as a ref value";
+        return CreateError(DiagnosticCode.ERR_RefConstantStatic2, location, message);
+    }
+
+    internal static BelteDiagnostic AssignmentConstantStatic2(TextLocation location, Symbol field) {
+        var message = $"fields of static constant field '{field}' cannot be assigned to";
+        return CreateError(DiagnosticCode.ERR_AssignmentConstantStatic2, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstantLocalCause(TextLocation location, string name, string kind) {
+        var message = $"cannot use '{name}' as a ref value because it is a {kind}";
+        return CreateError(DiagnosticCode.ERR_RefConstantLocalCause, location, message);
+    }
+
+    internal static BelteDiagnostic AssignmentConstantLocalCause(TextLocation location, string name, string kind) {
+        var message = $"cannot assign to '{name}' because it is a {kind}";
+        return CreateError(DiagnosticCode.ERR_AssignmentConstantLocalCause, location, message);
+    }
+
+    internal static BelteDiagnostic PossibleBadNegativeCast(TextLocation location) {
+        var message = $"to cast a negative value it must be enclosed in parentheses";
+        return CreateError(DiagnosticCode.ERR_PossibleBadNegativeCast, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
