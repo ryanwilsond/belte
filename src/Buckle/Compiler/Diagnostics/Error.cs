@@ -1322,6 +1322,61 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_PossibleBadNegativeCast, location, message);
     }
 
+    internal static BelteDiagnostic RefReturnMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
+        var message = $"the return expression must be of type '{type}' because this method returns by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnMustHaveIdentityConversion, location, message);
+    }
+
+    internal static BelteDiagnostic RefAssignmentMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
+        var message = $"ehe expression must be of type '{type}' because it is being assigned by reference";
+        return CreateError(DiagnosticCode.ERR_RefAssignmentMustHaveIdentityConversion, location, message);
+    }
+
+    internal static BelteDiagnostic LocalSameNameAsTemplate(TextLocation location, string name) {
+        var message = $"'{name}': a parameter, local, or local function cannot have the same name as a method template parameter";
+        return CreateError(DiagnosticCode.ERR_LocalSameNameAsTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateParameterName(TextLocation location, string name) {
+        var message = $"the parameter name '{name}' is a duplicate";
+        return CreateError(DiagnosticCode.ERR_DuplicateParameterName, location, message);
+    }
+
+    internal static BelteDiagnostic RecursiveConstructorCall(TextLocation location, MethodSymbol constructor) {
+        var message = $"constructor '{constructor}' cannot call itself";
+        return CreateError(DiagnosticCode.ERR_RecursiveConstructorCall, location, message);
+    }
+
+    internal static BelteDiagnostic NewTemplateWithArguments(TextLocation location, TemplateParameterSymbol symbol) {
+        var message = $"'{symbol}': cannot provide arguments when creating an instance of a variable type";
+        return CreateError(DiagnosticCode.ERR_NewTemplateWithArguments, location, message);
+    }
+
+    internal static BelteDiagnostic LookupInTemplateVariable(TextLocation location, TypeSymbol type) {
+        var message = $"cannot do non-virtual member lookup in '{type}' because it is a template parameter";
+        return CreateError(DiagnosticCode.ERR_LookupInTemplateVariable, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractBaseCall(TextLocation location, Symbol symbol) {
+        var message = $"cannot call abstract base member '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_AbstractBaseCall, location, message);
+    }
+
+    internal static BelteDiagnostic StaticMemberInObjectInitializer(TextLocation location, Symbol symbol) {
+        var message = $"static field '{symbol}' cannot be assigned in an object initializer";
+        return CreateError(DiagnosticCode.ERR_StaticMemberInObjectInitializer, location, message);
+    }
+
+    internal static BelteDiagnostic RefConditionalDifferentTypes(TextLocation location, TypeSymbol type) {
+        var message = $"the expression must be of type '{type}' to match the alternative ref value";
+        return CreateError(DiagnosticCode.ERR_RefConditionalDifferentTypes, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateTemplateParameter(TextLocation location, string name) {
+        var message = $"duplicate template parameter '{name}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateTemplateParameter, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

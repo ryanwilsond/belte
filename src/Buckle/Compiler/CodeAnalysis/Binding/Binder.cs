@@ -24,6 +24,8 @@ internal partial class Binder {
 
     #region Internal Model
 
+    internal const int MaxParameterListsForErrorRecovery = 10;
+
     [ThreadStatic] private static PooledDictionary<SyntaxNode, int>? LambdaBindings;
 
     private protected OverloadResolution _lazyOverloadResolution;
@@ -631,17 +633,11 @@ internal partial class Binder {
                 if (string.IsNullOrEmpty(name))
                     continue;
 
-                if (tpNames is not null && tpNames.Contains(name)) {
-                    // TODO error
-                    // CS0412: 'X': a parameter or local variable cannot have the same name as a method type parameter
-                    // diagnostics.Add(ErrorCode.ERR_LocalSameNameAsTypeParam, GetLocation(p), name);
-                }
+                if (tpNames is not null && tpNames.Contains(name))
+                    diagnostics.Push(Error.LocalSameNameAsTemplate(GetLocation(p), name));
 
-                if (!pNames.Add(name)) {
-                    // TODO error
-                    // The parameter name '{0}' is a duplicate
-                    // diagnostics.Add(ErrorCode.ERR_DuplicateParamName, GetLocation(p), name);
-                }
+                if (!pNames.Add(name))
+                    diagnostics.Push(Error.DuplicateParameterName(GetLocation(p), name));
             }
         }
 
@@ -948,8 +944,9 @@ internal partial class Binder {
 
             if (initializer is null) {
                 // Error(diagnostics, ErrorCode.ERR_ByReferenceVariableMustBeInitialized, node);
+                // return false
                 // TODO should we error here?
-                return false;
+                return true;
             } else if (expressionRefKind != RefKind.Ref) {
                 diagnostics.Push(Error.InitializeByReferenceWithByValue(node.location));
                 return false;
@@ -1489,11 +1486,173 @@ internal partial class Binder {
 
 
     private BoundExpression BindConstructorInitializerCore(
-        ArgumentListSyntax initializerArgumentListOpt,
+        ArgumentListSyntax initializerArgumentList,
         MethodSymbol constructor,
         BelteDiagnosticQueue diagnostics) {
-        // TODO constructors
-        return null;
+        var containingType = constructor.containingType;
+
+        if ((containingType.typeKind == TypeKind.Struct) && initializerArgumentList is null)
+            return null;
+
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+        try {
+            var constructorReturnType = constructor.returnType;
+
+            if (initializerArgumentList is not null)
+                BindArgumentsAndNames(initializerArgumentList, diagnostics, analyzedArguments);
+
+            var initializerType = containingType;
+            var isBaseConstructorInitializer = initializerArgumentList is null ||
+                ((ConstructorInitializerSyntax)initializerArgumentList.parent).thisOrBaseKeyword.kind ==
+                    SyntaxKind.BaseKeyword;
+
+            if (isBaseConstructorInitializer) {
+                initializerType = initializerType.baseType;
+
+                if (initializerType is null || containingType.specialType == SpecialType.Object) {
+                    if (initializerArgumentList is null) {
+                        return null;
+                    } else {
+                        // ? This is an error with the standard library
+                        throw ExceptionUtilities.Unreachable();
+                    }
+                }
+            }
+
+            BelteSyntaxNode nonNullSyntax;
+            TextLocation errorLocation;
+            bool enableCallerInfo;
+
+            switch (initializerArgumentList?.parent) {
+                case ConstructorInitializerSyntax initializerSyntax:
+                    nonNullSyntax = initializerSyntax;
+                    errorLocation = initializerSyntax.thisOrBaseKeyword.location;
+                    enableCallerInfo = true;
+                    break;
+                default:
+                    // TODO Reachable?
+                    nonNullSyntax = constructor.GetNonNullSyntaxNode();
+                    errorLocation = constructor.location;
+                    enableCallerInfo = false;
+                    break;
+            }
+
+            var found = TryPerformConstructorOverloadResolution(
+                initializerType,
+                analyzedArguments,
+                WellKnownMemberNames.InstanceConstructorName,
+                errorLocation,
+                false,
+                diagnostics,
+                out var memberResolutionResult,
+                out var candidateConstructors,
+                allowProtectedConstructorsOfBaseType: true
+            );
+
+            return BindConstructorInitializerCoreContinued(
+                found,
+                initializerArgumentList,
+                constructor,
+                analyzedArguments,
+                constructorReturnType,
+                initializerType,
+                isBaseConstructorInitializer,
+                nonNullSyntax,
+                errorLocation,
+                enableCallerInfo,
+                memberResolutionResult,
+                candidateConstructors,
+                diagnostics
+            );
+        } finally {
+            analyzedArguments.Free();
+        }
+    }
+
+    private BoundExpression BindConstructorInitializerCoreContinued(
+        bool found,
+        ArgumentListSyntax initializerArgumentListOpt,
+        MethodSymbol constructor,
+        AnalyzedArguments analyzedArguments,
+        TypeSymbol constructorReturnType,
+        NamedTypeSymbol initializerType,
+        bool isBaseConstructorInitializer,
+        BelteSyntaxNode nonNullSyntax,
+        TextLocation errorLocation,
+        bool enableCallerInfo,
+        MemberResolutionResult<MethodSymbol> memberResolutionResult,
+        ImmutableArray<MethodSymbol> candidateConstructors,
+        BelteDiagnosticQueue diagnostics) {
+        ImmutableArray<int> argsToParams;
+
+        if (memberResolutionResult.isNotNull) {
+            CheckAndCoerceArguments(
+                nonNullSyntax,
+                memberResolutionResult,
+                analyzedArguments,
+                diagnostics,
+                receiver: null,
+                out argsToParams
+            );
+        } else {
+            argsToParams = memberResolutionResult.result.argsToParams;
+        }
+
+        var resultMember = memberResolutionResult.member;
+        BoundExpression receiver = new BoundThisExpression(nonNullSyntax, initializerType);
+
+        if (found) {
+            var hasErrors = false;
+
+            if (resultMember == constructor) {
+                diagnostics.Push(Error.RecursiveConstructorCall(errorLocation, constructor));
+                hasErrors = true;
+            }
+
+            BindDefaultArguments(
+                nonNullSyntax,
+                resultMember.parameters,
+                analyzedArguments.arguments,
+                analyzedArguments.refKinds,
+                analyzedArguments.names,
+                ref argsToParams,
+                out var defaultArguments,
+                enableCallerInfo,
+                diagnostics
+            );
+
+            (var args, var argRefKinds) = RearrangeArguments(
+                analyzedArguments.arguments,
+                analyzedArguments.refKinds,
+                argsToParams
+            );
+
+            return new BoundCallExpression(
+                nonNullSyntax,
+                receiver,
+                // TODO Potentially useful to keep track of
+                // initialBindingReceiverIsSubjectToCloning: ReceiverIsSubjectToCloning(receiver, resultMember),
+                resultMember,
+                args,
+                argRefKinds,
+                defaultArguments: defaultArguments,
+                resultKind: LookupResultKind.Viable,
+                type: constructorReturnType,
+                hasErrors: hasErrors
+            );
+        } else {
+            var result = CreateErrorCall(
+                node: nonNullSyntax,
+                name: WellKnownMemberNames.InstanceConstructorName,
+                receiver: receiver,
+                methods: candidateConstructors,
+                resultKind: LookupResultKind.OverloadResolutionFailure,
+                templateArguments: [],
+                analyzedArguments: analyzedArguments
+            );
+
+            return result;
+        }
     }
 
     private BoundExpression BindExpressionInternal(
@@ -1861,12 +2020,10 @@ internal partial class Binder {
         bool wasTargetTyped,
         BelteDiagnosticQueue diagnostics) {
         if (TemplateParameterHasParameterlessConstructor(node, templateParameter, diagnostics)) {
-            if (analyzedArguments.arguments.Count > 0) {
-                // TODO error
-                // diagnostics.Add(ErrorCode.ERR_NewTyvarWithArgs, node.Location, templateParameter);
-            } else {
+            if (analyzedArguments.arguments.Count > 0)
+                diagnostics.Push(Error.NewTemplateWithArguments(node.location, templateParameter));
+            else
                 return new BoundNewT(node, wasTargetTyped, templateParameter);
-            }
         }
 
         return MakeErrorExpressionForObjectCreation(
@@ -1883,7 +2040,7 @@ internal partial class Binder {
         TemplateParameterSymbol templateParameter,
         BelteDiagnosticQueue diagnostics) {
         if (/*!templateParameter.hasConstructorConstraint &&*/ !templateParameter.isPrimitiveType) {
-            // TODO error and first condition
+            // TODO error and first condition, including the `new()` constraint feature
             // diagnostics.Add(ErrorCode.ERR_NoNewTyvar, node.Location, templateParameter);
             return false;
         }
@@ -2217,8 +2374,7 @@ internal partial class Binder {
 
                     if (assignment.right.kind == BoundKind.LiteralExpression &&
                         assignment.right.constantValue.specialType == SpecialType.Bool) {
-                        // TODO error
-                        // Error(diagnostics, ErrorCode.WRN_IncorrectBooleanAssg, assignment.Syntax);
+                        diagnostics.Push(Warning.IncorrectBooleanAssignment(assignment.syntax.location));
                     }
                 }
             }
@@ -2670,7 +2826,12 @@ internal partial class Binder {
         var leftType = boundLeft.type;
 
         if (leftType is not null && leftType.IsVoidType()) {
-            // TODO error cannot access void, is this a reachable error?
+            diagnostics.Push(Error.InvalidUnaryOperatorUse(
+                operatorToken.location,
+                SyntaxFacts.GetText(operatorToken.kind),
+                leftType
+            ));
+
             return ErrorExpression(node, boundLeft);
         }
 
@@ -2723,9 +2884,7 @@ internal partial class Binder {
                                 diagnostics
                             );
                         } else if (lookupResult.isClear) {
-                            // Error(diagnostics, ErrorCode.ERR_LookupInTypeVariable, boundLeft.Syntax, leftType);
-                            // return ErrorExpression(node, LookupResultKind.NotAValue, boundLeft);
-                            // TODO error, is this a reachable error?
+                            diagnostics.Push(Error.LookupInTemplateVariable(boundLeft.syntax.location, leftType));
                             return ErrorExpression(node, LookupResultKind.NotAValue, boundLeft);
                         }
                     } else if (_enclosingNameofArgument == node) {
@@ -3136,11 +3295,6 @@ internal partial class Binder {
             // TODO warning?
         }
 
-        // TODO error
-        // if (!IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics)) {
-        //     CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, fieldSymbol, diagnostics);
-        // }
-
         var fieldType = fieldSymbol.GetFieldType(fieldsBeingBound).type;
 
         return new BoundFieldAccessExpression(
@@ -3159,8 +3313,7 @@ internal partial class Binder {
         Symbol member,
         BelteDiagnosticQueue diagnostics) {
         if (receiver?.kind == BoundKind.BaseExpression && member.isAbstract) {
-            // TODO Error
-            // Error(diagnostics, ErrorCode.ERR_AbstractBaseCall, node, propertyOrEventSymbolOpt ?? member);
+            diagnostics.Push(Error.AbstractBaseCall(node.location, member));
             return true;
         }
 
@@ -3178,11 +3331,10 @@ internal partial class Binder {
         if (!symbol.RequiresInstanceReceiver()) {
             if (instanceReceiver) {
                 if (!isInsideNameof) {
-                    // TODO error
-                    // var error = flags.Includes(BinderFlags.ObjectInitializerMember) ?
-                    //     ErrorCode.ERR_StaticMemberInObjectInitializer :
-                    //     ErrorCode.ERR_ObjectProhibited;
-                    // Error(diagnostics, errorCode, node, symbol);
+                    if (flags.Includes(BinderFlags.ObjectInitializerMember))
+                        diagnostics.Push(Error.StaticMemberInObjectInitializer(node.location, symbol));
+                    else
+                        diagnostics.Push(Error.NoInstanceRequired(node.location, symbol));
                 } else {
                     return false;
                 }
@@ -3581,17 +3733,38 @@ internal partial class Binder {
             gotError = IsRefOrOutThisParameterCaptured(node, diagnostics);
         }
 
+        (var args, var argRefKinds) = RearrangeArguments(
+            analyzedArguments.arguments,
+            analyzedArguments.refKinds,
+            argsToParams
+        );
+
+        return new BoundCallExpression(
+            node,
+            receiver,
+            method,
+            args,
+            argRefKinds,
+            defaultArguments,
+            LookupResultKind.Viable,
+            returnType,
+            gotError
+        );
+    }
+
+    private static (ImmutableArray<BoundExpression>, ImmutableArray<RefKind>) RearrangeArguments(
+        ArrayBuilder<BoundExpression> arguments,
+        ArrayBuilder<RefKind> refKinds,
+        ImmutableArray<int> argsToParams) {
         ImmutableArray<BoundExpression> args;
         ImmutableArray<RefKind> argRefKinds;
 
         if (argsToParams.IsDefault) {
-            args = analyzedArguments.arguments.ToImmutable();
-            argRefKinds = analyzedArguments.refKinds.ToImmutableOrNull();
+            args = arguments.ToImmutable();
+            argRefKinds = refKinds.ToImmutableOrNull();
         } else {
             // Could rearrange the arguments during lowering,
             // but this prevents any issues with walking the lowerer multiple times
-            var arguments = analyzedArguments.arguments;
-            var refKinds = analyzedArguments.refKinds;
             var argCount = arguments.Count;
             var argRefKindCount = refKinds.Count;
 
@@ -3610,17 +3783,7 @@ internal partial class Binder {
             argRefKinds = argRefKindCount == 0 ? default : argRefKindsBuilder.ToImmutableArray();
         }
 
-        return new BoundCallExpression(
-            node,
-            receiver,
-            method,
-            args,
-            argRefKinds,
-            defaultArguments,
-            LookupResultKind.Viable,
-            returnType,
-            gotError
-        );
+        return (args, argRefKinds);
     }
 
     private bool MemberGroupFinalValidation(
@@ -3628,16 +3791,68 @@ internal partial class Binder {
         MethodSymbol methodSymbol,
         SyntaxNode node,
         BelteDiagnosticQueue diagnostics) {
-        // TODO
-        // if (!IsBadBaseAccess(node, receiver, methodSymbol, diagnostics)) {
-        //     CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, methodSymbol, diagnostics);
-        // }
+        if (MemberGroupFinalValidationAccessibilityChecks(receiver, methodSymbol, node, diagnostics))
+            return true;
 
-        // if (MemberGroupFinalValidationAccessibilityChecks(receiver, methodSymbol, node, diagnostics, invokedAsExtensionMethod)) {
-        //     return true;
-        // }
-
+        // TODO constraints
         // return !methodSymbol.CheckConstraints(new ConstraintsHelper.CheckConstraintsArgs(this.Compilation, this.Conversions, includeNullability: false, node.Location, diagnostics));
+        return false;
+    }
+
+    private static bool IsMemberAccessedThroughVariableOrValue(BoundExpression receiver) {
+        if (receiver is null)
+            return false;
+
+        return !IsMemberAccessedThroughType(receiver);
+    }
+
+    private bool MemberGroupFinalValidationAccessibilityChecks(
+        BoundExpression receiver,
+        Symbol memberSymbol,
+        SyntaxNode node,
+        BelteDiagnosticQueue diagnostics) {
+        if (receiver is not null || memberSymbol is not MethodSymbol { methodKind: MethodKind.Constructor }) {
+            if (!memberSymbol.RequiresInstanceReceiver()) {
+                if (!WasImplicitReceiver(receiver) && IsMemberAccessedThroughVariableOrValue(receiver)) {
+                    diagnostics.Push(Error.NoInstanceRequired(node.location, memberSymbol));
+                    return true;
+                }
+            } else if (IsMemberAccessedThroughType(receiver)) {
+                diagnostics.Push(Error.InstanceRequired(node.location, memberSymbol));
+                return true;
+            } else if (WasImplicitReceiver(receiver)) {
+                if (inFieldInitializer || _inConstructorInitializer) {
+                    var errorNode = node;
+
+                    if (node.parent is not null && node.parent.kind == SyntaxKind.CallExpression)
+                        errorNode = node.parent;
+
+                    if (inFieldInitializer)
+                        diagnostics.Push(Error.InstanceRequiredInFieldInitializer(errorNode.location, memberSymbol));
+                    else
+                        diagnostics.Push(Error.InstanceRequired(errorNode.location, memberSymbol));
+
+                    return true;
+                }
+
+                if (receiver is null || containingMember.isStatic) {
+                    diagnostics.Push(Error.InstanceRequired(node.location, memberSymbol));
+                    return true;
+                }
+            }
+        }
+
+        var containingType = this.containingType;
+
+        if (containingType is not null) {
+            var isAccessible = IsSymbolAccessibleConditional(memberSymbol.GetTypeOrReturnType().type, containingType);
+
+            if (!isAccessible) {
+                diagnostics.Push(Error.MemberIsInaccessible(node.location, memberSymbol));
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -3670,11 +3885,7 @@ internal partial class Binder {
                         BindValueKind.RefersToLocation,
                         checkingReceiver: false,
                         BelteDiagnosticQueue.Discarded)) {
-                        // TODO Check this
-                        // diagnostics.Add(
-                        //     ErrorCode.WRN_RefReadonlyNotVariable,
-                        //     argument.Syntax,
-                        //     argNumber);
+                        diagnostics.Push(Warning.RefConstNotVariable(argument.syntax.location, argNumber));
                     } else if (arg != 0) {
                         if (CheckValueKind(
                             argument.syntax,
@@ -3682,14 +3893,9 @@ internal partial class Binder {
                             BindValueKind.Assignable,
                             checkingReceiver: false,
                             BelteDiagnosticQueue.Discarded)) {
-                            // TODO Check this
-                            // Argument {0} should be passed with 'ref' or 'in' keyword
-                            // diagnostics.Add(
-                            //     ErrorCode.WRN_ArgExpectedRefOrIn,
-                            //     argument.Syntax,
-                            //     argNumber);
+                            diagnostics.Push(Warning.ArgExpectedRef(argument.syntax.location, argNumber));
                         } else {
-                            // TODO Check this
+                            // TODO Reachable?
                             // Argument {0} should be passed with the 'in' keyword
                             // diagnostics.Add(
                             //     ErrorCode.WRN_ArgExpectedIn,
@@ -3946,21 +4152,25 @@ internal partial class Binder {
         return builder.ToImmutableAndFree();
     }
 
+    private static bool IsUnboundTemplate(MethodSymbol method) {
+        return method.isTemplateMethod && method.constructedFrom == method;
+    }
+
     private BoundCallExpression CreateErrorCall(
         SyntaxNode node,
-        BoundExpression receiver,
+        BoundExpression expression,
         LookupResultKind resultKind,
         AnalyzedArguments analyzedArguments) {
-        var returnType = new ExtendedErrorTypeSymbol(compilation, "", 0, null);
-        var methodContainer = receiver.type ?? containingType;
-        var method = new ErrorMethodSymbol(methodContainer, returnType, "");
+        TypeSymbol returnType = new ExtendedErrorTypeSymbol(compilation, "", arity: 0, error: null);
+        var methodContainer = expression.type ?? containingType;
+        MethodSymbol method = new ErrorMethodSymbol(methodContainer, returnType, "");
 
         var args = BuildArgumentsForErrorRecovery(analyzedArguments);
-        var argRefKinds = analyzedArguments.refKinds.ToImmutable();
+        var argRefKinds = analyzedArguments.refKinds.ToImmutableOrNull();
 
         return new BoundCallExpression(
             node,
-            BindToTypeForErrorRecovery(receiver),
+            expression,
             method,
             args,
             argRefKinds,
@@ -3969,6 +4179,93 @@ internal partial class Binder {
             method.returnType,
             true
         );
+    }
+
+    private BoundCallExpression CreateErrorCall(
+        SyntaxNode node,
+        string name,
+        BoundExpression receiver,
+        ImmutableArray<MethodSymbol> methods,
+        LookupResultKind resultKind,
+        ImmutableArray<TypeOrConstant> templateArguments,
+        AnalyzedArguments analyzedArguments) {
+        MethodSymbol method;
+        ImmutableArray<BoundExpression> args;
+
+        if (!templateArguments.IsDefaultOrEmpty) {
+            var constructedMethods = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var m in methods) {
+                constructedMethods.Add(m.constructedFrom == m && m.arity == templateArguments.Length
+                    ? m.Construct(templateArguments)
+                    : m
+                );
+            }
+
+            methods = constructedMethods.ToImmutableAndFree();
+        }
+
+        if (methods.Length == 1 && !IsUnboundTemplate(methods[0])) {
+            method = methods[0];
+        } else {
+            var returnType = GetCommonTypeOrReturnType(methods)
+                ?? new ExtendedErrorTypeSymbol(compilation, "", arity: 0, error: null);
+            var methodContainer = receiver is not null && receiver.type is not null
+                ? receiver.type
+                : containingType;
+            method = new ErrorMethodSymbol(methodContainer, returnType, name);
+        }
+
+        args = BuildArgumentsForErrorRecovery(analyzedArguments, methods);
+        var argRefKinds = analyzedArguments.refKinds.ToImmutableOrNull();
+        receiver = BindToTypeForErrorRecovery(receiver);
+
+        return new BoundCallExpression(
+            node,
+            receiver,
+            method,
+            args,
+            argRefKinds,
+            default,
+            resultKind,
+            method.returnType,
+            true
+        );
+    }
+
+    private static TypeSymbol GetCommonTypeOrReturnType<TMember>(ImmutableArray<TMember> members)
+        where TMember : Symbol {
+        TypeSymbol type = null;
+
+        for (int i = 0, n = members.Length; i < n; i++) {
+            var returnType = members[i].GetTypeOrReturnType().type;
+
+            if (type is null)
+                type = returnType;
+            else if (!TypeSymbol.Equals(type, returnType, TypeCompareKind.ConsiderEverything))
+                return null;
+        }
+
+        return type;
+    }
+
+    private ImmutableArray<BoundExpression> BuildArgumentsForErrorRecovery(
+        AnalyzedArguments analyzedArguments,
+        ImmutableArray<MethodSymbol> methods) {
+        var parameterListList = ArrayBuilder<ImmutableArray<ParameterSymbol>>.GetInstance();
+
+        foreach (var m in methods) {
+            if (!IsUnboundTemplate(m) && m.parameterCount > 0) {
+                parameterListList.Add(m.parameters);
+
+                if (parameterListList.Count == MaxParameterListsForErrorRecovery)
+                    break;
+            }
+        }
+
+        var result = BuildArgumentsForErrorRecovery(analyzedArguments, parameterListList);
+        parameterListList.Free();
+        return result;
     }
 
     private ImmutableArray<BoundExpression> BuildArgumentsForErrorRecovery(AnalyzedArguments analyzedArguments) {
@@ -5153,8 +5450,7 @@ internal partial class Binder {
 
         if (bestType is null) {
             // ErrorCode noCommonTypeError = hadMultipleCandidates ? ErrorCode.ERR_AmbigQM : ErrorCode.ERR_InvalidQM;
-            // constantValue = FoldConditionalOperator(condition, trueExpr, falseExpr);
-            // TODO error
+            // TODO error & UnconvertedConditionalOperator
             return new BoundConditionalOperator(
                 node,
                 condition,
@@ -5207,9 +5503,8 @@ internal partial class Binder {
 
         TypeSymbol type;
         if (!Conversions.HasIdentityConversion(trueType, falseType)) {
-            // TODO error
-            // if (!hasErrors)
-            //     diagnostics.Add(ErrorCode.ERR_RefConditionalDifferentTypes, falseExpr.Syntax.Location, trueType);
+            if (!hasErrors)
+                diagnostics.Push(Error.RefConditionalDifferentTypes(falseExpr.syntax.location, trueType));
 
             type = CreateErrorType();
             hasErrors = true;
@@ -7431,11 +7726,10 @@ symIsHidden:;
 
         if (!argument.hasErrors) {
             if (returnRefKind != RefKind.None) {
-                if (conversion.kind != ConversionKind.Identity) {
-                    // TODO ref return must have identity conversion?
-                } else {
+                if (conversion.kind != ConversionKind.Identity)
+                    diagnostics.Push(Error.RefReturnMustHaveIdentityConversion(argument.syntax.location, returnType));
+                else
                     return BindToNaturalType(argument, diagnostics);
-                }
             }
         }
 
@@ -7464,12 +7758,10 @@ symIsHidden:;
             : conversions.ClassifyConversionFromType(expression.type, targetType);
 
         if ((flags & ConversionForAssignmentFlags.RefAssignment) != 0) {
-            if (conversion.kind != ConversionKind.Identity) {
-                // Error(diagnostics, ErrorCode.ERR_RefAssignmentMustHaveIdentityConversion, expression.Syntax, targetType);
-                // TODO ref assignment must have identity conversion?
-            } else {
+            if (conversion.kind != ConversionKind.Identity)
+                diagnostics.Push(Error.RefAssignmentMustHaveIdentityConversion(expression.syntax.location, targetType));
+            else
                 return expression;
-            }
         } else if (!conversion.exists ||
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
                 ? !conversion.isImplicit
@@ -7683,8 +7975,6 @@ symIsHidden:;
         if (conversion.isNullable) {
             targetType = targetType.GetNullableUnderlyingType();
             conversion = conversion.underlyingConversions[0];
-            // TODO What is the purpose of this
-            // _ = GetSpecialTypeMember(SpecialMember.System_Nullable_T__ctor, diagnostics, syntax: node.Syntax);
         }
 
         var listTypeKind = conversion.GetListExpressionTypeKind(out var elementType);

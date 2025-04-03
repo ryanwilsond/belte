@@ -230,8 +230,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
             foreach (var @param in result) {
                 if (name == @param.name) {
-                    // TODO
-                    // diagnostics.Add(ErrorCode.ERR_DuplicateTypeParameter, location, name);
+                    diagnostics.Push(Error.DuplicateTemplateParameter(location, name));
                     break;
                 }
             }
@@ -239,13 +238,18 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             var enclosingTemplateParameter = containingSymbol.FindEnclosingTemplateParameter(name);
 
             if (enclosingTemplateParameter is not null) {
-                // TODO
                 if (enclosingTemplateParameter.containingSymbol.kind == SymbolKind.Method) {
-                    // Type parameter '{0}' has the same name as the type parameter from outer method '{1}'
-                    // typeError = ErrorCode.WRN_TypeParameterSameAsOuterMethodTypeParameter;
+                    diagnostics.Push(Warning.TemplateParameterSameAsOuterMethod(
+                        location,
+                        name,
+                        enclosingTemplateParameter.containingSymbol
+                    ));
                 } else {
-                    // Type parameter '{0}' has the same name as the type parameter from outer type '{1}'
-                    // typeError = ErrorCode.WRN_TypeParameterSameAsOuterTypeParameter;
+                    diagnostics.Push(Warning.TemplateParameterSameAsOuter(
+                        location,
+                        name,
+                        enclosingTemplateParameter.containingSymbol
+                    ));
                 }
             }
 

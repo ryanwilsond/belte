@@ -19,14 +19,14 @@ internal static class Warning {
     /// Once the compiler is finished, this class will be unnecessary.
     /// </summary>
     internal static class Unsupported {
-        internal static BelteDiagnostic Assembling() {
+        internal static Diagnostic Assembling() {
             var message = "assembling not supported (yet); skipping";
-            return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Assembling), message);
+            return CreateWarning(DiagnosticCode.UNS_Assembling, message);
         }
 
-        internal static BelteDiagnostic Linking() {
+        internal static Diagnostic Linking() {
             var message = "linking not supported (yet); skipping";
-            return new BelteDiagnostic(WarningInfo(DiagnosticCode.UNS_Linking), message);
+            return CreateWarning(DiagnosticCode.UNS_Linking, message);
         }
     }
 
@@ -38,13 +38,12 @@ internal static class Warning {
             valueString = valueString.ToLower();
 
         var message = $"expression will always result to '{valueString}'";
-
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_AlwaysValue), location, message);
+        return CreateWarning(DiagnosticCode.WRN_AlwaysValue, location, message);
     }
 
     internal static BelteDiagnostic NullDeference(TextLocation location) {
         var message = "deference of a possibly null value";
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NullDeference), location, message);
+        return CreateWarning(DiagnosticCode.WRN_NullDeference, location, message);
     }
 
     internal static BelteDiagnostic UnreachableCode(SyntaxNode node) {
@@ -62,27 +61,68 @@ internal static class Warning {
 
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_UnreachableCode), location, message);
+        return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
     }
 
     internal static BelteDiagnostic MemberShadowsNothing(TextLocation location, string signature, string typeName) {
         var message = $"the member '{typeName}.{signature}' does not hide a member; the 'new' keyword is unnecessary";
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_MemberShadowsNothing), location, message);
+        return CreateWarning(DiagnosticCode.WRN_MemberShadowsNothing, location, message);
     }
 
     internal static BelteDiagnostic ProtectedMemberInSealedType(TextLocation location, NamespaceOrTypeSymbol containingSymbol, Symbol member) {
         var message = $"'{containingSymbol}.{member}': new protected member declared in sealed type; no different than private";
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_ProtectedMemberInSealedType), location, message);
+        return CreateWarning(DiagnosticCode.WRN_ProtectedMemberInSealedType, location, message);
     }
 
     internal static BelteDiagnostic NeverGivenType(TextLocation location, TypeSymbol type) {
         var message = $"the given expression is never of the provided type ('{type.ToNullOrString()}')";
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_NeverGivenType), location, message);
+        return CreateWarning(DiagnosticCode.WRN_NeverGivenType, location, message);
     }
 
     internal static BelteDiagnostic PossibleMistakenEmptyStatement(TextLocation location) {
         var message = "possible mistaken empty statement";
-        return new BelteDiagnostic(WarningInfo(DiagnosticCode.WRN_PossibleMistakenEmptyStatement), location, message);
+        return CreateWarning(DiagnosticCode.WRN_PossibleMistakenEmptyStatement, location, message);
+    }
+
+    internal static BelteDiagnostic IncorrectBooleanAssignment(TextLocation location) {
+        var message = "assignment in conditional expression is always constant; did you mean to use == instead of = ?";
+        return CreateWarning(DiagnosticCode.WRN_IncorrectBooleanAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstNotVariable(TextLocation location, int arg) {
+        var message = $"argument {arg} should be a variable because it is passed to a 'ref const' parameter";
+        return CreateWarning(DiagnosticCode.WRN_RefConstNotVariable, location, message);
+    }
+
+    internal static BelteDiagnostic ArgExpectedRef(TextLocation location, int arg) {
+        var message = $"argument {arg} should be passed with the 'ref' keyword";
+        return CreateWarning(DiagnosticCode.WRN_ArgExpectedRef, location, message);
+    }
+
+    internal static BelteDiagnostic TemplateParameterSameAsOuterMethod(TextLocation location, string name, Symbol symbol) {
+        var message = $"template parameter '{name}' has the same name as the template parameter from outer method '{symbol}'";
+        return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuterMethod, location, message);
+    }
+
+    internal static BelteDiagnostic TemplateParameterSameAsOuter(TextLocation location, string name, Symbol symbol) {
+        var message = $"template parameter '{name}' has the same name as the template parameter from outer type '{symbol}'";
+        return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuter, location, message);
+    }
+
+    private static Diagnostic CreateWarning(DiagnosticCode code, string message) {
+        return new Diagnostic(WarningInfo(code), message);
+    }
+
+    private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
+        return CreateWarning(code, location, message, []);
+    }
+
+    private static BelteDiagnostic CreateWarning(
+        DiagnosticCode code,
+        TextLocation location,
+        string message,
+        params string[] suggestions) {
+        return new BelteDiagnostic(WarningInfo(code), location, message, suggestions);
     }
 
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
