@@ -1157,6 +1157,9 @@ internal partial class Binder {
                 var local = (BoundDataContainerExpression)expression;
                 return CheckLocalValueKind(node, local, valueKind, checkingReceiver, diagnostics);
             case BoundKind.ThisExpression:
+                if (checkingReceiver)
+                    return true;
+
                 if (RequiresRefAssignableVariable(valueKind)) {
                     diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
                     return false;
@@ -1210,12 +1213,32 @@ internal partial class Binder {
 
                 var assignment = (BoundAssignmentOperator)expression;
                 return CheckSimpleAssignmentValueKind(node, assignment, valueKind, diagnostics);
+            case BoundKind.ArrayAccessExpression:
+                return CheckArrayAccessValueKind(
+                    node,
+                    valueKind,
+                    ((BoundArrayAccessExpression)expression).index,
+                    diagnostics
+                );
             case BoundKind.ValuePlaceholder:
                 break;
         }
 
         diagnostics.Push(GetStandardLValueError(valueKind, node.location));
         return false;
+    }
+
+    private static bool CheckArrayAccessValueKind(
+        SyntaxNode node,
+        BindValueKind valueKind,
+        BoundExpression index,
+        BelteDiagnosticQueue diagnostics) {
+        if (RequiresRefAssignableVariable(valueKind)) {
+            diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
+            return false;
+        }
+
+        return true;
     }
 
     private static BelteDiagnostic GetMethodGroupLValueError(
