@@ -631,6 +631,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return modifiers.ToList();
     }
 
+    private SyntaxList<SyntaxToken> ParseParameterModifiers() {
+        var modifiers = SyntaxListBuilder<SyntaxToken>.Create();
+
+        while (true) {
+            var modifier = GetModifier(currentToken);
+
+            if (modifier is not DeclarationModifiers.Ref and not DeclarationModifiers.Const)
+                break;
+
+            modifiers.Add(EatToken());
+        }
+
+        return modifiers.ToList();
+    }
+
     private ParameterListSyntax ParseParameterList() {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var parameters = ParseParameters();
@@ -680,13 +695,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ParameterSyntax ParseParameter() {
+        var modifiers = ParseParameterModifiers();
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
         var defaultValue = currentToken.kind == SyntaxKind.EqualsToken
             ? ParseEqualsValueClause(false)
             : null;
 
-        return SyntaxFactory.Parameter(type, identifier, defaultValue);
+        return SyntaxFactory.Parameter(modifiers, type, identifier, defaultValue);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {

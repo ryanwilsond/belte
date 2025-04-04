@@ -268,6 +268,10 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal bool IsOperator() {
+        return this is MethodSymbol m && m.IsOperator();
+    }
+
     internal ParameterSymbol EnclosingThisSymbol() {
         var symbol = this;
 

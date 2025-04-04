@@ -257,6 +257,15 @@ public enum DiagnosticCode : ushort {
     ERR_DuplicateTemplateParameter = 246,
     WRN_TemplateParameterSameAsOuterMethod = 247,
     WRN_TemplateParameterSameAsOuter = 248,
+    ERR_RefDefaultValue = 249,
+    ERR_NoCastForDefaultParameter = 250,
+    ERR_NotNullRefDefaultParameter = 251,
+    WRN_DefaultValueNoEffect = 252,
+    WRN_RefConstParameterDefaultValue = 253,
+    ERR_InvalidRefParameter = 254,
+    ERR_RefConstWrongOrder = 255,
+    ERR_ParameterIsStatic = 256,
+    ERR_CircularConstantValue = 257,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

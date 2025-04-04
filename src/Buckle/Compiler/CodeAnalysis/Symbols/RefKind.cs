@@ -5,4 +5,5 @@ public enum RefKind : byte {
     None,
     Ref,
     RefConst,
+    RefConstParameter,
 }

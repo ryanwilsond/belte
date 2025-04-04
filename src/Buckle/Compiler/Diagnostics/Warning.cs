@@ -109,6 +109,16 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuter, location, message);
     }
 
+    internal static BelteDiagnostic DefaultValueNoEffect(TextLocation location, string name) {
+        var message = $"the default value specified for parameter '{name}' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments";
+        return CreateWarning(DiagnosticCode.WRN_DefaultValueNoEffect, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstParameterDefaultValue(TextLocation location, string name) {
+        var message = $"a default value is specified for 'ref const' parameter '{name}', but 'ref const' should be used only for references";
+        return CreateWarning(DiagnosticCode.WRN_RefConstParameterDefaultValue, location, message);
+    }
+
     private static Diagnostic CreateWarning(DiagnosticCode code, string message) {
         return new Diagnostic(WarningInfo(code), message);
     }

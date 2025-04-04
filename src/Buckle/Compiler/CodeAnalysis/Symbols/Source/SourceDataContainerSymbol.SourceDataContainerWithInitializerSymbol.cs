@@ -32,9 +32,7 @@ internal partial class SourceDataContainerSymbol {
             DataContainerSymbol inProgress,
             BelteDiagnosticQueue diagnostics) {
             if (isConstExpr && inProgress == this) {
-                // TODO Add this when confirm this can actually happen
-                // Potentially `constexpr A = A;`?
-                // diagnostics?.Add(ErrorCode.ERR_CircConstValue, node.GetLocation(), this);
+                diagnostics?.Push(Error.CircularConstantValue(node.location, this));
                 return null;
             }
 

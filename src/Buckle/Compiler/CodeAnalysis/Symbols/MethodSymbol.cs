@@ -165,6 +165,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         return newOwner.isDefinition ? this : new SubstitutedMethodSymbol(newOwner, this);
     }
 
+    internal new bool IsOperator() {
+        return methodKind == MethodKind.Operator;
+    }
+
     internal static bool CanOverrideOrHide(MethodKind kind) {
         switch (kind) {
             case MethodKind.Constructor:

@@ -466,8 +466,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ParameterAlreadySpecified, location, message);
     }
 
-    internal static BelteDiagnostic DefaultMustBeConstant(TextLocation location) {
-        var message = "default values for parameters must be compile-time constants";
+    internal static BelteDiagnostic DefaultMustBeConstant(TextLocation location, string name) {
+        var message = $"default parameter value for '{name}' must be a compile-time constant";
         return CreateError(DiagnosticCode.ERR_DefaultMustBeConstant, location, message);
     }
 
@@ -1375,6 +1375,41 @@ internal static class Error {
     internal static BelteDiagnostic DuplicateTemplateParameter(TextLocation location, string name) {
         var message = $"duplicate template parameter '{name}'";
         return CreateError(DiagnosticCode.ERR_DuplicateTemplateParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefDefaultValue(TextLocation location) {
+        var message = "a ref or out parameter cannot have a default value";
+        return CreateError(DiagnosticCode.ERR_RefDefaultValue, location, message);
+    }
+
+    internal static BelteDiagnostic NoCastForDefaultParameter(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"a value of type '{type1}' cannot be used as a default parameter because there are no casts to type '{type2}'";
+        return CreateError(DiagnosticCode.ERR_NoCastForDefaultParameter, location, message);
+    }
+
+    internal static BelteDiagnostic NotNullRefDefaultParameter(TextLocation location, string name, TypeSymbol type) {
+        var message = $"parameter '{name}' is of type '{type}'; a default parameter value of a reference type can only be initialized with 'null'";
+        return CreateError(DiagnosticCode.ERR_NotNullRefDefaultParameter, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidRefParameter(TextLocation location) {
+        var message = $"'ref' is not valid in this context";
+        return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefConstWrongOrder(TextLocation location) {
+        var message = "'const' modifier must be specified after 'ref'";
+        return CreateError(DiagnosticCode.ERR_RefConstWrongOrder, location, message);
+    }
+
+    internal static BelteDiagnostic ParameterIsStatic(TextLocation location, TypeSymbol type) {
+        var message = $"'{type}': static types cannot be used as parameters";
+        return CreateError(DiagnosticCode.ERR_ParameterIsStatic, location, message);
+    }
+
+    internal static BelteDiagnostic CircularConstantValue(TextLocation location, DataContainerSymbol symbol) {
+        var message = $"the evaluation of the constant value for '{symbol}' involves a circular definition";
+        return CreateError(DiagnosticCode.ERR_CircularConstantValue, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
