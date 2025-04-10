@@ -32,7 +32,6 @@ internal partial class SourceDataContainerSymbol {
             DataContainerSymbol inProgress,
             BelteDiagnosticQueue diagnostics) {
             if (isConstExpr && inProgress == this) {
-                // TODO test this
                 diagnostics?.Push(Error.CircularConstantValue(node.location, this));
                 return null;
             }
@@ -67,6 +66,7 @@ internal partial class SourceDataContainerSymbol {
                         diagnostics
                     );
                 }
+                // TODODODODO Need to fix circular constant error
 
                 var value = ConstantValueHelpers.GetAndValidateConstantValue(
                     boundInitValue,

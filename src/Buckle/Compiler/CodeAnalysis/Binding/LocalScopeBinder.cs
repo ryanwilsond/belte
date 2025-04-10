@@ -125,13 +125,13 @@ internal class LocalScopeBinder : Binder {
                     }, (localScopeBinder: this, locals, localDeclarationBinder));
 
                     DataContainerDeclarationKind kind;
-                    if (decl.isConst) {
+
+                    if (decl.isConst)
                         kind = DataContainerDeclarationKind.Constant;
-                    } else if (decl.isConstExpr) {
+                    else if (decl.isConstExpr)
                         kind = DataContainerDeclarationKind.ConstantExpression;
-                    } else {
+                    else
                         kind = DataContainerDeclarationKind.Variable;
-                    }
 
                     var localSymbol = MakeLocal(decl.declaration, kind, localDeclarationBinder);
                     locals.Add(localSymbol);

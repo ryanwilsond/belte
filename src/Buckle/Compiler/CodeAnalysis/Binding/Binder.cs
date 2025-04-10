@@ -2598,7 +2598,6 @@ internal partial class Binder {
         LookupResultKind resultKind,
         bool indexed,
         bool isError) {
-
         switch (symbol.kind) {
             case SymbolKind.Local: {
                     var localSymbol = (DataContainerSymbol)symbol;
@@ -2665,7 +2664,7 @@ internal partial class Binder {
                         }
                     }
 
-                    var constantValue = localSymbol.isConst && !isInsideNameof && !type.IsErrorType()
+                    var constantValue = localSymbol.isConstExpr && !isInsideNameof && !type.IsErrorType()
                         ? localSymbol.GetConstantValue(node, localInProgress, diagnostics)
                         : null;
 

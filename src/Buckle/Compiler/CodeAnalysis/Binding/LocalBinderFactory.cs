@@ -369,9 +369,7 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         if (node.initializer is { } initializer) {
             var enclosing = _enclosing;
 
-            if (node.parent is VariableDeclarationSyntax {
-                parent: LocalDeclarationStatementSyntax { isConst: true }
-            }) {
+            if (node.parent is LocalDeclarationStatementSyntax { isConstExpr: true }) {
                 enclosing = new LocalInProgressBinder(initializer, _enclosing);
                 AddToMap(initializer, enclosing);
             }

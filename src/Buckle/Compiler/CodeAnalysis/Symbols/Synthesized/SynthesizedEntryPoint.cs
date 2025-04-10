@@ -11,7 +11,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private TypeWithAnnotations _returnType;
-    private SimpleProgramBinder _lazyProgramBinder;
+    private Binder _lazyProgramBinder;
 
     internal SynthesizedEntryPoint(
         Symbol containingSymbol,
@@ -83,7 +83,7 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
 
-    internal SimpleProgramBinder programBinder {
+    internal Binder programBinder {
         get {
             if (_lazyProgramBinder is null)
                 Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(), null);
@@ -111,7 +111,7 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         }
     }
 
-    private SimpleProgramBinder CreateSimpleProgramBinder() {
+    private Binder CreateSimpleProgramBinder() {
         var compilation = declaringCompilation;
         var result = GetPreviousBinder() ?? new EndBinder(compilation, syntaxTree.text);
 
@@ -122,7 +122,9 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         result = new InContainerBinder(globalNamespace, result);
         result = new InContainerBinder(containingType, result);
         result = new InMethodBinder(this, result);
-        _lazyProgramBinder = new SimpleProgramBinder(result, this);
+        // TODO Do we actually need the SimpleProgramBinder ever?
+        // _lazyProgramBinder = new SimpleProgramBinder(result, this);
+        _lazyProgramBinder = result;
         return _lazyProgramBinder;
     }
 
@@ -137,7 +139,7 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
         var syntaxTree = compilation.syntaxTrees[0];
         var root = syntaxTree.GetCompilationUnitRoot();
-        Binder programBinder = GetEntryPoint(compilation, root)?.programBinder;
+        var programBinder = GetEntryPoint(compilation, root)?.programBinder;
 
         return programBinder ?? new InContainerBinder(
             compilation.globalNamespaceInternal,
