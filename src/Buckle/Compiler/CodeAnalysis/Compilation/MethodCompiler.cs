@@ -352,8 +352,6 @@ internal sealed class MethodCompiler {
             }
 
             body = new BoundBlockStatement(syntax, bodyBuilder.ToImmutableAndFree(), [], []);
-
-            // body = ((BoundNonConstructorMethodBody)methodBody).body;
         }
 
         var constructorInitializer = BindImplicitConstructorInitializerIfAny(method, state, syntaxNode, diagnostics);
