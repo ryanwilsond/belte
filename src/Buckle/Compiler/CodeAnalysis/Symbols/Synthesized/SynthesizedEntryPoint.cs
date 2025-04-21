@@ -5,24 +5,20 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
+internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
-    private TypeWithAnnotations _returnType;
+    private WeakReference<ExecutableCodeBinder> _weakIgnoreAccessibilityBodyBinder;
+    private readonly TypeSymbol _returnType;
     private Binder _lazyProgramBinder;
 
-    internal SynthesizedEntryPoint(
-        Symbol containingSymbol,
-        TypeWithAnnotations returnType,
-        ImmutableArray<GlobalStatementSyntax> syntax,
-        CompilationUnitSyntax syntaxNode) {
-        this.containingSymbol = containingSymbol;
-        _returnType = returnType;
-        statements = syntax;
-        syntaxReference = new SyntaxReference(syntaxNode);
-        compilationUnit = syntaxNode;
+    internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SyntaxReference syntaxReference)
+        : base(containingType, syntaxReference, MakeModifiersAndFlags(containingType, syntaxReference)) {
+        _returnType = CorLibrary.GetSpecialType(SpecialType.Void);
     }
 
     public override string name => WellKnownMemberNames.EntryPointMethodName;
@@ -31,69 +27,31 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+    public override bool returnsVoid => true;
 
-    public override RefKind refKind => RefKind.None;
-
-    public override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
-
-    public override MethodKind methodKind => MethodKind.Ordinary;
-
-    public override int arity => 0;
-
-    internal override Symbol containingSymbol { get; }
-
-    internal override TypeWithAnnotations returnTypeWithAnnotations => _returnType;
+    internal override TypeWithAnnotations returnTypeWithAnnotations => new TypeWithAnnotations(_returnType);
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
     internal override int parameterCount => 0;
 
-    internal override bool hidesBaseMethodsByName => false;
+    internal override TextLocation location => syntaxNode.location;
 
-    internal override bool hasSpecialName => false;
-
-    internal override bool isDeclaredConst => false;
-
-    internal override Accessibility declaredAccessibility => Accessibility.Public;
-
-    internal override bool isStatic => false;
-
-    internal override bool isVirtual => false;
-
-    internal override bool isAbstract => false;
-
-    internal override bool isOverride => false;
-
-    internal override bool isSealed => false;
-
-    internal override bool requiresInstanceReceiver => false;
-
-    internal override SyntaxReference syntaxReference { get; }
-
-    internal override TextLocation location => null;
-
-    internal override CallingConvention callingConvention => 0;
-
-    internal SyntaxTree syntaxTree => syntaxNode.syntaxTree;
-
-    internal SyntaxNode syntaxNode => compilationUnit;
-
-    internal CompilationUnitSyntax compilationUnit { get; }
+    internal CompilationUnitSyntax compilationUnit => (CompilationUnitSyntax)syntaxNode;
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
 
     internal Binder programBinder {
         get {
             if (_lazyProgramBinder is null)
-                Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(), null);
+                Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(false), null);
 
             return _lazyProgramBinder;
         }
     }
 
-    internal ExecutableCodeBinder GetBodyBinder() {
-        ref var weakBinder = ref _weakBodyBinder;
+    internal ExecutableCodeBinder GetBodyBinder(bool ignoreAccessibility) {
+        ref var weakBinder = ref ignoreAccessibility ? ref _weakIgnoreAccessibilityBodyBinder : ref _weakBodyBinder;
 
         while (true) {
             var previousWeakReference = weakBinder;
@@ -101,7 +59,7 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
             if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousBinder))
                 return previousBinder;
 
-            var newBinder = CreateBodyBinder();
+            var newBinder = CreateBodyBinder(ignoreAccessibility);
 
             if (Interlocked.CompareExchange(
                 ref weakBinder,
@@ -111,7 +69,46 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         }
     }
 
-    private Binder CreateSimpleProgramBinder() {
+    internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return [];
+    }
+
+    internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+        return [];
+    }
+
+    internal override ExecutableCodeBinder TryGetBodyBinder(
+        BinderFactory binderFactory = null,
+        bool ignoreAccessibility = false) {
+        return GetBodyBinder(ignoreAccessibility);
+    }
+
+    private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) { }
+
+    private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        SourceMemberContainerTypeSymbol containingType,
+        SyntaxReference syntaxReference) {
+        // TODO Do we even need the return type to be correct in the first place?
+        // var hasReturnWithExpression
+
+        var declarationModifiers = DeclarationModifiers.Static | DeclarationModifiers.Private;
+        var compilation = containingType.declaringCompilation;
+        var compilationUnit = (CompilationUnitSyntax)syntaxReference.node;
+        var flags = MakeFlags(
+            MethodKind.Ordinary,
+            RefKind.None,
+            declarationModifiers,
+            // returnsVoid: !hasAwait && !hasReturnWithExpression,
+            returnsVoid: true,
+            returnsVoidIsSet: true,
+            hasAnyBody: true,
+            hasThisInitializer: false
+        );
+
+        return (declarationModifiers, flags);
+    }
+
+    private Binder CreateSimpleProgramBinder(bool ignoreAccessibility) {
         var compilation = declaringCompilation;
         var result = GetPreviousBinder() ?? new EndBinder(compilation, syntaxTree.text);
 
@@ -122,9 +119,10 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         result = new InContainerBinder(globalNamespace, result);
         result = new InContainerBinder(containingType, result);
         result = new InMethodBinder(this, result);
-        // TODO Do we actually need the SimpleProgramBinder ever?
-        // _lazyProgramBinder = new SimpleProgramBinder(result, this);
+        result = result.WithAdditionalFlags(ignoreAccessibility ? BinderFlags.IgnoreAccessibility : BinderFlags.None);
+        // TODO confirm need for this binder:
         _lazyProgramBinder = result;
+        // _lazyProgramBinder = new SimpleProgramBinder(result, this);
         return _lazyProgramBinder;
     }
 
@@ -139,7 +137,8 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
 
         var syntaxTree = compilation.syntaxTrees[0];
         var root = syntaxTree.GetCompilationUnitRoot();
-        var programBinder = GetEntryPoint(compilation, root)?.programBinder;
+        // We fallback to main entry point because we really do not want this to fail (otherwise everything haults)
+        var programBinder = GetSimpleProgramEntryPoint(compilation, root, true)?.programBinder;
 
         return programBinder ?? new InContainerBinder(
             compilation.globalNamespaceInternal,
@@ -147,35 +146,40 @@ internal sealed class SynthesizedEntryPoint : SynthesizedInstanceMethodSymbol {
         );
     }
 
-    private ExecutableCodeBinder CreateBodyBinder() {
-        return new ExecutableCodeBinder(syntaxNode, this, programBinder);
+    private ExecutableCodeBinder CreateBodyBinder(bool ignoreAccessibility) {
+        if (_lazyProgramBinder is null)
+            Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(ignoreAccessibility), null);
+
+        return new ExecutableCodeBinder(syntaxNode, this, _lazyProgramBinder);
     }
 
-    internal void CorrectReturnType(TypeWithAnnotations type) {
-        _returnType = type;
-    }
-
-    internal static SynthesizedEntryPoint GetEntryPoint(
+    internal static SynthesizedEntryPoint GetSimpleProgramEntryPoint(
         Compilation compilation,
-        CompilationUnitSyntax compilationUnit) {
+        CompilationUnitSyntax compilationUnit,
+        bool fallbackToMainEntryPoint) {
         var type = GetSimpleProgramNamedTypeSymbol(compilation);
 
         if (type is null)
             return null;
 
-        var entryPoints = type.GetMembers(WellKnownMemberNames.EntryPointMethodName).OfType<SynthesizedEntryPoint>();
+        var entryPoints = type.GetSimpleProgramEntryPoints();
 
         foreach (var entryPoint in entryPoints) {
             if (entryPoint.syntaxTree == compilationUnit.syntaxTree && entryPoint.syntaxNode == compilationUnit)
                 return entryPoint;
         }
 
-        return null;
+        return fallbackToMainEntryPoint ? entryPoints[0] : null;
     }
 
-    private static NamedTypeSymbol GetSimpleProgramNamedTypeSymbol(Compilation compilation) {
+    internal static SynthesizedEntryPoint GetSimpleProgramEntryPoint(Compilation compilation) {
+        return GetSimpleProgramNamedTypeSymbol(compilation)?.GetSimpleProgramEntryPoints().First();
+    }
+
+    private static SourceNamedTypeSymbol GetSimpleProgramNamedTypeSymbol(Compilation compilation) {
         return compilation.globalNamespaceInternal
             .GetTypeMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)
+            .OfType<SourceNamedTypeSymbol>()
             .SingleOrDefault(s => s.isSimpleProgram);
     }
 }

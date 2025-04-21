@@ -57,16 +57,12 @@ internal partial class SourceDataContainerSymbol {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
                 var type = this.type;
 
-                if (boundInitValue is null) {
-                    var inProgressBinder = new LocalInProgressBinder(_initializer, _initializerBinder);
-                    boundInitValue = inProgressBinder.BindDataContainerInitializerValue(
-                        _initializer,
-                        refKind,
-                        type,
-                        diagnostics
-                    );
-                }
-                // TODODODODO Need to fix circular constant error
+                boundInitValue ??= _initializerBinder.BindDataContainerInitializerValue(
+                    _initializer,
+                    refKind,
+                    type,
+                    diagnostics
+                );
 
                 var value = ConstantValueHelpers.GetAndValidateConstantValue(
                     boundInitValue,

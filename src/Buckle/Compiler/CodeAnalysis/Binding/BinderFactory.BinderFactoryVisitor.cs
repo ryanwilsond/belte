@@ -83,7 +83,7 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitGlobalStatement(GlobalStatementSyntax node) {
-            if (node.parent.kind == SyntaxKind.CompilationUnit) {
+            if (SyntaxFacts.IsSimpleProgramTopLevelStatement(node)) {
                 var compilationUnit = (CompilationUnitSyntax)node.parent;
 
                 if (compilationUnit != _syntaxTree.GetRoot())
@@ -92,12 +92,13 @@ internal sealed partial class BinderFactory {
                 var key = CreateBinderCacheKey(compilationUnit, NodeUsage.MethodBody);
 
                 if (!_binderCache.TryGetValue(key, out var result)) {
-                    var simpleProgram = SynthesizedEntryPoint.GetEntryPoint(
+                    var simpleProgram = SynthesizedEntryPoint.GetSimpleProgramEntryPoint(
                         _compilation,
-                        (CompilationUnitSyntax)node.parent
+                        (CompilationUnitSyntax)node.parent,
+                        false
                     );
 
-                    var bodyBinder = simpleProgram.GetBodyBinder();
+                    var bodyBinder = simpleProgram.GetBodyBinder(false); // Maybe _factory.ignoreAccessibility instead?
                     result = bodyBinder.GetBinder(compilationUnit);
                     _binderCache.TryAdd(key, result);
                 }

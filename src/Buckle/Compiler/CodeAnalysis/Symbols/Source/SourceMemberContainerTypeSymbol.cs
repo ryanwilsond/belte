@@ -22,6 +22,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private protected SymbolCompletionState _state;
     private protected readonly TypeDeclarationSyntax _declaration;
 
+    private ImmutableArray<SynthesizedEntryPoint> _lazySimpleProgramEntryPoints;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyTypeMembers;
     private DeclaredMembersAndInitializers _lazyDeclaredMembersAndInitializers = DeclaredMembersAndInitializers.UninitializedSentinel;
     private MembersAndInitializers _lazyMembersAndInitializers;
@@ -224,6 +225,49 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal Binder GetBinder(BelteSyntaxNode syntaxNode) {
         return declaringCompilation.GetBinder(syntaxNode);
+    }
+
+    internal ImmutableArray<SynthesizedEntryPoint> GetSimpleProgramEntryPoints() {
+        if (_lazySimpleProgramEntryPoints.IsDefault) {
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
+            var simpleProgramEntryPoints = BuildSimpleProgramEntryPoint(diagnostics);
+
+            if (ImmutableInterlocked.InterlockedInitialize(ref _lazySimpleProgramEntryPoints, simpleProgramEntryPoints))
+                AddDeclarationDiagnostics(diagnostics);
+
+            diagnostics.Free();
+        }
+
+        return _lazySimpleProgramEntryPoints;
+
+        ImmutableArray<SynthesizedEntryPoint> BuildSimpleProgramEntryPoint(BelteDiagnosticQueue diagnostics) {
+            if (containingSymbol is not NamespaceSymbol { isGlobalNamespace: true }
+                || name != WellKnownMemberNames.TopLevelStatementsEntryPointTypeName) {
+                return [];
+            }
+
+            ArrayBuilder<SynthesizedEntryPoint>? builder = null;
+
+            if (isSimpleProgram) {
+                if (builder is null) {
+                    builder = ArrayBuilder<SynthesizedEntryPoint>.GetInstance();
+                } else {
+                    // TODO This is a weird one to implement
+                    // TODO This error uses the infrastructure provided by partial classes (which we DO NOT have) in
+                    // TODO order to handle errors of top level statements across mutiple files (which we DO have)
+                    // Binder.Error(diagnostics, ErrorCode.ERR_SimpleProgramMultipleUnitsWithTopLevelStatements, singleDecl.NameLocation);
+                }
+
+                // TODO confirm this syntaxReference here is correct and we shouldn't do something like
+                // new SyntaxReference(syntaxNode.syntaxTree.GetCompilationUnitRoot())
+                builder.Add(new SynthesizedEntryPoint(this, syntaxReference));
+            }
+
+            if (builder is null)
+                return [];
+
+            return builder.ToImmutableAndFree();
+        }
     }
 
     private protected abstract void CheckBase(BelteDiagnosticQueue diagnostics);
@@ -511,6 +555,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             if (_lazyMembersAndInitializers is not null)
                 return;
 
+            // var reportMisplacedGlobalCode = !m.hasErrors;
+            var reportMisplacedGlobalCode = true;
+
             switch (m.kind) {
                 case SyntaxKind.FieldDeclaration: {
                         var fieldSyntax = (FieldDeclarationSyntax)m;
@@ -571,6 +618,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(method);
                     }
+                    break;
+                case SyntaxKind.GlobalStatement:
+                    var globalStatement = ((GlobalStatementSyntax)m).statement;
+
+                    // TODO if (IsScriptClass) ?
+                    // else
+                    if (reportMisplacedGlobalCode &&
+                        !SyntaxFacts.IsSimpleProgramTopLevelStatement((GlobalStatementSyntax)m)) {
+                        // TODO Report misplaced global code
+                    }
+
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(m.kind);

@@ -183,7 +183,7 @@ done:
             }
         }
 
-        BuildProgram(builder, globals);
+        BuildProgram(builder, globals, diagnostics);
 
         if (!Compilation.KeepLookingForCorTypes) {
             foreach (var libraryType in StandardLibrary.GetTypes()) {
@@ -213,33 +213,20 @@ done:
 
     private void BuildProgram(
         PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals) {
+        Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals,
+        BelteDiagnosticQueue diagnostics) {
         if (globals.Count > 0) {
-            var returnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
-            var program = new SynthesizedProgram(
-                this,
-                WellKnownMemberNames.TopLevelStatementsEntryPointTypeName,
-                TypeKind.Class,
-                CorLibrary.GetSpecialType(SpecialType.Object),
-                DeclarationModifiers.Static
-            );
+            // TODO We need a standalone declaration system instead of using syntax nodes for all symbols
+            // TODO THIS DOES NOT WORK
+            var synthesizedDeclaration = SyntaxFactory.ClassDeclaration(
+                null,
+                SyntaxFactory.TokenList(),
+                SyntaxFactory.Token(SyntaxKind.ClassKeyword),
+                SyntaxFactory.Identifier(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName),
+                null,
+                null);
 
-            var membersBuilder = ArrayBuilder<Symbol>.GetInstance();
-
-            foreach (var keyValuePair in globals) {
-                var statements = keyValuePair.Value;
-
-                var entryPoint = new SynthesizedEntryPoint(
-                    program,
-                    returnType,
-                    statements.ToImmutableAndFree(),
-                    _declarations[0].syntaxTree.GetCompilationUnitRoot()
-                );
-
-                membersBuilder.Add(entryPoint);
-            }
-
-            program.FinishProgram(membersBuilder.ToImmutableAndFree());
+            var program = new SourceNamedTypeSymbol(this, synthesizedDeclaration, diagnostics);
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, program.name.AsMemory(), program);
         }
     }

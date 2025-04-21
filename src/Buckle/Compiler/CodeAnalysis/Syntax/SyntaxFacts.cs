@@ -511,4 +511,13 @@ internal static class SyntaxFacts {
     internal static bool IsComment(this SyntaxKind type) {
         return type == SyntaxKind.SingleLineCommentTrivia || type == SyntaxKind.MultiLineCommentTrivia;
     }
+
+    internal static bool IsTopLevelStatement(GlobalStatementSyntax syntax) {
+        return syntax?.parent?.kind == SyntaxKind.CompilationUnit;
+    }
+
+    internal static bool IsSimpleProgramTopLevelStatement(GlobalStatementSyntax syntax) {
+        // TODO Conider making scripts not use simple programs at all
+        return IsTopLevelStatement(syntax) /*&& syntax.syntaxTree.kind == SourceCodeKind.Regular*/;
+    }
 }

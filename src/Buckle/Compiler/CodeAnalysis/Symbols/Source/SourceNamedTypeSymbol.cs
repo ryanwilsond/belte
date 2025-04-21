@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -83,6 +82,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             return _lazyBaseType;
         }
     }
+
+    // TODO This could be based on declarations instead
+    internal bool isSimpleProgram => name == WellKnownMemberNames.TopLevelStatementsEntryPointTypeName;
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         if (_lazyDeclaredBase is null) {
