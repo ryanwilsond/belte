@@ -20,12 +20,10 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
     internal SynthesizedFinishedNamedTypeSymbol(
         NamedTypeSymbol underlyingType,
         Symbol containingSymbol,
-        ImmutableArray<Symbol>? members = null,
-        bool isSimpleProgram = false)
+        ImmutableArray<Symbol>? members = null)
         : base(underlyingType) {
         this.containingSymbol = containingSymbol;
         _allMembers = members ?? underlyingType.GetMembers();
-        this.isSimpleProgram = isSimpleProgram;
     }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
@@ -41,8 +39,6 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
     internal override NamedTypeSymbol baseType => underlyingNamedType.baseType;
 
     internal override Symbol containingSymbol { get; }
-
-    internal override bool isSimpleProgram { get; }
 
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.NotInSource;

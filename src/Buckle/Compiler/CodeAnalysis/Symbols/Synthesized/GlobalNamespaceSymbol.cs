@@ -7,12 +7,11 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
-using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class GlobalNamespaceSymbol : NamespaceSymbol {
-    private readonly ImmutableArray<MemberDeclarationSyntax> _declarations;
+    private readonly MergedNamespaceDeclaration _mergedDeclaration;
 
     private SymbolCompletionState _state;
     private ImmutableArray<Symbol> _lazyAllMembers;
@@ -21,18 +20,18 @@ internal sealed class GlobalNamespaceSymbol : NamespaceSymbol {
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
     private bool _lazyAllMembersIsSorted;
 
-    internal GlobalNamespaceSymbol(NamespaceExtent extent, ImmutableArray<MemberDeclarationSyntax> mergedDeclarations) {
+    internal GlobalNamespaceSymbol(NamespaceExtent extent, MergedNamespaceDeclaration mergedDeclaration) {
         this.extent = extent;
-        _declarations = mergedDeclarations;
+        _mergedDeclaration = mergedDeclaration;
     }
 
-    public override string name => "global";
+    public override string name => _mergedDeclaration.name;
 
     internal override NamespaceExtent extent { get; }
 
-    internal override SyntaxReference syntaxReference => null;
+    internal override SyntaxReference syntaxReference => _mergedDeclaration.declarations[0].syntaxReference;
 
-    internal override TextLocation location => null;
+    internal override TextLocation location => _mergedDeclaration.declarations[0].location;
 
     internal override Symbol containingSymbol => null;
 
@@ -164,26 +163,11 @@ done:
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> MakeNameToMembersMap(
         BelteDiagnosticQueue diagnostics) {
         var builder = NameToObjectPool.Allocate();
-        var globals = new Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>>();
 
-        foreach (var declaration in _declarations) {
-            if (declaration is GlobalStatementSyntax g) {
-                var sourceText = g.location.text;
-
-                if (globals.TryGetValue(sourceText, out var value)) {
-                    value.Add(g);
-                } else {
-                    var globalsBuilder = ArrayBuilder<GlobalStatementSyntax>.GetInstance();
-                    globalsBuilder.Add(g);
-                    globals.Add(sourceText, globalsBuilder);
-                }
-            } else {
-                var symbol = BuildSymbol(declaration, diagnostics);
-                ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
-            }
+        foreach (var declaration in _mergedDeclaration.children) {
+            var symbol = BuildSymbol(declaration, diagnostics);
+            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
-
-        BuildProgram(builder, globals, diagnostics);
 
         if (!Compilation.KeepLookingForCorTypes) {
             foreach (var libraryType in StandardLibrary.GetTypes()) {
@@ -211,31 +195,15 @@ done:
         return result;
     }
 
-    private void BuildProgram(
-        PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        Dictionary<SourceText, ArrayBuilder<GlobalStatementSyntax>> globals,
+    private NamespaceOrTypeSymbol BuildSymbol(
+        MergedNamespaceOrTypeDeclaration declaration,
         BelteDiagnosticQueue diagnostics) {
-        if (globals.Count > 0) {
-            // TODO We need a standalone declaration system instead of using syntax nodes for all symbols
-            // TODO THIS DOES NOT WORK
-            var synthesizedDeclaration = SyntaxFactory.ClassDeclaration(
-                null,
-                SyntaxFactory.TokenList(),
-                SyntaxFactory.Token(SyntaxKind.ClassKeyword),
-                SyntaxFactory.Identifier(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName),
-                null,
-                null);
-
-            var program = new SourceNamedTypeSymbol(this, synthesizedDeclaration, diagnostics);
-            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, program.name.AsMemory(), program);
-        }
-    }
-
-    private NamespaceOrTypeSymbol BuildSymbol(MemberDeclarationSyntax declaration, BelteDiagnosticQueue diagnostics) {
         switch (declaration.kind) {
-            case SyntaxKind.StructDeclaration:
-            case SyntaxKind.ClassDeclaration:
-                return new SourceNamedTypeSymbol(this, (TypeDeclarationSyntax)declaration, diagnostics);
+            case DeclarationKind.Struct:
+            case DeclarationKind.Class:
+                return new SourceNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
+            case DeclarationKind.ImplicitClass:
+                return new ImplicitNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaration.kind);
         }

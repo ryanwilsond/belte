@@ -11,14 +11,17 @@ using Buckle.Libraries;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
+    private readonly TypeSymbol _returnType;
+    private readonly SingleTypeDeclaration _declaration;
+
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private WeakReference<ExecutableCodeBinder> _weakIgnoreAccessibilityBodyBinder;
-    private readonly TypeSymbol _returnType;
     private Binder _lazyProgramBinder;
 
-    internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SyntaxReference syntaxReference)
-        : base(containingType, syntaxReference, MakeModifiersAndFlags(containingType, syntaxReference)) {
+    internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SingleTypeDeclaration declaration)
+        : base(containingType, declaration.syntaxReference, MakeModifiersAndFlags(containingType, declaration)) {
         _returnType = CorLibrary.GetSpecialType(SpecialType.Void);
+        _declaration = declaration;
     }
 
     public override string name => WellKnownMemberNames.EntryPointMethodName;
@@ -35,7 +38,7 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     internal override int parameterCount => 0;
 
-    internal override TextLocation location => syntaxNode.location;
+    internal override TextLocation location => _declaration.syntaxReference.location;
 
     internal CompilationUnitSyntax compilationUnit => (CompilationUnitSyntax)syntaxNode;
 
@@ -87,19 +90,17 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
         SourceMemberContainerTypeSymbol containingType,
-        SyntaxReference syntaxReference) {
-        // TODO Do we even need the return type to be correct in the first place?
-        // var hasReturnWithExpression
-
+        SingleTypeDeclaration declaration) {
+        var hasReturnWithExpression = declaration.hasReturnWithExpression;
         var declarationModifiers = DeclarationModifiers.Static | DeclarationModifiers.Private;
         var compilation = containingType.declaringCompilation;
-        var compilationUnit = (CompilationUnitSyntax)syntaxReference.node;
+        var compilationUnit = (CompilationUnitSyntax)declaration.syntaxReference.node;
+
         var flags = MakeFlags(
             MethodKind.Ordinary,
             RefKind.None,
             declarationModifiers,
-            // returnsVoid: !hasAwait && !hasReturnWithExpression,
-            returnsVoid: true,
+            returnsVoid: !hasReturnWithExpression,
             returnsVoidIsSet: true,
             hasAnyBody: true,
             hasThisInitializer: false

@@ -37,93 +37,12 @@ internal sealed class MethodCompiler {
         BelteDiagnosticQueue diagnostics,
         bool emitting) {
         var globalNamespace = compilation.globalNamespaceInternal;
-        var entryPoint = GetEntryPoint(compilation, globalNamespace, diagnostics);
+        var entryPoint = compilation.GetEntryPoint(diagnostics);
 
         var methodCompiler = new MethodCompiler(compilation, diagnostics, entryPoint, emitting);
 
         methodCompiler.CompileNamespace(globalNamespace);
         return methodCompiler.CreateBoundProgram();
-    }
-
-    private static MethodSymbol GetEntryPoint(
-        Compilation compilation,
-        NamespaceSymbol globalNamespace,
-        BelteDiagnosticQueue diagnostics) {
-        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
-        var globalsCount = 0;
-        var programClasses = globalNamespace.GetMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName);
-
-        if (programClasses.Length > 0) {
-            var programClass = (NamedTypeSymbol)programClasses[0];
-
-            foreach (var member in programClass.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
-                if (member is MethodSymbol m && HasEntryPointSignature(m)) {
-                    if (m is SynthesizedEntryPoint)
-                        globalsCount++;
-
-                    builder.Add(m);
-                }
-            }
-        }
-
-        var entryPointCandidates = builder.ToImmutableAndFree();
-        MethodSymbol entryPoint = null;
-
-        if (entryPointCandidates.Length == 0 && !compilation.options.isScript) {
-            diagnostics.Push(Error.NoSuitableEntryPoint());
-        } else if (entryPointCandidates.Length == 1) {
-            entryPoint = entryPointCandidates[0];
-        } else {
-            if (entryPointCandidates.Length > globalsCount + 1)
-                diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
-
-            if (globalsCount > 0 && entryPointCandidates.Length > globalsCount)
-                diagnostics.Push(Error.MainAndGlobals(entryPointCandidates[0].location));
-
-            if (globalsCount > 1) {
-                for (var i = 0; i < entryPointCandidates.Length; i++) {
-                    if (entryPointCandidates[i] is SynthesizedEntryPoint s)
-                        diagnostics.Push(Error.GlobalStatementsInMultipleFiles(s.location));
-                }
-            }
-        }
-
-        return entryPoint;
-    }
-
-    private static bool HasEntryPointSignature(MethodSymbol method) {
-        var returnType = method.returnType;
-
-        if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType()) {
-            if (returnType.specialType == SpecialType.Nullable &&
-                returnType.GetNullableUnderlyingType().specialType != SpecialType.Int) {
-                return false;
-            }
-        }
-
-        if (method.refKind != RefKind.None)
-            return false;
-
-        if (method.parameterCount == 0)
-            return true;
-
-        if (method.parameterCount > 1)
-            return false;
-
-        if (!method.parameterRefKinds.IsDefault)
-            return false;
-
-        var firstType = method.parameters[0].type;
-
-        if (firstType.specialType != SpecialType.List)
-            return false;
-
-        var elementType = ((NamedTypeSymbol)firstType).templateArguments[0].type;
-
-        if (elementType.specialType != SpecialType.String)
-            return false;
-
-        return true;
     }
 
     private BoundProgram CreateBoundProgram() {

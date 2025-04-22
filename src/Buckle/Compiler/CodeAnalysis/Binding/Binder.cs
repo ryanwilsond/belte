@@ -2530,7 +2530,7 @@ internal partial class Binder {
         SimpleNameSyntax node,
         Symbol symbol,
         BelteDiagnosticQueue diagnostics) {
-        if (symbol.containingSymbol is SynthesizedProgram && containingMember is not SynthesizedEntryPoint) {
+        if (symbol.containingSymbol is SynthesizedEntryPoint && containingMember is not SynthesizedEntryPoint) {
             diagnostics.Push(Error.ProgramLocalReferencedOutsideOfTopLevelStatement(node.location, node));
             return true;
         }

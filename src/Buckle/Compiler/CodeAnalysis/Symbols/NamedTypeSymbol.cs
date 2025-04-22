@@ -70,8 +70,6 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal abstract NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved);
 
-    internal virtual bool isSimpleProgram => false;
-
     internal bool knownToHaveNoDeclaredBaseCycles => _hasNoBaseCycles;
 
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {

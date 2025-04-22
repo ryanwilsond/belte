@@ -33,6 +33,7 @@ public sealed class Compilation {
     private BoundProgram _lazyBoundProgram;
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
     private List<LocalFunctionRewriter.Analysis> _lazyPreviousAnalyses;
+    private MethodSymbol _lazyEntryPoint;
 
     private Compilation(
         string assemblyName,
@@ -86,8 +87,7 @@ public sealed class Compilation {
         get {
             if (_lazyGlobalNamespace is null) {
                 var extent = new NamespaceExtent(this);
-                var mergedDeclarations = MergeDeclarations();
-                var result = new GlobalNamespaceSymbol(extent, mergedDeclarations);
+                var result = new GlobalNamespaceSymbol(extent, _syntax.state.declarationTable.GetMergedRoot(this));
                 Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
             }
 
@@ -285,6 +285,88 @@ public sealed class Compilation {
         return GetDiagnostics(true, true, true);
     }
 
+    internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
+        if (_lazyEntryPoint is null) {
+            var simpleEntryPoint = SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this);
+            Interlocked.CompareExchange(ref _lazyEntryPoint, FindEntryPoint(simpleEntryPoint, diagnostics), null);
+        }
+
+        return _lazyEntryPoint;
+    }
+
+    private MethodSymbol FindEntryPoint(
+        SynthesizedEntryPoint simpleEntryPoint,
+        BelteDiagnosticQueue diagnostics) {
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+        var programClasses = globalNamespaceInternal
+            .GetMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName);
+
+        if (programClasses.Length > 0) {
+            var programClass = (NamedTypeSymbol)programClasses[0];
+
+            foreach (var member in programClass.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
+                if (member is MethodSymbol m && HasEntryPointSignature(m))
+                    builder.Add(m);
+            }
+        }
+
+        builder.AddIfNotNull(simpleEntryPoint);
+        var entryPointCandidates = builder.ToImmutableAndFree();
+        var expectedCount = simpleEntryPoint is null ? 1 : 2;
+
+        MethodSymbol entryPoint = null;
+
+        if (entryPointCandidates.Length == 0 && !options.isScript) {
+            diagnostics.Push(Error.NoSuitableEntryPoint());
+        } else if (entryPointCandidates.Length == 1) {
+            entryPoint = entryPointCandidates[0];
+        } else {
+            if (entryPointCandidates.Length > expectedCount)
+                diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
+
+            if (entryPointCandidates.Length > 1 && simpleEntryPoint is not null)
+                diagnostics.Push(Error.MainAndGlobals(entryPointCandidates[0].location));
+        }
+
+        return entryPoint;
+    }
+
+    private static bool HasEntryPointSignature(MethodSymbol method) {
+        var returnType = method.returnType;
+
+        if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType()) {
+            if (returnType.specialType == SpecialType.Nullable &&
+                returnType.GetNullableUnderlyingType().specialType != SpecialType.Int) {
+                return false;
+            }
+        }
+
+        if (method.refKind != RefKind.None)
+            return false;
+
+        if (method.parameterCount == 0)
+            return true;
+
+        if (method.parameterCount > 1)
+            return false;
+
+        if (!method.parameterRefKinds.IsDefault)
+            return false;
+
+        var firstType = method.parameters[0].type;
+
+        if (firstType.specialType != SpecialType.List)
+            return false;
+
+        var elementType = ((NamedTypeSymbol)firstType).templateArguments[0].type;
+
+        if (elementType.specialType != SpecialType.String)
+            return false;
+
+        return true;
+    }
+
     internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
         var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
 
@@ -429,17 +511,6 @@ public sealed class Compilation {
             builder.PushRange(methodDiagnostics);
 
         return builder;
-    }
-
-    private ImmutableArray<MemberDeclarationSyntax> MergeDeclarations() {
-        var builder = ArrayBuilder<MemberDeclarationSyntax>.GetInstance();
-
-        foreach (var tree in _syntax.syntaxTrees) {
-            var compilationUnit = tree.GetCompilationUnitRoot();
-            builder.AddRange(compilationUnit.members);
-        }
-
-        return builder.ToImmutableAndFree();
     }
 
     private void EnsureBoundProgramAndMethodDiagnostics() {

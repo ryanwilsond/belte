@@ -244,21 +244,18 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 return [];
             }
 
-            ArrayBuilder<SynthesizedEntryPoint>? builder = null;
+            ArrayBuilder<SynthesizedEntryPoint> builder = null;
 
-            if (isSimpleProgram) {
-                if (builder is null) {
-                    builder = ArrayBuilder<SynthesizedEntryPoint>.GetInstance();
-                } else {
-                    // TODO This is a weird one to implement
-                    // TODO This error uses the infrastructure provided by partial classes (which we DO NOT have) in
-                    // TODO order to handle errors of top level statements across mutiple files (which we DO have)
-                    // Binder.Error(diagnostics, ErrorCode.ERR_SimpleProgramMultipleUnitsWithTopLevelStatements, singleDecl.NameLocation);
+            foreach (var singleDecl in _declaration.declarations) {
+                if (singleDecl.isSimpleProgram) {
+                    if (builder is null)
+                        builder = ArrayBuilder<SynthesizedEntryPoint>.GetInstance();
+                    else
+                        // TODO It looks like we already handle this error in the MethodCompiler? Double check
+                        diagnostics.Push(Error.GlobalStatementsInMultipleFiles(singleDecl.nameLocation));
+
+                    builder.Add(new SynthesizedEntryPoint(this, singleDecl));
                 }
-
-                // TODO confirm this syntaxReference here is correct and we shouldn't do something like
-                // new SyntaxReference(syntaxNode.syntaxTree.GetCompilationUnitRoot())
-                builder.Add(new SynthesizedEntryPoint(this, syntaxReference));
             }
 
             if (builder is null)
@@ -619,9 +616,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     break;
                 case SyntaxKind.GlobalStatement:
                     var globalStatement = ((GlobalStatementSyntax)m).statement;
+                    // AddInitializer(ref initializers, null, globalStatement);
 
-                    // TODO if (IsScriptClass) ?
-                    // else
                     if (reportMisplacedGlobalCode &&
                         !SyntaxFacts.IsSimpleProgramTopLevelStatement((GlobalStatementSyntax)m)) {
                         // TODO Report misplaced global code

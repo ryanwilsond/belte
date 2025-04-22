@@ -14,7 +14,7 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
         // ImmutableArray<ReferenceDirective> referenceDirectives,
         ImmutableArray<BelteDiagnostic> diagnostics)
         : base(
-            "",
+            "global",
             treeNode,
             nameLocation: treeNode.location,
             children: children,
