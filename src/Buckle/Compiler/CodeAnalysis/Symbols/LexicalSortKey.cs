@@ -1,5 +1,6 @@
 using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -35,6 +36,9 @@ internal struct LexicalSortKey {
 
     internal LexicalSortKey(SyntaxToken token, Compilation compilation)
         : this(token.syntaxTree, token.span.start, compilation) { }
+
+    internal LexicalSortKey(SyntaxTree tree, TextLocation location, Compilation compilation)
+        : this(tree, location.span.start, compilation) { }
 
     internal readonly int treeOrdinal => _treeOrdinal;
 

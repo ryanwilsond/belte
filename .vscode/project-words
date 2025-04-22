@@ -2,6 +2,7 @@ accessibilities
 arities
 arity
 builtins
+comparand
 constexpr
 downcasted
 enumerables

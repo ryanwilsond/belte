@@ -20,7 +20,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     private readonly DeclarationModifiers _modifiers;
     private protected SymbolCompletionState _state;
-    private protected readonly TypeDeclarationSyntax _declaration;
+    private protected readonly MergedTypeDeclaration _declaration;
 
     private ImmutableArray<SynthesizedEntryPoint> _lazySimpleProgramEntryPoints;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyTypeMembers;
@@ -33,17 +33,18 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal SourceMemberContainerTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
-        TypeDeclarationSyntax declaration,
+        MergedTypeDeclaration declaration,
         BelteDiagnosticQueue diagnostics) {
         this.containingSymbol = containingSymbol;
         _declaration = declaration;
-        location = declaration.identifier.location;
-        typeKind = declaration.kind == SyntaxKind.ClassDeclaration ? TypeKind.Class : TypeKind.Struct;
-        name = declaration.identifier.text;
-        arity = declaration.arity;
+        location = declaration.nameLocations.First();
+        typeKind = declaration.kind.ToTypeKind();
 
         var modifiers = MakeModifiers(diagnostics);
         var access = (int)(modifiers & DeclarationModifiers.AccessibilityMask);
+
+        foreach (var singleDeclaration in declaration.declarations)
+            diagnostics.PushRange(singleDeclaration.diagnostics);
 
         if ((access & (access - 1)) != 0) {
             access &= ~(access - 1);
@@ -56,18 +57,15 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         var containingType = this.containingType;
 
-        if (containingType?.isSealed == true && declaredAccessibility.HasFlag(Accessibility.Protected)) {
-            var protectedModifierIndex = declaration.modifiers.IndexOf(SyntaxKind.ProtectedKeyword);
-            var protectedModifier = declaration.modifiers[protectedModifierIndex];
-            diagnostics.Push(Warning.ProtectedMemberInSealedType(protectedModifier.location, containingSymbol, this));
-        }
+        if (containingType?.isSealed == true && declaredAccessibility.HasFlag(Accessibility.Protected))
+            diagnostics.Push(Warning.ProtectedMemberInSealedType(location, containingSymbol, this));
 
         _state.NotePartComplete(CompletionParts.TemplateArguments);
     }
 
-    public override string name { get; }
+    public override string name => _declaration.name;
 
-    public override int arity { get; }
+    public override int arity => _declaration.arity;
 
     public override TypeKind typeKind { get; }
 
@@ -91,7 +89,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal override Symbol containingSymbol { get; }
 
-    internal override SyntaxReference syntaxReference => new SyntaxReference(_declaration);
+    internal override SyntaxReference syntaxReference => _declaration.syntaxReferences.First();
 
     internal override TextLocation location { get; }
 
@@ -406,8 +404,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         var conflicts = new Dictionary<(string name, int arity, SyntaxTree syntaxTree), SourceNamedTypeSymbol>();
 
         try {
-            foreach (var childDeclaration in _declaration.members.Where(m => m is TypeDeclarationSyntax)) {
-                var t = new SourceNamedTypeSymbol(this, childDeclaration as TypeDeclarationSyntax, diagnostics);
+            foreach (var childDeclaration in _declaration.children) {
+                var t = new SourceNamedTypeSymbol(this, childDeclaration, diagnostics);
                 CheckMemberNameDistinctFromType(t, diagnostics);
 
                 var key = (t.name, t.arity, t.syntaxReference.syntaxTree);
@@ -743,11 +741,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         DeclarationModifiers allowedModifiers,
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
-        var modifiers = ModifierHelpers.CreateModifiers(
-            _declaration.modifiers,
-            diagnostics,
-            out var hasDuplicateErrors
-        );
+        var modifiers = _declaration.declarations[0].modifiers;
 
         modifiers = ModifierHelpers.CheckModifiers(
             true,
@@ -757,8 +751,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics,
             out hasErrors
         );
-
-        hasErrors |= hasDuplicateErrors;
 
         if (!hasErrors)
             hasErrors = ModifierHelpers.CheckAccessibility(modifiers, diagnostics, location);

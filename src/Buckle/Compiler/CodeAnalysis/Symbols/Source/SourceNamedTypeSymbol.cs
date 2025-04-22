@@ -17,7 +17,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
-        TypeDeclarationSyntax declaration,
+        MergedTypeDeclaration declaration,
         BelteDiagnosticQueue diagnostics)
         : base(containingSymbol, declaration, diagnostics) { }
 
@@ -120,8 +120,33 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         if (localBase is null)
             return;
 
-        var location = _declaration.identifier.location;
-        localBase.CheckAllConstraints(declaringCompilation, location, diagnostics);
+
+        var singleDeclaration = FirstDeclarationWithExplicitBases();
+
+        if (singleDeclaration is not null) {
+            var location = singleDeclaration.nameLocation;
+            localBase.CheckAllConstraints(declaringCompilation, location, diagnostics);
+        }
+    }
+
+    private SingleTypeDeclaration FirstDeclarationWithExplicitBases() {
+        foreach (var singleDeclaration in _declaration.declarations) {
+            var bases = GetBaseListOpt(singleDeclaration);
+
+            if (bases is not null)
+                return singleDeclaration;
+        }
+
+        return null;
+    }
+
+    private static BaseTypeSyntax GetBaseListOpt(SingleTypeDeclaration decl) {
+        if (decl.hasBaseDeclarations) {
+            var typeDeclaration = (ClassDeclarationSyntax)decl.syntaxReference.node;
+            return typeDeclaration.baseType;
+        }
+
+        return null;
     }
 
     private static bool TypeDependsOn(NamedTypeSymbol depends, NamedTypeSymbol on) {
@@ -184,9 +209,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     private NamedTypeSymbol MakeDeclaredBase(
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
+        var decl = _declaration.declarations[0];
         var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
-        var baseType = MakeOneDeclaredBase(newBasesBeingResolved, diagnostics);
-        var baseTypeLocation = _declaration.identifier.location;
+        var baseType = MakeOneDeclaredBase(newBasesBeingResolved, decl, diagnostics);
+        var baseTypeLocation = decl.nameLocation;
 
         if (baseType is not null) {
             if (baseType.isStatic)
@@ -201,11 +227,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
     private NamedTypeSymbol MakeOneDeclaredBase(
         ConsList<TypeSymbol> newBasesBeingResolved,
+        SingleTypeDeclaration decl,
         BelteDiagnosticQueue diagnostics) {
-        if (_declaration is not ClassDeclarationSyntax cd)
-            return null;
-
-        var baseSyntax = cd.baseType;
+        var baseSyntax = GetBaseListOpt(decl);
 
         if (baseSyntax is null)
             return null;
@@ -257,13 +281,15 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     }
 
     private ImmutableArray<TemplateParameterSymbol> MakeTemplateParameters(BelteDiagnosticQueue diagnostics) {
-        if (_declaration.templateParameterList is null)
+        if (_declaration.arity == 0)
             return [];
 
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
         var i = 0;
 
-        foreach (var templateSyntax in _declaration.templateParameterList.parameters) {
+        var syntax = (TypeDeclarationSyntax)_declaration.declarations[0].syntaxReference.node;
+
+        foreach (var templateSyntax in syntax.templateParameterList.parameters) {
             var result = new SourceTemplateParameterSymbol(
                 this,
                 templateSyntax.identifier.text,
@@ -314,10 +340,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             var skipPartialDeclarationsWithoutConstraintClauses = SkipPartialDeclarationsWithoutConstraintClauses();
             ArrayBuilder<ImmutableArray<TypeParameterConstraintClause>> otherPartialClauses = null;
 
-            var constraintClauses = GetConstraintClauses(_declaration, out var templateParameterList);
+            var constraintClauses = GetConstraintClauses(syntaxReference.node, out var templateParameterList);
 
             if (!skipPartialDeclarationsWithoutConstraintClauses || constraintClauses.Count != 0) {
-                var binderFactory = declaringCompilation.GetBinderFactory(_declaration.syntaxTree);
+                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
                 Binder binder;
                 ImmutableArray<TypeParameterConstraintClause> constraints;
 
@@ -366,10 +392,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             var skipPartialDeclarationsWithoutConstraintClauses = SkipPartialDeclarationsWithoutConstraintClauses();
             ArrayBuilder<ImmutableArray<TypeParameterConstraintClause>> otherPartialClauses = null;
 
-            var constraintClauses = GetConstraintClauses(_declaration, out var templateParameterList);
+            var constraintClauses = GetConstraintClauses(syntaxReference.node, out var templateParameterList);
 
             if (!skipPartialDeclarationsWithoutConstraintClauses || constraintClauses.Count != 0) {
-                var binderFactory = declaringCompilation.GetBinderFactory(_declaration.syntaxTree);
+                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
                 Binder binder;
                 ImmutableArray<TypeParameterConstraintClause> constraints;
 
@@ -414,17 +440,23 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     }
 
     private bool SkipPartialDeclarationsWithoutConstraintClauses() {
-        return GetConstraintClauses(_declaration, out _).Count != 0;
+        foreach (var decl in _declaration.declarations) {
+            if (GetConstraintClauses(decl.syntaxReference.node, out _).Count != 0)
+                return true;
+        }
+
+        return false;
     }
 
     private static SyntaxList<TemplateConstraintClauseSyntax> GetConstraintClauses(
-        TypeDeclarationSyntax node,
+        SyntaxNode node,
         out TemplateParameterListSyntax templateParameterList) {
         switch (node.kind) {
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
-                templateParameterList = node.templateParameterList;
-                return node.constraintClauseList.constraintClauses;
+                var typeDeclaration = (TypeDeclarationSyntax)node;
+                templateParameterList = typeDeclaration.templateParameterList;
+                return typeDeclaration.constraintClauseList.constraintClauses;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }

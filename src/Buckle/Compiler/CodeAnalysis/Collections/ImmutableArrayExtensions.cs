@@ -7,6 +7,10 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal static class ImmutableArrayExtensions {
+    internal static ImmutableArray<T> AsImmutable<T>(this IEnumerable<T> items) {
+        return [.. items];
+    }
+
     internal static Dictionary<K, ImmutableArray<T>> ToDictionary<K, T>(
         this ImmutableArray<T> items,
         Func<T, K> keySelector,

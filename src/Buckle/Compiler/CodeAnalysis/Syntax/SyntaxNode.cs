@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax;
 

@@ -26,7 +26,7 @@ namespace Buckle.CodeAnalysis;
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
 public sealed class Compilation {
-    private readonly SyntaxManager _syntax;
+    private readonly SyntaxAndDeclarationManager _syntax;
     private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
@@ -38,7 +38,7 @@ public sealed class Compilation {
         string assemblyName,
         CompilationOptions options,
         Compilation previous,
-        SyntaxManager syntax) {
+        SyntaxAndDeclarationManager syntax) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
@@ -373,7 +373,7 @@ public sealed class Compilation {
         return Update(syntax);
     }
 
-    private Compilation Update(SyntaxManager syntax) {
+    private Compilation Update(SyntaxAndDeclarationManager syntax) {
         return new Compilation(assemblyName, options, previous, syntax);
     }
 
@@ -403,7 +403,7 @@ public sealed class Compilation {
             assemblyName,
             options,
             previous,
-            new SyntaxManager([], null)
+            new SyntaxAndDeclarationManager([], null)
         );
 
         if (syntaxTrees is not null)

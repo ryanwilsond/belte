@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 
@@ -380,9 +381,15 @@ internal static class SyntaxFacts {
     /// Gets the associations operator name of an operator declaration using the operator token and parameter count.
     /// </summary>
     internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
-        var parameterCount = syntax.parameterList.parameters.Count;
+        return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+    }
 
-        return syntax.operatorToken.kind switch {
+    internal static string GetOperatorMemberName(InternalSyntax.OperatorDeclarationSyntax syntax) {
+        return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+    }
+
+    private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind) {
+        return kind switch {
             SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
             SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
             SyntaxKind.SlashToken => WellKnownMemberNames.DivideOperatorName,
@@ -519,5 +526,19 @@ internal static class SyntaxFacts {
     internal static bool IsSimpleProgramTopLevelStatement(GlobalStatementSyntax syntax) {
         // TODO Conider making scripts not use simple programs at all
         return IsTopLevelStatement(syntax) /*&& syntax.syntaxTree.kind == SourceCodeKind.Regular*/;
+    }
+
+    internal static bool HasReturnWithExpression(SyntaxNode node) {
+        return node is not null &&
+               node.DescendantNodesAndSelf(child => !IsNestedFunction(child) && node is not ExpressionSyntax)
+                    .Any(n => n is ReturnStatementSyntax { expression: { } });
+    }
+
+    private static bool IsNestedFunction(SyntaxNode child) {
+        return IsNestedFunction(child.kind);
+    }
+
+    private static bool IsNestedFunction(SyntaxKind kind) {
+        return kind is SyntaxKind.LocalFunctionStatement;
     }
 }

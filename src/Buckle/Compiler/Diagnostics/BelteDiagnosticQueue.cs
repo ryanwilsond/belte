@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Diagnostics;
@@ -106,6 +107,10 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
         PushRange(diagnostics);
         diagnostics.Free();
+    }
+
+    internal ImmutableArray<BelteDiagnostic> ToImmutableAndFree() {
+        return ToArrayAndFree().ToImmutableArray();
     }
 
     private string GetDebuggerDisplay() {

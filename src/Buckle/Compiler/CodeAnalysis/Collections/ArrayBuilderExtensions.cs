@@ -39,6 +39,21 @@ internal static class ArrayBuilderExtensions {
         return true;
     }
 
+    internal static void AddIfNotNull<T>(this ArrayBuilder<T> builder, T value) where T : class {
+        if (value is not null)
+            builder.Add(value);
+    }
+
+    internal static OneOrMany<T> ToOneOrManyAndFree<T>(this ArrayBuilder<T> builder) {
+        if (builder.Count == 1) {
+            var result = OneOrMany.Create(builder[0]);
+            builder.Free();
+            return result;
+        } else {
+            return OneOrMany.Create(builder.ToImmutableAndFree());
+        }
+    }
+
     internal static ImmutableArray<TResult> SelectAsArray<TItem, TResult>(
         this ArrayBuilder<TItem> items,
         Func<TItem, TResult> map) {
