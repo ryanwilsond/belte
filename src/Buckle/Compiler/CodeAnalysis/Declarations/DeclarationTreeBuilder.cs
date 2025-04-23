@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -162,81 +161,6 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         );
     }
 
-    private RootSingleNamespaceDeclaration CreateScriptRootDeclaration(CompilationUnitSyntax compilationUnit) {
-        var members = compilationUnit.members;
-        var rootChildren = ArrayBuilder<SingleNamespaceOrTypeDeclaration>.GetInstance();
-        var scriptChildren = ArrayBuilder<SingleTypeDeclaration>.GetInstance();
-
-        foreach (var member in members) {
-            var decl = Visit(member);
-
-            if (decl is not null) {
-                if (decl.kind == DeclarationKind.Namespace)
-                    rootChildren.Add(decl);
-                else
-                    scriptChildren.Add((SingleTypeDeclaration)decl);
-            }
-        }
-
-        var declFlags = SingleTypeDeclaration.TypeDeclarationFlags.None;
-        var memberNames = GetNonTypeMemberNames(
-            compilationUnit,
-            ((CoreInternalSyntax.CompilationUnitSyntax)compilationUnit.green).members,
-            ref declFlags
-        );
-
-        rootChildren.Add(
-            CreateScriptClass(
-                compilationUnit,
-                scriptChildren.ToImmutableAndFree(),
-                memberNames,
-                declFlags
-            )
-        );
-
-        return CreateRootSingleNamespaceDeclaration(
-            compilationUnit,
-            rootChildren.ToImmutableAndFree(),
-            isForScript: true
-        );
-    }
-
-    private SingleNamespaceOrTypeDeclaration CreateScriptClass(
-        CompilationUnitSyntax parent,
-        ImmutableArray<SingleTypeDeclaration> children,
-        BoxedMemberNames memberNames,
-        SingleTypeDeclaration.TypeDeclarationFlags declFlags) {
-        var parentReference = new SyntaxReference(parent);
-        var fullName = _scriptClassName.Split('.');
-
-        SingleNamespaceOrTypeDeclaration decl = new SingleTypeDeclaration(
-            kind: _isSubmission ? DeclarationKind.Submission : DeclarationKind.Script,
-            name: fullName.Last(),
-            arity: 0,
-            modifiers: DeclarationModifiers.Public | DeclarationModifiers.Sealed,
-            declFlags: declFlags,
-            syntaxReference: parentReference,
-            nameLocation: parentReference.location,
-            memberNames: memberNames,
-            children: children,
-            diagnostics: []
-        );
-
-        for (var i = fullName.Length - 2; i >= 0; i--) {
-            decl = SingleNamespaceDeclaration.Create(
-                name: fullName[i],
-                hasUsings: false,
-                hasExternAliases: false,
-                syntaxReference: parentReference,
-                nameLocation: parentReference.location,
-                children: [decl],
-                diagnostics: []
-            );
-        }
-
-        return decl;
-    }
-
     internal override SingleNamespaceOrTypeDeclaration VisitCompilationUnit(CompilationUnitSyntax compilationUnit) {
         // TODO The REPL kind of just assumes the compiler treats the submissions as regular
         // TODO And to compensate, the compiler assumes it might be compiling scripts at any time
@@ -263,149 +187,20 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-        // foreach (var directive in compilationUnit.Usings) {
-        //     if (directive.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)) {
-        //         hasGlobalUsings = true;
-
-        //         if (hasUsings && !reportedGlobalUsingOutOfOrder) {
-        //             reportedGlobalUsingOutOfOrder = true;
-        //             diagnostics.Add(ErrorCode.ERR_GlobalUsingOutOfOrder, directive.GlobalKeyword.GetLocation());
-        //         }
-        //     } else {
-        //         hasUsings = true;
-        //     }
-        // }
-
-        // var globalAliasedQuickAttributes = GetQuickAttributes(compilationUnit.Usings, global: true);
-
         return new RootSingleNamespaceDeclaration(
             hasGlobalUsings: hasGlobalUsings,
             hasUsings: hasUsings,
-            // hasExternAliases: compilationUnit.Externs.Any(),
             hasExternAliases: false,
             treeNode: new SyntaxReference(compilationUnit),
             children: children,
-            // referenceDirectives: isForScript ? GetReferenceDirectives(compilationUnit) : ImmutableArray<ReferenceDirective>.Empty,
             diagnostics: diagnostics.ToImmutableAndFree()
         );
     }
-
-    // internal override SingleNamespaceOrTypeDeclaration VisitNamespaceDeclaration(NamespaceDeclarationSyntax node)
-    //     => this.VisitBaseNamespaceDeclaration(node);
-
-    // private SingleNamespaceDeclaration VisitBaseNamespaceDeclaration(BaseNamespaceDeclarationSyntax node) {
-    //     var children = VisitNamespaceChildren(node, node.Members, ((Syntax.InternalSyntax.BaseNamespaceDeclarationSyntax)node.Green).Members);
-
-    //     bool hasUsings = node.Usings.Any();
-    //     bool hasExterns = node.Externs.Any();
-    //     NameSyntax name = node.Name;
-    //     CSharpSyntaxNode currentNode = node;
-    //     while (name is QualifiedNameSyntax dotted) {
-    //         var ns = SingleNamespaceDeclaration.Create(
-    //             name: dotted.Right.Identifier.ValueText,
-    //             hasUsings: hasUsings,
-    //             hasExternAliases: hasExterns,
-    //             syntaxReference: _syntaxTree.GetReference(currentNode),
-    //             nameLocation: new SourceLocation(dotted.Right),
-    //             children: children,
-    //             diagnostics: ImmutableArray<Diagnostic>.Empty);
-
-    //         children = ImmutableArray.Create<SingleNamespaceOrTypeDeclaration>(ns);
-    //         currentNode = name = dotted.Left;
-    //         hasUsings = false;
-    //         hasExterns = false;
-    //     }
-
-    //     var diagnostics = DiagnosticBag.GetInstance();
-
-    //     if (node is FileScopedNamespaceDeclarationSyntax) {
-    //         MessageID.IDS_FeatureFileScopedNamespace.CheckFeatureAvailability(diagnostics, node, node.NamespaceKeyword.GetLocation());
-
-    //         if (node.Parent is FileScopedNamespaceDeclarationSyntax) {
-    //             // Happens when user writes:
-    //             //      namespace A.B;
-    //             //      namespace X.Y;
-    //             diagnostics.Add(ErrorCode.ERR_MultipleFileScopedNamespace, node.Name.GetLocation());
-    //         } else if (node.Parent is NamespaceDeclarationSyntax) {
-    //             // Happens with:
-    //             //
-    //             //      namespace A.B
-    //             //      {
-    //             //          namespace X.Y;
-    //             diagnostics.Add(ErrorCode.ERR_FileScopedAndNormalNamespace, node.Name.GetLocation());
-    //         } else {
-    //             // Happens with cases like:
-    //             //
-    //             //      namespace A.B { }
-    //             //      namespace X.Y;
-    //             //
-    //             // or even
-    //             //
-    //             //      class C { }
-    //             //      namespace X.Y;
-
-    //             Debug.Assert(node.Parent is CompilationUnitSyntax);
-    //             var compilationUnit = (CompilationUnitSyntax)node.Parent;
-    //             if (node != compilationUnit.Members[0]) {
-    //                 diagnostics.Add(ErrorCode.ERR_FileScopedNamespaceNotBeforeAllMembers, node.Name.GetLocation());
-    //             }
-    //         }
-    //     } else {
-    //         Debug.Assert(node is NamespaceDeclarationSyntax);
-
-    //         //      namespace X.Y;
-    //         //      namespace A.B { }
-    //         if (node.Parent is FileScopedNamespaceDeclarationSyntax) {
-    //             diagnostics.Add(ErrorCode.ERR_FileScopedAndNormalNamespace, node.Name.GetLocation());
-    //         }
-    //     }
-
-    //     if (ContainsGeneric(node.Name)) {
-    //         // We're not allowed to have generics.
-    //         diagnostics.Add(ErrorCode.ERR_UnexpectedGenericName, node.Name.GetLocation());
-    //     }
-
-    //     if (ContainsAlias(node.Name)) {
-    //         diagnostics.Add(ErrorCode.ERR_UnexpectedAliasedName, node.Name.GetLocation());
-    //     }
-
-    //     if (node.AttributeLists.Count > 0) {
-    //         diagnostics.Add(ErrorCode.ERR_BadModifiersOnNamespace, node.AttributeLists[0].GetLocation());
-    //     }
-
-    //     if (node.Modifiers.Count > 0) {
-    //         diagnostics.Add(ErrorCode.ERR_BadModifiersOnNamespace, node.Modifiers[0].GetLocation());
-    //     }
-
-    //     foreach (var directive in node.Usings) {
-    //         if (directive.GlobalKeyword.IsKind(SyntaxKind.GlobalKeyword)) {
-    //             diagnostics.Add(ErrorCode.ERR_GlobalUsingInNamespace, directive.GlobalKeyword.GetLocation());
-    //             break;
-    //         }
-    //     }
-
-    //     CheckFeatureAvailabilityForUsings(diagnostics, node.Usings);
-    //     CheckFeatureAvailabilityForExterns(diagnostics, node.Externs);
-
-    //     // NOTE: *Something* has to happen for alias-qualified names.  It turns out that we
-    //     // just grab the part after the colons (via GetUnqualifiedName, below).  This logic
-    //     // must be kept in sync with NamespaceSymbol.GetNestedNamespace.
-    //     return SingleNamespaceDeclaration.Create(
-    //         name: name.GetUnqualifiedName().Identifier.ValueText,
-    //         hasUsings: hasUsings,
-    //         hasExternAliases: hasExterns,
-    //         syntaxReference: _syntaxTree.GetReference(currentNode),
-    //         nameLocation: new SourceLocation(name),
-    //         children: children,
-    //         diagnostics: diagnostics.ToReadOnlyAndFree());
-    // }
 
     private static bool ContainsAlias(NameSyntax name) {
         switch (name.kind) {
             case SyntaxKind.TemplateName:
                 return false;
-            // case SyntaxKind.AliasQualifiedName:
-            //     return true;
             case SyntaxKind.QualifiedName:
                 var qualifiedName = (QualifiedNameSyntax)name;
                 return ContainsAlias(qualifiedName.left);
@@ -418,8 +213,6 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         switch (name.kind) {
             case SyntaxKind.TemplateName:
                 return true;
-            // case SyntaxKind.AliasQualifiedName:
-            //     return ContainsGeneric(((AliasQualifiedNameSyntax)name).Name);
             case SyntaxKind.QualifiedName:
                 var qualifiedName = (QualifiedNameSyntax)name;
                 return ContainsTemplate(qualifiedName.left) || ContainsTemplate(qualifiedName.right);
@@ -437,9 +230,6 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     }
 
     private SingleTypeDeclaration VisitTypeDeclaration(TypeDeclarationSyntax node, DeclarationKind kind) {
-        // var declFlags = node.attributeLists.Any()
-        //     ? SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes
-        //     : SingleTypeDeclaration.TypeDeclarationFlags.None;
         var declFlags = SingleTypeDeclaration.TypeDeclarationFlags.None;
 
         if (node is ClassDeclarationSyntax cds && cds.baseType is not null)
@@ -457,7 +247,6 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             ref declFlags
         );
 
-        // var modifiers = node.modifiers.ToDeclarationModifiers(isForTypeDeclaration: true, diagnostics: diagnostics);
         var modifiers = ModifierHelpers.CreateModifiers(node.modifiers, diagnostics, out _);
 
         return new SingleTypeDeclaration(
@@ -551,52 +340,16 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 memberNamesBuilder.Free();
 
                 if (memberNames.Value.Count > 0) {
-                    using PooledDelegates.Releaser _ = PooledDelegates.GetPooledCreateValueCallback(
-                        static (GreenNode _, BoxedMemberNames memberNames) => memberNames, memberNames, out var pooledCallback);
+                    using var _ = PooledDelegates.GetPooledCreateValueCallback(
+                        static (GreenNode _, BoxedMemberNames memberNames)
+                            => memberNames, memberNames, out var pooledCallback);
+
                     memberNames = NodeToMemberNames.GetValue(greenNode, pooledCallback);
                 }
             }
 
             return memberNames;
         }
-    }
-
-    private static bool CheckMethodMemberForExtensionSyntax(CoreInternalSyntax.BelteSyntaxNode member) {
-        if (member.kind == SyntaxKind.MethodDeclaration) {
-            var methodDecl = (CoreInternalSyntax.MethodDeclarationSyntax)member;
-
-            var paramList = methodDecl.parameterList;
-            if (paramList != null) {
-                var parameters = paramList.parameters;
-
-                if (parameters.Count != 0) {
-                    var firstParameter = parameters[0];
-
-                    foreach (var modifier in firstParameter.modifiers) {
-                        if (modifier.kind == SyntaxKind.ThisKeyword)
-                            return true;
-                    }
-                }
-            }
-        }
-
-        return false;
-    }
-
-    private static bool CheckMemberForAttributes(CoreInternalSyntax.BelteSyntaxNode member) {
-        switch (member.kind) {
-            case SyntaxKind.ClassDeclaration:
-            case SyntaxKind.StructDeclaration:
-                return ((CoreInternalSyntax.TypeDeclarationSyntax)member).attributeLists.Any();
-            case SyntaxKind.FieldDeclaration:
-                return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();
-            case SyntaxKind.MethodDeclaration:
-            case SyntaxKind.OperatorDeclaration:
-            case SyntaxKind.ConstructorDeclaration:
-                return ((CoreInternalSyntax.BaseMethodDeclarationSyntax)member).attributeLists.Any();
-        }
-
-        return false;
     }
 
     private static void AddNonTypeMemberNames(CoreInternalSyntax.BelteSyntaxNode member, HashSet<string> set) {
@@ -606,10 +359,6 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 break;
             case SyntaxKind.MethodDeclaration:
                 var methodDecl = (CoreInternalSyntax.MethodDeclarationSyntax)member;
-                // TODO Assuming this is always null, so true
-                // if (methodDecl.ExplicitInterfaceSpecifier == null) {
-                //     set.Add(methodDecl.Identifier.ValueText);
-                // }
                 set.Add(methodDecl.identifier.text);
                 break;
             case SyntaxKind.ConstructorDeclaration:

@@ -7230,7 +7230,7 @@ symIsHidden:;
 
         localSymbol.SetTypeWithAnnotations(declarationType);
 
-        if (kind == DataContainerDeclarationKind.Constant && initializer is not null) {
+        if (kind == DataContainerDeclarationKind.ConstantExpression && initializer is not null) {
             var constantValueDiagnostics = localSymbol.GetConstantValueDiagnostics(initializer);
             diagnostics.PushRange(constantValueDiagnostics);
             hasErrors = constantValueDiagnostics.AnyErrors();

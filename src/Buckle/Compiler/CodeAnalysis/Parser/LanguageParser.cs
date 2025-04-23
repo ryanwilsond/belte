@@ -1686,7 +1686,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 // The Binder will see this and know to check the declaration modifiers to distinguish between
                 // const and constexpr
                 // TODO Make sure this fix work
-                type = SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.ConstKeyword));
+                type = SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
             else
                 type = SyntaxFactory.EmptyName();
         } else {

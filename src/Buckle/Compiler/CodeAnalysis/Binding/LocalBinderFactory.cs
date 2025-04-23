@@ -366,16 +366,20 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitVariableDeclaration(VariableDeclarationSyntax node) {
-        if (node.initializer is { } initializer) {
-            var enclosing = _enclosing;
+        // TODO Looks like we're referencing difference source versions creating a conflict in how
+        // TODO this specific problem is addressed
+        // TODO Confirm this mismatch doesn't appear elsewhere
+        // if (node.initializer is { } initializer) {
+        //     var enclosing = _enclosing;
 
-            if (node.parent is LocalDeclarationStatementSyntax { isConstExpr: true }) {
-                enclosing = new LocalInProgressBinder(initializer, _enclosing);
-                AddToMap(initializer, enclosing);
-            }
+        //     if (node.parent is LocalDeclarationStatementSyntax { isConstExpr: true }) {
+        //         enclosing = new LocalInProgressBinder(initializer, _enclosing);
+        //         AddToMap(initializer, enclosing);
+        //     }
 
-            Visit(initializer.value, enclosing);
-        }
+        //     Visit(initializer.value, enclosing);
+        // }
+        Visit(node.initializer?.value);
     }
 
     internal override void VisitReturnStatement(ReturnStatementSyntax node) {

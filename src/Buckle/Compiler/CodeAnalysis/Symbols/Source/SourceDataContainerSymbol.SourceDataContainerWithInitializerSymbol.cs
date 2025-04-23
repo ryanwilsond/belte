@@ -57,12 +57,15 @@ internal partial class SourceDataContainerSymbol {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
                 var type = this.type;
 
-                boundInitValue ??= _initializerBinder.BindDataContainerInitializerValue(
-                    _initializer,
-                    refKind,
-                    type,
-                    diagnostics
-                );
+                if (boundInitValue is null) {
+                    var inProgressBinder = new LocalInProgressBinder(this, _initializerBinder);
+                    boundInitValue = inProgressBinder.BindVariableOrAutoPropInitializerValue(
+                        _initializer,
+                        refKind,
+                        type,
+                        diagnostics
+                    );
+                }
 
                 var value = ConstantValueHelpers.GetAndValidateConstantValue(
                     boundInitValue,

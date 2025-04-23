@@ -117,6 +117,8 @@ internal sealed partial class SyntaxAndDeclarationManager {
             lastComputedMemberNamesMap,
         ref DeclarationTable declTable) {
         var sourceCodeKind = tree.kind;
+
+        // TODO Consider for scripts?
         // if (sourceCodeKind == SourceCodeKind.Script) {
         //     AppendAllLoadedSyntaxTrees(
         //         treesBuilder,
