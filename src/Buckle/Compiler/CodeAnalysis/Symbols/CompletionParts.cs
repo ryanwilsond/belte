@@ -19,12 +19,13 @@ internal enum CompletionParts : ushort {
     TemplateParameters = 1 << 5,
     Members = 1 << 6,
     TypeMembers = 1 << 7,
-    StartMemberChecks = 1 << 8,
-    FinishMemberChecks = 1 << 9,
-    MembersCompletedChecksStarted = 1 << 10,
-    MembersCompleted = 1 << 11,
+    SynthesizedExplicitImplementations = 1 << 8,
+    StartMemberChecks = 1 << 9,
+    FinishMemberChecks = 1 << 10,
+    MembersCompletedChecksStarted = 1 << 11,
+    MembersCompleted = 1 << 12,
 
-    All = (1 << 12) - 1,
+    All = (1 << 13) - 1,
 
     NamedTypeSymbolWithLocationAll = StartBaseType | FinishBaseType | TemplateArguments | TemplateParameters |
         Members | TypeMembers | StartMemberChecks | FinishMemberChecks,

@@ -422,6 +422,38 @@ internal static class SyntaxFacts {
         };
     }
 
+    internal static SyntaxKind GetOperatorKind(string name) {
+        return name switch {
+            WellKnownMemberNames.MultiplyOperatorName => SyntaxKind.AsteriskToken,
+            WellKnownMemberNames.PowerOperatorName => SyntaxKind.AsteriskAsteriskToken,
+            WellKnownMemberNames.DivideOperatorName => SyntaxKind.SlashToken,
+            WellKnownMemberNames.ModulusOperatorName => SyntaxKind.PercentToken,
+            WellKnownMemberNames.UnaryPlusOperatorName => SyntaxKind.PlusToken,
+            WellKnownMemberNames.AdditionOperatorName => SyntaxKind.PlusToken,
+            WellKnownMemberNames.UnaryNegationOperatorName => SyntaxKind.MinusToken,
+            WellKnownMemberNames.SubtractionOperatorName => SyntaxKind.MinusToken,
+            WellKnownMemberNames.LeftShiftOperatorName => SyntaxKind.LessThanLessThanToken,
+            WellKnownMemberNames.RightShiftOperatorName => SyntaxKind.GreaterThanGreaterThanToken,
+            WellKnownMemberNames.UnsignedRightShiftOperatorName => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+            WellKnownMemberNames.BitwiseAndOperatorName => SyntaxKind.AmpersandToken,
+            WellKnownMemberNames.BitwiseExclusiveOrOperatorName => SyntaxKind.CaretToken,
+            WellKnownMemberNames.BitwiseOrOperatorName => SyntaxKind.PipeToken,
+            WellKnownMemberNames.IncrementOperatorName => SyntaxKind.PlusPlusToken,
+            WellKnownMemberNames.DecrementOperatorName => SyntaxKind.MinusMinusToken,
+            WellKnownMemberNames.LogicalNotOperatorName => SyntaxKind.ExclamationToken,
+            WellKnownMemberNames.BitwiseNotOperatorName => SyntaxKind.TildeToken,
+            WellKnownMemberNames.IndexOperatorName => SyntaxKind.OpenBracketToken,
+            WellKnownMemberNames.IndexAssignName => SyntaxKind.OpenBracketToken,
+            WellKnownMemberNames.EqualityOperatorName => SyntaxKind.EqualsEqualsToken,
+            WellKnownMemberNames.InequalityOperatorName => SyntaxKind.ExclamationEqualsToken,
+            WellKnownMemberNames.LessThanOperatorName => SyntaxKind.LessThanToken,
+            WellKnownMemberNames.GreaterThanOperatorName => SyntaxKind.GreaterThanToken,
+            WellKnownMemberNames.LessThanOrEqualOperatorName => SyntaxKind.LessThanEqualsToken,
+            WellKnownMemberNames.GreaterThanOrEqualOperatorName => SyntaxKind.GreaterThanEqualsToken,
+            _ => SyntaxKind.None,
+        };
+    }
+
     /// <summary>
     /// Gets the arity of an operator.
     /// </summary>

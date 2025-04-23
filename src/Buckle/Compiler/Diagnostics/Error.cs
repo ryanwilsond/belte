@@ -692,8 +692,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NotConstantExpression, location, message);
     }
 
-    internal static BelteDiagnostic CannotReturnStatic(TextLocation location) {
-        var message = $"static types cannot be used as return types";
+    internal static BelteDiagnostic CannotReturnStatic(TextLocation location, TypeSymbol type) {
+        var message = $"'{type}': static types cannot be used as return types";
         return CreateError(DiagnosticCode.ERR_CannotReturnStatic, location, message);
     }
 
@@ -750,8 +750,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
     }
 
-    internal static BelteDiagnostic CannotBePrivateAndVirtualOrAbstract(TextLocation location) {
-        var message = $"virtual or abstract methods cannot be private";
+    internal static BelteDiagnostic CannotBePrivateAndVirtualOrAbstract(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': virtual or abstract methods cannot be private";
         return CreateError(DiagnosticCode.ERR_CannotBePrivateAndVirtualOrAbstract, location, message);
     }
 
@@ -835,8 +835,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_MemberShadowsParent, location, message);
     }
 
-    internal static BelteDiagnostic ConflictingOverrideModifiers(TextLocation location) {
-        var message = $"a member marked as override cannot be marked as new, abstract, or virtual";
+    internal static BelteDiagnostic ConflictingOverrideModifiers(TextLocation location, Symbol symbol) {
+        var message = $"a member '{symbol}' marked as override cannot be marked as new or virtual";
         return CreateError(DiagnosticCode.ERR_ConflictingOverrideModifiers, location, message);
     }
 
@@ -875,9 +875,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_AbstractCannotHaveBody, location, message);
     }
 
-    internal static BelteDiagnostic AbstractMemberInNonAbstractType(TextLocation location, string name) {
-        var message = $"'{name}' cannot be marked abstract because it is not contained by an abstract type";
-        return CreateError(DiagnosticCode.ERR_AbstractMemberInNonAbstractType, location, message);
+    internal static BelteDiagnostic AbstractInNonAbstractType(TextLocation location, Symbol symbol, TypeSymbol type) {
+        var message = $"'{symbol}' is abstract but it is contained in non-abstract type '{type}'";
+        return CreateError(DiagnosticCode.ERR_AbstractInNonAbstractType, location, message);
     }
 
     internal static BelteDiagnostic TypeDoesNotImplementAbstract(
@@ -889,13 +889,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_TypeDoesNotImplementAbstract, location, message);
     }
 
-    internal static BelteDiagnostic MissingOperatorPair(
-        TextLocation location,
-        SyntaxKind existingOperator,
-        SyntaxKind neededOperator) {
-        var message = $"operator {DiagnosticText(existingOperator, false)} requires a matching operator " +
-            $"{DiagnosticText(neededOperator, false)} to also be defined";
-        return CreateError(DiagnosticCode.ERR_MissingOperatorPair, location, message);
+    internal static BelteDiagnostic OperatorNeedsMatch(TextLocation location, MethodSymbol existingOperator, string neededOperator) {
+        var message = $"the operator {existingOperator} requires a matching operator '{neededOperator}' to also be defined";
+        return CreateError(DiagnosticCode.ERR_OperatorNeedsMatch, location, message);
     }
 
     internal static Diagnostic InvalidExpressionTerm(SyntaxKind kind) {
@@ -1410,6 +1406,71 @@ internal static class Error {
     internal static BelteDiagnostic CircularConstantValue(TextLocation location, DataContainerSymbol symbol) {
         var message = $"the evaluation of the constant value for '{symbol}' involves a circular definition";
         return CreateError(DiagnosticCode.ERR_CircularConstantValue, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateNameInClass(TextLocation location, Symbol type, string name) {
+        var message = $"the type '{type}' already contains a definition for '{name}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateNameInClass, location, message);
+    }
+
+    internal static BelteDiagnostic OverloadRefKind(TextLocation location, Symbol type, string methodKind, string refKind1, string refKind2) {
+        var message = $"'{type}' cannot define an overloaded {methodKind} that differs only on parameter modifiers '{refKind1}' and '{refKind2}'";
+        return CreateError(DiagnosticCode.ERR_OverloadRefKind, location, message);
+    }
+
+    internal static BelteDiagnostic ConstructorAlreadyExists(TextLocation location, Symbol type) {
+        var message = $"type '{type}' already defines a constructor with the same parameter types";
+        return CreateError(DiagnosticCode.ERR_ConstructorAlreadyExists, location, message);
+    }
+
+    internal static BelteDiagnostic MemberAlreadyExists(TextLocation location, Symbol type, string name) {
+        var message = $"type '{type}' already defines a member called '{name}' with the same parameter types";
+        return CreateError(DiagnosticCode.ERR_MemberAlreadyExists, location, message);
+    }
+
+    internal static BelteDiagnostic ProtectedInStatic(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': static classes cannot contain protected members";
+        return CreateError(DiagnosticCode.ERR_ProtectedInStatic, location, message);
+    }
+
+    internal static BelteDiagnostic SealedNonOverride(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' cannot be sealed because it is not an override";
+        return CreateError(DiagnosticCode.ERR_SealedNonOverride, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractAndSealed(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' cannot be both abstract and sealed";
+        return CreateError(DiagnosticCode.ERR_AbstractAndSealed, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractAndVirtual(TextLocation location, string kind, Symbol symbol) {
+        var message = $"the abstract {kind} '{symbol}' cannot be marked virtual";
+        return CreateError(DiagnosticCode.ERR_AbstractAndVirtual, location, message);
+    }
+
+    internal static BelteDiagnostic StaticAndConst(TextLocation location, Symbol symbol) {
+        var message = $"the static member '{symbol}' cannot be marked 'const'";
+        return CreateError(DiagnosticCode.ERR_StaticAndConst, location, message);
+    }
+
+    internal static BelteDiagnostic VirtualInSealedType(TextLocation location, Symbol symbol, TypeSymbol type) {
+        var message = $"'{symbol}' is a new virtual member in sealed type '{type}'";
+        return CreateError(DiagnosticCode.ERR_VirtualInSealedType, location, message);
+    }
+
+    internal static BelteDiagnostic InstanceMemberInStatic(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': cannot declare instance members in a static class";
+        return CreateError(DiagnosticCode.ERR_InstanceMemberInStatic, location, message);
+    }
+
+    internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': sealed classes cannot contain protected members";
+        return CreateError(DiagnosticCode.ERR_ProtectedInSealed, location, message);
+    }
+
+    internal static BelteDiagnostic HidingAbstractMember(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}' hides inherited abstract member '{hiddenMember}'";
+        return CreateError(DiagnosticCode.ERR_HidingAbstractMember, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

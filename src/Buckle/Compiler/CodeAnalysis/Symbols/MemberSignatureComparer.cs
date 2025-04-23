@@ -42,6 +42,15 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         typeComparison: TypeCompareKind.IgnoreNullability
     );
 
+    public static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        considerRefKind: false,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
     private readonly bool _considerName;
     private readonly bool _considerReturnType;
     private readonly bool _considerTemplateConstraints;

@@ -176,6 +176,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case CompletionParts.TypeMembers:
                     GetTypeMembersUnordered();
                     break;
+                case CompletionParts.SynthesizedExplicitImplementations:
+                    GetSynthesizedExplicitImplementations();
+                    break;
                 case CompletionParts.StartMemberChecks:
                 case CompletionParts.FinishMemberChecks:
                     if (_state.NotePartComplete(CompletionParts.StartMemberChecks)) {
@@ -221,6 +224,15 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         return _state.HasComplete(part);
     }
 
+    internal override ImmutableArray<Symbol> GetSimpleNonTypeMembers(string name) {
+        if (_lazyMembersDictionary is not null ||
+            _declaration.memberNames.Contains(name)) {
+            return GetMembers(name);
+        }
+
+        return [];
+    }
+
     internal Binder GetBinder(BelteSyntaxNode syntaxNode) {
         return declaringCompilation.GetBinder(syntaxNode);
     }
@@ -264,24 +276,392 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    // TODO This is being pseudo implemented for error checking; eventually this will actually return something useful
+    internal void GetSynthesizedExplicitImplementations() {
+        var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+        try {
+            CheckMembersAgainstBaseType(diagnostics);
+            CheckAbstractClassImplementations(diagnostics);
+
+            AddDeclarationDiagnostics(diagnostics);
+            _state.NotePartComplete(CompletionParts.SynthesizedExplicitImplementations);
+        } finally {
+            diagnostics.Free();
+        }
+    }
+
     private protected abstract void CheckBase(BelteDiagnosticQueue diagnostics);
 
     private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) { }
 
     private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
-        // TODO
-        /*
         CheckMemberNamesDistinctFromType(diagnostics);
         CheckMemberNameConflicts(diagnostics);
-        CheckRecordMemberNames(diagnostics);
         CheckSpecialMemberErrors(diagnostics);
-        CheckTypeParameterNameConflicts(diagnostics);
-        CheckAccessorNameConflicts(diagnostics);
-        CheckSequentialOnPartialType(diagnostics);
+        CheckTemplateParameterNameConflicts(diagnostics);
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
-        CheckForRequiredMemberAttribute(diagnostics);
-        */
+    }
+
+    private void CheckForUnmatchedOperators(BelteDiagnosticQueue diagnostics) {
+        CheckForUnmatchedOperator(
+            diagnostics,
+            WellKnownMemberNames.EqualityOperatorName,
+            WellKnownMemberNames.InequalityOperatorName
+        );
+
+        CheckForUnmatchedOperator(
+            diagnostics,
+            WellKnownMemberNames.LessThanOperatorName,
+            WellKnownMemberNames.GreaterThanOperatorName
+        );
+
+        CheckForUnmatchedOperator(
+            diagnostics,
+            WellKnownMemberNames.LessThanOrEqualOperatorName,
+            WellKnownMemberNames.GreaterThanOrEqualOperatorName
+        );
+
+        CheckForEqualityAndGetHashCode(diagnostics);
+    }
+
+    private void CheckForUnmatchedOperator(
+        BelteDiagnosticQueue diagnostics,
+        string operatorName1,
+        string operatorName2) {
+        var ops1 = GetOperators(operatorName1);
+        var ops2 = GetOperators(operatorName2);
+        CheckForUnmatchedOperator(diagnostics, ops1, ops2, operatorName2, ReportOperatorNeedsMatch);
+        CheckForUnmatchedOperator(diagnostics, ops2, ops1, operatorName1, ReportOperatorNeedsMatch);
+
+        static void ReportOperatorNeedsMatch(BelteDiagnosticQueue diagnostics, string operatorName2, MethodSymbol op1) {
+            diagnostics.Push(Error.OperatorNeedsMatch(
+                op1.location,
+                op1,
+                SyntaxFacts.GetText(SyntaxFacts.GetOperatorKind(operatorName2))
+            ));
+        }
+    }
+
+    private static void CheckForUnmatchedOperator(
+        BelteDiagnosticQueue diagnostics,
+        ImmutableArray<MethodSymbol> ops1,
+        ImmutableArray<MethodSymbol> ops2,
+        string operatorName2,
+        Action<BelteDiagnosticQueue, string, MethodSymbol> reportMatchNotFoundError) {
+        foreach (var op1 in ops1) {
+            var foundMatch = false;
+
+            foreach (var op2 in ops2) {
+                foundMatch = DoOperatorsPair(op1, op2);
+
+                if (foundMatch)
+                    break;
+            }
+
+            if (!foundMatch)
+                reportMatchNotFoundError(diagnostics, operatorName2, op1);
+        }
+    }
+
+    internal static bool DoOperatorsPair(MethodSymbol op1, MethodSymbol op2) {
+        if (op1.parameterCount != op2.parameterCount)
+            return false;
+
+        for (var p = 0; p < op1.parameterCount; ++p) {
+            if (!op1.parameterTypesWithAnnotations[p]
+                .Equals(op2.parameterTypesWithAnnotations[p], TypeCompareKind.AllIgnoreOptions)) {
+                return false;
+            }
+        }
+
+        if (!op1.returnType.Equals(op2.returnType, TypeCompareKind.AllIgnoreOptions))
+            return false;
+
+        return true;
+    }
+
+    private void CheckForEqualityAndGetHashCode(BelteDiagnosticQueue diagnostics) {
+        var hasOp = GetOperators(WellKnownMemberNames.EqualityOperatorName).Any() ||
+            GetOperators(WellKnownMemberNames.InequalityOperatorName).Any();
+
+        var overridesEquals = TypeOverridesObjectMethod("Equals");
+
+        if (hasOp || overridesEquals) {
+            var overridesGHC = TypeOverridesObjectMethod("GetHashCode");
+
+            if (overridesEquals && !overridesGHC)
+                diagnostics.Push(Warning.EqualsWithoutGetHashCode(location, this));
+
+            if (hasOp && !overridesEquals)
+                diagnostics.Push(Warning.EqualityOpWithoutEquals(location, this));
+
+            if (hasOp && !overridesGHC)
+                diagnostics.Push(Warning.EqualityOpWithoutGetHashCode(location, this));
+        }
+    }
+
+    private void CheckMembersAgainstBaseType(BelteDiagnosticQueue diagnostics) {
+        if (baseType?.IsErrorType() == true)
+            return;
+
+        foreach (var member in GetMembersUnordered()) {
+            switch (member.kind) {
+                case SymbolKind.Method:
+                    var method = (MethodSymbol)member;
+
+                    if (MethodSymbol.CanOverrideOrHide(method.methodKind)) {
+                        if (member.isOverride) {
+                            CheckOverrideMember(method, method.overriddenOrHiddenMembers, diagnostics);
+                        } else if (method is SourceMemberMethodSymbol sourceMethod) {
+                            var isNew = sourceMethod.isNew;
+                            CheckNonOverrideMember(method, isNew, method.overriddenOrHiddenMembers, diagnostics);
+                        }
+                    }
+
+                    break;
+                case SymbolKind.Field:
+                    var isNewField = member is SourceFieldSymbol sourceField && sourceField.isNew;
+                    CheckNewModifier(member, isNewField, diagnostics);
+                    break;
+                case SymbolKind.NamedType:
+                    // TODO 'new' types
+                    // CheckNewModifier(member, ((SourceMemberContainerTypeSymbol)member).isNew, diagnostics);
+                    break;
+            }
+        }
+    }
+
+    private static void CheckNonOverrideMember(
+        Symbol hidingMember,
+        bool hidingMemberIsNew,
+        OverriddenOrHiddenMembersResult overriddenOrHiddenMembers,
+        BelteDiagnosticQueue diagnostics) {
+        var hidingMemberLocation = hidingMember.location;
+        var hiddenMembers = overriddenOrHiddenMembers.hiddenMembers;
+
+        if (hiddenMembers.Length == 0) {
+            if (hidingMemberIsNew)
+                diagnostics.Push(Warning.NewNotRequired(hidingMemberLocation, hidingMember));
+        } else {
+            var diagnosticAdded = false;
+
+            foreach (var hiddenMember in hiddenMembers) {
+                diagnosticAdded |= AddHidingAbstractDiagnostic(
+                    hidingMember,
+                    hidingMemberLocation,
+                    hiddenMember,
+                    diagnostics
+                );
+
+                if (!hidingMemberIsNew && hiddenMember.kind == hidingMember.kind &&
+                    (hiddenMember.isAbstract || hiddenMember.isVirtual || hiddenMember.isOverride)) {
+
+                    diagnostics.Add(ErrorCode.WRN_NewOrOverrideExpected, hidingMemberLocation, hidingMember, hiddenMember);
+                    diagnosticAdded = true;
+                }
+
+                if (diagnosticAdded) {
+                    break;
+                }
+            }
+
+            if (!hidingMemberIsNew && !diagnosticAdded && !hidingMember.IsOperator()) {
+                diagnostics.Add(ErrorCode.WRN_NewRequired, hidingMemberLocation, hidingMember, hiddenMembers[0]);
+            }
+
+            if (hidingMember is MethodSymbol hidingMethod && hiddenMembers[0] is MethodSymbol hiddenMethod) {
+                CheckRefReadonlyInMismatch(
+                    hiddenMethod, hidingMethod, diagnostics,
+                    static (diagnostics, _, _, hidingParameter, _, arg) => {
+                        var (hiddenParameter, location) = arg;
+                        // Reference kind modifier of parameter '{0}' doesn't match the corresponding parameter '{1}' in hidden member.
+                        diagnostics.Add(ErrorCode.WRN_HidingDifferentRefness, location, hidingParameter, hiddenParameter);
+                    },
+                    hidingMemberLocation,
+                    invokedAsExtensionMethod: false);
+            }
+        }
+    }
+
+    private void CheckNewModifier(Symbol symbol, bool isNew, BelteDiagnosticQueue diagnostics) {
+        if (symbol.isImplicitlyDeclared)
+            return;
+
+        if (baseType is null)
+            return;
+
+        var symbolArity = symbol.GetMemberArity();
+        var symbolLocation = symbol.location;
+
+        var currType = baseType;
+        while (currType is not null) {
+            foreach (var hiddenMember in currType.GetMembers(symbol.name)) {
+                if (hiddenMember.kind == SymbolKind.Method &&
+                    !((MethodSymbol)hiddenMember).CanBeHiddenByMemberKind(symbol.kind)) {
+                    continue;
+                }
+
+                var isAccessible = AccessCheck.IsSymbolAccessible(hiddenMember, this);
+
+                if (isAccessible && hiddenMember.GetMemberArity() == symbolArity) {
+                    if (!isNew)
+                        diagnostics.Push(Warning.NewRequired(symbolLocation, symbol, hiddenMember));
+
+                    AddHidingAbstractDiagnostic(symbol, symbolLocation, hiddenMember, diagnostics);
+                    return;
+                }
+            }
+
+            currType = currType.baseType;
+        }
+
+        if (isNew)
+            diagnostics.Push(Warning.NewNotRequired(symbolLocation, symbol));
+    }
+
+    private static bool AddHidingAbstractDiagnostic(
+        Symbol hidingMember,
+        TextLocation hidingMemberLocation,
+        Symbol hiddenMember,
+        BelteDiagnosticQueue diagnostics) {
+        switch (hiddenMember.kind) {
+            case SymbolKind.Method:
+                break;
+            default:
+                return false;
+        }
+
+        if (!hiddenMember.isAbstract || !hidingMember.containingType.isAbstract)
+            return false;
+
+        switch (hidingMember.declaredAccessibility) {
+            case Accessibility.Private:
+                break;
+            case Accessibility.Public:
+            case Accessibility.Protected:
+                diagnostics.Push(Error.HidingAbstractMember(hidingMemberLocation, hidingMember, hiddenMember));
+                return true;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(hidingMember.declaredAccessibility);
+        }
+
+        return false;
+    }
+
+    private bool TypeOverridesObjectMethod(string name) {
+        foreach (var method in GetMembers(name).OfType<MethodSymbol>()) {
+            if (method.isOverride && method.GetConstructedLeastOverriddenMethod(
+                    this, requireSameReturnType: false)
+                        .containingType.specialType == SpecialType.Object) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void CheckForProtectedInStaticClass(BelteDiagnosticQueue diagnostics) {
+        if (!isStatic)
+            return;
+
+        foreach (var valuesByName in GetMembersByName().Values) {
+            foreach (var member in valuesByName) {
+                if (member.declaredAccessibility.HasProtected()) {
+                    diagnostics.Push(Error.ProtectedInStatic(member.location, member));
+                }
+            }
+        }
+    }
+
+    private void CheckTemplateParameterNameConflicts(BelteDiagnosticQueue diagnostics) {
+        foreach (var tp in templateParameters) {
+            foreach (var dup in GetMembers(tp.name))
+                diagnostics.Push(Error.DuplicateNameInClass(dup.location, this, tp.name));
+        }
+    }
+
+    private void CheckSpecialMemberErrors(BelteDiagnosticQueue diagnostics) {
+        foreach (var member in GetMembersUnordered())
+            member.AfterAddingTypeMembersChecks(diagnostics);
+    }
+
+    private void CheckMemberNameConflicts(BelteDiagnosticQueue diagnostics) {
+        var membersByName = GetMembersByName();
+
+        var methodsBySignature = new Dictionary<SourceMemberMethodSymbol, SourceMemberMethodSymbol>(
+            MemberSignatureComparer.DuplicateSourceComparer
+        );
+
+        foreach (var pair in membersByName) {
+            var name = pair.Key;
+            Symbol lastSym = GetTypeMembers(name).FirstOrDefault();
+            methodsBySignature.Clear();
+
+            foreach (var symbol in pair.Value) {
+                if (symbol.kind == SymbolKind.NamedType)
+                    continue;
+
+                if (lastSym is not null) {
+                    if (symbol.kind != SymbolKind.Method || lastSym.kind != SymbolKind.Method) {
+                        if (symbol.kind != SymbolKind.Field || !symbol.isImplicitlyDeclared)
+                            diagnostics.Push(Error.DuplicateNameInClass(symbol.location, this, symbol.name));
+
+                        if (lastSym.kind == SymbolKind.Method)
+                            lastSym = symbol;
+                    }
+                } else {
+                    lastSym = symbol;
+                }
+
+                if (!(symbol is not SourceMemberMethodSymbol method)) {
+                    if (methodsBySignature.TryGetValue(method, out var previousMethod))
+                        ReportMethodSignatureCollision(diagnostics, method, previousMethod);
+                    else
+                        methodsBySignature.Add(method, method);
+                }
+            }
+        }
+    }
+
+    private void ReportMethodSignatureCollision(
+        BelteDiagnosticQueue diagnostics,
+        SourceMemberMethodSymbol method1,
+        SourceMemberMethodSymbol method2) {
+        switch (method1, method2) {
+            case (SynthesizedEntryPoint { }, SynthesizedEntryPoint { }):
+                return;
+        }
+
+        for (var i = 0; i < method1.parameterCount; i++) {
+            var refKind1 = method1.parameters[i].refKind;
+            var refKind2 = method2.parameters[i].refKind;
+
+            if (refKind1 != refKind2) {
+                var methodKind = method1.methodKind == MethodKind.Constructor ? MessageID.IDS_SK_CONSTRUCTOR : MessageID.IDS_SK_METHOD;
+
+                diagnostics.Push(Error.OverloadRefKind(
+                    method1.location,
+                    this,
+                    methodKind.Localize(),
+                    refKind1.ToParameterDisplayString(),
+                    refKind2.ToParameterDisplayString()
+                ));
+
+                return;
+            }
+        }
+
+        if (method1.methodKind == MethodKind.Constructor)
+            diagnostics.Push(Error.ConstructorAlreadyExists(method1.location, this));
+        else
+            diagnostics.Push(Error.MemberAlreadyExists(method1.location, this, method1.name));
+    }
+
+    private void CheckMemberNamesDistinctFromType(BelteDiagnosticQueue diagnostics) {
+        foreach (var member in GetMembersAndInitializers().nonTypeMembers)
+            CheckMemberNameDistinctFromType(member, diagnostics);
     }
 
     private protected Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetMembersByName() {

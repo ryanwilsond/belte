@@ -119,6 +119,31 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_RefConstParameterDefaultValue, location, message);
     }
 
+    internal static BelteDiagnostic EqualsWithoutGetHashCode(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'";
+        return CreateWarning(DiagnosticCode.WRN_EqualsWithoutGetHashCode, location, message);
+    }
+
+    internal static BelteDiagnostic EqualityOpWithoutEquals(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' defines operator == or operator != but does not override 'Object.Equals(Object)'";
+        return CreateWarning(DiagnosticCode.WRN_EqualityOpWithoutEquals, location, message);
+    }
+
+    internal static BelteDiagnostic EqualityOpWithoutGetHashCode(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' defines operator == or operator != but does not override 'Object.GetHashCode()'";
+        return CreateWarning(DiagnosticCode.WRN_EqualityOpWithoutGetHashCode, location, message);
+    }
+
+    internal static BelteDiagnostic NewRequired(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}' hides inherited member '{hiddenMember}'; use the new keyword if hiding was intended";
+        return CreateWarning(DiagnosticCode.WRN_NewRequired, location, message);
+    }
+
+    internal static BelteDiagnostic NewNotRequired(TextLocation location, Symbol symbol) {
+        var message = $"the member '{symbol}' does not hide an accessible member; the new keyword is not required";
+        return CreateWarning(DiagnosticCode.WRN_NewNotRequired, location, message);
+    }
+
     private static Diagnostic CreateWarning(DiagnosticCode code, string message) {
         return new Diagnostic(WarningInfo(code), message);
     }

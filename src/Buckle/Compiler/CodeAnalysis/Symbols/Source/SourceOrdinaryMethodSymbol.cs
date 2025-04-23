@@ -39,6 +39,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private protected sealed override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 
+    private bool _hasAnyBody => _flags.hasAnyBody;
+
     internal static SourceOrdinaryMethodSymbol CreateMethodSymbol(
         NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
@@ -202,56 +204,29 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     private void CheckModifiers(TextLocation location, BelteDiagnosticQueue diagnostics) {
-        // TODO Need to verify which of these are already handled by ModifierHelpers
-        /*
-        if (declaredAccessibility == Accessibility.Private && (isVirtual || isAbstract || isOverride)) {
-            diagnostics.Add(ErrorCode.ERR_VirtualPrivate, location, this);
-        } else if (isOverride && (IsNew || IsVirtual)) {
-            // A member '{0}' marked as override cannot be marked as new or virtual
-            diagnostics.Add(ErrorCode.ERR_OverrideNotNew, location, this);
-        } else if (IsSealed && !IsOverride && !IsAbstract) {
-            // '{0}' cannot be sealed because it is not an override
-            diagnostics.Add(ErrorCode.ERR_SealedNonOverride, location, this);
-        } else if (IsSealed && ContainingType.TypeKind == TypeKind.Struct) {
-            // The modifier '{0}' is not valid for this item
-            diagnostics.Add(ErrorCode.ERR_BadMemberFlag, location, SyntaxFacts.GetText(SyntaxKind.SealedKeyword));
-        } else if (ReturnType.IsStatic) {
-            // '{0}': static types cannot be used as return types
-            diagnostics.Add(ErrorFacts.GetStaticClassReturnCode(ContainingType.IsInterfaceType()), location, ReturnType);
-        } else if (IsAbstract && IsExtern) {
-            diagnostics.Add(ErrorCode.ERR_AbstractAndExtern, location, this);
-        } else if (IsAbstract && IsSealed && !isExplicitInterfaceImplementationInInterface) {
-            diagnostics.Add(ErrorCode.ERR_AbstractAndSealed, location, this);
-        } else if (IsAbstract && IsVirtual) {
-            diagnostics.Add(ErrorCode.ERR_AbstractNotVirtual, location, this.Kind.Localize(), this);
-        } else if (IsAbstract && ContainingType.TypeKind == TypeKind.Struct) {
-            // The modifier '{0}' is not valid for this item
-            diagnostics.Add(ErrorCode.ERR_BadMemberFlag, location, SyntaxFacts.GetText(SyntaxKind.AbstractKeyword));
-        } else if (IsVirtual && ContainingType.TypeKind == TypeKind.Struct) {
-            // The modifier '{0}' is not valid for this item
-            diagnostics.Add(ErrorCode.ERR_BadMemberFlag, location, SyntaxFacts.GetText(SyntaxKind.VirtualKeyword));
-        } else if (IsStatic && IsDeclaredReadOnly) {
-            // Static member '{0}' cannot be marked 'readonly'.
-            diagnostics.Add(ErrorCode.ERR_StaticMemberCantBeReadOnly, location, this);
-        } else if (IsAbstract && !ContainingType.IsAbstract && (ContainingType.TypeKind == TypeKind.Class || ContainingType.TypeKind == TypeKind.Submission)) {
-            // '{0}' is abstract but it is contained in non-abstract type '{1}'
-            diagnostics.Add(ErrorCode.ERR_AbstractInConcreteClass, location, this, ContainingType);
-        } else if (IsVirtual && ContainingType.IsSealed) {
-            // '{0}' is a new virtual member in sealed type '{1}'
-            diagnostics.Add(ErrorCode.ERR_NewVirtualInSealed, location, this, ContainingType);
-        } else if (!HasAnyBody && IsAsync) {
-            diagnostics.Add(ErrorCode.ERR_BadAsyncLacksBody, location);
-        } else if (!HasAnyBody && !IsExtern && !IsAbstract && !IsPartial && !IsExpressionBodied) {
-            diagnostics.Add(ErrorCode.ERR_ConcreteMissingBody, location, this);
-        } else if (ContainingType.IsSealed && this.DeclaredAccessibility.HasProtected() && !this.IsOverride) {
-            diagnostics.Add(AccessCheck.GetProtectedMemberInSealedTypeError(ContainingType), location, this);
-        } else if (ContainingType.IsStatic && !IsStatic) {
-            diagnostics.Add(ErrorCode.ERR_InstanceMemberInStaticClass, location, Name);
-        } else if (isVararg && (IsGenericMethod || ContainingType.IsGenericType || Parameters.Length > 0 && Parameters[Parameters.Length - 1].IsParams)) {
-            diagnostics.Add(ErrorCode.ERR_BadVarargs, location);
-        } else if (isVararg && IsAsync) {
-            diagnostics.Add(ErrorCode.ERR_VarargsAsync, location);
-        }
-        */
+        if (declaredAccessibility == Accessibility.Private && (isVirtual || isAbstract || isOverride))
+            diagnostics.Push(Error.CannotBePrivateAndVirtualOrAbstract(location, this));
+        else if (isOverride && (isNew || isVirtual))
+            diagnostics.Push(Error.ConflictingOverrideModifiers(location, this));
+        else if (isSealed && !isOverride && !isAbstract)
+            diagnostics.Push(Error.SealedNonOverride(location, this));
+        else if (returnType.isStatic)
+            diagnostics.Push(Error.CannotReturnStatic(location, returnType));
+        else if (isAbstract && isSealed)
+            diagnostics.Push(Error.AbstractAndSealed(location, this));
+        else if (isAbstract && isVirtual)
+            diagnostics.Push(Error.AbstractAndVirtual(location, kind.Localize(), this));
+        else if (isStatic && isDeclaredConst)
+            diagnostics.Push(Error.StaticAndConst(location, this));
+        else if (isAbstract && !containingType.isAbstract)
+            diagnostics.Push(Error.AbstractInNonAbstractType(location, this, containingType));
+        else if (isVirtual && containingType.isSealed)
+            diagnostics.Push(Error.VirtualInSealedType(location, this, containingType));
+        else if (!_hasAnyBody && !isAbstract)
+            diagnostics.Push(Error.NonAbstractMustHaveBody(location, this));
+        else if (containingType.isSealed && declaredAccessibility.HasProtected() && !isOverride)
+            diagnostics.Push(Error.ProtectedInSealed(location, this));
+        else if (containingType.isStatic && !isStatic)
+            diagnostics.Push(Error.InstanceMemberInStatic(location, this));
     }
 }

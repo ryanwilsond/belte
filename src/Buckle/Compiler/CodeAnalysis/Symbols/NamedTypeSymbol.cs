@@ -113,6 +113,26 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return result;
     }
 
+    internal virtual ImmutableArray<Symbol> GetSimpleNonTypeMembers(string name) {
+        return GetMembers(name);
+    }
+
+    internal ImmutableArray<MethodSymbol> GetOperators(string name) {
+        var candidates = GetSimpleNonTypeMembers(name);
+
+        if (candidates.IsEmpty)
+            return [];
+
+        var operators = ArrayBuilder<MethodSymbol>.GetInstance(candidates.Length);
+
+        foreach (var candidate in candidates) {
+            if (candidate is MethodSymbol { methodKind: MethodKind.Operator } method)
+                operators.Add(method);
+        }
+
+        return operators.ToImmutableAndFree();
+    }
+
     internal void GetAllTypeArguments(ref TemporaryArray<TypeSymbol> builder) {
         var outer = containingType;
         outer?.GetAllTypeArguments(ref builder);
