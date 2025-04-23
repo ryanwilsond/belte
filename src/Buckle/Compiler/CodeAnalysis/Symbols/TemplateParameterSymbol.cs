@@ -57,6 +57,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal MethodSymbol declaringMethod => containingSymbol as MethodSymbol;
 
+    internal sealed override bool isRefLikeType => false;
+
     private protected sealed override TypeSymbol _originalTypeSymbolDefinition => originalDefinition;
 
     internal NamedTypeSymbol effectiveBaseClass {

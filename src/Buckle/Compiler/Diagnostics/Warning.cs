@@ -144,6 +144,41 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_NewNotRequired, location, message);
     }
 
+    internal static BelteDiagnostic NewOrOverrideExpected(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}' hides inherited member '{hiddenMember}'; to make the current member override that implementation, add the override keyword; otherwise add the new keyword";
+        return CreateWarning(DiagnosticCode.WRN_NewOrOverrideExpected, location, message);
+    }
+
+    internal static BelteDiagnostic HidingDifferentRefness(TextLocation location, ParameterSymbol parameter, ParameterSymbol hiddenParameter) {
+        var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in hidden member";
+        return CreateWarning(DiagnosticCode.WRN_HidingDifferentRefness, location, message);
+    }
+
+    internal static BelteDiagnostic OverridingDifferentRefness(TextLocation location, ParameterSymbol parameter, ParameterSymbol hiddenParameter) {
+        var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in overridden or implemented member";
+        return CreateWarning(DiagnosticCode.WRN_OverridingDifferentRefness, location, message);
+    }
+
+    internal static BelteDiagnostic TopLevelNullabilityMismatchInParameterTypeOnOverride(TextLocation location, Symbol symbol) {
+        var message = $"nullability of type of parameter '{symbol}' doesn't match overridden member";
+        return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInParameterTypeOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic NullabilityMismatchInParameterTypeOnOverride(TextLocation location, Symbol symbol) {
+        var message = $"nullability of reference types in type of parameter '{symbol}' doesn't match overridden member";
+        return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInParameterTypeOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic TopLevelNullabilityMismatchInReturnTypeOnOverride(TextLocation location) {
+        var message = $"nullability of return type doesn't match overridden member";
+        return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic NullabilityMismatchInReturnTypeOnOverride(TextLocation location) {
+        var message = $"nullability of reference types in return type doesn't match overridden member";
+        return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInReturnTypeOnOverride, location, message);
+    }
+
     private static Diagnostic CreateWarning(DiagnosticCode code, string message) {
         return new Diagnostic(WarningInfo(code), message);
     }

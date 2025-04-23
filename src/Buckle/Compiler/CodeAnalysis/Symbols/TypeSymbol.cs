@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -16,6 +17,8 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     private static readonly Func<TypeSymbol, TemplateParameterSymbol, bool, bool> ContainsTemplateParameterPredicate =
         (type, parameter, unused) => type.typeKind == TypeKind.TemplateParameter &&
         (parameter is null || Equals(type, parameter, TypeCompareKind.ConsiderEverything));
+
+    private ImmutableHashSet<Symbol> _lazyAbstractMembers;
 
     public override SymbolKind kind => SymbolKind.NamedType;
 
@@ -34,6 +37,17 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     private protected sealed override Symbol _originalSymbolDefinition => _originalTypeSymbolDefinition;
 
     internal abstract NamedTypeSymbol baseType { get; }
+
+    internal abstract bool isRefLikeType { get; }
+
+    internal ImmutableHashSet<Symbol> abstractMembers {
+        get {
+            if (_lazyAbstractMembers is null)
+                Interlocked.CompareExchange(ref _lazyAbstractMembers, ComputeAbstractMembers(), null);
+
+            return _lazyAbstractMembers;
+        }
+    }
 
     internal TypeSymbol EffectiveType() {
         return typeKind == TypeKind.TemplateParameter ? ((TemplateParameterSymbol)this).effectiveBaseClass : this;
@@ -57,6 +71,10 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     internal bool IsEqualToOrDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
         return Equals(type, compareKind) || IsDerivedFrom(type, compareKind);
+    }
+
+    internal bool IsRefLikeOrAllowsRefLikeType() {
+        return isRefLikeType/* || this is TemplateParameterSymbol { allowsRefLikeType: true }*/;
     }
 
     internal int TypeToIndex() {
@@ -171,6 +189,36 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         }
     }
 
+    internal bool IsPossiblyNullableTypeTemplateParameter() {
+        return this is TemplateParameterSymbol t && t.underlyingType.isNullable;
+    }
+
+    internal TypeSymbol GetNullableUnderlyingType() {
+        return GetNullableUnderlyingTypeWithAnnotations().type;
+    }
+
+    internal TypeWithAnnotations GetNullableUnderlyingTypeWithAnnotations() {
+        return ((NamedTypeSymbol)this).templateArguments[0].type;
+    }
+
+    internal TypeSymbol StrippedType() {
+        return this.IsNullableType() ? GetNullableUnderlyingType() : this;
+    }
+
+    internal bool InheritsFromIgnoringConstruction(NamedTypeSymbol baseType) {
+        var current = this;
+
+        while (current is not null) {
+            if ((object)current == baseType)
+                return true;
+
+            current = current.baseType?.originalDefinition;
+        }
+
+        return false;
+    }
+
+
     private static TypeSymbol GetNextDeclaredBase(
         NamedTypeSymbol type,
         ConsList<TypeSymbol> basesBeingResolved,
@@ -227,33 +275,34 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         }
     }
 
-    internal bool IsPossiblyNullableTypeTemplateParameter() {
-        return this is TemplateParameterSymbol t && t.underlyingType.isNullable;
-    }
+    private ImmutableHashSet<Symbol> ComputeAbstractMembers() {
+        var abstractMembers = ImmutableHashSet.Create<Symbol>();
+        var overriddenMembers = ImmutableHashSet.Create<Symbol>();
 
-    internal TypeSymbol GetNullableUnderlyingType() {
-        return GetNullableUnderlyingTypeWithAnnotations().type;
-    }
+        foreach (var member in GetMembersUnordered()) {
+            if (isAbstract && member.isAbstract && member.kind != SymbolKind.NamedType)
+                abstractMembers = abstractMembers.Add(member);
 
-    internal TypeWithAnnotations GetNullableUnderlyingTypeWithAnnotations() {
-        return ((NamedTypeSymbol)this).templateArguments[0].type;
-    }
+            Symbol overriddenMember = null;
+            switch (member.kind) {
+                case SymbolKind.Method: {
+                        overriddenMember = ((MethodSymbol)member).overriddenMethod;
+                        break;
+                    }
+            }
 
-    internal TypeSymbol StrippedType() {
-        return this.IsNullableType() ? GetNullableUnderlyingType() : this;
-    }
-
-    internal bool InheritsFromIgnoringConstruction(NamedTypeSymbol baseType) {
-        var current = this;
-
-        while (current is not null) {
-            if ((object)current == baseType)
-                return true;
-
-            current = current.baseType?.originalDefinition;
+            if (overriddenMember is not null)
+                overriddenMembers = overriddenMembers.Add(overriddenMember);
         }
 
-        return false;
+        if (baseType is not null && baseType.isAbstract) {
+            foreach (var baseAbstractMember in baseType.abstractMembers) {
+                if (!overriddenMembers.Contains(baseAbstractMember))
+                    abstractMembers = abstractMembers.Add(baseAbstractMember);
+            }
+        }
+
+        return abstractMembers;
     }
 
     internal virtual bool Equals(TypeSymbol other, TypeCompareKind compareKind) {

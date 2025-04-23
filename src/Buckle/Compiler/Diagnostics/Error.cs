@@ -880,12 +880,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_AbstractInNonAbstractType, location, message);
     }
 
-    internal static BelteDiagnostic TypeDoesNotImplementAbstract(
-        TextLocation location,
-        string className,
-        string signature,
-        string containingTypeName) {
-        var message = $"'{className}' must implement inherited abstract member '{containingTypeName}.{signature}'";
+    internal static BelteDiagnostic TypeDoesNotImplementAbstract(TextLocation location, Symbol symbol, Symbol member) {
+        var message = $"'{symbol}' does not implement inherited abstract member '{member}'";
         return CreateError(DiagnosticCode.ERR_TypeDoesNotImplementAbstract, location, message);
     }
 
@@ -1471,6 +1467,46 @@ internal static class Error {
     internal static BelteDiagnostic HidingAbstractMember(TextLocation location, Symbol symbol, Symbol hiddenMember) {
         var message = $"'{symbol}' hides inherited abstract member '{hiddenMember}'";
         return CreateError(DiagnosticCode.ERR_HidingAbstractMember, location, message);
+    }
+
+    internal static BelteDiagnostic CantOverrideNonMethod(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': cannot override because '{hiddenMember}' is not a method";
+        return CreateError(DiagnosticCode.ERR_CantOverrideNonMethod, location, message);
+    }
+
+    internal static BelteDiagnostic OverrideNotExpected(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': no suitable method found to override";
+        return CreateError(DiagnosticCode.ERR_OverrideNotExpected, location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousOverride(TextLocation location, Symbol symbol1, Symbol symbol2, TypeSymbol type) {
+        var message = $"the inherited members '{symbol1}' and '{symbol2}' have the same signature in type '{type}', so they cannot be overridden";
+        return CreateError(DiagnosticCode.ERR_AmbiguousOverride, location, message);
+    }
+
+    internal static BelteDiagnostic CantOverrideNonVirtual(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': cannot override inherited member '{hiddenMember}' because it is not marked virtual, abstract, or override";
+        return CreateError(DiagnosticCode.ERR_CantOverrideNonVirtual, location, message);
+    }
+
+    internal static BelteDiagnostic CantOverrideSealed(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': cannot override inherited member '{hiddenMember}' because it is sealed";
+        return CreateError(DiagnosticCode.ERR_CantOverrideSealed, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeAccessOnOverride(TextLocation location, Symbol symbol, string accessibility, Symbol hiddenMember) {
+        var message = $"'{symbol}': cannot change access modifiers when overriding '{accessibility}' inherited member '{hiddenMember}'";
+        return CreateError(DiagnosticCode.ERR_CantChangeAccessOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeRefReturnOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}' must match by reference return of overridden member '{hiddenMember}'";
+        return CreateError(DiagnosticCode.ERR_CantChangeRefReturnOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeReturnTypeOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember, TypeSymbol returnType) {
+        var message = $"'{symbol}': return type must be '{returnType}' to match overridden member '{hiddenMember}'";
+        return CreateError(DiagnosticCode.ERR_CantChangeReturnTypeOnOverride, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

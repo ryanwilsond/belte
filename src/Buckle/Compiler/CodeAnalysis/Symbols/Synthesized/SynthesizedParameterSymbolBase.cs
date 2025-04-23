@@ -40,4 +40,7 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
     internal sealed override ScopedKind effectiveScope { get; }
 
     internal override bool isImplicitlyDeclared => true;
+
+    // TODO Once actually added, complex/simple implement this separately
+    internal override bool hasUnscopedRefAttribute => false;
 }

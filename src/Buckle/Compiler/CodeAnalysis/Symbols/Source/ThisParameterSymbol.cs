@@ -32,7 +32,16 @@ internal sealed class ThisParameterSymbol : ThisParameterSymbolBase {
 
     internal override Symbol containingSymbol => (Symbol)_containingMethod ?? _containingType;
 
-    internal override ScopedKind effectiveScope
-        // TODO need ScopedKind.ScopedRef
-        => _containingType.IsStructType() ? ScopedKind.Ref : ScopedKind.None;
+    internal override ScopedKind effectiveScope {
+        get {
+            var scope = _containingType.IsStructType() ? ScopedKind.ScopedRef : ScopedKind.None;
+
+            if (scope != ScopedKind.None && hasUnscopedRefAttribute)
+                return ScopedKind.None;
+
+            return scope;
+        }
+    }
+
+    internal override bool hasUnscopedRefAttribute => _containingMethod.HasUnscopedRefAttributeOnMethod();
 }

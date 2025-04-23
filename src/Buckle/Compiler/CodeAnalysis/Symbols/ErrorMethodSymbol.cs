@@ -67,4 +67,6 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
     internal override bool hidesBaseMethodsByName => false;
 
     internal override CallingConvention callingConvention => CallingConvention.Default;
+
+    internal sealed override bool hasUnscopedRefAttribute => false;
 }

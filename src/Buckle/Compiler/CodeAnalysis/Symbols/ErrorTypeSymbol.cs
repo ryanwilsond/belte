@@ -70,6 +70,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal override IEnumerable<string> memberNames => SpecializedCollections.EmptyEnumerable<string>();
 
+    internal sealed override bool isRefLikeType => false;
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return [];
     }

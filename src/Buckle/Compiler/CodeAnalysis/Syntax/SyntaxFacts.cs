@@ -293,6 +293,16 @@ internal static class SyntaxFacts {
         };
     }
 
+    internal static string GetText(Accessibility accessibility) {
+        return accessibility switch {
+            Accessibility.NotApplicable => "",
+            Accessibility.Private => GetText(SyntaxKind.PrivateKeyword),
+            Accessibility.Protected => GetText(SyntaxKind.ProtectedKeyword),
+            Accessibility.Public => GetText(SyntaxKind.PublicKeyword),
+            _ => throw ExceptionUtilities.UnexpectedValue(accessibility),
+        };
+    }
+
     /// <summary>
     /// Gets base operator type of assignment operator type (e.g. += -> +).
     /// </summary>

@@ -33,4 +33,6 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
     internal override bool isAbstract => underlyingNamedType.isAbstract;
 
     internal override bool isSealed => underlyingNamedType.isSealed;
+
+    internal override bool isRefLikeType => underlyingNamedType.isRefLikeType;
 }

@@ -32,4 +32,6 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal override bool isMetadataOptional => underlyingParameter.isMetadataOptional;
 
     internal override bool isImplicitlyDeclared => underlyingParameter.isImplicitlyDeclared;
+
+    internal sealed override bool hasUnscopedRefAttribute => underlyingParameter.hasUnscopedRefAttribute;
 }

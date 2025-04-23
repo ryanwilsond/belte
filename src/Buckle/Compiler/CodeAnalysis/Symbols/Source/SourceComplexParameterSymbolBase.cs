@@ -26,6 +26,20 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
 
     internal override bool isMetadataOptional => hasDefaultArgumentSyntax;
 
+    internal sealed override ScopedKind effectiveScope {
+        get {
+            var scope = CalculateEffectiveScopeIgnoringAttributes();
+
+            if (scope != ScopedKind.None && hasUnscopedRefAttribute)
+                return ScopedKind.None;
+
+            return scope;
+        }
+    }
+
+    // internal override bool hasUnscopedRefAttribute => GetEarlyDecodedWellKnownAttributeData()?.HasUnscopedRefAttribute == true;
+    internal override bool hasUnscopedRefAttribute => false;
+
     private Binder _withTemplateParametersBinder
         => (containingSymbol as SourceMethodSymbol).withTemplateParametersBinder;
 

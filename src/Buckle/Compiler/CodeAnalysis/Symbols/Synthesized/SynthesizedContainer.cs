@@ -75,6 +75,8 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     internal override bool isStatic => false;
 
+    internal sealed override bool isRefLikeType => false;
+
     // TODO Double check these don't have replacements
     // internal sealed override bool isReadOnly => false;
 

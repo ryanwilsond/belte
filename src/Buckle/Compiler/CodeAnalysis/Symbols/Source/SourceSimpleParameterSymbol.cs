@@ -21,4 +21,6 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
     internal override bool isMetadataOptional => false;
 
     internal override bool hasDefaultArgumentSyntax => false;
+
+    internal override bool hasUnscopedRefAttribute => false;
 }

@@ -15,8 +15,40 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbol {
+    internal delegate void ReportMismatchInReturnType<TArg>(
+        BelteDiagnosticQueue bag,
+        MethodSymbol overriddenMethod,
+        MethodSymbol overridingMethod,
+        bool topLevel,
+        TArg arg
+    );
+
+    internal delegate void ReportMismatchInParameterType<TArg>(
+        BelteDiagnosticQueue bag,
+        MethodSymbol overriddenMethod,
+        MethodSymbol overridingMethod,
+        ParameterSymbol parameter,
+        bool topLevel,
+        TArg arg
+    );
+
     private static readonly Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> EmptyTypeMembers =
         new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>>(EmptyReadOnlyMemoryOfCharComparer.Instance);
+
+    private static readonly ReportMismatchInReturnType<TextLocation> ReportBadReturn =
+        (diagnostics, overriddenMethod, overridingMethod, topLevel, location)
+        => diagnostics.Push(
+            topLevel
+                ? Warning.TopLevelNullabilityMismatchInReturnTypeOnOverride(location)
+                : Warning.NullabilityMismatchInReturnTypeOnOverride(location));
+
+    private static readonly ReportMismatchInParameterType<TextLocation> ReportBadParameter =
+        (diagnostics, overriddenMethod, overridingMethod, overridingParameter, topLevel, location)
+        => diagnostics.Push(
+            topLevel
+                ? Warning.TopLevelNullabilityMismatchInParameterTypeOnOverride(location, overridingParameter)
+                : Warning.NullabilityMismatchInParameterTypeOnOverride(location, overridingParameter));
+
 
     private readonly DeclarationModifiers _modifiers;
     private protected SymbolCompletionState _state;
@@ -94,6 +126,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override TextLocation location { get; }
 
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
+
+    internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
 
     internal ImmutableArray<ImmutableArray<FieldInitializer>> initializers
         => GetMembersAndInitializers().fieldInitializers;
@@ -433,6 +467,416 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal static bool IsOrContainsErrorType(TypeSymbol typeSymbol) {
+        return typeSymbol.VisitType((currentTypeSymbol, unused1, unused2)
+            => currentTypeSymbol.IsErrorType(), (object)null) is not null;
+    }
+
+    private void CheckOverrideMember(
+        Symbol overridingMember,
+        OverriddenOrHiddenMembersResult overriddenOrHiddenMembers,
+        BelteDiagnosticQueue diagnostics) {
+        var overridingMemberIsMethod = overridingMember.kind == SymbolKind.Method;
+        var overridingMemberLocation = overridingMember.location;
+        var overriddenMembers = overriddenOrHiddenMembers.overriddenMembers;
+
+        if (overriddenMembers.Length == 0) {
+            var hiddenMembers = overriddenOrHiddenMembers.hiddenMembers;
+
+            if (hiddenMembers.Any()) {
+                if (overridingMemberIsMethod) {
+                    diagnostics.Push(
+                        Error.CantOverrideNonMethod(overridingMemberLocation, overridingMember, hiddenMembers[0])
+                    );
+                }
+            } else {
+                var suppressError = false;
+
+                if (overridingMemberIsMethod) {
+                    var parameterTypes = ((MethodSymbol)overridingMember).parameterTypesWithAnnotations;
+
+                    foreach (var parameterType in parameterTypes) {
+                        if (IsOrContainsErrorType(parameterType.type)) {
+                            suppressError = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!suppressError)
+                    diagnostics.Push(Error.OverrideNotExpected(overridingMemberLocation, overridingMember));
+            }
+        } else {
+            var overridingType = overridingMember.containingType;
+
+            if (overriddenMembers.Length > 1) {
+                diagnostics.Push(Error.AmbiguousOverride(
+                    overridingMemberLocation,
+                    overriddenMembers[0].originalDefinition,
+                    overriddenMembers[1].originalDefinition,
+                    overridingType
+                ));
+            } else {
+                CheckSingleOverriddenMember(overridingMember, overriddenMembers[0], diagnostics);
+            }
+        }
+
+        // TODO Unncessary?
+        // if (!this.ContainingAssembly.RuntimeSupportsCovariantReturnsOfClasses && overridingMember is MethodSymbol overridingMethod) {
+        //     overridingMethod.RequiresExplicitOverride(out bool warnAmbiguous);
+        //     if (warnAmbiguous) {
+        //         var ambiguousMethod = overridingMethod.OverriddenMethod;
+        //         diagnostics.Add(ErrorCode.WRN_MultipleRuntimeOverrideMatches, ambiguousMethod.GetFirstLocation(), ambiguousMethod, overridingMember);
+        //         suppressAccessors = true;
+        //     }
+        // }
+
+        return;
+
+        void CheckSingleOverriddenMember(
+            Symbol overridingMember,
+            Symbol overriddenMember,
+            BelteDiagnosticQueue diagnostics) {
+            var overridingMemberLocation = overridingMember.location;
+            var overridingMemberIsMethod = overridingMember.kind == SymbolKind.Method;
+            var overridingType = overridingMember.containingType;
+
+            if (!overriddenMember.isVirtual && !overriddenMember.isAbstract && !overriddenMember.isOverride) {
+                diagnostics.Push(
+                    Error.CantOverrideNonVirtual(overridingMemberLocation, overridingMember, overriddenMember)
+                );
+            } else if (overriddenMember.isSealed) {
+                diagnostics.Push(
+                    Error.CantOverrideSealed(overridingMemberLocation, overridingMember, overriddenMember)
+                );
+            } else if (!OverrideHasCorrectAccessibility(overriddenMember, overridingMember)) {
+                var accessibility = SyntaxFacts.GetText(overriddenMember.declaredAccessibility);
+                diagnostics.Push(Error.CantChangeAccessOnOverride(
+                    overridingMemberLocation,
+                    overridingMember,
+                    accessibility,
+                    overriddenMember
+                ));
+            } else {
+                var leastOverriddenMember = overriddenMember.GetLeastOverriddenMember(overriddenMember.containingType);
+
+                var overridingMethod = (MethodSymbol)overridingMember;
+                var overriddenMethod = (MethodSymbol)overriddenMember;
+
+                if (overridingMethod.isTemplateMethod) {
+                    overriddenMethod = overriddenMethod.Construct(
+                        TemplateMap.TemplateParametersAsTypeOrConstants(overridingMethod.templateParameters)
+                    );
+                }
+
+                if (overridingMethod.refKind != overriddenMethod.refKind) {
+                    diagnostics.Push(Error.CantChangeRefReturnOnOverride(
+                        overridingMemberLocation,
+                        overridingMember,
+                        overriddenMember
+                    ));
+                } else if (!IsValidOverrideReturnType(
+                    overridingMethod,
+                    overridingMethod.returnTypeWithAnnotations,
+                    overriddenMethod.returnTypeWithAnnotations,
+                    diagnostics)) {
+                    if (!IsOrContainsErrorType(overridingMethod.returnType)) {
+                        diagnostics.Push(Error.CantChangeReturnTypeOnOverride(
+                            overridingMemberLocation,
+                            overridingMember,
+                            overriddenMember,
+                            overriddenMethod.returnType
+                        ));
+                    }
+                } else {
+                    CheckValidMethodOverride(
+                        overridingMemberLocation,
+                        overriddenMethod,
+                        overridingMethod,
+                        diagnostics
+                    );
+                }
+            }
+        }
+
+        static void CheckValidMethodOverride(
+            TextLocation overridingMemberLocation,
+            MethodSymbol overriddenMethod,
+            MethodSymbol overridingMethod,
+            BelteDiagnosticQueue diagnostics) {
+            if (RequiresValidScopedOverrideForRefSafety(overriddenMethod)) {
+                // TODO Do we need this?
+                // CheckValidScopedOverride(
+                //     overriddenMethod,
+                //     overridingMethod,
+                //     diagnostics,
+                //     static (diagnostics, overriddenMethod, overridingMethod, overridingParameter, _, location) => {
+                //         diagnostics.Add(
+                //                 ReportInvalidScopedOverrideAsError(overriddenMethod, overridingMethod) ?
+                //                     ErrorCode.ERR_ScopedMismatchInParameterOfOverrideOrImplementation :
+                //                     ErrorCode.WRN_ScopedMismatchInParameterOfOverrideOrImplementation,
+                //                 location,
+                //                 new FormattedSymbol(overridingParameter, SymbolDisplayFormat.ShortFormat));
+                //     },
+                //     overridingMemberLocation,
+                //     allowVariance: true,
+                //     invokedAsExtensionMethod: false);
+            }
+
+            CheckValidNullableMethodOverride(
+                overridingMethod.declaringCompilation,
+                overriddenMethod,
+                overridingMethod,
+                diagnostics,
+                ReportBadReturn,
+                ReportBadParameter,
+                overridingMemberLocation
+            );
+
+            CheckRefReadonlyInMismatch(
+                overriddenMethod, overridingMethod, diagnostics,
+                static (diagnostics, _, _, overridingParameter, _, arg) => {
+                    var (overriddenParameter, location) = arg;
+                    diagnostics.Push(
+                        Warning.OverridingDifferentRefness(location, overriddenParameter, overriddenParameter)
+                    );
+                },
+                overridingMemberLocation,
+                invokedAsExtensionMethod: false
+            );
+        }
+    }
+
+    internal static bool CheckValidNullableMethodOverride<TArg>(
+        Compilation compilation,
+        MethodSymbol baseMethod,
+        MethodSymbol overrideMethod,
+        BelteDiagnosticQueue diagnostics,
+        ReportMismatchInReturnType<TArg> reportMismatchInReturnType,
+        ReportMismatchInParameterType<TArg> reportMismatchInParameterType,
+        TArg extraArgument,
+        bool invokedAsExtensionMethod = false) {
+        if (!PerformValidNullableOverrideCheck(compilation, baseMethod, overrideMethod)) {
+            return false;
+        }
+
+        var hasErrors = false;
+
+        // TODO Flow analysis like this would be nice to add
+        // if ((baseMethod.FlowAnalysisAnnotations & FlowAnalysisAnnotations.DoesNotReturn) == FlowAnalysisAnnotations.DoesNotReturn &&
+        //     (overrideMethod.FlowAnalysisAnnotations & FlowAnalysisAnnotations.DoesNotReturn) != FlowAnalysisAnnotations.DoesNotReturn) {
+        //     diagnostics.Add(ErrorCode.WRN_DoesNotReturnMismatch, overrideMethod.GetFirstLocation(), new FormattedSymbol(overrideMethod, SymbolDisplayFormat.MinimallyQualifiedFormat));
+        //     hasErrors = true;
+        // }
+
+        var baseParameters = baseMethod.parameters;
+        var overrideParameters = overrideMethod.parameters;
+        var overrideParameterOffset = invokedAsExtensionMethod ? 1 : 0;
+
+        if (reportMismatchInReturnType != null) {
+            var overrideReturnType = overrideMethod.returnTypeWithAnnotations;
+
+            if (!IsValidNullableConversion(
+                overrideMethod.refKind,
+                overrideReturnType.type,
+                baseMethod.returnTypeWithAnnotations.type)) {
+                reportMismatchInReturnType(diagnostics, baseMethod, overrideMethod, false, extraArgument);
+                return true;
+            }
+
+            // TODO NullableWalker
+            // if (!NullableWalker.AreParameterAnnotationsCompatible(
+            //         overrideMethod.RefKind == RefKind.Ref ? RefKind.Ref : RefKind.Out,
+            //         baseMethod.ReturnTypeWithAnnotations,
+            //         baseMethod.ReturnTypeFlowAnalysisAnnotations,
+            //         overrideReturnType,
+            //         overrideMethod.ReturnTypeFlowAnalysisAnnotations)) {
+            //     reportMismatchInReturnType(diagnostics, baseMethod, overrideMethod, true, extraArgument);
+            //     return true;
+            // }
+        }
+
+        if (reportMismatchInParameterType is not null) {
+            for (var i = 0; i < baseParameters.Length; i++) {
+                var baseParameter = baseParameters[i];
+                var baseParameterType = baseParameter.typeWithAnnotations;
+                var parameterIndex = i + overrideParameterOffset;
+                var overrideParameter = overrideParameters[parameterIndex];
+                var overrideParameterType = overrideParameter.typeWithAnnotations;
+
+                if (!IsValidNullableConversion(
+                    overrideParameter.refKind,
+                    baseParameterType.type,
+                    overrideParameterType.type)) {
+                    reportMismatchInParameterType(
+                        diagnostics,
+                        baseMethod,
+                        overrideMethod,
+                        overrideParameter,
+                        false,
+                        extraArgument
+                    );
+
+                    hasErrors = true;
+                }
+                // TODO NullableWalker
+                // check top-level nullability including flow analysis annotations
+                // else if (!NullableWalker.AreParameterAnnotationsCompatible(
+                //         overrideParameter.RefKind,
+                //         baseParameterType,
+                //         baseParameter.FlowAnalysisAnnotations,
+                //         overrideParameterType,
+                //         overrideParameter.FlowAnalysisAnnotations)) {
+                //     reportMismatchInParameterType(diagnostics, baseMethod, overrideMethod, overrideParameter, true, extraArgument);
+                //     hasErrors = true;
+                // }
+            }
+        }
+
+        return hasErrors;
+
+        static bool IsValidNullableConversion(
+            RefKind refKind,
+            TypeSymbol sourceType,
+            TypeSymbol targetType) {
+            switch (refKind) {
+                case RefKind.Ref:
+                    return sourceType.Equals(
+                        targetType,
+                        TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
+                    );
+                default:
+                    break;
+            }
+
+            return true;
+            // TODO Connect conversions to compilation
+            // return conversions.ClassifyImplicitConversionFromType(sourceType, targetType, ref discardedUseSiteInfo).Kind != ConversionKind.NoConversion;
+        }
+    }
+    private static bool PerformValidNullableOverrideCheck(
+        Compilation compilation,
+        Symbol overriddenMember,
+        Symbol overridingMember) {
+        return overriddenMember is not null &&
+               overridingMember is not null &&
+               compilation is not null;
+    }
+
+    internal static bool CheckValidScopedOverride<TArg>(
+        MethodSymbol baseMethod,
+        MethodSymbol overrideMethod,
+        BelteDiagnosticQueue diagnostics,
+        ReportMismatchInParameterType<TArg> reportMismatchInParameterType,
+        TArg extraArgument,
+        bool allowVariance,
+        bool invokedAsExtensionMethod) {
+        if (baseMethod is null || overrideMethod is null)
+            return false;
+
+        var hasErrors = false;
+        var baseParameters = baseMethod.parameters;
+        var overrideParameters = overrideMethod.parameters;
+        var overrideParameterOffset = invokedAsExtensionMethod ? 1 : 0;
+
+        for (var i = 0; i < baseParameters.Length; i++) {
+            var baseParameter = baseParameters[i];
+            var overrideParameter = overrideParameters[i + overrideParameterOffset];
+
+            if (!IsValidScopedConversion(
+                allowVariance,
+                baseParameter.effectiveScope,
+                baseParameter.hasUnscopedRefAttribute,
+                overrideParameter.effectiveScope,
+                overrideParameter.hasUnscopedRefAttribute)) {
+                reportMismatchInParameterType(
+                    diagnostics,
+                    baseMethod,
+                    overrideMethod,
+                    overrideParameter,
+                    topLevel: true,
+                    extraArgument
+                );
+
+                hasErrors = true;
+            }
+        }
+        return hasErrors;
+
+        static bool IsValidScopedConversion(
+            bool allowVariance,
+            ScopedKind baseScope,
+            bool baseHasUnscopedRefAttribute,
+            ScopedKind overrideScope,
+            bool overrideHasUnscopedRefAttribute) {
+            if (baseScope == overrideScope) {
+                if (baseHasUnscopedRefAttribute == overrideHasUnscopedRefAttribute)
+                    return true;
+
+                return allowVariance && !overrideHasUnscopedRefAttribute;
+            }
+
+            return allowVariance && baseScope == ScopedKind.None;
+        }
+    }
+
+    internal static bool RequiresValidScopedOverrideForRefSafety(MethodSymbol method) {
+        if (method is null)
+            return false;
+
+        var parameters = method.parameters;
+
+        if (parameters.Any(static p =>
+                p is { effectiveScope: ScopedKind.None, refKind: RefKind.Ref } &&
+                p.type.IsRefLikeOrAllowsRefLikeType())) {
+            return true;
+        }
+
+        int nRefParametersRequired;
+
+        if (method.returnType.IsRefLikeOrAllowsRefLikeType() ||
+            (method.refKind is RefKind.Ref or RefKind.RefConst)) {
+            nRefParametersRequired = 1;
+        } else if (parameters.Any(p => (p.refKind is RefKind.Ref) && p.type.IsRefLikeOrAllowsRefLikeType())) {
+            nRefParametersRequired = 2;
+        } else {
+            return false;
+        }
+
+        var nRefParameters = parameters.Count(p => p.refKind is RefKind.Ref or RefKind.RefConstParameter);
+
+        if (nRefParameters >= nRefParametersRequired)
+            return true;
+        else if (parameters.Any(p => p.refKind == RefKind.None && p.type.IsRefLikeOrAllowsRefLikeType()))
+            return true;
+
+        return false;
+    }
+
+    private bool IsValidOverrideReturnType(
+        Symbol overridingSymbol,
+        TypeWithAnnotations overridingReturnType,
+        TypeWithAnnotations overriddenReturnType,
+        BelteDiagnosticQueue diagnostics) {
+        return overridingReturnType.Equals(overriddenReturnType, TypeCompareKind.AllIgnoreOptions);
+    }
+
+    private static bool OverrideHasCorrectAccessibility(Symbol overridden, Symbol overriding) {
+        return overridden.declaredAccessibility == overriding.declaredAccessibility;
+    }
+
+    private void CheckAbstractClassImplementations(BelteDiagnosticQueue diagnostics) {
+        var baseType = this.baseType;
+
+        if (isAbstract || baseType is null || !baseType.isAbstract)
+            return;
+
+        foreach (var abstractMember in abstractMembers) {
+            if (abstractMember.kind == SymbolKind.Method)
+                diagnostics.Push(Error.TypeDoesNotImplementAbstract(location, this, abstractMember));
+        }
+    }
+
     private static void CheckNonOverrideMember(
         Symbol hidingMember,
         bool hidingMemberIsNew,
@@ -457,30 +901,57 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 if (!hidingMemberIsNew && hiddenMember.kind == hidingMember.kind &&
                     (hiddenMember.isAbstract || hiddenMember.isVirtual || hiddenMember.isOverride)) {
-
-                    diagnostics.Add(ErrorCode.WRN_NewOrOverrideExpected, hidingMemberLocation, hidingMember, hiddenMember);
+                    diagnostics.Push(Warning.NewOrOverrideExpected(hidingMemberLocation, hidingMember, hiddenMember));
                     diagnosticAdded = true;
                 }
 
-                if (diagnosticAdded) {
+                if (diagnosticAdded)
                     break;
-                }
             }
 
-            if (!hidingMemberIsNew && !diagnosticAdded && !hidingMember.IsOperator()) {
-                diagnostics.Add(ErrorCode.WRN_NewRequired, hidingMemberLocation, hidingMember, hiddenMembers[0]);
-            }
+            if (!hidingMemberIsNew && !diagnosticAdded && !hidingMember.IsOperator())
+                diagnostics.Push(Warning.NewRequired(hidingMemberLocation, hidingMember, hiddenMembers[0]));
 
             if (hidingMember is MethodSymbol hidingMethod && hiddenMembers[0] is MethodSymbol hiddenMethod) {
                 CheckRefReadonlyInMismatch(
                     hiddenMethod, hidingMethod, diagnostics,
                     static (diagnostics, _, _, hidingParameter, _, arg) => {
                         var (hiddenParameter, location) = arg;
-                        // Reference kind modifier of parameter '{0}' doesn't match the corresponding parameter '{1}' in hidden member.
-                        diagnostics.Add(ErrorCode.WRN_HidingDifferentRefness, location, hidingParameter, hiddenParameter);
+                        diagnostics.Push(Warning.HidingDifferentRefness(location, hidingParameter, hiddenParameter));
                     },
                     hidingMemberLocation,
                     invokedAsExtensionMethod: false);
+            }
+        }
+    }
+
+    internal static void CheckRefReadonlyInMismatch<TArg>(
+        MethodSymbol baseMethod,
+        MethodSymbol overrideMethod,
+        BelteDiagnosticQueue diagnostics,
+        ReportMismatchInParameterType<(ParameterSymbol, TArg)> reportMismatchInParameterType,
+        TArg extraArgument,
+        bool invokedAsExtensionMethod) {
+        if (baseMethod is null || overrideMethod is null)
+            return;
+
+        var baseParameters = baseMethod.parameters;
+        var overrideParameters = overrideMethod.parameters;
+        var overrideParameterOffset = invokedAsExtensionMethod ? 1 : 0;
+
+        for (var i = 0; i < baseParameters.Length; i++) {
+            var baseParameter = baseParameters[i];
+            var overrideParameter = overrideParameters[i + overrideParameterOffset];
+
+            if (baseParameter.refKind != overrideParameter.refKind) {
+                reportMismatchInParameterType(
+                    diagnostics,
+                    baseMethod,
+                    overrideMethod,
+                    overrideParameter,
+                    topLevel: true,
+                    (baseParameter, extraArgument)
+                );
             }
         }
     }

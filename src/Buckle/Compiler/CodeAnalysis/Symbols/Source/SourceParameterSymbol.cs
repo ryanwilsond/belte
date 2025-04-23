@@ -73,4 +73,20 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
     internal override void ForceComplete(TextLocation location) {
         _state.DefaultForceComplete();
     }
+
+    private protected ScopedKind CalculateEffectiveScopeIgnoringAttributes() {
+        // TODO
+        // var declaredScope = this.declaredScope;
+
+        // if (declaredScope == ScopedKind.None) {
+        //     if (ParameterHelpers.IsRefScopedByDefault(this)) {
+        //         return ScopedKind.ScopedRef;
+        //     } else if (HasParamsModifier && Type.IsRefLikeOrAllowsRefLikeType()) {
+        //         return ScopedKind.ScopedValue;
+        //     }
+        // }
+
+        // return declaredScope;
+        return ScopedKind.None;
+    }
 }
