@@ -103,6 +103,12 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return [];
     }
 
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitTemplateParameter(this, argument);
+    }
+
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
         ImmutableArray<TypeWithAnnotations> constraintTypes) {
         foreach (var constraintType in constraintTypes) {

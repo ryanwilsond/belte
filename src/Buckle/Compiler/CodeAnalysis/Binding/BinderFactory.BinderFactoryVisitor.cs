@@ -61,20 +61,25 @@ internal sealed partial class BinderFactory {
             if (node != _syntaxTree.GetRoot())
                 throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
 
-            // TODO script, even necessary?
             // var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
             var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
                 result = _endBinder;
 
-                // TODO script, even necessary?
-                // if (_inScript) {
-                //     // TODO
-                // } else {
+                // TODO script related stuff, even necessary?
+
                 var globalNamespace = _compilation.globalNamespaceInternal;
                 result = new InContainerBinder(globalNamespace, result);
-                // }
+
+                if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
+                    is SynthesizedEntryPoint simpleProgram) {
+                    var bodyBinder = simpleProgram.GetBodyBinder(false); // ? _factory._ignoreAccessibility
+                    result = new SimpleProgramUnitBinder(
+                        result,
+                        (SimpleProgramBinder)bodyBinder.GetBinder(simpleProgram.syntaxNode)
+                    );
+                }
 
                 _binderCache.TryAdd(key, result);
             }

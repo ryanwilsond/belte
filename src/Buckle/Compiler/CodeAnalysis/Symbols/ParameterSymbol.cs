@@ -57,6 +57,12 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     private protected sealed override Symbol _originalSymbolDefinition => originalDefinition;
 
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitParameter(this, argument);
+    }
+
     bool IParameterSymbol.isOptional => isMetadataOptional;
 
     ITypeSymbol IParameterSymbol.type => type;

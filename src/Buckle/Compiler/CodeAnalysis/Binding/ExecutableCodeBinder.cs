@@ -50,10 +50,16 @@ internal sealed class ExecutableCodeBinder : Binder {
     private void ComputeBinderMap() {
         Dictionary<SyntaxNode, Binder> map;
 
-        if (_memberSymbol is not null && _root is not null)
-            map = LocalBinderFactory.BuildMap(_memberSymbol, _root, this, _binderUpdatedHandler);
-        else
-            map = [];
+        if (_memberSymbol is SynthesizedEntryPoint entryPoint && _root == entryPoint.syntaxNode) {
+            var scopeOwner = new SimpleProgramBinder(this, entryPoint);
+            map = LocalBinderFactory.BuildMap(_memberSymbol, _root, scopeOwner, _binderUpdatedHandler);
+            map.Add(_root, scopeOwner);
+        } else {
+            if (_memberSymbol is not null && _root is not null)
+                map = LocalBinderFactory.BuildMap(_memberSymbol, _root, this, _binderUpdatedHandler);
+            else
+                map = [];
+        }
 
         Interlocked.CompareExchange(ref _lazyBinderMap, map, null);
     }

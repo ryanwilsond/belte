@@ -108,6 +108,12 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     internal override bool isSealed => false;
 
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitArrayType(this, argument);
+    }
+
     internal bool HasSameShapeAs(ArrayTypeSymbol other) {
         return rank == other.rank && isSZArray == other.isSZArray;
     }

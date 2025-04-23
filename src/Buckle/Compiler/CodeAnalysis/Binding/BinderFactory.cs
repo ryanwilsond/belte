@@ -52,6 +52,18 @@ internal sealed partial class BinderFactory {
         return resultBinder;
     }
 
+    internal Binder GetInNamespaceBinder(BelteSyntaxNode unit) {
+        switch (unit.kind) {
+            case SyntaxKind.CompilationUnit:
+                var visitor = GetBinderFactoryVisitor(0, null, null);
+                var result = visitor.VisitCompilationUnit((CompilationUnitSyntax)unit);
+                ClearBinderFactoryVisitor(visitor);
+                return result;
+            default:
+                return null;
+        }
+    }
+
     private BinderFactoryVisitor GetBinderFactoryVisitor(
         int position,
         BelteSyntaxNode memberDeclaration,

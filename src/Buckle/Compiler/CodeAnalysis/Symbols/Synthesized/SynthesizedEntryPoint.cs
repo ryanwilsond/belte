@@ -20,7 +20,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SingleTypeDeclaration declaration)
         : base(containingType, declaration.syntaxReference, MakeModifiersAndFlags(containingType, declaration)) {
-        _returnType = CorLibrary.GetSpecialType(SpecialType.Void);
+        _returnType = declaration.hasReturnWithExpression
+            ? CorLibrary.GetNullableType(SpecialType.Any)
+            : CorLibrary.GetSpecialType(SpecialType.Void);
+
         _declaration = declaration;
     }
 
@@ -52,6 +55,9 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
             return _lazyProgramBinder;
         }
     }
+
+    // TODO Reference says members.First is what we want, but why?? Double check this
+    internal SyntaxNode returnTypeSyntax => compilationUnit.members.Last(m => m.kind == SyntaxKind.GlobalStatement);
 
     internal ExecutableCodeBinder GetBodyBinder(bool ignoreAccessibility) {
         ref var weakBinder = ref ignoreAccessibility ? ref _weakIgnoreAccessibilityBodyBinder : ref _weakBodyBinder;

@@ -100,6 +100,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool requiresInstanceReceiver => false;
+
     internal override CallingConvention callingConvention => CallingConvention.Default;
 
     internal override void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {

@@ -76,6 +76,12 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal bool isGlobal => containingSymbol is SynthesizedEntryPoint;
 
+    internal sealed override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitDataContainer(this, argument);
+    }
+
     internal abstract ConstantValue GetConstantValue(
         SyntaxNode node,
         DataContainerSymbol inProgress,

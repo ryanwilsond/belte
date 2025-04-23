@@ -60,6 +60,12 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal abstract TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound);
 
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitField(this, argument);
+    }
+
     internal virtual FieldSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition ? this : new SubstitutedFieldSymbol(newOwner as SubstitutedNamedTypeSymbol, this);
     }

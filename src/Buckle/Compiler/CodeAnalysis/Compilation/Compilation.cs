@@ -26,6 +26,9 @@ namespace Buckle.CodeAnalysis;
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
 public sealed class Compilation {
+    private readonly static Predicate<Symbol> SkipLibrariesFilter
+        = type => type is not SynthesizedFinishedNamedTypeSymbol;
+
     private readonly SyntaxAndDeclarationManager _syntax;
     private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
@@ -306,7 +309,7 @@ public sealed class Compilation {
             var programClass = (NamedTypeSymbol)programClasses[0];
 
             foreach (var member in programClass.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
-                if (member is MethodSymbol m && HasEntryPointSignature(m))
+                if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
                     builder.Add(m);
             }
         }
@@ -521,7 +524,12 @@ public sealed class Compilation {
     private void CreateBoundProgramAndMethodDiagnostics() {
         var emitting = options.buildMode is not BuildMode.CSharpTranspile;
         _lazyMethodDiagnostics = new BelteDiagnosticQueue();
-        _lazyBoundProgram = MethodCompiler.CompileMethodBodies(this, _lazyMethodDiagnostics, emitting);
+        _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
+            this,
+            _lazyMethodDiagnostics,
+            SkipLibrariesFilter,
+            emitting
+        );
     }
 
     private void EmitCFG() {

@@ -42,4 +42,10 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name)
         => GetMembers(name.AsMemory());
+
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitNamespace(this, argument);
+    }
 }

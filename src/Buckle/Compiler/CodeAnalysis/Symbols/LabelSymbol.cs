@@ -25,4 +25,10 @@ internal abstract class LabelSymbol : Symbol {
     internal virtual MethodSymbol containingMethod => throw new NotSupportedException();
 
     internal override Symbol containingSymbol => throw new NotSupportedException();
+
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitLabel(this, argument);
+    }
 }

@@ -118,6 +118,12 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         }
     }
 
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitMethod(this, argument);
+    }
+
     internal virtual bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         thisParameter = null;
         return false;

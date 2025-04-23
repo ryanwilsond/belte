@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
@@ -5,44 +6,60 @@ using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
 
-internal sealed class MethodCompiler {
+internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly MethodSymbol _entryPoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
+    private readonly Predicate<Symbol> _filter;
 
     private MethodCompiler(
         Compilation compilation,
+        Dictionary<MethodSymbol, BoundBlockStatement> methodBodiesBeingBuilt,
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
+        Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
+        _filter = filter;
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
-        _methodBodies = [];
+        _methodBodies = methodBodiesBeingBuilt;
     }
 
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
+        Predicate<Symbol> filter,
         bool emitting) {
         var globalNamespace = compilation.globalNamespaceInternal;
-        var entryPoint = compilation.GetEntryPoint(diagnostics);
+        var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
+        var entryPoint = GetEntryPoint(compilation, diagnostics);
 
-        var methodCompiler = new MethodCompiler(compilation, diagnostics, entryPoint, emitting);
+        var methodCompiler = new MethodCompiler(
+            compilation,
+            methodBodiesBeingBuilt,
+            diagnostics,
+            entryPoint,
+            filter,
+            emitting
+        );
 
         methodCompiler.CompileNamespace(globalNamespace);
         return methodCompiler.CreateBoundProgram();
+    }
+
+    private static MethodSymbol GetEntryPoint(Compilation compilation, BelteDiagnosticQueue diagnostics) {
+        return compilation.GetEntryPoint(diagnostics);
     }
 
     private BoundProgram CreateBoundProgram() {
@@ -54,29 +71,27 @@ internal sealed class MethodCompiler {
         );
     }
 
-    private void CompileNamespace(NamespaceSymbol globalNamespace) {
-        foreach (var member in globalNamespace.GetMembersUnordered()) {
-            switch (member) {
-                case NamedTypeSymbol n when n is not SynthesizedFinishedNamedTypeSymbol:
-                    CompileNamedType(n);
-                    break;
-                    // TODO Namespaces can only contain named types currently?
-                    // case MethodSymbol m:
-                    //     var _ = new Binder.ProcessedFieldInitializers();
-                    //     CompileMethod(m, ref _, null);
-                    //     break;
-            }
-        }
+    private void CompileNamespace(NamespaceSymbol symbol) {
+        foreach (var member in symbol.GetMembersUnordered())
+            member.Accept(this, null);
     }
 
-    private void CompileNamedType(NamedTypeSymbol namedType) {
-        _types.Add(namedType);
+    internal override object VisitNamedType(NamedTypeSymbol symbol, TypeCompilationState _) {
+        if (!PassesFilter(_filter, symbol))
+            return null;
 
-        var state = new TypeCompilationState(namedType, _compilation);
-        var members = namedType.GetMembers();
+        CompileNamedType(symbol);
+        return null;
+    }
+
+    private void CompileNamedType(NamedTypeSymbol symbol) {
+        _types.Add(symbol);
+
+        var state = new TypeCompilationState(symbol, _compilation);
+        var members = symbol.GetMembers();
         var processedInitializers = new Binder.ProcessedFieldInitializers();
 
-        var sourceType = namedType as SourceMemberContainerTypeSymbol;
+        var sourceType = symbol as SourceMemberContainerTypeSymbol;
 
         if (sourceType is not null) {
             Binder.BindFieldInitializers(
@@ -90,9 +105,12 @@ internal sealed class MethodCompiler {
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
             var member = members[ordinal];
 
+            if (!PassesFilter(_filter, member))
+                continue;
+
             switch (member) {
-                case NamedTypeSymbol n:
-                    CompileNamedType(n);
+                case NamedTypeSymbol:
+                    member.Accept(this, state);
                     break;
                 case MethodSymbol m:
                     var initializers = m.methodKind == MethodKind.Constructor ? processedInitializers : default;
@@ -247,30 +265,6 @@ internal sealed class MethodCompiler {
                 default:
                     throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
             }
-        } else if (method is SynthesizedConstructorSymbol constructor) {
-            // TODO Pretty sure we don't need to actually do anything here
-            // var baseConstructorCall = Binder.GenerateBaseParameterlessConstructorInitializer(constructor, diagnostics);
-            // var statement = new BoundExpressionStatement(syntax, baseConstructorCall);
-            // body = new BoundBlockStatement(syntax, [statement], [], []);
-        } else if (method is SynthesizedEntryPoint entryPoint) {
-            var bodyBinder = entryPoint.TryGetBodyBinder();
-            var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
-
-            for (var i = 0; i < entryPoint.statements.Length; i++) {
-                var statement = entryPoint.statements[i];
-                var boundStatement = bodyBinder.BindStatement(statement.statement, diagnostics);
-
-                if (i == entryPoint.statements.Length - 1 && boundStatement is BoundExpressionStatement e) {
-                    var expression = e.expression;
-
-                    if (expression is BoundMethodGroup || expression.type?.IsVoidType() == false)
-                        boundStatement = new BoundReturnStatement(syntax, RefKind.None, expression);
-                }
-
-                bodyBuilder.Add(boundStatement);
-            }
-
-            body = new BoundBlockStatement(syntax, bodyBuilder.ToImmutableAndFree(), [], []);
         }
 
         var constructorInitializer = BindImplicitConstructorInitializerIfAny(method, state, syntaxNode, diagnostics);
@@ -318,5 +312,9 @@ internal sealed class MethodCompiler {
             TypeSymbol.Equals(call.method.containingType, method.containingType, TypeCompareKind.ConsiderEverything)) {
             state.ReportConstructorInitializerCycles(method, call.method, syntax, diagnostics);
         }
+    }
+
+    private static bool PassesFilter(Predicate<Symbol> filter, Symbol symbol) {
+        return (filter is null) || filter(symbol);
     }
 }

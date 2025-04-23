@@ -86,6 +86,12 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override TResult Accept<TArgument, TResult>(
+        SymbolVisitor<TArgument, TResult> visitor,
+        TArgument argument) {
+        return visitor.VisitErrorType(this, argument);
+    }
+
     internal override NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition ? this : new SubstitutedNestedErrorTypeSymbol(newOwner, this);
     }

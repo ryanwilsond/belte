@@ -7388,10 +7388,15 @@ symIsHidden:;
             boundStatements.Add(boundStatement);
         }
 
+        return FinishBindBlockParts(node, boundStatements.ToImmutableAndFree());
+    }
+
+    private BoundBlockStatement FinishBindBlockParts(
+        BelteSyntaxNode node,
+        ImmutableArray<BoundStatement> boundStatements) {
         var locals = GetDeclaredLocalsForScope(node);
         var localFunctions = GetDeclaredLocalFunctionsForScope(node);
-
-        return new BoundBlockStatement(node, boundStatements.ToImmutableAndFree(), locals, localFunctions);
+        return new BoundBlockStatement(node, boundStatements, locals, localFunctions);
     }
 
     private BoundReturnStatement BindReturnStatement(ReturnStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -7501,9 +7506,37 @@ symIsHidden:;
                     return BindConstructorBody((ConstructorDeclarationSyntax)method, diagnostics);
 
                 return BindMethodBody(method, method.body, diagnostics);
+            case CompilationUnitSyntax compilationUnit:
+                return BindSimpleProgram(compilationUnit, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(syntax.kind);
         }
+    }
+
+    private BoundNode BindSimpleProgram(CompilationUnitSyntax compilationUnit, BelteDiagnosticQueue diagnostics) {
+        return GetBinder(compilationUnit).BindSimpleProgramCompilationUnit(compilationUnit, diagnostics);
+    }
+
+    private BoundNode BindSimpleProgramCompilationUnit(
+        CompilationUnitSyntax compilationUnit,
+        BelteDiagnosticQueue diagnostics) {
+        var boundStatements = ArrayBuilder<BoundStatement>.GetInstance();
+        var first = true;
+
+        foreach (var statement in compilationUnit.members) {
+            if (statement is GlobalStatementSyntax topLevelStatement) {
+                if (first)
+                    first = false;
+
+                var boundStatement = BindStatement(topLevelStatement.statement, diagnostics);
+                boundStatements.Add(boundStatement);
+            }
+        }
+
+        return new BoundNonConstructorMethodBody(
+            compilationUnit,
+            FinishBindBlockParts(compilationUnit, boundStatements.ToImmutableAndFree())
+        );
     }
 
     private BoundNode BindConstructorBody(ConstructorDeclarationSyntax constructor, BelteDiagnosticQueue diagnostics) {

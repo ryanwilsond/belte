@@ -48,6 +48,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
             ConstructorDeclarationSyntax constructor
                 => constructor.constructorInitializer ?? (BelteSyntaxNode)constructor.body,
             BaseMethodDeclarationSyntax method => method.body,
+            CompilationUnitSyntax _ when this is SynthesizedEntryPoint entryPoint
+                => (BelteSyntaxNode)entryPoint.returnTypeSyntax,
             LocalFunctionStatementSyntax localFunction => localFunction.body,
             ClassDeclarationSyntax classDeclaration => classDeclaration,
             _ => null,

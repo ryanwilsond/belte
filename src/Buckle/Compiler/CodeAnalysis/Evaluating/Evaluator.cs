@@ -363,11 +363,17 @@ internal sealed class Evaluator {
                         break;
                     case BoundKind.ReturnStatement:
                         var returnStatement = (BoundReturnStatement)s;
-                        _lastValue = returnStatement.expression is null
-                            ? EvaluatorObject.Null
-                            : Copy(EvaluateExpression(returnStatement.expression, abort));
 
-                        _hasValue = returnStatement.expression is not null;
+                        if (returnStatement.expression is not null) {
+                            _lastValue = Copy(EvaluateExpression(returnStatement.expression, abort));
+                            _hasValue = true;
+                        } else if (_lastValue is not null) {
+                            _hasValue = true;
+                        } else {
+                            _hasValue = false;
+                            _lastValue = EvaluatorObject.Null;
+                        }
+
                         hasReturn = true;
 
                         return _lastValue;

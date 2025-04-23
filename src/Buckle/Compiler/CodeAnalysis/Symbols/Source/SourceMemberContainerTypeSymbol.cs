@@ -251,7 +251,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     if (builder is null)
                         builder = ArrayBuilder<SynthesizedEntryPoint>.GetInstance();
                     else
-                        // TODO It looks like we already handle this error in the MethodCompiler? Double check
                         diagnostics.Push(Error.GlobalStatementsInMultipleFiles(singleDecl.nameLocation));
 
                     builder.Add(new SynthesizedEntryPoint(this, singleDecl));
@@ -625,7 +624,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                     break;
                 default:
-                    throw ExceptionUtilities.UnexpectedValue(m.kind);
+                    break;
             }
         }
 
@@ -650,6 +649,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private void AddSynthesizedMembers(
         MembersAndInitializersBuilder builder,
         DeclaredMembersAndInitializers declaredMembersAndInitializers) {
+        if (typeKind is TypeKind.Class)
+            AddSynthesizedSimpleProgramEntryPointIfNecessary(builder, declaredMembersAndInitializers);
+
         switch (typeKind) {
             case TypeKind.Struct:
             case TypeKind.Class:
@@ -658,6 +660,15 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             default:
                 break;
         }
+    }
+
+    private void AddSynthesizedSimpleProgramEntryPointIfNecessary(
+        MembersAndInitializersBuilder builder,
+        DeclaredMembersAndInitializers declaredMembersAndInitializers) {
+        var simpleProgramEntryPoints = GetSimpleProgramEntryPoints();
+
+        foreach (var member in simpleProgramEntryPoints)
+            builder.AddNonTypeMember(member, declaredMembersAndInitializers);
     }
 
     private void AddSynthesizedConstructorsIfNecessary(
