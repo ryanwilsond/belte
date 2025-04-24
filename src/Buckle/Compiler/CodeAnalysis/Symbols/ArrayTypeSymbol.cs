@@ -108,6 +108,8 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     internal override bool isSealed => false;
 
+    internal sealed override bool isRefLikeType => false;
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

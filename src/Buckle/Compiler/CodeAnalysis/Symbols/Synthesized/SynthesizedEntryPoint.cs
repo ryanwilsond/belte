@@ -43,8 +43,6 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     internal override TextLocation location => _declaration.syntaxReference.location;
 
-    internal override bool hasUnscopedRefAttribute => false;
-
     internal CompilationUnitSyntax compilationUnit => (CompilationUnitSyntax)syntaxNode;
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }

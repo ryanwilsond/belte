@@ -547,9 +547,9 @@ internal sealed class Evaluator {
         if (method.isAbstract || method.isVirtual) {
             var type = Dereference(receiverObject).type;
             var newMethod = type
-                .GetMembers()
-                .Where(s => s is MethodSymbol m && m == method && m.isOverride)
-                .First() as MethodSymbol;
+                .GetMembersUnordered()
+                .Where(s => s is MethodSymbol m && m.overriddenMethod == method)
+                .FirstOrDefault() as MethodSymbol;
 
             if (newMethod is not null)
                 method = newMethod;

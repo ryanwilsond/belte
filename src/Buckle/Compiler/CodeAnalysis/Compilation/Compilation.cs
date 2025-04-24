@@ -101,7 +101,13 @@ public sealed class Compilation {
     internal List<LocalFunctionRewriter.Analysis> previousAnalyses {
         get {
             if (_lazyPreviousAnalyses is null) {
-                var result = previous?.previousAnalyses ?? [];
+                List<LocalFunctionRewriter.Analysis> result;
+
+                if (previous?.previousAnalyses is not null)
+                    result = new List<LocalFunctionRewriter.Analysis>(previous.previousAnalyses);
+                else
+                    result = [];
+
                 Interlocked.CompareExchange(ref _lazyPreviousAnalyses, result, null);
             }
 

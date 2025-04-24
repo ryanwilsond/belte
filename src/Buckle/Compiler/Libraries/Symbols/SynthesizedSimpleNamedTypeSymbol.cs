@@ -57,6 +57,8 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override TextLocation location => null;
 
+    internal override bool isRefLikeType => false;
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
     }

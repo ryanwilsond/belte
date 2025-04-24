@@ -31,6 +31,9 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
 
     internal abstract ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds();
 
+    // internal sealed override bool hasUnscopedRefAttribute => GetDecodedWellKnownAttributeData()?.hasUnscopedRefAttribute == true;
+    internal sealed override bool hasUnscopedRefAttribute => false;
+
     internal static void ReportErrorIfHasConstraints(
         TemplateConstraintClauseListSyntax syntax,
         BelteDiagnosticQueue diagnostics) {

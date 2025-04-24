@@ -28,7 +28,7 @@ internal enum CompletionParts : ushort {
     All = (1 << 13) - 1,
 
     NamedTypeSymbolWithLocationAll = StartBaseType | FinishBaseType | TemplateArguments | TemplateParameters |
-        Members | TypeMembers | StartMemberChecks | FinishMemberChecks,
+        Members | TypeMembers | SynthesizedExplicitImplementations | StartMemberChecks | FinishMemberChecks,
 
     NamedTypeSymbolAll = NamedTypeSymbolWithLocationAll | MembersCompletedChecksStarted | MembersCompleted,
 

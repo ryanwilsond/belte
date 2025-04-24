@@ -47,6 +47,8 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override bool isSealed => false;
 
+    internal override bool isRefLikeType => false;
+
     internal override NamedTypeSymbol baseType => null;
 
     internal override SyntaxReference syntaxReference => throw new InvalidOperationException();
