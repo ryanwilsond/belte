@@ -61,16 +61,15 @@ internal sealed partial class BinderFactory {
             if (node != _syntaxTree.GetRoot())
                 throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
 
+            // TODO We should probably set this up in case the compilation bounces from scripts to normal
             // var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
             var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
-                result = _endBinder;
+                result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
 
-                // TODO script related stuff, even necessary?
-
-                var globalNamespace = _compilation.globalNamespaceInternal;
-                result = new InContainerBinder(globalNamespace, result);
+                if (_inScript)
+                    result = new SubmissionBinder(_compilation.scriptClass, node, result);
 
                 if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
                     is SynthesizedEntryPoint simpleProgram) {

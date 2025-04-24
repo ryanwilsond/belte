@@ -37,7 +37,7 @@ internal static class Assertions {
             BaseCompilation
         );
 
-        var result = compilation.Evaluate([], false);
+        var result = compilation.Evaluate(false);
 
         if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -61,7 +61,7 @@ internal static class Assertions {
             BaseCompilation
         );
 
-        var result = compilation.Evaluate([], false);
+        var result = compilation.Evaluate(false);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -101,7 +101,7 @@ internal static class Assertions {
                 BaseCompilation
             );
 
-            var result = compilation.Evaluate([], false);
+            var result = compilation.Evaluate(false);
             tempDiagnostics = result.diagnostics;
         }
 

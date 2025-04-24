@@ -6642,6 +6642,88 @@ symIsHidden:;
             AddMemberLookupSymbolsInfoInType(result, (TypeSymbol)namespaceOrType, options, originalBinder);
     }
 
+    private protected void AddMemberLookupSymbolsInfoInSubmissions(
+        LookupSymbolsInfo result,
+        TypeSymbol scriptClass,
+        LookupOptions options,
+        Binder originalBinder) {
+        for (var submission = compilation; submission is not null; submission = submission.previous) {
+            if (submission.scriptClass is not null) {
+                AddMemberLookupSymbolsInfoWithoutInheritance(
+                    result,
+                    submission.scriptClass,
+                    options,
+                    originalBinder,
+                    scriptClass
+                );
+            }
+        }
+    }
+
+    private protected void LookupMembersInSubmissions(
+        LookupResult result,
+        TypeSymbol submissionClass,
+        CompilationUnitSyntax declarationSyntax,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        bool diagnose) {
+        var submissionSymbols = LookupResult.GetInstance();
+        var nonViable = LookupResult.GetInstance();
+        SymbolKind? lookingForOverloadsOfKind = null;
+
+        for (var submission = compilation; submission is not null; submission = submission.previous) {
+            submissionSymbols.Clear();
+
+            if (submission.scriptClass is not null) {
+                LookupMembersWithoutInheritance(
+                    submissionSymbols,
+                    submission.scriptClass,
+                    name,
+                    arity,
+                    options,
+                    originalBinder,
+                    submissionClass,
+                    diagnose,
+                    basesBeingResolved
+                );
+            }
+
+            if (lookingForOverloadsOfKind is null) {
+                if (!submissionSymbols.isMultiViable) {
+                    nonViable.MergePrioritized(submissionSymbols);
+                    continue;
+                }
+
+                result.MergeEqual(submissionSymbols);
+
+                var firstSymbol = submissionSymbols.symbols.First();
+
+                if (firstSymbol.kind != SymbolKind.Method)
+                    break;
+
+                options &= ~(LookupOptions.MustBeInvocableIfMember | LookupOptions.NamespacesOrTypesOnly);
+                lookingForOverloadsOfKind = firstSymbol.kind;
+            } else {
+                if (submissionSymbols.symbols.Count > 0 &&
+                    submissionSymbols.symbols.First().kind != lookingForOverloadsOfKind.Value) {
+                    break;
+                }
+
+                if (submissionSymbols.isMultiViable)
+                    result.MergeEqual(submissionSymbols);
+            }
+        }
+
+        if (result.symbols.Count == 0)
+            result.SetFrom(nonViable);
+
+        submissionSymbols.Free();
+        nonViable.Free();
+    }
+
     private void AddMemberLookupSymbolsInfoInType(
         LookupSymbolsInfo result,
         TypeSymbol type,
@@ -6968,7 +7050,7 @@ symIsHidden:;
                     switch (node.parent.kind) {
                         case SyntaxKind.ForStatement:
                         case SyntaxKind.WhileStatement:
-                            if (emptyStatement.semicolon.GetNextToken().kind != SyntaxKind.OpenBraceToken)
+                            if (emptyStatement.semicolon.GetNextToken()?.kind != SyntaxKind.OpenBraceToken)
                                 break;
 
                             goto default;

@@ -102,7 +102,7 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.globals = [];
+        state.context = new EvaluatorContext();
         state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
         _changes.Clear();
@@ -334,7 +334,7 @@ public sealed partial class BelteRepl : Repl {
         Console.ForegroundColor = state.colorTheme.result;
 
         if (!handle.diagnostics.AnyErrors()) {
-            result = compilation.Evaluate(state.globals, _abortEvaluation);
+            result = compilation.Evaluate(state.context, _abortEvaluation);
 
             if (result.lastOutputWasPrint)
                 writer.WriteLine();
@@ -629,9 +629,9 @@ public sealed partial class BelteRepl : Repl {
         if (mode == "global" || mode == "all") {
             writer.WriteLine("Global Symbols:");
 
-            foreach (var global in state.globals) {
+            foreach (var symbol in state.context.GetTrackedSymbols()) {
                 displayText.Write(CreateIndent());
-                SymbolDisplay.AppendToDisplayText(displayText, global.Key, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.Everything);
                 displayText.WriteLine();
             }
 
@@ -652,7 +652,7 @@ public sealed partial class BelteRepl : Repl {
 
         var compilation = state.previous ?? EmptyCompilation;
         var topLevelSymbols = compilation.GetSymbols(true);
-        var toplevelGlobals = state.globals.ToDictionary(item => (ISymbol)item.Key, item => item.Value);
+        var toplevelGlobals = state.context.GetTrackedSymbolsAndObjects();
         var currentSymbols = topLevelSymbols;
         var currentGlobals = toplevelGlobals;
         EvaluatorObject currentGlobal = null;
@@ -879,9 +879,9 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
 
-        // Prefer globals first
-        foreach (var global in state.globals) {
-            var local = global.Key;
+        // Prefer tracked symbols first
+        foreach (var symbolAndObject in state.context.GetTrackedSymbolsAndObjects()) {
+            var local = symbolAndObject.Key;
 
             if (local.name == signature) {
                 var localDisplayText = new DisplayText();
@@ -889,7 +889,7 @@ public sealed partial class BelteRepl : Repl {
                 localDisplayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(localDisplayText);
 
-                var localValue = EvaluatorObjectToNativeObject(global.Value);
+                var localValue = EvaluatorObjectToNativeObject(symbolAndObject.Value);
                 RenderResult(localValue);
                 writer.WriteLine();
 

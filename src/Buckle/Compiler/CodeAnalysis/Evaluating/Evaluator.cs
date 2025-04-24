@@ -16,7 +16,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class Evaluator {
     private readonly BoundProgram _program;
-    private readonly Dictionary<IDataContainerSymbol, EvaluatorObject> _globals;
+    private readonly EvaluatorContext _context;
     private readonly Stack<Dictionary<Symbol, EvaluatorObject>> _locals;
     private readonly Stack<EvaluatorObject> _enclosingTypes;
 
@@ -31,9 +31,9 @@ internal sealed class Evaluator {
     /// <param name="arguments">Runtime arguments.</param>
     internal Evaluator(
         BoundProgram program,
-        Dictionary<IDataContainerSymbol, EvaluatorObject> globals,
+        EvaluatorContext context,
         string[] arguments) {
-        _globals = globals;
+        _context = context;
         _program = program;
         _enclosingTypes = new Stack<EvaluatorObject>();
         _locals = new Stack<Dictionary<Symbol, EvaluatorObject>>();
@@ -134,19 +134,7 @@ internal sealed class Evaluator {
 
     private void Create(DataContainerSymbol symbol, EvaluatorObject value) {
         if (symbol.isGlobal) {
-            var set = false;
-
-            foreach (var global in _globals) {
-                if (global.Key.name == symbol.name) {
-                    _globals.Remove(global.Key);
-                    _globals[symbol] = Copy(value);
-                    set = true;
-                    break;
-                }
-            }
-
-            if (!set)
-                _globals[symbol] = Copy(value);
+            _context.AddOrUpdateSymbol(symbol, Copy(value));
         } else {
             var locals = _locals.Peek();
             var set = false;
@@ -187,7 +175,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject Get(Symbol symbol) {
         if (symbol is DataContainerSymbol d && d.isGlobal) {
-            if (_globals.TryGetValue(d, out var evaluatorObject))
+            if (_context.TryGetSymbol(d, out var evaluatorObject))
                 return evaluatorObject;
         } else {
             foreach (var frame in _locals) {
@@ -330,6 +318,9 @@ internal sealed class Evaluator {
                     throw new BelteThreadException();
 
                 var s = block.statements[index];
+
+                if (s.kind is not BoundKind.ReturnStatement)
+                    _lastValue = null;
 
                 switch (s.kind) {
                     case BoundKind.NopStatement:

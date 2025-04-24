@@ -38,9 +38,13 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
-                BuildLocals(this, topLevelStatement.statement, locals);
+        for (MethodSymbol entryPoint = _entryPoint;
+            entryPoint is SynthesizedEntryPoint m;
+            entryPoint = entryPoint.declaringCompilation.previous.entryPoint) {
+            foreach (var statement in m.compilationUnit.members) {
+                if (statement is GlobalStatementSyntax topLevelStatement)
+                    BuildLocals(this, topLevelStatement.statement, locals);
+            }
         }
 
         return locals.ToImmutableAndFree();

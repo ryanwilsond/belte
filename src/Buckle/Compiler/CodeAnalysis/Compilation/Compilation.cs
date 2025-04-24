@@ -37,6 +37,7 @@ public sealed class Compilation {
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
     private List<LocalFunctionRewriter.Analysis> _lazyPreviousAnalyses;
     private MethodSymbol _lazyEntryPoint;
+    private NamedTypeSymbol _lazyScriptClass;
 
     private Compilation(
         string assemblyName,
@@ -95,6 +96,17 @@ public sealed class Compilation {
             }
 
             return _lazyGlobalNamespace;
+        }
+    }
+
+    internal NamedTypeSymbol scriptClass {
+        get {
+            if (_lazyScriptClass is null) {
+                var scriptClass = SynthesizedEntryPoint.GetSimpleProgramNamedTypeSymbol(this);
+                Interlocked.CompareExchange(ref _lazyScriptClass, scriptClass, null);
+            }
+
+            return _lazyScriptClass;
         }
     }
 
@@ -163,11 +175,11 @@ public sealed class Compilation {
     }
 
     public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
-        return Evaluate([], abort, logTime);
+        return Evaluate(new EvaluatorContext(), abort, logTime);
     }
 
     public EvaluationResult Evaluate(
-        Dictionary<IDataContainerSymbol, EvaluatorObject> globals,
+        EvaluatorContext context,
         ValueWrapper<bool> abort,
         bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
@@ -195,7 +207,7 @@ public sealed class Compilation {
         if (builder.AnyErrors())
             return EvaluationResult.Failed(builder);
 
-        var evaluator = new Evaluator(program, globals, options.arguments);
+        var evaluator = new Evaluator(program, context, options.arguments);
         var evalResult = evaluator.Evaluate(abort, out var hasValue);
 
         Log(logTime, timer, builder, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");

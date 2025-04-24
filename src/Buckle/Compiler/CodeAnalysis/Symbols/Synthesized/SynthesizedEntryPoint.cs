@@ -16,7 +16,6 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private WeakReference<ExecutableCodeBinder> _weakIgnoreAccessibilityBodyBinder;
-    private Binder _lazyProgramBinder;
 
     internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SingleTypeDeclaration declaration)
         : base(containingType, declaration.syntaxReference, MakeModifiersAndFlags(containingType, declaration)) {
@@ -46,15 +45,6 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     internal CompilationUnitSyntax compilationUnit => (CompilationUnitSyntax)syntaxNode;
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
-
-    internal Binder programBinder {
-        get {
-            if (_lazyProgramBinder is null)
-                Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(false), null);
-
-            return _lazyProgramBinder;
-        }
-    }
 
     // TODO Reference says members.First is what we want, but why?? Double check this
     internal SyntaxNode returnTypeSyntax => compilationUnit.members.Last(m => m.kind == SyntaxKind.GlobalStatement);
@@ -115,49 +105,18 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         return (declarationModifiers, flags);
     }
 
-    private Binder CreateSimpleProgramBinder(bool ignoreAccessibility) {
+    private ExecutableCodeBinder CreateBodyBinder(bool ignoreAccessibility) {
         var compilation = declaringCompilation;
-        var result = GetPreviousBinder() ?? new EndBinder(compilation, syntaxTree.text);
-
-        if (compilation.options.isScript)
-            result = result.WithAdditionalFlags(BinderFlags.IgnoreAccessibility);
-
+        var syntaxNode = this.syntaxNode;
+        Binder result = new EndBinder(compilation, syntaxNode.syntaxTree.text);
         var globalNamespace = compilation.globalNamespaceInternal;
+
         result = new InContainerBinder(globalNamespace, result);
         result = new InContainerBinder(containingType, result);
         result = new InMethodBinder(this, result);
         result = result.WithAdditionalFlags(ignoreAccessibility ? BinderFlags.IgnoreAccessibility : BinderFlags.None);
-        // TODO confirm need for this binder:
-        _lazyProgramBinder = result;
-        // _lazyProgramBinder = new SimpleProgramBinder(result, this);
-        return _lazyProgramBinder;
-    }
 
-    private Binder GetPreviousBinder() {
-        var previousCompilation = declaringCompilation.previous;
-        return GetBinderFromCompilation(previousCompilation);
-    }
-
-    private static Binder GetBinderFromCompilation(Compilation compilation) {
-        if (compilation is null || compilation.syntaxTrees.Length != 1)
-            return null;
-
-        var syntaxTree = compilation.syntaxTrees[0];
-        var root = syntaxTree.GetCompilationUnitRoot();
-        // We fallback to main entry point because we really do not want this to fail (otherwise everything haults)
-        var programBinder = GetSimpleProgramEntryPoint(compilation, root, true)?.programBinder;
-
-        return programBinder ?? new InContainerBinder(
-            compilation.globalNamespaceInternal,
-            GetBinderFromCompilation(compilation.previous) ?? new EndBinder(compilation, syntaxTree.text)
-        );
-    }
-
-    private ExecutableCodeBinder CreateBodyBinder(bool ignoreAccessibility) {
-        if (_lazyProgramBinder is null)
-            Interlocked.CompareExchange(ref _lazyProgramBinder, CreateSimpleProgramBinder(ignoreAccessibility), null);
-
-        return new ExecutableCodeBinder(syntaxNode, this, _lazyProgramBinder);
+        return new ExecutableCodeBinder(syntaxNode, this, result);
     }
 
     internal static SynthesizedEntryPoint GetSimpleProgramEntryPoint(
@@ -183,7 +142,7 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         return GetSimpleProgramNamedTypeSymbol(compilation)?.GetSimpleProgramEntryPoints().First();
     }
 
-    private static SourceNamedTypeSymbol GetSimpleProgramNamedTypeSymbol(Compilation compilation) {
+    internal static SourceNamedTypeSymbol GetSimpleProgramNamedTypeSymbol(Compilation compilation) {
         return compilation.globalNamespaceInternal
             .GetTypeMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName)
             .OfType<SourceNamedTypeSymbol>()

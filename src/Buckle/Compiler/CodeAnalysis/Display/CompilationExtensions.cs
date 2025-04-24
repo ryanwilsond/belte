@@ -3,7 +3,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Display;
@@ -52,9 +51,6 @@ public static class CompilationExtensions {
     public static ImmutableArray<IDataContainerSymbol> GetMethodLocals(IMethodSymbol method) {
         if (method is SourceMemberMethodSymbol s) {
             return s.TryGetBodyBinder().next.locals.Where((x, i) => i % 2 == 0)
-                .ToImmutableArray().CastArray<IDataContainerSymbol>();
-        } else if (method is SynthesizedEntryPoint e) {
-            return e.programBinder.locals.Where((x, i) => i % 2 == 0)
                 .ToImmutableArray().CastArray<IDataContainerSymbol>();
         } else {
             return [];

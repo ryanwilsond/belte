@@ -36,7 +36,7 @@ internal sealed class Interpreter {
         // compilation needs to have a copy of the text starting at this index.
         var textOffset = 0;
 
-        var variables = new Dictionary<IDataContainerSymbol, EvaluatorObject>();
+        var context = new EvaluatorContext();
 
         EvaluationResult result = null;
         Compilation previous = null;
@@ -53,7 +53,7 @@ internal sealed class Interpreter {
             );
 
             previous = Compilation.CreateScript("interpreter", options, newSyntaxTree, previous);
-            result = previous.Evaluate(variables, abort);
+            result = previous.Evaluate(context, abort);
 
             // ? If any diagnostics are found, we quit early. Is this what we want though?
             if (result.diagnostics.AnyErrors())

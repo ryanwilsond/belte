@@ -70,9 +70,8 @@ public sealed partial class BelteRepl {
         internal SyntaxTree tree;
 
         /// <summary>
-        /// Currently defined globals.
-        /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
+        /// Tracks Evaluator information (like symbols) across submissions.
         /// </summary>
-        internal Dictionary<IDataContainerSymbol, EvaluatorObject> globals;
+        internal EvaluatorContext context;
     }
 }

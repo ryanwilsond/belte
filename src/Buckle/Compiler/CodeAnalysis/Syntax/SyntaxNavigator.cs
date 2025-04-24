@@ -60,7 +60,7 @@ internal sealed class SyntaxNavigator {
             if (searchInsideCurrentTokenTrailingTrivia) {
                 var firstToken = GetFirstToken(current.trailingTrivia, predicate, stepInto!);
 
-                if (firstToken.kind != SyntaxKind.None)
+                if (firstToken is not null)
                     return firstToken;
             }
 
@@ -71,12 +71,12 @@ internal sealed class SyntaxNavigator {
                     if (child.isToken) {
                         var token = GetFirstToken(child.AsToken(), predicate, stepInto);
 
-                        if (token.kind != SyntaxKind.None)
+                        if (token is not null)
                             return token;
                     } else {
                         var token = GetFirstToken(child.AsNode()!, predicate, stepInto);
 
-                        if (token.kind != SyntaxKind.None)
+                        if (token is not null)
                             return token;
                     }
                 } else if (child.isToken && child.AsToken() == current) {
@@ -102,12 +102,12 @@ internal sealed class SyntaxNavigator {
                     if (child.isToken) {
                         var token = GetFirstToken(child.AsToken(), predicate, stepInto);
 
-                        if (token.kind != SyntaxKind.None)
+                        if (token is not null)
                             return token;
                     } else {
                         var token = GetFirstToken(child.AsNode()!, predicate, stepInto);
 
-                        if (token.kind != SyntaxKind.None)
+                        if (token is not null)
                             return token;
                     }
                 } else if (child.isNode && child.AsNode() == node) {
