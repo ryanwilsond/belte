@@ -3,8 +3,7 @@ class Object {
     protected constructor() { }
 
     public virtual string ToString() {
-        // return GetType().ToString();
-        return "";
+        return LowLevel.GetTypeName(this);
     }
 
     public virtual bool! Equals(Object object) {
@@ -16,6 +15,6 @@ class Object {
     }
 
     public virtual int! GetHashCode() {
-        return GetHashCode(this);
+        return LowLevel.GetHashCode(this);
     }
 }

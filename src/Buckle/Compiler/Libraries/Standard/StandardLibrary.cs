@@ -11,7 +11,17 @@ internal static partial class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyFile;
     private static SynthesizedFinishedNamedTypeSymbol _lazyConsole;
     private static SynthesizedFinishedNamedTypeSymbol _lazyMath;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
+
+    internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
+        get {
+            if (_lazyLowLevel is null)
+                Interlocked.CompareExchange(ref _lazyLowLevel, GenerateLowLevel(), null);
+
+            return _lazyLowLevel;
+        }
+    }
 
     internal static SynthesizedFinishedNamedTypeSymbol Directory {
         get {
@@ -63,6 +73,14 @@ internal static partial class StandardLibrary {
         // yield return File;
         yield return Console;
         yield return Math;
+        yield return LowLevel;
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateLowLevel() {
+        return StaticClass("LowLevel", [
+            StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
+            StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
+        ]);
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateDirectory() {

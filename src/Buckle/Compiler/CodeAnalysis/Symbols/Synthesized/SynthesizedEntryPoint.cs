@@ -109,9 +109,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         var compilation = declaringCompilation;
         var syntaxNode = this.syntaxNode;
         Binder result = new EndBinder(compilation, syntaxNode.syntaxTree.text);
-        var globalNamespace = compilation.globalNamespaceInternal;
 
-        result = new InContainerBinder(globalNamespace, result);
+        for (var current = compilation; current is not null; current = current.previous)
+            result = new InContainerBinder(current.globalNamespaceInternal, result);
+
         result = new InContainerBinder(containingType, result);
         result = new InMethodBinder(this, result);
         result = result.WithAdditionalFlags(ignoreAccessibility ? BinderFlags.IgnoreAccessibility : BinderFlags.None);

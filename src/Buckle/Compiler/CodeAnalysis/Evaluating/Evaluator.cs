@@ -950,8 +950,18 @@ internal sealed class Evaluator {
         result = null;
 
         if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.Math.underlyingNamedType)) {
+            method.containingType.Equals(StandardLibrary.Math.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
             var mapKey = LibraryHelpers.BuildMapKey(method);
+
+            if (mapKey == "LowLevel_GetHashCode_O") {
+                result = Dereference(EvaluateExpression(arguments[0], abort)).GetHashCode();
+                return true;
+            } else if (mapKey == "LowLevel_GetTypeName_O") {
+                result = EvaluateExpression(arguments[0], abort).type.name;
+                return true;
+            }
+
             var function = StandardLibrary.EvaluatorMap[mapKey];
 
             var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
