@@ -442,6 +442,7 @@ internal sealed class Evaluator {
             BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
+            BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)expression, abort),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)expression, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
@@ -454,6 +455,10 @@ internal sealed class Evaluator {
 
         var type = CorLibrary.GetSpecialType(constantValue.specialType);
         return new EvaluatorObject(constantValue.value, type);
+    }
+
+    private EvaluatorObject EvaluateTypeOfExpression(BoundTypeOfExpression expression, ValueWrapper<bool> _) {
+        return new EvaluatorObject(expression.sourceType, expression.type);
     }
 
     private EvaluatorObject EvaluateMethodGroup(BoundMethodGroup methodGroup, ValueWrapper<bool> _) {
@@ -740,7 +745,7 @@ internal sealed class Evaluator {
 
         if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
             if (expression.left.type.specialType == SpecialType.Type) {
-                if ((leftValue as TypeSymbol).Equals(rightValue as TypeSymbol))
+                if ((leftValue as BoundTypeExpression).type.Equals((rightValue as BoundTypeExpression).type))
                     return new EvaluatorObject(opKind == BinaryOperatorKind.Equal, expression.type);
                 else
                     return new EvaluatorObject(opKind == BinaryOperatorKind.NotEqual, expression.type);

@@ -1706,11 +1706,10 @@ internal partial class Binder {
             SyntaxKind.InitializerListExpression => BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics),
             SyntaxKind.ReferenceExpression => BindReferenceExpression((ReferenceExpressionSyntax)node, diagnostics),
             SyntaxKind.IndexExpression => BindIndexExpression((IndexExpressionSyntax)node, diagnostics),
+            SyntaxKind.TypeOfExpression => BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics),
             /*
             case SyntaxKind.InitializerDictionaryExpression:
                 return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)expression);
-            case SyntaxKind.TypeOfExpression:
-                return BindTypeOfExpression((TypeOfExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)expression);
             */
@@ -1763,6 +1762,26 @@ internal partial class Binder {
                 resultType ?? CreateErrorType()
             );
         }
+    }
+
+    private BoundExpression BindTypeOfExpression(TypeOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var typeSyntax = node.type;
+
+        var typeofBinder = new TypeofBinder(typeSyntax, this);
+        var typeWithAnnotations = typeofBinder.BindType(typeSyntax, diagnostics);
+        var type = typeWithAnnotations.type;
+
+        var hasError = false;
+
+        if (typeWithAnnotations.isNullable && type.isObjectType) {
+            // TODO Do we want this restriction?
+            // error: cannot take the `typeof` a nullable reference type.
+            // diagnostics.Add(ErrorCode.ERR_BadNullableTypeof, node.Location);
+            // hasError = true;
+        }
+
+        var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, type, type.IsErrorType());
+        return new BoundTypeOfExpression(node, boundType, CorLibrary.GetSpecialType(SpecialType.Type), hasError);
     }
 
     private BoundExpression BindNameOfExpression(NameOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

@@ -81,7 +81,9 @@
   </Node>
   <Node Name="BoundBaseExpression" Base="BoundExpression"/>
   <Node Name="BoundThisExpression" Base="BoundExpression"/>
-  <Node Name="BoundTypeOfExpression" Base="BoundExpression"/>
+  <Node Name="BoundTypeOfExpression" Base="BoundExpression">
+    <Field Name="sourceType" Type="BoundTypeExpression"/>
+  </Node>
   <Node Name="BoundBinaryOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>

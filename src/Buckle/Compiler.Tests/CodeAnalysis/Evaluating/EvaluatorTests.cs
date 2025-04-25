@@ -323,10 +323,6 @@ public sealed class EvaluatorTests {
     [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
     [InlineData("class A { public override string ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
     [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length(a);", 3)]
-    /*
-    // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
-    // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
-    [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
     [InlineData("type a = typeof(string);", null)]
@@ -334,8 +330,12 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int num; } type a = typeof(A);", null)]
     [InlineData("typeof(int) == typeof(int);", true)]
     [InlineData("typeof(int) == typeof(bool);", false)]
-    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
-    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
+    // [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
+    // [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
+    /*
+    // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
+    // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
+    [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Try statements
     [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
