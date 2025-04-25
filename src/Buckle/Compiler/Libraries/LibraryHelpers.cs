@@ -12,6 +12,7 @@ namespace Buckle.Libraries;
 
 internal static class LibraryHelpers {
     private static SpecialOrKnownType.Boxed _lazyStringList;
+    private static SpecialOrKnownType.Boxed _lazyAnyArray;
 
     internal static SpecialOrKnownType StringList {
         get {
@@ -19,6 +20,15 @@ internal static class LibraryHelpers {
                 Interlocked.CompareExchange(ref _lazyStringList, GenerateStringList(), null);
 
             return _lazyStringList.type;
+        }
+    }
+
+    internal static SpecialOrKnownType AnyArray {
+        get {
+            if (_lazyAnyArray is null)
+                Interlocked.CompareExchange(ref _lazyAnyArray, GenerateAnyArray(), null);
+
+            return _lazyAnyArray.type;
         }
     }
 
@@ -285,5 +295,11 @@ internal static class LibraryHelpers {
             CorLibrary.GetSpecialType(SpecialType.List),
             [new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.String))]
         ));
+    }
+
+    private static SpecialOrKnownType.Boxed GenerateAnyArray() {
+        return new SpecialOrKnownType.Boxed(
+            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetNullableType(SpecialType.Any)))
+        );
     }
 }

@@ -1,0 +1,8 @@
+
+static class Console {
+    public static int! GetHashCode(Object! object);
+
+    public static string! GetTypeName(Object! object);
+
+    public static int Length(any[] array);
+}

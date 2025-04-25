@@ -10,19 +10,19 @@ internal readonly struct SpecialOrKnownType {
         knownType = CorLibrary.GetSpecialType(specialType);
     }
 
-    private SpecialOrKnownType(NamedTypeSymbol knownType) {
+    private SpecialOrKnownType(TypeSymbol knownType) {
         this.knownType = knownType;
     }
 
     internal SpecialType specialType { get; }
 
-    internal NamedTypeSymbol knownType { get; }
+    internal TypeSymbol knownType { get; }
 
     public static implicit operator SpecialOrKnownType(SpecialType specialType) {
         return new SpecialOrKnownType(specialType);
     }
 
-    public static implicit operator SpecialOrKnownType(NamedTypeSymbol knownType) {
+    public static implicit operator SpecialOrKnownType(TypeSymbol knownType) {
         return new SpecialOrKnownType(knownType);
     }
 

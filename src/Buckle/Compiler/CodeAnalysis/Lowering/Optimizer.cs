@@ -1,9 +1,7 @@
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -154,36 +152,6 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         var index = (int)expression.index.constantValue.value;
         return Visit(i.items[index]);
-    }
-
-    internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
-        /*
-
-        <method>(<arguments>)
-
-        ----> <method> is Length and argument is a constant list
-
-        <length of constant list>
-
-        */
-        var method = expression.method;
-        var arguments = expression.arguments;
-
-        if (method == BuiltinMethods.Length && arguments[0].constantValue is not null) {
-            var constantList = arguments[0].constantValue.value as ImmutableArray<ConstantValue>?;
-
-            if (constantList.HasValue) {
-                return VisitLiteralExpression(
-                    new BoundLiteralExpression(
-                        expression.syntax,
-                        new ConstantValue(constantList.Value.Length),
-                        method.returnType
-                    )
-                );
-            }
-        }
-
-        return base.VisitCallExpression(expression);
     }
 
     private BoundBlockStatement RemoveDeadCode(BoundBlockStatement block) {

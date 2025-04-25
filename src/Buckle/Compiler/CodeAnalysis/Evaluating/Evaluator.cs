@@ -469,7 +469,7 @@ internal sealed class Evaluator {
         return new EvaluatorObject(builder, node.type);
     }
 
-    private EvaluatorObject EvaluateTypeExpression(BoundTypeExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateTypeExpression(BoundTypeExpression _, ValueWrapper<bool> _2) {
         // This should only ever be called when an invalid expression statement makes it through binding without err
         // because script compilation ignores normal expression statement restrictions.
         //
