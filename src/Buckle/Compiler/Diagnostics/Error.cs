@@ -1509,6 +1509,46 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CantChangeReturnTypeOnOverride, location, message);
     }
 
+    internal static BelteDiagnostic OperatorCantReturnVoid(TextLocation location) {
+        var message = $"user-defined operators cannot return void";
+        return CreateError(DiagnosticCode.ERR_OperatorCantReturnVoid, location, message);
+    }
+
+    internal static BelteDiagnostic BadUnaryOperatorSignature(TextLocation location) {
+        var message = $"the parameter of a unary operator must be the containing type";
+        return CreateError(DiagnosticCode.ERR_BadUnaryOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadAbstractUnaryOperatorSignature(TextLocation location) {
+        var message = $"the parameter of a unary operator must be the containing type, or its type parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractUnaryOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadShiftOperatorSignature(TextLocation location) {
+        var message = $"the first operand of an overloaded shift operator must have the same type as the containing type";
+        return CreateError(DiagnosticCode.ERR_BadShiftOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadAbstractShiftOperatorSignature(TextLocation location) {
+        var message = $"the first operand of an overloaded shift operator must have the same type as the containing type or its type parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractShiftOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadBinaryOperatorSignature(TextLocation location) {
+        var message = $"one of the parameters of a binary operator must be the containing type";
+        return CreateError(DiagnosticCode.ERR_BadBinaryOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadAbstractBinaryOperatorSignature(TextLocation location) {
+        var message = $"one of the parameters of a binary operator must be the containing type, or its type parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractBinaryOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadAbstractEqualityOperatorSignature(TextLocation location, TypeSymbol type) {
+        var message = $"one of the parameters of an equality, or inequality operator declared in interface '{type}' must be a type parameter on '{type}' constrained to '{type}'";
+        return CreateError(DiagnosticCode.ERR_BadAbstractEqualityOperatorSignature, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -300,6 +300,14 @@ public enum DiagnosticCode : ushort {
     WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride = 289,
     WRN_NullabilityMismatchInReturnTypeOnOverride = 290,
     FTL_LibraryErrors = 291,
+    ERR_OperatorCantReturnVoid = 292,
+    ERR_BadUnaryOperatorSignature = 293,
+    ERR_BadAbstractUnaryOperatorSignature = 294,
+    ERR_BadShiftOperatorSignature = 295,
+    ERR_BadAbstractShiftOperatorSignature = 296,
+    ERR_BadBinaryOperatorSignature = 297,
+    ERR_BadAbstractBinaryOperatorSignature = 298,
+    ERR_BadAbstractEqualityOperatorSignature = 299,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,
