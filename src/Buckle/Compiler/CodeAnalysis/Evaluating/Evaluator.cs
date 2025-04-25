@@ -75,7 +75,7 @@ internal sealed class Evaluator {
         EnterClassScope(new EvaluatorObject([], entryPoint.containingType));
         var result = EvaluateStatement(entryPointBody, abort, out _);
         hasValue = _hasValue;
-        return Value(result, true);
+        return hasValue ? Value(result, true) : null;
     }
 
     #region Internal Model
@@ -362,7 +362,6 @@ internal sealed class Evaluator {
                             _hasValue = true;
                         } else {
                             _hasValue = false;
-                            _lastValue = EvaluatorObject.Null;
                         }
 
                         hasReturn = true;
@@ -408,7 +407,7 @@ internal sealed class Evaluator {
     private void EvaluateLocalDeclarationStatement(BoundLocalDeclarationStatement statement, ValueWrapper<bool> abort) {
         var value = EvaluateExpression(statement.declaration.initializer, abort);
         var local = statement.declaration.dataContainer;
-        _lastValue = default;
+        _lastValue = null;
 
         if (local.isRef)
             value.isExplicitReference = true;
@@ -512,8 +511,10 @@ internal sealed class Evaluator {
 
             if (result is EvaluatorObject e)
                 return e;
-
-            return new EvaluatorObject(result, expression.method.returnType);
+            else if (!expression.method.returnsVoid)
+                return new EvaluatorObject(result, expression.method.returnType);
+            else
+                return null;
         }
 
         return InvokeMethod(expression.method, expression.arguments, expression.receiver, abort);

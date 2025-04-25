@@ -38,27 +38,37 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
 
-        for (MethodSymbol entryPoint = _entryPoint;
+        foreach (var statement in _entryPoint.compilationUnit.members) {
+            if (statement is GlobalStatementSyntax topLevelStatement)
+                BuildLocals(this, topLevelStatement.statement, locals);
+        }
+
+        for (var entryPoint = _entryPoint.declaringCompilation.previous.entryPoint;
             entryPoint is SynthesizedEntryPoint m;
             entryPoint = entryPoint.declaringCompilation.previous.entryPoint) {
-            foreach (var statement in m.compilationUnit.members) {
-                if (statement is GlobalStatementSyntax topLevelStatement)
-                    BuildLocals(this, topLevelStatement.statement, locals);
-            }
+            var entryPointBinder = m.TryGetBodyBinder().GetBinder(m.compilationUnit);
+            locals.AddRange(entryPointBinder.GetDeclaredLocalsForScope(m.compilationUnit));
         }
 
         return locals.ToImmutableAndFree();
     }
 
     private protected override ImmutableArray<LocalFunctionSymbol> BuildLocalFunctions() {
-        ArrayBuilder<LocalFunctionSymbol>? locals = null;
+        var locals = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
 
         foreach (var statement in _entryPoint.compilationUnit.members) {
             if (statement is GlobalStatementSyntax topLevelStatement)
                 BuildLocalFunctions(topLevelStatement.statement, ref locals);
         }
 
-        return locals?.ToImmutableAndFree() ?? [];
+        for (var entryPoint = _entryPoint.declaringCompilation.previous.entryPoint;
+            entryPoint is SynthesizedEntryPoint m;
+            entryPoint = entryPoint.declaringCompilation.previous.entryPoint) {
+            var entryPointBinder = m.TryGetBodyBinder().GetBinder(m.compilationUnit);
+            locals.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(m.compilationUnit));
+        }
+
+        return locals.ToImmutableAndFree();
     }
 
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {
