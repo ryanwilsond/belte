@@ -43,11 +43,15 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 BuildLocals(this, topLevelStatement.statement, locals);
         }
 
-        for (var entryPoint = _entryPoint.declaringCompilation.previous.entryPoint;
-            entryPoint is SynthesizedEntryPoint m;
-            entryPoint = entryPoint.declaringCompilation.previous.entryPoint) {
-            var entryPointBinder = m.TryGetBodyBinder().GetBinder(m.compilationUnit);
-            locals.AddRange(entryPointBinder.GetDeclaredLocalsForScope(m.compilationUnit));
+        for (var compilation = _entryPoint.declaringCompilation.previous;
+            compilation is not null;
+            compilation = compilation.previous) {
+            if (compilation.entryPoint is not SynthesizedEntryPoint synthesizedEntryPoint)
+                continue;
+
+            var compilationUnit = synthesizedEntryPoint.compilationUnit;
+            var entryPointBinder = synthesizedEntryPoint.TryGetBodyBinder().GetBinder(compilationUnit);
+            locals.AddRange(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
         }
 
         return locals.ToImmutableAndFree();
@@ -61,11 +65,15 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 BuildLocalFunctions(topLevelStatement.statement, ref locals);
         }
 
-        for (var entryPoint = _entryPoint.declaringCompilation.previous.entryPoint;
-            entryPoint is SynthesizedEntryPoint m;
-            entryPoint = entryPoint.declaringCompilation.previous.entryPoint) {
-            var entryPointBinder = m.TryGetBodyBinder().GetBinder(m.compilationUnit);
-            locals.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(m.compilationUnit));
+        for (var compilation = _entryPoint.declaringCompilation.previous;
+            compilation is not null;
+            compilation = compilation.previous) {
+            if (compilation.entryPoint is not SynthesizedEntryPoint synthesizedEntryPoint)
+                continue;
+
+            var compilationUnit = synthesizedEntryPoint.compilationUnit;
+            var entryPointBinder = synthesizedEntryPoint.TryGetBodyBinder().GetBinder(compilationUnit);
+            locals.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
         }
 
         return locals.ToImmutableAndFree();

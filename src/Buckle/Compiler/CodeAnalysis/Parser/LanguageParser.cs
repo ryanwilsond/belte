@@ -1306,12 +1306,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var parseNextItem = true;
 
         while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
-            if (currentToken.kind is not SyntaxKind.CommaToken and not SyntaxKind.CloseBraceToken) {
-                var expression = ParseExpression();
-                nodesAndSeparators.Add(expression);
-            } else {
-                nodesAndSeparators.Add(null);
-            }
+            var expression = ParseExpression();
+            nodesAndSeparators.Add(expression);
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
                 var comma = EatToken();
@@ -1332,12 +1328,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var parseNextItem = true;
 
         while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
-            if (currentToken.kind is not SyntaxKind.CommaToken and not SyntaxKind.CloseBraceToken) {
-                var keyValuePair = ParseKeyValuePair();
-                nodesAndSeparators.Add(keyValuePair);
-            } else {
-                nodesAndSeparators.Add(null);
-            }
+            var keyValuePair = ParseKeyValuePair();
+            nodesAndSeparators.Add(keyValuePair);
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
                 var comma = EatToken();

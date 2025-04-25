@@ -319,6 +319,10 @@ public sealed class EvaluatorTests {
     [InlineData("var cond = false; int res = 3; while (true) { if (cond) continue; res = 4; if (res == 4) break; } return res;", 4)]
     [InlineData("var cond = true; int res = 3; while (true) { if (cond) ; else continue; res = 4; if (res == 4) break; } return res;", 4)]
     [InlineData("var cond = true; int res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
+    // Libraries
+    [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
+    [InlineData("class A { public override string ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
+    [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length(a);", 3)]
     /*
     // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
     // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]

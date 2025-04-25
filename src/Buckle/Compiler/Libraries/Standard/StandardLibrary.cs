@@ -81,7 +81,7 @@ internal static partial class StandardLibrary {
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
-            StaticMethod("Length", SpecialType.Int, true, [("array", AnyArray)]),
+            StaticMethod("Length", SpecialType.Int, true, [("array", AnyArray, true)]),
         ]);
     }
 

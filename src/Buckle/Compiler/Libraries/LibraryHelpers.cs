@@ -45,16 +45,22 @@ internal static class LibraryHelpers {
                 var type = parameter.type;
 
                 if (type.specialType == SpecialType.Nullable) {
-                    stringBuilder.Append(char.ToUpper(type.GetNullableUnderlyingType().name.First()));
+                    stringBuilder.Append(GetNameCharacter(type.GetNullableUnderlyingType()));
                     stringBuilder.Append('?');
                 } else {
-                    stringBuilder.Append(char.ToUpper(type.name.First()));
+                    stringBuilder.Append(GetNameCharacter(type));
                 }
             }
-
         }
 
         return stringBuilder.ToString();
+
+        static char GetNameCharacter(TypeSymbol type) {
+            if (type.typeKind == TypeKind.Array)
+                return 'A';
+
+            return char.ToUpper(type.name.First());
+        }
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {

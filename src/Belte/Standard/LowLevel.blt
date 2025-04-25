@@ -1,5 +1,5 @@
 
-static class Console {
+static class LowLevel {
     public static int! GetHashCode(Object! object);
 
     public static string! GetTypeName(Object! object);
