@@ -10,10 +10,13 @@ namespace Buckle;
 /// Exposed utilities used by the <see cref="Compiler"/>.
 /// </summary>
 public static class CompilerHelpers {
+    internal static readonly CompilationOptions LibraryOptions
+        = new CompilationOptions(BuildMode.None, OutputKind.Library);
+
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries(CompilationOptions options) {
+    public static Compilation LoadLibraries() {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -33,7 +36,7 @@ public static class CompilerHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        var corLibrary = Compilation.Create("CorLibrary", LibraryOptions, syntaxTrees.ToArray());
         corLibrary.GetDiagnostics();
 
         return corLibrary;

@@ -338,11 +338,11 @@ public sealed class Compilation {
 
         MethodSymbol entryPoint = null;
 
-        if (entryPointCandidates.Length == 0 && !options.isScript) {
+        if (entryPointCandidates.Length == 0 && !options.isScript && options.outputKind != OutputKind.Library) {
             diagnostics.Push(Error.NoSuitableEntryPoint());
         } else if (entryPointCandidates.Length == 1) {
             entryPoint = entryPointCandidates[0];
-        } else {
+        } else if (entryPointCandidates.Length > 1) {
             if (entryPointCandidates.Length > expectedCount)
                 diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
 

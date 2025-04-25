@@ -23,6 +23,9 @@ public sealed class Compiler {
     private const int InterpreterMaxTextLength = 4096;
     private const int EvaluatorMaxTextLength = 4096 * 4;
 
+    private Compilation _lazyCorLibrary;
+    private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
+
     private CompilationOptions _options => new CompilationOptions(
         state.buildMode,
         state.projectType,
@@ -83,6 +86,30 @@ public sealed class Compiler {
         return worst;
     }
 
+    public void AddLibraryErrors(BelteDiagnosticQueue diagnostics) {
+        this.diagnostics.PushRange(diagnostics.Errors());
+        this.diagnostics.Push(Fatal.LibraryError());
+    }
+
+    private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
+        if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
+            var corLibrary = CompilerHelpers.LoadLibraries();
+            var corLibraryDiagnostics = corLibrary.GetDiagnostics();
+            Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
+            Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);
+        }
+
+        compilation = _lazyCorLibrary;
+        return _lazyCorLibraryDiagnostics;
+    }
+
+    private BelteDiagnosticQueue ReportAndReturnLibraryErrors() {
+        var diagnostics = new BelteDiagnosticQueue();
+        diagnostics.PushRange(_lazyCorLibraryDiagnostics);
+        diagnostics.Push(Fatal.LibraryError());
+        return diagnostics;
+    }
+
     private BelteDiagnosticQueue InternalInterpreter() {
         var diagnostics = new BelteDiagnosticQueue();
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
@@ -109,8 +136,11 @@ public sealed class Compiler {
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
-            var previous = CompilerHelpers.LoadLibraries(_options);
-            var compilation = Compilation.Create(state.moduleName, _options, previous, syntaxTrees);
+
+            if (GetCorLibrary(out var corLibrary).AnyErrors())
+                return ReportAndReturnLibraryErrors();
+
+            var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
             if (state.noOut)
                 return compilation.GetParseDiagnostics();
@@ -160,12 +190,10 @@ public sealed class Compiler {
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
 
-        var compilation = Compilation.Create(
-            state.moduleName,
-            _options,
-            CompilerHelpers.LoadLibraries(_options),
-            syntaxTrees
-        );
+        if (GetCorLibrary(out var corLibrary).AnyErrors())
+            return ReportAndReturnLibraryErrors();
+
+        var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
         if (state.noOut)
             return diagnostics;

@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -133,8 +134,6 @@ done:
 
             if (Interlocked.CompareExchange(ref _nameToMembersMap, MakeNameToMembersMap(diagnostics), null) is null) {
                 AddDeclarationDiagnostics(diagnostics);
-                RegisterDeclaredCorTypes();
-
                 _state.NotePartComplete(CompletionParts.NameToMembersMap);
             }
 
@@ -169,14 +168,14 @@ done:
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
 
-        if (!Compilation.KeepLookingForCorTypes) {
-            foreach (var libraryType in StandardLibrary.GetTypes()) {
-                ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
-                    builder,
-                    libraryType.name.AsMemory(),
-                    libraryType
-                );
-            }
+        RegisterDeclaredCorTypes(builder);
+
+        foreach (var libraryType in StandardLibrary.GetTypes()) {
+            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
+                builder,
+                libraryType.name.AsMemory(),
+                libraryType
+            );
         }
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
@@ -209,16 +208,14 @@ done:
         }
     }
 
-    private void RegisterDeclaredCorTypes() {
+    private void RegisterDeclaredCorTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
         if (Compilation.KeepLookingForCorTypes) {
-            foreach (var array in _nameToMembersMap.Values) {
-                foreach (var member in array) {
-                    if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
-                        containingCompilation.RegisterDeclaredSpecialType(type);
+            foreach (var member in members.Values) {
+                if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
+                    containingCompilation.RegisterDeclaredSpecialType(type);
 
-                        if (!Compilation.KeepLookingForCorTypes)
-                            return;
-                    }
+                    if (!Compilation.KeepLookingForCorTypes)
+                        return;
                 }
             }
         }

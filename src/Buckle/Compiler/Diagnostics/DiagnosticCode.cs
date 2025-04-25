@@ -299,6 +299,7 @@ public enum DiagnosticCode : ushort {
     WRN_NullabilityMismatchInParameterTypeOnOverride = 288,
     WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride = 289,
     WRN_NullabilityMismatchInReturnTypeOnOverride = 290,
+    FTL_LibraryErrors = 291,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

@@ -52,11 +52,17 @@ public sealed partial class BelteRepl : Repl {
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
-        LoadLibraries();
+        var diagnostics = LoadLibraries();
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
-        LoadSubmissions();
+
+        if (diagnostics.AnyErrors()) {
+            handle.AddLibraryErrors(diagnostics);
+            errorHandle(handle, "repl");
+        } else {
+            LoadSubmissions();
+        }
     }
 
     /// <summary>
@@ -283,10 +289,11 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
-    private void LoadLibraries() {
-        var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
+    private BelteDiagnosticQueue LoadLibraries() {
+        var compilation = CompilerHelpers.LoadLibraries();
         state.baseCompilation = compilation;
         // compilation.Evaluate(_abortEvaluation);
+        return compilation.GetDiagnostics();
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {

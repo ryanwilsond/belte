@@ -30,6 +30,15 @@ internal class Fatal {
         }
     }
 
+    internal static Diagnostic LibraryError() {
+        var message = $"failed to load required libraries; libraries contained errors";
+        return CreateFatal(DiagnosticCode.FTL_LibraryErrors, message);
+    }
+
+    private static Diagnostic CreateFatal(DiagnosticCode code, string message) {
+        return new Diagnostic(FatalInfo(code), message);
+    }
+
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Fatal);
     }

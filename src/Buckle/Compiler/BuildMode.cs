@@ -5,6 +5,8 @@ namespace Buckle;
 /// A type of compilation that will be performed, only one per compilation.
 /// </summary>
 public enum BuildMode : byte {
+    /// No output.
+    None,
     /// Invokes the Repl.
     Repl,
     /// Runs the program after compilation, and automatically chooses either to interpret, evaluate, or execute.
