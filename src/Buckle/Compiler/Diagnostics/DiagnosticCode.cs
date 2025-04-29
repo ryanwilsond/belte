@@ -308,6 +308,10 @@ public enum DiagnosticCode : ushort {
     ERR_BadBinaryOperatorSignature = 297,
     ERR_BadAbstractBinaryOperatorSignature = 298,
     ERR_BadAbstractEqualityOperatorSignature = 299,
+    ERR_BadIncrementOperatorSignature = 300,
+    ERR_BadAbstractIncrementOperatorSignature = 301,
+    ERR_BadIncrementReturnType = 302,
+    ERR_BadAbstractIncrementReturnType = 303,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

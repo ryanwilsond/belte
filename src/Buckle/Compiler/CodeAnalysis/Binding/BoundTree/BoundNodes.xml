@@ -88,6 +88,7 @@
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
     <Field Name="operatorKind" Type="BinaryOperatorKind"/>
+    <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundCallExpression" Base="BoundExpression">
@@ -200,6 +201,7 @@
   <Node Name="BoundUnaryOperator" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>
     <Field Name="operatorKind" Type="UnaryOperatorKind"/>
+    <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundIncrementOperator" Base="BoundExpression">

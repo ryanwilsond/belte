@@ -260,6 +260,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> <op> <right>
 
+        ----> <op> has a method attached
+
+        <method>(<left>, <right>)
+
         ----> <left> is nullable and <right> is nullable
 
         ((HasValue(<left>) && HasValue(<right>)) ? Value(<left>) <op> Value(<right>) : null)
@@ -275,6 +279,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var op = expression.operatorKind;
+
+        if (expression.method is not null)
+            return Visit(Call(syntax, expression.method, expression.left, expression.right));
 
         if (op.IsLifted()) {
             if (expression.left.type.IsNullableType() &&
@@ -362,6 +369,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <op> <operand>
 
+        ----> <op> has a method attached
+
+        <method>(<op>)
+
         ----> <op> is +
 
         <operand>
@@ -373,6 +384,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var op = expression.operatorKind;
+
+        if (expression.method is not null)
+            return Visit(Call(syntax, expression.method, expression.operand));
 
         if (op == UnaryOperatorKind.UnaryPlus)
             return Visit(expression.operand);

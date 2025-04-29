@@ -6,28 +6,10 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static class OperatorFacts {
     internal static bool NoUserDefinedOperators(TypeSymbol type) {
-        switch (type.typeKind) {
-            case TypeKind.Class:
-            case TypeKind.Struct:
-            case TypeKind.TemplateParameter:
-                break;
-            default:
-                return true;
-        }
-
-        switch (type.specialType) {
-            case SpecialType.Any:
-            case SpecialType.Array:
-            case SpecialType.Bool:
-            case SpecialType.Char:
-            case SpecialType.Decimal:
-            case SpecialType.Int:
-            case SpecialType.String:
-            case SpecialType.Void:
-                return true;
-        }
-
-        return false;
+        return type.typeKind switch {
+            TypeKind.Class or TypeKind.TemplateParameter => false,
+            _ => true,
+        };
     }
 
     internal static bool IsValidObjectEquality(
@@ -74,6 +56,44 @@ internal static class OperatorFacts {
             return true;
 
         return false;
+    }
+
+    internal static string GetBinaryOperatorNameFromKind(BinaryOperatorKind kind) {
+        return (kind & BinaryOperatorKind.OpMask) switch {
+            BinaryOperatorKind.Addition => WellKnownMemberNames.AdditionOperatorName,
+            BinaryOperatorKind.And => WellKnownMemberNames.BitwiseAndOperatorName,
+            BinaryOperatorKind.Division => WellKnownMemberNames.DivideOperatorName,
+            BinaryOperatorKind.Equal => WellKnownMemberNames.EqualityOperatorName,
+            BinaryOperatorKind.GreaterThan => WellKnownMemberNames.GreaterThanOperatorName,
+            BinaryOperatorKind.GreaterThanOrEqual => WellKnownMemberNames.GreaterThanOrEqualOperatorName,
+            BinaryOperatorKind.LeftShift => WellKnownMemberNames.LeftShiftOperatorName,
+            BinaryOperatorKind.LessThan => WellKnownMemberNames.LessThanOperatorName,
+            BinaryOperatorKind.LessThanOrEqual => WellKnownMemberNames.LessThanOrEqualOperatorName,
+            BinaryOperatorKind.Multiplication => WellKnownMemberNames.MultiplyOperatorName,
+            BinaryOperatorKind.Or => WellKnownMemberNames.BitwiseOrOperatorName,
+            BinaryOperatorKind.NotEqual => WellKnownMemberNames.InequalityOperatorName,
+            BinaryOperatorKind.Modulo => WellKnownMemberNames.ModulusOperatorName,
+            BinaryOperatorKind.RightShift => WellKnownMemberNames.RightShiftOperatorName,
+            BinaryOperatorKind.UnsignedRightShift => WellKnownMemberNames.UnsignedRightShiftOperatorName,
+            BinaryOperatorKind.Subtraction => WellKnownMemberNames.SubtractionOperatorName,
+            BinaryOperatorKind.Xor => WellKnownMemberNames.BitwiseExclusiveOrOperatorName,
+            BinaryOperatorKind.Power => WellKnownMemberNames.PowerOperatorName,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind & BinaryOperatorKind.OpMask),
+        };
+    }
+
+    internal static string GetUnaryOperatorNameFromKind(UnaryOperatorKind kind) {
+        return (kind & UnaryOperatorKind.OpMask) switch {
+            UnaryOperatorKind.UnaryPlus => WellKnownMemberNames.UnaryPlusOperatorName,
+            UnaryOperatorKind.UnaryMinus => WellKnownMemberNames.UnaryNegationOperatorName,
+            UnaryOperatorKind.BitwiseComplement => WellKnownMemberNames.BitwiseNotOperatorName,
+            UnaryOperatorKind.LogicalNegation => WellKnownMemberNames.LogicalNotOperatorName,
+            UnaryOperatorKind.PostfixIncrement or UnaryOperatorKind.PrefixIncrement
+                => WellKnownMemberNames.IncrementOperatorName,
+            UnaryOperatorKind.PostfixDecrement or UnaryOperatorKind.PrefixDecrement
+                => WellKnownMemberNames.DecrementOperatorName,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind & UnaryOperatorKind.OpMask),
+        };
     }
 
     internal static BinaryOperatorSignature GetSignature(BinaryOperatorKind kind) {

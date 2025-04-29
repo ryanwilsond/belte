@@ -2456,13 +2456,15 @@ internal partial class Binder {
             diagnostics: diagnostics
         );
 
-        // TODO this is necessarily an operator overload, so this isn't correct because we just drop the method
-        // TODO probably what we should do is store the method information in the Operator nodes (Binary, Unary, Increment, etc.)
-        // TODO and then convert them to calls in the lowerer
-        // return new BoundUnaryOperator(node, signature.kind, resultOperand, null, signature.Method, signature.ConstrainedToTypeOpt, resultKind, originalUserDefinedOperators, signature.ReturnType) {
-        //     WasCompilerGenerated = true
-        // };
-        return new BoundUnaryOperator(node, resultOperand, signature.kind, null, signature.returnType, false);
+        return new BoundUnaryOperator(
+            node,
+            resultOperand,
+            signature.kind,
+            signature.method,
+            null,
+            signature.returnType,
+            false
+        );
     }
 
     private BoundExpression BindIdentifier(
@@ -4966,6 +4968,7 @@ internal partial class Binder {
                 left,
                 right,
                 kind | BinaryOperatorKind.Bool,
+                null,
                 constantValue,
                 left.type
             );
@@ -4999,13 +5002,14 @@ internal partial class Binder {
                     resultLeft,
                     resultRight,
                     resultKind,
+                    signature.method,
                     null,
                     signature.returnType
                 );
             }
         }
 
-        return new BoundBinaryOperator(node, left, right, kind, null, CreateErrorType(), true);
+        return new BoundBinaryOperator(node, left, right, kind, null, null, CreateErrorType(), true);
     }
 
     private bool IsSimpleBinaryOperator(ExpressionSyntax node) {
@@ -5132,6 +5136,7 @@ internal partial class Binder {
                 right,
                 kind,
                 null,
+                null,
                 GetBinaryOperatorErrorType(kind),
                 true
             );
@@ -5207,6 +5212,7 @@ internal partial class Binder {
             resultLeft,
             resultRight,
             resultOperatorKind,
+            signature.method,
             resultConstant,
             resultType,
             hasErrors
@@ -5579,6 +5585,7 @@ internal partial class Binder {
                 operand,
                 kind,
                 null,
+                null,
                 type: CreateErrorType(),
                 hasErrors: true
             );
@@ -5600,6 +5607,7 @@ internal partial class Binder {
                 node,
                 operand,
                 kind,
+                null,
                 null,
                 CreateErrorType(),
                 hasErrors: true
@@ -5625,8 +5633,8 @@ internal partial class Binder {
             node,
             resultOperand,
             resultOperatorKind,
+            signature.method,
             resultConstant,
-            // signature.Method,
             // signature.ConstrainedToTypeOpt,
             // resultKind,
             resultType

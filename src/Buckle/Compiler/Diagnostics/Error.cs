@@ -1549,6 +1549,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadAbstractEqualityOperatorSignature, location, message);
     }
 
+    internal static BelteDiagnostic BadIncrementOperatorSignature(TextLocation location) {
+        var message = $"the parameter type for ++ or -- operator must be the containing type";
+        return CreateError(DiagnosticCode.ERR_BadIncrementOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadAbstractIncrementOperatorSignature(TextLocation location) {
+        var message = $"the parameter type for ++ or -- operator must be the containing type, or its type parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractIncrementOperatorSignature, location, message);
+    }
+
+    internal static BelteDiagnostic BadIncrementReturnType(TextLocation location) {
+        var message = $"the return type for ++ or -- operator must match the parameter type or be derived from the parameter type";
+        return CreateError(DiagnosticCode.ERR_BadIncrementReturnType, location, message);
+    }
+
+    internal static BelteDiagnostic BadAbstractIncrementReturnType(TextLocation location) {
+        var message = $"the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type parameter constrained to it unless the parameter type is a different type parameter";
+        return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

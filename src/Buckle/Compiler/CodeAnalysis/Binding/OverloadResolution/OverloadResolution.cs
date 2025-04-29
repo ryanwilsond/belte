@@ -52,10 +52,45 @@ internal sealed partial class OverloadResolution {
             BoundExpression left,
             BoundExpression right,
             BinaryOperatorOverloadResolutionResult result) {
-            var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
-            CorLibrary.GetAllBuiltInBinaryOperators(kind, operators);
-            CandidateOperators(operators, left, right, result.results);
-            operators.Free();
+            var hadApplicableCandidates = false;
+            var leftOperatorSource = left.type?.StrippedType();
+            var rightOperatorSource = right.type?.StrippedType();
+
+            if (leftOperatorSource is not null) {
+                hadApplicableCandidates = GetUserDefinedOperators(
+                    kind,
+                    leftOperatorSource,
+                    left,
+                    right,
+                    result.results
+                );
+
+                if (!hadApplicableCandidates)
+                    result.results.Clear();
+            }
+
+            var isShift = kind.IsShift();
+
+            if (!isShift && rightOperatorSource is not null && !rightOperatorSource.Equals(leftOperatorSource)) {
+                var rightOperators = ArrayBuilder<BinaryOperatorAnalysisResult>.GetInstance();
+
+                if (GetUserDefinedOperators(kind, rightOperatorSource, left, right, rightOperators)) {
+                    hadApplicableCandidates = true;
+                    AddDistinctOperators(result.results, rightOperators);
+                }
+
+                rightOperators.Free();
+            }
+
+            if (!hadApplicableCandidates) {
+                result.results.Clear();
+                var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
+                CorLibrary.GetAllBuiltInBinaryOperators(kind, operators);
+                CandidateOperators(operators, left, right, result.results);
+                operators.Free();
+            }
+
+            BinaryOperatorOverloadResolution(left, right, result);
         }
     }
 
@@ -74,10 +109,17 @@ internal sealed partial class OverloadResolution {
             UnaryOperatorKind kind,
             BoundExpression operand,
             UnaryOperatorOverloadResolutionResult result) {
-            var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
-            CorLibrary.GetAllBuiltInUnaryOperators(kind, operators);
-            CandidateOperators(operators, operand, result.results);
-            operators.Free();
+            var hadApplicableCandidates = GetUserDefinedOperators(kind, operand, result.results);
+
+            if (!hadApplicableCandidates) {
+                result.results.Clear();
+                var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
+                CorLibrary.GetAllBuiltInUnaryOperators(kind, operators);
+                CandidateOperators(operators, operand, result.results);
+                operators.Free();
+            }
+
+            UnaryOperatorOverloadResolution(operand, result);
         }
     }
 
@@ -138,6 +180,601 @@ internal sealed partial class OverloadResolution {
 
             PerformObjectCreationOverloadResolution(results, constructors, arguments, true);
         }
+    }
+
+    private void BinaryOperatorOverloadResolution(
+        BoundExpression left,
+        BoundExpression right,
+        BinaryOperatorOverloadResolutionResult result) {
+        if (result.SingleValid())
+            return;
+
+        var candidates = result.results;
+        RemoveLowerPriorityMembers<BinaryOperatorAnalysisResult, MethodSymbol>(candidates);
+
+        var bestIndex = GetTheBestCandidateIndex(left, right, candidates);
+
+        if (bestIndex != -1) {
+            for (var index = 0; index < candidates.Count; index++) {
+                if (candidates[index].kind != OperatorAnalysisResultKind.Inapplicable && index != bestIndex)
+                    candidates[index] = candidates[index].Worse();
+            }
+
+            return;
+        }
+
+        for (var i = 1; i < candidates.Count; ++i) {
+            if (candidates[i].kind != OperatorAnalysisResultKind.Applicable)
+                continue;
+
+            for (var j = 0; j < i; j++) {
+                if (candidates[j].kind == OperatorAnalysisResultKind.Inapplicable)
+                    continue;
+
+                var better = BetterOperator(candidates[i].signature, candidates[j].signature, left, right);
+
+                if (better == BetterResult.Left)
+                    candidates[j] = candidates[j].Worse();
+                else if (better == BetterResult.Right)
+                    candidates[i] = candidates[i].Worse();
+            }
+        }
+    }
+
+    private void UnaryOperatorOverloadResolution(
+        BoundExpression operand,
+        UnaryOperatorOverloadResolutionResult result) {
+        if (result.SingleValid())
+            return;
+
+        var candidates = result.results;
+        RemoveLowerPriorityMembers<UnaryOperatorAnalysisResult, MethodSymbol>(candidates);
+
+        var bestIndex = GetTheBestCandidateIndex(operand, candidates);
+
+        if (bestIndex != -1) {
+            for (var index = 0; index < candidates.Count; index++) {
+                if (candidates[index].kind != OperatorAnalysisResultKind.Inapplicable && index != bestIndex)
+                    candidates[index] = candidates[index].Worse();
+            }
+
+            return;
+        }
+
+        for (var i = 1; i < candidates.Count; i++) {
+            if (candidates[i].kind != OperatorAnalysisResultKind.Applicable)
+                continue;
+
+            for (var j = 0; j < i; j++) {
+                if (candidates[j].kind == OperatorAnalysisResultKind.Inapplicable)
+                    continue;
+
+                var better = BetterOperator(candidates[i].signature, candidates[j].signature, operand);
+
+                if (better == BetterResult.Left)
+                    candidates[j] = candidates[j].Worse();
+                else if (better == BetterResult.Right)
+                    candidates[i] = candidates[i].Worse();
+            }
+        }
+    }
+
+    private int GetTheBestCandidateIndex(
+        BoundExpression operand,
+        ArrayBuilder<UnaryOperatorAnalysisResult> candidates) {
+        var currentBestIndex = -1;
+
+        for (var index = 0; index < candidates.Count; index++) {
+            if (candidates[index].kind != OperatorAnalysisResultKind.Applicable)
+                continue;
+
+            if (currentBestIndex == -1) {
+                currentBestIndex = index;
+            } else {
+                var better = BetterOperator(
+                    candidates[currentBestIndex].signature,
+                    candidates[index].signature,
+                    operand
+                );
+
+                if (better == BetterResult.Right)
+                    currentBestIndex = index;
+                else if (better != BetterResult.Left)
+                    currentBestIndex = -1;
+            }
+        }
+
+        for (var index = 0; index < currentBestIndex; index++) {
+            if (candidates[index].kind == OperatorAnalysisResultKind.Inapplicable)
+                continue;
+
+            var better = BetterOperator(
+                candidates[currentBestIndex].signature,
+                candidates[index].signature,
+                operand
+            );
+
+            if (better != BetterResult.Left)
+                return -1;
+        }
+
+        return currentBestIndex;
+    }
+
+    private BetterResult BetterOperator(
+        UnaryOperatorSignature op1,
+        UnaryOperatorSignature op2,
+        BoundExpression operand) {
+        // First we see if the conversion from the operand to one operand type is better than
+        // the conversion to the other.
+        // TODO finish
+
+        BetterResult better = BetterConversionFromExpression(operand, op1.OperandType, op2.OperandType, ref useSiteInfo);
+
+        if (better == BetterResult.Left || better == BetterResult.Right) {
+            return better;
+        }
+
+        // There was no better member on the basis of conversions. Go to the tiebreaking round.
+
+        // SPEC: In case the parameter type sequences P1, P2 and Q1, Q2 are equivalent -- that is, every Pi
+        // SPEC: has an identity conversion to the corresponding Qi -- the following tie-breaking rules
+        // SPEC: are applied:
+
+        if (Conversions.HasIdentityConversion(op1.OperandType, op2.OperandType)) {
+            // SPEC: If Mp has more specific parameter types than Mq then Mp is better than Mq.
+
+            // Under what circumstances can two unary operators with identical signatures be "more specific"
+            // than another? With a binary operator you could have C<T>.op+(C<T>, T) and C<T>.op+(C<T>, int).
+            // When doing overload resolution on C<int> + int, the latter is more specific. But with a unary
+            // operator, the sole operand *must* be the containing type or its nullable type. Therefore
+            // if there is an identity conversion, then the parameters really were identical. We therefore
+            // skip checking for specificity.
+
+            // SPEC: If one member is a non-lifted operator and the other is a lifted operator,
+            // SPEC: the non-lifted one is better.
+
+            bool lifted1 = op1.Kind.IsLifted();
+            bool lifted2 = op2.Kind.IsLifted();
+
+            if (lifted1 && !lifted2) {
+                return BetterResult.Right;
+            } else if (!lifted1 && lifted2) {
+                return BetterResult.Left;
+            }
+        }
+
+        // Always prefer operators with val parameters over operators with in parameters:
+        if (op1.RefKind == RefKind.None && op2.RefKind == RefKind.In) {
+            return BetterResult.Left;
+        } else if (op2.RefKind == RefKind.None && op1.RefKind == RefKind.In) {
+            return BetterResult.Right;
+        }
+
+        return BetterResult.Neither;
+    }
+
+    private bool GetUserDefinedOperators(
+        UnaryOperatorKind kind,
+        BoundExpression operand,
+        ArrayBuilder<UnaryOperatorAnalysisResult> results) {
+        if (operand.type is null)
+            return false;
+
+        var type0 = operand.type.StrippedType();
+        TypeSymbol constrainedToTypeOpt = type0 as TemplateParameterSymbol;
+
+        if (OperatorFacts.NoUserDefinedOperators(type0))
+            return false;
+
+        var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
+        var hadApplicableCandidates = false;
+
+        if (type0 is not NamedTypeSymbol current)
+            current = type0.baseType;
+
+        if (current is null && type0.IsTemplateParameter())
+            current = ((TemplateParameterSymbol)type0).effectiveBaseClass;
+
+        for (; current is not null; current = current.baseType) {
+            operators.Clear();
+
+            GetUserDefinedUnaryOperatorsFromType(constrainedToTypeOpt, current, kind, operators);
+
+            results.Clear();
+
+            if (CandidateOperators(operators, operand, results)) {
+                hadApplicableCandidates = true;
+                break;
+            }
+        }
+
+        operators.Free();
+        return hadApplicableCandidates;
+    }
+
+    private void GetUserDefinedUnaryOperatorsFromType(
+        TypeSymbol constrainedToTypeOpt,
+        NamedTypeSymbol type,
+        UnaryOperatorKind kind,
+        ArrayBuilder<UnaryOperatorSignature> operators) {
+        var name1 = OperatorFacts.GetUnaryOperatorNameFromKind(kind);
+
+        GetDeclaredOperators(constrainedToTypeOpt, type, kind, name1, operators);
+        AddLiftedOperators(constrainedToTypeOpt, kind, operators);
+
+        static void GetDeclaredOperators(
+            TypeSymbol constrainedToTypeOpt,
+            NamedTypeSymbol type,
+            UnaryOperatorKind kind,
+            string name,
+            ArrayBuilder<UnaryOperatorSignature> operators) {
+            var typeOperators = ArrayBuilder<MethodSymbol>.GetInstance();
+            type.AddOperators(name, typeOperators);
+
+            foreach (var op in typeOperators) {
+                if (op.parameterCount != 1 || op.returnsVoid)
+                    continue;
+
+                var operandType = op.GetParameterType(0);
+                var resultType = op.returnType;
+
+                operators.Add(new UnaryOperatorSignature(
+                    UnaryOperatorKind.UserDefined | kind,
+                    operandType,
+                    resultType,
+                    op,
+                    constrainedToTypeOpt
+                ));
+            }
+
+            typeOperators.Free();
+        }
+
+        void AddLiftedOperators(
+            TypeSymbol constrainedToTypeOpt,
+            UnaryOperatorKind kind,
+            ArrayBuilder<UnaryOperatorSignature> operators) {
+            switch (kind) {
+                case UnaryOperatorKind.UnaryPlus:
+                case UnaryOperatorKind.PrefixDecrement:
+                case UnaryOperatorKind.PrefixIncrement:
+                case UnaryOperatorKind.UnaryMinus:
+                case UnaryOperatorKind.PostfixDecrement:
+                case UnaryOperatorKind.PostfixIncrement:
+                case UnaryOperatorKind.LogicalNegation:
+                case UnaryOperatorKind.BitwiseComplement:
+                    for (var i = operators.Count - 1; i >= 0; i--) {
+                        var op = operators[i].method;
+                        var operandType = op.GetParameterType(0);
+                        var resultType = op.returnType;
+
+                        if (!operandType.IsNullableType() &&
+                            !resultType.IsNullableType()) {
+                            operators.Add(new UnaryOperatorSignature(
+                                UnaryOperatorKind.Lifted | UnaryOperatorKind.UserDefined | kind,
+                                MakeNullable(operandType), MakeNullable(resultType), op, constrainedToTypeOpt));
+                        }
+                    }
+
+                    break;
+            }
+        }
+    }
+
+    private BetterResult BetterOperator(
+        BinaryOperatorSignature op1,
+        BinaryOperatorSignature op2,
+        BoundExpression left,
+        BoundExpression right) {
+        var leftBetter = BetterConversionFromExpression(left, op1.leftType, op2.leftType);
+        var rightBetter = BetterConversionFromExpression(right, op1.rightType, op2.rightType);
+
+        // If that is hard to follow, consult this handy chart (curtisy of Pilchie at Roslyn):
+        // op1.Left vs op2.Left     op1.Right vs op2.Right    result
+        // -----------------------------------------------------------
+        // op1 better               op1 better                op1 better
+        // op1 better               neither better            op1 better
+        // op1 better               op2 better                neither better
+        // neither better           op1 better                op1 better
+        // neither better           neither better            neither better
+        // neither better           op2 better                op2 better
+        // op2 better               op1 better                neither better
+        // op2 better               neither better            op2 better
+        // op2 better               op2 better                op2 better
+
+        if (leftBetter == BetterResult.Left && rightBetter != BetterResult.Right ||
+            leftBetter != BetterResult.Right && rightBetter == BetterResult.Left) {
+            return BetterResult.Left;
+        }
+
+        if (leftBetter == BetterResult.Right && rightBetter != BetterResult.Left ||
+            leftBetter != BetterResult.Left && rightBetter == BetterResult.Right) {
+            return BetterResult.Right;
+        }
+
+        if (Conversions.HasIdentityConversion(op1.leftType, op2.leftType) &&
+            Conversions.HasIdentityConversion(op1.rightType, op2.rightType)) {
+            var result = MoreSpecificOperator(op1, op2);
+
+            if (result == BetterResult.Left || result == BetterResult.Right)
+                return result;
+
+            var lifted1 = op1.kind.IsLifted();
+            var lifted2 = op2.kind.IsLifted();
+
+            if (lifted1 && !lifted2)
+                return BetterResult.Right;
+            else if (!lifted1 && lifted2)
+                return BetterResult.Left;
+        }
+
+        return BetterResult.Neither;
+    }
+
+    private int GetTheBestCandidateIndex(
+        BoundExpression left,
+        BoundExpression right,
+        ArrayBuilder<BinaryOperatorAnalysisResult> candidates) {
+        var currentBestIndex = -1;
+
+        for (var index = 0; index < candidates.Count; index++) {
+            if (candidates[index].kind != OperatorAnalysisResultKind.Applicable)
+                continue;
+
+            if (currentBestIndex == -1) {
+                currentBestIndex = index;
+            } else {
+                var better = BetterOperator(
+                    candidates[currentBestIndex].signature,
+                    candidates[index].signature,
+                    left,
+                    right
+                );
+
+                if (better == BetterResult.Right)
+                    currentBestIndex = index;
+                else if (better != BetterResult.Left)
+                    currentBestIndex = -1;
+            }
+        }
+
+        for (var index = 0; index < currentBestIndex; index++) {
+            if (candidates[index].kind == OperatorAnalysisResultKind.Inapplicable)
+                continue;
+
+            var better = BetterOperator(
+                candidates[currentBestIndex].signature,
+                candidates[index].signature,
+                left,
+                right
+            );
+
+            if (better != BetterResult.Left)
+                return -1;
+        }
+
+        return currentBestIndex;
+    }
+
+    private BetterResult MoreSpecificOperator(BinaryOperatorSignature op1, BinaryOperatorSignature op2) {
+        TypeSymbol op1Left, op1Right, op2Left, op2Right;
+
+        if (op1.method is not null) {
+            var p = op1.method.originalDefinition.GetParameters();
+            op1Left = p[0].type;
+            op1Right = p[1].type;
+
+            if (op1.kind.IsLifted()) {
+                op1Left = MakeNullable(op1Left);
+                op1Right = MakeNullable(op1Right);
+            }
+        } else {
+            op1Left = op1.leftType;
+            op1Right = op1.rightType;
+        }
+
+        if (op2.method is not null) {
+            var p = op2.method.originalDefinition.GetParameters();
+            op2Left = p[0].type;
+            op2Right = p[1].type;
+
+            if (op2.kind.IsLifted()) {
+                op2Left = MakeNullable(op2Left);
+                op2Right = MakeNullable(op2Right);
+            }
+        } else {
+            op2Left = op2.leftType;
+            op2Right = op2.rightType;
+        }
+
+        using var uninst1 = TemporaryArray<TypeSymbol>.Empty;
+        using var uninst2 = TemporaryArray<TypeSymbol>.Empty;
+
+        uninst1.Add(op1Left);
+        uninst1.Add(op1Right);
+
+        uninst2.Add(op2Left);
+        uninst2.Add(op2Right);
+
+        var result = MoreSpecificType(ref uninst1.AsRef(), ref uninst2.AsRef());
+
+        return result;
+    }
+
+    private bool GetUserDefinedOperators(
+        BinaryOperatorKind kind,
+        TypeSymbol type0,
+        BoundExpression left,
+        BoundExpression right,
+        ArrayBuilder<BinaryOperatorAnalysisResult> results) {
+        if (type0 is null || OperatorFacts.NoUserDefinedOperators(type0))
+            return false;
+
+        var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
+        var hadApplicableCandidates = false;
+
+        if (type0 is not NamedTypeSymbol current)
+            current = type0.baseType;
+
+        if (current is null && type0.IsTemplateParameter())
+            current = ((TemplateParameterSymbol)type0).effectiveBaseClass;
+
+        for (; current is not null; current = current.baseType) {
+            operators.Clear();
+            GetUserDefinedBinaryOperatorsFromType(null, current, kind, operators);
+            results.Clear();
+
+            if (CandidateOperators(operators, left, right, results)) {
+                hadApplicableCandidates = true;
+                break;
+            }
+        }
+
+        operators.Free();
+        return hadApplicableCandidates;
+    }
+
+    private void GetUserDefinedBinaryOperatorsFromType(
+        TypeSymbol constrainedToTypeOpt,
+        NamedTypeSymbol type,
+        BinaryOperatorKind kind,
+        ArrayBuilder<BinaryOperatorSignature> operators) {
+        var name1 = OperatorFacts.GetBinaryOperatorNameFromKind(kind);
+
+        GetDeclaredOperators(constrainedToTypeOpt, type, kind, name1, operators);
+        AddLiftedOperators(constrainedToTypeOpt, kind, operators);
+
+        void GetDeclaredOperators(
+            TypeSymbol constrainedToTypeOpt,
+            NamedTypeSymbol type,
+            BinaryOperatorKind kind,
+            string name,
+            ArrayBuilder<BinaryOperatorSignature> operators) {
+            var typeOperators = ArrayBuilder<MethodSymbol>.GetInstance();
+            type.AddOperators(name, typeOperators);
+
+            foreach (var op in typeOperators) {
+                if (op.parameterCount != 2 || op.returnsVoid)
+                    continue;
+
+                var leftOperandType = op.GetParameterType(0);
+                var rightOperandType = op.GetParameterType(1);
+                var resultType = op.returnType;
+
+                operators.Add(new BinaryOperatorSignature(
+                    BinaryOperatorKind.UserDefined | kind,
+                    leftOperandType,
+                    rightOperandType,
+                    resultType,
+                    op,
+                    constrainedToTypeOpt
+                ));
+            }
+
+            typeOperators.Free();
+        }
+
+        void AddLiftedOperators(
+            TypeSymbol constrainedToTypeOpt,
+            BinaryOperatorKind kind,
+            ArrayBuilder<BinaryOperatorSignature> operators) {
+            for (var i = operators.Count - 1; i >= 0; i--) {
+                var op = operators[i].method;
+                var leftOperandType = op.GetParameterType(0);
+                var rightOperandType = op.GetParameterType(1);
+                var resultType = op.returnType;
+
+                var lifting = UserDefinedBinaryOperatorCanBeLifted(
+                    leftOperandType,
+                    rightOperandType,
+                    resultType,
+                    kind
+                );
+
+                if (lifting == LiftingResult.LiftOperandsAndResult) {
+                    operators.Add(new BinaryOperatorSignature(
+                        BinaryOperatorKind.Lifted | BinaryOperatorKind.UserDefined | kind,
+                        MakeNullable(leftOperandType),
+                        MakeNullable(rightOperandType),
+                        MakeNullable(resultType),
+                        op,
+                        constrainedToTypeOpt
+                    ));
+                } else if (lifting == LiftingResult.LiftOperandsButNotResult) {
+                    operators.Add(new BinaryOperatorSignature(
+                        BinaryOperatorKind.Lifted | BinaryOperatorKind.UserDefined | kind,
+                        MakeNullable(leftOperandType),
+                        MakeNullable(rightOperandType),
+                        resultType,
+                        op,
+                        constrainedToTypeOpt
+                    ));
+                }
+            }
+        }
+    }
+
+    private NamedTypeSymbol MakeNullable(TypeSymbol type) {
+        return CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
+    }
+
+    private static LiftingResult UserDefinedBinaryOperatorCanBeLifted(
+        TypeSymbol left,
+        TypeSymbol right,
+        TypeSymbol result,
+        BinaryOperatorKind kind) {
+        if (left.IsNullableType() || right.IsNullableType())
+            return LiftingResult.NotLifted;
+
+        switch (kind) {
+            case BinaryOperatorKind.Equal:
+            case BinaryOperatorKind.NotEqual:
+                if (!TypeSymbol.Equals(left, right, TypeCompareKind.ConsiderEverything))
+                    return LiftingResult.NotLifted;
+
+                goto case BinaryOperatorKind.GreaterThan;
+            case BinaryOperatorKind.GreaterThan:
+            case BinaryOperatorKind.GreaterThanOrEqual:
+            case BinaryOperatorKind.LessThan:
+            case BinaryOperatorKind.LessThanOrEqual:
+                return result.specialType == SpecialType.Bool
+                    ? LiftingResult.LiftOperandsButNotResult
+                    : LiftingResult.NotLifted;
+            default:
+                return result.IsNullableType() ? LiftingResult.NotLifted : LiftingResult.LiftOperandsAndResult;
+        }
+    }
+
+    private static void AddDistinctOperators(
+        ArrayBuilder<BinaryOperatorAnalysisResult> result,
+        ArrayBuilder<BinaryOperatorAnalysisResult> additionalOperators) {
+        var initialCount = result.Count;
+
+        foreach (var op in additionalOperators) {
+            var equivalentToExisting = false;
+
+            for (var i = 0; i < initialCount; i++) {
+                var existingSignature = result[i].signature;
+
+                if (op.signature.kind == existingSignature.kind &&
+                    EqualsIgnoringNullable(op.signature.returnType, existingSignature.returnType) &&
+                    EqualsIgnoringNullable(op.signature.leftType, existingSignature.leftType) &&
+                    EqualsIgnoringNullable(op.signature.rightType, existingSignature.rightType) &&
+                    EqualsIgnoringNullable(
+                        op.signature.method.containingType,
+                        existingSignature.method.containingType)) {
+                    equivalentToExisting = true;
+                    break;
+                }
+            }
+
+            if (!equivalentToExisting)
+                result.Add(op);
+        }
+
+        static bool EqualsIgnoringNullable(TypeSymbol a, TypeSymbol b)
+            => a.Equals(b, TypeCompareKind.IgnoreNullability);
     }
 
     private void PerformObjectCreationOverloadResolution(
@@ -887,6 +1524,17 @@ internal sealed partial class OverloadResolution {
                 RefKind.RefConst => true,
                 _ => false
             };
+    }
+
+    private BetterResult BetterConversionFromExpression(BoundExpression node, TypeSymbol t1, TypeSymbol t2) {
+        return BetterConversionFromExpression(
+            node,
+            t1,
+            conversions.ClassifyImplicitConversionFromExpression(node, t1),
+            t2,
+            conversions.ClassifyImplicitConversionFromExpression(node, t2),
+            out _
+        );
     }
 
     private BetterResult BetterConversionFromExpression(

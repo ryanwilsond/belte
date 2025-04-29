@@ -178,6 +178,7 @@ internal sealed class Expander : BoundTreeExpander {
                         newLeft,
                         newRight,
                         expression.operatorKind,
+                        expression.method,
                         expression.constantValue,
                         expression.type
                     )

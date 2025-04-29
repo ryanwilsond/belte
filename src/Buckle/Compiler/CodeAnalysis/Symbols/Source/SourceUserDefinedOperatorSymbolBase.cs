@@ -106,60 +106,25 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     }
 
     private void CheckIncrementSignature(BelteDiagnosticQueue diagnostics) {
-        // SPEC: A unary ++ or -- operator must take a single parameter of type T or T?
-        // SPEC: and it must return that same type or a type derived from it.
-
-        // The native compiler error reporting behavior is not very good in some cases
-        // here, both because it reports the wrong errors, and because the wording
-        // of the error messages is misleading. The native compiler reports two errors:
-
-        // CS0448: The return type for ++ or -- operator must be the
-        //         containing type or derived from the containing type
-        //
-        // CS0559: The parameter type for ++ or -- operator must be the containing type
-        //
-        // Neither error message mentions nullable types. But worse, there is a
-        // situation in which the native compiler reports a misleading error:
-        //
-        // struct S { public static S operator ++(S? s) { ... } }
-        //
-        // This reports CS0559, but that is not the error; the *parameter* is perfectly
-        // legal. The error is that the return type does not match the parameter type.
-        //
-        // I have changed the error message to reflect the true error, and we now
-        // report 0448, not 0559, in the given scenario. The error is now:
-        //
-        // CS0448: The return type for ++ or -- operator must match the parameter type
-        //         or be derived from the parameter type
-        //
-        // However, this now means that we must make *another* change from native compiler
-        // behavior. The native compiler would report both 0448 and 0559 when given:
-        //
-        // struct S { public static int operator ++(int s) { ... } }
-        //
-        // The previous wording of error 0448 was *correct* in this scenario, but not
-        // it is wrong because it *does* match the formal parameter type.
-        //
-        // The solution is: First see if 0559 must be reported. Only if the formal
-        // parameter type is *good* do we then go on to try to report an error against
-        // the return type.
-
-        var parameterType = this.GetParameterType(0);
-        var useSiteInfo = new CompoundUseSiteInfo<AssemblySymbol>(diagnostics, ContainingAssembly);
+        var parameterType = GetParameterType(0);
 
         if (!MatchesContainingType(parameterType.StrippedType())) {
-            // CS0559: The parameter type for ++ or -- operator must be the containing type
-            diagnostics.Add((IsAbstract || IsVirtual) ? ErrorCode.ERR_BadAbstractIncDecSignature : ErrorCode.ERR_BadIncDecSignature, this.GetFirstLocation());
-        } else if (!(parameterType.IsTypeParameter() ?
-                       this.ReturnType.Equals(parameterType, ComparisonForUserDefinedOperators) :
-                       (((IsAbstract || IsVirtual) && IsContainingType(parameterType) && IsSelfConstrainedTypeParameter(this.ReturnType)) ||
-                           this.ReturnType.EffectiveTypeNoUseSiteDiagnostics.IsEqualToOrDerivedFrom(parameterType, ComparisonForUserDefinedOperators, useSiteInfo: ref useSiteInfo)))) {
-            // CS0448: The return type for ++ or -- operator must match the parameter type
-            //         or be derived from the parameter type
-            diagnostics.Add((IsAbstract || IsVirtual) ? ErrorCode.ERR_BadAbstractIncDecRetType : ErrorCode.ERR_BadIncDecRetType, this.GetFirstLocation());
+            if (isAbstract || isVirtual)
+                diagnostics.Push(Error.BadAbstractIncrementOperatorSignature(location));
+            else
+                diagnostics.Push(Error.BadIncrementOperatorSignature(location));
+        } else if (!(parameterType.IsTemplateParameter()
+                ? returnType.Equals(parameterType, ComparisonForUserDefinedOperators)
+                : (((isAbstract || isVirtual) &&
+                        IsContainingType(parameterType) &&
+                        IsSelfConstrainedTypeParameter(returnType)) ||
+                    returnType.EffectiveType()
+                        .IsEqualToOrDerivedFrom(parameterType, ComparisonForUserDefinedOperators)))) {
+            if (isAbstract || isVirtual)
+                diagnostics.Push(Error.BadAbstractIncrementReturnType(location));
+            else
+                diagnostics.Push(Error.BadIncrementReturnType(location));
         }
-
-        diagnostics.Add(this.GetFirstLocation(), useSiteInfo);
     }
 
     private void CheckBinarySignature(BelteDiagnosticQueue diagnostics) {

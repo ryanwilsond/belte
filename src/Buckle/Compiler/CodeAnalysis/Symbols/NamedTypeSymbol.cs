@@ -96,6 +96,18 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         _hasNoBaseCycles = true;
     }
 
+    internal void AddOperators(string name, ArrayBuilder<MethodSymbol> operators) {
+        var candidates = GetSimpleNonTypeMembers(name);
+
+        if (candidates.IsEmpty)
+            return;
+
+        foreach (var candidate in candidates) {
+            if (candidate is MethodSymbol { methodKind: MethodKind.Operator } method)
+                operators.Add(method);
+        }
+    }
+
     internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
         GetAllTypeParameters(allTemplateParameters);

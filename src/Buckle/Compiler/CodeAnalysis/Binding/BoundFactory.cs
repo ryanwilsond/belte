@@ -151,7 +151,7 @@ internal static partial class BoundFactory {
         UnaryOperatorKind opKind,
         BoundExpression operand,
         TypeSymbol type) {
-        return new BoundUnaryOperator(syntax, operand, opKind, null, type);
+        return new BoundUnaryOperator(syntax, operand, opKind, null, null, type);
     }
 
     internal static BoundBinaryOperator Binary(
@@ -160,7 +160,7 @@ internal static partial class BoundFactory {
         BinaryOperatorKind opKind,
         BoundExpression right,
         TypeSymbol type) {
-        return new BoundBinaryOperator(syntax, left, right, opKind, null, type);
+        return new BoundBinaryOperator(syntax, left, right, opKind, null, null, type);
     }
 
     internal static BoundBinaryOperator And(SyntaxNode syntax, BoundExpression left, BoundExpression right) {
@@ -169,6 +169,7 @@ internal static partial class BoundFactory {
             left,
             right,
             BinaryOperatorKind.BoolConditionalAnd,
+            null,
             null,
             CorLibrary.GetSpecialType(SpecialType.Bool)
         );

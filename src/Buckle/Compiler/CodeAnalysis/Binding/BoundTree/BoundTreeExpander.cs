@@ -293,6 +293,7 @@ internal abstract class BoundTreeExpander {
                 newLeft,
                 newRight,
                 expression.operatorKind,
+                expression.method,
                 expression.constantValue,
                 expression.type
             );
@@ -443,6 +444,7 @@ internal abstract class BoundTreeExpander {
             replacement = expression.Update(
                 newOperand,
                 expression.operatorKind,
+                expression.method,
                 expression.constantValue,
                 expression.type
             );
