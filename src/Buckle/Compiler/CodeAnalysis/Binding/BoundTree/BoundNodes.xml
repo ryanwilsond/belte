@@ -208,6 +208,7 @@
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="operatorKind" Type="UnaryOperatorKind"/>
     <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="operandPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="operandConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="resultPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>

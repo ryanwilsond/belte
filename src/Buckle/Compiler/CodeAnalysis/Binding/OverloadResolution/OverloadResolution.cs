@@ -305,50 +305,19 @@ internal sealed partial class OverloadResolution {
         UnaryOperatorSignature op1,
         UnaryOperatorSignature op2,
         BoundExpression operand) {
-        // First we see if the conversion from the operand to one operand type is better than
-        // the conversion to the other.
-        // TODO finish
+        var better = BetterConversionFromExpression(operand, op1.operandType, op2.operandType);
 
-        BetterResult better = BetterConversionFromExpression(operand, op1.OperandType, op2.OperandType, ref useSiteInfo);
-
-        if (better == BetterResult.Left || better == BetterResult.Right) {
+        if (better == BetterResult.Left || better == BetterResult.Right)
             return better;
-        }
 
-        // There was no better member on the basis of conversions. Go to the tiebreaking round.
+        if (Conversions.HasIdentityConversion(op1.operandType, op2.operandType)) {
+            var lifted1 = op1.kind.IsLifted();
+            var lifted2 = op2.kind.IsLifted();
 
-        // SPEC: In case the parameter type sequences P1, P2 and Q1, Q2 are equivalent -- that is, every Pi
-        // SPEC: has an identity conversion to the corresponding Qi -- the following tie-breaking rules
-        // SPEC: are applied:
-
-        if (Conversions.HasIdentityConversion(op1.OperandType, op2.OperandType)) {
-            // SPEC: If Mp has more specific parameter types than Mq then Mp is better than Mq.
-
-            // Under what circumstances can two unary operators with identical signatures be "more specific"
-            // than another? With a binary operator you could have C<T>.op+(C<T>, T) and C<T>.op+(C<T>, int).
-            // When doing overload resolution on C<int> + int, the latter is more specific. But with a unary
-            // operator, the sole operand *must* be the containing type or its nullable type. Therefore
-            // if there is an identity conversion, then the parameters really were identical. We therefore
-            // skip checking for specificity.
-
-            // SPEC: If one member is a non-lifted operator and the other is a lifted operator,
-            // SPEC: the non-lifted one is better.
-
-            bool lifted1 = op1.Kind.IsLifted();
-            bool lifted2 = op2.Kind.IsLifted();
-
-            if (lifted1 && !lifted2) {
+            if (lifted1 && !lifted2)
                 return BetterResult.Right;
-            } else if (!lifted1 && lifted2) {
+            else if (!lifted1 && lifted2)
                 return BetterResult.Left;
-            }
-        }
-
-        // Always prefer operators with val parameters over operators with in parameters:
-        if (op1.RefKind == RefKind.None && op2.RefKind == RefKind.In) {
-            return BetterResult.Left;
-        } else if (op2.RefKind == RefKind.None && op1.RefKind == RefKind.In) {
-            return BetterResult.Right;
         }
 
         return BetterResult.Neither;

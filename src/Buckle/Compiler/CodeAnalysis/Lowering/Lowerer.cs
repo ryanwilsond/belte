@@ -415,6 +415,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <op> <operand>
 
+        ----> <op> has a method attached
+
+        <method>(<op>)
+
         ----> <op> is '++'
 
         <operand> += 1
@@ -426,6 +430,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var op = expression.operatorKind.Operator();
+
+        if (expression.method is not null)
+            return Visit(Call(syntax, expression.method, expression.operand));
 
         if (op is UnaryOperatorKind.PrefixIncrement or UnaryOperatorKind.PostfixIncrement)
             return Visit(Increment(syntax, expression.operand));

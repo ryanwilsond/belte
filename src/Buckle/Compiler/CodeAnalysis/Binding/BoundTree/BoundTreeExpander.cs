@@ -465,6 +465,7 @@ internal abstract class BoundTreeExpander {
             replacement = expression.Update(
                 expression.operatorKind,
                 newOperand,
+                expression.method,
                 expression.operandPlaceholder,
                 expression.operandConversion,
                 expression.resultPlaceholder,

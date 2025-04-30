@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 
@@ -131,7 +130,7 @@ internal sealed partial class ControlFlowGraphBuilder {
 
         var opKind = OverloadResolution.UnOpEasyOut.OpKind(UnaryOperatorKind.LogicalNegation, boolType);
 
-        return new BoundUnaryOperator(syntax, condition, opKind, null, boolType);
+        return new BoundUnaryOperator(syntax, condition, opKind, null, null, boolType);
     }
 
     private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {

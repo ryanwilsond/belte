@@ -21,7 +21,10 @@ internal abstract class WithTemplateParametersBinder : Binder {
         if ((options & _lookupMask) != 0)
             return;
 
-        foreach (var templateParameter in _templateParameterMap[name])
+        if (!_templateParameterMap.TryGetValue(name, out var value))
+            return;
+
+        foreach (var templateParameter in value)
             result.MergeEqual(originalBinder.CheckViability(templateParameter, arity, options, null, diagnose));
     }
 
