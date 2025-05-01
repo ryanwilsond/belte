@@ -15,14 +15,14 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
     private readonly CompilationUnitSyntax _declarationSyntax;
 
     internal SubmissionBinder(
-        NamedTypeSymbol submissionClass,
+        NamespaceSymbol globalNamespace,
         CompilationUnitSyntax declarationSyntax,
         Binder next) : base(next) {
-        container = submissionClass;
+        containingMember = globalNamespace;
         _declarationSyntax = declarationSyntax;
     }
 
-    internal NamespaceOrTypeSymbol container { get; }
+    internal override Symbol containingMember { get; }
 
     internal override void LookupSymbolsInSingleBinder(
         LookupResult result,
@@ -34,7 +34,6 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
         bool diagnose) {
         LookupMembersInSubmissions(
             result,
-            (NamedTypeSymbol)container,
             _declarationSyntax,
             name,
             arity,
@@ -51,7 +50,7 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
         LookupSymbolsInfo result,
         LookupOptions options,
         Binder originalBinder) {
-        AddMemberLookupSymbolsInfoInSubmissions(result, (NamedTypeSymbol)container, options, originalBinder);
+        AddMemberLookupSymbolsInfoInSubmissions(result, options, originalBinder);
     }
 
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {

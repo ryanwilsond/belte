@@ -66,10 +66,10 @@ internal sealed partial class BinderFactory {
             var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
-                result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
-
                 if (_inScript)
-                    result = new SubmissionBinder(_compilation.scriptClass, node, result);
+                    result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
+                else
+                    result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
 
                 if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
                     is SynthesizedEntryPoint simpleProgram) {

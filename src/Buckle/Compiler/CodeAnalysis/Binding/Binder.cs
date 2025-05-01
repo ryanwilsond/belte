@@ -6673,17 +6673,15 @@ symIsHidden:;
 
     private protected void AddMemberLookupSymbolsInfoInSubmissions(
         LookupSymbolsInfo result,
-        TypeSymbol scriptClass,
         LookupOptions options,
         Binder originalBinder) {
         for (var submission = compilation; submission is not null; submission = submission.previous) {
-            if (submission.scriptClass is not null) {
-                AddMemberLookupSymbolsInfoWithoutInheritance(
+            if (submission.globalNamespaceInternal is not null) {
+                AddMemberLookupSymbolsInfoInNamespace(
                     result,
-                    submission.scriptClass,
+                    submission.globalNamespaceInternal,
                     options,
-                    originalBinder,
-                    scriptClass
+                    originalBinder
                 );
             }
         }
@@ -6691,7 +6689,6 @@ symIsHidden:;
 
     private protected void LookupMembersInSubmissions(
         LookupResult result,
-        TypeSymbol submissionClass,
         CompilationUnitSyntax declarationSyntax,
         string name,
         int arity,
@@ -6706,17 +6703,15 @@ symIsHidden:;
         for (var submission = compilation; submission is not null; submission = submission.previous) {
             submissionSymbols.Clear();
 
-            if (submission.scriptClass is not null) {
-                LookupMembersWithoutInheritance(
+            if (submission.globalNamespaceInternal is not null) {
+                LookupMembersInNamespace(
                     submissionSymbols,
-                    submission.scriptClass,
+                    submission.globalNamespaceInternal,
                     name,
                     arity,
                     options,
                     originalBinder,
-                    submissionClass,
-                    diagnose,
-                    basesBeingResolved
+                    diagnose
                 );
             }
 

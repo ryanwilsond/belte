@@ -120,7 +120,6 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         if (localBase is null)
             return;
 
-
         var singleDeclaration = FirstDeclarationWithExplicitBases();
 
         if (singleDeclaration is not null) {
@@ -243,7 +242,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         TypeSymbol baseType;
 
         if (typeKind == TypeKind.Class) {
-            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type;
+            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type.StrippedType();
             var baseSpecialType = baseType.specialType;
 
             if (IsRestrictedBaseType(baseSpecialType))
