@@ -200,6 +200,7 @@ public enum SyntaxKind : ushort {
     OmittedArgument,
     OmittedArgumentToken,
     ArgumentList,
+    BracketedArgumentList,
     Parameter,
     ParameterList,
     ArrayRankSpecifier,

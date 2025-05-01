@@ -24,14 +24,25 @@
       <Kind Name="IdentifierToken"/>
     </Field>
   </Node>
-  <Node Name="ArgumentListSyntax" Base="SyntaxNode">
+  <AbstractNode Name="BaseArgumentListSyntax" Base="SyntaxNode">
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;"/>
+  </AbstractNode>
+  <Node Name="ArgumentListSyntax" Base="BaseArgumentListSyntax">
     <Kind Name="ArgumentList"/>
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;" Override="true"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="BracketedArgumentListSyntax" Base="BaseArgumentListSyntax">
+    <Kind Name="BracketedArgumentList"/>
+    <Field Name="openBracket" Type="SyntaxToken"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;" Override="true"/>
+    <Field Name="closeBracket" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
     </Field>
   </Node>
   <AbstractNode Name="BaseArgumentSyntax" Base="SyntaxNode">
@@ -616,11 +627,7 @@
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>
     <Field Name="expression" Type="ExpressionSyntax"/>
-    <Field Name="openBracket" Type="SyntaxToken" Optional="true"/>
-    <Field Name="index" Type="ExpressionSyntax"/>
-    <Field Name="closeBracket" Type="SyntaxToken" Optional="true">
-      <Kind Name="CloseBracketToken"/>
-    </Field>
+    <Field Name="argumentList" Type="BracketedArgumentListSyntax"/>
   </Node>
   <Node Name="InitializerListExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="InitializerListExpression"/>

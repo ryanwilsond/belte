@@ -1732,6 +1732,27 @@ internal partial class Binder {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
     }
 
+    private BoundExpression ErrorIndexerExpression(
+        SyntaxNode node,
+        BoundExpression expression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnostic error,
+        BelteDiagnosticQueue diagnostics) {
+        if (!expression.hasErrors)
+            diagnostics.Push(error);
+
+        var childBoundNodes = BuildArgumentsForErrorRecovery(analyzedArguments).Add(expression);
+
+        return new BoundErrorExpression(
+            node,
+            LookupResultKind.Empty,
+            [],
+            childBoundNodes,
+            CreateErrorType(),
+            hasErrors: true
+        );
+    }
+
     private BoundExpression ToErrorExpression(
         BoundExpression expression,
         LookupResultKind resultKind = LookupResultKind.Empty) {
@@ -1812,32 +1833,138 @@ internal partial class Binder {
     }
 
     private BoundExpression BindIndexExpression(IndexExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var boundExpression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
-        var boundOperand = BindValue(node.index, diagnostics, BindValueKind.RValue);
-        var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+        var receiver = BindExpressionInternal(node.expression, diagnostics, false, true);
 
-        if (boundOperand.type is not null && boundOperand.type.IsNullableType())
-            intType = CorLibrary.GetNullableType(SpecialType.Int);
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+        try {
+            BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+            receiver = CheckValue(receiver, BindValueKind.RValue, diagnostics);
+            receiver = BindToNaturalType(receiver, diagnostics);
+            return BindArrayAccessOrIndexer(node, receiver, analyzedArguments, diagnostics);
+        } finally {
+            analyzedArguments.Free();
+        }
+    }
 
-        var conversion = conversions.ClassifyImplicitConversionFromExpression(boundOperand, intType);
+    private BoundExpression BindArrayAccessOrIndexer(
+        SyntaxNode node,
+        BoundExpression expression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        if (expression.type is null)
+            return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
 
-        if (!conversion.exists)
-            GenerateImplicitConversionError(diagnostics, node, conversion, boundOperand, intType);
+        if (analyzedArguments.hasErrors || expression.hasErrors)
+            diagnostics = BelteDiagnosticQueue.Discarded;
 
-        var boundConversion = CreateConversion(boundOperand, conversion, intType, diagnostics);
-        var hasErrors = false;
-        var type = boundExpression.type.StrippedType();
+        return BindArrayAccessOrIndexerCore(node, expression, analyzedArguments, diagnostics);
+    }
 
-        if (type is not ArrayTypeSymbol arrayType) {
-            diagnostics.Push(Error.CannotApplyIndexing(node.location, boundExpression.type));
-            hasErrors = true;
-        } else {
-            type = arrayType.elementType;
+    private BoundExpression BindArrayAccessOrIndexerCore(
+        SyntaxNode node,
+        BoundExpression expression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        switch (expression.type.StrippedType().typeKind) {
+            case TypeKind.Array:
+                return BindArrayAccess(node, expression, analyzedArguments, diagnostics);
+            case TypeKind.Class:
+            case TypeKind.TemplateParameter:
+                return BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
+            default:
+                return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
+        }
+    }
+
+    private BoundExpression BindIndexerAccess(
+        SyntaxNode node,
+        BoundExpression expression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        diagnostics.Push(Error.CannotApplyIndexing(node.location, expression.type));
+        return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
+
+        // TODO Indexers
+        // var lookupResult = LookupResult.GetInstance();
+        // var lookupOptions = expression.kind == BoundKind.BaseExpression
+        //     ? LookupOptions.UseBaseReferenceAccessibility
+        //     : LookupOptions.Default;
+
+        // LookupMembersWithFallback(
+        //     lookupResult,
+        //     expression.type,
+        //     WellKnownMemberNames.Indexer,
+        //     arity: 0,
+        //     options: lookupOptions
+        // );
+
+        // BoundExpression indexerAccessExpression;
+
+
+        // if (!lookupResult.isMultiViable) {
+        //     if (TryBindIndexOrRangeImplicitIndexer(
+        //         node,
+        //         expression,
+        //         analyzedArguments,
+        //         diagnostics,
+        //         out var implicitIndexerAccess)) {
+        //         indexerAccessExpression = implicitIndexerAccess;
+        //     } else {
+        //         indexerAccessExpression = ErrorIndexerExpression(node, expression, analyzedArguments, lookupResult.error, diagnostics);
+        //     }
+        // } else {
+        //     ArrayBuilder<PropertySymbol> indexerGroup = ArrayBuilder<PropertySymbol>.GetInstance();
+        //     foreach (Symbol symbol in lookupResult.Symbols) {
+        //         Debug.Assert(symbol.IsIndexer());
+        //         indexerGroup.Add((PropertySymbol)symbol);
+        //     }
+
+        //     indexerAccessExpression = BindIndexerOrIndexedPropertyAccess(node, expression, indexerGroup, analyzedArguments, diagnostics);
+        //     indexerGroup.Free();
+        // }
+
+        // lookupResult.Free();
+        // return indexerAccessExpression;
+    }
+
+    private BoundArrayAccessExpression BindArrayAccess(
+        SyntaxNode node,
+        BoundExpression expression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+
+        if (analyzedArguments.arguments.Count != 1) {
+            diagnostics.Push(Error.BadIndexCount(node.location));
+            var errorArguments = BuildArgumentsForErrorRecovery(analyzedArguments);
+
+            return new BoundArrayAccessExpression(
+                node,
+                expression,
+                errorArguments.FirstOrDefault(),
+                null,
+                arrayType.elementType,
+                true
+            );
         }
 
-        var constantValue = ConstantFolding.FoldIndex(boundExpression, boundConversion, type);
+        var argument = analyzedArguments.arguments[0];
+        var intType = CorLibrary.GetSpecialType(SpecialType.Int);
 
-        return new BoundArrayAccessExpression(node, boundExpression, boundConversion, constantValue, type, hasErrors);
+        if (argument.type is not null && argument.type.IsNullableType())
+            intType = CorLibrary.GetNullableType(SpecialType.Int);
+
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
+
+        if (!conversion.exists)
+            GenerateImplicitConversionError(diagnostics, node, conversion, argument, intType);
+
+        var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
+        var hasErrors = false;
+        var type = arrayType.elementType;
+
+        var constantValue = ConstantFolding.FoldIndex(expression, boundConversion, type);
+        return new BoundArrayAccessExpression(node, expression, boundConversion, constantValue, type, hasErrors);
     }
 
     private BoundUnconvertedInitializerList BindInitializerListExpression(
@@ -4379,7 +4506,7 @@ internal partial class Binder {
     }
 
     private void BindArgumentsAndNames(
-        ArgumentListSyntax argumentList,
+        BaseArgumentListSyntax argumentList,
         BelteDiagnosticQueue diagnostics,
         AnalyzedArguments result) {
         if (argumentList is null)

@@ -1423,13 +1423,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ExpressionSyntax ParseIndexExpression(ExpressionSyntax expression) {
-        var openBracket = EatToken();
-        _bracketStack.Push(SyntaxKind.CloseBracketToken);
-        var index = ParseExpression();
-        _bracketStack.Pop();
-        var closeBracket = Match(SyntaxKind.CloseBracketToken);
-
-        return SyntaxFactory.IndexExpression(expression, openBracket, index, closeBracket);
+        var argumentList = ParseBracketedArgumentList();
+        return SyntaxFactory.IndexExpression(expression, argumentList);
     }
 
     private ScanTemplateArgumentListKind ScanTemplateArgumentList() {
@@ -1472,6 +1467,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var closeAngleBracket = Match(SyntaxKind.GreaterThanToken);
 
         return SyntaxFactory.TemplateArgumentList(openAngleBracket, arguments, closeAngleBracket);
+    }
+
+    private BracketedArgumentListSyntax ParseBracketedArgumentList() {
+        var openBracket = Match(SyntaxKind.OpenBracketToken);
+        _bracketStack.Push(SyntaxKind.CloseBracketToken);
+        var arguments = ParseArguments(SyntaxKind.CloseBracketToken);
+        _bracketStack.Pop();
+        var closeBracket = Match(SyntaxKind.CloseBracketToken);
+
+        return SyntaxFactory.BracketedArgumentList(openBracket, arguments, closeBracket);
     }
 
     private ArgumentListSyntax ParseArgumentList() {

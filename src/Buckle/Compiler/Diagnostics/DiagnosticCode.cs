@@ -312,6 +312,7 @@ public enum DiagnosticCode : ushort {
     ERR_BadAbstractIncrementOperatorSignature = 301,
     ERR_BadIncrementReturnType = 302,
     ERR_BadAbstractIncrementReturnType = 303,
+    ERR_BadIndexCount = 304,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

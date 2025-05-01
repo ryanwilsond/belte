@@ -1569,6 +1569,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
     }
 
+    internal static BelteDiagnostic BadIndexCount(TextLocation location) {
+        var message = $"wrong number of indices inside []; expected 1";
+        return CreateError(DiagnosticCode.ERR_BadIndexCount, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
