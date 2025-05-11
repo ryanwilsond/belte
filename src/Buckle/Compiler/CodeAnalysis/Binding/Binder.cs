@@ -1840,7 +1840,8 @@ internal partial class Binder {
             BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
             receiver = CheckValue(receiver, BindValueKind.RValue, diagnostics);
             receiver = BindToNaturalType(receiver, diagnostics);
-            return BindArrayAccessOrIndexer(node, receiver, analyzedArguments, diagnostics);
+            var isConditional = node.argumentList.openBracket.kind == SyntaxKind.QuestionOpenBracketToken;
+            return BindArrayAccessOrIndexer(node, isConditional, receiver, analyzedArguments, diagnostics);
         } finally {
             analyzedArguments.Free();
         }
@@ -1848,6 +1849,7 @@ internal partial class Binder {
 
     private BoundExpression BindArrayAccessOrIndexer(
         SyntaxNode node,
+        bool isConditional,
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
@@ -1857,19 +1859,22 @@ internal partial class Binder {
         if (analyzedArguments.hasErrors || expression.hasErrors)
             diagnostics = BelteDiagnosticQueue.Discarded;
 
-        return BindArrayAccessOrIndexerCore(node, expression, analyzedArguments, diagnostics);
+        return BindArrayAccessOrIndexerCore(node, isConditional, expression, analyzedArguments, diagnostics);
     }
 
     private BoundExpression BindArrayAccessOrIndexerCore(
         SyntaxNode node,
+        bool isConditional,
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
         switch (expression.type.StrippedType().typeKind) {
             case TypeKind.Array:
-                return BindArrayAccess(node, expression, analyzedArguments, diagnostics);
+                var access = BindArrayAccess(node, expression, analyzedArguments, diagnostics);
+                return CreateConditionalAccess(node, isConditional, expression, access);
             case TypeKind.Class:
             case TypeKind.TemplateParameter:
+                // TODO What to do about conditional access?
                 return BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
             default:
                 return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
@@ -3007,6 +3012,7 @@ internal partial class Binder {
 
         boundLeft = BindToNaturalType(boundLeft, diagnostics);
         leftType = boundLeft.type;
+        var isConditional = operatorToken.kind == SyntaxKind.QuestionPeriodToken;
         var lookupResult = LookupResult.GetInstance();
 
         try {
@@ -3025,7 +3031,7 @@ internal partial class Binder {
 
             var rightName = right.identifier.text;
             var rightArity = right.arity;
-            BoundExpression result;
+            BoundExpression result = null;
 
             switch (boundLeft.kind) {
                 case BoundKind.TypeExpression:
@@ -3040,7 +3046,7 @@ internal partial class Binder {
                         );
 
                         if (lookupResult.isMultiViable) {
-                            return BindMemberOfType(
+                            result = BindMemberOfType(
                                 node,
                                 right,
                                 rightName,
@@ -3058,7 +3064,7 @@ internal partial class Binder {
                             return ErrorExpression(node, LookupResultKind.NotAValue, boundLeft);
                         }
                     } else if (_enclosingNameofArgument == node) {
-                        return BindInstanceMemberAccess(
+                        result = BindInstanceMemberAccess(
                             node,
                             right,
                             boundLeft,
@@ -3074,7 +3080,7 @@ internal partial class Binder {
                         LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options);
 
                         if (lookupResult.isMultiViable) {
-                            return BindMemberOfType(
+                            result = BindMemberOfType(
                                 node,
                                 right,
                                 rightName,
@@ -3104,7 +3110,7 @@ internal partial class Binder {
                         boundLeft = CheckValue(boundLeft, BindValueKind.RValue, diagnostics);
                         boundLeft = BindToNaturalType(boundLeft, diagnostics);
 
-                        return BindInstanceMemberAccess(
+                        result = BindInstanceMemberAccess(
                             node,
                             right,
                             boundLeft,
@@ -3121,6 +3127,9 @@ internal partial class Binder {
                     break;
             }
 
+            if (result is not null)
+                return CreateConditionalAccess(node, isConditional, boundLeft, result);
+
             BindMemberAccessReportError(node, right, rightName, boundLeft, lookupResult.error, diagnostics);
 
             return BindMemberAccessBadResult(
@@ -3134,6 +3143,16 @@ internal partial class Binder {
         } finally {
             lookupResult.Free();
         }
+    }
+
+    private BoundExpression CreateConditionalAccess(
+        SyntaxNode syntax,
+        bool isConditional,
+        BoundExpression receiver,
+        BoundExpression access) {
+        return (!isConditional || receiver.hasErrors || access.hasErrors)
+            ? access
+            : new BoundConditionalAccessExpression(syntax, receiver, access, access.type);
     }
 
     private BoundExpression BindMemberAccessBadResult(
@@ -7416,8 +7435,10 @@ symIsHidden:;
                     // TODO is this a reachable error?
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
-                } else if (initializerType.isPrimitiveType && initializer.constantValue is not null) {
-                    // TODO This condition to check for auto-lifting *should* be correct for every case, but need to double check
+                } else if (((localSymbol.isConstExpr || localSymbol.isConst) && initializerType.IsNullableType())
+                    || (!localSymbol.isConstExpr && !localSymbol.isConst)) {
+                    // Always auto-lift unless specified constant and given a non-nullable initializer
+                    // In order to widen constants' applicability to non-nullable contexts
                     declarationType = declarationType.SetIsAnnotated();
                 }
 

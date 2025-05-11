@@ -327,7 +327,7 @@ internal sealed class Expander : BoundTreeExpander {
 
         replacement = new BoundConditionalOperator(
             syntax,
-            HasValue(syntax, receiver),
+            HasValue(syntax, receiverLocal),
             false,
             newAccess,
             new BoundLiteralExpression(syntax, new ConstantValue(null), access.type),

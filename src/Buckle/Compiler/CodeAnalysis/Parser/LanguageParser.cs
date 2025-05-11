@@ -1470,7 +1470,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private BracketedArgumentListSyntax ParseBracketedArgumentList() {
-        var openBracket = Match(SyntaxKind.OpenBracketToken);
+        var openBracket = MatchTwo(SyntaxKind.OpenBracketToken, SyntaxKind.QuestionOpenBracketToken);
         _bracketStack.Push(SyntaxKind.CloseBracketToken);
         var arguments = ParseArguments(SyntaxKind.CloseBracketToken);
         _bracketStack.Pop();
