@@ -854,7 +854,10 @@ public sealed class DisplayText {
     }
 
     private static void DisplayCompoundAssignmentOperator(DisplayText text, BoundCompoundAssignmentOperator node) {
-        var opKind = SyntaxFacts.GetAssignmentOperatorOfBinaryOperator(node.op.kind.ToSyntaxKind());
+        var opKind = node.op.kind == BinaryOperatorKind.Error
+            ? SyntaxKind.QuestionToken
+            : SyntaxFacts.GetAssignmentOperatorOfBinaryOperator(node.op.kind.ToSyntaxKind());
+
         DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind, false);
     }
 

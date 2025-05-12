@@ -94,7 +94,7 @@ public sealed class Compiler {
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
         if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
-            var corLibrary = LibraryHelpers.LoadLibraries();
+            var corLibrary = LibraryHelpers.LoadLibraries(_options);
             var corLibraryDiagnostics = corLibrary.GetDiagnostics();
             Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
             Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);

@@ -29,6 +29,7 @@
     <Content Remove="../../Belte/Standard/Exceptions/InvalidCastException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/InvalidOperationException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
+    <Content Remove="../../Belte/Graphics/Vec2.blt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,6 +47,7 @@
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/InvalidCastException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/InvalidOperationException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
+    <EmbeddedResource Include="../../Belte/Graphics/Vec2.blt" />
   </ItemGroup>
 
   <ItemGroup>

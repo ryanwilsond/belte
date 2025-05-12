@@ -263,7 +263,7 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotCallNonMethod, location, message);
     }
     internal static BelteDiagnostic InvalidExpressionStatement(TextLocation location) {
-        var message = "only assignment and call expressions can be used as a statement";
+        var message = "only assignment, call, throw, and increment expressions can be used as a statement";
         return CreateError(DiagnosticCode.ERR_InvalidExpressionStatement, location, message);
     }
 
@@ -1577,6 +1577,11 @@ internal static class Error {
     internal static BelteDiagnostic MultipleUpdates(TextLocation location) {
         var message = "cannot have multiple 'Update' graphics update points";
         return CreateError(DiagnosticCode.ERR_MultipleUpdates, location, message);
+    }
+
+    internal static BelteDiagnostic SeparateMainAndUpdate(TextLocation location) {
+        var message = "the 'Main' entry point and 'Update' graphics update point must be declared in the same class";
+        return CreateError(DiagnosticCode.ERR_SeparateMainAndUpdate, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

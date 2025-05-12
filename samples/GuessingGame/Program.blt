@@ -11,7 +11,7 @@
 // for either a `void Main()` or `int Main()` method to treat as the entry point.
 // There can only be 1 Main method, and it can be contained in any class
 static class Program {
-    public void Main() {
+    public static void Main() {
         var max = 100;
 
         // The functions `StartGame`, `AskForHints`, and `RunGame` are defined in "./Game.blt"
@@ -30,8 +30,8 @@ static class Program {
     }
 
     private static int StartGame(int max) {
-        // Use the `RandInt` builtin function to generate a random number from 0 to `max`, inclusive.
-        var magicNumber = RandInt(max);
+        // Use the `RandInt` built-in method to generate a random number from 0 to `max`, inclusive.
+        var magicNumber = Random.RandInt(max);
         Console.PrintLine("I thought of a number between 1 and " + ((string)max) + ".");
 
         return magicNumber;
@@ -40,7 +40,7 @@ static class Program {
     private static bool AskForHints() {
         while (true) {
             Console.Print("Do you want hints? ");
-            // Use the `Input` builtin function to get input from the user; standard in (the terminal).
+            // Use the `Input` built-in method to get input from the user; standard in (the terminal).
             var wantsHints = Console.Input();
 
             if (wantsHints == "yes" || wantsHints == "y")

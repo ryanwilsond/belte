@@ -42,7 +42,7 @@ public static class LibraryHelpers {
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries() {
+    public static Compilation LoadLibraries(CompilationOptions options) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -51,8 +51,15 @@ public static class LibraryHelpers {
                 continue;
 
             // TODO Remove this, temp
-            if (libraryName != "Compiler.Object.blt")
+            if (libraryName != "Compiler.Object.blt" &&
+                libraryName != "Compiler.Vec2.blt") {
                 continue;
+            }
+
+            if (options.outputKind != OutputKind.Graphics) {
+                if (libraryName == "Compiler.Vec2.blt")
+                    continue;
+            }
 
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);

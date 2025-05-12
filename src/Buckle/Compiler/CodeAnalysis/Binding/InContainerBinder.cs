@@ -16,10 +16,13 @@ internal class InContainerBinder : Binder {
         Symbol symbol,
         TypeSymbol accessThroughType,
         out bool failedThroughTypeCheck) {
-        failedThroughTypeCheck = false;
-        return IsSymbolAccessibleConditional(symbol, compilation.globalNamespaceInternal);
-    }
+        var type = container as NamedTypeSymbol;
 
+        if (type is not null)
+            return IsSymbolAccessibleConditional(symbol, type, accessThroughType, out failedThroughTypeCheck);
+        else
+            return next.IsAccessibleHelper(symbol, accessThroughType, out failedThroughTypeCheck);
+    }
 
     internal override void LookupSymbolsInSingleBinder(
         LookupResult result,

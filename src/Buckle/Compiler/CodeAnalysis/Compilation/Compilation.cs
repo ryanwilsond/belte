@@ -356,9 +356,6 @@ public sealed class Compilation {
         if (!returnType.IsVoidType())
             return false;
 
-        if (!method.isStatic)
-            return false;
-
         if (method.refKind != RefKind.None)
             return false;
 
@@ -425,9 +422,6 @@ public sealed class Compilation {
 
         if (method.parameterCount == 0)
             return true;
-
-        if (!method.isStatic)
-            return false;
 
         if (method.parameterCount > 1)
             return false;

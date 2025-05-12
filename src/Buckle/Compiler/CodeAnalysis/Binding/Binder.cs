@@ -7435,8 +7435,7 @@ symIsHidden:;
                     // TODO is this a reachable error?
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
-                } else if (((localSymbol.isConstExpr || localSymbol.isConst) && initializerType.IsNullableType())
-                    || (!localSymbol.isConstExpr && !localSymbol.isConst)) {
+                } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
                     // Always auto-lift unless specified constant and given a non-nullable initializer
                     // In order to widen constants' applicability to non-nullable contexts
                     declarationType = declarationType.SetIsAnnotated();
@@ -7724,7 +7723,8 @@ symIsHidden:;
                           and not BoundAssignmentOperator
                           and not BoundErrorExpression
                           and not BoundCompoundAssignmentOperator
-                          and not BoundThrowExpression) {
+                          and not BoundThrowExpression
+                          and not BoundIncrementOperator) {
                 diagnostics.Push(Error.InvalidExpressionStatement(node.location));
             }
         }

@@ -24,6 +24,7 @@ internal sealed class Evaluator {
     private EvaluatorObject _lastValue;
     private bool _hasValue;
     private MethodSymbol _lazyToString;
+    private Random _lazyRandom;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -87,7 +88,19 @@ internal sealed class Evaluator {
         }
 
         var entryPointBody = _program.methodBodies[entryPoint];
-        EnterClassScope(new EvaluatorObject([], entryPoint.containingType));
+        var programType = entryPoint.containingType;
+
+        if (programType.isStatic) {
+            EnterClassScope(new EvaluatorObject([], entryPoint.containingType));
+        } else {
+            var programObject = CreateObject(programType);
+            EnterClassScope(programObject);
+            var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
+
+            if (constructor is not null)
+                InvokeMethod(constructor, [], null, abort);
+        }
+
         var result = EvaluateStatement(entryPointBody, abort, out _);
         hasValue = _hasValue;
         return hasValue ? Value(result, true) : null;
@@ -482,7 +495,7 @@ internal sealed class Evaluator {
         var receiver = EvaluateExpression(node.receiver, abort);
         var index = EvaluateExpression(node.index, abort);
         var array = (EvaluatorObject[])Value(receiver);
-        var indexValue = (int)Value(index);
+        var indexValue = Convert.ToInt32(Value(index));
         return array[indexValue];
     }
 
@@ -689,13 +702,13 @@ internal sealed class Evaluator {
             case UnaryOperatorKind.UnaryPlus:
                 return operand;
             case UnaryOperatorKind.UnaryMinus:
-                result = expressionType == SpecialType.Int ? -(int)operandValue : -Convert.ToDouble(operandValue);
+                result = expressionType == SpecialType.Int ? -(long)operandValue : -Convert.ToDouble(operandValue);
                 break;
             case UnaryOperatorKind.LogicalNegation:
                 result = !(bool)operandValue;
                 break;
             case UnaryOperatorKind.BitwiseComplement:
-                result = ~(int)operandValue;
+                result = ~(long)operandValue;
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.operatorKind);
@@ -764,7 +777,7 @@ internal sealed class Evaluator {
         switch (opKind) {
             case BinaryOperatorKind.Addition:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue + (int)rightValue;
+                    result = (long)leftValue + (long)rightValue;
                 else if (expressionType == SpecialType.String)
                     result = (string)leftValue + (string)rightValue;
                 else
@@ -773,21 +786,21 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Subtraction:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue - (int)rightValue;
+                    result = (long)leftValue - (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) - Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Multiplication:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue * (int)rightValue;
+                    result = (long)leftValue * (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) * Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Division:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue / (int)rightValue;
+                    result = (long)leftValue / (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue);
 
@@ -800,72 +813,72 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.LessThan:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue < (int)rightValue;
+                    result = (long)leftValue < (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) < Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.GreaterThan:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue > (int)rightValue;
+                    result = (long)leftValue > (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) > Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.LessThanOrEqual:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue <= (int)rightValue;
+                    result = (long)leftValue <= (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) <= Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.GreaterThanOrEqual:
                 if (leftType == SpecialType.Int)
-                    result = (int)leftValue >= (int)rightValue;
+                    result = (long)leftValue >= (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) >= Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.And:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue & (int)rightValue;
+                    result = (long)leftValue & (long)rightValue;
                 else
                     result = (bool)leftValue & (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.Or:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue | (int)rightValue;
+                    result = (long)leftValue | (long)rightValue;
                 else
                     result = (bool)leftValue | (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.Xor:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue ^ (int)rightValue;
+                    result = (long)leftValue ^ (long)rightValue;
                 else
                     result = (bool)leftValue ^ (bool)rightValue;
 
                 break;
             case BinaryOperatorKind.LeftShift:
-                result = (int)leftValue << (int)rightValue;
+                result = (long)leftValue << Convert.ToInt32(rightValue);
                 break;
             case BinaryOperatorKind.RightShift:
-                result = (int)leftValue >> (int)rightValue;
+                result = (long)leftValue >> Convert.ToInt32(rightValue);
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
-                result = (int)leftValue >>> (int)rightValue;
+                result = (long)leftValue >>> Convert.ToInt32(rightValue);
                 break;
             case BinaryOperatorKind.Modulo:
                 if (expressionType == SpecialType.Int)
-                    result = (int)leftValue % (int)rightValue;
+                    result = (long)leftValue % (long)rightValue;
                 else
                     result = Convert.ToDouble(leftValue) % Convert.ToDouble(rightValue);
 
                 break;
             case BinaryOperatorKind.Power:
                 if (expressionType == SpecialType.Int)
-                    result = Math.Pow((int)leftValue, (int)rightValue);
+                    result = Math.Pow((long)leftValue, (long)rightValue);
                 else
                     result = Math.Pow(Convert.ToDouble(leftValue), Convert.ToDouble(rightValue));
 
@@ -960,7 +973,8 @@ internal sealed class Evaluator {
         if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Math.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.Time.underlyingNamedType)) {
+            method.containingType.Equals(StandardLibrary.Time.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
             var mapKey = LibraryHelpers.BuildMapKey(method);
 
             if (mapKey == "LowLevel_GetHashCode_O") {
@@ -968,6 +982,13 @@ internal sealed class Evaluator {
                 return true;
             } else if (mapKey == "LowLevel_GetTypeName_O") {
                 result = EvaluateExpression(arguments[0], abort).type.name;
+                return true;
+            }
+
+            if (mapKey == "Random_RandInt_I?") {
+                _lazyRandom ??= new Random();
+                var max = Value(EvaluateExpression(arguments[0], abort));
+                result = Convert.ToInt64(_lazyRandom.Next(Convert.ToInt32(max)));
                 return true;
             }
 

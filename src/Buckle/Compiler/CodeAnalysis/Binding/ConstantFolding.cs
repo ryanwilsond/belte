@@ -60,25 +60,25 @@ internal static class ConstantFolding {
         switch (opKind) {
             case BinaryOperatorKind.Addition:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue + (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue + (long)rightValue, specialType);
                 else if (specialType == SpecialType.String)
                     return new ConstantValue((string)leftValue + (string)rightValue, specialType);
                 else
                     return new ConstantValue((double)leftValue + (double)rightValue, specialType);
             case BinaryOperatorKind.Subtraction:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue - (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue - (long)rightValue, specialType);
                 else
                     return new ConstantValue((double)leftValue - (double)rightValue, specialType);
             case BinaryOperatorKind.Multiplication:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue * (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue * (long)rightValue, specialType);
                 else
                     return new ConstantValue((double)leftValue * (double)rightValue, specialType);
             case BinaryOperatorKind.Division:
                 if (specialType == SpecialType.Int) {
-                    if ((int)rightValue != 0)
-                        return new ConstantValue((int)leftValue / (int)rightValue, specialType);
+                    if ((long)rightValue != 0)
+                        return new ConstantValue((long)leftValue / (long)rightValue, specialType);
                 } else {
                     if ((double)rightValue != 0)
                         return new ConstantValue((double)leftValue / (double)rightValue, specialType);
@@ -87,7 +87,7 @@ internal static class ConstantFolding {
                 return null;
             case BinaryOperatorKind.Power:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)Math.Pow((int)leftValue, (int)rightValue), specialType);
+                    return new ConstantValue((long)Math.Pow((long)leftValue, (long)rightValue), specialType);
                 else
                     return new ConstantValue((double)Math.Pow((double)leftValue, (double)rightValue), specialType);
             case BinaryOperatorKind.ConditionalAnd:
@@ -100,48 +100,48 @@ internal static class ConstantFolding {
                 return new ConstantValue(!Equals(leftValue, rightValue), specialType);
             case BinaryOperatorKind.LessThan:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue < (int)rightValue, SpecialType.Bool);
+                    return new ConstantValue((long)leftValue < (long)rightValue, SpecialType.Bool);
                 else
                     return new ConstantValue((double)leftValue < (double)rightValue, SpecialType.Bool);
             case BinaryOperatorKind.GreaterThan:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue > (int)rightValue, SpecialType.Bool);
+                    return new ConstantValue((long)leftValue > (long)rightValue, SpecialType.Bool);
                 else
                     return new ConstantValue((double)leftValue > (double)rightValue, SpecialType.Bool);
             case BinaryOperatorKind.LessThanOrEqual:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue <= (int)rightValue, SpecialType.Bool);
+                    return new ConstantValue((long)leftValue <= (long)rightValue, SpecialType.Bool);
                 else
                     return new ConstantValue((double)leftValue <= (double)rightValue, SpecialType.Bool);
             case BinaryOperatorKind.GreaterThanOrEqual:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue >= (int)rightValue, SpecialType.Bool);
+                    return new ConstantValue((long)leftValue >= (long)rightValue, SpecialType.Bool);
                 else
                     return new ConstantValue((double)leftValue >= (double)rightValue, SpecialType.Bool);
             case BinaryOperatorKind.And:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue & (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue & (long)rightValue, specialType);
                 else
                     return new ConstantValue((bool)leftValue & (bool)rightValue, specialType);
             case BinaryOperatorKind.Or:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue | (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue | (long)rightValue, specialType);
                 else
                     return new ConstantValue((bool)leftValue | (bool)rightValue, specialType);
             case BinaryOperatorKind.Xor:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue ^ (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue ^ (long)rightValue, specialType);
                 else
                     return new ConstantValue((bool)leftValue ^ (bool)rightValue, specialType);
             case BinaryOperatorKind.LeftShift:
-                return new ConstantValue((int)leftValue << (int)rightValue, specialType);
+                return new ConstantValue((long)leftValue << Convert.ToInt32(rightValue), specialType);
             case BinaryOperatorKind.RightShift:
-                return new ConstantValue((int)leftValue >> (int)rightValue, specialType);
+                return new ConstantValue((long)leftValue >> Convert.ToInt32(rightValue), specialType);
             case BinaryOperatorKind.UnsignedRightShift:
-                return new ConstantValue((int)leftValue >>> (int)rightValue, specialType);
+                return new ConstantValue((long)leftValue >>> Convert.ToInt32(rightValue), specialType);
             case BinaryOperatorKind.Modulo:
                 if (specialType == SpecialType.Int)
-                    return new ConstantValue((int)leftValue % (int)rightValue, specialType);
+                    return new ConstantValue((long)leftValue % (long)rightValue, specialType);
                 else
                     return new ConstantValue((double)leftValue % (double)rightValue, specialType);
             default:
@@ -206,13 +206,13 @@ internal static class ConstantFolding {
                 return operand.constantValue;
             case UnaryOperatorKind.UnaryMinus:
                 if (operandSpecialType == SpecialType.Int)
-                    return new ConstantValue(-(int)operand.constantValue.value, specialType);
+                    return new ConstantValue(-(long)operand.constantValue.value, specialType);
                 else
                     return new ConstantValue(-(double)operand.constantValue.value, specialType);
             case UnaryOperatorKind.LogicalNegation:
                 return new ConstantValue(!(bool)operand.constantValue.value, specialType);
             case UnaryOperatorKind.BitwiseComplement:
-                return new ConstantValue(~(int)operand.constantValue.value, specialType);
+                return new ConstantValue(~(long)operand.constantValue.value, specialType);
             default:
                 throw ExceptionUtilities.UnexpectedValue(opKind);
         }
@@ -294,7 +294,7 @@ internal static class ConstantFolding {
             return null;
 
         var array = (ImmutableArray<ConstantValue>)expression.constantValue.value;
-        var item = array[(int)index.constantValue.value];
+        var item = array[Convert.ToInt32(index.constantValue.value)];
         var specialType = type.specialType;
 
         return new ConstantValue(item.value, specialType);

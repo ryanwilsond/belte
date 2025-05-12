@@ -810,7 +810,7 @@ internal sealed partial class OverloadResolution {
             var convLeft = conversions.ClassifyConversionFromExpression(left, op.leftType);
             var convRight = conversions.ClassifyConversionFromExpression(right, op.rightType);
 
-            if (convLeft.isImplicit && convRight.isImplicit) {
+            if (IsImplicitConversion(convLeft) && IsImplicitConversion(convRight)) {
                 results.Add(BinaryOperatorAnalysisResult.Applicable(op, convLeft, convRight));
                 hadApplicableCandidate = true;
             } else {
@@ -819,6 +819,18 @@ internal sealed partial class OverloadResolution {
         }
 
         return hadApplicableCandidate;
+    }
+
+    private bool IsImplicitConversion(Conversion conversion) {
+        if (!conversion.isImplicit)
+            return false;
+
+        if (conversion.underlyingConversions != default) {
+            if (!conversion.underlyingConversions[0].isImplicit)
+                return false;
+        }
+
+        return true;
     }
 
     private bool CandidateOperators(

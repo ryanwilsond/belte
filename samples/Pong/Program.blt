@@ -1,10 +1,24 @@
+/*
 
-static class Program {
-    public static void Main() {
+    Pong
+
+    This program uses the built-in graphics library to make an intractable, 2D pong game.
+
+*/
+
+// When `Main` is present in a non-static class, a single instance of that class is automatically created and managed
+// by the compiler, allowing you to modify and access instance data.
+class Program {
+    // When building a graphics project, many additional types are added to the global namespace, such as `Vec2`
+    private Vec2 a = new Vec2(3.5, 4.0);
+
+    public void Main() {
+        // `Graphics.Initialize` can be run at any time to create a new window
         Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
     }
 
-    public static void Update(decimal! deltaTime) {
-        Console.PrintLine(deltaTime);
+    // `Update` is a special method that the program runs every frame
+    public void Update(decimal! deltaTime) {
+        Console.PrintLine(((string)deltaTime) + " " + ((string)a.x) + " " + ((string)a.y));
     }
 }

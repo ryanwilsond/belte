@@ -66,10 +66,12 @@ internal sealed partial class BinderFactory {
             var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
-                if (_inScript)
-                    result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
-                else
-                    result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
+                // TODO The SubmissionBinder is what fetches types from previous compilations (so the CorLibrary)
+                // So is this fine as is, or should there still be some _inScript check
+                // if (_inScript)
+                result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
+                // else
+                //     result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
 
                 if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
                     is SynthesizedEntryPoint simpleProgram) {

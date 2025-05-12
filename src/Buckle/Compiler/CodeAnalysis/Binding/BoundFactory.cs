@@ -116,7 +116,7 @@ internal static partial class BoundFactory {
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            Literal(syntax, 1, operand.type),
+            Literal(syntax, 1L, operand.type),
             opSignature,
             null,
             null,
@@ -134,7 +134,7 @@ internal static partial class BoundFactory {
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            Literal(syntax, 1, operand.type),
+            Literal(syntax, 1L, operand.type),
             opSignature,
             null,
             null,

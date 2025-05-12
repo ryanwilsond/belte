@@ -14,6 +14,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyMath;
     private static SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
@@ -70,6 +71,15 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol Random {
+        get {
+            if (_lazyRandom is null)
+                Interlocked.CompareExchange(ref _lazyRandom, GenerateRandom(), null);
+
+            return _lazyRandom;
+        }
+    }
+
     internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
         get {
             if (_lazyEvaluatorMap is null)
@@ -86,6 +96,13 @@ internal static class StandardLibrary {
         yield return Math;
         yield return LowLevel;
         yield return Time;
+        yield return Random;
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
+        return StaticClass("Random", [
+            StaticMethod("RandInt", SpecialType.Int, [("max", SpecialType.Int, true)]),
+        ]);
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateTime() {
@@ -131,22 +148,22 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateConsole() {
         return StaticClass("Console", [
             StaticClass("Color", [
-                ConstExprField("Black", SpecialType.Int, 0),
-                ConstExprField("DarkBlue", SpecialType.Int, 1),
-                ConstExprField("DarkGreen", SpecialType.Int, 2),
-                ConstExprField("DarkCyan", SpecialType.Int, 3),
-                ConstExprField("DarkRed", SpecialType.Int, 4),
-                ConstExprField("DarkMagenta", SpecialType.Int, 5),
-                ConstExprField("DarkYellow", SpecialType.Int, 6),
-                ConstExprField("Gray", SpecialType.Int, 7),
-                ConstExprField("DarkGray", SpecialType.Int, 8),
-                ConstExprField("Blue", SpecialType.Int, 9),
-                ConstExprField("Green", SpecialType.Int, 10),
-                ConstExprField("Cyan", SpecialType.Int, 11),
-                ConstExprField("Red", SpecialType.Int, 12),
-                ConstExprField("Magenta", SpecialType.Int, 13),
-                ConstExprField("Yellow", SpecialType.Int, 14),
-                ConstExprField("White", SpecialType.Int, 15)
+                ConstExprField("Black", SpecialType.Int, 0L),
+                ConstExprField("DarkBlue", SpecialType.Int, 1L),
+                ConstExprField("DarkGreen", SpecialType.Int, 2L),
+                ConstExprField("DarkCyan", SpecialType.Int, 3L),
+                ConstExprField("DarkRed", SpecialType.Int, 4L),
+                ConstExprField("DarkMagenta", SpecialType.Int, 5L),
+                ConstExprField("DarkYellow", SpecialType.Int, 6L),
+                ConstExprField("Gray", SpecialType.Int, 7L),
+                ConstExprField("DarkGray", SpecialType.Int, 8L),
+                ConstExprField("Blue", SpecialType.Int, 9L),
+                ConstExprField("Green", SpecialType.Int, 10L),
+                ConstExprField("Cyan", SpecialType.Int, 11L),
+                ConstExprField("Red", SpecialType.Int, 12L),
+                ConstExprField("Magenta", SpecialType.Int, 13L),
+                ConstExprField("Yellow", SpecialType.Int, 14L),
+                ConstExprField("White", SpecialType.Int, 15L)
             ]),
             StaticMethod("GetWidth", SpecialType.Int),
             StaticMethod("GetHeight", SpecialType.Int),
@@ -289,9 +306,9 @@ internal static class StandardLibrary {
             { "Math_Abs_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Abs(Convert.ToDouble(a)); }) },
             { "Math_Abs_I?", new Func<object, object, object, object>((a, b, c)
-                => { return a is null ? null : System.Math.Abs((int)a); }) },
+                => { return a is null ? null : System.Math.Abs((long)a); }) },
             { "Math_Abs_I", new Func<object, object, object, object>((a, b, c)
-                => { return System.Math.Abs((int)a); }) },
+                => { return System.Math.Abs((long)a); }) },
             { "Math_Acos_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Acos(Convert.ToDouble(a)); }) },
             { "Math_Acos_D", new Func<object, object, object, object>((a, b, c)
@@ -325,9 +342,9 @@ internal static class StandardLibrary {
             { "Math_Clamp_DDD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
             { "Math_Clamp_I?I?I?", new Func<object, object, object, object>((a, b, c)
-                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((int)a, (int)b, (int)c); }) },
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((long)a, (long)b, (long)c); }) },
             { "Math_Clamp_III", new Func<object, object, object, object>((a, b, c)
-                => { return System.Math.Clamp((int)a, (int)b, (int)c); }) },
+                => { return System.Math.Clamp((long)a, (long)b, (long)c); }) },
             { "Math_Cos_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Cos(Convert.ToDouble(a)); }) },
             { "Math_Cos_D", new Func<object, object, object, object>((a, b, c)
@@ -361,17 +378,17 @@ internal static class StandardLibrary {
             { "Math_Max_DD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Max_I?I?", new Func<object, object, object, object>((a, b, c)
-                => { return a is null || b is null ? null : System.Math.Max((int)a, (int)b); }) },
+                => { return a is null || b is null ? null : System.Math.Max((long)a, (long)b); }) },
             { "Math_Max_II", new Func<object, object, object, object>((a, b, c)
-                => { return System.Math.Max((int)a, (int)b); }) },
+                => { return System.Math.Max((long)a, (long)b); }) },
             { "Math_Min_D?D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null || b is null ? null : System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Min_DD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Min_I?I?", new Func<object, object, object, object>((a, b, c)
-                => { return a is null || b is null ? null : System.Math.Min((int)a, (int)b); }) },
+                => { return a is null || b is null ? null : System.Math.Min((long)a, (long)b); }) },
             { "Math_Min_II", new Func<object, object, object, object>((a, b, c)
-                => { return System.Math.Min((int)a, (int)b); }) },
+                => { return System.Math.Min((long)a, (long)b); }) },
             { "Math_Pow_D?D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Pow_DD", new Func<object, object, object, object>((a, b, c)

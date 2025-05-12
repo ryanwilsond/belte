@@ -13,6 +13,7 @@ this is a convention, and not required.)
 | [samples/HelloWorld](HelloWorld/Program.blt) | `buckle samples/HelloWorld` | Hello, world! program. |
 | [samples/Echo](Echo/Program.blt) | `buckle samples/Echo -- arg1 arg2` | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | `buckle samples/GuessingGame` | Random number guessing game. |
+| [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | 2D pong game. |
 
 ## Running a Sample Using the Interpreter
 
@@ -22,4 +23,14 @@ E.g.
 
 ```bash
 buckle samples/HelloWorld
+```
+
+Most of the samples are console projects, which is the default project type. For graphics projects
+(like the Pong sample), you must also specify the project type to be `graphics` for all of the graphics-related
+types to be properly loaded.
+
+E.g.
+
+```bash
+buckle samples/Pong --type=graphics
 ```

@@ -49,6 +49,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var entryPoint = GetEntryPoint(compilation, diagnostics);
         var updatePoint = GetUpdatePoint(compilation, diagnostics);
 
+        if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
+            diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
+
         var methodCompiler = new MethodCompiler(
             compilation,
             methodBodiesBeingBuilt,
