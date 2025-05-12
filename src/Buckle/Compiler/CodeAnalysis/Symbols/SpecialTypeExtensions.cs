@@ -33,7 +33,7 @@ internal static class SpecialTypeExtensions {
         if (value is null)
             return SpecialType.None;
 
-        if (value.GetType() == typeof(int))
+        if (value.GetType() == typeof(long))
             return SpecialType.Int;
 
         if (value.GetType() == typeof(string))

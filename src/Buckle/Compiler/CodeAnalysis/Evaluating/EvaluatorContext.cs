@@ -5,10 +5,13 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 public sealed class EvaluatorContext {
+    internal readonly CompilationOptions options;
+
     private readonly Dictionary<string, (DataContainerSymbol, EvaluatorObject)> _symbols;
 
-    public EvaluatorContext() {
+    public EvaluatorContext(CompilationOptions options) {
         _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
+        this.options = options;
     }
 
     public IEnumerable<IDataContainerSymbol> GetTrackedSymbols() {

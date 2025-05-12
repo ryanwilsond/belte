@@ -169,14 +169,7 @@ done:
         }
 
         RegisterDeclaredCorTypes(builder);
-
-        foreach (var libraryType in StandardLibrary.GetTypes()) {
-            ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
-                builder,
-                libraryType.name.AsMemory(),
-                libraryType
-            );
-        }
+        LibraryHelpers.DeclareLibrariesInNamespace(builder, declaringCompilation.options);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,

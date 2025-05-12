@@ -1029,7 +1029,7 @@ internal sealed class CSharpEmitter {
     //     } else if (typeSymbol == TypeSymbol.String) {
     //         indentedTextWriter.Write("global::System.Convert.ToString(");
     //     } else if (typeSymbol == TypeSymbol.Int) {
-    //         indentedTextWriter.Write("global::System.Convert.ToInt32(");
+    //         indentedTextWriter.Write("global::System.Convert.ToInt64(");
 
     //         if (expression.operand.type.typeSymbol == TypeSymbol.Decimal) {
     //             indentedTextWriter.Write("global::System.Math.Truncate(");

@@ -973,7 +973,7 @@ internal sealed partial class ILEmitter {
     //     }
 
     //     if (expressionType == TypeSymbol.Int) {
-    //         var value = Convert.ToInt32(constant.value);
+    //         var value = Convert.ToInt64(constant.value);
     //         iLProcessor.Emit(OpCodes.Ldc_I4, value);
     //     } else if (expressionType == TypeSymbol.String) {
     //         var value = Convert.ToString(constant.value);

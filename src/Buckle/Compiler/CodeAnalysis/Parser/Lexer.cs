@@ -729,16 +729,16 @@ internal sealed class Lexer : IDisposable {
         if (!hasDecimal && !hasExponent) {
             var @base = isBinary ? 2 : 16;
             var failed = false;
-            var value = 0;
+            long value = 0;
 
             if (isBinary || isHexadecimal) {
                 try {
-                    value = Convert.ToInt32(
+                    value = Convert.ToInt64(
                         numericText.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
                 } catch (Exception e) when (e is OverflowException || e is FormatException) {
                     failed = true;
                 }
-            } else if (!int.TryParse(parsedText, out value)) {
+            } else if (!long.TryParse(parsedText, out value)) {
                 failed = true;
             }
 
@@ -752,10 +752,15 @@ internal sealed class Lexer : IDisposable {
                 _value = value;
             }
         } else {
-            if (!double.TryParse(parsedText, out var value))
-                AddDiagnostic(Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Decimal)), _start, length);
-            else
+            if (!double.TryParse(parsedText, out var value)) {
+                AddDiagnostic(
+                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Decimal)),
+                    _start,
+                    length
+                );
+            } else {
                 _value = value;
+            }
         }
 
         _kind = SyntaxKind.NumericLiteralToken;

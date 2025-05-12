@@ -7,12 +7,13 @@ using static Buckle.Libraries.LibraryHelpers;
 
 namespace Buckle.Libraries;
 
-internal static partial class StandardLibrary {
+internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyDirectory;
     private static SynthesizedFinishedNamedTypeSymbol _lazyFile;
     private static SynthesizedFinishedNamedTypeSymbol _lazyConsole;
     private static SynthesizedFinishedNamedTypeSymbol _lazyMath;
     private static SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
@@ -60,6 +61,15 @@ internal static partial class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol Time {
+        get {
+            if (_lazyTime is null)
+                Interlocked.CompareExchange(ref _lazyTime, GenerateTime(), null);
+
+            return _lazyTime;
+        }
+    }
+
     internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
         get {
             if (_lazyEvaluatorMap is null)
@@ -75,6 +85,13 @@ internal static partial class StandardLibrary {
         yield return Console;
         yield return Math;
         yield return LowLevel;
+        yield return Time;
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateTime() {
+        return StaticClass("Time", [
+            StaticMethod("Now", SpecialType.Int),
+        ]);
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateLowLevel() {
@@ -224,13 +241,13 @@ internal static partial class StandardLibrary {
             { "Console_Input", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) return System.Console.ReadLine(); return null; }) },
             { "Console_PrintLine", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
             { "Console_PrintLine_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
             { "Console_PrintLine_A?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
             { "Console_PrintLine_O?", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(); return null; }) },
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
             { "Console_Print_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
             { "Console_Print_A?", new Func<object, object, object, object>((a, b, c)
@@ -387,8 +404,10 @@ internal static partial class StandardLibrary {
                 => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
-            { "LowLevel_Length_A?", new Func<object, object, object ,object>((a, b, c)
-                => { return a is null ? null : ((EvaluatorObject[])a).Length; }) }
+            { "LowLevel_Length_A?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : ((EvaluatorObject[])a).Length; }) },
+            { "Time_Now", new Func<object, object, object, object>((a, b, c)
+                => { return DateTime.Now.Ticks; }) }
         };
     }
 }

@@ -1,0 +1,4 @@
+
+static class Graphics {
+    public static void Initialize(string! title, int! width, int! height);
+}

@@ -36,7 +36,7 @@ internal sealed class Interpreter {
         // compilation needs to have a copy of the text starting at this index.
         var textOffset = 0;
 
-        var context = new EvaluatorContext();
+        var context = new EvaluatorContext(options);
 
         EvaluationResult result = null;
         Compilation previous = null;

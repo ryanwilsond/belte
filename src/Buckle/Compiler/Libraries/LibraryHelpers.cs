@@ -1,16 +1,23 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
 
-internal static class LibraryHelpers {
+public static class LibraryHelpers {
+    internal static readonly CompilationOptions LibraryOptions
+        = new CompilationOptions(BuildMode.None, OutputKind.Library);
+
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyAnyArray;
 
@@ -29,6 +36,54 @@ internal static class LibraryHelpers {
                 Interlocked.CompareExchange(ref _lazyAnyArray, GenerateAnyArray(), null);
 
             return _lazyAnyArray.type;
+        }
+    }
+
+    /// <summary>
+    /// Creates a compilation containing all of the built-in libraries.
+    /// </summary>
+    public static Compilation LoadLibraries() {
+        var assembly = Assembly.GetExecutingAssembly();
+        var syntaxTrees = new List<SyntaxTree>();
+
+        foreach (var libraryName in assembly.GetManifestResourceNames()) {
+            if (libraryName.StartsWith("Compiler.Resources"))
+                continue;
+
+            // TODO Remove this, temp
+            if (libraryName != "Compiler.Object.blt")
+                continue;
+
+            using var stream = assembly.GetManifestResourceStream(libraryName);
+            using var reader = new StreamReader(stream);
+            var text = reader.ReadToEnd().TrimEnd();
+
+            var syntaxTree = SyntaxTree.Load(libraryName, text);
+            syntaxTrees.Add(syntaxTree);
+        }
+
+        var corLibrary = Compilation.Create("CorLibrary", LibraryOptions, syntaxTrees.ToArray());
+        corLibrary.GetDiagnostics();
+
+        return corLibrary;
+    }
+
+    internal static void DeclareLibrariesInNamespace(
+        PooledDictionary<ReadOnlyMemory<char>, object> builder,
+        CompilationOptions options) {
+        AddTypesToBuilder(StandardLibrary.GetTypes());
+
+        if (options.outputKind == OutputKind.Graphics)
+            AddTypesToBuilder(GraphicsLibrary.GetTypes());
+
+        void AddTypesToBuilder(IEnumerable<NamedTypeSymbol> types) {
+            foreach (var type in types) {
+                CodeAnalysis.ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
+                    builder,
+                    type.name.AsMemory(),
+                    type
+                );
+            }
         }
     }
 

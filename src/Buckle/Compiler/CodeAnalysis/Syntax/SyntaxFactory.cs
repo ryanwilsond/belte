@@ -41,7 +41,7 @@ public static partial class SyntaxFactory {
     /// Creates a <see cref="LiteralExpressionSyntax"/>.
     /// </summary>
     public static LiteralExpressionSyntax Literal(object value) {
-        if (value is int or double) {
+        if (value is long or double) {
             return LiteralExpression(Token(SyntaxKind.NumericLiteralToken, value.ToString(), value));
         } else if (value is bool b) {
             return LiteralExpression(

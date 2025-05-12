@@ -175,7 +175,7 @@ public sealed class Compilation {
     }
 
     public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
-        return Evaluate(new EvaluatorContext(), abort, logTime);
+        return Evaluate(new EvaluatorContext(options), abort, logTime);
     }
 
     public EvaluationResult Evaluate(
@@ -188,7 +188,9 @@ public sealed class Compilation {
 
 #if DEBUG
         if (options.enableOutput) {
-            EmitCFG();
+            if (!builder.AnyErrors())
+                EmitCFG();
+
             EmitBoundProgram();
         }
 #endif
@@ -256,7 +258,9 @@ public sealed class Compilation {
 
 #if DEBUG
         if (options.enableOutput) {
-            EmitCFG();
+            if (!builder.AnyErrors())
+                EmitCFG();
+
             EmitBoundProgram();
         }
 #endif

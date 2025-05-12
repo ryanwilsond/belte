@@ -31,11 +31,11 @@ internal static class LiteralUtilities {
             case SpecialType.Bool:
                 return Convert.ToBoolean(value);
             case SpecialType.Int:
-                // Prevents bankers rounding from Convert.ToInt32, instead always truncate (no rounding)
+                // Prevents bankers rounding from Convert.ToInt64, instead always truncate (no rounding)
                 if (value.IsFloatingPoint())
                     value = Math.Truncate(Convert.ToDouble(value));
 
-                return Convert.ToInt32(value);
+                return Convert.ToInt64(value);
             case SpecialType.Decimal:
                 return Convert.ToDouble(value);
             case SpecialType.String:
@@ -51,7 +51,7 @@ internal static class LiteralUtilities {
         if (value is bool)
             return SpecialType.Bool;
 
-        if (value is int)
+        if (value is long)
             return SpecialType.Int;
 
         if (value is string)

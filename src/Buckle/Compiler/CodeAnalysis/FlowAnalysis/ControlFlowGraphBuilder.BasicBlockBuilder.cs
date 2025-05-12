@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;

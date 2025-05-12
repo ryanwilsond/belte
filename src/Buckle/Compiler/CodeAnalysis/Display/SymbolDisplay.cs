@@ -271,16 +271,18 @@ public static class SymbolDisplay {
         }
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeDefaultValue) != 0) {
-            text.Write(CreateSpace());
-            text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
-            text.Write(CreateSpace());
-
             var defaultValue = templateParameter.defaultValue;
 
-            if (defaultValue.isConstant)
-                DisplayText.DisplayConstant(text, defaultValue.constant);
-            else
-                DisplayType(text, defaultValue.type.type, format);
+            if (defaultValue is not null) {
+                text.Write(CreateSpace());
+                text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+                text.Write(CreateSpace());
+
+                if (defaultValue.isConstant)
+                    DisplayText.DisplayConstant(text, defaultValue.constant);
+                else
+                    DisplayType(text, defaultValue.type.type, format);
+            }
         }
     }
 

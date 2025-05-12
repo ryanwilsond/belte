@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -22,6 +23,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject _lastValue;
     private bool _hasValue;
+    private MethodSymbol _lazyToString;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -56,6 +58,19 @@ internal sealed class Evaluator {
     /// All thrown exceptions during evaluation.
     /// </summary>
     internal List<Exception> exceptions { get; set; }
+
+    private MethodSymbol toStringMethod {
+        get {
+            if (_lazyToString is null) {
+                var toString = CorLibrary.GetSpecialType(SpecialType.Object)
+                    .GetMembers(WellKnownMemberNames.ToString).First() as MethodSymbol;
+
+                Interlocked.CompareExchange(ref _lazyToString, toString, null);
+            }
+
+            return _lazyToString;
+        }
+    }
 
     /// <summary>
     /// Evaluate the provided <see cref="BoundProgram" />.
@@ -228,26 +243,6 @@ internal sealed class Evaluator {
         }
 
         return reference;
-    }
-
-    private static object SpecialTypeCast(object value, SpecialType target) {
-        switch (target) {
-            case SpecialType.Int:
-                if (value.IsFloatingPoint())
-                    value = Math.Truncate(Convert.ToDouble(value));
-
-                return Convert.ToInt32(value);
-            case SpecialType.Decimal:
-                return Convert.ToDouble(value);
-            case SpecialType.Bool:
-                return Convert.ToBoolean(value);
-            case SpecialType.String:
-                return Convert.ToString(value);
-            case SpecialType.Char:
-                return Convert.ToChar(value);
-            default:
-                return value;
-        }
     }
 
     private EvaluatorObject CreateObject(NamedTypeSymbol type) {
@@ -933,7 +928,7 @@ internal sealed class Evaluator {
             if (source.Equals(target, TypeCompareKind.IgnoreNullability))
                 return value;
 
-            return new EvaluatorObject(SpecialTypeCast(valueValue, target.specialType), target);
+            return new EvaluatorObject(LiteralUtilities.Cast(valueValue, target), target);
         }
 
         if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)target))
@@ -955,9 +950,20 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
+        // First check if we are in a graphics project before comparing
+        // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
+        if (_context.options.outputKind == OutputKind.Graphics) {
+            if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType)) {
+                Console.WriteLine("Graphics library call");
+
+                return true;
+            }
+        }
+
         if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Math.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
+            method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.Time.underlyingNamedType)) {
             var mapKey = LibraryHelpers.BuildMapKey(method);
 
             if (mapKey == "LowLevel_GetHashCode_O") {
@@ -969,6 +975,16 @@ internal sealed class Evaluator {
             }
 
             var function = StandardLibrary.EvaluatorMap[mapKey];
+
+            if (mapKey == "Console_Print_S?" || mapKey == "Console_Print_A?" || mapKey == "Console_Print_O?")
+                printed = true;
+
+            if (mapKey == "Console_Print_O?" || mapKey == "Console_PrintLine_O?") {
+                // Special case where we inject a call to Object.ToString before calling the Console method
+                var toStringResult = InvokeMethod(toStringMethod, [], arguments[0], abort);
+                result = function(Value(toStringResult), null, null);
+                return true;
+            }
 
             var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
 

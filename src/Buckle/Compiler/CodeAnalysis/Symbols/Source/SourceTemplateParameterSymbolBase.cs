@@ -54,7 +54,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
                 diagnostics.Free();
             }
 
-            _state.SpinWaitComplete(CompletionParts.EndDefaultSyntaxValue);
+            _state.NotePartComplete(CompletionParts.EndDefaultSyntaxValue);
             return _lazyDefaultValue;
         }
     }

@@ -14,6 +14,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Diagnostics;
 using Repl.Themes;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
@@ -108,7 +109,7 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.context = new EvaluatorContext();
+        state.context = new EvaluatorContext(DefaultOptions);
         state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
         _changes.Clear();
@@ -290,7 +291,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private BelteDiagnosticQueue LoadLibraries() {
-        var compilation = CompilerHelpers.LoadLibraries();
+        var compilation = LibraryHelpers.LoadLibraries();
         state.baseCompilation = compilation;
         // compilation.Evaluate(_abortEvaluation);
         return compilation.GetDiagnostics();

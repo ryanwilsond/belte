@@ -1619,8 +1619,15 @@ internal sealed partial class OverloadResolution {
         var type2ToType1 = conversions.ClassifyImplicitConversionFromType(type2, type1).isImplicit;
 
         if (type1ToType2) {
-            if (type2ToType1)
-                return BetterResult.Neither;
+            if (type2ToType1) {
+                // TODO This boxing check is probably misplaced
+                if (conv1.isBoxing && conv2.isBoxing)
+                    return BetterResult.Neither;
+                else if (conv1.isBoxing)
+                    return BetterResult.Right;
+                else
+                    return BetterResult.Left;
+            }
 
             okToDowngradeToNeither = false;
             return BetterResult.Left;

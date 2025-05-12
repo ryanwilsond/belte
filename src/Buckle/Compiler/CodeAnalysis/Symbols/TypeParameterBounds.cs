@@ -25,8 +25,4 @@ internal sealed class TypeParameterBounds {
     internal NamedTypeSymbol effectiveBaseClass { get; }
 
     internal TypeSymbol deducedBaseType { get; }
-
-    internal bool IsSet() {
-        return this != Unset;
-    }
 }

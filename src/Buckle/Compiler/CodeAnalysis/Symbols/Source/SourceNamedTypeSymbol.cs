@@ -341,12 +341,13 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
             var constraintClauses = GetConstraintClauses(syntaxReference.node, out var templateParameterList);
 
-            if (!skipPartialDeclarationsWithoutConstraintClauses || constraintClauses.Count != 0) {
+            if (!skipPartialDeclarationsWithoutConstraintClauses ||
+                (constraintClauses is not null && constraintClauses.Count != 0)) {
                 var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
                 Binder binder;
                 ImmutableArray<TypeParameterConstraintClause> constraints;
 
-                if (constraintClauses.Count == 0) {
+                if (constraintClauses is null || constraintClauses.Count == 0) {
                     binder = binderFactory.GetBinder(templateParameterList.parameters[0]);
                     constraints = binder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
                 } else {
@@ -393,12 +394,13 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
             var constraintClauses = GetConstraintClauses(syntaxReference.node, out var templateParameterList);
 
-            if (!skipPartialDeclarationsWithoutConstraintClauses || constraintClauses.Count != 0) {
+            if (!skipPartialDeclarationsWithoutConstraintClauses ||
+                (constraintClauses is not null && constraintClauses.Count != 0)) {
                 var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
                 Binder binder;
                 ImmutableArray<TypeParameterConstraintClause> constraints;
 
-                if (constraintClauses.Count == 0) {
+                if (constraintClauses is null || constraintClauses.Count == 0) {
                     binder = binderFactory.GetBinder(templateParameterList.parameters[0]);
                     constraints = binder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
                 } else {
@@ -440,7 +442,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
     private bool SkipPartialDeclarationsWithoutConstraintClauses() {
         foreach (var decl in _declaration.declarations) {
-            if (GetConstraintClauses(decl.syntaxReference.node, out _).Count != 0)
+            var constraints = GetConstraintClauses(decl.syntaxReference.node, out _);
+
+            if (constraints is not null && constraints.Count != 0)
                 return true;
         }
 
@@ -455,7 +459,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             case SyntaxKind.StructDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)node;
                 templateParameterList = typeDeclaration.templateParameterList;
-                return typeDeclaration.constraintClauseList.constraintClauses;
+                return typeDeclaration.constraintClauseList?.constraintClauses;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
