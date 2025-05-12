@@ -52,13 +52,9 @@ public static class LibraryHelpers {
 
             // TODO Remove this, temp
             if (libraryName != "Compiler.Object.blt" &&
-                libraryName != "Compiler.Vec2.blt") {
+                libraryName != "Compiler.Vec2.blt" &&
+                libraryName != "Compiler.Sprite.blt") {
                 continue;
-            }
-
-            if (options.outputKind != OutputKind.Graphics) {
-                if (libraryName == "Compiler.Vec2.blt")
-                    continue;
             }
 
             using var stream = assembly.GetManifestResourceStream(libraryName);

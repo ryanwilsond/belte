@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -8,6 +9,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.Xna.Framework.Graphics;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -16,6 +18,8 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Evaluates BoundStatements inline similar to an interpreter.
 /// </summary>
 internal sealed class Evaluator {
+    private static readonly Symbol HiddenSpriteData = new SynthesizedLabelSymbol("texture");
+
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
     private readonly Stack<Dictionary<Symbol, EvaluatorObject>> _locals;
@@ -967,7 +971,7 @@ internal sealed class Evaluator {
         // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
         if (_context.options.outputKind == OutputKind.Graphics) {
             if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
-                return HandleGraphicsCall(method, arguments, abort);
+                return HandleGraphicsCall(method, arguments, abort, out result);
         }
 
         if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
@@ -1023,17 +1027,50 @@ internal sealed class Evaluator {
     private bool HandleGraphicsCall(
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
-        ValueWrapper<bool> abort) {
+        ValueWrapper<bool> abort,
+        out object result) {
+        result = null;
         var mapKey = LibraryHelpers.BuildMapKey(method);
-        var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
 
         if (mapKey == "Graphics_Initialize_SII") {
+            var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
+
             StartGraphics(
                 (string)valueArguments[0],
                 Convert.ToInt32(valueArguments[1]),
                 Convert.ToInt32(valueArguments[2]),
                 abort
             );
+        } else if (mapKey == "Graphics_LoadSprite_SVVI") {
+            var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+            var path = (string)Value(evaluatedArguments[0]);
+
+            if (!File.Exists(path))
+                return true;
+
+            var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+            var sprite = CreateObject(spriteType);
+            var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+            sprite.members[spriteFields[0]] = evaluatedArguments[1];
+            sprite.members[spriteFields[1]] = evaluatedArguments[2];
+            sprite.members[spriteFields[2]] = evaluatedArguments[3];
+            sprite.members[HiddenSpriteData] = new EvaluatorObject(_context.graphicsHandler?.LoadSprite(path), null);
+        } else if (mapKey == "Graphics_DrawSprite_S?") {
+            var argument = EvaluateExpression(arguments[0], abort);
+
+            if (Value(argument) is null)
+                return true;
+
+            var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+            var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+            var posX = Convert.ToSingle(argument.members[spriteFields[0]].members.Values.ElementAt(0).value);
+            var posY = Convert.ToSingle(argument.members[spriteFields[0]].members.Values.ElementAt(1).value);
+            var scaleX = Convert.ToSingle(argument.members[spriteFields[1]].members.Values.ElementAt(0).value);
+            var scaleY = Convert.ToSingle(argument.members[spriteFields[1]].members.Values.ElementAt(1).value);
+            var rotation = (int)argument.members[spriteFields[2]].value;
+            var texture = (Texture2D)argument.members[HiddenSpriteData].value;
+
+            _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
         }
 
         return true;

@@ -13,6 +13,7 @@ internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
     private const int TotalSpecialTypes = 13 - 2; // TODO remove -2 after adding List and Dict
+    private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 2;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
 
@@ -53,7 +54,7 @@ internal sealed class CorLibrary {
 
     internal static bool StillLookingForSpecialTypes() {
         Instance.EnsureCorLibraryIsComplete();
-        return Instance._registeredSpecialTypes < TotalSpecialTypes;
+        return Instance._registeredSpecialTypes < TotalSpecialTypesIncludingGraphicsTypes;
     }
 
     internal static void GetAllBuiltInBinaryOperators(
@@ -110,7 +111,7 @@ internal sealed class CorLibrary {
 
         Interlocked.Increment(ref _registeredSpecialTypes);
 
-        if (_registeredSpecialTypes > TotalSpecialTypes)
+        if (_registeredSpecialTypes > TotalSpecialTypesIncludingGraphicsTypes)
             throw new UnreachableException($"Registered more special types than there are special types");
     }
 

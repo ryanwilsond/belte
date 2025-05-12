@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -84,7 +86,17 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         binder = binder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
 
         var typeOnly = typeSyntax.SkipRef(out var refKind);
-        type = binder.BindType(typeOnly, diagnostics);
+        type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped);
+
+        if (isImplicitlyTyped) {
+            var location = typeOnly is IdentifierNameSyntax
+                ? typeOnly.location
+                : ((FieldDeclarationSyntax)syntaxNode.parent).modifiers
+                    .Where(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword).Last().location;
+
+            diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
+            type = new TypeWithAnnotations(binder.CreateErrorType());
+        }
 
         if (Interlocked.CompareExchange(ref _lazyTypeAndRefKind, new TypeAndRefKind(refKind, type), null) is null) {
             TypeChecks(type.type, diagnostics);

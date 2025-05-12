@@ -132,8 +132,9 @@ internal sealed class Conversions {
         if (sourceExpression.IsLiteralNull()) {
             if (target.IsNullableType())
                 return Conversion.NullLiteral;
-            else if (target.isObjectType)
-                return Conversion.ImplicitReference;
+            // TODO Do we actually need this type of cast:
+            // else if (target.isObjectType)
+            //     return Conversion.ImplicitReference;
             else
                 return Conversion.None;
         }

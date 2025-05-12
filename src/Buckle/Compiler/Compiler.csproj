@@ -30,6 +30,7 @@
     <Content Remove="../../Belte/Standard/Exceptions/InvalidOperationException.blt" />
     <Content Remove="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
     <Content Remove="../../Belte/Graphics/Vec2.blt" />
+    <Content Remove="../../Belte/Graphics/Sprite.blt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,6 +49,7 @@
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/InvalidOperationException.blt" />
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Vec2.blt" />
+    <EmbeddedResource Include="../../Belte/Graphics/Sprite.blt" />
   </ItemGroup>
 
   <ItemGroup>

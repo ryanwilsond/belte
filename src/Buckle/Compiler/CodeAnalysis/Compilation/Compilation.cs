@@ -86,7 +86,7 @@ public sealed class Compilation {
 
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
-    internal static bool KeepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+    internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
     internal NamespaceSymbol globalNamespaceInternal {
         get {

@@ -564,7 +564,7 @@ internal partial class Binder {
         TypeSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool isImplicitlyTyped) {
-        if (syntax.isImplicitlyTyped) {
+        if (syntax.isImplicitlyTyped || (syntax is NonNullableTypeSyntax n && n.type.isImplicitlyTyped)) {
             isImplicitlyTyped = true;
             return new TypeWithAnnotations(null, true);
         } else {
@@ -5797,7 +5797,7 @@ internal partial class Binder {
 
         var operandType = operand.type;
 
-        if (!operandType.IsNullableType()) {
+        if (!operandType.IsNullableType() && operand.kind != BoundKind.ObjectCreationExpression) {
             diagnostics.Push(Error.NullAssertOnNonNullableType(node.location, operandType));
             return new BoundNullAssertOperator(node, operand, null, operandType, true);
         }
@@ -7425,6 +7425,12 @@ symIsHidden:;
         BoundExpression initializer;
         if (isImplicitlyTyped) {
             initializer = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration);
+
+            if (initializer is not null && initializer.IsLiteralNull()) {
+                diagnostics.Push(Error.NullAssignOnImplicit(declaration.location));
+                hasErrors = true;
+            }
+
             var initializerType = initializer?.type;
 
             if (initializerType is not null) {
@@ -7436,9 +7442,10 @@ symIsHidden:;
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
-                    // Always auto-lift unless specified constant and given a non-nullable initializer
-                    // In order to widen constants' applicability to non-nullable contexts
-                    declarationType = declarationType.SetIsAnnotated();
+                    // Currently, we only auto-lift if initialized with an object creation
+                    // TODO Consider if we should ever auto-lift?
+                    if (initializer.kind == BoundKind.ObjectCreationExpression)
+                        declarationType = declarationType.SetIsAnnotated();
                 }
 
                 if (!declarationType.type.IsErrorType()) {

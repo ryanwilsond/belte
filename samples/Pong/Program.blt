@@ -10,15 +10,43 @@
 // by the compiler, allowing you to modify and access instance data.
 class Program {
     // When building a graphics project, many additional types are added to the global namespace, such as `Vec2`
-    private Vec2 a = new Vec2(3.5, 4.0);
+    private Vec2! centerOfScreen;
+    private Vec2! ballPosition;
+    private Vec2! lPaddleTargetPosition;
+    private Vec2! rPaddleTargetPosition;
+
+    Sprite ballSprite;
+    Sprite lPaddle;
+    Sprite rPaddle;
 
     public void Main() {
+        centerOfScreen = new Vec2(Settings.ScreenWidth / 2.0, Settings.ScreenHeight / 2.0);
+
+        var ballScale = new Vec2(10, 10)!;
+        ballPosition = centerOfScreen;
+
+        var paddleScale = new Vec2(4, 70)!;
+        var yPosPaddle = centerOfScreen.y;
+
+        var lPaddlePosition = new Vec2(15, yPosPaddle)!;
+        lPaddleTargetPosition = new Vec2(15, yPosPaddle)!;
+
+        var rOffset = Settings.ScreenWidth - 15;
+        var rPaddlePosition = new Vec2(rOffset, yPosPaddle)!;
+        rPaddleTargetPosition = new Vec2(rOffset, yPosPaddle)!;
+
+        ballSprite = Graphics.LoadSprite("samples/Pong/ball.png", ballPosition, ballScale, 0);
+        lPaddle = Graphics.LoadSprite("samples/Pong/square.png", lPaddlePosition, paddleScale, 0);
+        rPaddle = Graphics.LoadSprite("samples/Pong/square.png", rPaddlePosition, paddleScale, 0);
+
         // `Graphics.Initialize` can be run at any time to create a new window
         Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
     }
 
     // `Update` is a special method that the program runs every frame
     public void Update(decimal! deltaTime) {
-        Console.PrintLine(((string)deltaTime) + " " + ((string)a.x) + " " + ((string)a.y));
+        Console.PrintLine(deltaTime);
+
+        Graphics.DrawSprite(ballSprite);
     }
 }

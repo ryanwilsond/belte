@@ -47,7 +47,7 @@
   <!-- Declarations -->
   <Node Name="BoundDataContainerDeclaration" Base="BoundNode">
     <Field Name="dataContainer" Type="DataContainerSymbol"/>
-    <Field Name="initializer" Type="BoundExpression"/>
+    <Field Name="initializer" Type="BoundExpression?"/>
   </Node>
   <!-- Expressions -->
   <Node Name="BoundValuePlaceholder" Base="BoundExpression"/>

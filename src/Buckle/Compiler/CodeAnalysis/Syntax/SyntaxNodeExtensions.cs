@@ -52,6 +52,7 @@ internal static class SyntaxNodeExtensions {
                     stack.Push(qualifiedNameSyntax.left);
                     break;
                 case SyntaxKind.IdentifierName:
+                case SyntaxKind.EmptyName:
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(type.kind);

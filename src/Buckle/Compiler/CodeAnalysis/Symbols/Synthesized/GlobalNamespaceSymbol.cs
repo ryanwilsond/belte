@@ -202,12 +202,12 @@ done:
     }
 
     private void RegisterDeclaredCorTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
-        if (Compilation.KeepLookingForCorTypes) {
+        if (declaringCompilation.keepLookingForCorTypes) {
             foreach (var member in members.Values) {
                 if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
                     containingCompilation.RegisterDeclaredSpecialType(type);
 
-                    if (!Compilation.KeepLookingForCorTypes)
+                    if (!declaringCompilation.keepLookingForCorTypes)
                         return;
                 }
             }

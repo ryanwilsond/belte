@@ -1620,7 +1620,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private SpecialType MakeSpecialType() {
-        if (Compilation.KeepLookingForCorTypes) {
+        if (declaringCompilation.keepLookingForCorTypes) {
             string emittedName = null;
 
             if (containingSymbol is not null)

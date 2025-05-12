@@ -721,7 +721,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private FieldDeclarationSyntax ParseFieldDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
-        var declaration = ParseVariableDeclaration(false);
+        var declaration = ParseVariableDeclaration();
         var semicolon = Match(SyntaxKind.SemicolonToken);
         return SyntaxFactory.FieldDeclaration(attributeLists, modifiers, declaration, semicolon);
     }
@@ -744,11 +744,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.GlobalStatement(attributeLists, modifiers, statement);
     }
 
-    private VariableDeclarationSyntax ParseVariableDeclaration(
-        bool allowImplicit = true,
-        bool hasConstKeyword = false) {
+    private VariableDeclarationSyntax ParseVariableDeclaration() {
         var inStruct = (_context & ParserContext.InStructDefinition) != 0;
-        var type = ParseType(allowImplicit: allowImplicit, allowRef: !inStruct, hasConstKeyword: hasConstKeyword);
+        var type = ParseType(allowRef: !inStruct);
         var identifier = Match(SyntaxKind.IdentifierToken);
         var initializer = currentToken.kind == SyntaxKind.EqualsToken
             ? ParseEqualsValueClause(inStruct)
@@ -843,16 +841,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers) {
         attributeLists ??= ParseAttributeLists();
         modifiers ??= ParseModifiers();
-        var hasConstKeyword = false;
-
-        foreach (var modifier in modifiers) {
-            if (modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
-                hasConstKeyword = true;
-                break;
-            }
-        }
-
-        var declaration = ParseVariableDeclaration(hasConstKeyword: hasConstKeyword);
+        var declaration = ParseVariableDeclaration();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return SyntaxFactory.LocalDeclarationStatement(attributeLists, modifiers, declaration, semicolon);
@@ -1382,7 +1371,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private ExpressionSyntax ParseObjectCreationExpression() {
         var keyword = Match(SyntaxKind.NewKeyword);
-        var type = ParseType(allowImplicit: false, allowArraySize: true);
+        var type = ParseType(allowArraySize: true);
         var argumentList = !IsArrayType(type) ? ParseArgumentList() : null;
 
         bool IsArrayType(TypeSyntax syntax) {
@@ -1652,11 +1641,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.IdentifierName(identifier);
     }
 
-    private TypeSyntax ParseType(
-        bool allowImplicit = true,
-        bool allowRef = true,
-        bool hasConstKeyword = false,
-        bool allowArraySize = false) {
+    private TypeSyntax ParseType(bool allowRef = true, bool allowArraySize = false) {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             var refKeyword = EatToken();
 
@@ -1666,26 +1651,20 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return SyntaxFactory.ReferenceType(
                 refKeyword,
                 currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                ParseTypeCore(allowImplicit && hasConstKeyword, allowArraySize)
+                ParseTypeCore(allowArraySize)
             );
         }
 
-        return ParseTypeCore(allowImplicit && hasConstKeyword, allowArraySize);
+        return ParseTypeCore(allowArraySize);
     }
 
-    private TypeSyntax ParseTypeCore(bool constAsType, bool allowArraySize) {
+    private TypeSyntax ParseTypeCore(bool allowArraySize) {
         TypeSyntax type;
 
         if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken ||
             (currentToken.kind == SyntaxKind.IdentifierToken &&
              Peek(1).kind is SyntaxKind.EqualsToken or SyntaxKind.SemicolonToken)) {
-            if (constAsType)
-                // The Binder will see this and know to check the declaration modifiers to distinguish between
-                // const and constexpr
-                // TODO Make sure this fix work
-                type = SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
-            else
-                type = SyntaxFactory.EmptyName();
+            type = SyntaxFactory.EmptyName();
         } else {
             type = ParseUnderlyingType();
         }

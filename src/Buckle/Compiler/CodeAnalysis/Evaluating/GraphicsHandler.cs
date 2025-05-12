@@ -1,3 +1,4 @@
+using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Shared;
@@ -26,6 +27,27 @@ internal partial class GraphicsHandler : Game {
 
     internal delegate void UpdateHandler(double deltaTicks, ValueWrapper<bool> abort);
 
+    internal Texture2D LoadSprite(string path) {
+        using var stream = File.OpenRead(path);
+        return Texture2D.FromStream(GraphicsDevice, stream);
+    }
+
+    internal void DrawSprite(Texture2D texture, float posX, float posY, float scaleX, float scaleY, int rotation) {
+        var origin = new Vector2(texture.Width / 2f, texture.Height / 2f);
+
+        _spriteBatch.Draw(
+            texture,
+            new Vector2(posX, posY),
+            null,
+            Color.White,
+            rotation,
+            origin,
+            new Vector2(scaleX, scaleY),
+            SpriteEffects.None,
+            0f
+        );
+    }
+
     protected override void Initialize() {
         Window.Title = Title;
         _graphics.IsFullScreen = false;
@@ -45,8 +67,10 @@ internal partial class GraphicsHandler : Game {
     }
 
     protected override void Draw(GameTime gameTime) {
-        GraphicsDevice.Clear(Color.CornflowerBlue);
+        GraphicsDevice.Clear(Color.Black);
+        _spriteBatch.Begin();
         _updateHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0, _abort);
+        _spriteBatch.End();
         base.Draw(gameTime);
     }
 }

@@ -299,7 +299,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NoInitOnImplicit(TextLocation location) {
-        var message = "implicitly-typed variable must have initializer";
+        var message = "implicitly-typed locals must have initializer";
         return CreateError(DiagnosticCode.ERR_NoInitOnImplicit, location, message);
     }
 
@@ -308,9 +308,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_UnterminatedComment, message);
     }
 
-    internal static BelteDiagnostic NullAssignOnImplicit(TextLocation location, bool isConstant) {
-        var variableWord = isConstant ? "constant" : "variable";
-        var message = $"cannot initialize an implicitly-typed {variableWord} with 'null'";
+    internal static BelteDiagnostic NullAssignOnImplicit(TextLocation location) {
+        var message = $"cannot assign <null> to an implicitly-typed local";
         return CreateError(DiagnosticCode.ERR_NullAssignOnImplicit, location, message);
     }
 
@@ -1582,6 +1581,11 @@ internal static class Error {
     internal static BelteDiagnostic SeparateMainAndUpdate(TextLocation location) {
         var message = "the 'Main' entry point and 'Update' graphics update point must be declared in the same class";
         return CreateError(DiagnosticCode.ERR_SeparateMainAndUpdate, location, message);
+    }
+
+    internal static BelteDiagnostic FieldsCannotBeImplicitlyTyped(TextLocation location) {
+        var message = "fields cannot be implicitly typed";
+        return CreateError(DiagnosticCode.ERR_FieldsCannotBeImplicitlyTyped, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

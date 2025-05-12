@@ -23,6 +23,8 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Object:
             case SpecialType.List:
             case SpecialType.Dictionary:
+            case SpecialType.Vec2:
+            case SpecialType.Sprite:
                 return true;
             default:
                 return false;

@@ -19,4 +19,6 @@ public enum SpecialType : byte {
     Void,
     List,
     Dictionary,
+    Vec2,
+    Sprite,
 }

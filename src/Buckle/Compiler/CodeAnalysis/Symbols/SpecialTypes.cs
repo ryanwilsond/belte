@@ -16,6 +16,8 @@ internal static class SpecialTypes {
         { "global::string", SpecialType.String },
         { "global::type", SpecialType.Type },
         { "global::any", SpecialType.Any },
+        { "global::Vec2", SpecialType.Vec2 },
+        { "global::Sprite", SpecialType.Sprite },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {
