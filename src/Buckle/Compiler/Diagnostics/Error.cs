@@ -1574,6 +1574,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadIndexCount, location, message);
     }
 
+    internal static BelteDiagnostic MultipleUpdates(TextLocation location) {
+        var message = "cannot have multiple 'Update' graphics update points";
+        return CreateError(DiagnosticCode.ERR_MultipleUpdates, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

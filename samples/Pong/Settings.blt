@@ -1,0 +1,9 @@
+
+static class Settings {
+    public constexpr ScreenWidth = 900;
+    public constexpr ScreenHeight = 600;
+    public constexpr BallSpeed = 400;
+    constexpr PaddleSpeed = 600;
+    constexpr LerpSpeed = 14;
+    constexpr AIOn = true;
+}

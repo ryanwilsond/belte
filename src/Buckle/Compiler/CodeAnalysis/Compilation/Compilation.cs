@@ -37,6 +37,7 @@ public sealed class Compilation {
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
     private List<LocalFunctionRewriter.Analysis> _lazyPreviousAnalyses;
     private MethodSymbol _lazyEntryPoint;
+    private MethodSymbol _lazyUpdatePoint;
     private NamedTypeSymbol _lazyScriptClass;
 
     private Compilation(
@@ -175,7 +176,8 @@ public sealed class Compilation {
     }
 
     public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
-        return Evaluate(new EvaluatorContext(options), abort, logTime);
+        using var context = new EvaluatorContext(options);
+        return Evaluate(context, abort, logTime);
     }
 
     public EvaluationResult Evaluate(
@@ -319,18 +321,69 @@ public sealed class Compilation {
         return _lazyEntryPoint;
     }
 
+    internal MethodSymbol GetUpdatePoint(BelteDiagnosticQueue diagnostics) {
+        if (_lazyUpdatePoint is null)
+            Interlocked.CompareExchange(ref _lazyUpdatePoint, FindUpdatePoint(diagnostics), null);
+
+        return _lazyUpdatePoint;
+    }
+
+    private MethodSymbol FindUpdatePoint(BelteDiagnosticQueue diagnostics) {
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
+
+        foreach (var type in classes) {
+            foreach (var member in type.GetMembers(WellKnownMemberNames.UpdatePointMethodName)) {
+                if (member is MethodSymbol m && HasUpdatePointSignature(m))
+                    builder.Add(m);
+            }
+        }
+
+        var updatePointCandidates = builder.ToImmutableAndFree();
+        MethodSymbol updatePoint = null;
+
+        if (updatePointCandidates.Length == 1)
+            updatePoint = updatePointCandidates[0];
+        else if (updatePointCandidates.Length > 1)
+            diagnostics.Push(Error.MultipleUpdates(updatePointCandidates[0].location));
+
+        return updatePoint;
+    }
+
+    private static bool HasUpdatePointSignature(MethodSymbol method) {
+        var returnType = method.returnType;
+
+        if (!returnType.IsVoidType())
+            return false;
+
+        if (!method.isStatic)
+            return false;
+
+        if (method.refKind != RefKind.None)
+            return false;
+
+        if (method.parameterCount != 1)
+            return false;
+
+        if (!method.parameterRefKinds.IsDefault)
+            return false;
+
+        var firstType = method.parameters[0].type;
+
+        if (firstType.specialType != SpecialType.Decimal)
+            return false;
+
+        return true;
+    }
+
     private MethodSymbol FindEntryPoint(
         SynthesizedEntryPoint simpleEntryPoint,
         BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
 
-        var programClasses = globalNamespaceInternal
-            .GetMembers(WellKnownMemberNames.TopLevelStatementsEntryPointTypeName);
-
-        if (programClasses.Length > 0) {
-            var programClass = (NamedTypeSymbol)programClasses[0];
-
-            foreach (var member in programClass.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
+        foreach (var type in classes) {
+            foreach (var member in type.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
                 if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
                     builder.Add(m);
             }
@@ -372,6 +425,9 @@ public sealed class Compilation {
 
         if (method.parameterCount == 0)
             return true;
+
+        if (!method.isStatic)
+            return false;
 
         if (method.parameterCount > 1)
             return false;

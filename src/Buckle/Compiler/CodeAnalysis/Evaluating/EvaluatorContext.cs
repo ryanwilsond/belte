@@ -1,17 +1,34 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
-public sealed class EvaluatorContext {
+public sealed class EvaluatorContext : IDisposable {
     internal readonly CompilationOptions options;
 
-    private readonly Dictionary<string, (DataContainerSymbol, EvaluatorObject)> _symbols;
+    internal Thread graphicsThread;
+    internal GraphicsHandler graphicsHandler;
+    internal ValueWrapper<bool> maintainThread = true;
+    internal ValueWrapper<bool> createWindow = true;
+
+    private Dictionary<string, (DataContainerSymbol, EvaluatorObject)> _symbols;
 
     public EvaluatorContext(CompilationOptions options) {
         _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
         this.options = options;
+    }
+
+    public void Dispose() {
+        maintainThread = false;
+        createWindow = false;
+        graphicsHandler?.Exit();
+        graphicsThread?.Join();
+        graphicsHandler = null;
+        graphicsThread = null;
     }
 
     public IEnumerable<IDataContainerSymbol> GetTrackedSymbols() {
@@ -20,6 +37,15 @@ public sealed class EvaluatorContext {
 
     public Dictionary<ISymbol, EvaluatorObject> GetTrackedSymbolsAndObjects() {
         return _symbols.Values.ToDictionary(pair => (ISymbol)pair.Item1, pair => pair.Item2);
+    }
+
+    public void Reset() {
+        if (graphicsHandler is not null) {
+            createWindow = false;
+            graphicsHandler.Exit();
+        }
+
+        _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
     }
 
     internal bool TryGetSymbol(DataContainerSymbol symbol, out EvaluatorObject value) {

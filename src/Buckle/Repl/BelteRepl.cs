@@ -26,7 +26,7 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, OutputKind.Console, [], true, false);
+        new CompilationOptions(BuildMode.Repl, OutputKind.Graphics, [], true, false);
     // TODO Any benefit to generating numbered assembly names so they are unique?
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
@@ -101,6 +101,11 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
+    public override void Dispose() {
+        state.context.Dispose();
+        base.Dispose();
+    }
+
     internal override void ResetState() {
         state.showTokens = false;
         state.showTree = false;
@@ -109,9 +114,14 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.context = new EvaluatorContext(DefaultOptions);
         state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
+
+        if (state.context is null)
+            state.context = new EvaluatorContext(DefaultOptions);
+        else
+            state.context.Reset();
+
         _changes.Clear();
         ClearTree();
         base.ResetState();

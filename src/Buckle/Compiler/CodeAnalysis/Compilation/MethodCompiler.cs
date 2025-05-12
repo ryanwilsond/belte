@@ -16,6 +16,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly MethodSymbol _entryPoint;
+    private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly Predicate<Symbol> _filter;
@@ -25,11 +26,13 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         Dictionary<MethodSymbol, BoundBlockStatement> methodBodiesBeingBuilt,
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
+        MethodSymbol updatePoint,
         Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
+        _updatePoint = updatePoint;
         _filter = filter;
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
@@ -44,12 +47,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var globalNamespace = compilation.globalNamespaceInternal;
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
         var entryPoint = GetEntryPoint(compilation, diagnostics);
+        var updatePoint = GetUpdatePoint(compilation, diagnostics);
 
         var methodCompiler = new MethodCompiler(
             compilation,
             methodBodiesBeingBuilt,
             diagnostics,
             entryPoint,
+            updatePoint,
             filter,
             emitting
         );
@@ -62,11 +67,16 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         return compilation.GetEntryPoint(diagnostics);
     }
 
+    private static MethodSymbol GetUpdatePoint(Compilation compilation, BelteDiagnosticQueue diagnostics) {
+        return compilation.GetUpdatePoint(diagnostics);
+    }
+
     private BoundProgram CreateBoundProgram() {
         return new BoundProgram(
             _methodBodies.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
             _entryPoint,
+            _updatePoint,
             _compilation.previous?.boundProgram
         );
     }

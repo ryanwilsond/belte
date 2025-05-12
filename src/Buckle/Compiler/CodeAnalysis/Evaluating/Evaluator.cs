@@ -953,11 +953,8 @@ internal sealed class Evaluator {
         // First check if we are in a graphics project before comparing
         // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
         if (_context.options.outputKind == OutputKind.Graphics) {
-            if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType)) {
-                Console.WriteLine("Graphics library call");
-
-                return true;
-            }
+            if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
+                return HandleGraphicsCall(method, arguments, abort);
         }
 
         if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
@@ -1000,5 +997,73 @@ internal sealed class Evaluator {
         } else {
             return false;
         }
+    }
+
+    private bool HandleGraphicsCall(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ValueWrapper<bool> abort) {
+        var mapKey = LibraryHelpers.BuildMapKey(method);
+        var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
+
+        if (mapKey == "Graphics_Initialize_SII") {
+            StartGraphics(
+                (string)valueArguments[0],
+                Convert.ToInt32(valueArguments[1]),
+                Convert.ToInt32(valueArguments[2]),
+                abort
+            );
+        }
+
+        return true;
+    }
+
+    private void StartGraphics(string title, int width, int height, ValueWrapper<bool> abort) {
+        GraphicsHandler.Title = title;
+        GraphicsHandler.Width = width;
+        GraphicsHandler.Height = height;
+
+        if (_context.graphicsThread is not null && _context.graphicsThread.IsAlive) {
+            _context.createWindow = true;
+            _context.graphicsHandler?.Exit();
+            return;
+        }
+
+        _context.graphicsThread = new Thread(() => {
+            while (_context.maintainThread) {
+                if (_context.createWindow) {
+                    _context.createWindow = false;
+                    using var graphicsHandler = new GraphicsHandler(UpdateCaller, abort);
+                    _context.graphicsHandler = graphicsHandler;
+                    graphicsHandler.Run();
+                } else {
+                    Thread.Sleep(100);
+                }
+            }
+        }) {
+            Name = "Evaluator.GraphicsThread",
+            IsBackground = true
+        };
+
+#if _WINDOWS
+        _context.graphicsThread.SetApartmentState(ApartmentState.STA);
+#endif
+
+        _context.graphicsThread.Start();
+    }
+
+    private void UpdateCaller(double deltaTime, ValueWrapper<bool> abort) {
+        if (_program.updatePoint is null)
+            return;
+
+        // It's easier to just convert deltaTime into a bound node to take advantage of InvokeMethod
+        // TODO Consider refactoring to not require backtracking to a bound node only to be evaluated immediately
+        var argument = new BoundLiteralExpression(
+            null,
+            new ConstantValue(deltaTime),
+            CorLibrary.GetSpecialType(SpecialType.Decimal)
+        );
+
+        InvokeMethod(_program.updatePoint, [argument], null, abort);
     }
 }

@@ -1,0 +1,10 @@
+
+static class Program {
+    public static void Main() {
+        Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
+    }
+
+    public static void Update(decimal! deltaTime) {
+        Console.PrintLine(deltaTime);
+    }
+}

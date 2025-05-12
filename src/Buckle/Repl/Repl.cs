@@ -13,7 +13,7 @@ namespace Repl;
 /// <summary>
 /// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.
 /// </summary>
-public abstract partial class Repl {
+public abstract partial class Repl : IDisposable {
     /// <summary>
     /// The width of a tab or '\t' character in spaces.
     /// </summary>
@@ -46,6 +46,10 @@ public abstract partial class Repl {
     private protected object _state;
 
     private protected object _handle;
+
+    public virtual void Dispose() {
+        GC.SuppressFinalize(this);
+    }
 
     /// <summary>
     /// Resets all state.

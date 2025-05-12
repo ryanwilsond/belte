@@ -65,7 +65,7 @@ public static partial class BuckleCommandLine {
             ResolveDiagnostics(diagnostics, processName, state);
 
             if (!state.noOut) {
-                var repl = new BelteRepl(compiler, ResolveDiagnostics);
+                using var repl = new BelteRepl(compiler, ResolveDiagnostics);
                 repl.Run();
             }
 
