@@ -20,6 +20,9 @@ class Program {
     Sprite rPaddle;
 
     public void Main() {
+        // `Graphics.Initialize` creates the window and must be the first Graphics call made
+        Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
+
         centerOfScreen = new Vec2(Settings.ScreenWidth / 2.0, Settings.ScreenHeight / 2.0);
 
         var ballScale = new Vec2(10, 10)!;
@@ -38,15 +41,12 @@ class Program {
         ballSprite = Graphics.LoadSprite("samples/Pong/ball.png", ballPosition, ballScale, 0);
         lPaddle = Graphics.LoadSprite("samples/Pong/square.png", lPaddlePosition, paddleScale, 0);
         rPaddle = Graphics.LoadSprite("samples/Pong/square.png", rPaddlePosition, paddleScale, 0);
-
-        // `Graphics.Initialize` can be run at any time to create a new window
-        Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
     }
 
-    // `Update` is a special method that the program runs every frame
+    // `Update` is a special method that the program runs every frame after `Main` finishes
     public void Update(decimal! deltaTime) {
-        Console.PrintLine(deltaTime);
-
         Graphics.DrawSprite(ballSprite);
+        Graphics.DrawSprite(lPaddle);
+        Graphics.DrawSprite(rPaddle);
     }
 }

@@ -31,6 +31,12 @@ public sealed class EvaluatorContext : IDisposable {
         graphicsThread = null;
     }
 
+    internal void WaitForCompletion() {
+        maintainThread = false;
+        createWindow = false;
+        graphicsThread?.Join();
+    }
+
     public IEnumerable<IDataContainerSymbol> GetTrackedSymbols() {
         return _symbols.Values.Select(pair => pair.Item1);
     }

@@ -106,6 +106,15 @@ internal sealed class Evaluator {
         }
 
         var result = EvaluateStatement(entryPointBody, abort, out _);
+
+        // Wait until Main finishes before the first call of Update
+        if (_context.maintainThread) {
+            while (_context.graphicsHandler is null)
+                ;
+        }
+
+        _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
+
         hasValue = _hasValue;
         return hasValue ? Value(result, true) : null;
     }
@@ -978,6 +987,8 @@ internal sealed class Evaluator {
             method.containingType.Equals(StandardLibrary.Math.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Time.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.Directory.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.File.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
             var mapKey = LibraryHelpers.BuildMapKey(method);
 
@@ -1041,7 +1052,23 @@ internal sealed class Evaluator {
                 Convert.ToInt32(valueArguments[2]),
                 abort
             );
-        } else if (mapKey == "Graphics_LoadSprite_SVVI") {
+        }
+
+        if (mapKey == "Graphics_LoadSprite_SVVI" ||
+            mapKey == "Graphics_DrawSprite_S?" ||
+            mapKey == "Graphics_StopDraw_I?") {
+            // Wait until window is created to future Graphics calls are valid
+            if (_context.graphicsThread is not null && _context.graphicsThread.IsAlive) {
+                while (_context.graphicsHandler?.GraphicsDevice is null)
+                    ;
+            } else {
+                return true;
+            }
+        } else {
+            return true;
+        }
+
+        if (mapKey == "Graphics_LoadSprite_SVVI") {
             var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
             var path = (string)Value(evaluatedArguments[0]);
 
@@ -1055,10 +1082,12 @@ internal sealed class Evaluator {
             sprite.members[spriteFields[1]] = evaluatedArguments[2];
             sprite.members[spriteFields[2]] = evaluatedArguments[3];
             sprite.members[HiddenSpriteData] = new EvaluatorObject(_context.graphicsHandler?.LoadSprite(path), null);
-        } else if (mapKey == "Graphics_DrawSprite_S?") {
-            var argument = EvaluateExpression(arguments[0], abort);
 
-            if (Value(argument) is null)
+            result = sprite;
+        } else if (mapKey == "Graphics_DrawSprite_S?") {
+            var argument = Dereference(EvaluateExpression(arguments[0], abort));
+
+            if (argument.members.Count < 4)
                 return true;
 
             var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
@@ -1067,10 +1096,26 @@ internal sealed class Evaluator {
             var posY = Convert.ToSingle(argument.members[spriteFields[0]].members.Values.ElementAt(1).value);
             var scaleX = Convert.ToSingle(argument.members[spriteFields[1]].members.Values.ElementAt(0).value);
             var scaleY = Convert.ToSingle(argument.members[spriteFields[1]].members.Values.ElementAt(1).value);
-            var rotation = (int)argument.members[spriteFields[2]].value;
+            var rotation = Convert.ToInt32(argument.members[spriteFields[2]].value);
             var texture = (Texture2D)argument.members[HiddenSpriteData].value;
 
-            _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
+            if (texture is null)
+                return true;
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler?.AddAction(
+                    () => { _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation); }
+                );
+            } else {
+                _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
+            }
+        } else if (mapKey == "Graphics_StopDraw_I?") {
+            var argument = Value(EvaluateExpression(arguments[0], abort));
+
+            if (argument is null)
+                return true;
+
+            _context.graphicsHandler?.RemoveAction(Convert.ToInt32(argument));
         }
 
         return true;
@@ -1091,7 +1136,7 @@ internal sealed class Evaluator {
             while (_context.maintainThread) {
                 if (_context.createWindow) {
                     _context.createWindow = false;
-                    using var graphicsHandler = new GraphicsHandler(UpdateCaller, abort);
+                    using var graphicsHandler = new GraphicsHandler(abort);
                     _context.graphicsHandler = graphicsHandler;
                     graphicsHandler.Run();
                 } else {

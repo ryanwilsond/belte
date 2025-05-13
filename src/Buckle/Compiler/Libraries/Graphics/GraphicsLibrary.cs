@@ -25,7 +25,8 @@ internal static class GraphicsLibrary {
         return StaticClass("Graphics", [
             StaticMethod("Initialize", SpecialType.Void, [("title", SpecialType.String), ("width", SpecialType.Int), ("height", SpecialType.Int)]),
             StaticMethod("LoadSprite", SpecialType.Sprite, [("path", SpecialType.String), ("position", SpecialType.Vec2), ("scale", SpecialType.Vec2), ("rotation", SpecialType.Int)]),
-            StaticMethod("DrawSprite", SpecialType.Void, [("sprite", SpecialType.Sprite, true)]),
+            StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", SpecialType.Sprite, true)]),
+            StaticMethod("StopDraw", SpecialType.Void, [("key", SpecialType.Int, true)]),
         ]);
     }
 }

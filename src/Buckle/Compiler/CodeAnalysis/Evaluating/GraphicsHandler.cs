@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -11,38 +13,61 @@ internal partial class GraphicsHandler : Game {
     internal static int Height;
 
     private readonly GraphicsDeviceManager _graphics;
-    private readonly UpdateHandler _updateHandler;
     private readonly ValueWrapper<bool> _abort;
+    private readonly Dictionary<int, Action> _updateActions = [];
 
+    private UpdateHandler _updateHandler;
     private SpriteBatch _spriteBatch;
+    private int _actionCount;
 
     internal bool shouldRun;
 
-    internal GraphicsHandler(UpdateHandler updateHandler, ValueWrapper<bool> abort) {
+    internal GraphicsHandler(ValueWrapper<bool> abort) {
         _graphics = new GraphicsDeviceManager(this);
-        _updateHandler = updateHandler;
         _abort = abort;
         IsMouseVisible = true;
     }
 
     internal delegate void UpdateHandler(double deltaTicks, ValueWrapper<bool> abort);
 
+    internal void SetUpdateHandler(UpdateHandler updateHandler) {
+        _updateHandler = updateHandler;
+    }
+
     internal Texture2D LoadSprite(string path) {
         using var stream = File.OpenRead(path);
         return Texture2D.FromStream(GraphicsDevice, stream);
     }
 
+    internal int AddAction(Action action) {
+        var key = _actionCount++;
+        _updateActions.Add(key, action);
+        return key;
+    }
+
+    internal void RemoveAction(int key) {
+        _updateActions.Remove(key);
+    }
+
     internal void DrawSprite(Texture2D texture, float posX, float posY, float scaleX, float scaleY, int rotation) {
-        var origin = new Vector2(texture.Width / 2f, texture.Height / 2f);
+        // TODO Could optimize these casts probably if this becomes too slow
+        var width = scaleX;
+        var height = scaleY;
+        var origin = new Vector2(width / 2f, height / 2f);
+        var destinationRectangle = new Rectangle(
+            (int)(posX - width / 2f),
+            (int)(posY - height / 2f),
+            (int)width,
+            (int)height
+        );
 
         _spriteBatch.Draw(
             texture,
-            new Vector2(posX, posY),
+            destinationRectangle,
             null,
             Color.White,
             rotation,
             origin,
-            new Vector2(scaleX, scaleY),
             SpriteEffects.None,
             0f
         );
@@ -69,7 +94,13 @@ internal partial class GraphicsHandler : Game {
     protected override void Draw(GameTime gameTime) {
         GraphicsDevice.Clear(Color.Black);
         _spriteBatch.Begin();
-        _updateHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0, _abort);
+
+        if (_updateHandler is not null)
+            _updateHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0, _abort);
+
+        foreach (var action in _updateActions.Values)
+            action.Invoke();
+
         _spriteBatch.End();
         base.Draw(gameTime);
     }

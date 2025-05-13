@@ -90,8 +90,8 @@ internal static class StandardLibrary {
     }
 
     internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes() {
-        // yield return Directory;
-        // yield return File;
+        yield return Directory;
+        yield return File;
         yield return Console;
         yield return Math;
         yield return LowLevel;
@@ -125,22 +125,22 @@ internal static class StandardLibrary {
             StaticMethod("Delete", SpecialType.Void, [("path", SpecialType.String)]),
             StaticMethod("Exists", SpecialType.Bool, [("path", SpecialType.String)]),
             StaticMethod("GetCurrentDirectory", SpecialType.String),
-            StaticMethod("GetDirectories", StringList, [("path", SpecialType.String)]),
-            StaticMethod("GetFiles", StringList, [("path", SpecialType.String)]),
+            // StaticMethod("GetDirectories", StringList, [("path", SpecialType.String)]),
+            // StaticMethod("GetFiles", StringList, [("path", SpecialType.String)]),
         ]);
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateFile() {
         return StaticClass("File", [
-            StaticMethod("AppendLines", SpecialType.Void, [("fileName", SpecialType.String), ("lines", StringList)]),
+            // StaticMethod("AppendLines", SpecialType.Void, [("fileName", SpecialType.String), ("lines", StringList)]),
             StaticMethod("AppendText", SpecialType.Void, [("fileName", SpecialType.String), ("text", SpecialType.String)]),
             StaticMethod("Create", SpecialType.Void, [("path", SpecialType.String)]),
             StaticMethod("Copy", SpecialType.Void, [("sourceFileName", SpecialType.String), ("destinationFileName", SpecialType.String)]),
             StaticMethod("Delete", SpecialType.Void, [("path", SpecialType.String)]),
             StaticMethod("Exists", SpecialType.Bool, [("path", SpecialType.String)]),
-            StaticMethod("ReadLines", StringList, [("fileName", SpecialType.String)]),
+            // StaticMethod("ReadLines", StringList, [("fileName", SpecialType.String)]),
             StaticMethod("ReadText", SpecialType.String, true, [("fileName", SpecialType.String)]),
-            StaticMethod("WriteLines", SpecialType.Void, [("fileName", SpecialType.String), ("lines", StringList)]),
+            // StaticMethod("WriteLines", SpecialType.Void, [("fileName", SpecialType.String), ("lines", StringList)]),
             StaticMethod("WriteText", SpecialType.Void, [("fileName", SpecialType.String), ("text", SpecialType.String)]),
         ]);
     }
@@ -279,28 +279,28 @@ internal static class StandardLibrary {
                 => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
             { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition((int?)a ?? System.Console.CursorLeft, (int?)b ?? System.Console.CursorTop); } return null; }) },
-            // { Directory.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
-            // { Directory.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.Directory.Delete((string)a, true); return null; }) },
-            // { Directory.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.IO.Directory.Exists((string)a); }) },
-            // { Directory.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.IO.Directory.GetCurrentDirectory(); }) },
-            // { File.members[0].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.File.AppendAllText((string)a, (string)b); return null; }) },
-            // { File.members[1].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.File.Create((string)a); return null; }) },
-            // { File.members[2].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.File.Copy((string)a, (string)b); return null; }) },
-            // { File.members[3].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.File.Delete((string)a); return null; }) },
-            // { File.members[4].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.IO.File.Exists((string)a); }) },
-            // { File.members[5].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { return System.IO.File.ReadAllText((string)a); }) },
-            // { File.members[6].GetHashCode(), new Func<object, object, object, object>((a, b, c)
-            //     => { System.IO.File.WriteAllText((string)a, (string)b); return null; }) },
+            { "Directory_Create_S", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
+            { "Directory_Delete_S", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.Directory.Delete((string)a, true); return null; }) },
+            { "Directory_Exists_S", new Func<object, object, object, object>((a, b, c)
+                => { return System.IO.Directory.Exists((string)a); }) },
+            { "Directory_GetCurrentDirectory", new Func<object, object, object, object>((a, b, c)
+                => { return System.IO.Directory.GetCurrentDirectory(); }) },
+            { "File_AppendText_SS", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.File.AppendAllText((string)a, (string)b); return null; }) },
+            { "File_Create_S", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.File.Create((string)a); return null; }) },
+            { "File_Copy_SS", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.File.Copy((string)a, (string)b); return null; }) },
+            { "File_Delete_S", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.File.Delete((string)a); return null; }) },
+            { "File_Exists_S", new Func<object, object, object, object>((a, b, c)
+                => { return System.IO.File.Exists((string)a); }) },
+            { "File_ReadText_S", new Func<object, object, object, object>((a, b, c)
+                => { return System.IO.File.ReadAllText((string)a); }) },
+            { "File_WriteText_SS", new Func<object, object, object, object>((a, b, c)
+                => { System.IO.File.WriteAllText((string)a, (string)b); return null; }) },
             { "Math_Abs_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Abs(Convert.ToDouble(a)); }) },
             { "Math_Abs_D", new Func<object, object, object, object>((a, b, c)
