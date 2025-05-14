@@ -457,9 +457,18 @@ internal partial class Binder {
             if (!permitDimensions && dimension is not null)
                 diagnostics.Push(Error.ArraySizeInDeclaration(rankSpecifier.size.location));
 
-            // TODO need to error check the size, should allow dynamic?
-            // var size = (int)BindExpression(dimension, diagnostics).constantValue.value;
-            var array = ArrayTypeSymbol.CreateArray(type);
+            var rank = 1;
+
+            if (dimension is not null) {
+                var boundDimension = BindExpression(dimension, diagnostics);
+
+                if (boundDimension.constantValue is null || boundDimension.type.specialType != SpecialType.Int)
+                    diagnostics.Push(Error.NonConstantArraySize(rankSpecifier.location));
+                else
+                    rank = Convert.ToInt32(boundDimension.constantValue.value);
+            }
+
+            var array = ArrayTypeSymbol.CreateArray(type, rank);
             type = new TypeWithAnnotations(array);
         }
 
@@ -1701,6 +1710,7 @@ internal partial class Binder {
             SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
             SyntaxKind.AssignmentExpression => BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics),
             SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
+            SyntaxKind.ArrayCreationExpression => BindArrayCreationExpression((ArrayCreationExpressionSyntax)node, diagnostics),
             SyntaxKind.NameOfExpression => BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics),
             SyntaxKind.CastExpression => BindCastExpression((CastExpressionSyntax)node, diagnostics),
             SyntaxKind.InitializerListExpression => BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics),
@@ -2111,7 +2121,7 @@ internal partial class Binder {
         diagnostics.Push(Error.CannotConvert(syntax.location, operand.type, targetType));
     }
 
-    private BoundArrayCreationExpression BindArrayCreationWithInitializer(
+    private BoundExpression BindArrayCreationWithInitializer(
         BelteDiagnosticQueue diagnostics,
         ExpressionSyntax creationSyntax,
         InitializerListExpressionSyntax initSyntax,
@@ -2126,7 +2136,18 @@ internal partial class Binder {
         hasErrors = hasErrors || initializerList.hasErrors;
         var nonNullSyntax = (SyntaxNode)creationSyntax ?? initSyntax;
 
-        return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
+        // return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
+        return ErrorExpression(creationSyntax);
+    }
+
+    private BoundExpression BindArrayCreationExpression(
+        ArrayCreationExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var typeWithAnnotations = BindArrayType(node.type, diagnostics, true, null);
+        var type = typeWithAnnotations.type.StrippedType();
+        var originalType = (ArrayTypeSymbol)type;
+
+        return new BoundArrayCreationExpression(node, [originalType.rank], null, originalType);
     }
 
     private protected BoundExpression BindObjectCreationExpression(

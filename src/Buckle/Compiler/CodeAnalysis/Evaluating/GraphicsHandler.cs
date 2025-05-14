@@ -95,6 +95,14 @@ internal partial class GraphicsHandler : Game {
         _spriteBatch.DrawString(font, text, location, spacing, color);
     }
 
+    internal void DrawRect(int x, int y, int w, int h, int r, int g, int b) {
+        var color = new Color(r, g, b);
+        var rectangle = new Rectangle(x, y, w, h);
+        var pixel = new Texture2D(GraphicsDevice, 1, 1);
+        pixel.SetData([color]);
+        _spriteBatch.Draw(pixel, rectangle, color);
+    }
+
     protected override void Initialize() {
         Window.Title = Title;
         _graphics.IsFullScreen = false;

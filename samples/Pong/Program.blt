@@ -51,24 +51,24 @@ class Program {
         var netScale = new Vec2(3, Settings.ScreenHeight)!;
 
         // `Graphics.LoadSprite` loads an image file with a position, size, and rotation
-        ball = Graphics.LoadSprite("samples/Pong/ball.png", ballPosition, ballScale, 0);
-        lPaddle = Graphics.LoadSprite("samples/Pong/square.png", lPaddlePosition, paddleScale, 0);
-        rPaddle = Graphics.LoadSprite("samples/Pong/square.png", rPaddlePosition, paddleScale, 0);
-        net = Graphics.LoadSprite("samples/Pong/net.png", centerOfScreen, netScale, 0);
+        ball = Graphics.LoadSprite("samples/Assets/ball.png", ballPosition, ballScale, 0);
+        lPaddle = Graphics.LoadSprite("samples/Assets/square.png", lPaddlePosition, paddleScale, 0);
+        rPaddle = Graphics.LoadSprite("samples/Assets/square.png", rPaddlePosition, paddleScale, 0);
+        net = Graphics.LoadSprite("samples/Assets/net.png", centerOfScreen, netScale, 0);
 
         var leftOffset = Settings.ScreenWidth / 4;
         var scoreOnePosition = new Vec2(leftOffset, 40)!;
-        scoreOne = Graphics.LoadText("0", "samples/Pong/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
+        scoreOne = Graphics.LoadText("0", "samples/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
 
         var rightOffset = Settings.ScreenWidth - (Settings.ScreenHeight / 4);
         var scoreTwoPosition = new Vec2(rightOffset, 40)!;
         // `Graphics.LoadText` renders a string using a given font, position, font size, angle, and color values
-        scoreTwo = Graphics.LoadText("0", "samples/Pong/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
+        scoreTwo = Graphics.LoadText("0", "samples/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
 
         var infoPosition = new Vec2(centerOfScreen.x, Settings.ScreenHeight - 60)!;
         info = Graphics.LoadText(
             "Use 'W' and 'S' or 'UP' and 'DOWN' arrows to control or press 'ENTER' to toggle AI",
-            "samples/Pong/arial.ttf",
+            "samples/Assets/arial.ttf",
             infoPosition,
             15, 0, 255, 255, 255
         );

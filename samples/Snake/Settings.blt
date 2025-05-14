@@ -1,0 +1,8 @@
+
+static class Settings {
+    public constexpr int! GameWidth = 700;
+    public constexpr int! GameHeight = 700;
+    public constexpr decimal! Speed = 0.08;
+    public constexpr int! SpaceSize = 50;
+    public constexpr int! BodyParts = 3;
+}

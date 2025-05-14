@@ -316,6 +316,7 @@ public enum DiagnosticCode : ushort {
     ERR_MultipleUpdates = 305,
     ERR_SeparateMainAndUpdate = 306,
     ERR_FieldsCannotBeImplicitlyTyped = 307,
+    ERR_NonConstantArraySize = 308,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

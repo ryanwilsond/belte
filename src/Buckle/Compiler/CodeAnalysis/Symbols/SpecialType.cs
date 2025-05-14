@@ -22,4 +22,5 @@ public enum SpecialType : byte {
     Vec2,
     Sprite,
     Text,
+    Rect,
 }

@@ -624,6 +624,13 @@
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="argumentList" Type="ArgumentListSyntax" Optional="true"/>
   </Node>
+  <Node Name="ArrayCreationExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ArrayCreationExpression"/>
+    <Field Name="newKeyword" Type="SyntaxToken">
+      <Kind Name="NewKeyword"/>
+    </Field>
+    <Field Name="type" Type="ArrayTypeSyntax"/>
+  </Node>
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>
     <Field Name="expression" Type="ExpressionSyntax"/>

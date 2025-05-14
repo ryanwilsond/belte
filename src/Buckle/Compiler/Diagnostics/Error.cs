@@ -1588,6 +1588,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FieldsCannotBeImplicitlyTyped, location, message);
     }
 
+    internal static BelteDiagnostic NonConstantArraySize(TextLocation location) {
+        var message = "array sizes must be compile-time constant integers";
+        return CreateError(DiagnosticCode.ERR_NonConstantArraySize, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

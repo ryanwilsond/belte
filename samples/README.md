@@ -14,6 +14,7 @@ this is a convention, and not required.)
 | [samples/Echo](Echo/Program.blt) | `buckle samples/Echo -- arg1 arg2` | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | `buckle samples/GuessingGame` | Random number guessing game. |
 | [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | 2D pong game. |
+| [samples/Snake](Snake/Program.blt) | `buckle samples/Snake --type=graphics` | Snake game. |
 
 ## Running a Sample Using the Interpreter
 

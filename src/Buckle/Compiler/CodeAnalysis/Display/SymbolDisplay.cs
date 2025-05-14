@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Reflection.Emit;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -68,6 +69,9 @@ public static class SymbolDisplay {
                 break;
             case SymbolKind.Namespace:
                 DisplayNamespace(text, (NamespaceSymbol)symbol, format);
+                break;
+            case SymbolKind.Label:
+                DisplayLabel(text, (LabelSymbol)symbol, format);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
@@ -176,6 +180,11 @@ public static class SymbolDisplay {
 
         nameText.segments.Reverse();
         text.Write(nameText.segments);
+    }
+
+    private static void DisplayLabel(DisplayText text, LabelSymbol label, SymbolDisplayFormat _) {
+        text.Write(CreateIdentifier(label.name));
+        text.Write(CreatePunctuation(SyntaxKind.ColonToken));
     }
 
     private static void DisplayField(DisplayText text, FieldSymbol field, SymbolDisplayFormat format) {

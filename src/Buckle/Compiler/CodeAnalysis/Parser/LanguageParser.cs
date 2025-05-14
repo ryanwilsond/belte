@@ -3,6 +3,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Mono.Cecil;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -1205,7 +1206,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.NameOfKeyword:
                 return ParseNameOfExpression();
             case SyntaxKind.NewKeyword:
-                return ParseObjectCreationExpression();
+                return ParseObjectOrArrayCreationExpression();
             case SyntaxKind.ThisKeyword:
                 return ParseThisExpression();
             case SyntaxKind.BaseKeyword:
@@ -1369,23 +1370,37 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.NameOfExpression(keyword, openParenthesis, name, closeParenthesis);
     }
 
-    private ExpressionSyntax ParseObjectCreationExpression() {
+    private ExpressionSyntax ParseObjectOrArrayCreationExpression() {
         var keyword = Match(SyntaxKind.NewKeyword);
         var type = ParseType(allowArraySize: true);
-        var argumentList = !IsArrayType(type) ? ParseArgumentList() : null;
 
-        bool IsArrayType(TypeSyntax syntax) {
-            if (syntax is ArrayTypeSyntax)
+        if (IsArrayType(type, out var arrayType))
+            return ParseArrayCreationExpression(keyword, arrayType);
+        else
+            return ParseObjectCreationExpression(keyword, type);
+
+        static bool IsArrayType(TypeSyntax syntax, out ArrayTypeSyntax arrayType) {
+            if (syntax is ArrayTypeSyntax a) {
+                arrayType = a;
                 return true;
-            else if (syntax is NonNullableTypeSyntax n)
-                return IsArrayType(n.type);
-            else if (syntax is ReferenceTypeSyntax r)
-                return IsArrayType(r.type);
-            else
+            } else if (syntax is NonNullableTypeSyntax n) {
+                return IsArrayType(n.type, out arrayType);
+            } else if (syntax is ReferenceTypeSyntax r) {
+                return IsArrayType(r.type, out arrayType);
+            } else {
+                arrayType = null;
                 return false;
+            }
         }
+    }
 
-        return SyntaxFactory.ObjectCreationExpression(keyword, type, argumentList);
+    private ExpressionSyntax ParseObjectCreationExpression(SyntaxToken newKeyword, TypeSyntax type) {
+        var argumentList = ParseArgumentList();
+        return SyntaxFactory.ObjectCreationExpression(newKeyword, type, argumentList);
+    }
+
+    private ExpressionSyntax ParseArrayCreationExpression(SyntaxToken newKeyword, ArrayTypeSyntax type) {
+        return SyntaxFactory.ArrayCreationExpression(newKeyword, type);
     }
 
     private ExpressionSyntax ParseThisExpression() {

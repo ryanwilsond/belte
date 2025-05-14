@@ -108,6 +108,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateTime() {
         return StaticClass("Time", [
             StaticMethod("Now", SpecialType.Int),
+            StaticMethod("Sleep", SpecialType.Void, [("milliseconds", SpecialType.Int)]),
         ]);
     }
 
@@ -424,7 +425,9 @@ internal static class StandardLibrary {
             { "LowLevel_Length_A?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : ((EvaluatorObject[])a).Length; }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
-                => { return DateTime.Now.Ticks; }) }
+                => { return DateTime.Now.Ticks; }) },
+            { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
+                => { Thread.Sleep(Convert.ToInt32(a)); return null; }) }
         };
     }
 }

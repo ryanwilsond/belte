@@ -12,7 +12,7 @@ public sealed class EvaluatorContext : IDisposable {
 
     internal Thread graphicsThread;
     internal GraphicsHandler graphicsHandler;
-    internal ValueWrapper<bool> maintainThread = true;
+    internal ValueWrapper<bool> maintainThread = false;
     internal ValueWrapper<bool> createWindow = true;
 
     private Dictionary<string, (DataContainerSymbol, EvaluatorObject)> _symbols;

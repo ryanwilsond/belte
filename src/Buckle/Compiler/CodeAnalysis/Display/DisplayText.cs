@@ -669,7 +669,7 @@ public sealed class DisplayText {
                 text.Write(CreateSpace());
             }
 
-            DisplayNode(text, size);
+            text.Write(CreateLiteral(size.ToString()));
         }
 
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));

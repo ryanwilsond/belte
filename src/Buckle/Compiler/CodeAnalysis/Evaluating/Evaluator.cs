@@ -463,6 +463,7 @@ internal sealed class Evaluator {
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
+            BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)expression, abort),
             BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
@@ -513,6 +514,40 @@ internal sealed class Evaluator {
         var array = (EvaluatorObject[])Value(receiver);
         var indexValue = Convert.ToInt32(Value(index));
         return array[indexValue];
+    }
+
+    private EvaluatorObject EvaluateArrayCreationExpression(BoundArrayCreationExpression node, ValueWrapper<bool> _) {
+        var array = EvaluatorObject.Null;
+        var arrayType = (ArrayTypeSymbol)node.type.StrippedType();
+
+        // TODO There is probably a more efficient algorithm for this
+        foreach (var size in node.sizes) {
+            foreach (var element in IterateElements(array)) {
+                var members = new EvaluatorObject[size];
+
+                for (var i = 0; i < size; i++) {
+                    // TODO This will use a default when default expression is added for primitives instead of null
+                    members[i] = EvaluatorObject.Null;
+                }
+
+                element.value = members;
+            }
+        }
+
+        return array;
+
+        static List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
+            if (evaluatorObject.value is null) {
+                return [evaluatorObject];
+            } else {
+                var objects = new List<EvaluatorObject>();
+
+                foreach (var subElement in evaluatorObject.value as EvaluatorObject[])
+                    objects.AddRange(IterateElements(subElement));
+
+                return objects;
+            }
+        }
     }
 
     private EvaluatorObject EvaluateObjectCreationExpression(
@@ -1073,6 +1108,7 @@ internal sealed class Evaluator {
             mapKey == "Graphics_DrawText_T?" ||
             mapKey == "Graphics_LoadText_SSVDDIII" ||
             mapKey == "Graphics_GetKey_S" ||
+            mapKey == "Graphics_DrawRect_R?" ||
             mapKey == "Graphics_StopDraw_I?") {
             // Wait until window is created to future Graphics calls are valid
             if (_context.graphicsThread is not null && _context.graphicsThread.IsAlive) {
@@ -1191,12 +1227,37 @@ internal sealed class Evaluator {
         } else if (mapKey == "Graphics_GetKey_S") {
             var argument = (string)Value(EvaluateExpression(arguments[0], abort));
             result = _context.graphicsHandler?.GetKey(argument);
+        } else if (mapKey == "Graphics_DrawRect_R?") {
+            var argument = Dereference(EvaluateExpression(arguments[0], abort));
+
+            if (argument.members.Count < 7)
+                return true;
+
+            var rectType = CorLibrary.GetSpecialType(SpecialType.Rect);
+            var rectFields = rectType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+            var x = Convert.ToInt32(argument.members[rectFields[0]].value);
+            var y = Convert.ToInt32(argument.members[rectFields[1]].value);
+            var w = Convert.ToInt32(argument.members[rectFields[2]].value);
+            var h = Convert.ToInt32(argument.members[rectFields[3]].value);
+            var r = Convert.ToInt32(argument.members[rectFields[4]].value);
+            var g = Convert.ToInt32(argument.members[rectFields[5]].value);
+            var b = Convert.ToInt32(argument.members[rectFields[6]].value);
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler?.AddAction(
+                    () => { _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b); }
+                );
+            } else {
+                _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b);
+            }
         }
 
         return true;
     }
 
     private void StartGraphics(string title, int width, int height, ValueWrapper<bool> abort) {
+        _context.maintainThread = true;
+
         GraphicsHandler.Title = title;
         GraphicsHandler.Width = width;
         GraphicsHandler.Height = height;

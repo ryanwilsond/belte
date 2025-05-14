@@ -32,6 +32,7 @@
     <Content Remove="../../Belte/Graphics/Vec2.blt" />
     <Content Remove="../../Belte/Graphics/Sprite.blt" />
     <Content Remove="../../Belte/Graphics/Text.blt" />
+    <Content Remove="../../Belte/Graphics/Rect.blt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,6 +53,7 @@
     <EmbeddedResource Include="../../Belte/Graphics/Vec2.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Sprite.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Text.blt" />
+    <EmbeddedResource Include="../../Belte/Graphics/Rect.blt" />
   </ItemGroup>
 
   <ItemGroup>

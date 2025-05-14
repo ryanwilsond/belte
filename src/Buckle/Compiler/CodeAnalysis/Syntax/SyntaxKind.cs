@@ -149,6 +149,7 @@ public enum SyntaxKind : ushort {
     ReferenceExpression,
     MemberAccessExpression,
     ObjectCreationExpression,
+    ArrayCreationExpression,
 
     // Statements
     EmptyStatement,
