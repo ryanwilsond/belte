@@ -6,5 +6,11 @@ static class Graphics {
 
     public static int DrawSprite(Sprite sprite);
 
-    public static void StopDraw(int key);
+    public static Text LoadText(string! text, string! fontPath, Vec2! position, decimal! fontSize, decimal! angle, int! r, int! g, int! b);
+
+    public static int DrawText(Text text);
+
+    public static void StopDraw(int id);
+
+    public static bool! GetKey(string! key);
 }

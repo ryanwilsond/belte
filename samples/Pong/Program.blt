@@ -9,17 +9,27 @@
 // When `Main` is present in a non-static class, a single instance of that class is automatically created and managed
 // by the compiler, allowing you to modify and access instance data.
 class Program {
-    // When building a graphics project, many additional types are added to the global namespace, such as `Vec2`
-    private Vec2! centerOfScreen;
-    private Vec2! ballPosition;
-    private Vec2! lPaddleTargetPosition;
-    private Vec2! rPaddleTargetPosition;
+    Vec2! centerOfScreen;
+    Vec2! ballPosition;
+    Vec2! lPaddleTargetPosition;
+    Vec2! rPaddleTargetPosition;
+    Vec2! ballVelocity;
 
-    Sprite ballSprite;
+    Sprite ball;
     Sprite lPaddle;
     Sprite rPaddle;
+    Sprite net;
+    Text scoreOne;
+    Text scoreTwo;
+    Text info;
+
+    bool! aiOn = true;
+    bool! previousEnter = false;
 
     public void Main() {
+        // When building a graphics project, many additional types are added to the global namespace
+        // These types include: Vec2, Sprite, Text, Graphics
+
         // `Graphics.Initialize` creates the window and must be the first Graphics call made
         Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
 
@@ -38,15 +48,179 @@ class Program {
         var rPaddlePosition = new Vec2(rOffset, yPosPaddle)!;
         rPaddleTargetPosition = new Vec2(rOffset, yPosPaddle)!;
 
-        ballSprite = Graphics.LoadSprite("samples/Pong/ball.png", ballPosition, ballScale, 0);
+        var netScale = new Vec2(3, Settings.ScreenHeight)!;
+
+        // `Graphics.LoadSprite` loads an image file with a position, size, and rotation
+        ball = Graphics.LoadSprite("samples/Pong/ball.png", ballPosition, ballScale, 0);
         lPaddle = Graphics.LoadSprite("samples/Pong/square.png", lPaddlePosition, paddleScale, 0);
         rPaddle = Graphics.LoadSprite("samples/Pong/square.png", rPaddlePosition, paddleScale, 0);
+        net = Graphics.LoadSprite("samples/Pong/net.png", centerOfScreen, netScale, 0);
+
+        var leftOffset = Settings.ScreenWidth / 4;
+        var scoreOnePosition = new Vec2(leftOffset, 40)!;
+        scoreOne = Graphics.LoadText("0", "samples/Pong/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
+
+        var rightOffset = Settings.ScreenWidth - (Settings.ScreenHeight / 4);
+        var scoreTwoPosition = new Vec2(rightOffset, 40)!;
+        // `Graphics.LoadText` renders a string using a given font, position, font size, angle, and color values
+        scoreTwo = Graphics.LoadText("0", "samples/Pong/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
+
+        var infoPosition = new Vec2(centerOfScreen.x, Settings.ScreenHeight - 60)!;
+        info = Graphics.LoadText(
+            "Use 'W' and 'S' or 'UP' and 'DOWN' arrows to control or press 'ENTER' to toggle AI",
+            "samples/Pong/arial.ttf",
+            infoPosition,
+            15, 0, 255, 255, 255
+        );
+
+        ballVelocity = new Vec2(Settings.BallSpeed, Settings.BallSpeed)!;
     }
 
     // `Update` is a special method that the program runs every frame after `Main` finishes
     public void Update(decimal! deltaTime) {
-        Graphics.DrawSprite(ballSprite);
+        // Console.PrintLine("FPS: " + (string)(1 / deltaTime));
+        if (Graphics.GetKey("W")) {
+            var newY = lPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
+            newY = Math.Clamp(newY, 0 + lPaddle.scale.y / 2, Settings.ScreenHeight - lPaddle.scale.y / 2);
+            lPaddleTargetPosition.y = newY;
+        }
+
+        if (Graphics.GetKey("S")) {
+            var newY = lPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
+            newY = Math.Clamp(newY, 0 + lPaddle.scale.y / 2, Settings.ScreenHeight - lPaddle.scale.y / 2);
+            lPaddleTargetPosition.y = newY;
+        }
+
+        var oldYl = lPaddle.position.y;
+        var stopSpeedl = Settings.LerpSpeed * deltaTime;
+        var newYl = lPaddleTargetPosition.y;
+        var lerpedYl = Math.Lerp(oldYl, newYl, stopSpeedl);
+        lPaddle.position = new Vec2(lPaddle.position.x, lerpedYl)!;
+
+        if (aiOn) {
+            if (rPaddle.position.y < ball.position.y) {
+                var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
+                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                rPaddleTargetPosition.y = newY;
+            }
+
+            if (rPaddle.position.y > ball.position.y) {
+                var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
+                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                rPaddleTargetPosition.y = newY;
+            }
+        } else {
+            if (Graphics.GetKey("Up")) {
+                var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
+                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                rPaddleTargetPosition.y = newY;
+            }
+
+            if (Graphics.GetKey("Down")) {
+                var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
+                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                rPaddleTargetPosition.y = newY;
+            }
+        }
+
+        var oldYr = rPaddle.position.y;
+        var stopSpeedr = Settings.LerpSpeed * deltaTime;
+        var newYr = rPaddleTargetPosition.y;
+        var lerpedYr = Math.Lerp(oldYr, newYr, stopSpeedr);
+        rPaddle.position = new Vec2(rPaddle.position.x, lerpedYr)!;
+
+        // Checking previous state of Enter key to detect the edge
+        // (toggles once per key press instead of constantly)
+        if (Graphics.GetKey("Enter") && !previousEnter)
+            aiOn = !aiOn;
+
+        var scaledVelocity = ballVelocity;
+        scaledVelocity.x *= deltaTime;
+        scaledVelocity.y *= deltaTime;
+        ball.position.x += scaledVelocity.x;
+        ball.position.y += scaledVelocity.y;
+
+        Graphics.DrawSprite(ball);
         Graphics.DrawSprite(lPaddle);
         Graphics.DrawSprite(rPaddle);
+        Graphics.DrawSprite(net);
+        Graphics.DrawText(scoreOne);
+        Graphics.DrawText(scoreTwo);
+        Graphics.DrawText(info);
+
+        HandleBallBounce();
+
+        previousEnter = Graphics.GetKey("Enter");
+    }
+
+    private void HandleBallBounce() {
+        var ballX = ball.position.x;
+        var ballY = ball.position.y;
+        var scaleY = ball.scale.y;
+
+        var topEdge = ballY - scaleY / 2;
+        var bottomEdge = ballY + scaleY / 2;
+
+        if (topEdge <= 0 || bottomEdge >= Settings.ScreenHeight) {
+            var vX = ballVelocity.x;
+            var vY = ballVelocity.y;
+            vY *= -1;
+            ballVelocity = new Vec2(vX, vY)!;
+            return;
+        }
+
+        if (ballX < 0) {
+            var ballPos = centerOfScreen;
+            ballPos.x -= ball.scale.x;
+            ballPos.y -= ball.scale.y;
+            ballPos.x -= Settings.ScreenWidth / 3;
+            ball.position = ballPos;
+            ballVelocity = new Vec2(Settings.BallSpeed, 0)!;
+            scoreTwo.text = (string!)(((int)scoreTwo.text) + 1);
+        }
+
+        if (ballX > Settings.ScreenWidth) {
+            var ballPos = centerOfScreen;
+            ballPos.x -= ball.scale.x;
+            ballPos.y -= ball.scale.y;
+            ballPos.x += Settings.ScreenWidth / 3;
+            ball.position = ballPos;
+            ballVelocity = new Vec2(-Settings.BallSpeed, 0)!;
+            scoreOne.text = (string!)(((int)scoreOne.text) + 1);
+        }
+
+        var collidingL = Colliding(ball, lPaddle);
+
+        if (collidingL) {
+            var difference = lPaddle.position.y - ballY;
+            var paddleHeight = lPaddle.scale.y;
+            var normRelIntersectY = difference / (paddleHeight / 2);
+            var bounceAngle = normRelIntersectY * 0.523599;
+            var ballVx = Settings.BallSpeed * Math.Cos(bounceAngle);
+            var ballVy = Settings.BallSpeed * Math.Sin(bounceAngle) * -1;
+            ballVelocity = new Vec2(ballVx, ballVy)!;
+        }
+
+        var collidingR = Colliding(ball, rPaddle);
+
+        if (collidingR) {
+            var difference = rPaddle.position.y - ballY;
+            var paddleHeight = rPaddle.scale.y;
+            var normRelIntersectY = difference / (paddleHeight / 2);
+            var bounceAngle = normRelIntersectY * -0.523599;
+            var ballVx = Settings.BallSpeed * Math.Cos(bounceAngle) * -1;
+            var ballVy = Settings.BallSpeed * Math.Sin(bounceAngle);
+            ballVelocity = new Vec2(ballVx, ballVy)!;
+        }
+    }
+
+    private static bool! Colliding(Sprite a, Sprite b) {
+        var collisionX = a.position.x + a.scale.x / 2 >= b.position.x - b.scale.x / 2 &&
+		b.position.x + b.scale.x / 2 >= a.position.x - a.scale.x;
+
+        var collisionY = a.position.y + a.scale.y / 2 >= b.position.y - b.scale.y / 2 &&
+            b.position.y + b.scale.y / 2 >= a.position.y - a.scale.y / 2;
+
+        return collisionX && collisionY;
     }
 }

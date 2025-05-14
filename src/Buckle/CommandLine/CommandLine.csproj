@@ -26,4 +26,11 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
+  <Target Name="CopyFreetypeDll" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(OutputPath)/lib/x64/freetype6.dll"
+      DestinationFolder="$(OutputPath)"
+      SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>

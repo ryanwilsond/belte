@@ -10,6 +10,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.Xna.Framework.Graphics;
+using MonoGame.Extended.Text;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -19,6 +20,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// </summary>
 internal sealed class Evaluator {
     private static readonly Symbol HiddenSpriteData = new SynthesizedLabelSymbol("texture");
+    private static readonly Symbol HiddenTextData = new SynthesizedLabelSymbol("spriteFont");
 
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
@@ -102,7 +104,7 @@ internal sealed class Evaluator {
             var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
-                InvokeMethod(constructor, [], null, abort);
+                InvokeMethod(constructor, [], abort);
         }
 
         var result = EvaluateStatement(entryPointBody, abort, out _);
@@ -113,7 +115,8 @@ internal sealed class Evaluator {
                 ;
         }
 
-        _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
+        if (_program.updatePoint is not null)
+            _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
 
         hasValue = _hasValue;
         return hasValue ? Value(result, true) : null;
@@ -516,11 +519,7 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
         var newObject = CreateObject((NamedTypeSymbol)node.type);
-
-        EnterClassScope(newObject);
-        InvokeMethod(node.constructor, node.arguments, null, abort);
-        ExitClassScope();
-
+        InvokeMethodWithResolvedReceiver(node.constructor, node.arguments, newObject, abort);
         return newObject;
     }
 
@@ -549,21 +548,17 @@ internal sealed class Evaluator {
     private EvaluatorObject InvokeMethod(
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
-        BoundExpression receiver,
         ValueWrapper<bool> abort) {
-        var receiverObject = default(EvaluatorObject);
+        return InvokeMethodWithResolvedReceiver(method, arguments, null, abort);
+    }
 
-        // Have to check receiver too because constructors don't have receivers
-        if (receiver is not null && method.callingConvention == CallingConvention.HasThis) {
-            receiverObject = EvaluateExpression(receiver, abort);
-            var dereferencedReceiver = Dereference(receiverObject);
-
-            if (dereferencedReceiver.members is null)
-                throw new NullReferenceException();
-        }
-
+    private EvaluatorObject InvokeMethodWithResolvedReceiver(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        EvaluatorObject receiver,
+        ValueWrapper<bool> abort) {
         if (method.isAbstract || method.isVirtual) {
-            var type = Dereference(receiverObject).type;
+            var type = Dereference(receiver).type;
             var newMethod = type
                 .GetMembersUnordered()
                 .Where(s => s is MethodSymbol m && m.overriddenMethod == method)
@@ -595,15 +590,15 @@ internal sealed class Evaluator {
         var enteredScope = false;
 
         // !
-        if (receiverObject is not null /*&& (receiver.isReference || expression is BoundObjectCreationExpression)*/) {
+        if (receiver is not null /*&& (receiver.isReference || expression is BoundObjectCreationExpression)*/) {
             // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
-            receiverObject = Dereference(receiverObject);
+            receiver = Dereference(receiver);
 
-            if (receiverObject.members is not null) {
-                EnterClassScope(receiverObject);
+            if (receiver.members is not null) {
+                EnterClassScope(receiver);
                 enteredScope = true;
             }
         }
@@ -621,6 +616,25 @@ internal sealed class Evaluator {
             ExitClassScope();
 
         return result;
+    }
+
+    private EvaluatorObject InvokeMethod(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        BoundExpression receiver,
+        ValueWrapper<bool> abort) {
+        var receiverObject = default(EvaluatorObject);
+
+        // Have to check receiver too because constructors don't have receivers
+        if (receiver is not null && method.callingConvention == CallingConvention.HasThis) {
+            receiverObject = EvaluateExpression(receiver, abort);
+            var dereferencedReceiver = Dereference(receiverObject);
+
+            if (dereferencedReceiver.members is null)
+                throw new NullReferenceException();
+        }
+
+        return InvokeMethodWithResolvedReceiver(method, arguments, receiverObject, abort);
     }
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
@@ -1056,6 +1070,9 @@ internal sealed class Evaluator {
 
         if (mapKey == "Graphics_LoadSprite_SVVI" ||
             mapKey == "Graphics_DrawSprite_S?" ||
+            mapKey == "Graphics_DrawText_T?" ||
+            mapKey == "Graphics_LoadText_SSVDDIII" ||
+            mapKey == "Graphics_GetKey_S" ||
             mapKey == "Graphics_StopDraw_I?") {
             // Wait until window is created to future Graphics calls are valid
             if (_context.graphicsThread is not null && _context.graphicsThread.IsAlive) {
@@ -1116,6 +1133,64 @@ internal sealed class Evaluator {
                 return true;
 
             _context.graphicsHandler?.RemoveAction(Convert.ToInt32(argument));
+        } else if (mapKey == "Graphics_LoadText_SSVDDIII") {
+            var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+            var path = (string)Value(evaluatedArguments[1]);
+
+            if (!File.Exists(path))
+                return true;
+
+            var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+            var text = CreateObject(textType);
+            var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+
+            var fontSize = Convert.ToSingle(Value(evaluatedArguments[3]));
+
+            text.members[textFields[0]] = evaluatedArguments[0];
+            text.members[textFields[1]] = evaluatedArguments[1];
+            text.members[textFields[2]] = evaluatedArguments[2];
+            text.members[textFields[3]] = evaluatedArguments[3];
+            text.members[textFields[4]] = evaluatedArguments[4];
+            text.members[textFields[5]] = evaluatedArguments[5];
+            text.members[textFields[6]] = evaluatedArguments[6];
+            text.members[textFields[7]] = evaluatedArguments[7];
+
+            text.members[HiddenTextData] = new EvaluatorObject(
+                _context.graphicsHandler?.LoadText(path, fontSize),
+                null
+            );
+
+            result = text;
+        } else if (mapKey == "Graphics_DrawText_T?") {
+            var argument = Dereference(EvaluateExpression(arguments[0], abort));
+
+            if (argument.members.Count < 9)
+                return true;
+
+            var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+            var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+
+            var text = (string)argument.members[textFields[0]].value;
+            var posX = Convert.ToSingle(argument.members[textFields[2]].members.Values.ElementAt(0).value);
+            var posY = Convert.ToSingle(argument.members[textFields[2]].members.Values.ElementAt(1).value);
+            var r = Convert.ToInt32(argument.members[textFields[5]].value);
+            var g = Convert.ToInt32(argument.members[textFields[6]].value);
+            var b = Convert.ToInt32(argument.members[textFields[7]].value);
+            var spriteFont = (DynamicSpriteFont)argument.members[HiddenTextData].value;
+
+            if (spriteFont is null)
+                return true;
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler?.AddAction(
+                    () => { _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b); }
+                );
+            } else {
+                _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b);
+            }
+        } else if (mapKey == "Graphics_GetKey_S") {
+            var argument = (string)Value(EvaluateExpression(arguments[0], abort));
+            result = _context.graphicsHandler?.GetKey(argument);
         }
 
         return true;
@@ -1167,6 +1242,6 @@ internal sealed class Evaluator {
             CorLibrary.GetSpecialType(SpecialType.Decimal)
         );
 
-        InvokeMethod(_program.updatePoint, [argument], null, abort);
+        InvokeMethod(_program.updatePoint, [argument], abort);
     }
 }

@@ -21,4 +21,5 @@ public enum SpecialType : byte {
     Dictionary,
     Vec2,
     Sprite,
+    Text,
 }

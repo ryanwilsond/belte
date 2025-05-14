@@ -31,6 +31,7 @@
     <Content Remove="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
     <Content Remove="../../Belte/Graphics/Vec2.blt" />
     <Content Remove="../../Belte/Graphics/Sprite.blt" />
+    <Content Remove="../../Belte/Graphics/Text.blt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -50,6 +51,7 @@
     <EmbeddedResource Include="../../Belte/Standard/Exceptions/NotSupportedException.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Vec2.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Sprite.blt" />
+    <EmbeddedResource Include="../../Belte/Graphics/Text.blt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -62,6 +64,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\..\Dependencies\MonoGame.Extended.Text\MonoGame.Extended.Text.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 

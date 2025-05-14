@@ -53,6 +53,7 @@ public static class LibraryHelpers {
             // TODO Remove this, temp
             if (libraryName != "Compiler.Object.blt" &&
                 libraryName != "Compiler.Vec2.blt" &&
+                libraryName != "Compiler.Text.blt" &&
                 libraryName != "Compiler.Sprite.blt") {
                 continue;
             }
