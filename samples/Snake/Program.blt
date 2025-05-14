@@ -1,4 +1,10 @@
+/*
 
+    Snake Game
+
+    This program uses the built-in graphics library to make a simple snake game.
+
+*/
 class Program {
     string! direction;
     string! pendingDirection;
