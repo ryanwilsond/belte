@@ -77,42 +77,4 @@ public sealed class EvaluatorObject {
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 
     internal TypeSymbol type { get; set; }
-
-    /// <summary>
-    /// Checks if this and another EvaluatorObject's values equal.
-    /// </summary>
-    internal bool ValueEquals(EvaluatorObject other) {
-        // TODO should probably rework this
-        if ((type is null) != (other.type is null))
-            return false;
-
-        if (type is not null) {
-            if (!type.Equals(other.type))
-                return false;
-        }
-
-        if (isReference) {
-            if (!other.isReference)
-                return false;
-
-            if (reference != other.reference)
-                return false;
-        } else if (members is null) {
-            if (other.isReference || (other.members is not null))
-                return false;
-
-            if (!value.Equals(other.value))
-                return false;
-        } else {
-            var memberValues = members.Values.ToArray();
-            var otherValues = other.members.Values.ToArray();
-
-            for (var i = 0; i < memberValues.Length; i++) {
-                if (!memberValues[i].ValueEquals(otherValues[i]))
-                    return false;
-            }
-        }
-
-        return true;
-    }
 }
