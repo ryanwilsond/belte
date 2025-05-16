@@ -7463,9 +7463,9 @@ symIsHidden:;
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
-                    // Currently, we only auto-lift if initialized with an object creation
-                    // TODO Consider if we should ever auto-lift?
-                    if (initializer.kind == BoundKind.ObjectCreationExpression)
+                    // Currently, we only auto-lift if initialized with an object creation or constant
+                    // TODO Consider when we should auto-lift?
+                    if (initializer.kind == BoundKind.ObjectCreationExpression || initializer.constantValue is not null)
                         declarationType = declarationType.SetIsAnnotated();
                 }
 

@@ -237,7 +237,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (method is SourceMemberMethodSymbol sourceMethod) {
             syntaxNode = sourceMethod.syntaxNode;
-            var bodyBinder = sourceMethod.TryGetBodyBinder();
+            var bodyBinder = sourceMethod.TryGetBodyBinder(null, state.compilation.options.isScript);
 
             if (bodyBinder is null)
                 return null;

@@ -1,5 +1,5 @@
 
-static class Console {
+public static class Console {
     public static int GetWidth();
 
     public static int GetHeight();

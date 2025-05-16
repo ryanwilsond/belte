@@ -67,12 +67,24 @@ internal partial class GraphicsHandler : Game {
         return false;
     }
 
-    internal void DrawSprite(Texture2D texture, float posX, float posY, float scaleX, float scaleY, int rotation) {
+    internal void DrawSprite(
+        Texture2D texture,
+        object posX,
+        object posY,
+        object scaleX,
+        object scaleY,
+        object rotation) {
+        var posXf = posX is null ? 0 : Convert.ToInt32(posX);
+        var posYf = posY is null ? 0 : Convert.ToInt32(posY);
+        var scaleXf = scaleX is null ? texture.Width : Convert.ToInt32(scaleX);
+        var scaleXy = scaleY is null ? texture.Height : Convert.ToInt32(scaleY);
+        var rotf = rotation is null ? 0 : Convert.ToSingle(rotation);
+
         var destinationRectangle = new Rectangle(
-            (int)(posX - scaleX / 2f),
-            (int)(posY - scaleY / 2f),
-            (int)scaleX,
-            (int)scaleY
+            posXf - scaleXf / 2,
+            posYf - scaleXy / 2,
+            scaleXf,
+            scaleXy
         );
 
         _spriteBatch.Draw(
@@ -80,18 +92,32 @@ internal partial class GraphicsHandler : Game {
             destinationRectangle,
             null,
             Color.White,
-            rotation,
+            rotf,
             Vector2.Zero,
             SpriteEffects.None,
             0f
         );
     }
 
-    internal void DrawText(DynamicSpriteFont font, string text, float posX, float posY, int r, int g, int b) {
-        var color = new Color(r, g, b);
+    internal void DrawText(
+        DynamicSpriteFont font,
+        string text,
+        object posX,
+        object posY,
+        object r,
+        object g,
+        object b) {
+        var rf = r is null ? 255 : Convert.ToInt32(r);
+        var gf = g is null ? 255 : Convert.ToInt32(g);
+        var bf = b is null ? 255 : Convert.ToInt32(b);
+        var posXf = posX is null ? 0 : Convert.ToInt32(posX);
+        var posYf = posY is null ? 0 : Convert.ToInt32(posY);
+
+        var color = new Color(rf, gf, bf);
         var spacing = new Vector2(2, 2);
         var size = font.MeasureString(text, Vector2.Zero, Vector2.One, spacing);
-        var location = new Vector2(posX - size.X / 2, posY - size.Y / 2);
+        var location = new Vector2(posXf - size.X / 2, posYf - size.Y / 2);
+
         _spriteBatch.DrawString(font, text, location, spacing, color);
     }
 

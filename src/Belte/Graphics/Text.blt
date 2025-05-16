@@ -1,11 +1,11 @@
 
-class Text {
-    public string! text;
+public class Text {
+    public string text;
     public string! fontPath;
-    public Vec2! position;
+    public Vec2 position;
     public decimal! fontSize;
-    public decimal! angle;
-    public int! r;
-    public int! g;
-    public int! b;
+    public decimal angle;
+    public int r;
+    public int g;
+    public int b;
 }

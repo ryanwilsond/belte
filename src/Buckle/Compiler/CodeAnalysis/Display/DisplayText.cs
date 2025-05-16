@@ -850,7 +850,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayBinaryOperator(DisplayText text, BoundBinaryOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.operatorKind.ToSyntaxKind(), false);
+        var opKind = node.operatorKind == BinaryOperatorKind.Error
+            ? SyntaxKind.QuestionToken
+            : node.operatorKind.ToSyntaxKind();
+
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind, false);
     }
 
     private static void DisplayCompoundAssignmentOperator(DisplayText text, BoundCompoundAssignmentOperator node) {

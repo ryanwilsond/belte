@@ -1,4 +1,4 @@
 
-static class Random {
+public static class Random {
     public static int! RandInt(int max);
 }

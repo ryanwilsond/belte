@@ -1,5 +1,5 @@
 
-abstract class EqualityComparer<type! T> {
+public abstract class EqualityComparer<type! T> {
     public abstract bool! Equals(T x, T y);
 
     public abstract int! GetHashCode(T obj);

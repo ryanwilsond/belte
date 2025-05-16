@@ -1,5 +1,5 @@
 
-static class File {
+public static class File {
     public static void AppendLines(string! fileName, List<string!>! lines);
 
     public static void AppendText(string! fileName, string! text);

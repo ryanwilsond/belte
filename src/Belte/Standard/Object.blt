@@ -1,5 +1,5 @@
 
-class Object {
+public class Object {
     protected constructor() { }
 
     public virtual string ToString() {

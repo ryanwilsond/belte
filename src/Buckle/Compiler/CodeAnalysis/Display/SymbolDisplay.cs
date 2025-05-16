@@ -54,9 +54,10 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol, format);
                 break;
-            case SymbolKind.NamedType when symbol is not ConstructedNamedTypeSymbol and not PrimitiveTypeSymbol:
-                DisplayNamedType(text, (NamedTypeSymbol)symbol, format);
-                break;
+            // TODO Does the REPL ever want this case?
+            // case SymbolKind.NamedType when symbol is not ConstructedNamedTypeSymbol and not PrimitiveTypeSymbol:
+            //     DisplayNamedType(text, (NamedTypeSymbol)symbol, format);
+            //     break;
             case SymbolKind.NamedType:
                 DisplayType(text, (NamedTypeSymbol)symbol, format);
                 break;

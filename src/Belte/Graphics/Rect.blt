@@ -1,5 +1,5 @@
 
-class Rect {
+public class Rect {
     public int! x;
     public int! y;
     public int! w;

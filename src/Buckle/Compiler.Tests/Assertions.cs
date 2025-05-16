@@ -2,6 +2,7 @@ using System;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
@@ -18,7 +19,7 @@ internal static class Assertions {
     private readonly static Compilation BaseCompilation;
 
     static Assertions() {
-        var compilation = CompilerHelpers.LoadLibraries();
+        var compilation = LibraryHelpers.LoadLibraries(DefaultOptions);
         _ = compilation.boundProgram;
         BaseCompilation = compilation;
     }
@@ -41,6 +42,8 @@ internal static class Assertions {
 
         if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
+        else if (result.value is long && Convert.ToInt64(expectedValue).CompareTo(result.value) == 0)
+            expectedValue = Convert.ToInt64(expectedValue);
 
         Assert.Empty(result.diagnostics.Errors().ToArray());
         Assert.Equal(expectedValue, result.value);

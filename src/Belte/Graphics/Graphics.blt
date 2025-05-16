@@ -1,12 +1,12 @@
 
-static class Graphics {
+public static class Graphics {
     public static void Initialize(string! title, int! width, int! height);
 
-    public static Sprite LoadSprite(string! path, Vec2! position, Vec2! scale, int! rotation);
+    public static Sprite LoadSprite(string! path, Vec2 position, Vec2 scale, int rotation);
 
     public static int DrawSprite(Sprite sprite);
 
-    public static Text LoadText(string! text, string! fontPath, Vec2! position, decimal! fontSize, decimal! angle, int! r, int! g, int! b);
+    public static Text LoadText(string text, string! fontPath, Vec2 position, decimal! fontSize, decimal angle, int r, int g, int b);
 
     public static int DrawText(Text text);
 

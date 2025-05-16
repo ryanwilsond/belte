@@ -32,6 +32,7 @@ public sealed class Compilation {
     private readonly SyntaxAndDeclarationManager _syntax;
     private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
+    private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
     private BoundProgram _lazyBoundProgram;
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
@@ -482,13 +483,23 @@ public sealed class Compilation {
         return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
     }
 
-    internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree) {
+    internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree, bool ignoreAccessibility = false) {
+        if (ignoreAccessibility && SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this) is not null)
+            return GetBinderFactory(syntaxTree, ignoreAccessibility: true, ref _ignoreAccessibilityBinderFactories);
+
+        return GetBinderFactory(syntaxTree, ignoreAccessibility: false, ref _binderFactories);
+    }
+
+    internal BinderFactory GetBinderFactory(
+        SyntaxTree syntaxTree,
+        bool ignoreAccessibility,
+        ref WeakReference<BinderFactory>[] cachedBinderFactories) {
         var treeOrdinal = GetSyntaxTreeOrdinal(syntaxTree);
-        var binderFactories = _binderFactories;
+        var binderFactories = cachedBinderFactories;
 
         if (binderFactories is null) {
             binderFactories = new WeakReference<BinderFactory>[syntaxTrees.Length];
-            binderFactories = Interlocked.CompareExchange(ref _binderFactories, binderFactories, null)
+            binderFactories = Interlocked.CompareExchange(ref cachedBinderFactories, binderFactories, null)
                 ?? binderFactories;
         }
 
@@ -497,7 +508,7 @@ public sealed class Compilation {
         if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
             return previousFactory;
 
-        return AddNewFactory(syntaxTree, ref binderFactories[treeOrdinal]);
+        return AddNewFactory(syntaxTree, ignoreAccessibility, ref binderFactories[treeOrdinal]);
     }
 
     internal int GetSyntaxTreeOrdinal(SyntaxTree syntaxTree) {
@@ -536,8 +547,11 @@ public sealed class Compilation {
         return new Compilation(assemblyName, options, previous, syntax);
     }
 
-    private BinderFactory AddNewFactory(SyntaxTree syntaxTree, ref WeakReference<BinderFactory> slot) {
-        var newFactory = new BinderFactory(this, syntaxTree);
+    private BinderFactory AddNewFactory(
+        SyntaxTree syntaxTree,
+        bool ignoreAccessibility,
+        ref WeakReference<BinderFactory> slot) {
+        var newFactory = new BinderFactory(this, syntaxTree, ignoreAccessibility);
         var newWeakReference = new WeakReference<BinderFactory>(newFactory);
 
         while (true) {

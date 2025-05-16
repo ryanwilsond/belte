@@ -1,5 +1,5 @@
 
-static class Time {
+public static class Time {
     public static int! Now();
 
     public static void Sleep(int! milliseconds);

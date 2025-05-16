@@ -9,6 +9,7 @@ internal sealed partial class BinderFactory {
     private readonly Compilation _compilation;
     private readonly ObjectPool<BinderFactoryVisitor> _binderFactoryVisitorPool;
     private readonly EndBinder _endBinder;
+    private readonly bool _ignoreAccessibility;
 
     private static readonly ObjectPool<BinderFactoryVisitor> BinderFactoryVisitorPool
         = new ObjectPool<BinderFactoryVisitor>(static () => new BinderFactoryVisitor(), 64);
@@ -16,6 +17,7 @@ internal sealed partial class BinderFactory {
     internal BinderFactory(
         Compilation compilation,
         SyntaxTree syntaxTree,
+        bool ignoreAccessibility,
         ObjectPool<BinderFactoryVisitor> binderFactoryVisitorPool = null) {
         _compilation = compilation;
         this.syntaxTree = syntaxTree;
@@ -23,6 +25,7 @@ internal sealed partial class BinderFactory {
         // 50 is most likely more than ever needed before collected
         _binderCache = new ConcurrentCache<BinderCacheKey, Binder>(50);
         _endBinder = new EndBinder(compilation, syntaxTree.text);
+        _ignoreAccessibility = ignoreAccessibility;
     }
 
     internal SyntaxTree syntaxTree { get; }

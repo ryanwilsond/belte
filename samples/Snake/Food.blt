@@ -1,8 +1,8 @@
 
 class Food {
     public Sprite sprite;
-    public decimal! x;
-    public decimal! y;
+    public decimal x;
+    public decimal y;
 
     public constructor() {
         sprite = Graphics.LoadSprite("samples/Assets/ball.png", new Vec2(0, 0), new Vec2(Settings.SpaceSize - 10, Settings.SpaceSize - 10), 0);
@@ -11,7 +11,7 @@ class Food {
         sprite.position = new Vec2(
             x * Settings.SpaceSize + Settings.SpaceSize / 2 + 5,
             y * Settings.SpaceSize + Settings.SpaceSize / 2 + 85
-        )!;
+        );
     }
 
     public void RandomizeLocation(Snake snake) {

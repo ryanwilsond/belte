@@ -73,9 +73,12 @@ internal sealed partial class BinderFactory {
                 // else
                 //     result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
 
+                if (_inScript)
+                    result = result.WithAdditionalFlags(BinderFlags.IgnoreAccessibility);
+
                 if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
                     is SynthesizedEntryPoint simpleProgram) {
-                    var bodyBinder = simpleProgram.GetBodyBinder(false); // ? _factory._ignoreAccessibility
+                    var bodyBinder = simpleProgram.GetBodyBinder(_factory._ignoreAccessibility);
                     result = new SimpleProgramUnitBinder(
                         result,
                         (SimpleProgramBinder)bodyBinder.GetBinder(simpleProgram.syntaxNode)
@@ -104,7 +107,7 @@ internal sealed partial class BinderFactory {
                         false
                     );
 
-                    var bodyBinder = simpleProgram.GetBodyBinder(false); // Maybe _factory.ignoreAccessibility instead?
+                    var bodyBinder = simpleProgram.GetBodyBinder(_factory._ignoreAccessibility || _inScript);
                     result = bodyBinder.GetBinder(compilationUnit);
                     _binderCache.TryAdd(key, result);
                 }

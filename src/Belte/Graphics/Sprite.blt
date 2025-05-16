@@ -1,6 +1,6 @@
 
-class Sprite {
-    public Vec2! position;
-    public Vec2! scale;
-    public int! rotation;
+public class Sprite {
+    public Vec2 position;
+    public Vec2 scale;
+    public int rotation;
 }

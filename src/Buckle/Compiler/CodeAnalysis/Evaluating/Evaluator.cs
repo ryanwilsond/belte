@@ -254,15 +254,6 @@ internal sealed class Evaluator {
         left.type = right.type;
     }
 
-    private EvaluatorObject GetFromScopeWithFallback(
-        DataContainerSymbol variable,
-        Dictionary<IDataContainerSymbol, EvaluatorObject> scope) {
-        if (scope.TryGetValue(variable, out var evaluatorObject))
-            return evaluatorObject;
-
-        return Get(variable);
-    }
-
     private EvaluatorObject Dereference(EvaluatorObject reference, bool dereferenceOnExplicit = true) {
         while (reference.isReference) {
             if (!dereferenceOnExplicit && reference.isExplicitReference)
@@ -278,36 +269,25 @@ internal sealed class Evaluator {
         var members = new Dictionary<Symbol, EvaluatorObject>();
         var typeMembers = type.GetMembers();
 
-        foreach (var field in typeMembers.Where(f => f is FieldSymbol).Select(f => f as FieldSymbol)) {
-            var value = new EvaluatorObject(null, field.type);
+        foreach (var member in typeMembers) {
+            if (member is FieldSymbol f) {
+                var value = new EvaluatorObject(null, f.type);
 
-            if (field.refKind != RefKind.None) {
-                value.isReference = true;
-                value.isExplicitReference = true;
+                if (f.refKind != RefKind.None) {
+                    value.isReference = true;
+                    value.isExplicitReference = true;
+                }
+
+                members.Add(f, value);
             }
-
-            members.Add(field, value);
         }
 
-        // TODO Is this still necessary with the new symbol system?
-        // var trueType = ClarifyType(type);
         return new EvaluatorObject(members, type);
     }
 
-    private void EnterClassScope(EvaluatorObject @class) {
-        var classLocalBuffer = new Dictionary<Symbol, EvaluatorObject>();
-
-        foreach (var member in @class.members) {
-            if (member.Key is FieldSymbol f) {
-                // If the symbol is already present it could be outdated and should be replaced
-                // If it isn't outdated no harm in replacing it
-                classLocalBuffer.Remove(f);
-                classLocalBuffer.Add(f, member.Value);
-            }
-        }
-
-        _enclosingTypes.Push(@class);
-        _locals.Push(classLocalBuffer);
+    private void EnterClassScope(EvaluatorObject classObject) {
+        _enclosingTypes.Push(classObject);
+        _locals.Push(classObject.members);
     }
 
     private void ExitClassScope() {
@@ -991,22 +971,26 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCast(EvaluatorObject value, TypeSymbol source, TypeSymbol target) {
         var dereferenced = Dereference(value);
-        target = target.StrippedType();
-        source = source.StrippedType();
+        var strippedTarget = target.StrippedType();
+        var strippedSource = source.StrippedType();
 
         if (dereferenced.members is null) {
             var valueValue = Value(value);
 
-            if (target.specialType != SpecialType.Nullable && value is null)
-                throw new NullReferenceException();
+            if (valueValue is null) {
+                if (target.specialType != SpecialType.Nullable)
+                    throw new NullReferenceException();
 
-            if (source.Equals(target, TypeCompareKind.IgnoreNullability))
+                return new EvaluatorObject(valueValue, strippedTarget);
+            }
+
+            if (strippedSource.Equals(strippedTarget, TypeCompareKind.IgnoreNullability))
                 return value;
 
-            return new EvaluatorObject(LiteralUtilities.Cast(valueValue, target), target);
+            return new EvaluatorObject(LiteralUtilities.Cast(valueValue, strippedTarget), target);
         }
 
-        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)target))
+        if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)strippedTarget))
             return value;
 
         throw new InvalidCastException();
@@ -1101,12 +1085,14 @@ internal sealed class Evaluator {
                 Convert.ToInt32(valueArguments[2]),
                 abort
             );
+
+            return true;
         }
 
-        if (mapKey == "Graphics_LoadSprite_SVVI" ||
+        if (mapKey == "Graphics_LoadSprite_SV?V?I?" ||
             mapKey == "Graphics_DrawSprite_S?" ||
             mapKey == "Graphics_DrawText_T?" ||
-            mapKey == "Graphics_LoadText_SSVDDIII" ||
+            mapKey == "Graphics_LoadText_S?SV?DD?I?I?I?" ||
             mapKey == "Graphics_GetKey_S" ||
             mapKey == "Graphics_DrawRect_R?" ||
             mapKey == "Graphics_StopDraw_I?") {
@@ -1121,7 +1107,7 @@ internal sealed class Evaluator {
             return true;
         }
 
-        if (mapKey == "Graphics_LoadSprite_SVVI") {
+        if (mapKey == "Graphics_LoadSprite_SV?V?I?") {
             var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
             var path = (string)Value(evaluatedArguments[0]);
 
@@ -1145,11 +1131,11 @@ internal sealed class Evaluator {
 
             var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
             var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-            var posX = Convert.ToSingle(argument.members[spriteFields[0]].members.Values.ElementAt(0).value);
-            var posY = Convert.ToSingle(argument.members[spriteFields[0]].members.Values.ElementAt(1).value);
-            var scaleX = Convert.ToSingle(argument.members[spriteFields[1]].members.Values.ElementAt(0).value);
-            var scaleY = Convert.ToSingle(argument.members[spriteFields[1]].members.Values.ElementAt(1).value);
-            var rotation = Convert.ToInt32(argument.members[spriteFields[2]].value);
+            var posX = argument.members[spriteFields[0]].members.Values.ElementAt(0).value;
+            var posY = argument.members[spriteFields[0]].members.Values.ElementAt(1).value;
+            var scaleX = argument.members[spriteFields[1]].members.Values.ElementAt(0).value;
+            var scaleY = argument.members[spriteFields[1]].members.Values.ElementAt(1).value;
+            var rotation = argument.members[spriteFields[2]].value;
             var texture = (Texture2D)argument.members[HiddenSpriteData].value;
 
             if (texture is null)
@@ -1169,7 +1155,7 @@ internal sealed class Evaluator {
                 return true;
 
             _context.graphicsHandler?.RemoveAction(Convert.ToInt32(argument));
-        } else if (mapKey == "Graphics_LoadText_SSVDDIII") {
+        } else if (mapKey == "Graphics_LoadText_S?SV?DD?I?I?I?") {
             var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
             var path = (string)Value(evaluatedArguments[1]);
 
@@ -1207,11 +1193,11 @@ internal sealed class Evaluator {
             var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
 
             var text = (string)argument.members[textFields[0]].value;
-            var posX = Convert.ToSingle(argument.members[textFields[2]].members.Values.ElementAt(0).value);
-            var posY = Convert.ToSingle(argument.members[textFields[2]].members.Values.ElementAt(1).value);
-            var r = Convert.ToInt32(argument.members[textFields[5]].value);
-            var g = Convert.ToInt32(argument.members[textFields[6]].value);
-            var b = Convert.ToInt32(argument.members[textFields[7]].value);
+            var posX = argument.members[textFields[2]].members.Values.ElementAt(0).value;
+            var posY = argument.members[textFields[2]].members.Values.ElementAt(1).value;
+            var r = argument.members[textFields[5]].value;
+            var g = argument.members[textFields[6]].value;
+            var b = argument.members[textFields[7]].value;
             var spriteFont = (DynamicSpriteFont)argument.members[HiddenTextData].value;
 
             if (spriteFont is null)

@@ -50,7 +50,10 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 continue;
 
             var compilationUnit = synthesizedEntryPoint.compilationUnit;
-            var entryPointBinder = synthesizedEntryPoint.TryGetBodyBinder().GetBinder(compilationUnit);
+            var entryPointBinder = synthesizedEntryPoint
+                .TryGetBodyBinder(null, flags.Includes(BinderFlags.IgnoreAccessibility))
+                .GetBinder(compilationUnit);
+
             locals.AddRange(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
         }
 
@@ -72,7 +75,10 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 continue;
 
             var compilationUnit = synthesizedEntryPoint.compilationUnit;
-            var entryPointBinder = synthesizedEntryPoint.TryGetBodyBinder().GetBinder(compilationUnit);
+            var entryPointBinder = synthesizedEntryPoint
+                .TryGetBodyBinder(null, flags.Includes(BinderFlags.IgnoreAccessibility))
+                .GetBinder(compilationUnit);
+
             locals.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
         }
 

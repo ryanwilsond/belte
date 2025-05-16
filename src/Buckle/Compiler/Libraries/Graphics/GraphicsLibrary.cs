@@ -24,9 +24,9 @@ internal static class GraphicsLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateGraphics() {
         return StaticClass("Graphics", [
             StaticMethod("Initialize", SpecialType.Void, [("title", SpecialType.String), ("width", SpecialType.Int), ("height", SpecialType.Int)]),
-            StaticMethod("LoadSprite", SpecialType.Sprite, [("path", SpecialType.String), ("position", SpecialType.Vec2), ("scale", SpecialType.Vec2), ("rotation", SpecialType.Int)]),
+            StaticMethod("LoadSprite", SpecialType.Sprite, [("path", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("scale", SpecialType.Vec2, true), ("rotation", SpecialType.Int, true)]),
             StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", SpecialType.Sprite, true)]),
-            StaticMethod("LoadText", SpecialType.Text, true, [("text", SpecialType.String), ("fontPath", SpecialType.String), ("position", SpecialType.Vec2), ("fontSize", SpecialType.Decimal), ("angle", SpecialType.Decimal), ("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int)]),
+            StaticMethod("LoadText", SpecialType.Text, true, [("text", SpecialType.String, true), ("fontPath", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("fontSize", SpecialType.Decimal, false), ("angle", SpecialType.Decimal, true), ("r", SpecialType.Int, true), ("g", SpecialType.Int, true), ("b", SpecialType.Int, true)]),
             StaticMethod("DrawText", SpecialType.Int, true, [("sprite", SpecialType.Text, true)]),
             StaticMethod("DrawRect", SpecialType.Int, true, [("rect", SpecialType.Rect, true)]),
             StaticMethod("StopDraw", SpecialType.Void, [("id", SpecialType.Int, true)]),

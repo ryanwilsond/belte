@@ -30,8 +30,17 @@ class Program {
     private void Main() {
         Graphics.Initialize("Snake", Settings.GameWidth, Settings.GameHeight + 80);
 
-        var scorePosition = new Vec2(Settings.GameWidth / 2, 40)!;
+        var scorePosition = new Vec2(Settings.GameWidth / 2, 40);
         score = Graphics.LoadText("0", "samples/Assets/arial.ttf", scorePosition, 60, 0, 255, 255, 255);
+
+        var position1 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 - 100);
+        var position2 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2);
+        var position3 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 75);
+        var position4 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 250);
+        gameOverLine1 = Graphics.LoadText("Game Over!", "samples/Assets/arial.ttf", position1, 80, 0, 255, 100, 100);
+        gameOverLine2 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position2, 50, 0, 255, 100, 100);
+        gameOverLine3 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position3, 50, 0, 255, 100, 100);
+        gameOverLine4 = Graphics.LoadText("Press 'ENTER' to restart", "samples/Assets/arial.ttf", position4, 30, 0, 255, 255, 255);
 
         banner = new Rect(0, 0, Settings.GameWidth, 80, 100, 100, 100);
         Restart();
@@ -108,7 +117,7 @@ class Program {
             snake.coords[0].x += 1;
 
         if (snake.coords[0].x == food.x && snake.coords[0].y == food.y) {
-            score.text = (string!)(((int)score.text) + 1);
+            score.text = (string)(((int)score.text) + 1);
             snake.AddBodySegment(backSegment.x, backSegment.y);
             food.RandomizeLocation(snake);
         }
@@ -137,16 +146,10 @@ class Program {
     private void GameOver() {
         gameOver = true;
 
-        var scoreValue = (int!)score.text;
-        highScore = Math.Max(highScore, scoreValue);
+        var scoreValue = (int)score.text;
+        highScore = Math.Max(highScore, scoreValue!);
 
-        var position1 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 - 100)!;
-        var position2 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2)!;
-        var position3 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 75)!;
-        var position4 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 250)!;
-        gameOverLine1 = Graphics.LoadText("Game Over!", "samples/Assets/arial.ttf", position1, 80, 0, 255, 100, 100);
-        gameOverLine2 = Graphics.LoadText("Score: " + score.text, "samples/Assets/arial.ttf", position2, 50, 0, 255, 100, 100);
-        gameOverLine3 = Graphics.LoadText("High Score: " + (string!)highScore, "samples/Assets/arial.ttf", position3, 50, 0, 255, 100, 100);
-        gameOverLine4 = Graphics.LoadText("Press 'ENTER' to restart", "samples/Assets/arial.ttf", position4, 30, 0, 255, 255, 255);
+        gameOverLine2.text = "Score: " + score.text;
+        gameOverLine3.text = "High Score: " + (string)highScore;
     }
 }

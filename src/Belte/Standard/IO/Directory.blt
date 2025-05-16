@@ -1,5 +1,5 @@
 
-static class Directory {
+public static class Directory {
     public static void Create(string! path);
 
     public static void Delete(string! path);
