@@ -33,14 +33,16 @@ internal sealed class CSharpEmitter {
     // /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
     // /// <param name="outputPath">Where to put the emitted assembly.</param>
     // /// <returns>Diagnostics.</returns>
-    internal static BelteDiagnosticQueue Emit(BoundProgram program, string outputPath) {
+    internal static void Emit(
+        BoundProgram program,
+        string outputPath,
+        BelteDiagnosticQueue diagnostics) {
         //     var stringWriter = Emit(program, Path.GetFileNameWithoutExtension(outputPath), out var diagnostics);
 
         //     using (var writer = new StreamWriter(outputPath))
         //         writer.Write(stringWriter);
 
         //     return diagnostics;
-        return BelteDiagnosticQueue.Discarded;
     }
 
     // /// <summary>
@@ -52,11 +54,10 @@ internal sealed class CSharpEmitter {
     // /// </param>
     // /// <param name="diagnostics">Any produced diagnostics.</param>
     // /// <returns>C# source as a string.</returns>
-    internal static string Emit(
-        BoundProgram program, string namespaceName, out BelteDiagnosticQueue diagnostics) {
+    internal static string EmitToString(
+        BoundProgram program, string namespaceName, BelteDiagnosticQueue diagnostics) {
         //     var emitter = new CSharpEmitter();
         //     return emitter.EmitInternal(program, namespaceName, out diagnostics);
-        diagnostics = new BelteDiagnosticQueue();
         return "";
     }
 

@@ -187,7 +187,6 @@ public sealed class Compiler {
     }
 
     private BelteDiagnosticQueue InternalCompiler() {
-        var diagnostics = new BelteDiagnosticQueue();
         var timer = state.verboseMode ? Stopwatch.StartNew() : null;
         var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
 
@@ -197,12 +196,11 @@ public sealed class Compiler {
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
         if (state.noOut)
-            return diagnostics;
+            return BelteDiagnosticQueue.Discarded;
 
         LogParseTime(timer, syntaxTrees.Length);
 
-        var result = compilation.Emit(state.outputFilename, state.verboseMode);
-        diagnostics.PushRange(result);
+        var diagnostics = compilation.Emit(state.outputFilename, state.verboseMode);
 
         LogCompilationTime(timer);
 

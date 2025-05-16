@@ -233,26 +233,25 @@ public sealed class Compilation {
 
     public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var builder = GetDiagnostics();
+        var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
-        Log(logTime, timer, builder, $"Compiled in {timer?.ElapsedMilliseconds} ms");
+        Log(logTime, timer, diagnostics, $"Compiled in {timer?.ElapsedMilliseconds} ms");
 
-        if (builder.AnyErrors())
-            return builder;
+        if (diagnostics.AnyErrors())
+            return diagnostics;
 
         if (options.buildMode == BuildMode.Dotnet)
-            // return ILEmitter.Emit(program, moduleName, references, outputPath);
-            builder.Push(Fatal.Unsupported.DotnetCompilation());
+            ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
-            return CSharpEmitter.Emit(program, outputPath);
+            CSharpEmitter.Emit(program, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.Independent)
-            builder.Push(Fatal.Unsupported.IndependentCompilation());
+            diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
         if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
-            Log(logTime, timer, builder, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
+            Log(logTime, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
 
-        return builder;
+        return diagnostics;
     }
 
     public BelteDiagnosticQueue Execute() {
@@ -286,15 +285,10 @@ public sealed class Compilation {
         if (diagnostics.AnyErrors())
             return null;
 
-        if (buildMode == BuildMode.CSharpTranspile) {
-            var content = CSharpEmitter.Emit(program, assemblyName, out var emitterDiagnostics);
-            diagnostics.Move(emitterDiagnostics);
-            return content;
-        } else if (buildMode == BuildMode.Dotnet) {
-            var content = ILEmitter.Emit(program, assemblyName, options.references, out var emitterDiagnostics);
-            diagnostics.Move(emitterDiagnostics);
-            return content;
-        }
+        if (buildMode == BuildMode.CSharpTranspile)
+            return CSharpEmitter.EmitToString(program, assemblyName, diagnostics);
+        else if (buildMode == BuildMode.Dotnet)
+            return ILEmitter.EmitToString(program, assemblyName, options.references, diagnostics);
 
         return null;
     }
