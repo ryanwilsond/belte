@@ -1593,6 +1593,14 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NonConstantArraySize, location, message);
     }
 
+    internal static BelteDiagnostic BadArity(TextLocation location, TypeSymbol type, string text, int arity)
+        => BadArity(location, type.ToString(), text, arity);
+
+    internal static BelteDiagnostic BadArity(TextLocation location, string type, string text, int arity) {
+        var message = $"using the template {text} '{type}' requires {arity} template arguments";
+        return CreateError(DiagnosticCode.ERR_BadArity, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

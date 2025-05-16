@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal static class ConstraintsHelpers {
+internal static partial class ConstraintsHelpers {
     internal static TypeParameterBounds ResolveBounds(
         this SourceTemplateParameterSymbolBase templateParameter,
         ConsList<TemplateParameterSymbol> inProgress,
@@ -265,6 +265,52 @@ internal static class ConstraintsHelpers {
         // var boxedArgs = CheckConstraintsArgsBoxed.Allocate(compilation, includeNullability: false, NoLocation.Singleton, diagnostics);
         // type.CheckAllConstraints(boxedArgs);
         // TODO
+    }
+
+    internal static bool CheckConstraintsForNamedType(
+        this NamedTypeSymbol type,
+        in CheckConstraintsArgs args,
+        SyntaxNode typeSyntax,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentSyntax,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (!RequiresChecking(type))
+            return true;
+
+        // TODO constraints
+        // var diagnosticsBuilder = ArrayBuilder<TypeParameterDiagnosticInfo>.GetInstance();
+        // ArrayBuilder<TypeParameterDiagnosticInfo> useSiteDiagnosticsBuilder = null;
+        // var result = !typeSyntax.HasErrors && CheckTypeConstraints(type, in args, diagnosticsBuilder, nullabilityDiagnosticsBuilderOpt: args.IncludeNullability ? diagnosticsBuilder : null,
+        //                                                            ref useSiteDiagnosticsBuilder);
+
+        // if (useSiteDiagnosticsBuilder != null) {
+        //     diagnosticsBuilder.AddRange(useSiteDiagnosticsBuilder);
+        // }
+
+        // foreach (var pair in diagnosticsBuilder) {
+        //     int ordinal = pair.TypeParameter.Ordinal;
+        //     var location = ordinal < typeArgumentsSyntax.Count ? typeArgumentsSyntax[ordinal].Location : args.Location;
+        //     args.Diagnostics.Add(pair.UseSiteInfo, location);
+        // }
+
+        // diagnosticsBuilder.Free();
+
+        // if (HasDuplicateInterfaces(type, basesBeingResolved)) {
+        //     result = false;
+        //     args.Diagnostics.Add(ErrorCode.ERR_BogusType, args.Location, type);
+        // }
+
+        // return result;
+        return true;
+    }
+
+    internal static bool RequiresChecking(NamedTypeSymbol type) {
+        if (type.arity == 0)
+            return false;
+
+        if (ReferenceEquals(type.originalDefinition, type))
+            return false;
+
+        return true;
     }
 
     private static bool IsEncompassedBy(TypeSymbol a, TypeSymbol b) {

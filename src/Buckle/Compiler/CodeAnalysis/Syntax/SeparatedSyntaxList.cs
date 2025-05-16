@@ -103,6 +103,19 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         return _list.Any();
     }
 
+    internal bool Any(SyntaxKind kind) {
+        return IndexOf(kind) >= 0;
+    }
+
+    internal int IndexOf(SyntaxKind kind) {
+        for (int i = 0, n = Count; i < n; i++) {
+            if (this[i].kind == kind)
+                return i;
+        }
+
+        return -1;
+    }
+
     public Enumerator GetEnumerator() {
         return new Enumerator(this);
     }

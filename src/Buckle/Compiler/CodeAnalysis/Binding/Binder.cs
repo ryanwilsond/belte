@@ -380,7 +380,7 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        if (nonNullableType.specialType == SpecialType.Void)
+        if (nonNullableType.specialType == SpecialType.Void || nonNullableType.typeKind == TypeKind.TemplateParameter)
             return nonNullableType;
 
         return nonNullableType.SetIsAnnotated();
@@ -490,11 +490,10 @@ internal partial class Binder {
             );
         }
 
-        // TODO template
-        // var errorResult = CreateErrorIfLookupOnTypeParameter(node.Parent, qualifierOpt, identifierValueText, 0, diagnostics);
-        // if (errorResult is not null) {
-        //     return TypeWithAnnotations.Create(errorResult);
-        // }
+        var errorResult = CreateErrorIfLookupOnTemplateParameter(node.parent, qualifier, name, 0, diagnostics);
+
+        if (errorResult is not null)
+            return new TypeWithAnnotations(errorResult);
 
         if (qualifier is null) {
             var specialType = SpecialTypes.GetTypeFromMetadataName(string.Concat("global::", name));
@@ -565,8 +564,176 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved,
         NamespaceOrTypeSymbol qualifier) {
-        // TODO template
-        return new TypeWithAnnotations(CreateErrorType());
+        var plainName = node.identifier.text;
+        var templateArguments = node.templateArgumentList.arguments;
+        var options = LookupOptions.NamespacesOrTypesOnly;
+        var isUnboundTypeExpr = node.isUnboundTemplateName;
+
+        var unconstructedType = LookupTemplateTypeName(
+            diagnostics,
+            basesBeingResolved,
+            qualifier,
+            node,
+            plainName,
+            node.arity,
+            options
+        );
+
+        NamedTypeSymbol resultType;
+
+        if (isUnboundTypeExpr) {
+            if (!IsUnboundTypeAllowed(node)) {
+                if (!unconstructedType.IsErrorType()) {
+                    // TODO Reachable?
+                    // error CS7003: Unexpected use of an unbound generic name
+                    // diagnostics.Add(ErrorCode.ERR_UnexpectedUnboundGenericName, node.Location);
+                }
+
+                resultType = unconstructedType.Construct(
+                    UnboundArgumentErrorTypeSymbol.CreateTemplateArguments(
+                        unconstructedType.templateParameters,
+                        node.arity,
+                        error: null
+                    ),
+                    unbound: false
+                );
+            } else {
+                resultType = unconstructedType.AsUnboundTemplateType();
+            }
+        } else if ((flags & BinderFlags.SuppressTemplateArgumentBinding) != 0) {
+            resultType = unconstructedType.Construct(
+                PlaceholderTemplateArgumentSymbol.CreateTemplateArguments(unconstructedType.templateParameters)
+            );
+        } else {
+            var boundTemplateArguments = BindTemplateArguments(templateArguments, diagnostics, basesBeingResolved);
+
+            resultType = ConstructNamedType(
+                unconstructedType,
+                node,
+                templateArguments,
+                // TODO Eventually actually use the first item (arg name for argtoparams)
+                boundTemplateArguments.Select(p => p.Item2).ToImmutableArray(),
+                basesBeingResolved,
+                diagnostics
+            );
+        }
+
+        return new TypeWithAnnotations(resultType);
+    }
+
+    private NamedTypeSymbol LookupTemplateTypeName(
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved,
+        NamespaceOrTypeSymbol qualifier,
+        TemplateNameSyntax node,
+        string plainName,
+        int arity,
+        LookupOptions options) {
+        var errorResult = CreateErrorIfLookupOnTemplateParameter(
+            node.parent,
+            qualifier,
+            plainName,
+            arity,
+            diagnostics
+        );
+
+        if (errorResult is not null)
+            return errorResult;
+
+        var lookupResult = LookupResult.GetInstance();
+        LookupSymbolsSimpleName(lookupResult, qualifier, plainName, arity, basesBeingResolved, options, true);
+
+        var lookupResultSymbol = ResultSymbol(
+            lookupResult,
+            plainName,
+            arity,
+            node,
+            diagnostics,
+            out _,
+            qualifier,
+            options
+        );
+
+        if (lookupResultSymbol is not NamedTypeSymbol type) {
+            type = new ExtendedErrorTypeSymbol(
+                GetContainingNamespaceOrType(lookupResultSymbol),
+                [lookupResultSymbol],
+                lookupResult.kind,
+                lookupResult.error,
+                arity
+            );
+        }
+
+        lookupResult.Free();
+        return type;
+    }
+
+    private ExtendedErrorTypeSymbol CreateErrorIfLookupOnTemplateParameter(
+        BelteSyntaxNode node,
+        NamespaceOrTypeSymbol qualifier,
+        string name,
+        int arity,
+        BelteDiagnosticQueue diagnostics) {
+        if ((qualifier is not null) && (qualifier.kind == SymbolKind.TemplateParameter)) {
+            var diagnostic = Error.LookupInTemplateVariable(node.location, qualifier as TypeSymbol);
+            return new ExtendedErrorTypeSymbol(compilation, name, arity, diagnostic, unreported: false);
+        }
+
+        return null;
+    }
+
+    private NamedTypeSymbol ConstructNamedType(
+        NamedTypeSymbol type,
+        SyntaxNode typeSyntax,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
+        ImmutableArray<TypeOrConstant> templateArguments,
+        ConsList<TypeSymbol> basesBeingResolved,
+        BelteDiagnosticQueue diagnostics) {
+        type = type.Construct(templateArguments);
+
+        if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type)) {
+            type.CheckConstraintsForNamedType(
+                new ConstraintsHelpers.CheckConstraintsArgs(
+                    compilation,
+                    conversions,
+                    true,
+                    typeSyntax.location,
+                    diagnostics
+                ),
+                typeSyntax,
+                templateArgumentsSyntax,
+                basesBeingResolved
+            );
+        }
+
+        return type;
+    }
+
+    private NamedTypeSymbol ConstructNamedTypeUnlessTemplateArgumentOmitted(
+        SyntaxNode typeSyntax,
+        NamedTypeSymbol type,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
+        ImmutableArray<TypeOrConstant> templateArguments,
+        BelteDiagnosticQueue diagnostics) {
+        if (templateArgumentsSyntax.Any(SyntaxKind.OmittedArgument)) {
+            diagnostics.Push(Error.BadArity(
+                typeSyntax.location,
+                type,
+                MessageID.IDS_SK_TYPE.Localize(),
+                templateArgumentsSyntax.Count
+            ));
+
+            return type;
+        } else {
+            return ConstructNamedType(
+                type,
+                typeSyntax,
+                templateArgumentsSyntax,
+                templateArguments,
+                basesBeingResolved: null,
+                diagnostics: diagnostics
+            );
+        }
     }
 
     internal TypeWithAnnotations BindTypeOrImplicitType(
@@ -586,24 +753,35 @@ internal partial class Binder {
         SeparatedSyntaxList<BaseArgumentSyntax> templateArguments,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
+        var analyzedArguments = AnalyzedArguments.GetInstance();
         var arguments = ArrayBuilder<(string, TypeOrConstant)>.GetInstance(templateArguments.Count);
 
-        foreach (var argumentSyntax in templateArguments)
-            arguments.Add(BindTemplateArgument(argumentSyntax, diagnostics, basesBeingResolved));
+        for (var i = 0; i < templateArguments.Count; i++) {
+            arguments.Add(BindTemplateArgument(
+                analyzedArguments,
+                templateArguments[i],
+                diagnostics,
+                i,
+                basesBeingResolved
+            ));
+        }
 
+        analyzedArguments.Free();
         return arguments.ToImmutableAndFree();
     }
 
     private (string, TypeOrConstant) BindTemplateArgument(
+        AnalyzedArguments analyzedArguments,
         BaseArgumentSyntax templateArgument,
         BelteDiagnosticQueue diagnostics,
+        int index,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        // TODO Implement normal arguments first
-        // var name = templateArgument.identifier.text;
-        // var value = BindExpression(templateArgument.expression, diagnostics);
+        // TODO This is temporary: currently ignores argument name and only allows types
+        if (templateArgument.kind == SyntaxKind.OmittedArgument)
+            return (null, new TypeOrConstant(UnboundArgumentErrorTypeSymbol.Instance));
 
-        // return (name, value);
-        return (null, null);
+        var boundArg = BindType(((ArgumentSyntax)templateArgument).expression, diagnostics).type.StrippedType();
+        return (null, new TypeOrConstant(boundArg));
     }
 
     internal NamedTypeSymbol CreateErrorType(string name = "") {
@@ -2628,8 +2806,7 @@ internal partial class Binder {
         BoundExpression expression;
         var hasTemplateArguments = node.arity > 0;
         var templateArgumentList = node is TemplateNameSyntax t ? t.templateArgumentList.arguments : default;
-        // TODO templates
-        var templateArguments = hasTemplateArguments ? /*BindTemplateArguments(templateArgumentList, diagnostics)*/ ImmutableArray<TypeOrConstant>.Empty : [];
+        var templateArguments = hasTemplateArguments ? BindTemplateArguments(templateArgumentList, diagnostics) : [];
 
         var lookupResult = LookupResult.GetInstance();
         var name = node.identifier.text;
@@ -2650,10 +2827,10 @@ internal partial class Binder {
 
             if (symbol is null) {
                 var receiver = SynthesizeMethodGroupReceiver(node, members);
-                expression = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+                expression = ConstructBoundMemberGroupAndReportOmittedTemplateArguments(
                     node,
                     templateArgumentList,
-                    templateArguments,
+                    templateArguments.Select(p => p.Item2).ToImmutableArray(),
                     receiver,
                     name,
                     members,
@@ -2668,8 +2845,13 @@ internal partial class Binder {
                 var isNamedType = symbol.kind is SymbolKind.NamedType or SymbolKind.ErrorType;
 
                 if (hasTemplateArguments && isNamedType) {
-                    // symbol = ConstructNamedTypeUnlessTemplateArgumentOmitted(node, (NamedTypeSymbol)symbol, typeArgumentList, typeArgumentsWithAnnotations, diagnostics);
-                    // TODO template
+                    symbol = ConstructNamedTypeUnlessTemplateArgumentOmitted(
+                        node,
+                        (NamedTypeSymbol)symbol,
+                        templateArgumentList,
+                        templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                        diagnostics
+                    );
                 }
 
                 expression = BindNonMethod(node, symbol, diagnostics, lookupResult.kind, indexed, isError);
@@ -2712,7 +2894,7 @@ internal partial class Binder {
         return false;
     }
 
-    private BoundMethodGroup ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+    private BoundMethodGroup ConstructBoundMemberGroupAndReportOmittedTemplateArguments(
         SyntaxNode syntax,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
         ImmutableArray<TypeOrConstant> templateArguments,
@@ -2723,13 +2905,18 @@ internal partial class Binder {
         BoundMethodGroupFlags methodGroupFlags,
         bool hasErrors,
         BelteDiagnosticQueue diagnostics) {
-        // TODO templates
-        // if (!hasErrors && lookupResult.isMultiViable && typeArgumentsSyntax.Any(SyntaxKind.OmittedTypeArgument)) {
-        //     // Note: lookup won't have reported this, since the arity was correct.
-        //     // CONSIDER: the text of this error message makes sense, but we might want to add a separate code.
-        //     Error(diagnostics, ErrorCode.ERR_BadArity, syntax, plainName, MessageID.IDS_MethodGroup.Localize(), typeArgumentsSyntax.Count);
-        //     hasErrors = true;
-        // }
+        if (!hasErrors &&
+            lookupResult.isMultiViable &&
+            templateArgumentsSyntax?.Any(SyntaxKind.OmittedArgument) == true) {
+            diagnostics.Push(Error.BadArity(
+                syntax.location,
+                plainName,
+                MessageID.IDS_MethodGroup.Localize(),
+                templateArgumentsSyntax.Count
+            ));
+
+            hasErrors = true;
+        }
 
         switch (members[0].kind) {
             case SymbolKind.Method:
@@ -3044,11 +3231,11 @@ internal partial class Binder {
 
             var templateArgumentsSyntax = right.kind == SyntaxKind.TemplateName
                 ? ((TemplateNameSyntax)right).templateArgumentList.arguments
-                : default;
+                : null;
 
             var templateArguments = templateArgumentsSyntax?.Count > 0
                 ? BindTemplateArguments(templateArgumentsSyntax, diagnostics)
-                : default;
+                : [];
 
             var rightName = right.identifier.text;
             var rightArity = right.arity;
@@ -3351,7 +3538,7 @@ internal partial class Binder {
         );
 
         if (symbol is null) {
-            result = ConstructBoundMemberGroupAndReportOmittedTypeArguments(
+            result = ConstructBoundMemberGroupAndReportOmittedTemplateArguments(
                 node,
                 templateArgumentsSyntax,
                 templateArguments.IsDefaultOrEmpty ? [] : templateArguments.Select(p => p.Item2).ToImmutableArray(),
@@ -3376,9 +3563,15 @@ internal partial class Binder {
                     }
 
                     var type = (NamedTypeSymbol)symbol;
+
                     if (!templateArguments.IsDefault) {
-                        // type = ConstructNamedTypeUnlessTypeArgumentOmitted(right, type, typeArgumentsSyntax, typeArgumentsWithAnnotations, diagnostics);
-                        // TODO templates
+                        type = ConstructNamedTypeUnlessTemplateArgumentOmitted(
+                            right,
+                            type,
+                            templateArgumentsSyntax,
+                            templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                            diagnostics
+                        );
                     }
 
                     result = new BoundTypeExpression(node, new TypeWithAnnotations(type), type);

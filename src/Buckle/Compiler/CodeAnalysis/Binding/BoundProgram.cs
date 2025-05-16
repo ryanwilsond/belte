@@ -31,7 +31,7 @@ internal sealed class BoundProgram {
         var current = this;
 
         while (current is not null) {
-            if (current.methodBodies.TryGetValue(method, out var value)) {
+            if (current.methodBodies.TryGetValue(method.originalDefinition, out var value)) {
                 body = value;
                 return true;
             }
