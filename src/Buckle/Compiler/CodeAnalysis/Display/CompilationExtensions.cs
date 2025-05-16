@@ -59,7 +59,7 @@ public static class CompilationExtensions {
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
         if (symbol is MethodSymbol method) {
-            SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.Everything);
+            SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.BoundDisplayFormat);
 
             if (program.TryGetMethodBodyIncludingParents(method, out var body)) {
                 text.Write(CreateSpace());
@@ -72,7 +72,7 @@ public static class CompilationExtensions {
             SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
             WriteTypeMembers(namedType);
         } else if (symbol is DataContainerSymbol v) {
-            SymbolDisplay.AppendToDisplayText(text, v, SymbolDisplayFormat.Everything);
+            SymbolDisplay.AppendToDisplayText(text, v, SymbolDisplayFormat.BoundDisplayFormat);
             var type = v.type.StrippedType();
 
             if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
@@ -80,7 +80,7 @@ public static class CompilationExtensions {
             else
                 text.WriteLine();
         } else if (symbol is FieldSymbol f) {
-            SymbolDisplay.AppendToDisplayText(text, f, SymbolDisplayFormat.Everything);
+            SymbolDisplay.AppendToDisplayText(text, f, SymbolDisplayFormat.BoundDisplayFormat);
             var type = f.type.StrippedType();
 
             if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
@@ -99,7 +99,7 @@ public static class CompilationExtensions {
 
             foreach (var member in members) {
                 text.WriteLine();
-                SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.BoundDisplayFormat);
                 text.WriteLine();
             }
 

@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Reflection.Emit;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -54,10 +53,6 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol, format);
                 break;
-            // TODO Does the REPL ever want this case?
-            // case SymbolKind.NamedType when symbol is not ConstructedNamedTypeSymbol and not PrimitiveTypeSymbol:
-            //     DisplayNamedType(text, (NamedTypeSymbol)symbol, format);
-            //     break;
             case SymbolKind.NamedType:
                 DisplayType(text, (NamedTypeSymbol)symbol, format);
                 break;
@@ -117,29 +112,50 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayTypeCore(DisplayText text, NamedTypeSymbol namedType, SymbolDisplayFormat format) {
-        text.Write(CreateType(namedType.name));
+        if (namedType.containingSymbol is not null) {
+            if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
+                DisplayAccessibility(text, namedType);
 
-        if (namedType.arity > 0) {
-            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+            if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
+                DisplayModifiers(text, namedType);
+        }
 
-            var isFirst = true;
-
-            foreach (var argument in namedType.templateArguments) {
-                if (isFirst) {
-                    isFirst = false;
-                } else {
-                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
-                    text.Write(CreateSpace());
-                }
-
-                if (argument.isConstant)
-                    DisplayText.DisplayConstant(text, argument.constant);
-                else
-                    DisplayType(text, argument.type.type, format);
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
+            switch (namedType.typeKind) {
+                case TypeKind.Class:
+                    text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
+                    break;
+                case TypeKind.Struct:
+                    text.Write(CreateKeyword(SyntaxKind.StructKeyword));
+                    break;
+                case TypeKind.Primitive:
+                    text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(namedType.typeKind);
             }
 
-            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+            text.Write(CreateSpace());
         }
+
+        DisplayContainedNames(text, namedType, format);
+
+        if (namedType is PrimitiveTypeSymbol)
+            text.Write(CreateType(namedType.name));
+        else
+            text.Write(CreateIdentifier(namedType.name));
+
+        DisplayTemplateArguments(text, namedType.templateArguments, SymbolDisplayFormat.ObjectCreationFormat);
+
+        if (namedType.baseType is not null &&
+            (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+            text.Write(CreateSpace());
+            DisplayType(text, namedType.baseType, SymbolDisplayFormat.ObjectCreationFormat);
+        }
+
+        DisplayTemplateConstraints(text, namedType.templateConstraints, format);
     }
 
     internal static void DisplayTypeWithAnnotations(
@@ -250,7 +266,8 @@ public static class SymbolDisplay {
             needSpace = true;
         }
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0) {
+        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0 &&
+            !string.IsNullOrEmpty(templateParameter.name)) {
             if (needSpace)
                 text.Write(CreateSpace());
 
@@ -309,6 +326,33 @@ public static class SymbolDisplay {
         }
 
         text.Write(CreateIdentifier(dataContainer.name));
+    }
+
+    private static void DisplayTemplateArguments(
+        DisplayText text,
+        ImmutableArray<TypeOrConstant> templateArguments,
+        SymbolDisplayFormat format) {
+        if (templateArguments.Length > 0) {
+            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+
+            var isFirst = true;
+
+            foreach (var templateArgument in templateArguments) {
+                if (isFirst) {
+                    isFirst = false;
+                } else {
+                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                    text.Write(CreateSpace());
+                }
+
+                if (templateArgument.isConstant)
+                    DisplayText.DisplayConstant(text, templateArgument.constant);
+                else
+                    AppendToDisplayText(text, templateArgument.type.type, format);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+        }
     }
 
     private static void DisplayTemplateParameters(
@@ -392,47 +436,6 @@ public static class SymbolDisplay {
         }
 
         DisplayTemplateConstraints(text, method.templateConstraints, format);
-    }
-
-    private static void DisplayNamedType(DisplayText text, NamedTypeSymbol namedType, SymbolDisplayFormat format) {
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
-            DisplayAccessibility(text, namedType);
-
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayModifiers(text, namedType);
-
-        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
-            switch (namedType.typeKind) {
-                case TypeKind.Class:
-                    text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
-                    break;
-                case TypeKind.Struct:
-                    text.Write(CreateKeyword(SyntaxKind.StructKeyword));
-                    break;
-                case TypeKind.Primitive:
-                    text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
-                    break;
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(namedType.typeKind);
-            }
-
-            text.Write(CreateSpace());
-        }
-
-        DisplayContainedNames(text, namedType, format);
-        text.Write(CreateIdentifier(namedType.name));
-
-        DisplayTemplateParameters(text, namedType.templateParameters, format);
-
-        if (namedType.baseType is not null &&
-            (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
-            text.Write(CreateSpace());
-            text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
-            text.Write(CreateSpace());
-            DisplayType(text, namedType.baseType, format);
-        }
-
-        DisplayTemplateConstraints(text, namedType.templateConstraints, format);
     }
 
     private static void DisplayNamespace(DisplayText text, NamespaceSymbol symbol, SymbolDisplayFormat format) {

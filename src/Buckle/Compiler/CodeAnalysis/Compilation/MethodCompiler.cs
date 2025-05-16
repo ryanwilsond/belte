@@ -175,7 +175,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             analyzedInitializers
         );
 
-        if (!_emitting || currentDiagnostics.AnyErrors()) {
+        if (body is null || !_emitting || currentDiagnostics.AnyErrors()) {
             _diagnostics.PushRangeAndFree(currentDiagnostics);
             _methodBodies.Add(method, body);
             return;

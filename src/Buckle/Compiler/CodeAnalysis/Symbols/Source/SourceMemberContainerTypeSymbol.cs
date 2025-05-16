@@ -1332,7 +1332,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
             switch (typeKind) {
                 case TypeKind.Struct:
-                    // TODO
+                    // TODO, but pretty sure we just do nothing here
                     // CheckForStructBadInitializers(builder, diagnostics);
                     // CheckForStructDefaultConstructors(builder.nonTypeMembers, isEnum: false, diagnostics: diagnostics);
                     break;
@@ -1470,7 +1470,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                     if (reportMisplacedGlobalCode &&
                         !SyntaxFacts.IsSimpleProgramTopLevelStatement((GlobalStatementSyntax)m)) {
-                        // TODO Report misplaced global code
+                        // TODO Report misplaced global code? (Think the MethodCompiler handles this actually...)
                     }
 
                     break;

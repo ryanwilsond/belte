@@ -193,13 +193,15 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             }
         }
 
-        // TODO Error checking, i.e. "must be compile-time constant"
+        if (convertedExpression is BoundTypeExpression t)
+            return new TypeOrConstant(t.type);
+
         var constant = convertedExpression.constantValue;
 
-        if (constant is not null)
-            return new TypeOrConstant(constant);
+        if (constant is null && !convertedExpression.hasErrors)
+            diagnostics.Push(Error.DefaultMustBeConstant(defaultSyntax.location, name));
 
-        return new TypeOrConstant((convertedExpression as BoundTypeExpression).type);
+        return new TypeOrConstant(constant);
     }
 
     private Binder GetDefaultValueBinder(SyntaxNode syntax) {

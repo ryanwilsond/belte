@@ -3,7 +3,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
-using Mono.Cecil;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 

@@ -18,6 +18,14 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
 
+    public static readonly SymbolDisplayFormat BoundDisplayFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
+        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        memberOptions: SymbolDisplayMemberOptions.Everything,
+        parameterOptions: SymbolDisplayParameterOptions.Everything,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+    );
+
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.Everything,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,

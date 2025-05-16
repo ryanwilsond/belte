@@ -4,6 +4,11 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static class LookupPosition {
     internal static bool IsInMethodDeclaration(int position, BaseMethodDeclarationSyntax node) {
+        var body = node.body;
+
+        if (body is null)
+            return IsBeforeToken(position, node, ((MethodDeclarationSyntax)node).semicolon);
+
         return IsBeforeToken(position, node, node.body.closeBrace);
     }
 

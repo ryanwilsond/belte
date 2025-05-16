@@ -593,7 +593,7 @@ public sealed class DisplayText {
         SymbolDisplay.DisplayType(
             text,
             dataContainer.type,
-            SymbolDisplayFormat.Everything
+            SymbolDisplayFormat.BoundDisplayFormat
         );
 
         text.Write(CreateSpace());
@@ -925,7 +925,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayEqualsValueCore(DisplayText text, Symbol symbol, BoundExpression value) {
-        SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
+        SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.BoundDisplayFormat);
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());

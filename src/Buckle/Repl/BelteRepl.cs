@@ -634,7 +634,7 @@ public sealed partial class BelteRepl : Repl {
 
             foreach (var symbol in symbols) {
                 displayText.Write(CreateIndent());
-                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
                 displayText.WriteLine();
             }
 
@@ -649,7 +649,7 @@ public sealed partial class BelteRepl : Repl {
 
             foreach (var symbol in state.context.GetTrackedSymbols()) {
                 displayText.Write(CreateIndent());
-                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
                 displayText.WriteLine();
             }
 
@@ -713,7 +713,7 @@ public sealed partial class BelteRepl : Repl {
                 compilation.EmitTree(currentSymbol, displayText);
                 WriteDisplayText(displayText);
             } else {
-                SymbolDisplay.AppendToDisplayText(displayText, currentSymbol, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(displayText, currentSymbol, SymbolDisplayFormat.BoundDisplayFormat);
                 displayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(displayText);
                 var localValue = EvaluatorObjectToNativeObject(currentGlobal);
@@ -853,7 +853,7 @@ public sealed partial class BelteRepl : Repl {
                 else
                     Console.BackgroundColor = state.colorTheme.background;
 
-                SymbolDisplay.AppendToDisplayText(pageText, symbol, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(pageText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
                 WriteDisplayText(pageText);
             }
 
@@ -871,7 +871,7 @@ public sealed partial class BelteRepl : Repl {
                 else
                     Console.BackgroundColor = state.colorTheme.background;
 
-                SymbolDisplay.AppendToDisplayText(pageText, global.Key, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(pageText, global.Key, SymbolDisplayFormat.BoundDisplayFormat);
                 WriteDisplayText(pageText);
             }
 
@@ -903,7 +903,7 @@ public sealed partial class BelteRepl : Repl {
 
             if (local.name == signature) {
                 var localDisplayText = new DisplayText();
-                SymbolDisplay.AppendToDisplayText(localDisplayText, local, SymbolDisplayFormat.Everything);
+                SymbolDisplay.AppendToDisplayText(localDisplayText, local, SymbolDisplayFormat.BoundDisplayFormat);
                 localDisplayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(localDisplayText);
 
