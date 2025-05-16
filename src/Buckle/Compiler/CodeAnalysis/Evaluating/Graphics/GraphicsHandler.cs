@@ -108,13 +108,10 @@ internal partial class GraphicsHandler : Game {
         object r,
         object g,
         object b) {
-        var ri = r is null ? 255 : Convert.ToInt32(r);
-        var gi = g is null ? 255 : Convert.ToInt32(g);
-        var bi = b is null ? 255 : Convert.ToInt32(b);
         var posXi = posX is null ? 0 : Convert.ToInt32(posX);
         var posYi = posY is null ? 0 : Convert.ToInt32(posY);
 
-        var color = new Color(ri, gi, bi);
+        var color = GetColor(r, g, b);
         var spacing = new Vector2(2, 2);
         var size = font.MeasureString(text, Vector2.Zero, Vector2.One, spacing);
         var location = new Vector2(posXi - size.X / 2, posYi - size.Y / 2);
@@ -122,12 +119,19 @@ internal partial class GraphicsHandler : Game {
         _spriteBatch.DrawString(font, text, location, spacing, color);
     }
 
-    internal void DrawRect(int x, int y, int w, int h, int r, int g, int b) {
-        var color = new Color(r, g, b);
+    internal void DrawRect(int x, int y, int w, int h, object r, object g, object b) {
+        var color = GetColor(r, g, b);
         var rectangle = new Rectangle(x, y, w, h);
         var pixel = new Texture2D(GraphicsDevice, 1, 1);
         pixel.SetData([color]);
         _spriteBatch.Draw(pixel, rectangle, color);
+    }
+
+    private Color GetColor(object r, object g, object b) {
+        var ri = r is null ? 255 : Convert.ToInt32(r);
+        var gi = g is null ? 255 : Convert.ToInt32(g);
+        var bi = b is null ? 255 : Convert.ToInt32(b);
+        return new Color(ri, gi, bi);
     }
 
     protected override void Initialize() {

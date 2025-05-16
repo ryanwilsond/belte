@@ -1225,9 +1225,9 @@ internal sealed class Evaluator {
             var y = Convert.ToInt32(argument.members[rectFields[1]].value);
             var w = Convert.ToInt32(argument.members[rectFields[2]].value);
             var h = Convert.ToInt32(argument.members[rectFields[3]].value);
-            var r = Convert.ToInt32(argument.members[rectFields[4]].value);
-            var g = Convert.ToInt32(argument.members[rectFields[5]].value);
-            var b = Convert.ToInt32(argument.members[rectFields[6]].value);
+            var r = argument.members[rectFields[4]].value;
+            var g = argument.members[rectFields[5]].value;
+            var b = argument.members[rectFields[6]].value;
 
             if (_context.options.isScript) {
                 result = _context.graphicsHandler?.AddAction(
