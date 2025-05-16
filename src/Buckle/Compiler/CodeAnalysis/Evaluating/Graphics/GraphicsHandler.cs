@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.IO;
-using System.Threading;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -32,6 +31,8 @@ internal partial class GraphicsHandler : Game {
         _fontManager = new FontManager();
         _abort = abort;
         IsMouseVisible = true;
+        IsFixedTimeStep = true;
+        TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
     }
 
     internal delegate void UpdateHandler(double deltaTicks, ValueWrapper<bool> abort);
@@ -74,16 +75,16 @@ internal partial class GraphicsHandler : Game {
         object scaleX,
         object scaleY,
         object rotation) {
-        var posXf = posX is null ? 0 : Convert.ToInt32(posX);
-        var posYf = posY is null ? 0 : Convert.ToInt32(posY);
-        var scaleXf = scaleX is null ? texture.Width : Convert.ToInt32(scaleX);
+        var posXi = posX is null ? 0 : Convert.ToInt32(posX);
+        var posYi = posY is null ? 0 : Convert.ToInt32(posY);
+        var scaleXi = scaleX is null ? texture.Width : Convert.ToInt32(scaleX);
         var scaleXy = scaleY is null ? texture.Height : Convert.ToInt32(scaleY);
-        var rotf = rotation is null ? 0 : Convert.ToSingle(rotation);
+        var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
 
         var destinationRectangle = new Rectangle(
-            posXf - scaleXf / 2,
-            posYf - scaleXy / 2,
-            scaleXf,
+            posXi - scaleXi / 2,
+            posYi - scaleXy / 2,
+            scaleXi,
             scaleXy
         );
 
@@ -92,7 +93,7 @@ internal partial class GraphicsHandler : Game {
             destinationRectangle,
             null,
             Color.White,
-            rotf,
+            rotF,
             Vector2.Zero,
             SpriteEffects.None,
             0f
@@ -107,16 +108,16 @@ internal partial class GraphicsHandler : Game {
         object r,
         object g,
         object b) {
-        var rf = r is null ? 255 : Convert.ToInt32(r);
-        var gf = g is null ? 255 : Convert.ToInt32(g);
-        var bf = b is null ? 255 : Convert.ToInt32(b);
-        var posXf = posX is null ? 0 : Convert.ToInt32(posX);
-        var posYf = posY is null ? 0 : Convert.ToInt32(posY);
+        var ri = r is null ? 255 : Convert.ToInt32(r);
+        var gi = g is null ? 255 : Convert.ToInt32(g);
+        var bi = b is null ? 255 : Convert.ToInt32(b);
+        var posXi = posX is null ? 0 : Convert.ToInt32(posX);
+        var posYi = posY is null ? 0 : Convert.ToInt32(posY);
 
-        var color = new Color(rf, gf, bf);
+        var color = new Color(ri, gi, bi);
         var spacing = new Vector2(2, 2);
         var size = font.MeasureString(text, Vector2.Zero, Vector2.One, spacing);
-        var location = new Vector2(posXf - size.X / 2, posYf - size.Y / 2);
+        var location = new Vector2(posXi - size.X / 2, posYi - size.Y / 2);
 
         _spriteBatch.DrawString(font, text, location, spacing, color);
     }
@@ -130,13 +131,15 @@ internal partial class GraphicsHandler : Game {
     }
 
     protected override void Initialize() {
-        Window.Title = Title;
         _graphics.IsFullScreen = false;
         _graphics.PreferredBackBufferWidth = Width;
         _graphics.PreferredBackBufferHeight = Height;
         _graphics.ApplyChanges();
 
         base.Initialize();
+
+        Window.Title = Title;
+        SetWindowIcon(Window);
     }
 
     protected override void LoadContent() {

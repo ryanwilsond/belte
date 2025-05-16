@@ -179,7 +179,7 @@ public sealed class Compilation {
     public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
         using var context = new EvaluatorContext(options);
         var result = Evaluate(context, abort, logTime);
-        context.WaitForCompletion();
+        context.WaitForCompletion(abort);
         return result;
     }
 
