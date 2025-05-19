@@ -533,6 +533,9 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateObjectCreationExpression(
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
+        if (node.constructor.containingType.specialType == SpecialType.Nullable)
+            return EvaluateExpression(node.arguments[0], abort);
+
         var newObject = CreateObject((NamedTypeSymbol)node.type);
         InvokeMethodWithResolvedReceiver(node.constructor, node.arguments, newObject, abort);
         return newObject;

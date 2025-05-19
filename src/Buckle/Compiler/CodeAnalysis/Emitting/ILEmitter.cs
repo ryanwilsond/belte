@@ -85,7 +85,7 @@ internal sealed partial class ILEmitter {
 
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, "    ")) {
             foreach (var type in _topLevelTypes) {
-                var typeDefinition = _types[type];
+                var typeDefinition = _types[type.originalDefinition];
                 WriteType(stringWriter, indentedTextWriter, typeDefinition);
             }
 
@@ -120,11 +120,15 @@ internal sealed partial class ILEmitter {
 
     private TypeReference GetType(TypeSymbol type) {
         if (type.specialType == SpecialType.Nullable) {
-            var genericArgumentType = GetType(type.GetNullableUnderlyingType());
-            var typeReference = new GenericInstanceType(NetTypeReference.Nullable.Resolve());
-            typeReference.GenericArguments.Add(genericArgumentType.Resolve());
-            var referenceType = new ByReferenceType(typeReference.Resolve());
-            return referenceType.Resolve();
+            var underlyingType = type.GetNullableUnderlyingType();
+            var genericArgumentType = GetType(underlyingType);
+
+            if (!CodeGenerator.IsValueType(underlyingType))
+                return genericArgumentType;
+
+            var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+            typeReference.GenericArguments.Add(genericArgumentType);
+            return typeReference;
         }
 
         if (type is ArrayTypeSymbol array) {
@@ -136,7 +140,7 @@ internal sealed partial class ILEmitter {
         if (type.specialType != SpecialType.None)
             return _specialTypes[type.specialType];
 
-        return _types[type];
+        return _types[type.originalDefinition];
     }
 
     private MethodReference GetMethod(MethodSymbol method) {
@@ -144,6 +148,32 @@ internal sealed partial class ILEmitter {
             return value;
 
         return CheckStandardMap(method);
+    }
+
+    private MethodReference GetNullableCtor(TypeSymbol genericType) {
+        // TODO This is quite abstruse, could most likely simplify
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var genericDef = NetTypeReference.Nullable.Resolve();
+
+        var ctorDef = genericDef.Methods
+            .First(m => m.IsConstructor && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.Name == "T");
+
+        var ctorRef = _assemblyDefinition.MainModule.ImportReference(ctorDef);
+        var genericCtor = new MethodReference(ctorRef.Name, ctorRef.ReturnType, typeReference) {
+            HasThis = ctorRef.HasThis,
+            ExplicitThis = ctorRef.ExplicitThis,
+            CallingConvention = ctorRef.CallingConvention,
+        };
+
+        foreach (var p in ctorRef.Parameters)
+            genericCtor.Parameters.Add(new ParameterDefinition(p.ParameterType));
+
+        var finalCtorRef = _assemblyDefinition.MainModule.ImportReference(genericCtor);
+
+        return finalCtorRef;
     }
 
     private FieldReference GetField(FieldSymbol field) {
@@ -179,12 +209,12 @@ internal sealed partial class ILEmitter {
             typeDefinition.NestedTypes.Add(nestedDefinition);
         }
 
-        _types.Add(type, typeDefinition);
+        _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
     }
 
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
-        var typeDefinition = _types[type];
+        var typeDefinition = _types[type.originalDefinition];
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
@@ -397,6 +427,9 @@ internal sealed partial class ILEmitter {
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
+        if (method.methodKind == MethodKind.Constructor && method.containingType.specialType == SpecialType.Nullable)
+            return GetNullableCtor(method.containingType.GetNullableUnderlyingType());
+
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         return mapKey switch {

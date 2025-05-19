@@ -137,6 +137,16 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         return parameterTypesWithAnnotations[index].type;
     }
 
+    internal bool IsDefaultValueTypeConstructor() {
+        return isImplicitlyDeclared &&
+            containingType?.isPrimitiveType == true &&
+            IsParameterlessConstructor();
+    }
+
+    internal bool IsParameterlessConstructor() {
+        return methodKind == MethodKind.Constructor && parameterCount == 0;
+    }
+
     internal MethodSymbol Construct(ImmutableArray<TypeOrConstant> templateArguments) {
         if (!ReferenceEquals(this, constructedFrom) || arity == 0)
             throw new InvalidOperationException();

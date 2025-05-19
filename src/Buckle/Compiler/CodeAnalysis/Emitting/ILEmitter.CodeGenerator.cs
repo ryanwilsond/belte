@@ -25,6 +25,7 @@ internal sealed partial class ILEmitter {
 
         private ArrayBuilder<VariableDefinition> _expressionTemps;
         private VariableDefinition _returnTemp;
+        private int _tryNestingLevel;
 
         internal CodeGenerator(
             ILEmitter module,
@@ -60,10 +61,21 @@ internal sealed partial class ILEmitter {
             }
         }
 
-        internal static bool IsStackLocal(DataContainerSymbol local, HashSet<DataContainerSymbol> stackLocals)
-            => stackLocals?.Contains(local) ?? false;
+        internal static bool IsReferenceType(TypeSymbol type) {
+            return type.isObjectType && type.specialType != SpecialType.Nullable;
+        }
 
-        private bool IsStackLocal(DataContainerSymbol local) => IsStackLocal(local, _stackLocals);
+        internal static bool IsValueType(TypeSymbol type) {
+            return type.isPrimitiveType || type.specialType == SpecialType.Nullable;
+        }
+
+        internal static bool IsStackLocal(DataContainerSymbol local, HashSet<DataContainerSymbol> stackLocals) {
+            return stackLocals?.Contains(local) ?? false;
+        }
+
+        private bool IsStackLocal(DataContainerSymbol local) {
+            return IsStackLocal(local, _stackLocals);
+        }
 
         private VariableDefinition GetLocal(DataContainerSymbol local) {
             return _locals[local];
@@ -166,7 +178,25 @@ internal sealed partial class ILEmitter {
         }
 
         private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
-            // TODO
+            var declaration = statement.declaration;
+            var local = declaration.dataContainer;
+            var typeReference = _module.GetType(local.type);
+            var variableDefinition = new VariableDefinition(typeReference);
+            _locals.Add(local, variableDefinition);
+            _iLProcessor.Body.Variables.Add(variableDefinition);
+
+            // Essentially reporting the slot allocation then assigning
+            // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
+            var assignment = BoundFactory.Assignment(
+                null,
+                new BoundDataContainerExpression(null, local, null, local.type),
+                declaration.initializer,
+                // TODO Should this just be false always:
+                local.isRef,
+                local.type
+            );
+
+            EmitAssignmentOperator(assignment, UseKind.Unused);
         }
 
         private void EmitExpression(BoundExpression expression, bool used) {
@@ -285,7 +315,45 @@ internal sealed partial class ILEmitter {
         }
 
         private void EmitArrayElementLoad(BoundArrayAccessExpression expression, bool used) {
-            throw new NotImplementedException();
+            EmitExpression(expression.receiver, used: true);
+            EmitArrayIndex(expression.index);
+
+            if (((ArrayTypeSymbol)expression.receiver.type).isSZArray) {
+                var elementType = expression.type;
+
+                switch (elementType.specialType) {
+                    case SpecialType.Int:
+                        _iLProcessor.Emit(OpCodes.Ldelem_I8);
+                        break;
+                    case SpecialType.Bool:
+                        _iLProcessor.Emit(OpCodes.Ldelem_U1);
+                        break;
+                    case SpecialType.Decimal:
+                        _iLProcessor.Emit(OpCodes.Ldelem_R8);
+                        break;
+                    default:
+                        if (elementType.IsVerifierReference()) {
+                            _iLProcessor.Emit(OpCodes.Ldelem_Ref);
+                        } else {
+                            if (used) {
+                                // TODO Roslyn has Ldelem here, which we don't have?
+                                _iLProcessor.Emit(OpCodes.Ldelem_Any, _module.GetType(elementType));
+                            } else {
+                                if (elementType.typeKind == TypeKind.TemplateParameter)
+                                    _iLProcessor.Emit(OpCodes.Readonly);
+
+                                _iLProcessor.Emit(OpCodes.Ldelema, _module.GetType(elementType));
+                            }
+                        }
+
+                        break;
+                }
+            } else {
+                // TODO Only SZ currently?
+                // _builder.EmitArrayElementLoad(_module.Translate((ArrayTypeSymbol)arrayAccess.Expression.Type), arrayAccess.Expression.Syntax, _diagnostics.DiagnosticBag);
+            }
+
+            EmitPopIfUnused(used);
         }
 
         private void EmitInitializerList(BoundInitializerList expression, bool used) {
@@ -293,11 +361,53 @@ internal sealed partial class ILEmitter {
         }
 
         private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
-            throw new NotImplementedException();
+            var arrayType = (ArrayTypeSymbol)expression.type;
+
+            EmitArrayIndices(expression.sizes);
+
+            if (arrayType.isSZArray) {
+                _iLProcessor.Emit(OpCodes.Newarr, _module.GetType(arrayType.elementType));
+            } else {
+                // TODO Only SZ currently?
+                // _builder.EmitArrayCreation(_module.Translate(arrayType), expression.Syntax, _diagnostics.DiagnosticBag);
+            }
+
+            if (expression.initializer is not null) {
+                // TODO arrays
+                // EmitArrayInitializers(arrayType, expression.initializer);
+            }
+
+            EmitPopIfUnused(used);
         }
 
         private void EmitObjectCreationExpression(BoundObjectCreationExpression expression, bool used) {
-            throw new NotImplementedException();
+            var constructor = expression.constructor;
+
+            if (constructor.IsDefaultValueTypeConstructor()) {
+                EmitInitObj(expression.type, used);
+            } else {
+                if (!used && ConstructorNotSideEffecting(constructor)) {
+                    foreach (var arg in expression.arguments)
+                        EmitExpression(arg, used: false);
+
+                    return;
+                }
+
+                EmitArguments(expression.arguments, constructor.parameters, expression.argumentRefKinds);
+
+                _iLProcessor.Emit(OpCodes.Newobj, _module.GetMethod(constructor));
+
+                EmitPopIfUnused(used);
+            }
+        }
+
+        private bool ConstructorNotSideEffecting(MethodSymbol constructor) {
+            var originalDef = constructor.originalDefinition;
+
+            if (originalDef.containingType.specialType == SpecialType.Nullable)
+                return true;
+
+            return false;
         }
 
         private void EmitCallExpression(BoundCallExpression expression, UseKind useKind) {
@@ -500,7 +610,7 @@ internal sealed partial class ILEmitter {
                         }
                     }
                 } else {
-                    callKind = receiverType.isObjectType &&
+                    callKind = IsReferenceType(receiverType) &&
                         (!IsRef(receiver) ||
                         (!ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                         !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)))
@@ -547,7 +657,7 @@ internal sealed partial class ILEmitter {
                 }
 
                 if (callKind == CallKind.ConstrainedCallVirt &&
-                    actualMethodTargetedByTheCall.containingType.isPrimitiveType) {
+                    IsValueType(actualMethodTargetedByTheCall.containingType)) {
                     callKind = CallKind.Call;
                 }
 
@@ -582,12 +692,12 @@ internal sealed partial class ILEmitter {
                 var receiver = call.receiver;
                 var receiverType = receiver.type;
 
-                if (callKind == CallKind.ConstrainedCallVirt && temp is null && !receiverType.isPrimitiveType &&
+                if (callKind == CallKind.ConstrainedCallVirt && temp is null && !IsValueType(receiverType) &&
                     !ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                     !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)) {
                     var whenNotNullLabel = new SynthesizedLabelSymbol("whenNotNull");
 
-                    if (!receiverType.isObjectType) {
+                    if (!IsReferenceType(receiverType)) {
                         // TODO Is EmitDefaultValue reachable?
                         // if ((object)default(T) == null)
                         // EmitDefaultValue(receiverType, true, receiver.Syntax);
@@ -808,30 +918,621 @@ internal sealed partial class ILEmitter {
         }
 
         private void EmitAssignmentOperator(BoundAssignmentOperator expression, UseKind useKind) {
-            throw new NotImplementedException();
+            if (TryEmitAssignmentInPlace(expression, useKind != UseKind.Unused))
+                return;
+
+            var lhsUsesStack = EmitAssignmentPreamble(expression);
+            EmitAssignmentValue(expression);
+            var temp = EmitAssignmentDuplication(expression, useKind, lhsUsesStack);
+            EmitStore(expression);
+            EmitAssignmentPostfix(expression, temp, useKind);
+        }
+
+        private void EmitAssignmentPostfix(
+            BoundAssignmentOperator assignment,
+            VariableDefinition temp,
+            UseKind useKind) {
+            if (temp is not null) {
+                if (useKind == UseKind.UsedAsAddress)
+                    EmitLdloca(temp);
+                else
+                    EmitLdloc(temp);
+
+                FreeTemp(temp);
+            }
+
+            if (useKind == UseKind.UsedAsValue && assignment.isRef)
+                EmitLoadIndirect(assignment.type);
+        }
+
+        private void EmitAssignmentValue(BoundAssignmentOperator assignmentOperator) {
+            if (!assignmentOperator.isRef) {
+                EmitExpression(assignmentOperator.right, used: true);
+            } else {
+                var exprTempsBefore = _expressionTemps?.Count ?? 0;
+                var lhs = assignmentOperator.left;
+
+                var temp = EmitAddress(
+                    assignmentOperator.right,
+                    lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter
+                        ? AddressKind.ReadOnlyStrict
+                        : AddressKind.Writeable
+                );
+
+                AddExpressionTemp(temp);
+
+                var exprTempsAfter = _expressionTemps?.Count ?? 0;
+
+                // TODO We aren't handling long-lived temporaries, but does the compiler create any ever?
+            }
+        }
+
+        private void EmitStore(BoundAssignmentOperator assignment) {
+            var expression = assignment.left;
+
+            switch (expression.kind) {
+                case BoundKind.FieldAccessExpression:
+                    EmitFieldStore((BoundFieldAccessExpression)expression, assignment.isRef);
+                    break;
+                case BoundKind.DataContainerExpression:
+                    var local = (BoundDataContainerExpression)expression;
+
+                    if (local.dataContainer.refKind != RefKind.None && !assignment.isRef) {
+                        EmitIndirectStore(local.dataContainer.type);
+                    } else {
+                        if (IsStackLocal(local.dataContainer))
+                            break;
+                        else
+                            EmitStloc(GetLocal(local.dataContainer));
+                    }
+
+                    break;
+                case BoundKind.ArrayAccessExpression:
+                    var array = ((BoundArrayAccessExpression)expression).receiver;
+                    var arrayType = (ArrayTypeSymbol)array.type;
+                    EmitArrayElementStore(arrayType);
+                    break;
+                case BoundKind.ThisExpression:
+                    EmitThisStore((BoundThisExpression)expression);
+                    break;
+                case BoundKind.ParameterExpression:
+                    EmitParameterStore((BoundParameterExpression)expression, assignment.isRef);
+                    break;
+                case BoundKind.ConditionalOperator:
+                    EmitIndirectStore(expression.type);
+                    break;
+                case BoundKind.CallExpression:
+                    EmitIndirectStore(expression.type);
+                    break;
+                case BoundKind.AssignmentOperator:
+                    var nested = (BoundAssignmentOperator)expression;
+
+                    if (!nested.isRef)
+                        goto default;
+
+                    EmitIndirectStore(nested.type);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(expression.kind);
+            }
+        }
+
+        private void EmitThisStore(BoundThisExpression thisRef) {
+            _iLProcessor.Emit(OpCodes.Stobj, _module.GetType(thisRef.type));
+        }
+
+        private void EmitArrayElementStore(ArrayTypeSymbol arrayType) {
+            if (arrayType.isSZArray) {
+                EmitVectorElementStore(arrayType);
+            } else {
+                // TODO Only SZ?
+                // _builder.EmitArrayElementStore(_module.Translate(arrayType), syntaxNode, _diagnostics.DiagnosticBag);
+            }
+        }
+
+        private void EmitVectorElementStore(ArrayTypeSymbol arrayType) {
+            var elementType = arrayType.elementType;
+
+            switch (elementType.specialType) {
+                case SpecialType.Bool:
+                    _iLProcessor.Emit(OpCodes.Stelem_I1);
+                    break;
+                case SpecialType.Int:
+                    _iLProcessor.Emit(OpCodes.Stelem_I8);
+                    break;
+                case SpecialType.Decimal:
+                    _iLProcessor.Emit(OpCodes.Stelem_R8);
+                    break;
+
+                default:
+                    if (elementType.IsVerifierReference()) {
+                        _iLProcessor.Emit(OpCodes.Stelem_Ref);
+                    } else {
+                        // TODO Roslyn uses Stelem
+                        _iLProcessor.Emit(OpCodes.Stelem_Any, _module.GetType(elementType));
+                    }
+
+                    break;
+            }
+        }
+
+        private void EmitFieldStore(BoundFieldAccessExpression fieldAccess, bool refAssign) {
+            var field = fieldAccess.field;
+
+            if (field.refKind != RefKind.None && !refAssign)
+                EmitIndirectStore(field.type);
+            else
+                _iLProcessor.Emit(field.isStatic ? OpCodes.Stsfld : OpCodes.Stfld, _module.GetField(field));
+        }
+
+        private void EmitParameterStore(BoundParameterExpression parameter, bool refAssign) {
+            if (parameter.parameter.refKind != RefKind.None && !refAssign)
+                EmitIndirectStore(parameter.parameter.type);
+            else
+                _iLProcessor.Emit(OpCodes.Starg, GetParameter(parameter.parameter));
+        }
+
+        private void EmitIndirectStore(TypeSymbol type) {
+            switch (type.specialType) {
+                case SpecialType.Bool:
+                    _iLProcessor.Emit(OpCodes.Stind_I1);
+                    break;
+                case SpecialType.Int:
+                    _iLProcessor.Emit(OpCodes.Stind_I8);
+                    break;
+                case SpecialType.Decimal:
+                    _iLProcessor.Emit(OpCodes.Stind_R8);
+                    break;
+                default:
+                    if (type.IsVerifierReference())
+                        _iLProcessor.Emit(OpCodes.Stind_Ref);
+                    else
+                        _iLProcessor.Emit(OpCodes.Stobj, _module.GetType(type));
+
+                    break;
+            }
+        }
+
+        private VariableDefinition EmitAssignmentDuplication(
+            BoundAssignmentOperator assignmentOperator,
+            UseKind useKind,
+            bool lhsUsesStack) {
+            VariableDefinition temp = null;
+
+            if (useKind != UseKind.Unused) {
+                _iLProcessor.Emit(OpCodes.Dup);
+
+                if (lhsUsesStack) {
+                    temp = AllocateTemp(assignmentOperator.left.type);
+                    EmitStloc(temp);
+                }
+            }
+
+            return temp;
+        }
+
+        private bool EmitAssignmentPreamble(BoundAssignmentOperator assignmentOperator) {
+            var assignmentTarget = assignmentOperator.left;
+            var lhsUsesStack = false;
+
+            switch (assignmentTarget.kind) {
+                case BoundKind.FieldAccessExpression: {
+                        var left = (BoundFieldAccessExpression)assignmentTarget;
+
+                        if (left.field.refKind != RefKind.None && !assignmentOperator.isRef) {
+                            EmitFieldLoadNoIndirection(left, used: true);
+                            lhsUsesStack = true;
+                        } else if (!left.field.isStatic) {
+                            var temp = EmitReceiverRef(left.receiver, AddressKind.Writeable);
+                            lhsUsesStack = true;
+                        }
+                    }
+
+                    break;
+                case BoundKind.ParameterExpression: {
+                        var left = (BoundParameterExpression)assignmentTarget;
+
+                        if (left.parameter.refKind != RefKind.None && !assignmentOperator.isRef) {
+                            EmitLdarg(GetParameter(left.parameter));
+                            lhsUsesStack = true;
+                        }
+                    }
+
+                    break;
+                case BoundKind.DataContainerExpression: {
+                        var left = (BoundDataContainerExpression)assignmentTarget;
+
+                        if (left.dataContainer.refKind != RefKind.None && !assignmentOperator.isRef) {
+                            if (!IsStackLocal(left.dataContainer)) {
+                                var localDefinition = GetLocal(left.dataContainer);
+                                EmitLdloc(localDefinition);
+                            }
+
+                            lhsUsesStack = true;
+                        }
+                    }
+
+                    break;
+                case BoundKind.ArrayAccessExpression: {
+                        var left = (BoundArrayAccessExpression)assignmentTarget;
+                        EmitExpression(left.receiver, used: true);
+                        EmitArrayIndex(left.index);
+                        lhsUsesStack = true;
+                    }
+
+                    break;
+                case BoundKind.ThisExpression: {
+                        var left = (BoundThisExpression)assignmentTarget;
+
+                        var temp = EmitAddress(left, AddressKind.Writeable);
+                        lhsUsesStack = true;
+                    }
+
+                    break;
+                case BoundKind.ConditionalOperator: {
+                        var left = (BoundConditionalOperator)assignmentTarget;
+                        var temp = EmitAddress(left, AddressKind.Writeable);
+                        lhsUsesStack = true;
+                    }
+
+                    break;
+                case BoundKind.CallExpression: {
+                        var left = (BoundCallExpression)assignmentTarget;
+                        EmitCallExpression(left, UseKind.UsedAsAddress);
+                        lhsUsesStack = true;
+                    }
+
+                    break;
+                case BoundKind.AssignmentOperator:
+                    var assignment = (BoundAssignmentOperator)assignmentTarget;
+
+                    if (!assignment.isRef)
+                        goto default;
+
+                    EmitAssignmentOperator(assignment, UseKind.UsedAsAddress);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(assignmentTarget.kind);
+            }
+
+            return lhsUsesStack;
+        }
+
+        private bool TryEmitAssignmentInPlace(BoundAssignmentOperator assignmentOperator, bool used) {
+            if (assignmentOperator.isRef)
+                return false;
+
+            var left = assignmentOperator.left;
+
+            if (used && !TargetIsNotOnHeap(left)) {
+                return false;
+            }
+
+            if (!SafeToGetWriteableReference(left))
+                return false;
+
+            var right = assignmentOperator.right;
+            var rightType = right.type;
+
+            if (!rightType.IsTemplateParameter()) {
+                if (IsReferenceType(rightType) || (right.constantValue is not null))
+                    return false;
+            }
+
+            if (right is BoundObjectCreationExpression objCreation) {
+                if (PartialCtorResultCannotEscape(left)) {
+                    var ctor = objCreation.constructor;
+
+                    if (System.Linq.ImmutableArrayExtensions.All(ctor.parameters, p => p.refKind == RefKind.None) &&
+                        TryInPlaceCtorCall(left, objCreation, used)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private bool PartialCtorResultCannotEscape(BoundExpression left) {
+            if (TargetIsNotOnHeap(left)) {
+                if (_tryNestingLevel != 0)
+                    return false;
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryInPlaceCtorCall(BoundExpression target, BoundObjectCreationExpression objCreation, bool used) {
+            var temp = EmitAddress(target, AddressKind.Writeable);
+
+            var constructor = objCreation.constructor;
+            EmitArguments(objCreation.arguments, constructor.parameters, objCreation.argumentRefKinds);
+
+            _iLProcessor.Emit(OpCodes.Call, _module.GetMethod(constructor));
+
+            if (used)
+                EmitExpression(target, used: true);
+
+            return true;
+        }
+
+        private bool SafeToGetWriteableReference(BoundExpression left) {
+            if (!HasHome(left, AddressKind.Writeable))
+                return false;
+
+            if (left.kind == BoundKind.ArrayAccessExpression &&
+                left.type.typeKind == TypeKind.TemplateParameter &&
+                !IsValueType(left.type)) {
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool TargetIsNotOnHeap(BoundExpression left) {
+            switch (left.kind) {
+                case BoundKind.ParameterExpression:
+                    return ((BoundParameterExpression)left).parameter.refKind == RefKind.None;
+                case BoundKind.DataContainerExpression:
+                    return ((BoundDataContainerExpression)left).dataContainer.refKind == RefKind.None;
+            }
+
+            return false;
         }
 
         private void EmitFieldLoad(BoundFieldAccessExpression expression, bool used) {
-            throw new NotImplementedException();
+            var field = expression.field;
+
+            if (!used) {
+                if (!field.isStatic && expression.receiver.type.IsVerifierValue() && field.refKind == RefKind.None) {
+                    EmitExpression(expression.receiver, used: false);
+                    return;
+                }
+            }
+
+            EmitFieldLoadNoIndirection(expression, used);
+
+            if (field.refKind != RefKind.None)
+                EmitLoadIndirect(field.type);
+
+            EmitPopIfUnused(used);
+        }
+
+        private void EmitFieldLoadNoIndirection(BoundFieldAccessExpression fieldAccess, bool used) {
+            var field = fieldAccess.field;
+
+            if (field.isStatic) {
+                _iLProcessor.Emit(OpCodes.Ldsfld, _module.GetField(field));
+            } else {
+                var receiver = fieldAccess.receiver;
+                var fieldType = field.type;
+
+                if (IsValueType(fieldType) && (object)fieldType == (object)receiver.type) {
+                    EmitExpression(receiver, used);
+                } else {
+                    var temp = EmitFieldLoadReceiver(receiver);
+
+                    if (temp is not null)
+                        FreeTemp(temp);
+
+                    _iLProcessor.Emit(OpCodes.Ldfld, _module.GetField(field));
+                }
+            }
+        }
+
+        private VariableDefinition EmitFieldLoadReceiver(BoundExpression receiver) {
+            if (FieldLoadMustUseRef(receiver) || FieldLoadPrefersRef(receiver)) {
+                return EmitFieldLoadReceiverAddress(receiver) ? null : EmitReceiverRef(receiver, AddressKind.ReadOnly);
+            }
+
+            EmitExpression(receiver, true);
+            return null;
+        }
+
+        private bool FieldLoadPrefersRef(BoundExpression receiver) {
+            if (!receiver.type.IsVerifierValue())
+                return true;
+
+            if (receiver.kind == BoundKind.CastExpression &&
+                ((BoundCastExpression)receiver).conversion.kind == ConversionKind.AnyUnboxing) {
+                return true;
+            }
+
+            if (!HasHome(receiver, AddressKind.ReadOnly))
+                return false;
+
+            switch (receiver.kind) {
+                case BoundKind.ParameterExpression:
+                    return ((BoundParameterExpression)receiver).parameter.refKind != RefKind.None;
+                case BoundKind.DataContainerExpression:
+                    return ((BoundDataContainerExpression)receiver).dataContainer.refKind != RefKind.None;
+                case BoundKind.FieldAccessExpression:
+                    var fieldAccess = (BoundFieldAccessExpression)receiver;
+                    var field = fieldAccess.field;
+
+                    if (field.isStatic || field.refKind != RefKind.None)
+                        return true;
+
+                    return FieldLoadPrefersRef(fieldAccess.receiver);
+            }
+
+            return true;
+        }
+
+        private bool EmitFieldLoadReceiverAddress(BoundExpression receiver) {
+            if (receiver is null || !IsValueType(receiver.type)) {
+                return false;
+            } else if (receiver.kind == BoundKind.CastExpression) {
+                var conversion = (BoundCastExpression)receiver;
+                if (conversion.conversion.kind == ConversionKind.AnyUnboxing) {
+                    EmitExpression(conversion.operand, true);
+                    _iLProcessor.Emit(OpCodes.Unbox, _module.GetType(receiver.type));
+                    return true;
+                }
+            } else if (receiver.kind == BoundKind.FieldAccessExpression) {
+                var fieldAccess = (BoundFieldAccessExpression)receiver;
+                var field = fieldAccess.field;
+
+                if (!field.isStatic && EmitFieldLoadReceiverAddress(fieldAccess.receiver)) {
+                    _iLProcessor.Emit(OpCodes.Ldflda, _module.GetField(field));
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool FieldLoadMustUseRef(BoundExpression expr) {
+            var type = expr.type;
+
+            if (type.IsTemplateParameter())
+                return true;
+
+            switch (type.specialType) {
+                case SpecialType.Int:
+                case SpecialType.Decimal:
+                case SpecialType.Bool:
+                    return true;
+            }
+
+            return false;
         }
 
         private void EmitParameterLoad(BoundParameterExpression expression) {
-            throw new NotImplementedException();
+            var parameter = expression.parameter;
+            EmitLdarg(GetParameter(parameter));
+
+            if (parameter.refKind != RefKind.None) {
+                var parameterType = parameter.type;
+                EmitLoadIndirect(parameterType);
+            }
         }
 
         private void EmitLocalLoad(BoundDataContainerExpression expression, bool used) {
-            throw new NotImplementedException();
+            var local = expression.dataContainer;
+            var isRefLocal = local.refKind != RefKind.None;
+
+            if (IsStackLocal(local)) {
+                EmitPopIfUnused(used || isRefLocal);
+            } else {
+                if (used || isRefLocal) {
+                    var definition = GetLocal(local);
+                    _iLProcessor.Emit(OpCodes.Ldloc, definition);
+                } else {
+                    return;
+                }
+            }
+
+            if (isRefLocal) {
+                EmitLoadIndirect(local.type);
+                EmitPopIfUnused(used);
+            }
         }
 
         private void EmitCastExpression(BoundCastExpression expression, bool used) {
-            throw new NotImplementedException();
+            var operand = expression.operand;
+
+            if (!used && !expression.ConversionHasSideEffects()) {
+                EmitExpression(operand, false);
+                return;
+            }
+
+            EmitExpression(operand, true);
+            EmitCast(expression);
+
+            EmitPopIfUnused(used);
+        }
+
+        private void EmitCast(BoundCastExpression cast) {
+            switch (cast.conversion.kind) {
+                case ConversionKind.Identity:
+                    break;
+                case ConversionKind.ImplicitReference:
+                case ConversionKind.AnyBoxing:
+                    EmitImplicitReferenceConversion(cast);
+                    break;
+                case ConversionKind.ExplicitReference:
+                case ConversionKind.AnyUnboxing:
+                    EmitExplicitReferenceConversion(cast);
+                    break;
+                case ConversionKind.Implicit:
+                case ConversionKind.Explicit:
+                    EmitNumericConversion(cast);
+                    break;
+                case ConversionKind.ImplicitNullable:
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
+            }
+        }
+
+        private void EmitNumericConversion(BoundCastExpression cast) {
+            var fromType = cast.operand.type;
+            var fromPredefTypeKind = fromType.specialType;
+
+            var toType = cast.type;
+            var toPredefTypeKind = toType.specialType;
+
+            if (!IsNumeric(fromPredefTypeKind) || !IsNumeric(toPredefTypeKind))
+                throw ExceptionUtilities.UnexpectedValue(cast.kind);
+
+            EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+        }
+
+        private void EmitNumericConversion(SpecialType from, SpecialType to) {
+            if (to == SpecialType.Int) {
+                if (from == SpecialType.Decimal)
+                    _iLProcessor.Emit(OpCodes.Conv_I8);
+            }
+
+            if (to == SpecialType.Decimal) {
+                if (from == SpecialType.Int)
+                    _iLProcessor.Emit(OpCodes.Conv_R8);
+            }
+        }
+
+        private static bool IsNumeric(SpecialType specialType) {
+            return specialType is SpecialType.Int or SpecialType.Decimal;
+        }
+
+        private void EmitImplicitReferenceConversion(BoundCastExpression conversion) {
+            if (!conversion.operand.type.IsVerifierReference())
+                EmitBox(conversion.operand.type);
+
+            var resultType = conversion.type;
+
+            if (!resultType.IsVerifierReference())
+                _iLProcessor.Emit(OpCodes.Unbox_Any, _module.GetType(conversion.type));
+            else if (resultType.IsArray())
+                EmitStaticCast(conversion.type);
+
+            return;
+        }
+
+        private void EmitExplicitReferenceConversion(BoundCastExpression conversion) {
+            if (!conversion.operand.type.IsVerifierReference())
+                EmitBox(conversion.operand.type);
+
+            if (conversion.type.IsVerifierReference())
+                _iLProcessor.Emit(OpCodes.Castclass, _module.GetType(conversion.type));
+            else
+                _iLProcessor.Emit(OpCodes.Unbox_Any, _module.GetType(conversion.type));
+        }
+
+        private void EmitStaticCast(TypeSymbol to) {
+            var temp = AllocateTemp(to);
+            _iLProcessor.Emit(OpCodes.Stloc, temp);
+            _iLProcessor.Emit(OpCodes.Ldloc, temp);
+            FreeTemp(temp);
         }
 
         private void EmitBaseExpression(BoundBaseExpression expression) {
             EmitLdarg0();
             var thisType = _method.containingType;
 
-            if (thisType.isPrimitiveType) {
+            if (IsValueType(thisType)) {
                 EmitLoadIndirect(thisType);
                 EmitBox(thisType);
             }
@@ -841,7 +1542,7 @@ internal sealed partial class ILEmitter {
             EmitLdarg0();
             var thisType = expression.type;
 
-            if (thisType.isPrimitiveType)
+            if (IsValueType(thisType))
                 EmitLoadIndirect(thisType);
         }
 
@@ -890,7 +1591,7 @@ internal sealed partial class ILEmitter {
                     EmitArrayElementAddress((BoundArrayAccessExpression)expression, addressKind);
                     break;
                 case BoundKind.ThisExpression:
-                    if (expression.type.isPrimitiveType) {
+                    if (IsValueType(expression.type)) {
                         if (!HasHome(expression, addressKind))
                             goto default;
 
@@ -1013,12 +1714,27 @@ internal sealed partial class ILEmitter {
             if (!IsAnyReadOnly(addressKind))
                 return false;
 
-            return !arrayAccess.type.isPrimitiveType;
+            return !IsValueType(arrayAccess.type);
         }
 
         private void EmitArrayIndex(BoundExpression index) {
             EmitExpression(index, used: true);
             TreatLongsAsNative(index.type.specialType);
+        }
+
+        private void EmitArrayIndices(ImmutableArray<BoundExpression> indices) {
+            for (var i = 0; i < indices.Length; ++i) {
+                var index = indices[i];
+                EmitExpression(index, used: true);
+                TreatLongsAsNative(index.type.specialType);
+            }
+        }
+
+        private void EmitArrayIndices(ImmutableArray<int> indices) {
+            for (var i = 0; i < indices.Length; ++i) {
+                var index = indices[i];
+                _iLProcessor.Emit(OpCodes.Ldc_I4, index);
+            }
         }
 
         private void TreatLongsAsNative(SpecialType specialType) {

@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -48,7 +49,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundNode VisitConstant(BoundExpression expression) {
         // TODO Handle initializer list constants
-        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.type);
+        var type = expression.type;
+        var literal = new BoundLiteralExpression(expression.syntax, expression.constantValue, type);
+
+        if (!type.IsNullableType() || type.GetNullableUnderlyingType().specialType == SpecialType.String) {
+            return literal;
+        } else {
+            return new BoundObjectCreationExpression(
+                expression.syntax,
+                CorLibrary.GetNullableCtor((NamedTypeSymbol)type),
+                [literal],
+                default,
+                default,
+                default,
+                false,
+                type
+            );
+        }
     }
 
     internal override BoundNode VisitIfStatement(BoundIfStatement statement) {

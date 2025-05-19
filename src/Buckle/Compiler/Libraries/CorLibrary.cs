@@ -47,6 +47,10 @@ internal sealed class CorLibrary {
         return Instance.CreateNullableType(type);
     }
 
+    internal static MethodSymbol GetNullableCtor(NamedTypeSymbol type) {
+        return new SynthesizedConstructorSymbol(GetOrCreateNullableType(type));
+    }
+
     internal static void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
         Instance.EnsureCorLibraryIsComplete();
         Instance.RegisterSpecialType(type);
