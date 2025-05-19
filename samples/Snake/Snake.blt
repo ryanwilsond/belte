@@ -7,11 +7,18 @@ class Snake {
 
     public constructor() {
         bodySize = Settings.BodyParts;
+
         coords = new Vec2[64];
         coords[0] = new Vec2(0, 2);
         coords[1] = new Vec2(0, 1);
         coords[2] = new Vec2(0, 0);
-        _sprite = Graphics.LoadSprite("samples/Assets/square.png", new Vec2(0, 0), new Vec2(Settings.SpaceSize - 10, Settings.SpaceSize - 10), 0);
+
+        _sprite = Graphics.LoadSprite(
+            "samples/Assets/square.png",
+            new Vec2(0, 0),
+            new Vec2(Settings.SpaceSize - 10, Settings.SpaceSize - 10),
+            0
+        );
     }
 
     public void Draw() {

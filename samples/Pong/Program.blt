@@ -60,7 +60,7 @@ class Program {
         var scoreOnePosition = new Vec2(leftOffset, 40);
         scoreOne = Graphics.LoadText("0", "samples/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
 
-        var rightOffset = Settings.ScreenWidth - (Settings.ScreenHeight / 4);
+        var rightOffset = Settings.ScreenWidth - (Settings.ScreenWidth / 4);
         var scoreTwoPosition = new Vec2(rightOffset, 40);
         // `Graphics.LoadText` renders a string using a given font, position, font size, angle, and color values
         scoreTwo = Graphics.LoadText("0", "samples/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);

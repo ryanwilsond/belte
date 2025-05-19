@@ -9,9 +9,12 @@ class Program {
     string! direction;
     string! pendingDirection;
     decimal! snakeTimer;
-    int! highScore = 0;
+    int! scoreCounter = 0;
+    int! highScoreCounter = 0;
 
     Text score;
+    Text highScore;
+    Text scoreText;
     Text gameOverLine1;
     Text gameOverLine2;
     Text gameOverLine3;
@@ -30,8 +33,13 @@ class Program {
     private void Main() {
         Graphics.Initialize("Snake", Settings.GameWidth, Settings.GameHeight + 80);
 
-        var scorePosition = new Vec2(Settings.GameWidth / 2, 40);
-        score = Graphics.LoadText("0", "samples/Assets/arial.ttf", scorePosition, 60, 0, 255, 255, 255);
+        var scoreTextPosition = new Vec2(Settings.GameWidth / 2 - 30, 40);
+        var scorePosition = new Vec2(Settings.GameWidth / 2 - 100, 37);
+        var highScorePosition = new Vec2(Settings.GameWidth / 2 + 280, 37);
+
+        scoreText = Graphics.LoadText("Score:        High Score:", "samples/Assets/arial.ttf", scoreTextPosition, 40, 0, 255, 255, 255);
+        score = Graphics.LoadText("0", "samples/Assets/arial.ttf", scorePosition, 40, 0, 255, 255, 255);
+        highScore = Graphics.LoadText("0", "samples/Assets/arial.ttf", highScorePosition, 40, 0, 255, 255, 255);
 
         var position1 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 - 100);
         var position2 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2);
@@ -58,6 +66,7 @@ class Program {
         previousS = false;
         previousD = false;
         score.text = "0";
+        scoreCounter = 0;
     }
 
     private void Update(decimal! deltaTime) {
@@ -91,6 +100,8 @@ class Program {
 
         Graphics.DrawRect(banner);
         Graphics.DrawText(score);
+        Graphics.DrawText(scoreText);
+        Graphics.DrawText(highScore);
         Graphics.DrawSprite(food.sprite);
         snake.Draw();
 
@@ -117,7 +128,12 @@ class Program {
             snake.coords[0].x += 1;
 
         if (snake.coords[0].x == food.x && snake.coords[0].y == food.y) {
-            score.text = (string)(((int)score.text) + 1);
+            scoreCounter++;
+            highScoreCounter = Math.Max(highScoreCounter, scoreCounter);
+
+            score.text = (string)scoreCounter;
+            highScore.text = (string)highScoreCounter;
+
             snake.AddBodySegment(backSegment.x, backSegment.y);
             food.RandomizeLocation(snake);
         }
@@ -145,11 +161,7 @@ class Program {
 
     private void GameOver() {
         gameOver = true;
-
-        var scoreValue = (int)score.text;
-        highScore = Math.Max(highScore, scoreValue!);
-
         gameOverLine2.text = "Score: " + score.text;
-        gameOverLine3.text = "High Score: " + (string)highScore;
+        gameOverLine3.text = "High Score: " + highScore.text;
     }
 }

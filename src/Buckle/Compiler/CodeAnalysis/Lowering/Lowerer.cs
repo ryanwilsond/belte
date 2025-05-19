@@ -52,7 +52,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = expression.type;
         var literal = new BoundLiteralExpression(expression.syntax, expression.constantValue, type);
 
-        if (!type.IsNullableType() || type.GetNullableUnderlyingType().specialType == SpecialType.String) {
+        if (!type.IsNullableType() ||
+            type.GetNullableUnderlyingType().specialType == SpecialType.String ||
+            expression.constantValue.value is null) {
             return literal;
         } else {
             return new BoundObjectCreationExpression(
