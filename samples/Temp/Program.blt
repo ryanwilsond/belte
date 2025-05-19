@@ -4,7 +4,7 @@ static class Program {
         var max = 100;
 
         var magicNumber = 50;
-        var hintsWanted = false;
+        var hintsWanted = AskForHints();
         var guesses = 5;
         // var magicNumber = StartGame(max);
         // var hintsWanted = AskForHints();
@@ -16,5 +16,11 @@ static class Program {
         //     Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
 
         // Console.PrintLine("Bye.");
+    }
+
+    private static bool AskForHints() {
+        Console.Print("Want hints? ");
+        Console.Input();
+        return false;
     }
 }
