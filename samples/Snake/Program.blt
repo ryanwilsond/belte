@@ -10,7 +10,7 @@ class Program {
     string! pendingDirection;
     decimal! snakeTimer;
     int! scoreCounter = 0;
-    int! highScoreCounter = 0;
+    int! highScoreCounter = 21;
 
     Text score;
     Text highScore;
@@ -39,7 +39,7 @@ class Program {
 
         scoreText = Graphics.LoadText("Score:        High Score:", "samples/Assets/arial.ttf", scoreTextPosition, 40, 0, 255, 255, 255);
         score = Graphics.LoadText("0", "samples/Assets/arial.ttf", scorePosition, 40, 0, 255, 255, 255);
-        highScore = Graphics.LoadText("0", "samples/Assets/arial.ttf", highScorePosition, 40, 0, 255, 255, 255);
+        highScore = Graphics.LoadText((string)highScoreCounter, "samples/Assets/arial.ttf", highScorePosition, 40, 0, 255, 255, 255);
 
         var position1 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 - 100);
         var position2 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2);

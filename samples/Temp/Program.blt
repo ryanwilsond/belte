@@ -6,6 +6,12 @@ static class Program {
         var magicNumber = 50;
         var hintsWanted = AskForHints();
         var guesses = 5;
+
+        // if (hintsWanted)
+        //     guesses++;
+        // else
+        //     guesses--;
+
         // var magicNumber = StartGame(max);
         // var hintsWanted = AskForHints();
         // var guesses = RunGame(magicNumber, max, hintsWanted);

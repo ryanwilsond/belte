@@ -13,6 +13,13 @@ namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter {
     internal sealed partial class CodeGenerator {
+        private static readonly OpCode[] CompOpCodes = [
+            //  <            <=               >                >=
+            OpCodes.Clt,    OpCodes.Cgt,    OpCodes.Cgt,    OpCodes.Clt,     // Signed
+            OpCodes.Clt_Un, OpCodes.Cgt_Un, OpCodes.Cgt_Un, OpCodes.Clt_Un,  // Unsigned
+            OpCodes.Clt,    OpCodes.Cgt_Un, OpCodes.Cgt,    OpCodes.Clt_Un,  // Float
+        ];
+
         private readonly ILEmitter _module;
         private readonly MethodSymbol _method;
         private readonly BoundBlockStatement _body;
@@ -239,10 +246,10 @@ internal sealed partial class ILEmitter {
                     EmitAssignmentOperator((BoundAssignmentOperator)expression, used ? UseKind.UsedAsValue : UseKind.Unused);
                     break;
                 case BoundKind.UnaryOperator:
-                    EmitUnaryOperator((BoundUnaryOperator)expression, used);
+                    EmitUnaryOperatorExpression((BoundUnaryOperator)expression, used);
                     break;
                 case BoundKind.BinaryOperator:
-                    EmitBinaryOperator((BoundBinaryOperator)expression, used);
+                    EmitBinaryOperatorExpression((BoundBinaryOperator)expression, used);
                     break;
                 case BoundKind.NullAssertOperator:
                     EmitNullAssertOperator((BoundNullAssertOperator)expression, used);
@@ -909,12 +916,290 @@ internal sealed partial class ILEmitter {
             throw new NotImplementedException();
         }
 
-        private void EmitBinaryOperator(BoundBinaryOperator expression, bool used) {
-            throw new NotImplementedException();
+        private void EmitBinaryOperatorExpression(BoundBinaryOperator expression, bool used) {
+            var operatorKind = expression.operatorKind;
+
+            if (!used && !operatorKind.IsConditional() && !OperatorHasSideEffects(operatorKind)) {
+                EmitExpression(expression.left, false);
+                EmitExpression(expression.right, false);
+                return;
+            }
+
+            if (IsConditional(operatorKind)) {
+                EmitBinaryCondOperator(expression, true);
+            } else {
+                EmitBinaryOperator(expression);
+            }
+
+            EmitPopIfUnused(used);
         }
 
-        private void EmitUnaryOperator(BoundUnaryOperator expression, bool used) {
-            throw new NotImplementedException();
+        private void EmitBinaryOperator(BoundBinaryOperator expression) {
+            // TODO Binary ops
+        }
+
+        private void EmitUnaryOperatorExpression(BoundUnaryOperator expression, bool used) {
+            var operatorKind = expression.operatorKind;
+
+            if (!used) {
+                EmitExpression(expression.operand, used: false);
+                return;
+            }
+
+            if (operatorKind == UnaryOperatorKind.BoolLogicalNegation) {
+                EmitCondExpr(expression.operand, sense: false);
+                return;
+            }
+
+            EmitExpression(expression.operand, used: true);
+
+            switch (operatorKind.Operator()) {
+                case UnaryOperatorKind.UnaryMinus:
+                    _iLProcessor.Emit(OpCodes.Neg);
+                    break;
+                case UnaryOperatorKind.BitwiseComplement:
+                    _iLProcessor.Emit(OpCodes.Not);
+                    break;
+                case UnaryOperatorKind.UnaryPlus:
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(operatorKind.Operator());
+            }
+        }
+
+        private void EmitCondExpr(BoundExpression condition, bool sense) {
+            RemoveNegation(ref condition, ref sense);
+
+            var constantValue = condition.constantValue;
+
+            if (constantValue is not null) {
+                var constant = Convert.ToBoolean(constantValue.value);
+                _iLProcessor.Emit(OpCodes.Ldc_I4, constant == sense ? 1 : 0);
+                return;
+            }
+
+            if (condition.kind == BoundKind.BinaryOperator) {
+                var binOp = (BoundBinaryOperator)condition;
+
+                if (IsConditional(binOp.operatorKind)) {
+                    EmitBinaryCondOperator(binOp, sense);
+                    return;
+                }
+            }
+
+            EmitExpression(condition, true);
+            EmitIsSense(sense);
+        }
+
+        private void EmitBinaryCondOperator(BoundBinaryOperator binOp, bool sense) {
+            var andOrSense = sense;
+            int opIdx;
+
+            switch (binOp.operatorKind.OperatorWithConditional()) {
+                case BinaryOperatorKind.ConditionalOr:
+                    andOrSense = !andOrSense;
+                    goto case BinaryOperatorKind.ConditionalAnd;
+                case BinaryOperatorKind.ConditionalAnd:
+                    if (!andOrSense)
+                        EmitShortCircuitingOperator(binOp, sense, sense, true);
+                    else
+                        EmitShortCircuitingOperator(binOp, sense, !sense, false);
+
+                    return;
+                case BinaryOperatorKind.And:
+                    EmitBinaryCondOperatorHelper(OpCodes.And, binOp.left, binOp.right, sense);
+                    return;
+                case BinaryOperatorKind.Or:
+                    EmitBinaryCondOperatorHelper(OpCodes.Or, binOp.left, binOp.right, sense);
+                    return;
+                case BinaryOperatorKind.Xor:
+                    if (sense)
+                        EmitBinaryCondOperatorHelper(OpCodes.Xor, binOp.left, binOp.right, true);
+                    else
+                        EmitBinaryCondOperatorHelper(OpCodes.Ceq, binOp.left, binOp.right, true);
+
+                    return;
+                case BinaryOperatorKind.NotEqual:
+                    sense = !sense;
+                    goto case BinaryOperatorKind.Equal;
+                case BinaryOperatorKind.Equal:
+                    var constant = binOp.left.constantValue;
+                    var comparand = binOp.right;
+
+                    if (constant is null) {
+                        constant = comparand.constantValue;
+                        comparand = binOp.left;
+                    }
+
+                    if (constant is not null) {
+                        // TODO Add when we add default values
+                        // if (constant.IsDefaultValue) {
+                        //     if (!constant.IsFloating) {
+                        //         if (comparand is BoundConversion { Type.SpecialType: SpecialType.System_Object, ConversionKind: ConversionKind.Boxing, Operand.Type: TypeParameterSymbol { AllowsRefLikeType: true } } &&
+                        //             constant.IsNull) {
+                        //             // Boxing is not supported for ref like type parameters, therefore the code that we usually emit 'box; ldnull; ceq/cgt'
+                        //             // is not going to work. There is, however, an exception for 'box; brtrue/brfalse' sequence (https://github.com/dotnet/runtime/blob/main/docs/design/features/byreflike-generics.md#special-il-sequences).
+                        //             EmitExpression(comparand, true);
+
+                        //             object falseLabel = new object();
+                        //             object endLabel = new object();
+                        //             _builder.EmitBranch(sense ? ILOpCode.Brtrue_s : ILOpCode.Brfalse_s, falseLabel);
+                        //             _builder.EmitBoolConstant(true);
+                        //             _builder.EmitBranch(ILOpCode.Br, endLabel);
+
+                        //             _builder.AdjustStack(-1);
+                        //             _builder.MarkLabel(falseLabel);
+                        //             _builder.EmitBoolConstant(false);
+                        //             _builder.MarkLabel(endLabel);
+                        //             return;
+                        //         }
+
+                        //         if (sense) {
+                        //             EmitIsNullOrZero(comparand, constant);
+                        //         } else {
+                        //             //  obj != null/0   for pointers and integral numerics is emitted as cgt.un
+                        //             EmitIsNotNullOrZero(comparand, constant);
+                        //         }
+                        //         return;
+                        //     }
+                        // } else
+                        if (constant.specialType == SpecialType.Bool) {
+                            EmitExpression(comparand, true);
+                            EmitIsSense(sense);
+                            return;
+                        }
+                    }
+
+                    EmitBinaryCondOperatorHelper(OpCodes.Ceq, binOp.left, binOp.right, sense);
+                    return;
+                case BinaryOperatorKind.LessThan:
+                    opIdx = 0;
+                    break;
+                case BinaryOperatorKind.LessThanOrEqual:
+                    opIdx = 1;
+                    sense = !sense;
+                    break;
+                case BinaryOperatorKind.GreaterThan:
+                    opIdx = 2;
+                    break;
+                case BinaryOperatorKind.GreaterThanOrEqual:
+                    opIdx = 3;
+                    sense = !sense;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(binOp.operatorKind.OperatorWithConditional());
+            }
+
+            if (IsFloat(binOp.operatorKind))
+                opIdx += 8;
+
+            EmitBinaryCondOperatorHelper(CompOpCodes[opIdx], binOp.left, binOp.right, sense);
+            return;
+        }
+
+        private void EmitShortCircuitingOperator(BoundBinaryOperator condition, bool sense, bool stopSense, bool stopValue) {
+            // we generate:
+            //
+            // gotoif (a == stopSense) fallThrough
+            // b == sense
+            // goto labEnd
+            // fallThrough:
+            // stopValue
+            // labEnd:
+            //                 AND       OR
+            //            +-  ------    -----
+            // stopSense  |   !sense    sense
+            // stopValue  |     0         1
+            var fallThrough = new SynthesizedLabelSymbol("fallThrough");
+            var labEnd = new SynthesizedLabelSymbol("labEnd");
+
+            // TODO
+            // object lazyFallThrough = null;
+
+            // EmitCondBranch(condition.Left, ref lazyFallThrough, stopSense);
+            // EmitCondExpr(condition.Right, sense);
+
+            // // if fall-through was not initialized, no-one is going to take that branch
+            // // and we are done with Right on stack
+            // if (lazyFallThrough == null) {
+            //     return;
+            // }
+
+            // var labEnd = new object();
+            // _builder.EmitBranch(ILOpCode.Br, labEnd);
+
+            // // if we get to fallThrough, we should not have Right on stack. Adjust for that.
+            // _builder.AdjustStack(-1);
+
+            // _builder.MarkLabel(lazyFallThrough);
+            // _builder.EmitBoolConstant(stopValue);
+            // _builder.MarkLabel(labEnd);
+        }
+
+        private void EmitBinaryCondOperatorHelper(
+            OpCode opCode,
+            BoundExpression left,
+            BoundExpression right,
+            bool sense) {
+            EmitExpression(left, true);
+            EmitExpression(right, true);
+            _iLProcessor.Emit(opCode);
+            EmitIsSense(sense);
+        }
+
+        private static void RemoveNegation(ref BoundExpression condition, ref bool sense) {
+            while (condition is BoundUnaryOperator unOp) {
+                condition = unOp.operand;
+                sense = !sense;
+            }
+        }
+
+        private static bool IsFloat(BinaryOperatorKind opKind) {
+            var type = opKind.OperandTypes();
+
+            switch (type) {
+                case BinaryOperatorKind.Decimal:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool OperatorHasSideEffects(BinaryOperatorKind kind) {
+            switch (kind.Operator()) {
+                case BinaryOperatorKind.Division:
+                case BinaryOperatorKind.Modulo:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsConditional(BinaryOperatorKind opKind) {
+            switch (opKind.OperatorWithConditional()) {
+                case BinaryOperatorKind.ConditionalAnd:
+                case BinaryOperatorKind.ConditionalOr:
+                case BinaryOperatorKind.Equal:
+                case BinaryOperatorKind.NotEqual:
+                case BinaryOperatorKind.LessThan:
+                case BinaryOperatorKind.LessThanOrEqual:
+                case BinaryOperatorKind.GreaterThan:
+                case BinaryOperatorKind.GreaterThanOrEqual:
+                    return true;
+                case BinaryOperatorKind.And:
+                case BinaryOperatorKind.Or:
+                case BinaryOperatorKind.Xor:
+                    return opKind.OperandTypes() == BinaryOperatorKind.Bool;
+            }
+
+            return false;
+        }
+
+        private void EmitIsSense(bool sense) {
+            if (!sense) {
+                _iLProcessor.Emit(OpCodes.Ldc_I4_0);
+                _iLProcessor.Emit(OpCodes.Ceq);
+            }
         }
 
         private void EmitAssignmentOperator(BoundAssignmentOperator expression, UseKind useKind) {
