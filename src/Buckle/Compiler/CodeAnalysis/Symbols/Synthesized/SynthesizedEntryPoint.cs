@@ -82,6 +82,8 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         return GetBodyBinder(ignoreAccessibility);
     }
 
+    internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) { }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(

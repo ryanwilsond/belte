@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -1171,6 +1172,121 @@ internal partial class Binder {
         }
 
         return CheckValue(result, valueKind, diagnostics);
+    }
+
+    internal static bool IsAnyReadOnly(AddressKind addressKind) => addressKind >= AddressKind.ReadOnly;
+
+    internal static bool HasHome(
+        BoundExpression expression,
+        AddressKind addressKind,
+        Symbol containingSymbol,
+        HashSet<DataContainerSymbol> stackLocals) {
+        switch (expression.kind) {
+            case BoundKind.ArrayAccessExpression:
+                if (addressKind == AddressKind.ReadOnly && !expression.type.isPrimitiveType)
+                    return false;
+
+                return true;
+            case BoundKind.ThisExpression:
+                var type = expression.type;
+
+                if (type.isObjectType)
+                    return true;
+
+                if (!IsAnyReadOnly(addressKind) && containingSymbol is
+                    MethodSymbol { containingSymbol: NamedTypeSymbol, isEffectivelyConst: true }) {
+                    return false;
+                }
+
+                return true;
+            case BoundKind.ThrowExpression:
+                return true;
+            case BoundKind.ParameterExpression:
+                return IsAnyReadOnly(addressKind) ||
+                    ((BoundParameterExpression)expression).parameter.refKind is not RefKind.RefConstParameter;
+            case BoundKind.DataContainerExpression:
+                var local = ((BoundDataContainerExpression)expression).dataContainer;
+
+                return !((ILEmitter.CodeGenerator.IsStackLocal(local, stackLocals) && local.refKind == RefKind.None) ||
+                    (!IsAnyReadOnly(addressKind) && local.refKind == RefKind.RefConst));
+            case BoundKind.CallExpression:
+                var methodRefKind = ((BoundCallExpression)expression).method.refKind;
+
+                return methodRefKind == RefKind.Ref ||
+                    (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
+            case BoundKind.FieldAccessExpression:
+                return FieldAccessHasHome(
+                    (BoundFieldAccessExpression)expression,
+                    addressKind,
+                    containingSymbol,
+                    stackLocals
+                );
+            case BoundKind.AssignmentOperator:
+                var assignment = (BoundAssignmentOperator)expression;
+
+                if (!assignment.isRef)
+                    return false;
+
+                var lhsRefKind = assignment.left.GetRefKind();
+                return lhsRefKind == RefKind.Ref ||
+                    (IsAnyReadOnly(addressKind) && lhsRefKind is RefKind.RefConst or RefKind.RefConstParameter);
+            case BoundKind.ConditionalOperator:
+                var conditional = (BoundConditionalOperator)expression;
+
+                if (!conditional.isRef)
+                    return false;
+
+                return HasHome(conditional.trueExpression, addressKind, containingSymbol, stackLocals)
+                    && HasHome(conditional.falseExpression, addressKind, containingSymbol, stackLocals);
+            default:
+                return false;
+        }
+    }
+
+    private static bool FieldAccessHasHome(
+        BoundFieldAccessExpression fieldAccess,
+        AddressKind addressKind,
+        Symbol containingSymbol,
+        HashSet<DataContainerSymbol> stackLocalsOpt) {
+        var field = fieldAccess.field;
+
+        if (field.isConstExpr)
+            return false;
+
+        if (field.refKind is RefKind.Ref)
+            return true;
+
+        if (addressKind == AddressKind.ReadOnlyStrict)
+            return true;
+
+        // TODO Equiv?
+        // if (fieldAccess.IsByValue) {
+        //     return false;
+        // }
+
+        if (field.refKind == RefKind.RefConst)
+            return false;
+
+        if (!field.isConst)
+            return true;
+
+        if (!TypeSymbol.Equals(
+            field.containingType,
+            containingSymbol.containingSymbol as NamedTypeSymbol,
+            TypeCompareKind.AllIgnoreOptions)) {
+            return false;
+        }
+
+        if (field.isStatic) {
+            // TODO uncomment when .cctor added
+            // return containingSymbol is MethodSymbol { methodKind: MethodKind.StaticConstructor } or FieldSymbol { isStatic: true };
+            return containingSymbol is FieldSymbol { isStatic: true };
+        } else {
+            // ? or MethodSymbol { isInitOnly: true }
+            return (containingSymbol is MethodSymbol { methodKind: MethodKind.Constructor }
+                or FieldSymbol { isStatic: false }) &&
+                fieldAccess.receiver.kind == BoundKind.ThisExpression;
+        }
     }
 
     private BoundExpression CheckValue(

@@ -143,6 +143,13 @@ done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
     }
 
+    internal override bool IsMetadataVirtual(bool forceComplete = false) {
+        if (forceComplete && !_flags.isMetadataVirtualLocked)
+            containingSymbol.ForceComplete(null);
+
+        return _flags.isMetadataVirtual;
+    }
+
     internal abstract ExecutableCodeBinder TryGetBodyBinder(
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false);

@@ -29,7 +29,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     public abstract int arity { get; }
 
-    public override bool isObjectType => originalDefinition.specialType.IsObjectType();
+    public override bool isObjectType => !isPrimitiveType;
 
     public override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
 

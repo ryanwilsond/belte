@@ -135,6 +135,14 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return specialType == SpecialType.Void;
     }
 
+    internal bool IsVerifierReference() {
+        return isObjectType && typeKind != TypeKind.TemplateParameter;
+    }
+
+    internal bool IsVerifierValue() {
+        return isPrimitiveType && typeKind != TypeKind.TemplateParameter;
+    }
+
     internal TypeSymbol GetNonErrorGuess() {
         return ExtendedErrorTypeSymbol.ExtractNonErrorType(this);
     }

@@ -21,6 +21,7 @@ internal static class SpecialTypeExtensions {
     internal static bool IsObjectType(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Object:
+            case SpecialType.Nullable:
             case SpecialType.List:
             case SpecialType.Dictionary:
             case SpecialType.Vec2:

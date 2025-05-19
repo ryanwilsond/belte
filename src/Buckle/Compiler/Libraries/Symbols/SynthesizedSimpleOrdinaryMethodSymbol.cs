@@ -69,4 +69,6 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
     internal override CallingConvention callingConvention => CallingConvention.Default;
 
     internal override bool hasUnscopedRefAttribute => false;
+
+    internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 }

@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.PooledObjects;
+using SharpFont.MultipleMasters;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -9,6 +10,8 @@ internal abstract partial class BoundExpression : BoundNode {
     internal virtual LookupResultKind resultKind => LookupResultKind.Viable;
 
     internal virtual Symbol expressionSymbol => null;
+
+    internal virtual bool suppressVirtualCalls => false;
 
     internal RefKind GetRefKind() {
         return kind switch {

@@ -573,6 +573,7 @@ internal sealed class Evaluator {
         EvaluatorObject receiver,
         ValueWrapper<bool> abort) {
         if (method.isAbstract || method.isVirtual) {
+            // TODO Potential duplicate code around GetConstructedLeastOverriddenMethod?
             var type = Dereference(receiver).type;
             var newMethod = type
                 .GetMembersUnordered()

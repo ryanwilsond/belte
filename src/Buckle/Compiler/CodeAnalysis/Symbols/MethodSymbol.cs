@@ -131,6 +131,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         return false;
     }
 
+    internal abstract bool IsMetadataVirtual(bool forceComplete = false);
+
     internal TypeSymbol GetParameterType(int index) {
         return parameterTypesWithAnnotations[index].type;
     }

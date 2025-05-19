@@ -55,4 +55,14 @@ internal static class ConversionKindExtensions {
                 return false;
         }
     }
+
+    internal static bool IsUserDefinedConversion(this ConversionKind self) {
+        switch (self) {
+            case ConversionKind.ImplicitUserDefined:
+            case ConversionKind.ExplicitUserDefined:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

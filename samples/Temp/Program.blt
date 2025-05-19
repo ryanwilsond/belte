@@ -1,0 +1,20 @@
+
+static class Program {
+    public static void Main() {
+        var max = 100;
+
+        var magicNumber = 50;
+        var hintsWanted = false;
+        var guesses = 5;
+        // var magicNumber = StartGame(max);
+        // var hintsWanted = AskForHints();
+        // var guesses = RunGame(magicNumber, max, hintsWanted);
+
+        // if (guesses < 0)
+        //     Console.PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
+        // else
+        //     Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
+
+        // Console.PrintLine("Bye.");
+    }
+}

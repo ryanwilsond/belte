@@ -70,4 +70,6 @@ internal sealed class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSy
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCtor;
     }
+
+    internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 }

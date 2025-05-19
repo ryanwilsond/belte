@@ -152,6 +152,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         return _lazyTypeParameterConstraintKinds;
     }
 
+    internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
     internal void GetDeclarationDiagnostics(BelteDiagnosticQueue addTo) {
         foreach (var templateParameter in _templateParameters)
             templateParameter.ForceComplete(null);

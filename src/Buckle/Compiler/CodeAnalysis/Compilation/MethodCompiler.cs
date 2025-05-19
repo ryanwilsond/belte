@@ -76,6 +76,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
     private BoundProgram CreateBoundProgram() {
         return new BoundProgram(
+            _compilation,
             _methodBodies.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
             _entryPoint,
