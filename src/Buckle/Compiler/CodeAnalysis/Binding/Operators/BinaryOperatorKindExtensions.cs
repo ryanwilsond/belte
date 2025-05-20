@@ -39,6 +39,20 @@ internal static class BinaryOperatorKindExtensions {
         return 0 != (kind & BinaryOperatorKind.Conditional);
     }
 
+    internal static bool IsComparison(this BinaryOperatorKind kind) {
+        switch (kind.Operator()) {
+            case BinaryOperatorKind.Equal:
+            case BinaryOperatorKind.NotEqual:
+            case BinaryOperatorKind.GreaterThan:
+            case BinaryOperatorKind.GreaterThanOrEqual:
+            case BinaryOperatorKind.LessThan:
+            case BinaryOperatorKind.LessThanOrEqual:
+                return true;
+        }
+
+        return false;
+    }
+
     internal static SyntaxKind ToSyntaxKind(this BinaryOperatorKind kind) {
         var isConditional = kind.IsConditional();
 

@@ -59,7 +59,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         } else {
             return new BoundObjectCreationExpression(
                 expression.syntax,
-                CorLibrary.GetNullableCtor((NamedTypeSymbol)type),
+                CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
+                    .Construct([new TypeOrConstant(type.GetNullableUnderlyingType())]),
                 [literal],
                 default,
                 default,
@@ -457,6 +458,55 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(Increment(syntax, expression.operand));
         else
             return Visit(Decrement(syntax, expression.operand));
+    }
+
+    internal override BoundNode VisitIsOperator(BoundIsOperator expression) {
+        /*
+
+        <left> is <right>
+
+        ----> <right> is null
+
+        <left>.get_HasValue()
+
+        */
+        var syntax = expression.syntax;
+
+        if (expression.right.IsLiteralNull()) {
+            var call = InstanceCall(
+                syntax,
+                expression.left,
+                CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)
+                    .Construct([new TypeOrConstant(expression.left.type.GetNullableUnderlyingType())])
+            );
+
+            if (expression.isNot)
+                return Visit(call);
+
+            return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.type));
+        }
+
+        return base.VisitIsOperator(expression);
+    }
+
+    internal override BoundNode VisitNullAssertOperator(BoundNullAssertOperator expression) {
+        /*
+
+        <operand>!
+
+        ---->
+
+        <operand>.get_Value
+
+        */
+        var syntax = expression.syntax;
+
+        return Visit(InstanceCall(
+            syntax,
+            expression.operand,
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)
+                .Construct([new TypeOrConstant(expression.type)])
+        ));
     }
 
     internal override BoundNode VisitCastExpression(BoundCastExpression expression) {

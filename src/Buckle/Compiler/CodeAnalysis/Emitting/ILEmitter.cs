@@ -151,15 +151,15 @@ internal sealed partial class ILEmitter {
     }
 
     private MethodReference GetNullableCtor(TypeSymbol genericType) {
-        // TODO This is quite abstruse, could most likely simplify
         var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
         var genericArgumentType = GetType(genericType);
         typeReference.GenericArguments.Add(genericArgumentType);
 
-        var genericDef = NetTypeReference.Nullable.Resolve();
+        // var genericDef = NetTypeReference.Nullable.Resolve();
 
-        var ctorDef = genericDef.Methods
-            .First(m => m.IsConstructor && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.Name == "T");
+        // var ctorDef = genericDef.Methods
+        //     .First(m => m.IsConstructor && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.Name == "T");
+        var ctorDef = NetMethodReference.Nullable_ctor;
 
         var ctorRef = _assemblyDefinition.MainModule.ImportReference(ctorDef);
         var genericCtor = new MethodReference(ctorRef.Name, ctorRef.ReturnType, typeReference) {
@@ -171,9 +171,39 @@ internal sealed partial class ILEmitter {
         foreach (var p in ctorRef.Parameters)
             genericCtor.Parameters.Add(new ParameterDefinition(p.ParameterType));
 
-        var finalCtorRef = _assemblyDefinition.MainModule.ImportReference(genericCtor);
+        return _assemblyDefinition.MainModule.ImportReference(genericCtor);
+    }
 
-        return finalCtorRef;
+    private MethodReference GetNullableValue(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_Value;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+    }
+
+    private MethodReference GetNullableHasValue(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_HasValue;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
     }
 
     private FieldReference GetField(FieldSymbol field) {
@@ -427,8 +457,12 @@ internal sealed partial class ILEmitter {
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
-        if (method.methodKind == MethodKind.Constructor && method.containingType.specialType == SpecialType.Nullable)
-            return GetNullableCtor(method.containingType.GetNullableUnderlyingType());
+        if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
+            return GetNullableCtor(method.templateArguments[0].type.type);
+        else if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue))
+            return GetNullableValue(method.templateArguments[0].type.type);
+        else if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue))
+            return GetNullableHasValue(method.templateArguments[0].type.type);
 
         var mapKey = LibraryHelpers.BuildMapKey(method);
 

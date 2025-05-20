@@ -34,12 +34,36 @@ internal partial class ConstantValue {
 
     internal BelteDiagnostic[] diagnostics { get; }
 
+    internal bool isDefaultValue
+        => (value is long i && i == 0) ||
+           (value is bool b && !b) ||
+           (value is double d && d == 0) ||
+           (value is string s && s == "");
+
+    internal bool isOne
+        => (value is long i && i == 1) ||
+           (value is bool b && b) ||
+           (value is double d && d == 1);
+
     internal static bool IsNull(ConstantValue constant) {
         return constant is not null && constant.value is null;
     }
 
     internal static bool IsNotNull(ConstantValue constant) {
         return constant is not null && constant.value is not null;
+    }
+
+    internal bool IsIntegralValueZeroOrOne(out bool isOne) {
+        if (isDefaultValue) {
+            isOne = false;
+        } else if (this.isOne) {
+            isOne = true;
+        } else {
+            isOne = default;
+            return false;
+        }
+
+        return value is long || value is bool;
     }
 
     public override int GetHashCode() {

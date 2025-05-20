@@ -67,13 +67,14 @@ internal static partial class BoundFactory {
         return new BoundWhileStatement(syntax, locals, condition, body, breakLabel, continueLabel);
     }
 
-    internal static BoundCallExpression Call(
+    internal static BoundCallExpression InstanceCall(
         SyntaxNode syntax,
+        BoundExpression receiver,
         MethodSymbol method,
         params BoundExpression[] arguments) {
         return new BoundCallExpression(
             syntax,
-            null,
+            receiver,
             method,
             ImmutableArray.Create(arguments),
             ImmutableArray.CreateRange(Enumerable.Repeat(RefKind.None, arguments.Length)),
@@ -81,6 +82,13 @@ internal static partial class BoundFactory {
             LookupResultKind.Viable,
             method.returnType
         );
+    }
+
+    internal static BoundCallExpression Call(
+        SyntaxNode syntax,
+        MethodSymbol method,
+        params BoundExpression[] arguments) {
+        return InstanceCall(syntax, null, method, arguments);
     }
 
     internal static BoundCastExpression Cast(

@@ -437,7 +437,6 @@ internal sealed class Evaluator {
             BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)expression, abort),
             BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)expression, abort),
             BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)expression, abort),
-            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)expression, abort),
             BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
             BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort),
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
@@ -533,7 +532,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateObjectCreationExpression(
         BoundObjectCreationExpression node,
         ValueWrapper<bool> abort) {
-        if (node.constructor.containingType.specialType == SpecialType.Nullable)
+        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], abort);
 
         var newObject = CreateObject((NamedTypeSymbol)node.type);
@@ -544,6 +543,7 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression expression, ValueWrapper<bool> abort) {
         if (CheckStandardMap(
             expression.method,
+            expression.receiver,
             expression.arguments,
             abort,
             out var result,
@@ -672,21 +672,6 @@ internal sealed class Evaluator {
             return EvaluateExpression(expression.falseExpression, abort);
     }
 
-    private EvaluatorObject EvaluateNullAssertOperator(
-        BoundNullAssertOperator expression,
-        ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(expression.operand, abort);
-        var dereferenced = Dereference(value);
-
-        if (dereferenced.members is null &&
-            Value(dereferenced) is null &&
-            expression.operand.type.specialType != SpecialType.Type) {
-            throw new NullReferenceException();
-        }
-
-        return value;
-    }
-
     private EvaluatorObject EvaluateAsOperator(BoundAsOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
         var leftValue = Value(left);
@@ -707,15 +692,6 @@ internal sealed class Evaluator {
         var leftValue = Value(left);
         var dereferenced = Dereference(left);
         var isNot = expression.isNot;
-
-        if (right.IsLiteralNull()) {
-            if (dereferenced.members is null && leftValue is null &&
-                (expression.left.type.specialType != SpecialType.Type || left.type is null)) {
-                return new EvaluatorObject(!isNot, expression.type);
-            }
-
-            return new EvaluatorObject(isNot, expression.type);
-        }
 
         if (leftValue is null && dereferenced.members is null)
             return new EvaluatorObject(isNot, expression.type);
@@ -1004,6 +980,7 @@ internal sealed class Evaluator {
 
     private bool CheckStandardMap(
         MethodSymbol method,
+        BoundExpression receiver,
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
         out object result,
@@ -1012,6 +989,35 @@ internal sealed class Evaluator {
         printed = false;
         io = false;
         result = null;
+
+        if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)) {
+            var value = EvaluateExpression(receiver, abort);
+            var dereferenced = Dereference(value);
+
+            if (dereferenced.members is null &&
+                Value(dereferenced) is null &&
+                receiver.type.specialType != SpecialType.Type) {
+                throw new NullReferenceException();
+            }
+
+            result = value;
+            return true;
+        }
+
+        if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)) {
+            var left = EvaluateExpression(receiver, abort);
+            var leftValue = Value(left);
+            var dereferenced = Dereference(left);
+
+            if (dereferenced.members is null && leftValue is null &&
+                (receiver.type.specialType != SpecialType.Type || left.type is null)) {
+                result = new EvaluatorObject(false, method.returnType);
+            } else {
+                result = new EvaluatorObject(true, method.returnType);
+            }
+
+            return true;
+        }
 
         // First check if we are in a graphics project before comparing
         // (otherwise would unnecessarily create the overhead of constructing the Graphics type)

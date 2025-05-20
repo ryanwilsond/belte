@@ -14,12 +14,15 @@ internal sealed class CorLibrary {
 
     private const int TotalSpecialTypes = 13 - 2; // TODO remove -2 after adding List and Dict
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 4;
+    private const int TotalWellKnownMembers = 3;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
+    private readonly ConcurrentDictionary<WellKnownMembers, MethodSymbol> _wellKnownMembers = [];
 
     private ImmutableArray<UnaryOperatorSignature>[] _builtInUnaryOperators;
     private ImmutableArray<BinaryOperatorSignature>[][] _builtInBinaryOperators;
     private int _registeredSpecialTypes;
+    private int _registeredWellKnownMembers;
     private bool _complete = false;
 
     private CorLibrary() {
@@ -27,6 +30,11 @@ internal sealed class CorLibrary {
     }
 
     #region Public Model
+
+    internal static MethodSymbol GetWellKnownMember(WellKnownMembers wellKnownMember) {
+        Instance.EnsureCorLibraryIsComplete();
+        return Instance.GetWellKnownMemberCore(wellKnownMember);
+    }
 
     internal static NamedTypeSymbol GetSpecialType(SpecialType specialType) {
         Instance.EnsureCorLibraryIsComplete();
@@ -45,10 +53,6 @@ internal sealed class CorLibrary {
             return type;
 
         return Instance.CreateNullableType(type);
-    }
-
-    internal static MethodSymbol GetNullableCtor(NamedTypeSymbol type) {
-        return new SynthesizedConstructorSymbol(GetOrCreateNullableType(type));
     }
 
     internal static void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
@@ -85,6 +89,7 @@ internal sealed class CorLibrary {
         if (!_complete) {
             _complete = true;
             RegisterNonPrimitiveCorTypes();
+            RegisterWellKnownMembers();
         }
     }
 
@@ -102,6 +107,13 @@ internal sealed class CorLibrary {
 
     private NamedTypeSymbol CreateNullableType(TypeSymbol type) {
         return GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
+    }
+
+    private MethodSymbol GetWellKnownMemberCore(WellKnownMembers wellKnownMember) {
+        if (!_wellKnownMembers.TryGetValue(wellKnownMember, out var result))
+            throw new ArgumentException($"Well known member {wellKnownMember} has not been registered");
+
+        return result;
     }
 
     private void RegisterSpecialType(NamedTypeSymbol type) {
@@ -133,6 +145,50 @@ internal sealed class CorLibrary {
     private void RegisterNonPrimitiveCorTypes() {
         RegisterSpecialType(new PrimitiveTypeSymbol("Array", SpecialType.Array));
         RegisterSpecialType(new PrimitiveTypeSymbol("Nullable", SpecialType.Nullable, 1));
+    }
+
+    private void RegisterWellKnownMembers() {
+        var nullableType = GetSpecialTypeCore(SpecialType.Nullable);
+
+        RegisterWellKnownMember(WellKnownMembers.Nullable_ctor, new SynthesizedTemplateMethodSymbol(
+            ".ctor",
+            nullableType,
+            new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Void)),
+            [new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0)],
+            [],
+            MethodKind.Constructor
+        ));
+
+        RegisterWellKnownMember(WellKnownMembers.Nullable_getValue, new SynthesizedTemplateMethodSymbol(
+            "get_Value",
+            nullableType,
+            new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Void)),
+            [new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0)],
+            [],
+            MethodKind.Ordinary
+        ));
+
+        RegisterWellKnownMember(WellKnownMembers.Nullable_getHasValue, new SynthesizedTemplateMethodSymbol(
+            "get_HasValue",
+            nullableType,
+            new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Bool)),
+            [new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0)],
+            [],
+            MethodKind.Ordinary
+        ));
+    }
+
+    private void RegisterWellKnownMember(WellKnownMembers wellKnownMember, MethodSymbol member) {
+        if (wellKnownMember == WellKnownMembers.None)
+            throw new ArgumentException($"Cannot register member {member}; no given well-known-member id");
+
+        if (!_wellKnownMembers.TryAdd(wellKnownMember, member))
+            throw new ArgumentException($"Well known member {wellKnownMember} was already registered");
+
+        Interlocked.Increment(ref _registeredWellKnownMembers);
+
+        if (_registeredWellKnownMembers > TotalWellKnownMembers)
+            throw new UnreachableException($"Registered more well known members than there are well known members");
     }
 
     #endregion
