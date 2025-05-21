@@ -6,13 +6,6 @@ static class Program {
         var magicNumber = StartGame(max);
         var hintsWanted = AskForHints();
         var guesses = RunGame(magicNumber, max, hintsWanted);
-
-        // if (guesses < 0)
-        //     Console.PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
-        // else
-        //     Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
-
-        // Console.PrintLine("Bye.");
     }
 
     private static int StartGame(int max) {
@@ -24,58 +17,9 @@ static class Program {
 
     private static bool AskForHints() {
         return false;
-        // while (true) {
-        //     Console.Print("Do you want hints? ");
-
-        //     var wantsHints = Console.Input();
-
-        //     if (wantsHints == "yes" || wantsHints == "y")
-        //         return true;
-        //     if (wantsHints == "no" || wantsHints == "n")
-        //         return false;
-
-        //     Console.PrintLine("You can say 'yes', 'y', 'no', or 'n'");
-        // }
     }
 
     private static int RunGame(int magicNumber, int max, bool hintsWanted) {
         return 3;
-        // var guesses = 1;
-        // var idealGuess = max / 2;
-        // var lowerBound = 1;
-        // var upperBound = max;
-
-        // while (true) {
-        //     var prompt = "OK, what's your guess? ";
-
-        //     if (hintsWanted)
-        //         prompt = prompt + "(ideal: " + ((string)idealGuess) + ") ";
-
-        //     Console.Print(prompt);
-        //     var guessText = Console.Input();
-
-        //     if (guessText == "") {
-        //         if (hintsWanted)
-        //             guessText = (string)idealGuess;
-        //         else
-        //             return -1;
-        //     }
-
-        //     var guess = (int)guessText;
-
-        //     if (guess > magicNumber) {
-        //         Console.PrintLine("The number is lower");
-        //         upperBound = idealGuess;
-        //         idealGuess -= (upperBound - lowerBound + 1) / 2;
-        //     } else if (guess < magicNumber) {
-        //         Console.PrintLine("The number is higher");
-        //         lowerBound = idealGuess;
-        //         idealGuess += (upperBound - lowerBound + 1) / 2;
-        //     } else {
-        //         return guesses;
-        //     }
-
-        //     guesses++;
-        // }
     }
 }

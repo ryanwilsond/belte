@@ -137,6 +137,19 @@ internal sealed class Evaluator {
             return value.value;
     }
 
+    private bool ObjectIsNull(BoundExpression expression, ValueWrapper<bool> abort) {
+        var left = EvaluateExpression(expression, abort);
+        var leftValue = Value(left);
+        var dereferenced = Dereference(left);
+
+        if (dereferenced.members is null && leftValue is null &&
+            (expression.type.specialType != SpecialType.Type || left.type is null)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     private Dictionary<object, object> DictionaryValue(
         Dictionary<Symbol, EvaluatorObject> value,
         TypeSymbol containingType) {
@@ -774,6 +787,11 @@ internal sealed class Evaluator {
         var rightValue = Value(right);
 
         if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
+            if (expression.right.IsLiteralNull()) {
+                // TODO
+                var isNull = ObjectIsNull()
+            }
+
             if (expression.left.type.specialType == SpecialType.Type) {
                 if ((leftValue as BoundTypeExpression).type.Equals((rightValue as BoundTypeExpression).type))
                     return new EvaluatorObject(opKind == BinaryOperatorKind.Equal, expression.type);
@@ -1005,17 +1023,7 @@ internal sealed class Evaluator {
         }
 
         if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)) {
-            var left = EvaluateExpression(receiver, abort);
-            var leftValue = Value(left);
-            var dereferenced = Dereference(left);
-
-            if (dereferenced.members is null && leftValue is null &&
-                (receiver.type.specialType != SpecialType.Type || left.type is null)) {
-                result = new EvaluatorObject(false, method.returnType);
-            } else {
-                result = new EvaluatorObject(true, method.returnType);
-            }
-
+            result = new EvaluatorObject(!ObjectIsNull(receiver, abort), method.returnType);
             return true;
         }
 
@@ -1136,7 +1144,7 @@ internal sealed class Evaluator {
         } else if (mapKey == "Graphics_DrawSprite_S?") {
             var argument = Dereference(EvaluateExpression(arguments[0], abort));
 
-            if (argument.members.Count < 4)
+            if (argument.members is null || argument.members.Count < 4)
                 return true;
 
             var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
@@ -1196,7 +1204,7 @@ internal sealed class Evaluator {
         } else if (mapKey == "Graphics_DrawText_T?") {
             var argument = Dereference(EvaluateExpression(arguments[0], abort));
 
-            if (argument.members.Count < 9)
+            if (argument.members is null || argument.members.Count < 9)
                 return true;
 
             var textType = CorLibrary.GetSpecialType(SpecialType.Text);

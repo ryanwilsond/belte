@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -47,14 +48,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.Visit(node);
     }
 
+    private bool ShouldBeTreatedAsNullable(TypeSymbol type) {
+        return type.IsNullableType() && ILEmitter.CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
+    }
+
     private BoundNode VisitConstant(BoundExpression expression) {
         // TODO Handle initializer list constants
         var type = expression.type;
-        var literal = new BoundLiteralExpression(expression.syntax, expression.constantValue, type);
+        var literal = new BoundLiteralExpression(expression.syntax, expression.constantValue, type.StrippedType());
 
-        if (!type.IsNullableType() ||
-            type.GetNullableUnderlyingType().specialType == SpecialType.String ||
-            expression.constantValue.value is null) {
+        if (!ShouldBeTreatedAsNullable(type) || expression.constantValue.value is null) {
             return literal;
         } else {
             return new BoundObjectCreationExpression(
@@ -473,17 +476,27 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
 
         if (expression.right.IsLiteralNull()) {
-            var call = InstanceCall(
-                syntax,
-                expression.left,
-                CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)
-                    .Construct([new TypeOrConstant(expression.left.type.GetNullableUnderlyingType())])
-            );
+            if (ShouldBeTreatedAsNullable(expression.left.type)) {
+                var call = InstanceCall(
+                    syntax,
+                    expression.left,
+                    CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)
+                        .Construct([new TypeOrConstant(expression.left.type.GetNullableUnderlyingType())])
+                );
 
-            if (expression.isNot)
-                return Visit(call);
+                if (expression.isNot)
+                    return Visit(call);
 
-            return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.type));
+                return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.type));
+            }
+
+            var binaryOp = expression.isNot ? BinaryOperatorKind.NotEqual : BinaryOperatorKind.Equal;
+
+            binaryOp |= expression.left.type.specialType == SpecialType.String
+                ? BinaryOperatorKind.String
+                : BinaryOperatorKind.Object;
+
+            return Visit(Binary(syntax, expression.left, binaryOp, expression.right, expression.type));
         }
 
         return base.VisitIsOperator(expression);
@@ -499,14 +512,22 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <operand>.get_Value
 
         */
-        var syntax = expression.syntax;
+        if (ShouldBeTreatedAsNullable(expression.operand.type))
+            return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.type));
 
-        return Visit(InstanceCall(
+        return base.VisitNullAssertOperator(expression);
+    }
+
+    internal static BoundExpression CreateNullableGetValueCall(
+        Syntax.SyntaxNode syntax,
+        BoundExpression operand,
+        TypeSymbol type) {
+        return InstanceCall(
             syntax,
-            expression.operand,
+            operand,
             CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)
-                .Construct([new TypeOrConstant(expression.type)])
-        ));
+                .Construct([new TypeOrConstant(type)])
+        );
     }
 
     internal override BoundNode VisitCastExpression(BoundCastExpression expression) {

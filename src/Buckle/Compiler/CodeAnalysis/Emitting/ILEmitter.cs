@@ -10,6 +10,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using Shared;
 
@@ -25,7 +26,11 @@ internal sealed partial class ILEmitter {
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
     private readonly Dictionary<MethodSymbol, MethodDefinition> _methods = [];
+    private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
+
+    private TypeDefinition _globalsClass;
+    private FieldDefinition _randomField;
 
     private ILEmitter(BoundProgram program, string moduleName, string[] references, BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
@@ -119,7 +124,7 @@ internal sealed partial class ILEmitter {
     }
 
     private TypeReference GetType(TypeSymbol type) {
-        if (type.specialType == SpecialType.Nullable) {
+        if (type.specialType == SpecialType.Nullable && CodeGenerator.IsValueType(type.GetNullableUnderlyingType())) {
             var underlyingType = type.GetNullableUnderlyingType();
             var genericArgumentType = GetType(underlyingType);
 
@@ -210,6 +215,38 @@ internal sealed partial class ILEmitter {
         return _fields[field];
     }
 
+    private void EmitGlobalsClass() {
+        _globalsClass = new TypeDefinition(
+            "",
+            "<Globals>",
+            TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Public
+        );
+
+        _randomField = new FieldDefinition(
+            "<random>",
+            FieldAttributes.Static | FieldAttributes.Public,
+            NetTypeReference.Random
+        );
+
+        _globalsClass.Fields.Add(_randomField);
+
+        var cctor = new MethodDefinition(
+            ".cctor",
+            MethodAttributes.Static | MethodAttributes.Private |
+            MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            _specialTypes[SpecialType.Void]
+        );
+
+        _globalsClass.Methods.Insert(0, cctor);
+
+        var iLProcessor = cctor.Body.GetILProcessor();
+        iLProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
+        iLProcessor.Emit(OpCodes.Stsfld, _randomField);
+        iLProcessor.Emit(OpCodes.Ret);
+
+        _assemblyDefinition.MainModule.Types.Add(_globalsClass);
+    }
+
     private void EmitInternal() {
         foreach (var type in _topLevelTypes) {
             var typeDefinition = CreateNamedTypeDefinition(type);
@@ -251,25 +288,38 @@ internal sealed partial class ILEmitter {
                 var fieldDefinition = new FieldDefinition(f.name, GetFieldAttributes(f), GetType(f.type));
                 _fields.Add(f, fieldDefinition);
                 typeDefinition.Fields.Add(fieldDefinition);
-            } else if (member is MethodSymbol m) {
-                var methodDefinition = new MethodDefinition(m.name, GetMethodAttributes(m), GetType(m.returnType));
-
-                foreach (var parameter in m.parameters) {
-                    var parameterDefinition = new ParameterDefinition(
-                        parameter.name,
-                        ParameterAttributes.None,
-                        GetType(parameter.type)
-                    );
-
-                    methodDefinition.Parameters.Add(parameterDefinition);
-                }
-
-                _methods.Add(m, methodDefinition);
-                typeDefinition.Methods.Add(methodDefinition);
             } else if (member is NamedTypeSymbol t) {
                 CreateMemberDefinitions(t);
             }
         }
+
+        // Checking program map for methods to make sure synthesized ones are included (such as closure methods)
+        foreach (var pair in _program.methodBodies) {
+            if (pair.Key.containingType.Equals(type))
+                CreateMethodDefinition(pair.Key, pair.Value, typeDefinition);
+        }
+    }
+
+    private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeDefinition containingType) {
+        var methodDefinition = new MethodDefinition(
+            method.name,
+            GetMethodAttributes(method),
+            GetType(method.returnType)
+        );
+
+        foreach (var parameter in method.parameters) {
+            var parameterDefinition = new ParameterDefinition(
+                parameter.name,
+                ParameterAttributes.None,
+                GetType(parameter.type)
+            );
+
+            methodDefinition.Parameters.Add(parameterDefinition);
+        }
+
+        _methods.Add(method, methodDefinition);
+        _methodBodies.Add(methodDefinition, (method, body));
+        containingType.Methods.Add(methodDefinition);
     }
 
     private static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
@@ -328,19 +378,19 @@ internal sealed partial class ILEmitter {
     }
 
     private void EmitNamedType(NamedTypeSymbol type) {
-        foreach (var member in type.GetMembers()) {
-            if (member is MethodSymbol m)
-                EmitMethod(m);
-            else if (member is NamedTypeSymbol t)
-                EmitNamedType(t);
-        }
+        var typeDefinition = _types[type];
+
+        foreach (var method in typeDefinition.Methods)
+            EmitMethod(method);
+
+        foreach (var member in type.GetTypeMembers())
+            EmitNamedType(member);
     }
 
-    private void EmitMethod(MethodSymbol method) {
-        var methodDefinition = _methods[method];
-        var methodBody = _program.methodBodies[method];
+    private void EmitMethod(MethodDefinition methodDefinition) {
+        var methodAndBody = _methodBodies[methodDefinition];
 
-        var codeGen = new CodeGenerator(this, method, methodBody, methodDefinition);
+        var codeGen = new CodeGenerator(this, methodAndBody.Item1, methodAndBody.Item2, methodDefinition);
         codeGen.Generate();
 
         methodDefinition.Body.OptimizeMacros();
@@ -457,24 +507,31 @@ internal sealed partial class ILEmitter {
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
-        if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
-            return GetNullableCtor(method.templateArguments[0].type.type);
-        else if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue))
-            return GetNullableValue(method.templateArguments[0].type.type);
-        else if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue))
-            return GetNullableHasValue(method.templateArguments[0].type.type);
-
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        return mapKey switch {
-            "Object_.ctor" => NetMethodReference.Object_ctor,
-            "Console_Print_S?" => NetMethodReference.Console_Write_S,
-            "Console_Print_O?" => NetMethodReference.Console_Write_O,
-            "Console_PrintLine" => NetMethodReference.Console_WriteLine,
-            "Console_PrintLine_S?" => NetMethodReference.Console_WriteLine_S,
-            "Console_PrintLine_O?" => NetMethodReference.Console_WriteLine_O,
-            "Console_Input" => NetMethodReference.Console_ReadLine,
-            _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
-        };
+        switch (mapKey) {
+            case "Object_.ctor":
+                return NetMethodReference.Object_ctor;
+            case "Nullable_.ctor":
+                return GetNullableCtor(method.templateArguments[0].type.type);
+            case "Nullable_get_Value":
+                return GetNullableValue(method.templateArguments[0].type.type);
+            case "Nullable_get_HasValue":
+                return GetNullableHasValue(method.templateArguments[0].type.type);
+            case "Console_Print_S?":
+                return NetMethodReference.Console_Write_S;
+            case "Console_Print_O?":
+                return NetMethodReference.Console_Write_O;
+            case "Console_PrintLine":
+                return NetMethodReference.Console_WriteLine;
+            case "Console_PrintLine_S?":
+                return NetMethodReference.Console_WriteLine_S;
+            case "Console_PrintLine_O?":
+                return NetMethodReference.Console_WriteLine_O;
+            case "Console_Input":
+                return NetMethodReference.Console_ReadLine;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(mapKey);
+        }
     }
 }

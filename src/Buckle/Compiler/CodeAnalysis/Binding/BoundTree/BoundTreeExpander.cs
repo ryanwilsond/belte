@@ -204,6 +204,11 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandExpression(
         BoundExpression expression,
         out BoundExpression replacement) {
+        if (expression.constantValue is not null) {
+            replacement = expression;
+            return [];
+        }
+
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement),
             BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement),

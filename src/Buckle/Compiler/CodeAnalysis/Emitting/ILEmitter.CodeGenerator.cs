@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -82,11 +83,13 @@ internal sealed partial class ILEmitter {
         }
 
         internal static bool IsReferenceType(TypeSymbol type) {
-            return type.isObjectType && type.specialType != SpecialType.Nullable;
+            return (type.isObjectType && type.specialType != SpecialType.Nullable) ||
+                type.specialType == SpecialType.String;
         }
 
         internal static bool IsValueType(TypeSymbol type) {
-            return type.isPrimitiveType || type.specialType == SpecialType.Nullable;
+            return (type.isPrimitiveType || type.specialType == SpecialType.Nullable) &&
+                type.specialType != SpecialType.String;
         }
 
         internal static bool IsStackLocal(DataContainerSymbol local, HashSet<DataContainerSymbol> stackLocals) {
@@ -671,6 +674,11 @@ oneMoreTime:
             var receiver = expression.receiver;
             var arguments = expression.arguments;
 
+            if (method.containingType.Equals(Libraries.StandardLibrary.Random.underlyingNamedType)) {
+                EmitRandomCall(method, arguments, expression.argumentRefKinds, useKind);
+                return;
+            }
+
             EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
 
             if (method.isAbstract || method.isVirtual) {
@@ -683,6 +691,38 @@ oneMoreTime:
             _iLProcessor.Emit(OpCodes.Call, _module.GetMethod(method));
 
             EmitCallCleanup(method, useKind);
+        }
+
+        private void EmitRandomCall(
+            MethodSymbol method,
+            ImmutableArray<BoundExpression> arguments,
+            ImmutableArray<RefKind> argumentRefKinds,
+            UseKind useKind) {
+            if (_module._randomField is null)
+                _module.EmitGlobalsClass();
+
+            switch (method.name) {
+                case "RandInt": {
+                        _iLProcessor.Emit(OpCodes.Ldsfld, _module._randomField);
+
+                        var argument = Lowerer.CreateNullableGetValueCall(
+                            null,
+                            arguments[0],
+                            arguments[0].type.StrippedType()
+                        );
+
+                        var refKind = GetArgumentRefKind(arguments, method.parameters, argumentRefKinds, 0);
+                        EmitArgument(argument, refKind);
+
+                        _iLProcessor.Emit(OpCodes.Callvirt, NetMethodReference.Random_Next_I);
+
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(method.name);
+            }
         }
 
         private void EmitArguments(
@@ -2587,6 +2627,9 @@ oneMoreTime:
                     break;
                 case SpecialType.String:
                     _iLProcessor.Emit(OpCodes.Ldstr, (string)constant.value);
+                    break;
+                case SpecialType.Nullable:
+                    _iLProcessor.Emit(OpCodes.Ldnull);
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(constant.specialType);
