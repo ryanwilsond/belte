@@ -170,6 +170,7 @@
   </Node>
   <Node Name="BoundNullAssertOperator" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="throwIfNull" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundNullCoalescingOperator" Base="BoundExpression">

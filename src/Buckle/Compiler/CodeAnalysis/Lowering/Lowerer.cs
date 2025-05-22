@@ -16,7 +16,6 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly Expander _expander;
-    private int _labelCount;
 
     private Lowerer(MethodSymbol container) {
         _expander = new Expander(container);
@@ -29,13 +28,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var lowerer = new Lowerer(method);
 
         // TODO Maybe separate Optimizer into Optimizer and DeadCodeRemover to prevent calling the Optimizer twice?
-        var optimizedStatement = Optimizer.Optimize(statement, false, diagnostics);
-        var expandedStatement = lowerer._expander.Expand(optimizedStatement);
-        var rewrittenStatement = (BoundStatement)lowerer.Visit(expandedStatement);
-        var block = Flatten(method, rewrittenStatement);
-        var optimizedBlock = Optimizer.Optimize(block, true, diagnostics) as BoundBlockStatement;
 
-        return optimizedBlock;
+        var rewrittenStatement = Optimizer.Optimize(statement, false, diagnostics);
+        // We need to lower control of flow before expanding to ensure the condition expressions aren't "cached"
+        rewrittenStatement = FlowLowerer.Lower(rewrittenStatement);
+        rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
+        rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
+        rewrittenStatement = Flatten(method, rewrittenStatement);
+        rewrittenStatement = Optimizer.Optimize(rewrittenStatement, true, diagnostics);
+
+        return (BoundBlockStatement)rewrittenStatement;
     }
 
     internal override BoundNode Visit(BoundNode node) {
@@ -52,230 +54,36 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return type.IsNullableType() && ILEmitter.CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
     }
 
+    private BoundExpression CreateNullable(
+        Syntax.SyntaxNode syntax,
+        BoundExpression expression,
+        TypeSymbol nullableType) {
+        if (!ShouldBeTreatedAsNullable(nullableType))
+            return expression;
+
+        return new BoundObjectCreationExpression(
+            syntax,
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
+                .Construct([new TypeOrConstant(nullableType.GetNullableUnderlyingType())]),
+            [expression],
+            default,
+            default,
+            default,
+            false,
+            nullableType
+        );
+    }
+
     private BoundNode VisitConstant(BoundExpression expression) {
         // TODO Handle initializer list constants
+        var syntax = expression.syntax;
         var type = expression.type;
-        var literal = new BoundLiteralExpression(expression.syntax, expression.constantValue, type.StrippedType());
+        var literal = new BoundLiteralExpression(syntax, expression.constantValue, type.StrippedType());
 
-        if (!ShouldBeTreatedAsNullable(type) || expression.constantValue.value is null) {
+        if (expression.constantValue.value is null)
             return literal;
-        } else {
-            return new BoundObjectCreationExpression(
-                expression.syntax,
-                CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
-                    .Construct([new TypeOrConstant(type.GetNullableUnderlyingType())]),
-                [literal],
-                default,
-                default,
-                default,
-                false,
-                type
-            );
-        }
-    }
 
-    internal override BoundNode VisitIfStatement(BoundIfStatement statement) {
-        /*
-
-        if <condition>
-            <then>
-
-        ---->
-
-        gotoFalse <condition> end
-        <then>
-        end:
-
-        ==============================
-
-        if <condition>
-            <then>
-        else
-            <elseStatement>
-
-        ---->
-
-        gotoFalse <condition> else
-        <then>
-        goto end
-        else:
-        <elseStatement>
-        end:
-
-        */
-        var syntax = statement.syntax;
-
-        if (statement.alternative is null) {
-            var endLabel = GenerateLabel();
-
-            return VisitBlockStatement(
-                Block(syntax,
-                    GotoIfNot(syntax,
-                        @goto: endLabel,
-                        @ifNot: statement.condition
-                    ),
-                    statement.consequence,
-                    Label(syntax, endLabel)
-                )
-            );
-        } else {
-            var elseLabel = GenerateLabel();
-            var endLabel = GenerateLabel();
-
-            return VisitBlockStatement(
-                Block(syntax,
-                    GotoIfNot(syntax,
-                        @goto: elseLabel,
-                        @ifNot: statement.condition
-                    ),
-                    statement.consequence,
-                    Goto(syntax, endLabel),
-                    Label(syntax, elseLabel),
-                    statement.alternative,
-                    Label(syntax, endLabel)
-                )
-            );
-        }
-    }
-
-    internal override BoundNode VisitWhileStatement(BoundWhileStatement statement) {
-        /*
-
-        while <condition>
-            <body>
-
-        ---->
-
-        continue:
-        gotoFalse <condition> end
-        <body>
-        goto continue
-        break:
-
-        */
-        var syntax = statement.syntax;
-        var continueLabel = statement.continueLabel;
-        var breakLabel = statement.breakLabel;
-
-        return VisitBlockStatement(
-            Block(syntax,
-                statement.locals,
-                Label(syntax, continueLabel),
-                GotoIfNot(syntax,
-                    @goto: breakLabel,
-                    @ifNot: statement.condition
-                ),
-                statement.body,
-                Goto(syntax, continueLabel),
-                Label(syntax, breakLabel)
-            )
-        );
-    }
-
-    internal override BoundNode VisitDoWhileStatement(BoundDoWhileStatement statement) {
-        /*
-
-        do
-            <body>
-        while <condition>
-
-        ---->
-
-        continue:
-        <body>
-        gotoTrue <condition> continue
-        break:
-
-        */
-        var syntax = statement.syntax;
-        var continueLabel = statement.continueLabel;
-        var breakLabel = statement.breakLabel;
-
-        return VisitBlockStatement(
-            Block(syntax,
-                statement.locals,
-                Label(syntax, continueLabel),
-                statement.body,
-                GotoIf(syntax,
-                    @goto: continueLabel,
-                    @if: statement.condition
-                ),
-                Label(syntax, breakLabel)
-            )
-        );
-    }
-
-    internal override BoundNode VisitForStatement(BoundForStatement statement) {
-        /*
-
-        for (<initializer> <condition>; <step>)
-            <body>
-
-        ---->
-
-        {
-            <initializer>
-            while (<condition>) {
-                <body>
-            continue:
-                <step>;
-            }
-        }
-
-        */
-        var syntax = statement.syntax;
-        var continueLabel = statement.continueLabel;
-        var breakLabel = statement.breakLabel;
-        // var condition = statement.condition.kind == BoundKind.EmptyExpression
-        //     ? Literal(syntax, true)
-        //     : statement.condition;
-        var condition = statement.condition;
-
-        return Visit(
-            _expander.Expand(
-                Block(syntax,
-                    statement.locals,
-                    statement.initializer,
-                    While(syntax,
-                        statement.innerLocals,
-                        condition,
-                        Block(syntax,
-                            statement.body,
-                            Label(syntax, continueLabel),
-                            Statement(syntax, statement.step)
-                        ),
-                        breakLabel,
-                        GenerateLabel()
-                    )
-                )
-            )
-        );
-    }
-
-    internal override BoundNode VisitBreakStatement(BoundBreakStatement statement) {
-        /*
-
-        break;
-
-        ---->
-
-        goto <label>
-
-        */
-        return Goto(statement.syntax, statement.label);
-    }
-
-    internal override BoundNode VisitContinueStatement(BoundContinueStatement statement) {
-        /*
-
-        continue;
-
-        ---->
-
-        goto <label>
-
-        */
-        return Goto(statement.syntax, statement.label);
+        return CreateNullable(syntax, literal, type);
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
@@ -464,6 +272,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitIsOperator(BoundIsOperator expression) {
+        // TODO Flatten null checks:
+        /*
+
+        Current:
+
+        a + b + c
+
+        -->
+
+        temp0 = (a isnt null && b isnt null ? a! + b! : null)
+        temp1 = (temp0 isnt null && c isnt null ? temp0! + c! : null)
+
+        TODO Lower to:
+
+        temp0 = (a isnt null && b isnt null && c isnt null ? a! + b! + c! : null)
+
+        */
+
         /*
 
         <left> is <right>
@@ -521,31 +347,35 @@ internal sealed class Lowerer : BoundTreeRewriter {
     internal static BoundExpression CreateNullableGetValueCall(
         Syntax.SyntaxNode syntax,
         BoundExpression operand,
-        TypeSymbol type) {
+        TypeSymbol genericType) {
         return InstanceCall(
             syntax,
             operand,
             CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)
-                .Construct([new TypeOrConstant(type)])
+                .Construct([new TypeOrConstant(genericType)])
         );
     }
 
     internal override BoundNode VisitCastExpression(BoundCastExpression expression) {
         /*
 
-        (<type>)<expression>
+        (<type>)<operand>
 
-        ----> <expression> is nullable and <type> is not nullable
+        ----> <operand> is nullable and <type> is nullable
 
-        (<type>)Value(<expression>)
+        (HasValue(<operand>) ? new Nullable( (<type!>)Value(<operand>) ) : null)
 
-        ----> <expression> is nullable and <type> is not nullable and <expression>.type and <type> are otherwise equal
+        ----> <operand> is nullable and <type> is not nullable
 
-        Value(<expression>)
+        (<type>)Value(<operand>)
 
-        ----> <expression> is not nullable and <type> is nullable and <expression>.type and <type> are otherwise equal
+        ----> <operand> is not nullable and <type> is nullable
 
-        <expression>
+        new Nullable( (<type!>)<operand> )
+
+        ----> <operand>.type == <type>
+
+        <operand>
 
         */
         var syntax = expression.syntax;
@@ -553,22 +383,54 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = expression.type;
         var operandType = operand.type;
 
-        if (operandType.IsNullableType() && !type.IsNullableType()) {
-            if (type.Equals(operandType))
-                return Visit(Value(syntax, operand, operandType.GetNullableUnderlyingType()));
+        if (operandType?.Equals(type) ?? false)
+            return Visit(operand);
 
-            return base.VisitCastExpression(
-                Cast(syntax,
-                    type,
-                    Value(syntax, operand, operandType.GetNullableUnderlyingType()),
-                    Conversion.ExplicitNullable,
-                    operand.constantValue
+        if (operandType.IsNullableType() && type.IsNullableType()) {
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, operand),
+                    @then: CreateNullable(syntax,
+                        Cast(syntax,
+                            type.GetNullableUnderlyingType(),
+                            Value(syntax, operand, operandType.GetNullableUnderlyingType()),
+                            expression.conversion.underlyingConversions[0],
+                            operand.constantValue
+                        ),
+                        type
+                    ),
+                    @else: Literal(syntax, null, type),
+                    type
                 )
             );
         }
 
-        if (operandType?.Equals(type) ?? false)
-            return Visit(operand);
+        switch (expression.conversion.kind) {
+            case ConversionKind.ImplicitNullable:
+                return Visit(
+                    CreateNullable(
+                        syntax,
+                        Cast(
+                            syntax,
+                            type.GetNullableUnderlyingType(),
+                            operand,
+                            expression.conversion.underlyingConversions[0],
+                            operand.constantValue
+                        ),
+                        type
+                    )
+                );
+            case ConversionKind.ExplicitNullable:
+                return Visit(
+                    Cast(
+                        syntax,
+                        type,
+                        Value(syntax, operand, operandType.GetNullableUnderlyingType()),
+                        expression.conversion.underlyingConversions[0],
+                        operand.constantValue
+                    )
+                );
+        }
 
         return base.VisitCastExpression(expression);
     }
@@ -763,9 +625,5 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private static bool CanFallThrough(BoundStatement boundStatement) {
         return boundStatement.kind != BoundKind.ReturnStatement &&
             boundStatement.kind != BoundKind.GotoStatement;
-    }
-
-    private SynthesizedLabelSymbol GenerateLabel() {
-        return new SynthesizedLabelSymbol($"Label{++_labelCount}");
     }
 }

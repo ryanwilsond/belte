@@ -46,6 +46,15 @@ internal sealed class CorLibrary {
         return Instance.GetNullableTypeCore(specialType);
     }
 
+    internal static TypeSymbol GetOrCreateNullableType(TypeSymbol type) {
+        Instance.EnsureCorLibraryIsComplete();
+
+        if (type.IsNullableType())
+            return type;
+
+        return Instance.CreateNullableType(type);
+    }
+
     internal static NamedTypeSymbol GetOrCreateNullableType(NamedTypeSymbol type) {
         Instance.EnsureCorLibraryIsComplete();
 
@@ -159,11 +168,12 @@ internal sealed class CorLibrary {
             MethodKind.Constructor
         ));
 
+        var getValueT = new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0);
         RegisterWellKnownMember(WellKnownMembers.Nullable_getValue, new SynthesizedTemplateMethodSymbol(
             "get_Value",
             nullableType,
-            new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Void)),
-            [new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0)],
+            new TypeWithAnnotations(getValueT),
+            [getValueT],
             [],
             MethodKind.Ordinary
         ));

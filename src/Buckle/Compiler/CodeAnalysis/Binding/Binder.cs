@@ -447,33 +447,21 @@ internal partial class Binder {
         bool permitDimensions,
         ConsList<TypeSymbol> basesBeingResolved) {
         var type = BindType(node.elementType, diagnostics, basesBeingResolved);
+        var rank = node.rankSpecifiers.Count;
 
         if (type.isStatic)
             diagnostics.Push(Error.ArrayOfStaticType(node.elementType.location, type.type));
 
-        for (var i = node.rankSpecifiers.Count - 1; i >= 0; i--) {
+        for (var i = 0; i < rank; i++) {
             var rankSpecifier = node.rankSpecifiers[i];
             var dimension = rankSpecifier.size;
 
             if (!permitDimensions && dimension is not null)
                 diagnostics.Push(Error.ArraySizeInDeclaration(rankSpecifier.size.location));
-
-            var rank = 1;
-
-            if (dimension is not null) {
-                var boundDimension = BindExpression(dimension, diagnostics);
-
-                if (boundDimension.constantValue is null || boundDimension.type.specialType != SpecialType.Int)
-                    diagnostics.Push(Error.NonConstantArraySize(rankSpecifier.location));
-                else
-                    rank = Convert.ToInt32(boundDimension.constantValue.value);
-            }
-
-            var array = ArrayTypeSymbol.CreateArray(type, rank);
-            type = new TypeWithAnnotations(array);
         }
 
-        return type;
+        var array = ArrayTypeSymbol.CreateArray(type, rank);
+        return new TypeWithAnnotations(array);
     }
 
     private protected TypeWithAnnotations BindNonTemplateSimpleType(
@@ -2437,11 +2425,27 @@ internal partial class Binder {
     private BoundExpression BindArrayCreationExpression(
         ArrayCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        var typeWithAnnotations = BindArrayType(node.type, diagnostics, true, null);
-        var type = typeWithAnnotations.type.StrippedType();
-        var originalType = (ArrayTypeSymbol)type;
+        var type = (ArrayTypeSymbol)BindArrayType(node.type, diagnostics, true, null).type;
+        var sizes = ArrayBuilder<int>.GetInstance();
 
-        return new BoundArrayCreationExpression(node, [originalType.rank], null, originalType);
+        for (var i = 0; i < type.rank; i++) {
+            var rankSpecifier = node.type.rankSpecifiers[i];
+            var size = rankSpecifier.size;
+
+            if (size is not null) {
+                var boundSize = BindExpression(size, diagnostics);
+                var constant = boundSize.constantValue;
+
+                if (constant is null || boundSize.type.specialType != SpecialType.Int) {
+                    diagnostics.Push(Error.NonConstantArraySize(rankSpecifier.location));
+                    sizes.Add(0);
+                } else {
+                    sizes.Add(Convert.ToInt32(constant.value));
+                }
+            }
+        }
+
+        return new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type);
     }
 
     private protected BoundExpression BindObjectCreationExpression(
@@ -5121,6 +5125,7 @@ internal partial class Binder {
 
         var targetTypeWithAnnotations = BindType(node.right, diagnostics);
         var targetType = targetTypeWithAnnotations.type;
+        var strippedType = targetType.StrippedType();
         var boundType = new BoundTypeExpression(node.right, targetTypeWithAnnotations, targetType);
 
         if (ConstantValue.IsNull(operand.constantValue) ||
@@ -5130,9 +5135,9 @@ internal partial class Binder {
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
 
-        if ((operand.type.isObjectType && targetType.isPrimitiveType) ||
-            (operand.type.isPrimitiveType && targetType.isObjectType) ||
-            targetType.isStatic) {
+        if ((operand.type.isObjectType && strippedType.isPrimitiveType) ||
+            (operand.type.isPrimitiveType && strippedType.isObjectType) ||
+            strippedType.isStatic) {
             diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
@@ -6122,14 +6127,14 @@ internal partial class Binder {
 
         if (operand.IsLiteralNull()) {
             diagnostics.Push(Error.NullAssertAlwaysThrows(node.location));
-            return new BoundNullAssertOperator(node, operand, null, CreateErrorType("<null>"), true);
+            return new BoundNullAssertOperator(node, operand, true, null, CreateErrorType("<null>"), true);
         }
 
         var operandType = operand.type;
 
         if (!operandType.IsNullableType() && operand.kind != BoundKind.ObjectCreationExpression) {
             diagnostics.Push(Error.NullAssertOnNonNullableType(node.location, operandType));
-            return new BoundNullAssertOperator(node, operand, null, operandType, true);
+            return new BoundNullAssertOperator(node, operand, true, null, operandType, true);
         }
 
         var resultType = operandType.StrippedType();
@@ -6137,10 +6142,10 @@ internal partial class Binder {
 
         if (ConstantValue.IsNull(constantValue)) {
             diagnostics.Push(Error.NullAssertAlwaysThrows(node.location));
-            return new BoundNullAssertOperator(node, operand, null, resultType, true);
+            return new BoundNullAssertOperator(node, operand, true, null, resultType, true);
         }
 
-        return new BoundNullAssertOperator(node, operand, constantValue, resultType);
+        return new BoundNullAssertOperator(node, operand, true, constantValue, resultType);
     }
 
     private BoundExpression BindIncrementOrNullAssertOperator(

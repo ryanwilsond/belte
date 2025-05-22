@@ -13,7 +13,6 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitNullable:
             case ConversionKind.ImplicitReference:
             case ConversionKind.AnyBoxing:
-            case ConversionKind.AnyBoxingImplicitNullable:
                 return true;
             default:
                 return false;
@@ -23,11 +22,7 @@ internal static class ConversionKindExtensions {
     internal static bool IsNullableCast(this ConversionKind self) {
         switch (self) {
             case ConversionKind.ImplicitNullable:
-            case ConversionKind.AnyBoxingImplicitNullable:
             case ConversionKind.ExplicitNullable:
-            case ConversionKind.AnyBoxingExplicitNullable:
-            case ConversionKind.AnyUnboxingImplicitNullable:
-            case ConversionKind.AnyUnboxingExplicitNullable:
                 return true;
             default:
                 return false;
@@ -37,8 +32,6 @@ internal static class ConversionKindExtensions {
     internal static bool IsBoxingCast(this ConversionKind self) {
         switch (self) {
             case ConversionKind.AnyBoxing:
-            case ConversionKind.AnyBoxingImplicitNullable:
-            case ConversionKind.AnyBoxingExplicitNullable:
                 return true;
             default:
                 return false;
@@ -48,8 +41,6 @@ internal static class ConversionKindExtensions {
     internal static bool IsUnboxingCast(this ConversionKind self) {
         switch (self) {
             case ConversionKind.AnyUnboxing:
-            case ConversionKind.AnyUnboxingImplicitNullable:
-            case ConversionKind.AnyUnboxingExplicitNullable:
                 return true;
             default:
                 return false;

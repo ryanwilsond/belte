@@ -29,8 +29,10 @@ internal sealed partial class ILEmitter {
     private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
 
+    // <Globals> class members
     private TypeDefinition _globalsClass;
     private FieldDefinition _randomField;
+    private MethodDefinition _nullAssertMethod;
 
     private ILEmitter(BoundProgram program, string moduleName, string[] references, BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
@@ -124,7 +126,7 @@ internal sealed partial class ILEmitter {
     }
 
     private TypeReference GetType(TypeSymbol type) {
-        if (type.specialType == SpecialType.Nullable && CodeGenerator.IsValueType(type.GetNullableUnderlyingType())) {
+        if (type.specialType == SpecialType.Nullable) {
             var underlyingType = type.GetNullableUnderlyingType();
             var genericArgumentType = GetType(underlyingType);
 
@@ -211,6 +213,13 @@ internal sealed partial class ILEmitter {
         return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
     }
 
+    private MethodReference GetNullAssert(TypeSymbol genericType) {
+        // var methodRef = _assemblyDefinition.MainModule.ImportReference(_nullAssertMethod);
+        var genericMethod = new GenericInstanceMethod(_nullAssertMethod);
+        genericMethod.GenericArguments.Add(GetType(genericType));
+        return genericMethod;
+    }
+
     private FieldReference GetField(FieldSymbol field) {
         return _fields[field];
     }
@@ -219,7 +228,8 @@ internal sealed partial class ILEmitter {
         _globalsClass = new TypeDefinition(
             "",
             "<Globals>",
-            TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Public
+            TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Public,
+            _specialTypes[SpecialType.Object]
         );
 
         _randomField = new FieldDefinition(
@@ -237,12 +247,47 @@ internal sealed partial class ILEmitter {
             _specialTypes[SpecialType.Void]
         );
 
+        var cctorILProcessor = cctor.Body.GetILProcessor();
+        cctorILProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
+        cctorILProcessor.Emit(OpCodes.Stsfld, _randomField);
+        cctorILProcessor.Emit(OpCodes.Ret);
+
         _globalsClass.Methods.Insert(0, cctor);
 
-        var iLProcessor = cctor.Body.GetILProcessor();
-        iLProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
-        iLProcessor.Emit(OpCodes.Stsfld, _randomField);
-        iLProcessor.Emit(OpCodes.Ret);
+        _nullAssertMethod = new MethodDefinition(
+            "<AssertNotNull>",
+            MethodAttributes.Static | MethodAttributes.Public,
+            _specialTypes[SpecialType.Void]
+        );
+
+        var nullAssertT = new GenericParameter("T", _nullAssertMethod);
+        _nullAssertMethod.GenericParameters.Add(nullAssertT);
+        _nullAssertMethod.ReturnType = nullAssertT;
+        _nullAssertMethod.Parameters.Add(new ParameterDefinition("o", ParameterAttributes.None, nullAssertT));
+
+        var nullAssertILProcessor = _nullAssertMethod.Body.GetILProcessor();
+
+        /*
+
+        public static T AssertNotNull<T>(T o) {
+            if (o is null)
+                throw new NullReferenceException();
+
+            return o;
+        }
+
+        */
+        nullAssertILProcessor.Emit(OpCodes.Ldarg_0);
+        nullAssertILProcessor.Emit(OpCodes.Box, nullAssertT);
+        nullAssertILProcessor.Emit(OpCodes.Brtrue_S, Instruction.Create(OpCodes.Nop));
+        nullAssertILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
+        nullAssertILProcessor.Emit(OpCodes.Throw);
+        nullAssertILProcessor.Emit(OpCodes.Ldarg_0);
+        nullAssertILProcessor.Emit(OpCodes.Ret);
+
+        nullAssertILProcessor.Body.Instructions[2].Operand = nullAssertILProcessor.Body.Instructions[5];
+
+        _globalsClass.Methods.Add(_nullAssertMethod);
 
         _assemblyDefinition.MainModule.Types.Add(_globalsClass);
     }
@@ -469,18 +514,20 @@ internal sealed partial class ILEmitter {
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_A = ResolveMethod("System.String", "Concat", ["System.String[]"]);
-        NetMethodReference.Convert_ToBoolean_O = ResolveMethod("System.Convert", "ToBoolean", ["System.Object"]);
-        NetMethodReference.Convert_ToInt32_O = ResolveMethod("System.Convert", "ToInt32", ["System.Object"]);
-        NetMethodReference.Convert_ToInt64_O = ResolveMethod("System.Convert", "ToInt64", ["System.Object"]);
-        NetMethodReference.Convert_ToSingle_O = ResolveMethod("System.Convert", "ToSingle", ["System.Object"]);
-        NetMethodReference.Convert_ToDouble_O = ResolveMethod("System.Convert", "ToDouble", ["System.Object"]);
-        NetMethodReference.Convert_ToString_O = ResolveMethod("System.Convert", "ToString", ["System.Object"]);
+        NetMethodReference.Convert_ToBoolean_S = ResolveMethod("System.Convert", "ToBoolean", ["System.String"]);
+        NetMethodReference.Convert_ToInt64_S = ResolveMethod("System.Convert", "ToInt64", ["System.String"]);
+        NetMethodReference.Convert_ToInt64_D = ResolveMethod("System.Convert", "ToInt64", ["System.Double"]);
+        NetMethodReference.Convert_ToDouble_S = ResolveMethod("System.Convert", "ToDouble", ["System.String"]);
+        NetMethodReference.Convert_ToDouble_I = ResolveMethod("System.Convert", "ToDouble", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
         NetMethodReference.Random_ctor = ResolveMethod("System.Random", ".ctor", []);
         NetMethodReference.Random_Next_I = ResolveMethod("System.Random", "Next", ["System.Int32"]);
         NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
         NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
+        NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
     }
 
     private void ResolveTypes() {

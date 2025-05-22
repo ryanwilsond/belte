@@ -493,7 +493,13 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newOperand, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newOperand,
+                expression.throwIfNull,
+                expression.constantValue,
+                expression.type
+            );
+
             return statements;
         }
 

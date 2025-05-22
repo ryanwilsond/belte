@@ -184,7 +184,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundNullAssertOperator Value(SyntaxNode syntax, BoundExpression expression, TypeSymbol type) {
-        return new BoundNullAssertOperator(syntax, expression, null, type);
+        return new BoundNullAssertOperator(syntax, expression, false, null, type);
     }
 
     internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {

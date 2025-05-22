@@ -66,7 +66,7 @@ internal sealed class Evaluator {
     /// </summary>
     internal List<Exception> exceptions { get; set; }
 
-    private MethodSymbol toStringMethod {
+    private MethodSymbol _toStringMethod {
         get {
             if (_lazyToString is null) {
                 var toString = CorLibrary.GetSpecialType(SpecialType.Object)
@@ -135,19 +135,6 @@ internal sealed class Evaluator {
             return DictionaryValue(value.members, value.type);
         else
             return value.value;
-    }
-
-    private bool ObjectIsNull(BoundExpression expression, ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression, abort);
-        var leftValue = Value(left);
-        var dereferenced = Dereference(left);
-
-        if (dereferenced.members is null && leftValue is null &&
-            (expression.type.specialType != SpecialType.Type || left.type is null)) {
-            return true;
-        } else {
-            return false;
-        }
     }
 
     private Dictionary<object, object> DictionaryValue(
@@ -308,6 +295,31 @@ internal sealed class Evaluator {
         _locals.Pop();
     }
 
+    private bool ObjectIsNull(EvaluatorObject evaluatorObject, TypeSymbol type) {
+        var leftValue = Value(evaluatorObject);
+        var dereferenced = Dereference(evaluatorObject);
+
+        if (dereferenced.members is null && leftValue is null &&
+            (type.specialType != SpecialType.Type || evaluatorObject.type is null)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private EvaluatorObject NullAssertObject(BoundExpression expression, ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(expression, abort);
+        var dereferenced = Dereference(value);
+
+        if (dereferenced.members is null &&
+            Value(dereferenced) is null &&
+            expression.type.specialType != SpecialType.Type) {
+            throw new NullReferenceException();
+        }
+
+        return value;
+    }
+
     #endregion
 
     #region Statements
@@ -453,6 +465,7 @@ internal sealed class Evaluator {
             BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
             BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort),
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
+            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)expression, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
             BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)expression, abort),
@@ -510,7 +523,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateArrayCreationExpression(BoundArrayCreationExpression node, ValueWrapper<bool> _) {
         var array = EvaluatorObject.Null;
-        var arrayType = (ArrayTypeSymbol)node.type.StrippedType();
+        var arrayType = (ArrayTypeSymbol)node.type;
 
         // TODO There is probably a more efficient algorithm for this
         foreach (var size in node.sizes) {
@@ -673,9 +686,7 @@ internal sealed class Evaluator {
         return new EvaluatorObject(expression.dataContainer, expression.dataContainer.type);
     }
 
-    private EvaluatorObject EvaluateConditionalOperator(
-        BoundConditionalOperator expression,
-        ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateConditionalOperator(BoundConditionalOperator expression, ValueWrapper<bool> abort) {
         var condition = EvaluateExpression(expression.condition, abort);
         var conditionValue = Value(condition);
 
@@ -683,6 +694,13 @@ internal sealed class Evaluator {
             return EvaluateExpression(expression.trueExpression, abort);
         else
             return EvaluateExpression(expression.falseExpression, abort);
+    }
+
+    private EvaluatorObject EvaluateNullAssertOperator(BoundNullAssertOperator expression, ValueWrapper<bool> abort) {
+        if (!expression.throwIfNull)
+            return EvaluateExpression(expression.operand, abort);
+
+        return NullAssertObject(expression.operand, abort);
     }
 
     private EvaluatorObject EvaluateAsOperator(BoundAsOperator expression, ValueWrapper<bool> abort) {
@@ -788,8 +806,8 @@ internal sealed class Evaluator {
 
         if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
             if (expression.right.IsLiteralNull()) {
-                // TODO
-                var isNull = ObjectIsNull()
+                var isNull = ObjectIsNull(left, expression.left.type);
+                return new EvaluatorObject(isNull == (opKind == BinaryOperatorKind.Equal), expression.type);
             }
 
             if (expression.left.type.specialType == SpecialType.Type) {
@@ -996,6 +1014,8 @@ internal sealed class Evaluator {
 
     #endregion
 
+    #region Libraries
+
     private bool CheckStandardMap(
         MethodSymbol method,
         BoundExpression receiver,
@@ -1008,30 +1028,24 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
-        if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)) {
-            var value = EvaluateExpression(receiver, abort);
-            var dereferenced = Dereference(value);
-
-            if (dereferenced.members is null &&
-                Value(dereferenced) is null &&
-                receiver.type.specialType != SpecialType.Type) {
-                throw new NullReferenceException();
-            }
-
-            result = value;
-            return true;
-        }
-
-        if (method.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)) {
-            result = new EvaluatorObject(!ObjectIsNull(receiver, abort), method.returnType);
-            return true;
-        }
-
         // First check if we are in a graphics project before comparing
         // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
         if (_context.options.outputKind == OutputKind.Graphics) {
             if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
                 return HandleGraphicsCall(method, arguments, abort, out result);
+        }
+
+        var mapKey = LibraryHelpers.BuildMapKey(method);
+
+        if (mapKey == "Nullable_get_Value") {
+            result = NullAssertObject(receiver, abort);
+            return true;
+        }
+
+        if (mapKey == "Nullable_get_HasValue") {
+            var receiverValue = EvaluateExpression(receiver, abort);
+            result = new EvaluatorObject(!ObjectIsNull(receiverValue, receiver.type), method.returnType);
+            return true;
         }
 
         if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
@@ -1041,7 +1055,6 @@ internal sealed class Evaluator {
             method.containingType.Equals(StandardLibrary.Directory.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.File.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
-            var mapKey = LibraryHelpers.BuildMapKey(method);
 
             if (mapKey == "LowLevel_GetHashCode_O") {
                 result = Dereference(EvaluateExpression(arguments[0], abort)).GetHashCode();
@@ -1065,7 +1078,7 @@ internal sealed class Evaluator {
 
             if (mapKey == "Console_Print_O?" || mapKey == "Console_PrintLine_O?") {
                 // Special case where we inject a call to Object.ToString before calling the Console method
-                var toStringResult = InvokeMethod(toStringMethod, [], arguments[0], abort);
+                var toStringResult = InvokeMethod(_toStringMethod, [], arguments[0], abort);
                 result = function(Value(toStringResult), null, null);
                 return true;
             }
@@ -1309,4 +1322,6 @@ internal sealed class Evaluator {
 
         InvokeMethod(_program.updatePoint, [argument], abort);
     }
+
+    #endregion
 }

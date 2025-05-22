@@ -656,23 +656,6 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
         SymbolDisplay.DisplayType(text, node.type);
-
-        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-
-        var isFirst = true;
-
-        foreach (var size in node.sizes) {
-            if (isFirst) {
-                isFirst = false;
-            } else {
-                text.Write(CreatePunctuation(SyntaxKind.CommaToken));
-                text.Write(CreateSpace());
-            }
-
-            text.Write(CreateLiteral(size.ToString()));
-        }
-
-        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
     private static void DisplayThisExpression(DisplayText text) {

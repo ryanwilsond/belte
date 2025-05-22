@@ -79,15 +79,9 @@ public static class SymbolDisplay {
 
         if (type is ArrayTypeSymbol array) {
             DisplayType(text, array.elementType, format);
-
-            for (var i = 0; i < array.rank; i++) {
-                text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-
-                if (array.sizes.Length > i)
-                    text.Write(CreateLiteral(array.sizes[i].ToString()));
-
-                text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
-            }
+            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+            text.Write(CreateLiteral(array.rank.ToString()));
+            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
 
             if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));

@@ -161,9 +161,9 @@ internal sealed class Expander : BoundTreeExpander {
         BoundBinaryOperator expression,
         out BoundExpression replacement) {
         _operatorDepth++;
-        var syntax = expression.syntax;
 
         if (_operatorDepth > 1) {
+            var syntax = expression.syntax;
             var statements = ExpandExpression(expression.left, out var newLeft);
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
@@ -191,6 +191,40 @@ internal sealed class Expander : BoundTreeExpander {
         }
 
         var baseStatements = base.ExpandBinaryOperator(expression, out replacement);
+        _operatorDepth--;
+        return baseStatements;
+    }
+
+    private protected override List<BoundStatement> ExpandCastExpression(
+        BoundCastExpression expression,
+        out BoundExpression replacement) {
+        _operatorDepth++;
+
+        if (_operatorDepth > 1) {
+            var syntax = expression.syntax;
+            var statements = ExpandExpression(expression.operand, out var newOperand);
+            var tempLocal = GenerateTempLocal(expression.type);
+
+            statements.Add(
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                    syntax,
+                    tempLocal,
+                    new BoundCastExpression(
+                        syntax,
+                        newOperand,
+                        expression.conversion,
+                        expression.constantValue,
+                        expression.type
+                    )
+                ))
+            );
+
+            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            _operatorDepth--;
+            return statements;
+        }
+
+        var baseStatements = base.ExpandCastExpression(expression, out replacement);
         _operatorDepth--;
         return baseStatements;
     }

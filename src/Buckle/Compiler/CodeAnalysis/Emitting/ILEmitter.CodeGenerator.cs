@@ -113,6 +113,344 @@ internal sealed partial class ILEmitter {
             return _definition.Parameters[slot];
         }
 
+        private void EnsureGlobalsClassIsBuilt() {
+            if (_module._globalsClass is null)
+                _module.EmitGlobalsClass();
+        }
+
+        private VariableDefinition EmitAddress(BoundExpression expression, AddressKind addressKind) {
+            switch (expression.kind) {
+                case BoundKind.DataContainerExpression:
+                    return EmitLocalAddress((BoundDataContainerExpression)expression, addressKind);
+                case BoundKind.ParameterExpression:
+                    return EmitParameterAddress((BoundParameterExpression)expression, addressKind);
+                case BoundKind.FieldAccessExpression:
+                    return EmitFieldAddress((BoundFieldAccessExpression)expression, addressKind);
+                case BoundKind.ArrayAccessExpression:
+                    if (!HasHome(expression, addressKind))
+                        goto default;
+
+                    EmitArrayElementAddress((BoundArrayAccessExpression)expression, addressKind);
+                    break;
+                case BoundKind.ThisExpression:
+                    if (IsValueType(expression.type)) {
+                        if (!HasHome(expression, addressKind))
+                            goto default;
+
+                        EmitLdarg0();
+                    } else {
+                        EmitLdarga0();
+                    }
+
+                    break;
+                case BoundKind.BaseExpression:
+                    break;
+                case BoundKind.CallExpression:
+                    var call = (BoundCallExpression)expression;
+
+                    if (UseCallResultAsAddress(call, addressKind)) {
+                        EmitCallExpression(call, UseKind.UsedAsAddress);
+                        break;
+                    }
+
+                    goto default;
+                case BoundKind.ConditionalOperator:
+                    if (!HasHome(expression, addressKind))
+                        goto default;
+
+                    EmitConditionalOperatorAddress((BoundConditionalOperator)expression, addressKind);
+                    break;
+                case BoundKind.AssignmentOperator:
+                    var assignment = (BoundAssignmentOperator)expression;
+
+                    if (!assignment.isRef || !HasHome(assignment, addressKind)) {
+                        goto default;
+                    } else {
+                        EmitAssignmentOperator(assignment, UseKind.UsedAsAddress);
+                        break;
+                    }
+                case BoundKind.ThrowExpression:
+                    EmitExpression(expression, used: true);
+                    return null;
+                default:
+                    return EmitAddressOfTempClone(expression);
+            }
+
+            return null;
+        }
+
+        private static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
+            var methodRefKind = call.method.refKind;
+            return methodRefKind == RefKind.Ref ||
+                   (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
+        }
+
+        private void EmitConditionalOperatorAddress(BoundConditionalOperator expression, AddressKind addressKind) {
+            LabelSymbol consequenceLabel = new SynthesizedLabelSymbol("consequence");
+            LabelSymbol doneLabel = new SynthesizedLabelSymbol("done");
+
+            EmitConditionalBranch(expression.condition, ref consequenceLabel, sense: true);
+            AddExpressionTemp(EmitAddress(expression.falseExpression, addressKind));
+
+            EmitBranch(OpCodes.Br, doneLabel);
+
+            MarkLabel(consequenceLabel);
+            AddExpressionTemp(EmitAddress(expression.trueExpression, addressKind));
+
+            MarkLabel(doneLabel);
+        }
+
+        private void AddExpressionTemp(VariableDefinition temp) {
+            if (temp is null)
+                return;
+
+            var exprTemps = _expressionTemps;
+
+            if (exprTemps is null) {
+                exprTemps = ArrayBuilder<VariableDefinition>.GetInstance();
+                _expressionTemps = exprTemps;
+            }
+
+            exprTemps.Add(temp);
+        }
+
+        private void EmitArrayElementAddress(BoundArrayAccessExpression arrayAccess, AddressKind addressKind) {
+            EmitExpression(arrayAccess.receiver, used: true);
+            EmitArrayIndex(arrayAccess.index);
+
+            if (ShouldEmitReadOnlyPrefix(arrayAccess, addressKind))
+                _iLProcessor.Emit(OpCodes.Readonly);
+
+            if (((ArrayTypeSymbol)arrayAccess.receiver.type).isSZArray) {
+                _iLProcessor.Emit(OpCodes.Ldelema, _module.GetType(arrayAccess.type));
+            } else {
+                // TODO We only have SZ arrays currently?
+                // _builder.EmitArrayElementAddress(_module.Translate((ArrayTypeSymbol)arrayAccess.Expression.Type),
+                //                                 arrayAccess.Syntax, _diagnostics.DiagnosticBag);
+            }
+        }
+
+        private bool ShouldEmitReadOnlyPrefix(BoundArrayAccessExpression arrayAccess, AddressKind addressKind) {
+            if (addressKind == AddressKind.Constrained)
+                return true;
+
+            if (!IsAnyReadOnly(addressKind))
+                return false;
+
+            return !IsValueType(arrayAccess.type);
+        }
+
+        private void EmitArrayIndex(BoundExpression index) {
+            EmitExpression(index, used: true);
+            TreatLongsAsNative(index.type.specialType);
+        }
+
+        private void EmitArrayIndices(ImmutableArray<BoundExpression> indices) {
+            for (var i = 0; i < indices.Length; ++i) {
+                var index = indices[i];
+                EmitExpression(index, used: true);
+                TreatLongsAsNative(index.type.specialType);
+            }
+        }
+
+        private void EmitArrayIndices(ImmutableArray<int> indices) {
+            for (var i = 0; i < indices.Length; ++i) {
+                var index = indices[i];
+                _iLProcessor.Emit(OpCodes.Ldc_I4, index);
+            }
+        }
+
+        private void TreatLongsAsNative(SpecialType specialType) {
+            if (specialType == SpecialType.Int)
+                _iLProcessor.Emit(OpCodes.Conv_Ovf_I);
+        }
+
+        private VariableDefinition EmitLocalAddress(BoundDataContainerExpression localAccess, AddressKind addressKind) {
+            var local = localAccess.dataContainer;
+
+            if (!HasHome(localAccess, addressKind))
+                return EmitAddressOfTempClone(localAccess);
+
+            if (IsStackLocal(local)) {
+                if (local.refKind == RefKind.None)
+                    throw ExceptionUtilities.UnexpectedValue(local.refKind);
+            } else {
+                EmitLdloca(GetLocal(local));
+            }
+
+            return null;
+        }
+
+        private VariableDefinition EmitParameterAddress(BoundParameterExpression parameter, AddressKind addressKind) {
+            var parameterSymbol = parameter.parameter;
+
+            if (!HasHome(parameter, addressKind))
+                return EmitAddressOfTempClone(parameter);
+
+            if (parameterSymbol.refKind == RefKind.None)
+                EmitLdarga(GetParameter(parameterSymbol));
+            else
+                EmitLdarg(GetParameter(parameterSymbol));
+
+            return null;
+        }
+
+        private VariableDefinition EmitFieldAddress(BoundFieldAccessExpression fieldAccess, AddressKind addressKind) {
+            var field = fieldAccess.field;
+
+            if (!HasHome(fieldAccess, addressKind)) {
+                return EmitAddressOfTempClone(fieldAccess);
+            } else if (field.isStatic) {
+                EmitStaticFieldAddress(field);
+                return null;
+            } else {
+                return EmitInstanceFieldAddress(fieldAccess, addressKind);
+            }
+        }
+
+        private void EmitStaticFieldAddress(FieldSymbol field) {
+            _iLProcessor.Emit(OpCodes.Ldsflda, _module.GetField(field));
+        }
+
+        private VariableDefinition EmitInstanceFieldAddress(
+            BoundFieldAccessExpression fieldAccess,
+            AddressKind addressKind) {
+            var field = fieldAccess.field;
+
+            var tempOpt = EmitReceiverRef(
+                fieldAccess.receiver,
+                field.refKind == RefKind.None
+                    ? (addressKind == AddressKind.Constrained ? AddressKind.Writeable : addressKind)
+                    : (addressKind != AddressKind.ReadOnlyStrict ? AddressKind.ReadOnly : addressKind)
+                );
+
+            _iLProcessor.Emit(field.refKind == RefKind.None ? OpCodes.Ldflda : OpCodes.Ldfld, _module.GetField(field));
+            return tempOpt;
+        }
+
+        private VariableDefinition EmitReceiverRef(BoundExpression receiver, AddressKind addressKind) {
+            var receiverType = receiver.type;
+
+            if (receiverType.IsVerifierReference()) {
+                EmitExpression(receiver, used: true);
+                return null;
+            }
+
+            if (BoxNonVerifierReferenceReceiver(receiverType, addressKind)) {
+                EmitExpression(receiver, used: true);
+                EmitBox(receiver.type);
+                return null;
+            }
+
+            return EmitAddress(receiver, addressKind);
+        }
+
+        private static bool BoxNonVerifierReferenceReceiver(TypeSymbol receiverType, AddressKind addressKind) {
+            return receiverType.typeKind == TypeKind.TemplateParameter && addressKind != AddressKind.Constrained;
+        }
+
+        private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
+            EmitExpression(expression, true);
+            var value = AllocateTemp(expression.type);
+            EmitStloc(value);
+            EmitLdloca(value);
+            return value;
+        }
+
+        private void EmitLdarg(ParameterDefinition parameter) {
+            _iLProcessor.Emit(OpCodes.Ldarg, parameter);
+        }
+
+        private void EmitLdarga(ParameterDefinition parameter) {
+            _iLProcessor.Emit(OpCodes.Ldarga, parameter);
+        }
+
+        private void EmitLdarg0() {
+            _iLProcessor.Emit(OpCodes.Ldarg_0);
+        }
+
+        private void EmitLdarga0() {
+            // TODO How do we get the this parameter?
+            // _iLProcessor.Emit(OpCodes.Ldarga);
+            EmitLdarg0();
+        }
+
+        private void EmitLdloc(VariableDefinition local) {
+            _iLProcessor.Emit(OpCodes.Ldloc, local);
+        }
+
+        private void EmitStloc(VariableDefinition local) {
+            _iLProcessor.Emit(OpCodes.Stloc, local);
+        }
+
+        private void EmitLdloca(VariableDefinition local) {
+            if (local.VariableType.IsByReference)
+                EmitLdloc(local);
+            else
+                _iLProcessor.Emit(OpCodes.Ldloca, local);
+        }
+
+        private void EmitInitObj(TypeSymbol type, bool used) {
+            if (used) {
+                var temp = AllocateTemp(type);
+                EmitLdloca(temp);
+                _iLProcessor.Emit(OpCodes.Initobj, _module.GetType(type));
+                EmitLdloc(temp);
+                FreeTemp(temp);
+            }
+        }
+
+        private void EmitConstantValue(ConstantValue constant) {
+            if (constant.value is null) {
+                _iLProcessor.Emit(OpCodes.Ldnull);
+                return;
+            }
+
+            switch (constant.specialType) {
+                case SpecialType.Int:
+                    _iLProcessor.Emit(OpCodes.Ldc_I8, (long)constant.value);
+                    break;
+                case SpecialType.Bool:
+                    EmitBoolConstant((bool)constant.value);
+                    break;
+                case SpecialType.Decimal:
+                    _iLProcessor.Emit(OpCodes.Ldc_R8, (double)constant.value);
+                    break;
+                case SpecialType.String:
+                    _iLProcessor.Emit(OpCodes.Ldstr, (string)constant.value);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+            }
+        }
+
+        private void EmitBoolConstant(bool value) {
+            _iLProcessor.Emit(OpCodes.Ldc_I4, value ? 1 : 0);
+        }
+
+        private VariableDefinition AllocateTemp(TypeSymbol type) {
+            var typeReference = _module.GetType(type);
+            var variableDefinition = new VariableDefinition(typeReference);
+            _iLProcessor.Body.Variables.Add(variableDefinition);
+            return variableDefinition;
+        }
+
+        private void FreeTemp(VariableDefinition temp) {
+            // TODO Will this suffice?
+            _iLProcessor.Body.Variables.Remove(temp);
+        }
+
+        private void FreeOptTemp(VariableDefinition temp) {
+            if (temp is not null)
+                FreeTemp(temp);
+        }
+
+        private bool HasHome(BoundExpression expression, AddressKind addressKind) {
+            return Binder.HasHome(expression, addressKind, _method, _stackLocals);
+        }
+
+        #region Statements
+
         private void EmitStatement(BoundStatement statement) {
             switch (statement.kind) {
                 case BoundKind.NopStatement:
@@ -158,9 +496,10 @@ internal sealed partial class ILEmitter {
         }
 
         private void EmitBranch(OpCode opCode, LabelSymbol dest, OpCode? revCode = null) {
+            // TODO What exactly is revCode used for?
             revCode ??= OpCodes.Nop;
             _unhandledGotos.Add((_count, dest));
-            _iLProcessor.Emit(opCode, Instruction.Create(revCode.Value));
+            _iLProcessor.Emit(opCode, Instruction.Create(OpCodes.Nop));
         }
 
         private void MarkLabel(LabelSymbol label) {
@@ -454,6 +793,10 @@ oneMoreTime:
             EmitAssignmentOperator(assignment, UseKind.Unused);
         }
 
+        #endregion
+
+        #region Expressions
+
         private void EmitExpression(BoundExpression expression, bool used) {
             if (expression is null)
                 return;
@@ -507,6 +850,9 @@ oneMoreTime:
                     break;
                 case BoundKind.ConditionalOperator:
                     EmitConditionalOperator((BoundConditionalOperator)expression, used);
+                    break;
+                case BoundKind.NullAssertOperator:
+                    EmitNullAssertOperator((BoundNullAssertOperator)expression, used);
                     break;
                 case BoundKind.CallExpression:
                     EmitCallExpression((BoundCallExpression)expression, used ? UseKind.UsedAsValue : UseKind.Unused);
@@ -698,8 +1044,7 @@ oneMoreTime:
             ImmutableArray<BoundExpression> arguments,
             ImmutableArray<RefKind> argumentRefKinds,
             UseKind useKind) {
-            if (_module._randomField is null)
-                _module.EmitGlobalsClass();
+            EnsureGlobalsClassIsBuilt();
 
             switch (method.name) {
                 case "RandInt": {
@@ -714,7 +1059,9 @@ oneMoreTime:
                         var refKind = GetArgumentRefKind(arguments, method.parameters, argumentRefKinds, 0);
                         EmitArgument(argument, refKind);
 
+                        _iLProcessor.Emit(OpCodes.Conv_I4);
                         _iLProcessor.Emit(OpCodes.Callvirt, NetMethodReference.Random_Next_I);
+                        _iLProcessor.Emit(OpCodes.Conv_I8);
 
                         EmitCallCleanup(method, useKind);
                     }
@@ -1315,6 +1662,21 @@ oneMoreTime:
             }
         }
 
+        private void EmitNullAssertOperator(BoundNullAssertOperator expression, bool used) {
+            if (!expression.throwIfNull) {
+                EmitExpression(expression.operand, used);
+                return;
+            }
+
+            EnsureGlobalsClassIsBuilt();
+
+            EmitExpression(expression.operand, true);
+
+            _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssert(expression.type));
+
+            EmitPopIfUnused(used);
+        }
+
         private void EmitBinaryOperatorExpression(BoundBinaryOperator expression, bool used) {
             var operatorKind = expression.operatorKind;
 
@@ -1388,6 +1750,10 @@ oneMoreTime:
             switch (expression.operatorKind.Operator()) {
                 case BinaryOperatorKind.Multiplication:
                     _iLProcessor.Emit(OpCodes.Mul);
+                    break;
+                case BinaryOperatorKind.Addition
+                    when (expression.operatorKind & BinaryOperatorKind.TypeMask) == BinaryOperatorKind.String:
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.String_Concat_SS);
                     break;
                 case BinaryOperatorKind.Addition:
                     _iLProcessor.Emit(OpCodes.Add);
@@ -2212,26 +2578,52 @@ oneMoreTime:
                     break;
                 case ConversionKind.Implicit:
                 case ConversionKind.Explicit:
-                    EmitNumericConversion(cast);
-                    break;
-                case ConversionKind.ImplicitNullable:
+                    EmitConvertCallOrNumericConversion(cast);
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
             }
         }
 
-        private void EmitNumericConversion(BoundCastExpression cast) {
+        private void EmitConvertCallOrNumericConversion(BoundCastExpression cast) {
             var fromType = cast.operand.type;
             var fromPredefTypeKind = fromType.specialType;
 
             var toType = cast.type;
             var toPredefTypeKind = toType.specialType;
 
-            if (!IsNumeric(fromPredefTypeKind) || !IsNumeric(toPredefTypeKind))
-                throw ExceptionUtilities.UnexpectedValue(cast.kind);
+            if (IsNumeric(fromPredefTypeKind) && IsNumeric(toPredefTypeKind))
+                EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
 
-            EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+            EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
+        }
+
+        private void EmitConvertCall(SpecialType from, SpecialType to) {
+            switch (from, to) {
+                case (SpecialType.String, SpecialType.Bool):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToBoolean_S);
+                    break;
+                case (SpecialType.String, SpecialType.Int):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToInt64_S);
+                    break;
+                case (SpecialType.Decimal, SpecialType.Int):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToInt64_D);
+                    break;
+                case (SpecialType.String, SpecialType.Decimal):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToDouble_S);
+                    break;
+                case (SpecialType.Int, SpecialType.Decimal):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToDouble_I);
+                    break;
+                case (SpecialType.Int, SpecialType.String):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToString_I);
+                    break;
+                case (SpecialType.Decimal, SpecialType.String):
+                    _iLProcessor.Emit(OpCodes.Call, NetMethodReference.Convert_ToString_D);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue((from, to));
+            }
         }
 
         private void EmitNumericConversion(SpecialType from, SpecialType to) {
@@ -2329,336 +2721,6 @@ oneMoreTime:
                 _iLProcessor.Emit(OpCodes.Pop);
         }
 
-        private VariableDefinition EmitAddress(BoundExpression expression, AddressKind addressKind) {
-            switch (expression.kind) {
-                case BoundKind.DataContainerExpression:
-                    return EmitLocalAddress((BoundDataContainerExpression)expression, addressKind);
-                case BoundKind.ParameterExpression:
-                    return EmitParameterAddress((BoundParameterExpression)expression, addressKind);
-                case BoundKind.FieldAccessExpression:
-                    return EmitFieldAddress((BoundFieldAccessExpression)expression, addressKind);
-                case BoundKind.ArrayAccessExpression:
-                    if (!HasHome(expression, addressKind))
-                        goto default;
-
-                    EmitArrayElementAddress((BoundArrayAccessExpression)expression, addressKind);
-                    break;
-                case BoundKind.ThisExpression:
-                    if (IsValueType(expression.type)) {
-                        if (!HasHome(expression, addressKind))
-                            goto default;
-
-                        EmitLdarg0();
-                    } else {
-                        EmitLdarga0();
-                    }
-
-                    break;
-                case BoundKind.BaseExpression:
-                    break;
-                case BoundKind.CallExpression:
-                    var call = (BoundCallExpression)expression;
-
-                    if (UseCallResultAsAddress(call, addressKind)) {
-                        EmitCallExpression(call, UseKind.UsedAsAddress);
-                        break;
-                    }
-
-                    goto default;
-                case BoundKind.ConditionalOperator:
-                    if (!HasHome(expression, addressKind))
-                        goto default;
-
-                    EmitConditionalOperatorAddress((BoundConditionalOperator)expression, addressKind);
-                    break;
-                case BoundKind.AssignmentOperator:
-                    var assignment = (BoundAssignmentOperator)expression;
-
-                    if (!assignment.isRef || !HasHome(assignment, addressKind)) {
-                        goto default;
-                    } else {
-                        EmitAssignmentOperator(assignment, UseKind.UsedAsAddress);
-                        break;
-                    }
-                case BoundKind.ThrowExpression:
-                    EmitExpression(expression, used: true);
-                    return null;
-                default:
-                    return EmitAddressOfTempClone(expression);
-            }
-
-            return null;
-        }
-
-        private static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
-            var methodRefKind = call.method.refKind;
-            return methodRefKind == RefKind.Ref ||
-                   (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
-        }
-
-        private void EmitConditionalOperatorAddress(BoundConditionalOperator expression, AddressKind addressKind) {
-            LabelSymbol consequenceLabel = new SynthesizedLabelSymbol("consequence");
-            LabelSymbol doneLabel = new SynthesizedLabelSymbol("done");
-
-            EmitConditionalBranch(expression.condition, ref consequenceLabel, sense: true);
-            AddExpressionTemp(EmitAddress(expression.falseExpression, addressKind));
-
-            EmitBranch(OpCodes.Br, doneLabel);
-
-            MarkLabel(consequenceLabel);
-            AddExpressionTemp(EmitAddress(expression.trueExpression, addressKind));
-
-            MarkLabel(doneLabel);
-        }
-
-        private void AddExpressionTemp(VariableDefinition temp) {
-            if (temp is null)
-                return;
-
-            var exprTemps = _expressionTemps;
-
-            if (exprTemps is null) {
-                exprTemps = ArrayBuilder<VariableDefinition>.GetInstance();
-                _expressionTemps = exprTemps;
-            }
-
-            exprTemps.Add(temp);
-        }
-
-        private void EmitArrayElementAddress(BoundArrayAccessExpression arrayAccess, AddressKind addressKind) {
-            EmitExpression(arrayAccess.receiver, used: true);
-            EmitArrayIndex(arrayAccess.index);
-
-            if (ShouldEmitReadOnlyPrefix(arrayAccess, addressKind))
-                _iLProcessor.Emit(OpCodes.Readonly);
-
-            if (((ArrayTypeSymbol)arrayAccess.receiver.type).isSZArray) {
-                _iLProcessor.Emit(OpCodes.Ldelema, _module.GetType(arrayAccess.type));
-            } else {
-                // TODO We only have SZ arrays currently?
-                // _builder.EmitArrayElementAddress(_module.Translate((ArrayTypeSymbol)arrayAccess.Expression.Type),
-                //                                 arrayAccess.Syntax, _diagnostics.DiagnosticBag);
-            }
-        }
-
-        private bool ShouldEmitReadOnlyPrefix(BoundArrayAccessExpression arrayAccess, AddressKind addressKind) {
-            if (addressKind == AddressKind.Constrained)
-                return true;
-
-            if (!IsAnyReadOnly(addressKind))
-                return false;
-
-            return !IsValueType(arrayAccess.type);
-        }
-
-        private void EmitArrayIndex(BoundExpression index) {
-            EmitExpression(index, used: true);
-            TreatLongsAsNative(index.type.specialType);
-        }
-
-        private void EmitArrayIndices(ImmutableArray<BoundExpression> indices) {
-            for (var i = 0; i < indices.Length; ++i) {
-                var index = indices[i];
-                EmitExpression(index, used: true);
-                TreatLongsAsNative(index.type.specialType);
-            }
-        }
-
-        private void EmitArrayIndices(ImmutableArray<int> indices) {
-            for (var i = 0; i < indices.Length; ++i) {
-                var index = indices[i];
-                _iLProcessor.Emit(OpCodes.Ldc_I4, index);
-            }
-        }
-
-        private void TreatLongsAsNative(SpecialType specialType) {
-            if (specialType == SpecialType.Int)
-                _iLProcessor.Emit(OpCodes.Conv_Ovf_I);
-        }
-
-        private VariableDefinition EmitLocalAddress(BoundDataContainerExpression localAccess, AddressKind addressKind) {
-            var local = localAccess.dataContainer;
-
-            if (!HasHome(localAccess, addressKind))
-                return EmitAddressOfTempClone(localAccess);
-
-            if (IsStackLocal(local)) {
-                if (local.refKind == RefKind.None)
-                    throw ExceptionUtilities.UnexpectedValue(local.refKind);
-            } else {
-                EmitLdloca(GetLocal(local));
-            }
-
-            return null;
-        }
-
-        private VariableDefinition EmitParameterAddress(BoundParameterExpression parameter, AddressKind addressKind) {
-            var parameterSymbol = parameter.parameter;
-
-            if (!HasHome(parameter, addressKind))
-                return EmitAddressOfTempClone(parameter);
-
-            if (parameterSymbol.refKind == RefKind.None)
-                EmitLdarga(GetParameter(parameterSymbol));
-            else
-                EmitLdarg(GetParameter(parameterSymbol));
-
-            return null;
-        }
-
-        private VariableDefinition EmitFieldAddress(BoundFieldAccessExpression fieldAccess, AddressKind addressKind) {
-            var field = fieldAccess.field;
-
-            if (!HasHome(fieldAccess, addressKind)) {
-                return EmitAddressOfTempClone(fieldAccess);
-            } else if (field.isStatic) {
-                EmitStaticFieldAddress(field);
-                return null;
-            } else {
-                return EmitInstanceFieldAddress(fieldAccess, addressKind);
-            }
-        }
-
-        private void EmitStaticFieldAddress(FieldSymbol field) {
-            _iLProcessor.Emit(OpCodes.Ldsflda, _module.GetField(field));
-        }
-
-        private VariableDefinition EmitInstanceFieldAddress(
-            BoundFieldAccessExpression fieldAccess,
-            AddressKind addressKind) {
-            var field = fieldAccess.field;
-
-            var tempOpt = EmitReceiverRef(
-                fieldAccess.receiver,
-                field.refKind == RefKind.None
-                    ? (addressKind == AddressKind.Constrained ? AddressKind.Writeable : addressKind)
-                    : (addressKind != AddressKind.ReadOnlyStrict ? AddressKind.ReadOnly : addressKind)
-                );
-
-            _iLProcessor.Emit(field.refKind == RefKind.None ? OpCodes.Ldflda : OpCodes.Ldfld, _module.GetField(field));
-            return tempOpt;
-        }
-
-        private VariableDefinition EmitReceiverRef(BoundExpression receiver, AddressKind addressKind) {
-            var receiverType = receiver.type;
-
-            if (receiverType.IsVerifierReference()) {
-                EmitExpression(receiver, used: true);
-                return null;
-            }
-
-            if (BoxNonVerifierReferenceReceiver(receiverType, addressKind)) {
-                EmitExpression(receiver, used: true);
-                EmitBox(receiver.type);
-                return null;
-            }
-
-            return EmitAddress(receiver, addressKind);
-        }
-
-        private static bool BoxNonVerifierReferenceReceiver(TypeSymbol receiverType, AddressKind addressKind) {
-            return receiverType.typeKind == TypeKind.TemplateParameter && addressKind != AddressKind.Constrained;
-        }
-
-        private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
-            EmitExpression(expression, true);
-            var value = AllocateTemp(expression.type);
-            EmitStloc(value);
-            EmitLdloca(value);
-            return value;
-        }
-
-        private void EmitLdarg(ParameterDefinition parameter) {
-            _iLProcessor.Emit(OpCodes.Ldarg, parameter);
-        }
-
-        private void EmitLdarga(ParameterDefinition parameter) {
-            _iLProcessor.Emit(OpCodes.Ldarga, parameter);
-        }
-
-        private void EmitLdarg0() {
-            _iLProcessor.Emit(OpCodes.Ldarg_0);
-        }
-
-        private void EmitLdarga0() {
-            // TODO How do we get the this parameter?
-            // _iLProcessor.Emit(OpCodes.Ldarga);
-            EmitLdarg0();
-        }
-
-        private void EmitLdloc(VariableDefinition local) {
-            _iLProcessor.Emit(OpCodes.Ldloc, local);
-        }
-
-        private void EmitStloc(VariableDefinition local) {
-            _iLProcessor.Emit(OpCodes.Stloc, local);
-        }
-
-        private void EmitLdloca(VariableDefinition local) {
-            if (local.VariableType.IsByReference)
-                EmitLdloc(local);
-            else
-                _iLProcessor.Emit(OpCodes.Ldloca, local);
-        }
-
-        private void EmitInitObj(TypeSymbol type, bool used) {
-            if (used) {
-                var temp = AllocateTemp(type);
-                EmitLdloca(temp);
-                _iLProcessor.Emit(OpCodes.Initobj, _module.GetType(type));
-                EmitLdloc(temp);
-                FreeTemp(temp);
-            }
-        }
-
-        private void EmitConstantValue(ConstantValue constant) {
-            if (constant.value is null)
-                _iLProcessor.Emit(OpCodes.Ldnull);
-
-            switch (constant.specialType) {
-                case SpecialType.Int:
-                    _iLProcessor.Emit(OpCodes.Ldc_I8, (long)constant.value);
-                    break;
-                case SpecialType.Bool:
-                    EmitBoolConstant((bool)constant.value);
-                    break;
-                case SpecialType.Decimal:
-                    _iLProcessor.Emit(OpCodes.Ldc_R8, (double)constant.value);
-                    break;
-                case SpecialType.String:
-                    _iLProcessor.Emit(OpCodes.Ldstr, (string)constant.value);
-                    break;
-                case SpecialType.Nullable:
-                    _iLProcessor.Emit(OpCodes.Ldnull);
-                    break;
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(constant.specialType);
-            }
-        }
-
-        private void EmitBoolConstant(bool value) {
-            _iLProcessor.Emit(OpCodes.Ldc_I4, value ? 1 : 0);
-        }
-
-        private VariableDefinition AllocateTemp(TypeSymbol type) {
-            var typeReference = _module.GetType(type);
-            var variableDefinition = new VariableDefinition(typeReference);
-            _iLProcessor.Body.Variables.Add(variableDefinition);
-            return variableDefinition;
-        }
-
-        private void FreeTemp(VariableDefinition temp) {
-            // TODO Will this suffice?
-            _iLProcessor.Body.Variables.Remove(temp);
-        }
-
-        private void FreeOptTemp(VariableDefinition temp) {
-            if (temp is not null)
-                FreeTemp(temp);
-        }
-
-        private bool HasHome(BoundExpression expression, AddressKind addressKind)
-            => Binder.HasHome(expression, addressKind, _method, _stackLocals);
-
+        #endregion
     }
 }

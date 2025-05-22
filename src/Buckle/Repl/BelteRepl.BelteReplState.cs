@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Repl.Themes;
 
