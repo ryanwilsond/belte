@@ -1,6 +1,38 @@
 
 public class Sprite {
-    public Vec2 position;
-    public Vec2 scale;
+    private Vec2 position;
+
     public int rotation;
+    public Rect source;
+    public Rect destination;
+    public Texture texture;
+
+    public constructor(Texture texture, Vec2 position, Vec2 scale, int rotation) {
+        destination = new Rect(
+            position.x - scale.x / 2,
+            position.y - scale.y / 2,
+            scale.x,
+            scale.y
+        );
+
+        this.position = position;
+        this.rotation = rotation;
+        this.texture = texture;
+    }
+
+    public void SetPosition(int x, int y) {
+        destination.x = x - destination.w / 2;
+        destination.y = y - destination.h / 2;
+    }
+
+    public Vec2 GetPosition() {
+        return position;
+    }
+
+    public constructor(Texture texture, Rect source, Rect destination, int rotation) {
+        this.source = source;
+        this.destination = destination;
+        this.rotation = rotation;
+        this.texture = texture;
+    }
 }

@@ -23,4 +23,5 @@ public enum SpecialType : byte {
     Sprite,
     Text,
     Rect,
+    Texture,
 }

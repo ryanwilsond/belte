@@ -24,6 +24,7 @@ internal static class GraphicsLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateGraphics() {
         return StaticClass("Graphics", [
             StaticMethod("Initialize", SpecialType.Void, [("title", SpecialType.String), ("width", SpecialType.Int), ("height", SpecialType.Int)]),
+            StaticMethod("LoadTexture", SpecialType.Texture, true, [("path", SpecialType.String)]),
             StaticMethod("LoadSprite", SpecialType.Sprite, [("path", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("scale", SpecialType.Vec2, true), ("rotation", SpecialType.Int, true)]),
             StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", SpecialType.Sprite, true)]),
             StaticMethod("LoadText", SpecialType.Text, true, [("text", SpecialType.String, true), ("fontPath", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("fontSize", SpecialType.Decimal, false), ("angle", SpecialType.Decimal, true), ("r", SpecialType.Int, true), ("g", SpecialType.Int, true), ("b", SpecialType.Int, true)]),

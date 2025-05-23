@@ -2,6 +2,8 @@
 public static class Graphics {
     public static void Initialize(string! title, int! width, int! height);
 
+    public static Texture LoadTexture(string! path);
+
     public static Sprite LoadSprite(string! path, Vec2 position, Vec2 scale, int rotation);
 
     public static int DrawSprite(Sprite sprite);

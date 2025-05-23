@@ -55,6 +55,7 @@ public static class LibraryHelpers {
                 libraryName != "Compiler.Vec2.blt" &&
                 libraryName != "Compiler.Text.blt" &&
                 libraryName != "Compiler.Rect.blt" &&
+                libraryName != "Compiler.Texture.blt" &&
                 libraryName != "Compiler.Sprite.blt") {
                 continue;
             }

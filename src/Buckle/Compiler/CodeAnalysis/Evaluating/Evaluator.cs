@@ -19,8 +19,8 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Evaluates BoundStatements inline similar to an interpreter.
 /// </summary>
 internal sealed class Evaluator {
-    private static readonly Symbol HiddenSpriteData = new SynthesizedLabelSymbol("texture");
     private static readonly Symbol HiddenTextData = new SynthesizedLabelSymbol("spriteFont");
+    private static readonly Symbol HiddenTextureData = new SynthesizedLabelSymbol("texture2D");
 
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
@@ -1120,156 +1120,198 @@ internal sealed class Evaluator {
             return true;
         }
 
-        if (mapKey == "Graphics_LoadSprite_SV?V?I?" ||
-            mapKey == "Graphics_DrawSprite_S?" ||
-            mapKey == "Graphics_DrawText_T?" ||
-            mapKey == "Graphics_LoadText_S?SV?DD?I?I?I?" ||
-            mapKey == "Graphics_GetKey_S" ||
-            mapKey == "Graphics_DrawRect_R?" ||
-            mapKey == "Graphics_StopDraw_I?") {
-            // Wait until window is created to future Graphics calls are valid
-            if (_context.graphicsThread is not null && _context.graphicsThread.IsAlive) {
-                while (_context.graphicsHandler?.GraphicsDevice is null)
-                    ;
-            } else {
-                return true;
-            }
+        // Wait until window is created to future Graphics calls are valid
+        if (_context.graphicsThread is not null && _context.graphicsThread.IsAlive) {
+            while (_context.graphicsHandler?.GraphicsDevice is null)
+                ;
         } else {
             return true;
         }
 
-        if (mapKey == "Graphics_LoadSprite_SV?V?I?") {
-            var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
-            var path = (string)Value(evaluatedArguments[0]);
+        switch (mapKey) {
+            case "Graphics_LoadTexture_S": {
+                    var path = (string)Value(EvaluateExpression(arguments[0], abort));
 
-            if (!File.Exists(path))
-                return true;
+                    if (!File.Exists(path))
+                        throw new BelteEvaluatorException("Cannot load texture path does not exist");
 
-            var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
-            var sprite = CreateObject(spriteType);
-            var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-            sprite.members[spriteFields[0]] = evaluatedArguments[1];
-            sprite.members[spriteFields[1]] = evaluatedArguments[2];
-            sprite.members[spriteFields[2]] = evaluatedArguments[3];
-            sprite.members[HiddenSpriteData] = new EvaluatorObject(_context.graphicsHandler?.LoadSprite(path), null);
+                    result = LoadTexture(path);
+                }
 
-            result = sprite;
-        } else if (mapKey == "Graphics_DrawSprite_S?") {
-            var argument = Dereference(EvaluateExpression(arguments[0], abort));
+                break;
+            case "Graphics_LoadSprite_SV?V?I?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var path = (string)Value(evaluatedArguments[0]);
 
-            if (argument.members is null || argument.members.Count < 4)
-                return true;
+                    if (!File.Exists(path))
+                        throw new BelteEvaluatorException("Cannot load sprite: path does not exist");
 
-            var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
-            var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-            var posX = argument.members[spriteFields[0]].members.Values.ElementAt(0).value;
-            var posY = argument.members[spriteFields[0]].members.Values.ElementAt(1).value;
-            var scaleX = argument.members[spriteFields[1]].members.Values.ElementAt(0).value;
-            var scaleY = argument.members[spriteFields[1]].members.Values.ElementAt(1).value;
-            var rotation = argument.members[spriteFields[2]].value;
-            var texture = (Texture2D)argument.members[HiddenSpriteData].value;
+                    var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+                    var sprite = CreateObject(spriteType);
+                    var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+                    sprite.members[spriteFields[0]] = evaluatedArguments[1];
+                    sprite.members[spriteFields[1]] = evaluatedArguments[2];
+                    sprite.members[spriteFields[2]] = evaluatedArguments[3];
+                    sprite.members[spriteFields[3]] = LoadTexture(path);
 
-            if (texture is null)
-                return true;
+                    result = sprite;
+                }
 
-            if (_context.options.isScript) {
-                result = _context.graphicsHandler?.AddAction(
-                    () => { _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation); }
-                );
-            } else {
-                _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
-            }
-        } else if (mapKey == "Graphics_StopDraw_I?") {
-            var argument = Value(EvaluateExpression(arguments[0], abort));
+                break;
+            case "Graphics_DrawSprite_S?": {
+                    var argument = Dereference(EvaluateExpression(arguments[0], abort));
 
-            if (argument is null)
-                return true;
+                    if (argument.members is null)
+                        return true;
 
-            _context.graphicsHandler?.RemoveAction(Convert.ToInt32(argument));
-        } else if (mapKey == "Graphics_LoadText_S?SV?DD?I?I?I?") {
-            var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
-            var path = (string)Value(evaluatedArguments[1]);
+                    var posX = Slot(Slot(argument, 0), 0).value;
+                    var posY = Slot(Slot(argument, 0), 1).value;
+                    var scaleX = Slot(Slot(argument, 1), 0).value;
+                    var scaleY = Slot(Slot(argument, 1), 1).value;
+                    var rotation = Slot(argument, 2).value;
 
-            if (!File.Exists(path))
-                return true;
+                    if (Slot(Slot(argument, 3), 0).value is not Texture2D texture)
+                        throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture");
 
-            var textType = CorLibrary.GetSpecialType(SpecialType.Text);
-            var text = CreateObject(textType);
-            var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler?.AddAction(
+                            () => {
+                                _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
+                            }
+                        );
+                    } else {
+                        _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
+                    }
+                }
 
-            var fontSize = Convert.ToSingle(Value(evaluatedArguments[3]));
+                break;
+            case "Graphics_StopDraw_I?": {
+                    var argument = Value(EvaluateExpression(arguments[0], abort));
 
-            text.members[textFields[0]] = evaluatedArguments[0];
-            text.members[textFields[1]] = evaluatedArguments[1];
-            text.members[textFields[2]] = evaluatedArguments[2];
-            text.members[textFields[3]] = evaluatedArguments[3];
-            text.members[textFields[4]] = evaluatedArguments[4];
-            text.members[textFields[5]] = evaluatedArguments[5];
-            text.members[textFields[6]] = evaluatedArguments[6];
-            text.members[textFields[7]] = evaluatedArguments[7];
+                    if (argument is null)
+                        return true;
 
-            text.members[HiddenTextData] = new EvaluatorObject(
-                _context.graphicsHandler?.LoadText(path, fontSize),
-                null
-            );
+                    _context.graphicsHandler?.RemoveAction(Convert.ToInt32(argument));
+                }
 
-            result = text;
-        } else if (mapKey == "Graphics_DrawText_T?") {
-            var argument = Dereference(EvaluateExpression(arguments[0], abort));
+                break;
+            case "Graphics_LoadText_S?SV?DD?I?I?I?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var path = (string)Value(evaluatedArguments[1]);
 
-            if (argument.members is null || argument.members.Count < 9)
-                return true;
+                    if (!File.Exists(path))
+                        throw new BelteEvaluatorException("Cannot load text: path does not exist");
 
-            var textType = CorLibrary.GetSpecialType(SpecialType.Text);
-            var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+                    var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+                    var text = CreateObject(textType);
+                    var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
 
-            var text = (string)argument.members[textFields[0]].value;
-            var posX = argument.members[textFields[2]].members.Values.ElementAt(0).value;
-            var posY = argument.members[textFields[2]].members.Values.ElementAt(1).value;
-            var r = argument.members[textFields[5]].value;
-            var g = argument.members[textFields[6]].value;
-            var b = argument.members[textFields[7]].value;
-            var spriteFont = (DynamicSpriteFont)argument.members[HiddenTextData].value;
+                    var fontSize = Convert.ToSingle(Value(evaluatedArguments[3]));
 
-            if (spriteFont is null)
-                return true;
+                    text.members[textFields[0]] = evaluatedArguments[0];
+                    text.members[textFields[1]] = evaluatedArguments[1];
+                    text.members[textFields[2]] = evaluatedArguments[2];
+                    text.members[textFields[3]] = evaluatedArguments[3];
+                    text.members[textFields[4]] = evaluatedArguments[4];
+                    text.members[textFields[5]] = evaluatedArguments[5];
+                    text.members[textFields[6]] = evaluatedArguments[6];
+                    text.members[textFields[7]] = evaluatedArguments[7];
 
-            if (_context.options.isScript) {
-                result = _context.graphicsHandler?.AddAction(
-                    () => { _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b); }
-                );
-            } else {
-                _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b);
-            }
-        } else if (mapKey == "Graphics_GetKey_S") {
-            var argument = (string)Value(EvaluateExpression(arguments[0], abort));
-            result = _context.graphicsHandler?.GetKey(argument);
-        } else if (mapKey == "Graphics_DrawRect_R?") {
-            var argument = Dereference(EvaluateExpression(arguments[0], abort));
+                    text.members[HiddenTextData] = new EvaluatorObject(
+                        _context.graphicsHandler?.LoadText(path, fontSize),
+                        null
+                    );
 
-            if (argument.members.Count < 7)
-                return true;
+                    result = text;
+                }
 
-            var rectType = CorLibrary.GetSpecialType(SpecialType.Rect);
-            var rectFields = rectType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-            var x = Convert.ToInt32(argument.members[rectFields[0]].value);
-            var y = Convert.ToInt32(argument.members[rectFields[1]].value);
-            var w = Convert.ToInt32(argument.members[rectFields[2]].value);
-            var h = Convert.ToInt32(argument.members[rectFields[3]].value);
-            var r = argument.members[rectFields[4]].value;
-            var g = argument.members[rectFields[5]].value;
-            var b = argument.members[rectFields[6]].value;
+                break;
+            case "Graphics_DrawText_T?": {
+                    var argument = Dereference(EvaluateExpression(arguments[0], abort));
 
-            if (_context.options.isScript) {
-                result = _context.graphicsHandler?.AddAction(
-                    () => { _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b); }
-                );
-            } else {
-                _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b);
-            }
+                    if (argument.members is null)
+                        return true;
+
+                    var text = (string)Slot(argument, 0).value;
+                    var posX = Slot(Slot(argument, 2), 0).value;
+                    var posY = Slot(Slot(argument, 2), 1).value;
+                    var r = Slot(argument, 5).value;
+                    var g = Slot(argument, 6).value;
+                    var b = Slot(argument, 7).value;
+
+                    if (Slot(argument, 8).value is not DynamicSpriteFont spriteFont)
+                        throw new BelteEvaluatorException("Cannot draw text: invalid text object");
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler?.AddAction(
+                            () => { _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b); }
+                        );
+                    } else {
+                        _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b);
+                    }
+                }
+
+                break;
+            case "Graphics_GetKey_S": {
+                    var argument = (string)Value(EvaluateExpression(arguments[0], abort));
+                    result = _context.graphicsHandler?.GetKey(argument);
+                }
+
+                break;
+            case "Graphics_DrawRect_R?": {
+                    var argument = Dereference(EvaluateExpression(arguments[0], abort));
+
+                    if (argument.members is null)
+                        return true;
+
+                    var x = Convert.ToInt32(Slot(argument, 0).value);
+                    var y = Convert.ToInt32(Slot(argument, 1).value);
+                    var w = Convert.ToInt32(Slot(argument, 2).value);
+                    var h = Convert.ToInt32(Slot(argument, 3).value);
+                    var r = Slot(argument, 4).value;
+                    var g = Slot(argument, 5).value;
+                    var b = Slot(argument, 6).value;
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler?.AddAction(
+                            () => { _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b); }
+                        );
+                    } else {
+                        _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b);
+                    }
+                }
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(mapKey);
         }
 
         return true;
+
+        EvaluatorObject LoadTexture(string path) {
+            var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
+            var texture = CreateObject(textureType);
+            var textureFields = textureType.GetMembers().Where(f => f is FieldSymbol).ToArray();
+            var texture2D = _context.graphicsHandler?.LoadSprite(path);
+
+            texture.members[textureFields[0]] = new EvaluatorObject(
+                Convert.ToInt64(texture2D.Width),
+                CorLibrary.GetSpecialType(SpecialType.Int)
+            );
+
+            texture.members[textureFields[1]] = new EvaluatorObject(
+                Convert.ToInt64(texture2D.Height),
+                CorLibrary.GetSpecialType(SpecialType.Int)
+            );
+
+            texture.members[HiddenTextureData] = new EvaluatorObject(texture2D, null);
+
+            return texture;
+        }
+
+        EvaluatorObject Slot(EvaluatorObject evaluatorObject, int slot) {
+            return evaluatorObject.members.Values.ElementAt(slot);
+        }
     }
 
     private void StartGraphics(string title, int width, int height, ValueWrapper<bool> abort) {

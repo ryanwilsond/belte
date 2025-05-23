@@ -1,0 +1,15 @@
+
+class Program {
+    Sprite grass;
+
+    public void Main() {
+        Graphics.Initialize("Platformer", 1280, 720);
+
+        var grassTexture = Graphics.LoadTexture("samples/Assets/grass.jpg");
+        grass = new Sprite(grassTexture, new Vec2(500, 500), new Vec2(100, 100), 0);
+    }
+
+    public void Update(decimal! deltaTime) {
+        Graphics.DrawSprite(grass);
+    }
+}
