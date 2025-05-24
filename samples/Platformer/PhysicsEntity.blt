@@ -1,26 +1,45 @@
 
 class PhysicsEntity {
+    protected constexpr int! UpCollide = 0;
+    protected constexpr int! DownCollide = 1;
+    protected constexpr int! LeftCollide = 2;
+    protected constexpr int! RightCollide = 3;
+
     Program game;
     bool[] collisions;
+    Vec2 animOffset;
+    bool flip;
+    int action = 10;
+    Animation animation;
+    int kind;
 
-    public Sprite sprite;
+    public Vec2 pos;
+    public Rect box;
     public Vec2 velocity;
 
-    public constructor(Program game, Vec2 position, Vec2 scale) {
+    public constructor(Program game, Vec2 position, int kind) {
         this.game = game;
+        pos = position;
+        this.kind = kind;
 
-        var texture = Graphics.LoadTexture("samples/Platformer/data/images/entities/player.png", 0, 0, 0);
-        sprite = new Sprite(texture, null, new Rect((int!)position.x, (int!)position.y, (int!)scale.x, (int!)scale.y), 0);
+        SetAction(0);
+        var texture = animation.GetTexture();
+
+        box = new Rect((int!)position.x, (int!)position.y, texture.width * 4, texture.height * 4);
         velocity = new Vec2(0, 0);
+
+        animOffset = new Vec2(12, 0);
+        flip = false;
     }
 
-    public void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+    public virtual void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
         collisions = { false, false, false, false };
         var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
 
-        sprite.SetPosition(sprite.position.x + frameMovement.x, sprite.position.y);
+        pos.x += frameMovement.x;
+        box.x = (int!)pos.x;
 
-        var nearTiles = tileMap.GetNearTiles(sprite.dst.x, sprite.dst.y);
+        var nearTiles = tileMap.GetNearTiles(box.x, box.y);
 
         for (int! i = 0; i < LowLevel.Length(nearTiles); i++) {
             var tile = nearTiles[i];
@@ -28,24 +47,25 @@ class PhysicsEntity {
             if (tile is null)
                 break;
 
-            if (Colliding(sprite.dst, tile.sprite.dst)) {
+            if (Colliding(box, tile.sprite.dst)) {
                 if (frameMovement.x > 0) {
-                    sprite.dst.x = tile.sprite.dst.x - sprite.dst.w;
-                    sprite.GetPosition();
-                    collisions[3] = true;
+                    box.x = tile.sprite.dst.x - box.w;
+                    collisions[RightCollide] = true;
                 }
 
                 if (frameMovement.x < 0) {
-                    sprite.dst.x = tile.sprite.dst.x + tile.sprite.dst.w;
-                    sprite.GetPosition();
-                    collisions[2] = true;
+                    box.x = tile.sprite.dst.x + tile.sprite.dst.w;
+                    collisions[LeftCollide] = true;
                 }
+
+                pos.x = box.x;
             }
         }
 
-        sprite.SetPosition(sprite.position.x, sprite.position.y + frameMovement.y);
+        pos.y += frameMovement.y;
+        box.y = (int!)pos.y;
 
-        nearTiles = tileMap.GetNearTiles(sprite.dst.x, sprite.dst.y);
+        nearTiles = tileMap.GetNearTiles(box.x, box.y);
 
         for (int! i = 0; i < LowLevel.Length(nearTiles); i++) {
             var tile = nearTiles[i];
@@ -53,29 +73,57 @@ class PhysicsEntity {
             if (tile is null)
                 break;
 
-            if (Colliding(sprite.dst, tile.sprite.dst)) {
+            if (Colliding(box, tile.sprite.dst)) {
                 if (frameMovement.y > 0) {
-                    sprite.dst.y = tile.sprite.dst.y - sprite.dst.h;
-                    sprite.GetPosition();
-                    collisions[1] = true;
+                    box.y = tile.sprite.dst.y - box.h;
+                    collisions[DownCollide] = true;
                 }
 
                 if (frameMovement.y < 0) {
-                    sprite.dst.y = tile.sprite.dst.y + tile.sprite.dst.h;
-                    sprite.GetPosition();
-                    collisions[0] = true;
+                    box.y = tile.sprite.dst.y + tile.sprite.dst.h;
+                    collisions[UpCollide] = true;
                 }
+
+                pos.y = box.y;
             }
         }
 
+        if (movement.x > 0)
+            flip = false;
+        if (movement.x < 0)
+            flip = true;
+
         velocity.y = Math.Min(Settings.TerminalVelocity, velocity.y + Settings.Gravity * deltaTime);
 
-        if (collisions[0] || collisions[1])
+        if (collisions[UpCollide] || collisions[DownCollide])
             velocity.y = 0;
+
+        animation.Update(deltaTime);
     }
 
     public void Render(Vec2 offset) {
-        Graphics.DrawSprite(sprite, offset);
+        var dst = new Rect(
+            (int!)Math.Round(box.x - offset.x),
+            (int!)Math.Round(box.y - offset.y),
+            box.w,
+            box.h
+        );
+
+        if (flip)
+            dst.x -= (int!)animOffset.x;
+        else
+            dst.x += (int!)animOffset.x;
+
+        Graphics.Draw(animation.GetTexture(), null, dst, 0, flip);
+    }
+
+    protected void SetAction(int action) {
+        if (action != this.action) {
+            this.action = action;
+
+            if (kind == 0)
+                animation = game.animations.GetPlayerAction(action).Copy();
+        }
     }
 
     private static bool! Colliding(Rect a, Rect b) {

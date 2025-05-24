@@ -34,6 +34,7 @@
     <Content Remove="../../Belte/Graphics/Text.blt" />
     <Content Remove="../../Belte/Graphics/Rect.blt" />
     <Content Remove="../../Belte/Graphics/Texture.blt" />
+    <Content Remove="../../Belte/Graphics/FRect.blt" />
     <Content Remove="../../../docs/images/BelteCapital.png" />
   </ItemGroup>
 
@@ -57,6 +58,7 @@
     <EmbeddedResource Include="../../Belte/Graphics/Text.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Rect.blt" />
     <EmbeddedResource Include="../../Belte/Graphics/Texture.blt" />
+    <EmbeddedResource Include="../../Belte/Graphics/FRect.blt" />
     <EmbeddedResource Include="../../../docs/images/BelteCapital.png" />
   </ItemGroup>
 

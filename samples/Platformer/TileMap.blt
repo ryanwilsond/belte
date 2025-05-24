@@ -16,8 +16,8 @@ class TileMap {
     }
 
     public Tile[] GetNearTiles(int! x, int! y) {
-        var gx = x / tileSize;
-        var gy = y / tileSize;
+        var gx = Math.Round(x / (decimal)tileSize);
+        var gy = Math.Round(y / (decimal)tileSize);
         var tileCount = 0;
         var nearTiles = new Tile[9];
 

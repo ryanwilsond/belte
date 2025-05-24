@@ -5024,10 +5024,11 @@ internal partial class Binder {
         if (!HasThis(true, out var inStaticContext)) {
             if (inStaticContext)
                 diagnostics.Push(Error.CannotUseBaseInStaticMethod(node.location));
-            else
-                diagnostics.Push(Error.CannotUseBase(node.location));
+            // TODO again, this seems wrong
+            // else
+            //     diagnostics.Push(Error.CannotUseBase(node.location));
 
-            hasErrors = true;
+            // hasErrors = true;
         } else if (baseType is null) {
             diagnostics.Push(Error.NoBaseClass(node.location, containingType));
             hasErrors = true;

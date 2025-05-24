@@ -27,6 +27,7 @@ internal static class GraphicsLibrary {
             StaticMethod("LoadTexture", SpecialType.Texture, true, [("path", SpecialType.String)]),
             StaticMethod("LoadTexture", SpecialType.Texture, true, [("path", SpecialType.String), ("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int)]),
             StaticMethod("LoadSprite", SpecialType.Sprite, [("path", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("scale", SpecialType.Vec2, true), ("rotation", SpecialType.Int, true)]),
+            StaticMethod("Draw", SpecialType.Int, true, [("texture", SpecialType.Texture, true), ("srcRect", SpecialType.Rect, true), ("dstRect", SpecialType.Rect, true), ("rotation", SpecialType.Int, true), ("flip", SpecialType.Bool, true)]),
             StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", SpecialType.Sprite, true)]),
             StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", SpecialType.Sprite, true), ("offset", SpecialType.Vec2, true)]),
             StaticMethod("LoadText", SpecialType.Text, true, [("text", SpecialType.String, true), ("fontPath", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("fontSize", SpecialType.Decimal, false), ("angle", SpecialType.Decimal, true), ("r", SpecialType.Int, true), ("g", SpecialType.Int, true), ("b", SpecialType.Int, true)]),

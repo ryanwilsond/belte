@@ -8,6 +8,8 @@ class Program {
     Sprite background;
     Clouds clouds;
 
+    public Animations animations;
+
     public void Main() {
         Graphics.Initialize("Platformer", Settings.WindowWidth, Settings.WindowHeight, true);
 
@@ -18,18 +20,21 @@ class Program {
             0
         );
 
-        player = new PhysicsEntity(this, new Vec2(300, 300), new Vec2(32, 60));
         textures = new Textures();
         tileMap = new TileMap(textures);
+        animations = new Animations(textures);
         clouds = new Clouds({ textures.cloud1, textures.cloud2 });
+
+        player = new Player(this, new Vec2(300, 300));
+
         scroll = new Vec2(0, 0);
     }
 
     public void Update(decimal! deltaTime) {
         var movement = new Vec2(0, 0);
 
-        scroll.x += (player.sprite.position.x - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
-        scroll.y += (player.sprite.position.y - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
+        scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
+        scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
 
         if (Graphics.GetKey("A"))
             movement.x -= 500 * deltaTime;

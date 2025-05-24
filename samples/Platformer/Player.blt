@@ -1,0 +1,27 @@
+
+class Player extends PhysicsEntity {
+    constexpr int! JumpAction = 2;
+    constexpr int! RunAction = 1;
+    constexpr int! IdleAction = 0;
+
+    int airTime;
+
+    public constructor(Program game, Vec2 position) : base(game, position, 0) {
+        airTime = 0;
+    }
+
+    public override void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+        base.Update(deltaTime, tileMap, movement);
+        airTime += 1;
+
+        if (collisions[DownCollide])
+            airTime = 0;
+
+        if (airTime > 4)
+            SetAction(JumpAction);
+        else if (movement.x != 0)
+            SetAction(RunAction);
+        else
+            SetAction(IdleAction);
+    }
+}

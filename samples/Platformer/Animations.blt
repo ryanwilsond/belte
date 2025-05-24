@@ -1,0 +1,24 @@
+
+class Animations {
+    public Animation playerIdle;
+    public Animation playerRun;
+    public Animation playerJump;
+    public Animation playerSlide;
+    public Animation playerWallSlide;
+
+    private Animation[] playerAnimations;
+
+    public constructor(Textures textures) {
+        playerIdle = new Animation(textures.PlayerIdleTextures(), 6);
+        playerRun = new Animation(textures.PlayerRunTextures(), 4);
+        playerJump = new Animation(textures.PlayerJumpTextures());
+        playerSlide = new Animation(textures.PlayerSlideTextures());
+        playerWallSlide = new Animation(textures.PlayerWallSlideTextures());
+
+        playerAnimations = { playerIdle, playerRun, playerJump, playerSlide, playerWallSlide };
+    }
+
+    public Animation GetPlayerAction(int index) {
+        return playerAnimations[index!];
+    }
+}

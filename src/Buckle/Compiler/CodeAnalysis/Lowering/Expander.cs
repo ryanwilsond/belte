@@ -108,7 +108,7 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         var syntax = expression.syntax;
 
-        if (_operatorDepth > 0) {
+        if (_operatorDepth > 1) {
             var statements = ExpandCallExpressionInternal(expression, out var callReplacement);
             var tempLocal = GenerateTempLocal(expression.type);
 
@@ -200,7 +200,11 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         _operatorDepth++;
 
-        if (_operatorDepth > 1 && (expression.type.IsNullableType() || expression.operand.type.IsNullableType())) {
+        if (_operatorDepth > 2 &&
+            (expression.type.IsNullableType() || expression.operand.type.IsNullableType()) &&
+            expression.conversion.underlyingConversions != default &&
+            expression.conversion.kind is ConversionKind.ImplicitNullable or ConversionKind.ExplicitNullable &&
+            !expression.operand.type.Equals(expression.type)) {
             var syntax = expression.syntax;
             var statements = ExpandExpression(expression.operand, out var newOperand);
             var tempLocal = GenerateTempLocal(expression.type);

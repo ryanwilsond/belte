@@ -109,6 +109,32 @@ internal partial class GraphicsHandler : Game {
         );
     }
 
+    internal void Draw(Texture2D texture, EvaluatorObject src, EvaluatorObject dst, object rotation, object flip) {
+        Rectangle? srcRect = null;
+
+        if (src.members is not null) {
+            var (sx, sy, sw, sh) = Evaluator.ExtractRectangleComponents(src);
+            srcRect = new Rectangle(sx, sy, sw, sh);
+        }
+
+        var (dx, dy, dw, dh) = Evaluator.ExtractRectangleComponents(dst);
+        var dstRect = new Rectangle(dx, dy, dw, dh);
+
+        var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
+        var flipB = flip is not null && Convert.ToBoolean(flip);
+
+        _spriteBatch.Draw(
+            texture,
+            dstRect,
+            srcRect,
+            Color.White,
+            rotF,
+            Vector2.Zero,
+            flipB ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+            0f
+        );
+    }
+
     internal void DrawText(
         DynamicSpriteFont font,
         string text,

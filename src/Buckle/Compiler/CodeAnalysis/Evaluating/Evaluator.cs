@@ -268,20 +268,26 @@ internal sealed class Evaluator {
 
     private EvaluatorObject CreateObject(NamedTypeSymbol type) {
         var members = new Dictionary<Symbol, EvaluatorObject>();
-        var typeMembers = type.GetMembers();
+        var current = type;
 
-        foreach (var member in typeMembers) {
-            if (member is FieldSymbol f) {
-                var value = new EvaluatorObject(null, f.type);
+        do {
+            var typeMembers = current.GetMembers();
 
-                if (f.refKind != RefKind.None) {
-                    value.isReference = true;
-                    value.isExplicitReference = true;
+            foreach (var member in typeMembers) {
+                if (member is FieldSymbol f) {
+                    var value = new EvaluatorObject(null, f.type);
+
+                    if (f.refKind != RefKind.None) {
+                        value.isReference = true;
+                        value.isExplicitReference = true;
+                    }
+
+                    members.Add(f, value);
                 }
-
-                members.Add(f, value);
             }
-        }
+
+            current = current.baseType;
+        } while (current is not null);
 
         return new EvaluatorObject(members, type);
     }
@@ -319,6 +325,11 @@ internal sealed class Evaluator {
         }
 
         return value;
+    }
+
+    private bool ConditionalValue(TextLocation location, EvaluatorObject evaluatorObject) {
+        var value = Value(evaluatorObject) ?? throw new BelteNullReferenceException(location);
+        return (bool)value;
     }
 
     #endregion
@@ -374,7 +385,7 @@ internal sealed class Evaluator {
                     case BoundKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
                         var condition = EvaluateExpression(cgs.condition, abort);
-                        var conditionValue = (bool)Value(condition);
+                        var conditionValue = ConditionalValue(cgs.condition.syntax.location, condition);
 
                         if (conditionValue == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
@@ -608,20 +619,22 @@ internal sealed class Evaluator {
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
         EvaluatorObject receiver,
-        ValueWrapper<bool> abort) {
+        ValueWrapper<bool> abort,
+        bool isBaseCall = false) {
         var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
-        return InvokeResolvedMethod(method, evaluatedArguments, receiver, abort);
+        return InvokeResolvedMethod(method, evaluatedArguments, receiver, abort, isBaseCall);
     }
 
     private EvaluatorObject InvokeResolvedMethod(
         MethodSymbol method,
         EvaluatorObject[] arguments,
         EvaluatorObject receiver,
-        ValueWrapper<bool> abort) {
+        ValueWrapper<bool> abort,
+        bool isBaseCall = false) {
         if (method.isAbstract || method.isVirtual) {
-            // TODO Potential duplicate code around GetConstructedLeastOverriddenMethod?
-            var type = Dereference(receiver).type;
-            var newMethod = type
+            var typeToLookup = isBaseCall ? receiver.type.baseType : receiver.type;
+
+            var newMethod = typeToLookup
                 .GetMembersUnordered()
                 .Where(s => s is MethodSymbol m && m.overriddenMethod == method)
                 .FirstOrDefault() as MethodSymbol;
@@ -681,7 +694,13 @@ internal sealed class Evaluator {
                 throw new BelteNullReferenceException(receiver.syntax.location);
         }
 
-        return InvokeMethodWithResolvedReceiver(method, arguments, receiverObject, abort);
+        return InvokeMethodWithResolvedReceiver(
+            method,
+            arguments,
+            receiverObject,
+            abort,
+            receiver?.kind == BoundKind.BaseExpression
+        );
     }
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
@@ -1249,7 +1268,7 @@ internal sealed class Evaluator {
                     if (argument is null)
                         return true;
 
-                    _context.graphicsHandler?.RemoveAction(Convert.ToInt32(argument));
+                    _context.graphicsHandler.RemoveAction(Convert.ToInt32(argument));
                 }
 
                 break;
@@ -1276,7 +1295,7 @@ internal sealed class Evaluator {
                     text.members[textFields[7]] = evaluatedArguments[7];
 
                     text.members[HiddenTextData] = new EvaluatorObject(
-                        _context.graphicsHandler?.LoadText(path, fontSize),
+                        _context.graphicsHandler.LoadText(path, fontSize),
                         null
                     );
 
@@ -1301,18 +1320,18 @@ internal sealed class Evaluator {
                         throw new BelteEvaluatorException("Cannot draw text: invalid text object", location);
 
                     if (_context.options.isScript) {
-                        result = _context.graphicsHandler?.AddAction(
-                            () => { _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b); }
+                        result = _context.graphicsHandler.AddAction(
+                            () => { _context.graphicsHandler.DrawText(spriteFont, text, posX, posY, r, g, b); }
                         );
                     } else {
-                        _context.graphicsHandler?.DrawText(spriteFont, text, posX, posY, r, g, b);
+                        _context.graphicsHandler.DrawText(spriteFont, text, posX, posY, r, g, b);
                     }
                 }
 
                 break;
             case "Graphics_GetKey_S": {
                     var argument = (string)Value(EvaluateExpression(arguments[0], abort));
-                    result = _context.graphicsHandler?.GetKey(argument);
+                    result = _context.graphicsHandler.GetKey(argument);
                 }
 
                 break;
@@ -1329,11 +1348,11 @@ internal sealed class Evaluator {
                     var b = evaluatedArguments[3].value;
 
                     if (_context.options.isScript) {
-                        result = _context.graphicsHandler?.AddAction(
-                            () => { _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b); }
+                        result = _context.graphicsHandler.AddAction(
+                            () => { _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b); }
                         );
                     } else {
-                        _context.graphicsHandler?.DrawRect(x, y, w, h, r, g, b);
+                        _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b);
                     }
                 }
 
@@ -1346,11 +1365,36 @@ internal sealed class Evaluator {
                     var b = evaluatedArguments[2].value;
 
                     if (_context.options.isScript) {
-                        result = _context.graphicsHandler?.AddAction(
-                            () => { _context.graphicsHandler?.Fill(r, g, b); }
+                        result = _context.graphicsHandler.AddAction(
+                            () => { _context.graphicsHandler.Fill(r, g, b); }
                         );
                     } else {
-                        _context.graphicsHandler?.Fill(r, g, b);
+                        _context.graphicsHandler.Fill(r, g, b);
+                    }
+                }
+
+                break;
+            case "Graphics_Draw_T?R?R?I?B?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var texture = Dereference(evaluatedArguments[0]);
+
+                    if (Slot(texture, 2).value is not Texture2D texture2D)
+                        throw new BelteEvaluatorException("Cannot draw: null texture", location);
+
+                    var srcRect = Dereference(evaluatedArguments[1]);
+                    var dstRect = Dereference(evaluatedArguments[2]);
+                    var rotation = evaluatedArguments[3].value;
+                    var flip = evaluatedArguments[4].value;
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler.AddAction(
+                            () => {
+                                _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip);
+                            }
+                        );
+                    } else {
+                        _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip);
+                        result = null;
                     }
                 }
 
@@ -1360,15 +1404,6 @@ internal sealed class Evaluator {
         }
 
         return true;
-
-        (int x, int y, int w, int h) ExtractRectangleComponents(EvaluatorObject evaluatorObject) {
-            return (
-                Convert.ToInt32(Slot(evaluatorObject, 0).value),
-                Convert.ToInt32(Slot(evaluatorObject, 1).value),
-                Convert.ToInt32(Slot(evaluatorObject, 2).value),
-                Convert.ToInt32(Slot(evaluatorObject, 3).value)
-            );
-        }
 
         void DrawSprite(EvaluatorObject sprite, EvaluatorObject offsetVec, out object result) {
             var (sx, sy, sw, sh) = ExtractRectangleComponents(Slot(sprite, 2));
@@ -1384,13 +1419,13 @@ internal sealed class Evaluator {
             }
 
             if (_context.options.isScript) {
-                result = _context.graphicsHandler?.AddAction(
+                result = _context.graphicsHandler.AddAction(
                     () => {
-                        _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
+                        _context.graphicsHandler.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
                     }
                 );
             } else {
-                _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
+                _context.graphicsHandler.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
                 result = null;
             }
         }
@@ -1420,10 +1455,19 @@ internal sealed class Evaluator {
 
             return texture;
         }
+    }
 
-        EvaluatorObject Slot(EvaluatorObject evaluatorObject, int slot) {
-            return evaluatorObject.members.Values.ElementAt(slot);
-        }
+    internal static (int x, int y, int w, int h) ExtractRectangleComponents(EvaluatorObject evaluatorObject) {
+        return (
+            Convert.ToInt32(Slot(evaluatorObject, 0).value),
+            Convert.ToInt32(Slot(evaluatorObject, 1).value),
+            Convert.ToInt32(Slot(evaluatorObject, 2).value),
+            Convert.ToInt32(Slot(evaluatorObject, 3).value)
+        );
+    }
+
+    private static EvaluatorObject Slot(EvaluatorObject evaluatorObject, int slot) {
+        return evaluatorObject.members.Values.ElementAt(slot);
     }
 
     private void StartGraphics(string title, int width, int height, bool usePointClamp, ValueWrapper<bool> abort) {

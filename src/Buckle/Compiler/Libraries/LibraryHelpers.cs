@@ -46,6 +46,7 @@ public static class LibraryHelpers {
                 libraryName != "Compiler.Text.blt" &&
                 libraryName != "Compiler.Rect.blt" &&
                 libraryName != "Compiler.Texture.blt" &&
+                libraryName != "Compiler.FRect.blt" &&
                 libraryName != "Compiler.Sprite.blt") {
                 continue;
             }

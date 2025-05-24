@@ -1,4 +1,37 @@
 
 class Animation {
+    int length;
+    Textures[] textures;
+    int duration;
+    bool loop;
+    bool done;
+    int frame;
 
+    public constructor(Textures[] textures, int duration = 5, bool loop = true) {
+        length = LowLevel.Length(textures);
+        this.textures = textures;
+        this.duration = duration;
+        this.loop = loop;
+        done = false;
+        frame = 0;
+    }
+
+    public Animation Copy() {
+        return new Animation(textures, duration, loop);
+    }
+
+    public void Update(decimal! deltaTime) {
+        if (loop) {
+            frame = (frame + 1) % (duration * length);
+        } else {
+            frame = Math.Min(frame + 1, duration * length);
+
+            if (frame >= duration * length - 1)
+                done = true;
+        }
+    }
+
+    public Texture GetTexture() {
+        return textures[frame / duration];
+    }
 }

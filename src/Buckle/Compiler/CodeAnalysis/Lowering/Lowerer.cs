@@ -386,6 +386,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (operandType?.Equals(type) ?? false)
             return Visit(operand);
 
+        if (expression.conversion.underlyingConversions == default)
+            return base.VisitCastExpression(expression);
+
         if (operandType.IsNullableType() && type.IsNullableType()) {
             return VisitConditionalOperator(
                 Conditional(syntax,
