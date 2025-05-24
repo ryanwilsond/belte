@@ -29,9 +29,10 @@ internal static class GraphicsLibrary {
             StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", SpecialType.Sprite, true)]),
             StaticMethod("LoadText", SpecialType.Text, true, [("text", SpecialType.String, true), ("fontPath", SpecialType.String, false), ("position", SpecialType.Vec2, true), ("fontSize", SpecialType.Decimal, false), ("angle", SpecialType.Decimal, true), ("r", SpecialType.Int, true), ("g", SpecialType.Int, true), ("b", SpecialType.Int, true)]),
             StaticMethod("DrawText", SpecialType.Int, true, [("sprite", SpecialType.Text, true)]),
-            StaticMethod("DrawRect", SpecialType.Int, true, [("rect", SpecialType.Rect, true)]),
+            StaticMethod("DrawRect", SpecialType.Int, true, [("rect", SpecialType.Rect, true), ("r", SpecialType.Int, true), ("g", SpecialType.Int, true), ("b", SpecialType.Int, true)]),
             StaticMethod("StopDraw", SpecialType.Void, [("id", SpecialType.Int, true)]),
             StaticMethod("GetKey", SpecialType.Bool, [("key", SpecialType.String)]),
+            StaticMethod("Fill", SpecialType.Void, [("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int)]),
         ]);
     }
 }

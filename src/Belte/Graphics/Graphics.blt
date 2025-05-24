@@ -12,9 +12,11 @@ public static class Graphics {
 
     public static int DrawText(Text text);
 
-    public static int DrawRect(Rect rect);
+    public static int DrawRect(Rect rect, int r, int g, int b);
 
     public static void StopDraw(int id);
 
     public static bool! GetKey(string! key);
+
+    public static void Fill(int! r, int! g, int! b);
 }

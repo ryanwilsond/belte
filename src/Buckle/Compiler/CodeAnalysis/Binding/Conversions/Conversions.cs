@@ -18,6 +18,12 @@ internal sealed class Conversions {
             if (arrayType.isSZArray) {
                 elementType = arrayType.elementTypeWithAnnotations;
                 return ListExpressionTypeKind.Array;
+            } else {
+                elementType = new TypeWithAnnotations(
+                    ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1)
+                );
+
+                return ListExpressionTypeKind.Array;
             }
         }
 

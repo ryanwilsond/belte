@@ -79,15 +79,18 @@ class Program {
     // `Update` is a special method that the program runs every frame after `Main` finishes
     public void Update(decimal! deltaTime) {
         // Console.PrintLine("FPS: " + (string)(1 / deltaTime));
+
+        Graphics.Fill(0, 0, 0);
+
         if (Graphics.GetKey("W")) {
             var newY = lPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
-            newY = Math.Clamp(newY, 0 + lPaddle.scale.y / 2, Settings.ScreenHeight - lPaddle.scale.y / 2);
+            newY = Math.Clamp(newY, 0 + lPaddle.dst.h / 2, Settings.ScreenHeight - lPaddle.dst.h / 2);
             lPaddleTargetPosition.y = newY;
         }
 
         if (Graphics.GetKey("S")) {
             var newY = lPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
-            newY = Math.Clamp(newY, 0 + lPaddle.scale.y / 2, Settings.ScreenHeight - lPaddle.scale.y / 2);
+            newY = Math.Clamp(newY, 0 + lPaddle.dst.h / 2, Settings.ScreenHeight - lPaddle.dst.h / 2);
             lPaddleTargetPosition.y = newY;
         }
 
@@ -95,30 +98,30 @@ class Program {
         var stopSpeedl = Settings.LerpSpeed * deltaTime;
         var newYl = lPaddleTargetPosition.y;
         var lerpedYl = Math.Lerp(oldYl, newYl, stopSpeedl);
-        lPaddle.position = new Vec2(lPaddle.position.x, lerpedYl);
+        lPaddle.SetPosition(lPaddle.position.x, lerpedYl);
 
         if (aiOn) {
             if (rPaddle.position.y < ball.position.y) {
                 var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
-                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
                 rPaddleTargetPosition.y = newY;
             }
 
             if (rPaddle.position.y > ball.position.y) {
                 var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
-                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
                 rPaddleTargetPosition.y = newY;
             }
         } else {
             if (Graphics.GetKey("Up")) {
                 var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
-                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
                 rPaddleTargetPosition.y = newY;
             }
 
             if (Graphics.GetKey("Down")) {
                 var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
-                newY = Math.Clamp(newY, 0 + rPaddle.scale.y / 2, Settings.ScreenHeight - rPaddle.scale.y / 2);
+                newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
                 rPaddleTargetPosition.y = newY;
             }
         }
@@ -127,7 +130,7 @@ class Program {
         var stopSpeedr = Settings.LerpSpeed * deltaTime;
         var newYr = rPaddleTargetPosition.y;
         var lerpedYr = Math.Lerp(oldYr, newYr, stopSpeedr);
-        rPaddle.position = new Vec2(rPaddle.position.x, lerpedYr);
+        rPaddle.SetPosition(rPaddle.position.x, lerpedYr);
 
         // Checking previous state of Enter key to detect the edge
         // (toggles once per key press instead of constantly)
@@ -137,8 +140,7 @@ class Program {
         var scaledVelocity = ballVelocity;
         scaledVelocity.x *= deltaTime;
         scaledVelocity.y *= deltaTime;
-        ball.position.x += scaledVelocity.x;
-        ball.position.y += scaledVelocity.y;
+        ball.SetPosition(ball.position.x + scaledVelocity.x, ball.position.y + scaledVelocity.y);
 
         Graphics.DrawSprite(ball);
         Graphics.DrawSprite(lPaddle);
@@ -156,7 +158,7 @@ class Program {
     private void HandleBallBounce() {
         var ballX = ball.position.x;
         var ballY = ball.position.y;
-        var scaleY = ball.scale.y;
+        var scaleY = ball.dst.h;
 
         var topEdge = ballY - scaleY / 2;
         var bottomEdge = ballY + scaleY / 2;
@@ -171,29 +173,29 @@ class Program {
 
         if (ballX < 0) {
             var ballPos = centerOfScreen;
-            ballPos.x -= ball.scale.x;
-            ballPos.y -= ball.scale.y;
+            ballPos.x -= ball.dst.w;
+            ballPos.y -= ball.dst.h;
             ballPos.x -= Settings.ScreenWidth / 3;
-            ball.position = ballPos;
+            ball.SetPosition(ballPos.x, ballPos.y);
             ballVelocity = new Vec2(Settings.BallSpeed, 0);
             scoreTwo.text = (string!)(((int)scoreTwo.text) + 1);
         }
 
         if (ballX > Settings.ScreenWidth) {
             var ballPos = centerOfScreen;
-            ballPos.x -= ball.scale.x;
-            ballPos.y -= ball.scale.y;
+            ballPos.x -= ball.dst.w;
+            ballPos.y -= ball.dst.h;
             ballPos.x += Settings.ScreenWidth / 3;
-            ball.position = ballPos;
+            ball.SetPosition(ballPos.x, ballPos.y);
             ballVelocity = new Vec2(-Settings.BallSpeed, 0);
             scoreOne.text = (string!)(((int)scoreOne.text) + 1);
         }
 
-        var collidingL = Colliding(ball, lPaddle);
+        var collidingL = Colliding(ball.dst, lPaddle.dst);
 
         if (collidingL) {
             var difference = lPaddle.position.y - ballY;
-            var paddleHeight = lPaddle.scale.y;
+            var paddleHeight = lPaddle.dst.h;
             var normRelIntersectY = difference / (paddleHeight / 2);
             var bounceAngle = normRelIntersectY * 0.523599;
             var ballVx = Settings.BallSpeed * Math.Cos(bounceAngle);
@@ -201,11 +203,11 @@ class Program {
             ballVelocity = new Vec2(ballVx, ballVy);
         }
 
-        var collidingR = Colliding(ball, rPaddle);
+        var collidingR = Colliding(ball.dst, rPaddle.dst);
 
         if (collidingR) {
             var difference = rPaddle.position.y - ballY;
-            var paddleHeight = rPaddle.scale.y;
+            var paddleHeight = rPaddle.dst.h;
             var normRelIntersectY = difference / (paddleHeight / 2);
             var bounceAngle = normRelIntersectY * -0.523599;
             var ballVx = Settings.BallSpeed * Math.Cos(bounceAngle) * -1;
@@ -214,13 +216,9 @@ class Program {
         }
     }
 
-    private static bool! Colliding(Sprite a, Sprite b) {
-        var collisionX = a.position.x + a.scale.x / 2 >= b.position.x - b.scale.x / 2 &&
-		b.position.x + b.scale.x / 2 >= a.position.x - a.scale.x;
-
-        var collisionY = a.position.y + a.scale.y / 2 >= b.position.y - b.scale.y / 2 &&
-            b.position.y + b.scale.y / 2 >= a.position.y - a.scale.y / 2;
-
+    private static bool! Colliding(Rect a, Rect b) {
+        var collisionX = a.x + a.w >= b.x && b.x + b.w >= a.x;
+        var collisionY = a.y + a.h >= b.y && b.y + b.h >= a.y;
         return collisionX && collisionY;
     }
 }

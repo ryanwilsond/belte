@@ -2230,6 +2230,9 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
         var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+        var elementType = arrayType.isSZArray
+            ? arrayType.elementType
+            : ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1);
 
         if (analyzedArguments.arguments.Count != 1) {
             diagnostics.Push(Error.BadIndexCount(node.location));
@@ -2240,7 +2243,7 @@ internal partial class Binder {
                 expression,
                 errorArguments.FirstOrDefault(),
                 null,
-                arrayType.elementType,
+                elementType,
                 true
             );
         }
@@ -2258,10 +2261,9 @@ internal partial class Binder {
 
         var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
         var hasErrors = false;
-        var type = arrayType.elementType;
 
-        var constantValue = ConstantFolding.FoldIndex(expression, boundConversion, type);
-        return new BoundArrayAccessExpression(node, expression, boundConversion, constantValue, type, hasErrors);
+        var constantValue = ConstantFolding.FoldIndex(expression, boundConversion, elementType);
+        return new BoundArrayAccessExpression(node, expression, boundConversion, constantValue, elementType, hasErrors);
     }
 
     private BoundUnconvertedInitializerList BindInitializerListExpression(

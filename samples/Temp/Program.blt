@@ -6,6 +6,13 @@ static class Program {
         var magicNumber = StartGame(max);
         var hintsWanted = AskForHints();
         var guesses = RunGame(magicNumber, max, hintsWanted);
+
+        // if (guesses < 0)
+        //     Console.PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
+        // else
+        //     Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
+
+        Console.PrintLine("Bye.");
     }
 
     private static int StartGame(int max) {

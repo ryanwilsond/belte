@@ -50,7 +50,7 @@ class Program {
         gameOverLine3 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position3, 50, 0, 255, 100, 100);
         gameOverLine4 = Graphics.LoadText("Press 'ENTER' to restart", "samples/Assets/arial.ttf", position4, 30, 0, 255, 255, 255);
 
-        banner = new Rect(0, 0, Settings.GameWidth, 80, 100, 100, 100);
+        banner = new Rect(0, 0, Settings.GameWidth, 80);
         Restart();
     }
 
@@ -70,6 +70,8 @@ class Program {
     }
 
     private void Update(decimal! deltaTime) {
+        Graphics.Fill(0, 0, 0);
+
         if (gameOver) {
             Graphics.DrawText(gameOverLine1);
             Graphics.DrawText(gameOverLine2);
@@ -98,7 +100,7 @@ class Program {
             UpdateSnake();
         }
 
-        Graphics.DrawRect(banner);
+        Graphics.DrawRect(banner, 100, 100, 100);
         Graphics.DrawText(score);
         Graphics.DrawText(scoreText);
         Graphics.DrawText(highScore);

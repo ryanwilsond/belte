@@ -27,6 +27,7 @@ internal sealed class Evaluator {
     private readonly Stack<Dictionary<Symbol, EvaluatorObject>> _locals;
     private readonly Stack<EvaluatorObject> _enclosingTypes;
 
+    private EvaluatorObject _programObject;
     private EvaluatorObject _lastValue;
     private bool _hasValue;
     private MethodSymbol _lazyToString;
@@ -97,17 +98,16 @@ internal sealed class Evaluator {
         var programType = entryPoint.containingType;
 
         if (programType.isStatic) {
-            EnterClassScope(new EvaluatorObject([], entryPoint.containingType));
+            _programObject = new EvaluatorObject([], entryPoint.containingType);
         } else {
-            var programObject = CreateObject(programType);
-            EnterClassScope(programObject);
+            _programObject = CreateObject(programType);
             var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
-                InvokeMethod(constructor, [], abort);
+                InvokeMethodWithResolvedReceiver(constructor, [], _programObject, abort);
         }
 
-        var result = EvaluateStatement(entryPointBody, abort, out _);
+        var result = InvokeMethodWithResolvedReceiver(entryPoint, [], _programObject, abort);
 
         // Wait until Main finishes before the first call of Update
         if (_context.maintainThread) {
@@ -387,7 +387,7 @@ internal sealed class Evaluator {
                         if (returnStatement.expression is not null) {
                             _lastValue = Copy(EvaluateExpression(returnStatement.expression, abort));
                             _hasValue = true;
-                        } else if (_lastValue is not null) {
+                        } else if (_lastValue is not null && _context.options.isScript) {
                             _hasValue = true;
                         } else {
                             _hasValue = false;
@@ -589,16 +589,37 @@ internal sealed class Evaluator {
         return InvokeMethod(expression.method, expression.arguments, expression.receiver, abort);
     }
 
-    private EvaluatorObject InvokeMethod(
-        MethodSymbol method,
-        ImmutableArray<BoundExpression> arguments,
-        ValueWrapper<bool> abort) {
-        return InvokeMethodWithResolvedReceiver(method, arguments, null, abort);
+    private void ResolveMethodArguments(MethodSymbol method, EvaluatorObject[] arguments) {
+        var locals = new Dictionary<Symbol, EvaluatorObject>();
+
+        // if (method.callingConvention == CallingConvention.Template) ;
+        // AddTemplatesToLocals(method.templateParameters, method.templateArguments, locals, abort);
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var parameter = method.parameters[i];
+            var value = arguments[i];
+
+            while (parameter.refKind != RefKind.None && value.isReference)
+                value = Get(value.reference);
+
+            locals.Add(parameter, Copy(value));
+        }
+
+        _locals.Push(locals);
     }
 
     private EvaluatorObject InvokeMethodWithResolvedReceiver(
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
+        EvaluatorObject receiver,
+        ValueWrapper<bool> abort) {
+        var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+        return InvokeResolvedMethod(method, evaluatedArguments, receiver, abort);
+    }
+
+    private EvaluatorObject InvokeResolvedMethod(
+        MethodSymbol method,
+        EvaluatorObject[] arguments,
         EvaluatorObject receiver,
         ValueWrapper<bool> abort) {
         if (method.isAbstract || method.isVirtual) {
@@ -612,23 +633,6 @@ internal sealed class Evaluator {
             if (newMethod is not null)
                 method = newMethod;
         }
-
-        var locals = new Dictionary<Symbol, EvaluatorObject>();
-
-        if (method.callingConvention == CallingConvention.Template) ;
-        // AddTemplatesToLocals(method.templateParameters, method.templateArguments, locals, abort);
-
-        for (var i = 0; i < arguments.Length; i++) {
-            var parameter = method.parameters[i];
-            var value = EvaluateExpression(arguments[i], abort);
-
-            while (parameter.refKind != RefKind.None && value.isReference)
-                value = Get(value.reference);
-
-            locals.Add(parameter, Copy(value));
-        }
-
-        _locals.Push(locals);
 
         _program.TryGetMethodBodyIncludingParents(method, out var statement);
         // var templateConstantDepth = _templateConstantDepth;
@@ -647,6 +651,8 @@ internal sealed class Evaluator {
                 enteredScope = true;
             }
         }
+
+        ResolveMethodArguments(method, arguments);
 
         var result = EvaluateStatement(statement, abort, out _);
 
@@ -1148,11 +1154,18 @@ internal sealed class Evaluator {
 
                     var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
                     var sprite = CreateObject(spriteType);
-                    var spriteFields = spriteType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-                    sprite.members[spriteFields[0]] = evaluatedArguments[1];
-                    sprite.members[spriteFields[1]] = evaluatedArguments[2];
-                    sprite.members[spriteFields[2]] = evaluatedArguments[3];
-                    sprite.members[spriteFields[3]] = LoadTexture(path);
+
+                    InvokeResolvedMethod(
+                        spriteType.constructors[0],
+                        [
+                            LoadTexture(path),
+                            evaluatedArguments[1],
+                            evaluatedArguments[2],
+                            evaluatedArguments[3]
+                        ],
+                        sprite,
+                        abort
+                    );
 
                     result = sprite;
                 }
@@ -1164,23 +1177,21 @@ internal sealed class Evaluator {
                     if (argument.members is null)
                         return true;
 
-                    var posX = Slot(Slot(argument, 0), 0).value;
-                    var posY = Slot(Slot(argument, 0), 1).value;
-                    var scaleX = Slot(Slot(argument, 1), 0).value;
-                    var scaleY = Slot(Slot(argument, 1), 1).value;
-                    var rotation = Slot(argument, 2).value;
+                    var (sx, sy, sw, sh) = ExtractRectangleComponents(Slot(argument, 2));
+                    var (dx, dy, dw, dh) = ExtractRectangleComponents(Slot(argument, 3));
+                    var rotation = Slot(argument, 1).value;
 
-                    if (Slot(Slot(argument, 3), 0).value is not Texture2D texture)
+                    if (Slot(Slot(argument, 4), 2).value is not Texture2D texture)
                         throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture");
 
                     if (_context.options.isScript) {
                         result = _context.graphicsHandler?.AddAction(
                             () => {
-                                _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
+                                _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
                             }
                         );
                     } else {
-                        _context.graphicsHandler?.DrawSprite(texture, posX, posY, scaleX, scaleY, rotation);
+                        _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
                     }
                 }
 
@@ -1258,19 +1269,17 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_DrawRect_R?": {
-                    var argument = Dereference(EvaluateExpression(arguments[0], abort));
+            case "Graphics_DrawRect_R?I?I?I?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var rect = Dereference(evaluatedArguments[0]);
 
-                    if (argument.members is null)
+                    if (rect.members is null)
                         return true;
 
-                    var x = Convert.ToInt32(Slot(argument, 0).value);
-                    var y = Convert.ToInt32(Slot(argument, 1).value);
-                    var w = Convert.ToInt32(Slot(argument, 2).value);
-                    var h = Convert.ToInt32(Slot(argument, 3).value);
-                    var r = Slot(argument, 4).value;
-                    var g = Slot(argument, 5).value;
-                    var b = Slot(argument, 6).value;
+                    var (x, y, w, h) = ExtractRectangleComponents(rect);
+                    var r = evaluatedArguments[1].value;
+                    var g = evaluatedArguments[2].value;
+                    var b = evaluatedArguments[3].value;
 
                     if (_context.options.isScript) {
                         result = _context.graphicsHandler?.AddAction(
@@ -1282,17 +1291,43 @@ internal sealed class Evaluator {
                 }
 
                 break;
+            case "Graphics_Fill_III": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+
+                    var r = evaluatedArguments[0].value;
+                    var g = evaluatedArguments[1].value;
+                    var b = evaluatedArguments[2].value;
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler?.AddAction(
+                            () => { _context.graphicsHandler?.Fill(r, g, b); }
+                        );
+                    } else {
+                        _context.graphicsHandler?.Fill(r, g, b);
+                    }
+                }
+
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(mapKey);
         }
 
         return true;
 
+        (int x, int y, int w, int h) ExtractRectangleComponents(EvaluatorObject evaluatorObject) {
+            return (
+                Convert.ToInt32(Slot(evaluatorObject, 0).value),
+                Convert.ToInt32(Slot(evaluatorObject, 1).value),
+                Convert.ToInt32(Slot(evaluatorObject, 2).value),
+                Convert.ToInt32(Slot(evaluatorObject, 3).value)
+            );
+        }
+
         EvaluatorObject LoadTexture(string path) {
             var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
             var texture = CreateObject(textureType);
             var textureFields = textureType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-            var texture2D = _context.graphicsHandler?.LoadSprite(path);
+            var texture2D = _context.graphicsHandler?.LoadTexture(path);
 
             texture.members[textureFields[0]] = new EvaluatorObject(
                 Convert.ToInt64(texture2D.Width),
@@ -1354,15 +1389,11 @@ internal sealed class Evaluator {
         if (_program.updatePoint is null)
             return;
 
-        // It's easier to just convert deltaTime into a bound node to take advantage of InvokeMethod
-        // TODO Consider refactoring to not require backtracking to a bound node only to be evaluated immediately
-        var argument = new BoundLiteralExpression(
-            null,
-            new ConstantValue(deltaTime),
-            CorLibrary.GetSpecialType(SpecialType.Decimal)
-        );
+        var argument = new EvaluatorObject(deltaTime, CorLibrary.GetSpecialType(SpecialType.Decimal));
+        InvokeResolvedMethod(_program.updatePoint, [argument], _programObject, abort);
 
-        InvokeMethod(_program.updatePoint, [argument], abort);
+        if (exceptions.Count > 0)
+            abort.Value = true;
     }
 
     #endregion

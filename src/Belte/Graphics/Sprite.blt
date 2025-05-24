@@ -1,38 +1,55 @@
 
 public class Sprite {
-    private Vec2 position;
-
+    public Vec2 position;
     public int rotation;
-    public Rect source;
-    public Rect destination;
+    public Rect src;
+    public Rect dst;
     public Texture texture;
 
     public constructor(Texture texture, Vec2 position, Vec2 scale, int rotation) {
-        destination = new Rect(
-            position.x - scale.x / 2,
-            position.y - scale.y / 2,
-            scale.x,
-            scale.y
-        );
-
         this.position = position;
         this.rotation = rotation;
         this.texture = texture;
+
+        var width = scale?.x ?? texture.width;
+        var height = scale?.y ?? texture.height;
+
+        src = new Rect(0, 0, texture.width, texture.height);
+
+        dst = new Rect(
+            (int!)(position.x - width / 2),
+            (int!)(position.y - height / 2),
+            (int!)width,
+            (int!)height
+        );
+    }
+
+    public constructor(Texture texture, Rect src, Rect dst, int rotation) {
+        this.src = src ?? new Rect(0, 0, texture.width, texture.height);
+        this.dst = dst;
+        this.rotation = rotation;
+        this.texture = texture;
+
+        position = new Vec2(dst.x + dst.w / 2, dst.y + dst.h / 2);
     }
 
     public void SetPosition(int x, int y) {
-        destination.x = x - destination.w / 2;
-        destination.y = y - destination.h / 2;
+        dst.x = x! - dst.w / 2;
+        dst.y = y! - dst.h / 2;
+        position.x = x;
+        position.y = y;
+    }
+
+    public void SetPosition(decimal x, decimal y) {
+        dst.x = (int!)(x! - dst.w / 2);
+        dst.y = (int!)(y! - dst.h / 2);
+        position.x = x;
+        position.y = y;
     }
 
     public Vec2 GetPosition() {
+        position.x = dst.x + dst.w / 2;
+        position.y = dst.y + dst.h / 2;
         return position;
-    }
-
-    public constructor(Texture texture, Rect source, Rect destination, int rotation) {
-        this.source = source;
-        this.destination = destination;
-        this.rotation = rotation;
-        this.texture = texture;
     }
 }

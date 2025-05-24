@@ -4,19 +4,6 @@ public class Rect {
     public int! y;
     public int! w;
     public int! h;
-    public int r;
-    public int g;
-    public int b;
-
-    public constructor(int! x, int! y, int! w, int! h, int r, int g, int b) {
-        this.x = x;
-        this.y = y;
-        this.w = w;
-        this.h = h;
-        this.r = r;
-        this.g = g;
-        this.b = b;
-    }
 
     public constructor(int! x, int! y, int! w, int! h) {
         this.x = x;

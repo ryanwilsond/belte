@@ -41,7 +41,7 @@ internal partial class GraphicsHandler : Game {
         _updateHandler = updateHandler;
     }
 
-    internal Texture2D LoadSprite(string path) {
+    internal Texture2D LoadTexture(string path) {
         using var stream = File.OpenRead(path);
         return Texture2D.FromStream(GraphicsDevice, stream);
     }
@@ -70,28 +70,17 @@ internal partial class GraphicsHandler : Game {
 
     internal void DrawSprite(
         Texture2D texture,
-        object posX,
-        object posY,
-        object scaleX,
-        object scaleY,
+        int sx, int sy, int sw, int sh,
+        int dx, int dy, int dw, int dh,
         object rotation) {
-        var posXi = posX is null ? 0 : Convert.ToInt32(posX);
-        var posYi = posY is null ? 0 : Convert.ToInt32(posY);
-        var scaleXi = scaleX is null ? texture.Width : Convert.ToInt32(scaleX);
-        var scaleXy = scaleY is null ? texture.Height : Convert.ToInt32(scaleY);
+        var sourceRectangle = new Rectangle(sx, sy, sw, sh);
+        var destinationRectangle = new Rectangle(dx, dy, dw, dh);
         var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
-
-        var destinationRectangle = new Rectangle(
-            posXi - scaleXi / 2,
-            posYi - scaleXy / 2,
-            scaleXi,
-            scaleXy
-        );
 
         _spriteBatch.Draw(
             texture,
             destinationRectangle,
-            null,
+            sourceRectangle,
             Color.White,
             rotF,
             Vector2.Zero,
@@ -127,6 +116,11 @@ internal partial class GraphicsHandler : Game {
         _spriteBatch.Draw(pixel, rectangle, color);
     }
 
+    internal void Fill(object r, object g, object b) {
+        var color = GetColor(r, g, b);
+        GraphicsDevice.Clear(color);
+    }
+
     private Color GetColor(object r, object g, object b) {
         var ri = r is null ? 255 : Convert.ToInt32(r);
         var gi = g is null ? 255 : Convert.ToInt32(g);
@@ -160,8 +154,6 @@ internal partial class GraphicsHandler : Game {
     }
 
     protected override void Draw(GameTime gameTime) {
-        GraphicsDevice.Clear(Color.Black);
-
         KeyboardManager.Update();
 
         _spriteBatch.Begin();

@@ -130,6 +130,9 @@ public static class SymbolDisplay {
                 case TypeKind.Primitive:
                     text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
                     break;
+                case TypeKind.Error:
+                    text.Write(CreateKeyword("?"));
+                    break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(namedType.typeKind);
             }

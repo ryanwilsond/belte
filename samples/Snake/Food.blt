@@ -15,7 +15,7 @@ class Food {
         x = 4;
         y = 4;
 
-        sprite.position = new Vec2(
+        sprite.SetPosition(
             x * Settings.SpaceSize + Settings.SpaceSize / 2 + 5,
             y * Settings.SpaceSize + Settings.SpaceSize / 2 + 85
         );
@@ -27,7 +27,7 @@ class Food {
             y = Random.RandInt(Settings.GameHeight / Settings.SpaceSize - 1);
         } while (InSnake(snake, x, y));
 
-        sprite.position = new Vec2(
+        sprite.SetPosition(
             x * Settings.SpaceSize + Settings.SpaceSize / 2 + 5,
             y * Settings.SpaceSize + Settings.SpaceSize / 2 + 85
         );

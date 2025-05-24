@@ -200,7 +200,7 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         _operatorDepth++;
 
-        if (_operatorDepth > 1) {
+        if (_operatorDepth > 1 && (expression.type.IsNullableType() || expression.operand.type.IsNullableType())) {
             var syntax = expression.syntax;
             var statements = ExpandExpression(expression.operand, out var newOperand);
             var tempLocal = GenerateTempLocal(expression.type);

@@ -1,15 +1,70 @@
 
 class Program {
-    Sprite grass;
+    Sprite cloud;
+    Rect collision;
 
     public void Main() {
-        Graphics.Initialize("Platformer", 1280, 720);
+        Graphics.Initialize("Platformer", 1920, 1080);
 
-        var grassTexture = Graphics.LoadTexture("samples/Assets/grass.jpg");
-        grass = new Sprite(grassTexture, new Vec2(500, 500), new Vec2(100, 100), 0);
+        cloud = Graphics.LoadSprite("samples/Platformer/data/images/clouds/cloud_1.png", new Vec2(100, 100), null, 0);
+        collision = new Rect(50, 50, 300, 50);
+
+        // var grassTexture = Graphics.LoadTexture("samples/Assets/grass.jpg");
+        // var playerSheet = Graphics.LoadTexture("samples/Assets/player_sheet.png");
+
+        // for (int! y = 0; y < 7; y++) {
+        //     for (int! x = 0; x < 12; x++) {
+        //         if (levelMap[y][x] == 1)
+        //             level[y][x] = new Sprite(grassTexture, null, new Rect(x * 128, y * 128, 128, 128), 0);
+        //         else
+        //             level[y][x] = null;
+        //     }
+        // }
+
+        // player = new Sprite(playerSheet, new Rect(0, 0, 32, 32), new Rect(1920 / 2, 1080 - 256, 128, 128), 0);
     }
 
     public void Update(decimal! deltaTime) {
-        Graphics.DrawSprite(grass);
+        Graphics.Fill(14, 219, 248);
+
+        if (Graphics.GetKey("W"))
+            cloud.SetPosition(cloud.position.x, cloud.position.y - 100 * deltaTime);
+
+        if (Graphics.GetKey("S"))
+            cloud.SetPosition(cloud.position.x, cloud.position.y + 100 * deltaTime);
+
+        if (Colliding(cloud.dst, collision))
+            Graphics.DrawRect(collision, 0, 100, 255);
+        else
+            Graphics.DrawRect(collision, 0, 50, 255);
+
+        Graphics.DrawSprite(cloud);
+
+
+        // for (var y = 0; y < 7; y++)
+        //     for (var x = 0; x < 12; x++)
+        //         Graphics.DrawSprite(level[y][x]);
+
+        // Graphics.DrawSprite(player);
     }
+
+    private static bool! Colliding(Rect a, Rect b) {
+        var collisionX = a.x + a.w >= b.x && b.x + b.w >= a.x;
+        var collisionY = a.y + a.h >= b.y && b.y + b.h >= a.y;
+        return collisionX && collisionY;
+    }
+
+
+
+    // int[][] levelMap = {
+    //     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    //     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    //     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    //     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    //     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    //     { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+    //     { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }
+    // };
+
+    // Sprite[][] level = new Sprite[7][12];
 }
