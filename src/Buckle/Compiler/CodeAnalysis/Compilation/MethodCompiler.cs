@@ -47,7 +47,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var globalNamespace = compilation.globalNamespaceInternal;
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
         var entryPoint = GetEntryPoint(compilation, diagnostics);
-        var updatePoint = GetUpdatePoint(compilation, diagnostics);
+        var updatePoint = GetUpdatePoint(compilation, entryPoint, diagnostics);
 
         if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
             diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
@@ -70,8 +70,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         return compilation.GetEntryPoint(diagnostics);
     }
 
-    private static MethodSymbol GetUpdatePoint(Compilation compilation, BelteDiagnosticQueue diagnostics) {
-        return compilation.GetUpdatePoint(diagnostics);
+    private static MethodSymbol GetUpdatePoint(
+        Compilation compilation,
+        MethodSymbol entryPoint,
+        BelteDiagnosticQueue diagnostics) {
+        return compilation.GetUpdatePoint(entryPoint, diagnostics);
     }
 
     private BoundProgram CreateBoundProgram() {

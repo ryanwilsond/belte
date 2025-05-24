@@ -1588,9 +1588,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FieldsCannotBeImplicitlyTyped, location, message);
     }
 
-    internal static BelteDiagnostic NonConstantArraySize(TextLocation location) {
-        var message = "array sizes must be compile-time constant integers";
-        return CreateError(DiagnosticCode.ERR_NonConstantArraySize, location, message);
+    internal static BelteDiagnostic NonIntArraySize(TextLocation location) {
+        var message = "array sizes must be of type 'int!'";
+        return CreateError(DiagnosticCode.ERR_NonIntArraySize, location, message);
     }
 
     internal static BelteDiagnostic BadArity(TextLocation location, TypeSymbol type, string text, int arity)

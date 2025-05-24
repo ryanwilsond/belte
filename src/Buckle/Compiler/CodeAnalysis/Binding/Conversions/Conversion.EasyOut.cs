@@ -39,6 +39,9 @@ internal readonly partial struct Conversion {
         }
 
         internal static ConversionKind Classify(TypeSymbol source, TypeSymbol target) {
+            if (source is null || target is null)
+                return ConversionKind.None;
+
             var sourceIndex = source.TypeToIndex();
 
             if (sourceIndex < 0)

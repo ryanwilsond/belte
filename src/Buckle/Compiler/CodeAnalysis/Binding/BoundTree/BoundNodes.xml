@@ -65,7 +65,7 @@
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
-    <Field Name="sizes" Type="ImmutableArray&lt;int&gt;"/>
+    <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="initializer" Type="BoundExpression?"/>
   </Node>
   <Node Name="BoundAsOperator" Base="BoundExpression">

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -171,7 +172,7 @@ internal sealed class Evaluator {
             return Value(value, traceCollections);
         } catch (BelteInternalException) {
             throw new BelteEvaluatorException(
-                $"Reference cannot be deferred (what it was referencing was likely redefined)"
+                $"Reference cannot be deferred (what it was referencing was likely redefined)", null
             );
         }
     }
@@ -314,7 +315,7 @@ internal sealed class Evaluator {
         if (dereferenced.members is null &&
             Value(dereferenced) is null &&
             expression.type.specialType != SpecialType.Type) {
-            throw new NullReferenceException();
+            throw new BelteNullReferenceException(expression.syntax.location);
         }
 
         return value;
@@ -413,17 +414,8 @@ internal sealed class Evaluator {
             lastOutputWasPrint = false;
             _hasValue = false;
 
-            if (!Console.IsOutputRedirected) {
-                // TODO Move this logic to the Repl
-                if (Console.CursorLeft != 0)
-                    Console.WriteLine();
-
-                var previous = Console.ForegroundColor;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write($"Unhandled exception ({e.GetType()}): ");
-                Console.ForegroundColor = previous;
-                Console.WriteLine(e.Message);
-            }
+            if (!_context.options.isScript)
+                abort.Value = true;
 
             return EvaluatorObject.Null;
         }
@@ -521,16 +513,19 @@ internal sealed class Evaluator {
         return array[indexValue];
     }
 
-    private EvaluatorObject EvaluateArrayCreationExpression(BoundArrayCreationExpression node, ValueWrapper<bool> _) {
+    private EvaluatorObject EvaluateArrayCreationExpression(
+        BoundArrayCreationExpression node,
+        ValueWrapper<bool> abort) {
         var array = EvaluatorObject.Null;
         var arrayType = (ArrayTypeSymbol)node.type;
 
         // TODO There is probably a more efficient algorithm for this
         foreach (var size in node.sizes) {
             foreach (var element in IterateElements(array)) {
-                var members = new EvaluatorObject[size];
+                var sizeValue = (long)Value(EvaluateExpression(size, abort));
+                var members = new EvaluatorObject[sizeValue];
 
-                for (var i = 0; i < size; i++) {
+                for (var i = 0; i < sizeValue; i++) {
                     // TODO This will use a default when default expression is added for primitives instead of null
                     members[i] = EvaluatorObject.Null;
                 }
@@ -568,6 +563,7 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCallExpression(BoundCallExpression expression, ValueWrapper<bool> abort) {
         if (CheckStandardMap(
+            expression.syntax.location,
             expression.method,
             expression.receiver,
             expression.arguments,
@@ -682,7 +678,7 @@ internal sealed class Evaluator {
             var dereferencedReceiver = Dereference(receiverObject);
 
             if (dereferencedReceiver.members is null)
-                throw new NullReferenceException();
+                throw new BelteNullReferenceException(receiver.syntax.location);
         }
 
         return InvokeMethodWithResolvedReceiver(method, arguments, receiverObject, abort);
@@ -863,10 +859,21 @@ internal sealed class Evaluator {
 
                 break;
             case BinaryOperatorKind.Division:
-                if (expressionType == SpecialType.Int)
-                    result = (long)leftValue / (long)rightValue;
-                else
-                    result = Convert.ToDouble(leftValue) / Convert.ToDouble(rightValue);
+                if (expressionType == SpecialType.Int) {
+                    var rightLong = (long)rightValue;
+
+                    if (rightLong == 0)
+                        throw new BelteDivideByZeroException(expression.syntax.location);
+
+                    result = (long)leftValue / rightLong;
+                } else {
+                    var rightDouble = Convert.ToDouble(rightValue);
+
+                    if (rightDouble == 0)
+                        throw new BelteDivideByZeroException(expression.syntax.location);
+
+                    result = Convert.ToDouble(leftValue) / rightDouble;
+                }
 
                 break;
             case BinaryOperatorKind.Equal:
@@ -975,6 +982,10 @@ internal sealed class Evaluator {
         BoundFieldAccessExpression expression,
         ValueWrapper<bool> abort) {
         var operand = Dereference(EvaluateExpression(expression.receiver, abort), true);
+
+        if (operand.members is null)
+            throw new BelteNullReferenceException(expression.syntax.location);
+
         return operand.members[expression.field];
     }
 
@@ -988,10 +999,14 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateCastExpression(BoundCastExpression expression, ValueWrapper<bool> abort) {
         var value = EvaluateExpression(expression.operand, abort);
-        return EvaluateCast(value, expression.operand.type, expression.type);
+        return EvaluateCast(expression.syntax.location, value, expression.operand.type, expression.type);
     }
 
-    private EvaluatorObject EvaluateCast(EvaluatorObject value, TypeSymbol source, TypeSymbol target) {
+    private EvaluatorObject EvaluateCast(
+        TextLocation location,
+        EvaluatorObject value,
+        TypeSymbol source,
+        TypeSymbol target) {
         var dereferenced = Dereference(value);
         var strippedTarget = target.StrippedType();
         var strippedSource = source.StrippedType();
@@ -1001,7 +1016,7 @@ internal sealed class Evaluator {
 
             if (valueValue is null) {
                 if (target.specialType != SpecialType.Nullable)
-                    throw new NullReferenceException();
+                    throw new BelteNullReferenceException(location);
 
                 return new EvaluatorObject(valueValue, strippedTarget);
             }
@@ -1015,7 +1030,7 @@ internal sealed class Evaluator {
         if (dereferenced.type.InheritsFromIgnoringConstruction((NamedTypeSymbol)strippedTarget))
             return value;
 
-        throw new InvalidCastException();
+        throw new BelteInvalidCastException(location);
     }
 
     #endregion
@@ -1023,6 +1038,7 @@ internal sealed class Evaluator {
     #region Libraries
 
     private bool CheckStandardMap(
+        TextLocation location,
         MethodSymbol method,
         BoundExpression receiver,
         ImmutableArray<BoundExpression> arguments,
@@ -1038,7 +1054,7 @@ internal sealed class Evaluator {
         // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
         if (_context.options.outputKind == OutputKind.Graphics) {
             if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
-                return HandleGraphicsCall(method, arguments, abort, out result);
+                return HandleGraphicsCall(location, method, arguments, abort, out result);
         }
 
         var mapKey = LibraryHelpers.BuildMapKey(method);
@@ -1065,7 +1081,9 @@ internal sealed class Evaluator {
             if (mapKey == "LowLevel_GetHashCode_O") {
                 result = Dereference(EvaluateExpression(arguments[0], abort)).GetHashCode();
                 return true;
-            } else if (mapKey == "LowLevel_GetTypeName_O") {
+            }
+
+            if (mapKey == "LowLevel_GetTypeName_O") {
                 result = EvaluateExpression(arguments[0], abort).type.name;
                 return true;
             }
@@ -1074,6 +1092,22 @@ internal sealed class Evaluator {
                 _lazyRandom ??= new Random();
                 var max = Value(EvaluateExpression(arguments[0], abort));
                 result = Convert.ToInt64(_lazyRandom.Next(Convert.ToInt32(max)));
+                return true;
+            }
+
+            if (mapKey == "Random_Random") {
+                _lazyRandom ??= new Random();
+                result = _lazyRandom.NextDouble();
+                return true;
+            }
+
+            if (mapKey == "LowLevel_Sort_A?") {
+                var array = Dereference(EvaluateExpression(arguments[0], abort));
+
+                if (array.value is not EvaluatorObject[] ea)
+                    return true;
+
+                Array.Sort(ea, (a, b) => Convert.ToDouble(a.value).CompareTo(Convert.ToDouble(b.value)));
                 return true;
             }
 
@@ -1106,6 +1140,7 @@ internal sealed class Evaluator {
     }
 
     private bool HandleGraphicsCall(
+        TextLocation location,
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
         ValueWrapper<bool> abort,
@@ -1113,13 +1148,14 @@ internal sealed class Evaluator {
         result = null;
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if (mapKey == "Graphics_Initialize_SII") {
+        if (mapKey == "Graphics_Initialize_SIIB") {
             var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
 
             StartGraphics(
                 (string)valueArguments[0],
                 Convert.ToInt32(valueArguments[1]),
                 Convert.ToInt32(valueArguments[2]),
+                Convert.ToBoolean(valueArguments[3]),
                 abort
             );
 
@@ -1139,9 +1175,24 @@ internal sealed class Evaluator {
                     var path = (string)Value(EvaluateExpression(arguments[0], abort));
 
                     if (!File.Exists(path))
-                        throw new BelteEvaluatorException("Cannot load texture path does not exist");
+                        throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
 
                     result = LoadTexture(path);
+                }
+
+                break;
+            case "Graphics_LoadTexture_SIII": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var path = (string)Value(evaluatedArguments[0]);
+
+                    if (!File.Exists(path))
+                        throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+
+                    var r = evaluatedArguments[1].value;
+                    var g = evaluatedArguments[2].value;
+                    var b = evaluatedArguments[3].value;
+
+                    result = LoadTexture(path, true, r, g, b);
                 }
 
                 break;
@@ -1150,7 +1201,7 @@ internal sealed class Evaluator {
                     var path = (string)Value(evaluatedArguments[0]);
 
                     if (!File.Exists(path))
-                        throw new BelteEvaluatorException("Cannot load sprite: path does not exist");
+                        throw new BelteEvaluatorException("Cannot load sprite: path does not exist", location);
 
                     var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
                     var sprite = CreateObject(spriteType);
@@ -1177,22 +1228,18 @@ internal sealed class Evaluator {
                     if (argument.members is null)
                         return true;
 
-                    var (sx, sy, sw, sh) = ExtractRectangleComponents(Slot(argument, 2));
-                    var (dx, dy, dw, dh) = ExtractRectangleComponents(Slot(argument, 3));
-                    var rotation = Slot(argument, 1).value;
+                    DrawSprite(argument, null, out result);
+                }
 
-                    if (Slot(Slot(argument, 4), 2).value is not Texture2D texture)
-                        throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture");
+                break;
+            case "Graphics_DrawSprite_S?V?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var sprite = Dereference(evaluatedArguments[0]);
 
-                    if (_context.options.isScript) {
-                        result = _context.graphicsHandler?.AddAction(
-                            () => {
-                                _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
-                            }
-                        );
-                    } else {
-                        _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
-                    }
+                    if (sprite.members is null)
+                        return true;
+
+                    DrawSprite(sprite, Dereference(evaluatedArguments[1]), out result);
                 }
 
                 break;
@@ -1211,7 +1258,7 @@ internal sealed class Evaluator {
                     var path = (string)Value(evaluatedArguments[1]);
 
                     if (!File.Exists(path))
-                        throw new BelteEvaluatorException("Cannot load text: path does not exist");
+                        throw new BelteEvaluatorException("Cannot load text: path does not exist", location);
 
                     var textType = CorLibrary.GetSpecialType(SpecialType.Text);
                     var text = CreateObject(textType);
@@ -1251,7 +1298,7 @@ internal sealed class Evaluator {
                     var b = Slot(argument, 7).value;
 
                     if (Slot(argument, 8).value is not DynamicSpriteFont spriteFont)
-                        throw new BelteEvaluatorException("Cannot draw text: invalid text object");
+                        throw new BelteEvaluatorException("Cannot draw text: invalid text object", location);
 
                     if (_context.options.isScript) {
                         result = _context.graphicsHandler?.AddAction(
@@ -1323,11 +1370,41 @@ internal sealed class Evaluator {
             );
         }
 
-        EvaluatorObject LoadTexture(string path) {
+        void DrawSprite(EvaluatorObject sprite, EvaluatorObject offsetVec, out object result) {
+            var (sx, sy, sw, sh) = ExtractRectangleComponents(Slot(sprite, 2));
+            var (dx, dy, dw, dh) = ExtractRectangleComponents(Slot(sprite, 3));
+            var rotation = Slot(sprite, 1).value;
+
+            if (Slot(Slot(sprite, 4), 2).value is not Texture2D texture)
+                throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture", location);
+
+            if (offsetVec is not null) {
+                dx -= Convert.ToInt32(Slot(offsetVec, 0).value);
+                dy -= Convert.ToInt32(Slot(offsetVec, 1).value);
+            }
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler?.AddAction(
+                    () => {
+                        _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
+                    }
+                );
+            } else {
+                _context.graphicsHandler?.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
+                result = null;
+            }
+        }
+
+        EvaluatorObject LoadTexture(
+            string path,
+            bool useColorKey = false,
+            object r = null,
+            object g = null,
+            object b = null) {
             var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
             var texture = CreateObject(textureType);
             var textureFields = textureType.GetMembers().Where(f => f is FieldSymbol).ToArray();
-            var texture2D = _context.graphicsHandler?.LoadTexture(path);
+            var texture2D = _context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b);
 
             texture.members[textureFields[0]] = new EvaluatorObject(
                 Convert.ToInt64(texture2D.Width),
@@ -1349,7 +1426,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private void StartGraphics(string title, int width, int height, ValueWrapper<bool> abort) {
+    private void StartGraphics(string title, int width, int height, bool usePointClamp, ValueWrapper<bool> abort) {
         _context.maintainThread = true;
 
         GraphicsHandler.Title = title;
@@ -1366,7 +1443,7 @@ internal sealed class Evaluator {
             while (_context.maintainThread) {
                 if (_context.createWindow) {
                     _context.createWindow = false;
-                    using var graphicsHandler = new GraphicsHandler(abort);
+                    using var graphicsHandler = new GraphicsHandler(abort, usePointClamp);
                     _context.graphicsHandler = graphicsHandler;
                     graphicsHandler.Run();
                 } else {

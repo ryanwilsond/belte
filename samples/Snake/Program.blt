@@ -108,9 +108,9 @@ class Program {
         snake.Draw();
 
         previousW = Graphics.GetKey("W");
-        previousW = Graphics.GetKey("A");
-        previousW = Graphics.GetKey("S");
-        previousW = Graphics.GetKey("D");
+        previousA = Graphics.GetKey("A");
+        previousS = Graphics.GetKey("S");
+        previousD = Graphics.GetKey("D");
     }
 
     private void UpdateSnake() {

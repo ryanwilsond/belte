@@ -19,6 +19,7 @@ public static partial class BuckleCommandLine {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
+    private const int RuntimeErrorExitCode = 3;
 
     private static readonly DiagnosticInfo[] WarningLevel1 = {
         new DiagnosticInfo(1, "BU"),
@@ -96,6 +97,13 @@ public static partial class BuckleCommandLine {
 
         if (err > 0)
             return err;
+
+        if (compiler.exceptions.Count > 0) {
+            foreach (var exception in compiler.exceptions)
+                DiagnosticFormatter.PrettyPrintException(exception);
+
+            return RuntimeErrorExitCode;
+        }
 
         return SuccessExitCode;
     }

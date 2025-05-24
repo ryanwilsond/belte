@@ -102,6 +102,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
         return StaticClass("Random", [
             StaticMethod("RandInt", SpecialType.Int, [("max", SpecialType.Int, true)]),
+            StaticMethod("Random", SpecialType.Decimal),
         ]);
     }
 
@@ -116,7 +117,8 @@ internal static class StandardLibrary {
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
-            StaticMethod("Length", SpecialType.Int, true, [("array", AnyArray, true)]),
+            StaticMethod("Length", SpecialType.Int, true, [("array", SpecialType.Any, true)]),
+            StaticMethod("Sort", SpecialType.Void, [("array", SpecialType.Any, true)]),
         ]);
     }
 
@@ -423,7 +425,7 @@ internal static class StandardLibrary {
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "LowLevel_Length_A?", new Func<object, object, object, object>((a, b, c)
-                => { return a is null ? null : ((EvaluatorObject[])a).Length; }) },
+                => { return a is not EvaluatorObject[] array ? null : Convert.ToInt64(array.Length); }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)

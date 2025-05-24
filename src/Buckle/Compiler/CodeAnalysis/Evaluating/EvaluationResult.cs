@@ -24,7 +24,7 @@ public sealed class EvaluationResult {
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
-        this.exceptions = exceptions is null ? new List<Exception>() : new List<Exception>(exceptions);
+        this.exceptions = exceptions is null ? [] : exceptions;
         this.lastOutputWasPrint = lastOutputWasPrint;
         this.containsIO = containsIO;
     }
@@ -67,5 +67,5 @@ public sealed class EvaluationResult {
     /// <summary>
     /// All exceptions thrown while evaluating.
     /// </summary>
-    internal List<Exception> exceptions { get; }
+    public List<Exception> exceptions { get; }
 }

@@ -78,7 +78,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         // TODO Handle initializer list constants
         var syntax = expression.syntax;
         var type = expression.type;
-        var literal = new BoundLiteralExpression(syntax, expression.constantValue, type.StrippedType());
+        var literal = new BoundLiteralExpression(syntax, expression.constantValue, type?.StrippedType());
 
         if (expression.constantValue.value is null)
             return literal;

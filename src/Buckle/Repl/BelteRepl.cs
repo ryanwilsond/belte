@@ -381,15 +381,20 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (!hasErrors) {
-            if (result.hasValue && !state.loadingSubmissions) {
-                RenderResult(result.value);
-                writer.WriteLine();
+            if (result.exceptions.Count != 0) {
+                foreach (var exception in result.exceptions)
+                    DiagnosticFormatter.PrettyPrintException(exception, state.colorTheme.textDefault);
+            } else {
+                if (result.hasValue && !state.loadingSubmissions) {
+                    RenderResult(result.value);
+                    writer.WriteLine();
+                }
+
+                if (!result.containsIO)
+                    SaveSubmission(syntaxTree.text.ToString());
             }
 
             state.previous = compilation;
-
-            if (!result.containsIO)
-                SaveSubmission(syntaxTree.text.ToString());
         }
 
         Console.ForegroundColor = state.colorTheme.@default;

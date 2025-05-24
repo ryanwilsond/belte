@@ -2428,7 +2428,7 @@ internal partial class Binder {
         ArrayCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var type = (ArrayTypeSymbol)BindArrayType(node.type, diagnostics, true, null).type;
-        var sizes = ArrayBuilder<int>.GetInstance();
+        var sizes = ArrayBuilder<BoundExpression>.GetInstance();
 
         for (var i = 0; i < type.rank; i++) {
             var rankSpecifier = node.type.rankSpecifiers[i];
@@ -2436,14 +2436,11 @@ internal partial class Binder {
 
             if (size is not null) {
                 var boundSize = BindExpression(size, diagnostics);
-                var constant = boundSize.constantValue;
 
-                if (constant is null || boundSize.type.specialType != SpecialType.Int) {
-                    diagnostics.Push(Error.NonConstantArraySize(rankSpecifier.location));
-                    sizes.Add(0);
-                } else {
-                    sizes.Add(Convert.ToInt32(constant.value));
-                }
+                if (boundSize.type.specialType != SpecialType.Int)
+                    diagnostics.Push(Error.NonIntArraySize(rankSpecifier.location));
+
+                sizes.Add(boundSize);
             }
         }
 
@@ -5443,8 +5440,8 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
 
-        if (left.type is not null && left.type.specialType == SpecialType.Bool &&
-            right.type is not null && right.type.specialType == SpecialType.Bool) {
+        if (left.type is not null && left.type.StrippedType().specialType == SpecialType.Bool &&
+            right.type is not null && right.type.StrippedType().specialType == SpecialType.Bool) {
             var constantValue = ConstantFolding.FoldBinary(left, right, kind | BinaryOperatorKind.Bool, left.type);
             return new BoundBinaryOperator(
                 node,

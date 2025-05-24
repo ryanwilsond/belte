@@ -1,0 +1,14 @@
+
+class Textures {
+    public Texture grass1;
+    public Texture stone1;
+    public Texture cloud1;
+    public Texture cloud2;
+
+    public constructor() {
+        grass1 = Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/1.png", 0, 0, 0);
+        stone1 = Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/1.png", 0, 0, 0);
+        cloud1 = Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_1.png", 0, 0, 0);
+        cloud2 = Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_2.png", 0, 0, 0);
+    }
+}

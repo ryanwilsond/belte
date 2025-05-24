@@ -19,7 +19,6 @@ public static class LibraryHelpers {
         = new CompilationOptions(BuildMode.None, OutputKind.Library);
 
     private static SpecialOrKnownType.Boxed _lazyStringList;
-    private static SpecialOrKnownType.Boxed _lazyAnyArray;
 
     internal static SpecialOrKnownType StringList {
         get {
@@ -27,15 +26,6 @@ public static class LibraryHelpers {
                 Interlocked.CompareExchange(ref _lazyStringList, GenerateStringList(), null);
 
             return _lazyStringList.type;
-        }
-    }
-
-    internal static SpecialOrKnownType AnyArray {
-        get {
-            if (_lazyAnyArray is null)
-                Interlocked.CompareExchange(ref _lazyAnyArray, GenerateAnyArray(), null);
-
-            return _lazyAnyArray.type;
         }
     }
 
@@ -230,6 +220,22 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol StaticMethod(
         string name,
         SpecialOrKnownType type,
+        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue)> parameters) {
+        return Method(
+            name,
+            type,
+            false,
+            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue),
+                              (string, SpecialOrKnownType, bool, object, RefKind)>(
+                p => (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None)
+            ),
+            DeclarationModifiers.Static
+        );
+    }
+
+    internal static SynthesizedFinishedMethodSymbol StaticMethod(
+        string name,
+        SpecialOrKnownType type,
         bool isNullable,
         IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
         return Method(
@@ -364,9 +370,9 @@ public static class LibraryHelpers {
         ));
     }
 
-    private static SpecialOrKnownType.Boxed GenerateAnyArray() {
+    private static SpecialOrKnownType.Boxed GenerateArray(SpecialType elementType) {
         return new SpecialOrKnownType.Boxed(
-            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetNullableType(SpecialType.Any)))
+            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetNullableType(elementType)))
         );
     }
 }

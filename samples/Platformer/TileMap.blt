@@ -1,0 +1,69 @@
+
+class TileMap {
+    private int! tileSize;
+    private Tile[] tiles;
+    private Tile[] offGridTiles;
+
+    public constructor(Textures textures, int! tileSize = 64) {
+        this.tileSize = tileSize;
+        tiles = new Tile[100];
+        offGridTiles = new Tile[100];
+
+        for (int! i = 0; i < 10; i++) {
+            tiles[i] = new Tile(3 + i, 10, textures.grass1, tileSize);
+            tiles[i + 10] = new Tile(10, 5 + i, textures.stone1, tileSize);
+        }
+    }
+
+    public Tile[] GetNearTiles(int! x, int! y) {
+        var gx = x / tileSize;
+        var gy = y / tileSize;
+        var tileCount = 0;
+        var nearTiles = new Tile[9];
+
+        for (int! i = 0; i < 100; i++) {
+            var tile = tiles[i];
+
+            if (tile is null)
+                break;
+
+            if (tile.x >= gx - 1 && tile.x <= gx + 1 && tile.y >= gy - 1 && tile.y <= gy + 1)
+                nearTiles[tileCount++] = tile;
+        }
+
+        return nearTiles;
+    }
+
+    public void Render(Vec2 offset) {
+        for (int! i = 0; i < 100; i++) {
+            var tile = offGridTiles[i];
+
+            if (tile is null)
+                break;
+
+            if (!TileOffScreen(tile, offset))
+                Graphics.DrawSprite(tile.sprite, offset);
+        }
+
+        for (int! i = 0; i < 100; i++) {
+            var tile = tiles[i];
+
+            if (tile is null)
+                break;
+
+            if (!TileOffScreen(tile, offset))
+                Graphics.DrawSprite(tile.sprite, offset);
+        }
+    }
+
+    private bool TileOffScreen(Tile tile, Vec2 offset) {
+        if ((tile.sprite.dst.x + tile.sprite.dst.w - offset.x < 0) ||
+            (tile.sprite.dst.x - offset.x > Settings.WindowWidth) ||
+            (tile.sprite.dst.y + tile.sprite.dst.h - offset.y < 0) ||
+            (tile.sprite.dst.y - offset.y > Settings.WindowHeight)) {
+            return true;
+        }
+
+        return false;
+    }
+}

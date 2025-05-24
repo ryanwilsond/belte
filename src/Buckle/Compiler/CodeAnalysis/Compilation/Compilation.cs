@@ -318,14 +318,14 @@ public sealed class Compilation {
         return _lazyEntryPoint;
     }
 
-    internal MethodSymbol GetUpdatePoint(BelteDiagnosticQueue diagnostics) {
+    internal MethodSymbol GetUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
         if (_lazyUpdatePoint is null)
-            Interlocked.CompareExchange(ref _lazyUpdatePoint, FindUpdatePoint(diagnostics), null);
+            Interlocked.CompareExchange(ref _lazyUpdatePoint, FindUpdatePoint(entryPoint, diagnostics), null);
 
         return _lazyUpdatePoint;
     }
 
-    private MethodSymbol FindUpdatePoint(BelteDiagnosticQueue diagnostics) {
+    private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
         var classes = globalNamespaceInternal.GetTypeMembersUnordered();
 
@@ -339,10 +339,21 @@ public sealed class Compilation {
         var updatePointCandidates = builder.ToImmutableAndFree();
         MethodSymbol updatePoint = null;
 
-        if (updatePointCandidates.Length == 1)
+        if (updatePointCandidates.Length == 1) {
             updatePoint = updatePointCandidates[0];
-        else if (updatePointCandidates.Length > 1)
-            diagnostics.Push(Error.MultipleUpdates(updatePointCandidates[0].location));
+        } else if (updatePointCandidates.Length > 1) {
+            var updatesNearMain = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var method in updatePointCandidates) {
+                if (method.containingType.Equals(entryPoint.containingType))
+                    updatesNearMain.Add(method);
+            }
+
+            if (updatesNearMain.Count == 1)
+                updatePoint = updatesNearMain[0];
+            else
+                diagnostics.Push(Error.MultipleUpdates(updatePointCandidates[0].location));
+        }
 
         return updatePoint;
     }

@@ -14,24 +14,55 @@ public static partial class DiagnosticFormatter {
         ToDisplayParts(diagnostic, foregroundColor).Write();
     }
 
-    private static DisplayParts ToDisplayParts(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
+    public static void PrettyPrintException(Exception exception, ConsoleColor? foregroundColor = null) {
+        ToDisplayParts(exception, foregroundColor).Write();
+    }
+
+    private static DisplayParts ToDisplayParts(Exception exception, ConsoleColor? foregroundColor = null) {
         var displayParts = new DisplayParts();
         var initialColor = foregroundColor ?? Console.ForegroundColor;
+        var highlightColor = ConsoleColor.Red;
 
-        var span = diagnostic.location.span;
-        var text = diagnostic.location.text;
+        displayParts.Add($"Unhandled exception. {exception.GetType()}: ", highlightColor);
+        displayParts.Add($"{exception.Message}\n", initialColor);
+
+        if (exception is not BelteEvaluatorException belteException || belteException.location is null)
+            return displayParts;
+
+        displayParts.Add("    at ", initialColor);
+        AddLocationToDisplayParts(displayParts, belteException.location, initialColor);
+
+        displayParts.Add("\n", initialColor);
+
+        AddTextAtLocation(displayParts, belteException.location, [], initialColor, highlightColor);
+
+        return displayParts;
+    }
+
+    private static void AddLocationToDisplayParts(
+        DisplayParts displayParts,
+        TextLocation location,
+        ConsoleColor color) {
+        var span = location.span;
+        var text = location.text;
 
         var lineNumber = text.GetLineIndex(span.start);
         var line = text.GetLine(lineNumber);
         var column = span.start - line.start + 1;
-        var lineText = line.ToString();
 
-        var fileName = diagnostic.location.fileName;
+        var fileName = location.fileName;
 
         if (!string.IsNullOrEmpty(fileName))
-            displayParts.Add($"{fileName}:", initialColor);
+            displayParts.Add($"{fileName}:", color);
 
-        displayParts.Add($"{lineNumber + 1}:{column}:", initialColor);
+        displayParts.Add($"{lineNumber + 1}:{column}:", color);
+    }
+
+    private static DisplayParts ToDisplayParts(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
+        var displayParts = new DisplayParts();
+        var initialColor = foregroundColor ?? Console.ForegroundColor;
+
+        AddLocationToDisplayParts(displayParts, diagnostic.location, initialColor);
 
         var highlightColor = ConsoleColor.White;
         var severity = diagnostic.info.severity;
@@ -66,8 +97,27 @@ public static partial class DiagnosticFormatter {
 
         displayParts.Add($"{diagnostic.message}\n", initialColor);
 
+        AddTextAtLocation(displayParts, diagnostic.location, diagnostic.suggestions, initialColor, highlightColor);
+
+        return displayParts;
+    }
+
+    private static void AddTextAtLocation(
+        DisplayParts displayParts,
+        TextLocation location,
+        string[] suggestions,
+        ConsoleColor initialColor,
+        ConsoleColor highlightColor) {
+        var span = location.span;
+        var text = location.text;
+
+        var lineNumber = text.GetLineIndex(span.start);
+        var line = text.GetLine(lineNumber);
+        var column = span.start - line.start + 1;
+        var lineText = line.ToString();
+
         if (text.IsAtEndOfInput(span))
-            return displayParts;
+            return;
 
         var prefixSpan = TextSpan.FromBounds(line.start, span.start);
         var suffixSpan = span.end > line.end
@@ -90,18 +140,16 @@ public static partial class DiagnosticFormatter {
 
         displayParts.Add($"{markerPrefix}{marker}\n", highlightColor);
 
-        if (diagnostic.suggestions.Length > 0) {
-            var firstSuggestion = diagnostic.suggestions[0].Replace("%", focus);
+        if (suggestions.Length > 0) {
+            var firstSuggestion = suggestions[0].Replace("%", focus);
             displayParts.Add($"{markerPrefix}{firstSuggestion}\n", ConsoleColor.Green);
 
-            for (var i = 1; i < diagnostic.suggestions.Length; i++) {
-                var suggestion = diagnostic.suggestions[i].Replace("%", focus);
+            for (var i = 1; i < suggestions.Length; i++) {
+                var suggestion = suggestions[i].Replace("%", focus);
                 displayParts.Add(string.Concat(markerPrefix.AsSpan(0, markerPrefix.Length - 3), "or "), initialColor);
                 displayParts.Add($"{suggestion}\n", ConsoleColor.Green);
             }
         }
-
-        return displayParts;
     }
 
     [GeneratedRegex(@"\S")]

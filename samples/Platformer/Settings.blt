@@ -1,0 +1,8 @@
+
+static class Settings {
+    public constexpr int! WindowWidth = 1920;
+    public constexpr int! WindowHeight = 1080;
+    public constexpr int! TerminalVelocity = 20;
+    public constexpr decimal! Gravity = 36;
+    public constexpr int! CameraTrackingSpeed = 800;
+}

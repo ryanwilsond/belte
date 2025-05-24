@@ -1,0 +1,86 @@
+
+class PhysicsEntity {
+    Program game;
+    bool[] collisions;
+
+    public Sprite sprite;
+    public Vec2 velocity;
+
+    public constructor(Program game, Vec2 position, Vec2 scale) {
+        this.game = game;
+
+        var texture = Graphics.LoadTexture("samples/Platformer/data/images/entities/player.png", 0, 0, 0);
+        sprite = new Sprite(texture, null, new Rect((int!)position.x, (int!)position.y, (int!)scale.x, (int!)scale.y), 0);
+        velocity = new Vec2(0, 0);
+    }
+
+    public void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+        collisions = { false, false, false, false };
+        var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
+
+        sprite.SetPosition(sprite.position.x + frameMovement.x, sprite.position.y);
+
+        var nearTiles = tileMap.GetNearTiles(sprite.dst.x, sprite.dst.y);
+
+        for (int! i = 0; i < LowLevel.Length(nearTiles); i++) {
+            var tile = nearTiles[i];
+
+            if (tile is null)
+                break;
+
+            if (Colliding(sprite.dst, tile.sprite.dst)) {
+                if (frameMovement.x > 0) {
+                    sprite.dst.x = tile.sprite.dst.x - sprite.dst.w;
+                    sprite.GetPosition();
+                    collisions[3] = true;
+                }
+
+                if (frameMovement.x < 0) {
+                    sprite.dst.x = tile.sprite.dst.x + tile.sprite.dst.w;
+                    sprite.GetPosition();
+                    collisions[2] = true;
+                }
+            }
+        }
+
+        sprite.SetPosition(sprite.position.x, sprite.position.y + frameMovement.y);
+
+        nearTiles = tileMap.GetNearTiles(sprite.dst.x, sprite.dst.y);
+
+        for (int! i = 0; i < LowLevel.Length(nearTiles); i++) {
+            var tile = nearTiles[i];
+
+            if (tile is null)
+                break;
+
+            if (Colliding(sprite.dst, tile.sprite.dst)) {
+                if (frameMovement.y > 0) {
+                    sprite.dst.y = tile.sprite.dst.y - sprite.dst.h;
+                    sprite.GetPosition();
+                    collisions[1] = true;
+                }
+
+                if (frameMovement.y < 0) {
+                    sprite.dst.y = tile.sprite.dst.y + tile.sprite.dst.h;
+                    sprite.GetPosition();
+                    collisions[0] = true;
+                }
+            }
+        }
+
+        velocity.y = Math.Min(Settings.TerminalVelocity, velocity.y + Settings.Gravity * deltaTime);
+
+        if (collisions[0] || collisions[1])
+            velocity.y = 0;
+    }
+
+    public void Render(Vec2 offset) {
+        Graphics.DrawSprite(sprite, offset);
+    }
+
+    private static bool! Colliding(Rect a, Rect b) {
+        var collisionX = a.x + a.w > b.x && b.x + b.w > a.x;
+        var collisionY = a.y + a.h > b.y && b.y + b.h > a.y;
+        return collisionX && collisionY;
+    }
+}

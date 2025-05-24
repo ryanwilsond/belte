@@ -1,0 +1,12 @@
+
+class Tile {
+    public int! x;
+    public int! y;
+    public Sprite sprite;
+
+    public constructor(int! x, int! y, Texture texture, int! tileSize) {
+        this.x = x;
+        this.y = y;
+        this.sprite = new Sprite(texture, null, new Rect(x * tileSize, y * tileSize, tileSize, tileSize), 0);
+    }
+}

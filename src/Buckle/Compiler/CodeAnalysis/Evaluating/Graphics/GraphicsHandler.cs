@@ -19,6 +19,7 @@ internal partial class GraphicsHandler : Game {
     private readonly FontManager _fontManager;
     private readonly ValueWrapper<bool> _abort;
     private readonly ConcurrentDictionary<int, Action> _updateActions = [];
+    private readonly bool _usePointClamp;
 
     private UpdateHandler _updateHandler;
     private SpriteBatch _spriteBatch;
@@ -26,10 +27,11 @@ internal partial class GraphicsHandler : Game {
 
     internal bool shouldRun;
 
-    internal GraphicsHandler(ValueWrapper<bool> abort) {
+    internal GraphicsHandler(ValueWrapper<bool> abort, bool usePointClamp) {
         _graphics = new GraphicsDeviceManager(this);
         _fontManager = new FontManager();
         _abort = abort;
+        _usePointClamp = usePointClamp;
         IsMouseVisible = true;
         IsFixedTimeStep = true;
         TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
@@ -41,9 +43,27 @@ internal partial class GraphicsHandler : Game {
         _updateHandler = updateHandler;
     }
 
-    internal Texture2D LoadTexture(string path) {
+    internal Texture2D LoadTexture(string path, bool useColorKey, object r, object g, object b) {
         using var stream = File.OpenRead(path);
-        return Texture2D.FromStream(GraphicsDevice, stream);
+        var texture = Texture2D.FromStream(GraphicsDevice, stream);
+
+        if (!useColorKey)
+            return texture;
+
+        var data = new Color[texture.Width * texture.Height];
+        texture.GetData(data);
+
+        var colorKey = GetColor(r, g, b);
+
+        for (var i = 0; i < data.Length; i++) {
+            if (data[i] == colorKey)
+                data[i] = Color.Transparent;
+        }
+
+        var textureWithTransparency = new Texture2D(GraphicsDevice, texture.Width, texture.Height);
+        textureWithTransparency.SetData(data);
+
+        return textureWithTransparency;
     }
 
     internal DynamicSpriteFont LoadText(string path, float fontSize) {
@@ -156,7 +176,7 @@ internal partial class GraphicsHandler : Game {
     protected override void Draw(GameTime gameTime) {
         KeyboardManager.Update();
 
-        _spriteBatch.Begin();
+        _spriteBatch.Begin(samplerState: _usePointClamp ? SamplerState.PointClamp : null);
 
         if (_updateHandler is not null)
             _updateHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0, _abort);

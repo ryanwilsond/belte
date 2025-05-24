@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
@@ -58,6 +59,11 @@ public sealed class Compiler {
     /// The diagnostics from the most recent compiler operation.
     /// </summary>
     public BelteDiagnosticQueue diagnostics { get; private set; } = new BelteDiagnosticQueue();
+
+    /// <summary>
+    /// The exceptions from the most recent evaluation.
+    /// </summary>
+    public List<Exception> exceptions { get; private set; } = [];
 
     /// <summary>
     /// Handles compiling, assembling, and linking of a set of files.
@@ -151,6 +157,7 @@ public sealed class Compiler {
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
                     var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode);
+                    exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
                     diagnostics.PushRange(compilation.Execute());
