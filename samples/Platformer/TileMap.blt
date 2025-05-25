@@ -19,6 +19,45 @@ class TileMap {
         offGridTiles = new Tile[100];
     }
 
+    public Tile[] Extract(string! key, bool! keep) {
+        var count = 0;
+        var matches = new Tile[20];
+
+        for (int! i = 0; i < offGridCount; i++) {
+            var tile = offGridTiles[i];
+
+            if (tile.key == key) {
+                matches[count++] = tile;
+
+                if (!keep) {
+                    for (int! j = i; j < offGridCount - 1; j++)
+                        offGridTiles[j] = offGridTiles[j + 1];
+
+                    offGridTiles[offGridCount - 1] = null;
+                    offGridCount--;
+                }
+            }
+        }
+
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.key == key) {
+                matches[count++] = tile;
+
+                if (!keep) {
+                    for (int! j = i; j < tileCount - 1; j++)
+                        tiles[j] = tiles[j + 1];
+
+                    tiles[tileCount - 1] = null;
+                    tileCount--;
+                }
+            }
+        }
+
+        return matches;
+    }
+
     public void Save(string! path) {
         string! text = "";
 

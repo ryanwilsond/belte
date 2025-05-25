@@ -1,12 +1,16 @@
 
 class Program {
-    PhysicsEntity player;
+    Player player;
     TileMap tileMap;
     Textures textures;
     bool previousSpace;
     Vec2 scroll;
     Sprite background;
     Clouds clouds;
+    Rect[] leafSpawners;
+    int leafSpawnerCount;
+    Particle[] particles;
+    int particleCount;
 
     public Animations animations;
 
@@ -28,6 +32,22 @@ class Program {
 
         player = new Player(this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
 
+        leafSpawnerCount = 0;
+        leafSpawners = new Rect[10];
+        var foundTrees = tileMap.Extract("largeDecor;2", true);
+
+        for (int! i = 0; i < 10; i++) {
+            var tree = foundTrees[i];
+
+            if (tree is null)
+                break;
+
+            leafSpawners[leafSpawnerCount++] = new Rect(16 + tree.x, 16 + tree.y, 23 * 4, 13 * 4);
+        }
+
+        particles = new Particle[30];
+        particleCount = 0;
+
         scroll = new Vec2(0, 0);
     }
 
@@ -35,6 +55,7 @@ class Program {
         Console.PrintLine(1 / deltaTime);
         var movement = new Vec2(0, 0);
 
+        // pseudo-Lerp camera to player position
         scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
         scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
 
@@ -45,7 +66,26 @@ class Program {
             movement.x += Settings.RunSpeed * deltaTime;
 
         if (Graphics.GetKey("SPACE") && !previousSpace)
-            player.velocity.y = -Settings.JumpSpeed;
+            player.Jump();
+
+        for (int! i = 0; i < leafSpawnerCount; i++) {
+            var leafSpawner = leafSpawners[i];
+
+            if (Random.Random() * 3000000 < leafSpawner.w * leafSpawner.h) {
+                var position = new Vec2(
+                    leafSpawner.x + Random.Random() * leafSpawner.w,
+                    leafSpawner.y + Random.Random() * leafSpawner.h
+                );
+
+                particles[particleCount++] = new Particle(
+                    position,
+                    new Vec2(-19.2, 57.6),
+                    animations.leaf,
+                    "leaf",
+                    Random.RandInt(4)
+                );
+            }
+        }
 
         player.Update(deltaTime, tileMap, movement);
         clouds.Update(deltaTime);
@@ -54,6 +94,23 @@ class Program {
         clouds.Render(scroll);
         tileMap.Render(scroll);
         player.Render(scroll);
+
+        for (int! i = 0; i < particleCount; i++) {
+            var kill = particles[i].Update(deltaTime);
+            particles[i].Render(scroll);
+
+            if (particles[i].kind == "leaf")
+                particles[i].position.x += Math.Sin(particles[i].animation.frame * 0.5) * 0.3 * 2;
+
+            if (kill) {
+                for (int! j = i; j < particleCount - 1; j++)
+                    particles[j] = particles[j + 1];
+
+                particles[particleCount - 1] = null;
+                particleCount--;
+                i--;
+            }
+        }
 
         previousSpace = Graphics.GetKey("SPACE");
     }

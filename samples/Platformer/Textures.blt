@@ -135,4 +135,27 @@ class Textures {
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/wall_slide/0.png", 0, 0, 0),
         };
     }
+
+    public Texture[] LeafTextures() {
+        return {
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/00.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/01.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/02.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/03.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/04.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/05.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/06.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/07.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/08.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/09.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/10.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/11.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/12.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/13.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/14.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/15.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/16.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/17.png", 0, 0, 0)
+        };
+    }
 }

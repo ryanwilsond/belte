@@ -521,6 +521,10 @@ internal sealed class Evaluator {
         var index = EvaluateExpression(node.index, abort);
         var array = (EvaluatorObject[])Value(receiver);
         var indexValue = Convert.ToInt32(Value(index));
+
+        if (indexValue >= array.Length)
+            throw new BelteIndexOutOfRangeException(node.syntax.location);
+
         return array[indexValue];
     }
 

@@ -5,6 +5,7 @@ class Animations {
     public Animation playerJump;
     public Animation playerSlide;
     public Animation playerWallSlide;
+    public Animation leaf;
 
     private Animation[] playerAnimations;
 
@@ -14,6 +15,7 @@ class Animations {
         playerJump = new Animation(textures.PlayerJumpTextures());
         playerSlide = new Animation(textures.PlayerSlideTextures());
         playerWallSlide = new Animation(textures.PlayerWallSlideTextures());
+        leaf = new Animation(textures.LeafTextures(), 15, false);
 
         playerAnimations = { playerIdle, playerRun, playerJump, playerSlide, playerWallSlide };
     }

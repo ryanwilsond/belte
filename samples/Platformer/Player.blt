@@ -3,25 +3,72 @@ class Player extends PhysicsEntity {
     constexpr int! JumpAction = 2;
     constexpr int! RunAction = 1;
     constexpr int! IdleAction = 0;
+    constexpr int! WallSlideAction = 4;
 
     int airTime;
+    int! jumps;
+    bool wallSlide;
 
     public constructor(Program game, Vec2 position) : base(game, position, 0) {
         airTime = 0;
+        jumps = 1;
+        wallSlide = false;
     }
 
     public override void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
         base.Update(deltaTime, tileMap, movement);
         airTime += 1;
 
-        if (collisions[DownCollide])
+        if (collisions[DownCollide]) {
             airTime = 0;
+            jumps = 1;
+        }
 
-        if (airTime > 4)
-            SetAction(JumpAction);
-        else if (movement.x != 0)
-            SetAction(RunAction);
+        wallSlide = false;
+        if ((collisions[LeftCollide] || collisions[RightCollide]) && airTime > 4) {
+            wallSlide = true;
+            velocity.y = Math.Min(velocity.y, Settings.WallSlideSpeed);
+
+            if (collisions[RightCollide])
+                flip = false;
+            else
+                flip = true;
+
+            SetAction(WallSlideAction);
+        }
+
+        if (!wallSlide) {
+            if (airTime > 4)
+                SetAction(JumpAction);
+            else if (movement.x != 0)
+                SetAction(RunAction);
+            else
+                SetAction(IdleAction);
+        }
+
+        if (velocity.x > 0)
+            velocity.x = Math.Max(velocity.x - 0.1 * 4, 0);
         else
-            SetAction(IdleAction);
+            velocity.x = Math.Max(velocity.x + 0.1 * 4, 0);
+    }
+
+    public void Jump() {
+        if (wallSlide) {
+            if (flip && lastMovement.x < 0) {
+                velocity.x = 3.5 * 6;
+                velocity.y = -2.5 * 6;
+                airTime = 5;
+                jumps = Math.Max(0, jumps - 1);
+            } else if (!flip && lastMovement.x > 0) {
+                velocity.x = -3.5 * 6;
+                velocity.y = -2.5 * 6;
+                airTime = 5;
+                jumps = Math.Max(0, jumps - 1);
+            }
+        } else if (jumps > 0) {
+            velocity.y = -Settings.JumpSpeed;
+            jumps--;
+            airTime = 5;
+        }
     }
 }

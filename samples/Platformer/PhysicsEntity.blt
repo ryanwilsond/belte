@@ -5,10 +5,12 @@ class PhysicsEntity {
     protected constexpr int! LeftCollide = 2;
     protected constexpr int! RightCollide = 3;
 
+    protected bool flip;
+    protected Vec2 lastMovement;
+
     Program game;
     bool[] collisions;
     Vec2 animOffset;
-    bool flip;
     int action = 10;
     Animation animation;
     int kind;
@@ -30,6 +32,7 @@ class PhysicsEntity {
 
         animOffset = new Vec2(12, 0);
         flip = false;
+        lastMovement = new Vec2(0, 0);
     }
 
     public virtual void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
@@ -92,6 +95,8 @@ class PhysicsEntity {
             flip = false;
         if (movement.x < 0)
             flip = true;
+
+        lastMovement = movement;
 
         velocity.y = Math.Min(Settings.TerminalVelocity, velocity.y + Settings.Gravity * deltaTime);
 

@@ -4,14 +4,15 @@ class Animation {
     Texture[] textures;
     decimal duration;
     bool loop;
-    bool done;
     decimal timer;
-    int frame;
+
+    public int frame;
+    public bool done;
 
     public constructor(Texture[] textures, int duration = 5, bool loop = true) {
         length = LowLevel.Length(textures);
         this.textures = textures;
-        this.duration = 60.0 / duration;
+        this.duration = duration / 60.0;
         this.loop = loop;
         done = false;
         frame = 0;
