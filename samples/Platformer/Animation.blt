@@ -2,36 +2,47 @@
 class Animation {
     int length;
     Texture[] textures;
-    int duration;
+    decimal duration;
     bool loop;
     bool done;
+    decimal timer;
     int frame;
 
     public constructor(Texture[] textures, int duration = 5, bool loop = true) {
         length = LowLevel.Length(textures);
         this.textures = textures;
-        this.duration = duration;
+        this.duration = 60.0 / duration;
         this.loop = loop;
         done = false;
         frame = 0;
+        timer = 0;
     }
 
     public Animation Copy() {
-        return new Animation(textures, duration, loop);
+        return new Animation(textures, (int)(duration * 60), loop);
     }
 
     public void Update(decimal! deltaTime) {
-        if (loop) {
-            frame = (frame + 1) % (duration * length);
-        } else {
-            frame = Math.Min(frame + 1, duration * length);
+        timer += deltaTime;
 
-            if (frame >= duration * length - 1)
-                done = true;
+        if (timer >= duration) {
+            int framesToAdvance = (int)(timer / duration);
+            timer -= framesToAdvance * duration;
+
+            if (loop) {
+                frame = (frame + framesToAdvance) % length;
+            } else {
+                frame = (frame + framesToAdvance);
+
+                if (frame >= length) {
+                    done = true;
+                    frame = length - 1;
+                }
+            }
         }
     }
 
     public Texture GetTexture() {
-        return textures[frame / duration];
+        return textures[frame];
     }
 }

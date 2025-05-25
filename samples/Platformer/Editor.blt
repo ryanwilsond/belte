@@ -13,6 +13,7 @@ class Editor {
     bool onGrid;
     bool previousG;
     bool previousO;
+    bool previousT;
 
     public void EMain() {
         Graphics.Initialize("Editor", Settings.WindowWidth, Settings.WindowHeight, true);
@@ -32,6 +33,7 @@ class Editor {
         onGrid = true;
         previousG = false;
         previousO = false;
+        previousT = false;
     }
 
     public void EUpdate(decimal! deltaTime) {
@@ -39,8 +41,8 @@ class Editor {
         var currentTileKey = textures.GetTextureKey(tileGroup, tileVariant);
 
         shift = Graphics.GetKey("LeftShift");
-        var leftClick = Graphics.GetMouseButton("left") && !previousLC;
-        var rightClick = Graphics.GetMouseButton("right") && !previousRC;
+        var leftClick = Graphics.GetMouseButton("left")/* && !previousLC */;
+        var rightClick = Graphics.GetMouseButton("right")/* && !previousRC */;
 
         previousScroll = currentScroll;
         currentScroll = Graphics.GetScroll();
@@ -72,10 +74,20 @@ class Editor {
         if (Graphics.GetKey("D"))
             scroll.x += 500 * deltaTime;
 
-        if (Graphics.GetKey("G") && !previousG)
+        if (Graphics.GetKey("G") && !previousG) {
             onGrid = !onGrid;
-        if (Graphics.GetKey("O") && !previousO)
+            Console.PrintLine("Current placement mode: " + (onGrid ? "onGrid" : "offGrid"));
+        }
+
+        if (Graphics.GetKey("T") && !previousT) {
+            tileMap.AutoTile();
+            Console.PrintLine("Auto-tile complete");
+        }
+
+        if (Graphics.GetKey("O") && !previousO) {
             tileMap.Save("samples/Platformer/map.txt");
+            Console.PrintLine("Saved to samples/Platformer/map.txt");
+        }
 
         var mousePosition = Graphics.GetMousePosition();
         Vec2 tilePosition;
@@ -93,6 +105,8 @@ class Editor {
         }
 
         if (leftClick) {
+            // Console.PrintLine(((string)tilePosition.x) + ";" + ((string)tilePosition.y) + ";" + currentTileKey);
+
             if (onGrid)
                 tileMap.AddGridTile((int!)tilePosition.x, (int!)tilePosition.y, currentTileTexture, currentTileKey);
             else
@@ -139,6 +153,7 @@ class Editor {
             );
         }
 
+        // Player ghost
         Graphics.DrawRect(
             new Rect(
                 (int!)(Settings.TileSize * 15 + 4 - scroll.x),
@@ -149,9 +164,21 @@ class Editor {
             255, 0, 0, 100
         );
 
+        // Top left
+        Graphics.DrawRect(
+            new Rect(
+                (int!)(-scroll.x),
+                (int!)(-scroll.y),
+                Settings.TileSize,
+                Settings.TileSize
+            ),
+            100, 100, 100, 100
+        );
+
         previousLC = Graphics.GetMouseButton("left");
         previousRC = Graphics.GetMouseButton("right");
         previousG = Graphics.GetKey("G");
         previousO = Graphics.GetKey("O");
+        previousT = Graphics.GetKey("T");
     }
 }

@@ -33,8 +33,8 @@ internal partial class GraphicsHandler : Game {
         _abort = abort;
         _usePointClamp = usePointClamp;
         IsMouseVisible = true;
-        IsFixedTimeStep = true;
-        TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
+        // IsFixedTimeStep = true;
+        // TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
     }
 
     internal delegate void UpdateHandler(double deltaTicks, ValueWrapper<bool> abort);
@@ -195,6 +195,9 @@ internal partial class GraphicsHandler : Game {
     }
 
     protected override void Initialize() {
+        IsFixedTimeStep = false;
+        _graphics.SynchronizeWithVerticalRetrace = false;
+
         _graphics.IsFullScreen = false;
         _graphics.PreferredBackBufferWidth = Width;
         _graphics.PreferredBackBufferHeight = Height;

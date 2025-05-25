@@ -32,19 +32,20 @@ class Program {
     }
 
     public void Update(decimal! deltaTime) {
+        Console.PrintLine(1 / deltaTime);
         var movement = new Vec2(0, 0);
 
         scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
         scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
 
         if (Graphics.GetKey("A"))
-            movement.x -= 500 * deltaTime;
+            movement.x -= Settings.RunSpeed * deltaTime;
 
         if (Graphics.GetKey("D"))
-            movement.x += 500 * deltaTime;
+            movement.x += Settings.RunSpeed * deltaTime;
 
         if (Graphics.GetKey("SPACE") && !previousSpace)
-            player.velocity.y = -15;
+            player.velocity.y = -Settings.JumpSpeed;
 
         player.Update(deltaTime, tileMap, movement);
         clouds.Update(deltaTime);

@@ -61,7 +61,7 @@ class Textures {
         return everything[tileGroup][tileVariant];
     }
 
-    public Texture GetTexture(string key, int tileVariant) {
+    public Texture GetTextureStr(string key, int tileVariant) {
         if (key == "decor")
             return decor[tileVariant];
         if (key == "grass")
