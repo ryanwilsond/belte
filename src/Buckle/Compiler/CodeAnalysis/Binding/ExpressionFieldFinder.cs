@@ -41,6 +41,7 @@ internal sealed class ExpressionFieldFinder : ExpressionVariableFinder<Symbol> {
         VariableDeclarationSyntax node,
         SyntaxToken identifier,
         ArgumentListSyntax argumentListSyntax,
+        SyntaxTokenList modifiers,
         SyntaxNode nodeToBind) {
         // TODO Check if this should be a GlobalExpressionVariable
         return SourceDataContainerSymbol.MakeLocal(
@@ -52,6 +53,7 @@ internal sealed class ExpressionFieldFinder : ExpressionVariableFinder<Symbol> {
             typeSyntax: node.type,
             identifierToken: identifier,
             declarationKind: DataContainerDeclarationKind.Variable,
+            modifiers: modifiers,
             nodeToBind: nodeToBind
         );
     }

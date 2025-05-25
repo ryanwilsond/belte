@@ -1,21 +1,23 @@
 
 class Animations {
-    public Animation playerIdle;
-    public Animation playerRun;
-    public Animation playerJump;
-    public Animation playerSlide;
-    public Animation playerWallSlide;
-    public Animation leaf;
+    public ref Animation playerIdle;
+    public ref Animation playerRun;
+    public ref Animation playerJump;
+    public ref Animation playerSlide;
+    public ref Animation playerWallSlide;
+    public ref Animation leaf;
+    public ref Animation particle;
 
-    private Animation[] playerAnimations;
+    private ref Animation[] playerAnimations;
 
-    public constructor(Textures textures) {
+    public constructor(ref Textures textures) {
         playerIdle = new Animation(textures.PlayerIdleTextures(), 6);
         playerRun = new Animation(textures.PlayerRunTextures(), 4);
         playerJump = new Animation(textures.PlayerJumpTextures());
         playerSlide = new Animation(textures.PlayerSlideTextures());
         playerWallSlide = new Animation(textures.PlayerWallSlideTextures());
-        leaf = new Animation(textures.LeafTextures(), 15, false);
+        leaf = new Animation(textures.LeafTextures(), 20, false);
+        particle = new Animation(textures.ParticleTextures(), 6, false);
 
         playerAnimations = { playerIdle, playerRun, playerJump, playerSlide, playerWallSlide };
     }

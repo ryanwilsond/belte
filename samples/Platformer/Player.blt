@@ -8,15 +8,17 @@ class Player extends PhysicsEntity {
     int airTime;
     int! jumps;
     bool wallSlide;
+    int! dashing;
 
-    public constructor(Program game, Vec2 position) : base(game, position, 0) {
+    public constructor(ref Program game, Vec2 position) : base(ref game, position, 0) {
         airTime = 0;
         jumps = 1;
         wallSlide = false;
+        dashing = 0;
     }
 
-    public override void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
-        base.Update(deltaTime, tileMap, movement);
+    public override void Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+        base.Update(deltaTime, ref tileMap, movement);
         airTime += 1;
 
         if (collisions[DownCollide]) {
@@ -46,22 +48,61 @@ class Player extends PhysicsEntity {
                 SetAction(IdleAction);
         }
 
+        if (dashing > 0)
+            dashing = Math.Max(0, dashing - 4);
+        else if (dashing < 0)
+            dashing = Math.Min(0, dashing + 4);
+
+        if (Math.Abs(dashing) > 400) {
+            velocity.x = Math.Abs(dashing) / dashing * 8;
+
+            if (Math.Abs(dashing) == 408)
+                velocity.x *= 0.4;
+
+            game.particles[game.particleCount++] = new Particle(
+                new Vec2(box.x + box.w, box.y + box.h),
+                new Vec2(Math.Abs(dashing) / dashing * Random.Random() * 3, 0),
+                game.animations.particle,
+                "particle",
+                Random.RandInt(1)
+            );
+        }
+
+        if (Math.Abs(dashing) >= 400 && Math.Abs(dashing) <= 480) {
+            for (int! i = 0; i < 20; i++) {
+                var angle = Random.Random() * Math.PI * 2;
+                var speed = Random.Random() * 0.5 + 0.5;
+                game.particles[game.particleCount++] = new Particle(
+                    new Vec2(box.x + box.w, box.y + box.h),
+                    new Vec2(Math.Cos(angle) * speed, Math.Sin(angle) * speed),
+                    game.animations.particle,
+                    "particle",
+                    Random.RandInt(1)
+                );
+            }
+        }
+
         if (velocity.x > 0)
-            velocity.x = Math.Max(velocity.x - 0.1 * 4, 0);
+            velocity.x = Math.Max(velocity.x - 0.4, 0);
         else
-            velocity.x = Math.Max(velocity.x + 0.1 * 4, 0);
+            velocity.x = Math.Min(velocity.x + 0.4, 0);
+    }
+
+    public override void Render(Vec2 offset) {
+        if (Math.Abs(dashing) <= 400)
+            base.Render(offset);
     }
 
     public void Jump() {
         if (wallSlide) {
             if (flip && lastMovement.x < 0) {
-                velocity.x = 3.5 * 6;
-                velocity.y = -2.5 * 6;
+                velocity.x = 3.5 * 3;
+                velocity.y = -2.5 * 5;
                 airTime = 5;
                 jumps = Math.Max(0, jumps - 1);
             } else if (!flip && lastMovement.x > 0) {
-                velocity.x = -3.5 * 6;
-                velocity.y = -2.5 * 6;
+                velocity.x = -3.5 * 3;
+                velocity.y = -2.5 * 5;
                 airTime = 5;
                 jumps = Math.Max(0, jumps - 1);
             }
@@ -69,6 +110,15 @@ class Player extends PhysicsEntity {
             velocity.y = -Settings.JumpSpeed;
             jumps--;
             airTime = 5;
+        }
+    }
+
+    public void Dash() {
+        if (dashing == 0) {
+            if (flip)
+                dashing = -Settings.DashSpeed;
+            else
+                dashing = Settings.DashSpeed;
         }
     }
 }

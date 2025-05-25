@@ -133,7 +133,7 @@ internal class LocalScopeBinder : Binder {
                     else
                         kind = DataContainerDeclarationKind.Variable;
 
-                    var localSymbol = MakeLocal(decl.declaration, kind, localDeclarationBinder);
+                    var localSymbol = MakeLocal(decl.declaration, kind, decl.modifiers, localDeclarationBinder);
                     locals.Add(localSymbol);
 
                     ExpressionVariableFinder.FindExpressionVariables(
@@ -218,6 +218,7 @@ internal class LocalScopeBinder : Binder {
     private protected SourceDataContainerSymbol MakeLocal(
         VariableDeclarationSyntax declaration,
         DataContainerDeclarationKind kind,
+        SyntaxTokenList modifiers,
         Binder initializerBinder = null) {
         return SourceDataContainerSymbol.MakeLocal(
             containingMember,
@@ -227,6 +228,7 @@ internal class LocalScopeBinder : Binder {
             declaration.identifier,
             kind,
             declaration.initializer,
+            modifiers,
             initializerBinder
         );
     }

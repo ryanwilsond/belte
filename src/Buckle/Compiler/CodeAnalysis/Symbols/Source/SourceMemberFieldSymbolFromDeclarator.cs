@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -85,7 +84,11 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         var binder = binderFactory.GetBinder(typeSyntax);
         binder = binder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
 
-        var typeOnly = typeSyntax.SkipRef(out var refKind);
+        var typeOnly = typeSyntax.SkipRef(out _);
+        var refKind = ((_modifiers & DeclarationModifiers.Ref) != 0) ? RefKind.Ref : RefKind.None;
+        // TODO Consider using ref attached to type instead of modifiers like so:
+        // var typeOnly = typeSyntax.SkipRef(out var refKind);
+
         type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped);
 
         if (isImplicitlyTyped) {

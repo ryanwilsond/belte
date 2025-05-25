@@ -7,20 +7,20 @@ class PhysicsEntity {
 
     protected bool flip;
     protected Vec2 lastMovement;
+    protected ref Program game;
 
-    Program game;
     bool[] collisions;
     Vec2 animOffset;
     int action = 10;
-    Animation animation;
+    ref Animation animation;
     int kind;
 
     public Vec2 pos;
     public Rect box;
     public Vec2 velocity;
 
-    public constructor(Program game, Vec2 position, int kind) {
-        this.game = game;
+    public constructor(ref Program game, Vec2 position, int kind) {
+        this.game = ref game;
         pos = position;
         this.kind = kind;
 
@@ -35,7 +35,7 @@ class PhysicsEntity {
         lastMovement = new Vec2(0, 0);
     }
 
-    public virtual void Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+    public virtual void Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
         collisions = { false, false, false, false };
         var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
 
@@ -106,7 +106,7 @@ class PhysicsEntity {
         animation.Update(deltaTime);
     }
 
-    public void Render(Vec2 offset) {
+    public virtual void Render(Vec2 offset) {
         var dst = new Rect(
             (int!)Math.Round(box.x - offset.x),
             (int!)Math.Round(box.y - offset.y),
@@ -127,7 +127,7 @@ class PhysicsEntity {
             this.action = action;
 
             if (kind == 0)
-                animation = game.animations.GetPlayerAction(action).Copy();
+                animation = game.animations.GetPlayerAction(action);
         }
     }
 

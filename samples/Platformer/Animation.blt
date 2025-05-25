@@ -1,7 +1,7 @@
 
 class Animation {
     int length;
-    Texture[] textures;
+    ref Texture[] textures;
     decimal duration;
     bool loop;
     decimal timer;
@@ -9,7 +9,7 @@ class Animation {
     public int frame;
     public bool done;
 
-    public constructor(Texture[] textures, int duration = 5, bool loop = true) {
+    public constructor(ref Texture[] textures, int duration = 5, bool loop = true) {
         length = LowLevel.Length(textures);
         this.textures = textures;
         this.duration = duration / 60.0;
@@ -17,10 +17,6 @@ class Animation {
         done = false;
         frame = 0;
         timer = 0;
-    }
-
-    public Animation Copy() {
-        return new Animation(textures, (int)(duration * 60), loop);
     }
 
     public void Update(decimal! deltaTime) {
@@ -43,7 +39,7 @@ class Animation {
         }
     }
 
-    public Texture GetTexture() {
-        return textures[frame];
+    public ref Texture GetTexture() {
+        return ref textures[frame];
     }
 }

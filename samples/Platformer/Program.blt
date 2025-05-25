@@ -1,18 +1,19 @@
 
 class Program {
-    Player player;
-    TileMap tileMap;
-    Textures textures;
+    ref Player player;
+    ref TileMap tileMap;
+    ref Textures textures;
     bool previousSpace;
+    bool previousRC;
     Vec2 scroll;
-    Sprite background;
-    Clouds clouds;
-    Rect[] leafSpawners;
+    ref Sprite background;
+    ref Clouds clouds;
+    ref Rect[] leafSpawners;
     int leafSpawnerCount;
-    Particle[] particles;
-    int particleCount;
 
-    public Animations animations;
+    public ref Particle[] particles;
+    public int particleCount;
+    public ref Animations animations;
 
     public void Main() {
         Graphics.Initialize("Platformer", Settings.WindowWidth, Settings.WindowHeight, true);
@@ -24,11 +25,13 @@ class Program {
             0
         );
 
-        textures = new Textures();
-        tileMap = new TileMap(textures, Settings.TileSize);
+        textures = ref new Textures();
+        Console.PrintLine(textures);
+        Console.PrintLine("/\\");
+        tileMap = new TileMap(ref textures, Settings.TileSize);
         tileMap.Load("samples/Platformer/map.txt");
-        animations = new Animations(textures);
-        clouds = new Clouds(textures.cloud);
+        animations = new Animations(ref textures);
+        clouds = new Clouds(ref textures.cloud);
 
         player = new Player(this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
 
@@ -49,6 +52,9 @@ class Program {
         particleCount = 0;
 
         scroll = new Vec2(0, 0);
+
+        previousSpace = false;
+        previousRC = false;
     }
 
     public void Update(decimal! deltaTime) {
@@ -67,6 +73,9 @@ class Program {
 
         if (Graphics.GetKey("SPACE") && !previousSpace)
             player.Jump();
+
+        if (Graphics.GetMouseButton("right") && !previousRC )
+            player.Dash();
 
         for (int! i = 0; i < leafSpawnerCount; i++) {
             var leafSpawner = leafSpawners[i];
@@ -113,5 +122,6 @@ class Program {
         }
 
         previousSpace = Graphics.GetKey("SPACE");
+        previousRC = Graphics.GetMouseButton("right");
     }
 }

@@ -329,7 +329,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
                         foreach (var modifier in modifiers) {
                             if (currentToken.kind == SyntaxKind.OpenBraceToken
                                 ? modifier.kind is SyntaxKind.LowlevelKeyword
-                                : modifier.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword) {
+                                : modifier.kind is SyntaxKind.ConstKeyword or
+                                                   SyntaxKind.ConstexprKeyword or
+                                                   SyntaxKind.RefKeyword) {
                                 builder.Add(modifier);
                                 continue;
                             }
@@ -612,6 +614,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.VirtualKeyword => DeclarationModifiers.Virtual,
             SyntaxKind.OverrideKeyword => DeclarationModifiers.Override,
             SyntaxKind.NewKeyword => DeclarationModifiers.New,
+            SyntaxKind.RefKeyword => DeclarationModifiers.Ref,
             _ => DeclarationModifiers.None,
         };
     }

@@ -9,4 +9,5 @@ static class Settings {
     public constexpr int! JumpSpeed = 12;
     public constexpr int! RunSpeed = 400;
     public constexpr int! WallSlideSpeed = 2;
+    public constexpr int! DashSpeed = 480;
 }

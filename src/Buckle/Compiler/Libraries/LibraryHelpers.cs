@@ -127,7 +127,7 @@ public static class LibraryHelpers {
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
-        return new SynthesizedFieldSymbol(null, type.knownType, name, true, false, true, false, true, constantValue);
+        return new SynthesizedFieldSymbol(null, type.knownType, name, true, false, true, true, true, constantValue);
     }
 
     internal static SynthesizedFinishedNamedTypeSymbol StaticClass(string name, ImmutableArray<Symbol> members) {

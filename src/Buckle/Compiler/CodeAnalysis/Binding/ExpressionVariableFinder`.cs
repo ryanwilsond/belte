@@ -13,6 +13,7 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
         VariableDeclarationSyntax node,
         SyntaxToken identifier,
         ArgumentListSyntax argumentListSyntax,
+        SyntaxTokenList modifiers,
         SyntaxNode nodeToBind
     );
 
@@ -97,6 +98,7 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
             node,
             node.identifier,
             argumentListSyntaxOpt,
+            null,
             _nodeToBind
         );
 

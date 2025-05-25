@@ -19,8 +19,9 @@ internal partial class SourceDataContainerSymbol {
             SyntaxToken identifierToken,
             EqualsValueClauseSyntax initializer,
             Binder initializerBinder,
-            DataContainerDeclarationKind declarationKind)
-            : base(containingSymbol, scopeBinder, true, typeSyntax, identifierToken, declarationKind) {
+            DataContainerDeclarationKind declarationKind,
+            SyntaxTokenList modifiers)
+            : base(containingSymbol, scopeBinder, true, typeSyntax, identifierToken, declarationKind, modifiers) {
             _initializer = initializer;
             _initializerBinder = initializerBinder;
         }

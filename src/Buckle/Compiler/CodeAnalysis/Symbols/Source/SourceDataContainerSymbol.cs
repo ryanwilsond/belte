@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -18,7 +19,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         bool allowRefKind,
         TypeSyntax typeSyntax,
         SyntaxToken identifierToken,
-        DataContainerDeclarationKind declarationKind) {
+        DataContainerDeclarationKind declarationKind,
+        SyntaxTokenList modifiers) {
         this.containingSymbol = containingSymbol;
         this.scopeBinder = scopeBinder;
         this.declarationKind = declarationKind;
@@ -26,8 +28,13 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         _typeSyntax = typeSyntax;
 
         if (allowRefKind) {
-            typeSyntax.SkipRef(out var refKind);
-            this.refKind = refKind;
+            // TODO see todo in field/method
+            // typeSyntax.SkipRef(out var refKind);
+            // this.refKind = refKind;
+            if (modifiers is null)
+                refKind = RefKind.None;
+            else
+                refKind = modifiers.Any(m => m.kind == SyntaxKind.RefKeyword) ? RefKind.Ref : RefKind.None;
         }
 
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
@@ -97,6 +104,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         SyntaxToken identifierToken,
         DataContainerDeclarationKind declarationKind,
         EqualsValueClauseSyntax initializer,
+        SyntaxTokenList modifiers,
         Binder initializerBinder = null,
         Binder nodeBinder = null,
         SyntaxNode nodeToBind = null,
@@ -109,6 +117,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 typeSyntax,
                 identifierToken,
                 declarationKind,
+                modifiers,
                 nodeToBind,
                 forbiddenZone
             );
@@ -122,6 +131,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
             identifierToken,
             declarationKind,
             initializer,
+            modifiers,
             initializerBinder ?? scopeBinder
         );
     }
@@ -158,6 +168,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         SyntaxToken identifierToken,
         DataContainerDeclarationKind declarationKind,
         EqualsValueClauseSyntax initializer,
+        SyntaxTokenList modifiers,
         Binder initializerBinder) {
         return initializer is null
             ? new SourceDataContainerSymbol(
@@ -166,7 +177,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 allowRefKind,
                 typeSyntax,
                 identifierToken,
-                declarationKind
+                declarationKind,
+                modifiers
               )
             : new SourceDataContainerWithInitializerSymbol(
                 containingSymbol,
@@ -175,7 +187,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 identifierToken,
                 initializer,
                 initializerBinder,
-                declarationKind
+                declarationKind,
+                modifiers
               );
     }
 
@@ -232,9 +245,18 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
             TypeSyntax typeSyntax,
             SyntaxToken identifierToken,
             DataContainerDeclarationKind declarationKind,
+            SyntaxTokenList modifiers,
             SyntaxNode nodeToBind,
             SyntaxNode forbiddenZone)
-            : base(containingSymbol, scopeBinder, allowRefKind: false, typeSyntax, identifierToken, declarationKind) {
+            : base(
+                containingSymbol,
+                scopeBinder,
+                allowRefKind: false,
+                typeSyntax,
+                identifierToken,
+                declarationKind,
+                modifiers
+            ) {
             _nodeBinder = nodeBinder;
             _nodeToBind = nodeToBind;
             this.forbiddenZone = forbiddenZone;

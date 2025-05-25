@@ -55,6 +55,7 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
         VariableDeclarationSyntax node,
         SyntaxToken identifier,
         ArgumentListSyntax argumentListSyntax,
+        SyntaxTokenList modifiers,
         SyntaxNode nodeToBind) {
         return SourceDataContainerSymbol.MakeLocal(
             containingSymbol: _scopeBinder.containingMember,
@@ -65,6 +66,7 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
             typeSyntax: node.type,
             identifierToken: identifier,
             declarationKind: DataContainerDeclarationKind.Variable,
+            modifiers: modifiers,
             nodeToBind: nodeToBind
         );
     }

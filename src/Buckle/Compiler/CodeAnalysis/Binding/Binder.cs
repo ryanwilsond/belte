@@ -1511,6 +1511,11 @@ internal partial class Binder {
                     ((BoundArrayAccessExpression)expression).index,
                     diagnostics
                 );
+            case BoundKind.ObjectCreationExpression:
+            case BoundKind.ArrayCreationExpression:
+                // Allow assigning references with created objects
+                // TODO May be wrong for some valueKinds however
+                return true;
             case BoundKind.ValuePlaceholder:
                 break;
         }
@@ -7675,6 +7680,7 @@ symIsHidden:;
             declarationType,
             diagnostics,
             true,
+            node.modifiers,
             node
         );
     }
@@ -7687,9 +7693,10 @@ symIsHidden:;
         TypeWithAnnotations declarationType,
         BelteDiagnosticQueue diagnostics,
         bool includeBoundType,
+        SyntaxTokenList modifiers,
         BelteSyntaxNode associatedSyntaxNode = null) {
         return BindVariableDeclaration(
-            LocateDeclaredVariableSymbol(declaration, typeSyntax),
+            LocateDeclaredVariableSymbol(declaration, typeSyntax, modifiers),
             kind,
             isImplicitlyTyped,
             declaration,
@@ -7703,12 +7710,14 @@ symIsHidden:;
 
     private SourceDataContainerSymbol LocateDeclaredVariableSymbol(
         VariableDeclarationSyntax declaration,
-        TypeSyntax typeSyntax) {
+        TypeSyntax typeSyntax,
+        SyntaxTokenList modifiers) {
         return LocateDeclaredVariableSymbol(
             declaration.identifier,
             typeSyntax,
             declaration.initializer,
-            DataContainerDeclarationKind.Variable
+            DataContainerDeclarationKind.Variable,
+            modifiers
         );
     }
 
@@ -7716,7 +7725,8 @@ symIsHidden:;
         SyntaxToken identifier,
         TypeSyntax typeSyntax,
         EqualsValueClauseSyntax equalsValue,
-        DataContainerDeclarationKind kind) {
+        DataContainerDeclarationKind kind,
+        SyntaxTokenList modifiers) {
         var localSymbol = LookupLocal(identifier) ?? SourceDataContainerSymbol.MakeLocal(
             containingMember,
             this,
@@ -7724,7 +7734,8 @@ symIsHidden:;
             typeSyntax,
             identifier,
             kind,
-            equalsValue
+            equalsValue,
+            modifiers
         );
 
         return localSymbol;
@@ -8007,11 +8018,13 @@ symIsHidden:;
         var returnType = GetCurrentReturnType(out var signatureRefKind);
         var hasErrors = false;
 
-        if (returnType is not null && refKind != RefKind.None != (signatureRefKind != RefKind.None)) {
+        if (returnType is not null &&
+            refKind != RefKind.None != (signatureRefKind != RefKind.None) &&
+            !argument.IsLiteralNull()) {
             if (refKind == RefKind.None)
-                diagnostics.Push(Error.MustNotHaveRefReturn(node.keyword.location));
-            else
                 diagnostics.Push(Error.MustHaveRefReturn(node.keyword.location));
+            else
+                diagnostics.Push(Error.MustNotHaveRefReturn(node.keyword.location));
 
             hasErrors = true;
         }
@@ -8378,7 +8391,7 @@ symIsHidden:;
 
         if (!argument.hasErrors) {
             if (returnRefKind != RefKind.None) {
-                if (conversion.kind != ConversionKind.Identity)
+                if (conversion.kind is not ConversionKind.Identity and not ConversionKind.NullLiteral)
                     diagnostics.Push(Error.RefReturnMustHaveIdentityConversion(argument.syntax.location, returnType));
                 else
                     return BindToNaturalType(argument, diagnostics);

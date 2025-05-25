@@ -814,6 +814,12 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
+
+        if (node.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
         DisplayNode(text, node.right);
     }
 

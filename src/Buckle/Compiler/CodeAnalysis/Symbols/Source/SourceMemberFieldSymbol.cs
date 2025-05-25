@@ -34,6 +34,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
             DeclarationModifiers.ConstExpr |
             DeclarationModifiers.New |
             DeclarationModifiers.Static |
+            DeclarationModifiers.Ref |
             DeclarationModifiers.LowLevel;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(

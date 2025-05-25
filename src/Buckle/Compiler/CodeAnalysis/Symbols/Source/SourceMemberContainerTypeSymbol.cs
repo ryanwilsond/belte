@@ -1423,6 +1423,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             diagnostics
                         );
 
+                        var refKind = fieldSymbol.refKind;
+
                         builder.nonTypeMembers.Add(fieldSymbol);
 
                         if (declaration.initializer is not null)

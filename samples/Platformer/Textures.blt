@@ -1,14 +1,14 @@
 
 class Textures {
-    private string[]! keys;
+    private ref string[]! keys;
 
-    public Texture[]! grass;
-    public Texture[]! stone;
-    public Texture[]! cloud;
-    public Texture[]! decor;
-    public Texture[]! largeDecor;
+    public ref Texture[]! grass;
+    public ref Texture[]! stone;
+    public ref Texture[]! cloud;
+    public ref Texture[]! decor;
+    public ref Texture[]! largeDecor;
 
-    public Texture[][] everything;
+    public ref Texture[][] everything;
 
     public constructor() {
         grass = {
@@ -57,19 +57,19 @@ class Textures {
         keys = { "decor", "grass", "largeDecor", "stone" };
     }
 
-    public Texture GetTexture(int tileGroup, int tileVariant) {
-        return everything[tileGroup][tileVariant];
+    public ref Texture GetTexture(int tileGroup, int tileVariant) {
+        return ref everything[tileGroup][tileVariant];
     }
 
-    public Texture GetTextureStr(string key, int tileVariant) {
+    public ref Texture GetTextureStr(string key, int tileVariant) {
         if (key == "decor")
-            return decor[tileVariant];
+            return ref decor[tileVariant];
         if (key == "grass")
-            return grass[tileVariant];
+            return ref grass[tileVariant];
         if (key == "largeDecor")
-            return largeDecor[tileVariant];
+            return ref largeDecor[tileVariant];
         if (key == "stone")
-            return stone[tileVariant];
+            return ref stone[tileVariant];
 
         return null;
     }
@@ -156,6 +156,15 @@ class Textures {
             Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/15.png", 0, 0, 0),
             Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/16.png", 0, 0, 0),
             Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/17.png", 0, 0, 0)
+        };
+    }
+
+    public Texture[] ParticleTextures() {
+        return {
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/3.png", 0, 0, 0)
         };
     }
 }

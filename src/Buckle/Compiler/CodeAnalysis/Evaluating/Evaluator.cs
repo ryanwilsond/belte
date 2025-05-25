@@ -105,10 +105,10 @@ internal sealed class Evaluator {
             var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
-                InvokeMethodWithResolvedReceiver(constructor, [], _programObject, abort);
+                InvokeMethodWithResolvedReceiver(constructor, [], _programObject, abort, []);
         }
 
-        var result = InvokeMethodWithResolvedReceiver(entryPoint, [], _programObject, abort);
+        var result = InvokeMethodWithResolvedReceiver(entryPoint, [], _programObject, abort, []);
 
         // Wait until Main finishes before the first call of Update
         if (_context.maintainThread) {
@@ -126,7 +126,7 @@ internal sealed class Evaluator {
     #region Internal Model
 
     private object Value(EvaluatorObject value, bool traceCollections = false) {
-        if (value.isReference)
+        if (value.isReference && value.reference is not null)
             return GetVariableValue(value.reference, traceCollections);
         else if (value.value is EvaluatorObject e)
             return Value(e, traceCollections);
@@ -232,11 +232,13 @@ internal sealed class Evaluator {
         throw ExceptionUtilities.Unreachable();
     }
 
-    private void Assign(EvaluatorObject left, EvaluatorObject right) {
+    private void Assign(EvaluatorObject left, EvaluatorObject right, BoundKind rightKind) {
         right = Dereference(right, false);
         left = Dereference(left, false);
 
-        if (right.isExplicitReference) {
+        var isTakeable = IsTakeable(rightKind);
+
+        if (right.reference is not null && right.isExplicitReference && !isTakeable) {
             left.reference = right.reference;
             left.isReference = true;
             return;
@@ -247,18 +249,36 @@ internal sealed class Evaluator {
         if (right.members is null)
             left.members = null;
 
-        if (right.value is null && right.members != null)
-            left.members = Copy(right.members);
-        else
+        if (right.value is null && right.members != null) {
+            if (isTakeable)
+                left.members = right.members;
+            else
+                left.members = Copy(right.members);
+        } else {
             left.value = Value(right);
+        }
 
         left.type = right.type;
     }
 
+    private bool IsTakeable(BoundKind kind) {
+        // TODO Consider expanding this to cover more nodes
+        return kind is BoundKind.ObjectCreationExpression or BoundKind.ArrayCreationExpression;
+    }
+
     private EvaluatorObject Dereference(EvaluatorObject reference, bool dereferenceOnExplicit = true) {
         while (reference.isReference) {
-            if (!dereferenceOnExplicit && reference.isExplicitReference)
-                break;
+            if (!dereferenceOnExplicit && reference.isExplicitReference) {
+                // Ref parameters refer to a deeper location, we don't want to reference the parameter itself
+                if (reference.reference is not ParameterSymbol p || p.refKind == RefKind.None)
+                    break;
+            }
+
+            // Ref local/field, but it references itself
+            // This happens when a ref local/field is created in order to pass-by-ref, but it is assigned to by a
+            // creation expression
+            if (reference.reference is null)
+                return reference;
 
             reference = Get(reference.reference);
         }
@@ -337,6 +357,7 @@ internal sealed class Evaluator {
     #region Statements
 
     private EvaluatorObject EvaluateStatement(
+        MethodSymbol method,
         BoundBlockStatement block,
         ValueWrapper<bool> abort,
         out bool hasReturn,
@@ -397,8 +418,11 @@ internal sealed class Evaluator {
                         var returnStatement = (BoundReturnStatement)s;
 
                         if (returnStatement.expression is not null) {
-                            _lastValue = Copy(EvaluateExpression(returnStatement.expression, abort));
+                            _lastValue = EvaluateExpression(returnStatement.expression, abort);
                             _hasValue = true;
+
+                            if (method.refKind == RefKind.None)
+                                _lastValue = Copy(Dereference(_lastValue));
                         } else if (_lastValue is not null && _context.options.isScript) {
                             _hasValue = true;
                         } else {
@@ -522,6 +546,9 @@ internal sealed class Evaluator {
         var array = (EvaluatorObject[])Value(receiver);
         var indexValue = Convert.ToInt32(Value(index));
 
+        if (array is null)
+            throw new BelteNullReferenceException(node.syntax.location);
+
         if (indexValue >= array.Length)
             throw new BelteIndexOutOfRangeException(node.syntax.location);
 
@@ -572,7 +599,7 @@ internal sealed class Evaluator {
             return EvaluateExpression(node.arguments[0], abort);
 
         var newObject = CreateObject((NamedTypeSymbol)node.type);
-        InvokeMethodWithResolvedReceiver(node.constructor, node.arguments, newObject, abort);
+        InvokeMethodWithResolvedReceiver(node.constructor, node.arguments, newObject, abort, node.argumentRefKinds);
         return newObject;
     }
 
@@ -597,7 +624,13 @@ internal sealed class Evaluator {
                 return null;
         }
 
-        return InvokeMethod(expression.method, expression.arguments, expression.receiver, abort);
+        return InvokeMethod(
+            expression.method,
+            expression.arguments,
+            expression.receiver,
+            expression.argumentRefKinds,
+            abort
+        );
     }
 
     private void ResolveMethodArguments(MethodSymbol method, EvaluatorObject[] arguments) {
@@ -610,10 +643,16 @@ internal sealed class Evaluator {
             var parameter = method.parameters[i];
             var value = arguments[i];
 
-            while (parameter.refKind != RefKind.None && value.isReference)
-                value = Get(value.reference);
+            // TODO This seemingly rids the reference, no?
+            // while (parameter.refKind != RefKind.None && value.isReference)
+            //     value = Get(value.reference);
 
-            locals.Add(parameter, Copy(value));
+            // locals.Add(parameter, Copy(value));
+            // Fix?:
+            if (parameter.refKind == RefKind.None)
+                value = Copy(value);
+
+            locals.Add(parameter, value);
         }
 
         _locals.Push(locals);
@@ -624,8 +663,19 @@ internal sealed class Evaluator {
         ImmutableArray<BoundExpression> arguments,
         EvaluatorObject receiver,
         ValueWrapper<bool> abort,
+        ImmutableArray<RefKind> argRefKinds,
         bool isBaseCall = false) {
         var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+
+        if (argRefKinds != default) {
+            for (var i = 0; i < arguments.Length; i++) {
+                if (argRefKinds[i] != RefKind.None) {
+                    evaluatedArguments[i].isExplicitReference = true;
+                    evaluatedArguments[i].isReference = true;
+                }
+            }
+        }
+
         return InvokeResolvedMethod(method, evaluatedArguments, receiver, abort, isBaseCall);
     }
 
@@ -667,7 +717,7 @@ internal sealed class Evaluator {
 
         ResolveMethodArguments(method, arguments);
 
-        var result = EvaluateStatement(statement, abort, out _);
+        var result = EvaluateStatement(method, statement, abort, out _);
 
         // while (_templateConstantDepth > templateConstantDepth) {
         //     _templateConstantDepth--;
@@ -686,6 +736,7 @@ internal sealed class Evaluator {
         MethodSymbol method,
         ImmutableArray<BoundExpression> arguments,
         BoundExpression receiver,
+        ImmutableArray<RefKind> argRefKinds,
         ValueWrapper<bool> abort) {
         var receiverObject = default(EvaluatorObject);
 
@@ -703,6 +754,7 @@ internal sealed class Evaluator {
             arguments,
             receiverObject,
             abort,
+            argRefKinds,
             receiver?.kind == BoundKind.BaseExpression
         );
     }
@@ -797,8 +849,16 @@ internal sealed class Evaluator {
 
     private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort) {
         var left = EvaluateExpression(expression.left, abort);
-        var leftValue = Value(left);
         var opKind = expression.operatorKind.OperatorWithConditional();
+
+        if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
+            if (expression.right.IsLiteralNull()) {
+                var isNull = ObjectIsNull(left, expression.left.type);
+                return new EvaluatorObject(isNull == (opKind == BinaryOperatorKind.Equal), expression.type);
+            }
+        }
+
+        var leftValue = Value(left);
 
         if (opKind == BinaryOperatorKind.ConditionalAnd) {
             if (leftValue is null || !(bool)leftValue)
@@ -830,11 +890,6 @@ internal sealed class Evaluator {
         var rightValue = Value(right);
 
         if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
-            if (expression.right.IsLiteralNull()) {
-                var isNull = ObjectIsNull(left, expression.left.type);
-                return new EvaluatorObject(isNull == (opKind == BinaryOperatorKind.Equal), expression.type);
-            }
-
             if (expression.left.type.specialType == SpecialType.Type) {
                 if ((leftValue as BoundTypeExpression).type.Equals((rightValue as BoundTypeExpression).type))
                     return new EvaluatorObject(opKind == BinaryOperatorKind.Equal, expression.type);
@@ -993,7 +1048,7 @@ internal sealed class Evaluator {
         if (expression.isRef)
             right.isExplicitReference = true;
 
-        Assign(left, right);
+        Assign(left, right, expression.right.kind);
         return right;
     }
 
@@ -1145,7 +1200,7 @@ internal sealed class Evaluator {
                     printed = true;
 
                     if (mapKey != "Console_Print_A?") {
-                        var toStringResult = InvokeMethod(_toStringMethod, [], arguments[0], abort);
+                        var toStringResult = InvokeMethod(_toStringMethod, [], arguments[0], [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
                         result = func(Value(toStringResult), null, null);
                         return true;

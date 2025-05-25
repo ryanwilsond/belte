@@ -86,7 +86,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
         var flags = new Flags(
             methodKind,
-            syntax.returnType.GetRefKind(),
+            // TODO See todo in fields, we currently use ref modifier on outer symbol instead of on type
+            // syntax.returnType.GetRefKind(),
+            ((declarationModifiers & DeclarationModifiers.Ref) != 0) ? RefKind.Ref : RefKind.None,
             declarationModifiers,
             false,
             false,
@@ -110,6 +112,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             | DeclarationModifiers.Virtual
             | DeclarationModifiers.Const
             | DeclarationModifiers.AccessibilityMask
+            | DeclarationModifiers.Ref
             | DeclarationModifiers.Override;
 
         bool hasExplicitAccessMod;
