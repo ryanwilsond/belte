@@ -120,6 +120,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
+            if (underlyingConversion.isIdentity)
+                return underlyingConversion;
+
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
         }
@@ -137,8 +140,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
             return Explicit;
 
-        // if (source is ArrayTypeSymbol sa && target is ArrayTypeSymbol ta)
-        //     return Classify(sa.elementType, ta.elementType);
+        if (source is ArrayTypeSymbol sa && target is ArrayTypeSymbol ta)
+            return Classify(sa.elementType, ta.elementType);
 
         // EasyOut and our special array check covers all possible primitive conversions
         if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)

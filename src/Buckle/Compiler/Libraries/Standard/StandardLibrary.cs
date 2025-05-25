@@ -15,6 +15,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyString;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
@@ -80,6 +81,15 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol String {
+        get {
+            if (_lazyString is null)
+                Interlocked.CompareExchange(ref _lazyString, GenerateString(), null);
+
+            return _lazyString;
+        }
+    }
+
     internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
         get {
             if (_lazyEvaluatorMap is null)
@@ -97,12 +107,19 @@ internal static class StandardLibrary {
         yield return LowLevel;
         yield return Time;
         yield return Random;
+        yield return String;
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
         return StaticClass("Random", [
             StaticMethod("RandInt", SpecialType.Int, [("max", SpecialType.Int, true)]),
             StaticMethod("Random", SpecialType.Decimal),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateString() {
+        return StaticClass("String", [
+            StaticMethod("Split", StringArray, [("text", SpecialType.String), ("separator", SpecialType.String)]),
         ]);
     }
 

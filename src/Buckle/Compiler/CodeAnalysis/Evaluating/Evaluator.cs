@@ -1095,53 +1095,62 @@ internal sealed class Evaluator {
             method.containingType.Equals(StandardLibrary.Time.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Directory.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.File.underlyingNamedType) ||
+            method.containingType.Equals(StandardLibrary.String.underlyingNamedType) ||
             method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
-
-            if (mapKey == "LowLevel_GetHashCode_O") {
-                result = Dereference(EvaluateExpression(arguments[0], abort)).GetHashCode();
-                return true;
-            }
-
-            if (mapKey == "LowLevel_GetTypeName_O") {
-                result = EvaluateExpression(arguments[0], abort).type.name;
-                return true;
-            }
-
-            if (mapKey == "Random_RandInt_I?") {
-                _lazyRandom ??= new Random();
-                var max = Value(EvaluateExpression(arguments[0], abort));
-                result = Convert.ToInt64(_lazyRandom.Next(Convert.ToInt32(max)));
-                return true;
-            }
-
-            if (mapKey == "Random_Random") {
-                _lazyRandom ??= new Random();
-                result = _lazyRandom.NextDouble();
-                return true;
-            }
-
-            if (mapKey == "LowLevel_Sort_A?") {
-                var array = Dereference(EvaluateExpression(arguments[0], abort));
-
-                if (array.value is not EvaluatorObject[] ea)
+            switch (mapKey) {
+                case "LowLevel_GetHashCode_O":
+                    result = Dereference(EvaluateExpression(arguments[0], abort)).GetHashCode();
                     return true;
+                case "LowLevel_GetTypeName_O":
+                    result = EvaluateExpression(arguments[0], abort).type.name;
+                    return true;
+                case "Random_RandInt_I?":
+                    _lazyRandom ??= new Random();
+                    var max = Value(EvaluateExpression(arguments[0], abort));
+                    result = Convert.ToInt64(_lazyRandom.Next(Convert.ToInt32(max)));
+                    return true;
+                case "Random_Random":
+                    _lazyRandom ??= new Random();
+                    result = _lazyRandom.NextDouble();
+                    return true;
+                case "LowLevel_Sort_A?": {
+                        var array = Dereference(EvaluateExpression(arguments[0], abort));
 
-                Array.Sort(ea, (a, b) => Convert.ToDouble(a.value).CompareTo(Convert.ToDouble(b.value)));
-                return true;
+                        if (array.value is not EvaluatorObject[] ea)
+                            return true;
+
+                        Array.Sort(ea, (a, b) => Convert.ToDouble(a.value).CompareTo(Convert.ToDouble(b.value)));
+                    }
+
+                    return true;
+                case "String_Split_SS": {
+                        var args = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
+                        var text = (string)args[0];
+                        var separator = (string)args[1];
+                        var res = text.Split(separator);
+
+                        result = res.Select(
+                            r => new EvaluatorObject(r, CorLibrary.GetSpecialType(SpecialType.Sprite))
+                        ).ToArray();
+                    }
+
+                    return true;
+                case "Console_Print_S?":
+                case "Console_Print_A?":
+                case "Console_Print_O?":
+                    printed = true;
+
+                    if (mapKey != "Console_Print_A?") {
+                        var toStringResult = InvokeMethod(_toStringMethod, [], arguments[0], abort);
+                        var func = StandardLibrary.EvaluatorMap[mapKey];
+                        result = func(Value(toStringResult), null, null);
+                        return true;
+                    }
+
+                    break;
             }
 
             var function = StandardLibrary.EvaluatorMap[mapKey];
-
-            if (mapKey == "Console_Print_S?" || mapKey == "Console_Print_A?" || mapKey == "Console_Print_O?")
-                printed = true;
-
-            if (mapKey == "Console_Print_O?" || mapKey == "Console_PrintLine_O?") {
-                // Special case where we inject a call to Object.ToString before calling the Console method
-                var toStringResult = InvokeMethod(_toStringMethod, [], arguments[0], abort);
-                result = function(Value(toStringResult), null, null);
-                return true;
-            }
-
             var valueArguments = arguments.Select(a => Value(EvaluateExpression(a, abort))).ToArray();
 
             result = arguments.Length switch {
@@ -1335,27 +1344,41 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_DrawRect_R?I?I?I?": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
-                    var rect = Dereference(evaluatedArguments[0]);
-
-                    if (rect.members is null)
-                        return true;
-
-                    var (x, y, w, h) = ExtractRectangleComponents(rect);
-                    var r = evaluatedArguments[1].value;
-                    var g = evaluatedArguments[2].value;
-                    var b = evaluatedArguments[3].value;
-
-                    if (_context.options.isScript) {
-                        result = _context.graphicsHandler.AddAction(
-                            () => { _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b); }
-                        );
-                    } else {
-                        _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b);
-                    }
+            case "Graphics_GetMouseButton_S": {
+                    var argument = (string)Value(EvaluateExpression(arguments[0], abort));
+                    result = _context.graphicsHandler.GetMouseButton(argument);
                 }
 
+                break;
+            case "Graphics_GetScroll": {
+                    result = Convert.ToInt64(_context.graphicsHandler.GetScroll());
+                }
+
+                break;
+            case "Graphics_GetMousePosition": {
+                    var (x, y) = _context.graphicsHandler.GetMousePosition();
+                    var vecType = CorLibrary.GetSpecialType(SpecialType.Vec2);
+                    var vec = CreateObject(vecType);
+
+                    InvokeResolvedMethod(
+                        vecType.constructors[0],
+                        [
+                            new EvaluatorObject(Convert.ToDouble(x), CorLibrary.GetSpecialType(SpecialType.Decimal)),
+                            new EvaluatorObject(Convert.ToDouble(y), CorLibrary.GetSpecialType(SpecialType.Decimal))
+                        ],
+                        vec,
+                        abort
+                    );
+
+                    result = vec;
+                }
+
+                break;
+            case "Graphics_DrawRect_R?I?I?I?":
+                DrawRect(false, out result);
+                break;
+            case "Graphics_DrawRect_R?I?I?I?I?":
+                DrawRect(true, out result);
                 break;
             case "Graphics_Fill_III": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
@@ -1374,7 +1397,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_Draw_T?R?R?I?B?": {
+            case "Graphics_Draw_T?R?R?I?B?D?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
                     var texture = Dereference(evaluatedArguments[0]);
 
@@ -1385,15 +1408,16 @@ internal sealed class Evaluator {
                     var dstRect = Dereference(evaluatedArguments[2]);
                     var rotation = evaluatedArguments[3].value;
                     var flip = evaluatedArguments[4].value;
+                    var alpha = evaluatedArguments[5].value;
 
                     if (_context.options.isScript) {
                         result = _context.graphicsHandler.AddAction(
                             () => {
-                                _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip);
+                                _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
                             }
                         );
                     } else {
-                        _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip);
+                        _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
                         result = null;
                     }
                 }
@@ -1404,6 +1428,29 @@ internal sealed class Evaluator {
         }
 
         return true;
+
+        void DrawRect(bool includeAlpha, out object result) {
+            result = null;
+            var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+            var rect = Dereference(evaluatedArguments[0]);
+
+            if (rect.members is null)
+                return;
+
+            var (x, y, w, h) = ExtractRectangleComponents(rect);
+            var r = evaluatedArguments[1].value;
+            var g = evaluatedArguments[2].value;
+            var b = evaluatedArguments[3].value;
+            var a = includeAlpha ? evaluatedArguments[4].value : null;
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler.AddAction(
+                    () => { _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b, a); }
+                );
+            } else {
+                _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b, a);
+            }
+        }
 
         void DrawSprite(EvaluatorObject sprite, EvaluatorObject offsetVec, out object result) {
             var (sx, sy, sw, sh) = ExtractRectangleComponents(Slot(sprite, 2));

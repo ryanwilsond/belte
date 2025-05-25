@@ -114,7 +114,7 @@ class PhysicsEntity {
         else
             dst.x += (int!)animOffset.x;
 
-        Graphics.Draw(animation.GetTexture(), null, dst, 0, flip);
+        Graphics.Draw(animation.GetTexture(), null, dst, 0, flip, 1);
     }
 
     protected void SetAction(int action) {

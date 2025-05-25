@@ -88,6 +88,18 @@ internal partial class GraphicsHandler : Game {
         return false;
     }
 
+    internal bool GetMouseButton(string button) {
+        return MouseManager.IsMouseButtonPressed(button);
+    }
+
+    internal int GetScroll() {
+        return MouseManager.GetScroll();
+    }
+
+    internal (int, int) GetMousePosition() {
+        return MouseManager.GetPosition();
+    }
+
     internal void DrawSprite(
         Texture2D texture,
         int sx, int sy, int sw, int sh,
@@ -109,7 +121,13 @@ internal partial class GraphicsHandler : Game {
         );
     }
 
-    internal void Draw(Texture2D texture, EvaluatorObject src, EvaluatorObject dst, object rotation, object flip) {
+    internal void Draw(
+        Texture2D texture,
+        EvaluatorObject src,
+        EvaluatorObject dst,
+        object rotation,
+        object flip,
+        object alpha) {
         Rectangle? srcRect = null;
 
         if (src.members is not null) {
@@ -122,12 +140,13 @@ internal partial class GraphicsHandler : Game {
 
         var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
         var flipB = flip is not null && Convert.ToBoolean(flip);
+        var alphaF = alpha is null ? 1 : Convert.ToSingle(alpha);
 
         _spriteBatch.Draw(
             texture,
             dstRect,
             srcRect,
-            Color.White,
+            Color.White * alphaF,
             rotF,
             Vector2.Zero,
             flipB ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
@@ -154,8 +173,8 @@ internal partial class GraphicsHandler : Game {
         _spriteBatch.DrawString(font, text, location, spacing, color);
     }
 
-    internal void DrawRect(int x, int y, int w, int h, object r, object g, object b) {
-        var color = GetColor(r, g, b);
+    internal void DrawRect(int x, int y, int w, int h, object r, object g, object b, object a) {
+        var color = GetColor(r, g, b, a);
         var rectangle = new Rectangle(x, y, w, h);
         var pixel = new Texture2D(GraphicsDevice, 1, 1);
         pixel.SetData([color]);
@@ -167,11 +186,12 @@ internal partial class GraphicsHandler : Game {
         GraphicsDevice.Clear(color);
     }
 
-    private Color GetColor(object r, object g, object b) {
+    private Color GetColor(object r, object g, object b, object a = null) {
         var ri = r is null ? 255 : Convert.ToInt32(r);
         var gi = g is null ? 255 : Convert.ToInt32(g);
         var bi = b is null ? 255 : Convert.ToInt32(b);
-        return new Color(ri, gi, bi);
+        var ai = a is null ? 255 : Convert.ToInt32(a);
+        return new Color(ri, gi, bi, ai);
     }
 
     protected override void Initialize() {
@@ -201,6 +221,7 @@ internal partial class GraphicsHandler : Game {
 
     protected override void Draw(GameTime gameTime) {
         KeyboardManager.Update();
+        MouseManager.Update();
 
         _spriteBatch.Begin(samplerState: _usePointClamp ? SamplerState.PointClamp : null);
 

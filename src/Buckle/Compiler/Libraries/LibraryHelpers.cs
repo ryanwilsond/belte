@@ -19,6 +19,7 @@ public static class LibraryHelpers {
         = new CompilationOptions(BuildMode.None, OutputKind.Library);
 
     private static SpecialOrKnownType.Boxed _lazyStringList;
+    private static SpecialOrKnownType.Boxed _lazyStringArray;
 
     internal static SpecialOrKnownType StringList {
         get {
@@ -26,6 +27,15 @@ public static class LibraryHelpers {
                 Interlocked.CompareExchange(ref _lazyStringList, GenerateStringList(), null);
 
             return _lazyStringList.type;
+        }
+    }
+
+    internal static SpecialOrKnownType StringArray {
+        get {
+            if (_lazyStringArray is null)
+                Interlocked.CompareExchange(ref _lazyStringArray, GenerateArray(SpecialType.String), null);
+
+            return _lazyStringArray.type;
         }
     }
 
@@ -47,6 +57,7 @@ public static class LibraryHelpers {
                 libraryName != "Compiler.Rect.blt" &&
                 libraryName != "Compiler.Texture.blt" &&
                 libraryName != "Compiler.FRect.blt" &&
+                libraryName != "Compiler.Vec4.blt" &&
                 libraryName != "Compiler.Sprite.blt") {
                 continue;
             }

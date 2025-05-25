@@ -1,13 +1,13 @@
 
 class Animation {
     int length;
-    Textures[] textures;
+    Texture[] textures;
     int duration;
     bool loop;
     bool done;
     int frame;
 
-    public constructor(Textures[] textures, int duration = 5, bool loop = true) {
+    public constructor(Texture[] textures, int duration = 5, bool loop = true) {
         length = LowLevel.Length(textures);
         this.textures = textures;
         this.duration = duration;

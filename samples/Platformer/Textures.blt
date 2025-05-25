@@ -1,18 +1,84 @@
 
 class Textures {
-    public Texture grass1;
-    public Texture stone1;
-    public Texture cloud1;
-    public Texture cloud2;
+    private string[]! keys;
+
+    public Texture[]! grass;
+    public Texture[]! stone;
+    public Texture[]! cloud;
+    public Texture[]! decor;
+    public Texture[]! largeDecor;
+
+    public Texture[][] everything;
 
     public constructor() {
-        grass1 = Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/1.png", 0, 0, 0);
-        stone1 = Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/1.png", 0, 0, 0);
-        cloud1 = Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_1.png", 0, 0, 0);
-        cloud2 = Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_2.png", 0, 0, 0);
+        grass = {
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/7.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/8.png", 0, 0, 0)
+        };
+
+        stone = {
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/7.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/8.png", 0, 0, 0)
+        };
+
+        cloud = {
+            Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_2.png", 0, 0, 0)
+        };
+
+        decor = {
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/3.png", 0, 0, 0)
+        };
+
+        largeDecor = {
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/2.png", 0, 0, 0)
+        };
+
+        everything = { decor, grass, largeDecor, stone };
+        keys = { "decor", "grass", "largeDecor", "stone" };
     }
 
-    public Textures[] PlayerIdleTextures() {
+    public Texture GetTexture(int tileGroup, int tileVariant) {
+        return everything[tileGroup][tileVariant];
+    }
+
+    public Texture GetTexture(string key, int tileVariant) {
+        if (key == "decor")
+            return decor[tileVariant];
+        if (key == "grass")
+            return grass[tileVariant];
+        if (key == "largeDecor")
+            return largeDecor[tileVariant];
+        if (key == "stone")
+            return stone[tileVariant];
+
+        return null;
+    }
+
+    public string! GetTextureKey(int tileGroup, int tileVariant) {
+        return keys[tileGroup] + ";" + ((string!)tileVariant);
+    }
+
+    public Texture[] PlayerIdleTextures() {
         return {
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/00.png"),
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/01.png"),
@@ -39,7 +105,7 @@ class Textures {
         };
     }
 
-    public Textures[] PlayerRunTextures() {
+    public Texture[] PlayerRunTextures() {
         return {
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/0.png", 0, 0, 0),
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/1.png", 0, 0, 0),
@@ -52,19 +118,19 @@ class Textures {
         };
     }
 
-    public Textures[] PlayerSlideTextures() {
+    public Texture[] PlayerSlideTextures() {
         return {
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/slide/0.png", 0, 0, 0),
         };
     }
 
-    public Textures[] PlayerJumpTextures() {
+    public Texture[] PlayerJumpTextures() {
         return {
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/jump/0.png", 0, 0, 0),
         };
     }
 
-    public Textures[] PlayerWallSlideTextures() {
+    public Texture[] PlayerWallSlideTextures() {
         return {
             Graphics.LoadTexture("samples/Platformer/data/images/entities/player/wall_slide/0.png", 0, 0, 0),
         };

@@ -1,17 +1,99 @@
 
 class TileMap {
     private int! tileSize;
-    private Tile[] tiles;
+    private int! tileCount;
     private Tile[] offGridTiles;
+    private int! offGridCount;
+    private Textures textures;
+
+    public Tile[] tiles;
 
     public constructor(Textures textures, int! tileSize = 64) {
         this.tileSize = tileSize;
+        this.textures = textures;
+        // tileCount = 20;
+        tileCount = 0;
+        offGridCount = 0;
         tiles = new Tile[100];
         offGridTiles = new Tile[100];
 
-        for (int! i = 0; i < 10; i++) {
-            tiles[i] = new Tile(3 + i, 10, textures.grass1, tileSize);
-            tiles[i + 10] = new Tile(10, 5 + i, textures.stone1, tileSize);
+        // for (int! i = 0; i < 10; i++) {
+        //     tiles[i] = new Tile(3 + i, 10, textures.grass[1], "grass;1", tileSize);
+        //     tiles[i + 10] = new Tile(10, 5 + i, textures.stone[1], "stone;1", tileSize);
+        // }
+    }
+
+    public void Save(string! path) {
+        string! text = "";
+
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+            text += ((string!)tile.x) + ";" + ((string!)tile.y) + ";" + tile.key + "\n";
+        }
+
+        File.WriteText(path, text);
+    }
+
+    public void Load(string! path) {
+        var text = File.ReadText(path);
+        var lines = String.Split(text!, "\n");
+
+        for (int! i = 0; i < LowLevel.Length(lines) - 1; i++) {
+            var parts = String.Split(lines[i]!, ";");
+            var x = (int!)parts[0];
+            var y = (int!)parts[1];
+            var v = (int!)parts[3];
+            var texture = textures.GetTexture(parts[2], v);
+            string! key = (string!)(parts[2] + ";" + parts[3]);
+
+            tiles[tileCount++] = new Tile(x, y, texture, key, tileSize);
+        }
+    }
+
+    public void AddGridTile(int! x, int! y, Texture texture, string! key) {
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.x == x && tile.y == y) {
+                tiles[i] = new Tile(x, y, texture, key, tileSize);
+                return;
+            }
+        }
+
+        tiles[tileCount++] = new Tile(x, y, texture, key, tileSize);
+    }
+
+    public void AddOffGridTile(int! x, int! y, Texture texture, string! key) {
+        offGridTiles[offGridCount++] = new Tile(x, y, texture, key, tileSize, false);
+    }
+
+    public void RemoveGridTile(int! x, int! y) {
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.x == x && tile.y == y) {
+                for (int! j = i; j < tileCount - 1; j++)
+                    tiles[j] = tiles[j + 1];
+
+                tiles[tileCount - 1] = null;
+                tileCount--;
+                return;
+            }
+        }
+    }
+
+    public void RemoveOffGridTile(int! x, int! y) {
+        for (int! i = 0; i < offGridCount; i++) {
+            var tile = offGridTiles[i];
+
+            if (PointInsideTile(x, y, tile)) {
+                for (int! j = i; j < offGridCount - 1; j++)
+                    offGridTiles[j] = offGridTiles[j + 1];
+
+                offGridTiles[offGridCount - 1] = null;
+                offGridCount--;
+                return;
+            }
         }
     }
 
@@ -65,5 +147,11 @@ class TileMap {
         }
 
         return false;
+    }
+
+    private bool PointInsideTile(int! x, int! y, Tile tile) {
+        var collidingX = x > tile.x && x < tile.x + tile.sprite.dst.w;
+        var collidingY = y > tile.y && y < tile.y + tile.sprite.dst.h;
+        return collidingX && collidingY;
     }
 }

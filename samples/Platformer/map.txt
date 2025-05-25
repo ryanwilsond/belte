@@ -1,0 +1,16 @@
+11;10;stone;1
+10;10;stone;1
+9;10;stone;1
+8;10;stone;1
+7;10;stone;1
+12;10;stone;1
+13;10;stone;1
+14;10;stone;1
+15;10;stone;1
+16;10;stone;1
+17;10;stone;1
+18;10;stone;1
+19;10;stone;1
+20;10;stone;1
+21;10;stone;1
+22;10;stone;1

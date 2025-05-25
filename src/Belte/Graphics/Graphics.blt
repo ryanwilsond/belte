@@ -8,7 +8,7 @@ public static class Graphics {
 
     public static Sprite LoadSprite(string! path, Vec2 position, Vec2 scale, int rotation);
 
-    public static int Draw(Texture texture, Rect srcRect, Rect dstRect, int rotation, bool flip);
+    public static int Draw(Texture texture, Rect srcRect, Rect dstRect, int rotation, bool flip, decimal alpha);
 
     public static int DrawSprite(Sprite sprite);
 
@@ -20,9 +20,15 @@ public static class Graphics {
 
     public static int DrawRect(Rect rect, int r, int g, int b);
 
+    public static int DrawRect(Rect rect, int r, int g, int b, int a);
+
     public static void StopDraw(int id);
 
     public static bool! GetKey(string! key);
 
     public static void Fill(int! r, int! g, int! b);
+
+    public static bool! GetMouseButton(string! button);
+
+    public static int! GetScroll();
 }

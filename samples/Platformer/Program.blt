@@ -21,11 +21,12 @@ class Program {
         );
 
         textures = new Textures();
-        tileMap = new TileMap(textures);
+        tileMap = new TileMap(textures, Settings.TileSize);
+        tileMap.Load("samples/Platformer/map.txt");
         animations = new Animations(textures);
-        clouds = new Clouds({ textures.cloud1, textures.cloud2 });
+        clouds = new Clouds(textures.cloud);
 
-        player = new Player(this, new Vec2(300, 300));
+        player = new Player(this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
 
         scroll = new Vec2(0, 0);
     }

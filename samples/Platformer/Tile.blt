@@ -2,11 +2,17 @@
 class Tile {
     public int! x;
     public int! y;
+    public string! key;
     public Sprite sprite;
 
-    public constructor(int! x, int! y, Texture texture, int! tileSize) {
+    public constructor(int! x, int! y, Texture texture, string! key, int! tileSize, bool onGrid = true) {
         this.x = x;
         this.y = y;
-        this.sprite = new Sprite(texture, null, new Rect(x * tileSize, y * tileSize, tileSize, tileSize), 0);
+        this.key = key;
+
+        if (onGrid)
+            this.sprite = new Sprite(texture, null, new Rect(x * tileSize, y * tileSize, tileSize, tileSize), 0);
+        else
+            this.sprite = new Sprite(texture, null, new Rect(x, y, texture.width * 4, texture.height * 4), 0);
     }
 }
