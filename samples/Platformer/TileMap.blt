@@ -15,8 +15,8 @@ class TileMap {
         offGridCount = 0;
 
         // Arbitrary sizes, probably good enough
-        tiles = new Tile[300];
-        offGridTiles = new Tile[100];
+        tiles = new Tile[512];
+        offGridTiles = new Tile[128];
     }
 
     public ref Tile[] Extract(string! key, bool! keep) {
@@ -106,7 +106,11 @@ class TileMap {
     public void AutoTile() {
         for (int! i = 0; i < tileCount; i++) {
             var tile = tiles[i];
-            var neighbors = GetSortedNearTiles(tile.x, tile.y);
+
+            if (tile.kind != "grass" && tile.kind != "stone")
+                continue;
+
+            var neighbors = GetSortedNearTilesG(tile.x, tile.y);
 
             var hasTop = neighbors[1] isnt null;
             var hasBottom = neighbors[7] isnt null;
@@ -188,25 +192,22 @@ class TileMap {
     public ref Tile[] GetNearTiles(int! x, int! y) {
         var gx = Math.Round(x / (decimal)tileSize);
         var gy = Math.Round(y / (decimal)tileSize);
-        var tileCount = 0;
+        var nearTileCount = 0;
         var nearTiles = new Tile[9];
 
-        for (int! i = 0; i < 100; i++) {
+        for (int! i = 0; i < tileCount; i++) {
             var tile = tiles[i];
-
-            if (tile is null)
-                break;
 
             if ((tile.kind == "grass" || tile.kind == "stone") &&
                 tile.x >= gx - 1 && tile.x <= gx + 1 && tile.y >= gy - 1 && tile.y <= gy + 1) {
-                nearTiles[tileCount++] = tile;
+                nearTiles[nearTileCount++] = tile;
             }
         }
 
         return ref nearTiles;
     }
 
-    public ref Tile[] GetSortedNearTiles(int! gx, int! gy) {
+    public ref Tile[] GetSortedNearTilesG(int! gx, int! gy) {
         var unsorted = GetNearTiles(gx * tileSize, gy * tileSize);
         var sorted = new Tile[9];
 
@@ -228,22 +229,40 @@ class TileMap {
         return ref sorted;
     }
 
-    public void Render(Vec2 offset) {
-        for (int! i = 0; i < 100; i++) {
-            var tile = offGridTiles[i];
+    public ref Tile[] GetSortedNearTiles(int! x, int! y) {
+        var gx = Math.Round(x / (decimal)tileSize);
+        var gy = Math.Round(y / (decimal)tileSize);
+        var unsorted = GetNearTiles(x, y);
+        var sorted = new Tile[9];
+
+        for (int! i = 0; i < 9; i++) {
+            var tile = unsorted[i];
 
             if (tile is null)
                 break;
+
+            var dx = tile.x - gx;
+            var dy = tile.y - gy;
+
+            if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
+                var index = (dy + 1) * 3 + (dx + 1);
+                sorted[index] = tile;
+            }
+        }
+
+        return ref sorted;
+    }
+
+    public void Render(Vec2 offset) {
+        for (int! i = 0; i < offGridCount; i++) {
+            var tile = offGridTiles[i];
 
             if (!TileOffScreen(tile, offset))
                 Graphics.DrawSprite(tile.sprite, offset);
         }
 
-        for (int! i = 0; i < 100; i++) {
+        for (int! i = 0; i < tileCount; i++) {
             var tile = tiles[i];
-
-            if (tile is null)
-                break;
 
             if (!TileOffScreen(tile, offset))
                 Graphics.DrawSprite(tile.sprite, offset);

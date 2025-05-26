@@ -8,8 +8,8 @@ class PhysicsEntity {
     protected bool flip;
     protected Vec2 lastMovement;
     protected ref Program game;
+    protected bool[] collisions;
 
-    bool[] collisions;
     Vec2 animOffset;
     int action = 10;
     ref Animation animation;
@@ -123,11 +123,14 @@ class PhysicsEntity {
     }
 
     protected void SetAction(int action) {
+        // Consider making SetAction abstract and implementing it in the subclasses
         if (action != this.action) {
             this.action = action;
 
             if (kind == 0)
                 animation = game.animations.GetPlayerAction(action);
+            if (kind == 1)
+                animation = game.animations.GetEnemyAction(action);
         }
     }
 

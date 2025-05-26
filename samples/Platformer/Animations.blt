@@ -7,12 +7,16 @@ class Animations {
     public ref Animation playerWallSlide;
     public ref Animation leaf;
     public ref Animation particle;
+    public ref Animation enemyIdle;
+    public ref Animation enemyRun;
 
     private ref Animation[] playerAnimations;
 
     public constructor(ref Textures textures) {
         playerIdle = new Animation(textures.PlayerIdleTextures(), 6);
         playerRun = new Animation(textures.PlayerRunTextures(), 4);
+        enemyIdle = new Animation(textures.EnemyIdleTextures(), 6);
+        enemyRun = new Animation(textures.EnemyRunTextures(), 4);
         playerJump = new Animation(textures.PlayerJumpTextures());
         playerSlide = new Animation(textures.PlayerSlideTextures());
         playerWallSlide = new Animation(textures.PlayerWallSlideTextures());
@@ -24,5 +28,12 @@ class Animations {
 
     public Animation GetPlayerAction(int index) {
         return playerAnimations[index!];
+    }
+
+    public Animation GetEnemyAction(int index) {
+        if (index == 0)
+            return enemyIdle;
+
+        return enemyRun;
     }
 }

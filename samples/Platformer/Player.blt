@@ -8,8 +8,9 @@ class Player extends PhysicsEntity {
     int airTime;
     int! jumps;
     bool wallSlide;
-    int! dashing;
     decimal! particleTimer;
+
+    public int! dashing;
 
     public constructor(ref Program game, Vec2 position) : base(ref game, position, 0) {
         airTime = 0;

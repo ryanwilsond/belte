@@ -3,7 +3,7 @@ static class Settings {
     public constexpr int! WindowWidth = 1920;
     public constexpr int! WindowHeight = 1080;
     public constexpr int! TerminalVelocity = 18;
-    public constexpr decimal! Gravity = 36;
+    public constexpr decimal! Gravity = 30;
     public constexpr int! CameraTrackingSpeed = 1600;
     public constexpr int! TileSize = 64;
     public constexpr int! JumpSpeed = 12;

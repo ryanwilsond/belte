@@ -7,10 +7,17 @@ class Textures {
     public ref Texture[]! cloud;
     public ref Texture[]! decor;
     public ref Texture[]! largeDecor;
+    public ref Texture[]! spawners;
+
+    public ref Texture gun;
+    public ref Texture projectile;
 
     public ref Texture[][] everything;
 
     public constructor() {
+        gun = Graphics.LoadTexture("samples/Platformer/data/images/gun.png", 0, 0, 0);
+        projectile = Graphics.LoadTexture("samples/Platformer/data/images/projectile.png", 0, 0, 0);
+
         grass = {
             Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/0.png", 0, 0, 0),
             Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/1.png", 0, 0, 0),
@@ -53,8 +60,13 @@ class Textures {
             Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/2.png", 0, 0, 0)
         };
 
-        everything = { decor, grass, largeDecor, stone };
-        keys = { "decor", "grass", "largeDecor", "stone" };
+        spawners = {
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/spawners/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/spawners/1.png", 0, 0, 0)
+        };
+
+        everything = { decor, grass, largeDecor, stone, spawners };
+        keys = { "decor", "grass", "largeDecor", "stone", "spawners" };
     }
 
     public ref Texture GetTexture(int tileGroup, int tileVariant) {
@@ -70,6 +82,8 @@ class Textures {
             return ref largeDecor[tileVariant];
         if (key == "stone")
             return ref stone[tileVariant];
+        if (key == "spawners")
+            return ref spawners[tileVariant];
 
         return null;
     }
@@ -165,6 +179,40 @@ class Textures {
             Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/1.png", 0, 0, 0),
             Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/2.png", 0, 0, 0),
             Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/3.png", 0, 0, 0)
+        };
+    }
+
+    public Texture[] EnemyIdleTextures() {
+        return {
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/00.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/01.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/02.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/03.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/04.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/05.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/06.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/07.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/08.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/09.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/10.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/11.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/12.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/13.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/14.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/15.png", 0, 0, 0)
+        };
+    }
+
+    public Texture[] EnemyRunTextures() {
+        return {
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/7.png", 0, 0, 0)
         };
     }
 }

@@ -41,7 +41,7 @@ class Editor {
         var currentTileKey = textures.GetTextureKey(tileGroup, tileVariant);
 
         shift = Graphics.GetKey("LeftShift");
-        var leftClick = Graphics.GetMouseButton("left")/* && !previousLC */;
+        var leftClick = Graphics.GetMouseButton("left") && (onGrid || !previousLC);
         var rightClick = Graphics.GetMouseButton("right")/* && !previousRC */;
 
         previousScroll = currentScroll;
@@ -56,11 +56,13 @@ class Editor {
             if (scrollDelta < 0)
                 tileVariant = ((tileVariant + 1) % length + length) % length;
         } else {
+            var length = LowLevel.Length(textures.everything);
+
             if (scrollDelta > 0) {
-                tileGroup = ((tileGroup - 1) % 4 + 4) % 4;
+                tileGroup = ((tileGroup - 1) % length + length) % length;
                 tileVariant = 0;
             } if (scrollDelta < 0) {
-                tileGroup = ((tileGroup + 1) % 4 + 4) % 4;
+                tileGroup = ((tileGroup + 1) % length + length) % length;
                 tileVariant = 0;
             }
         }
@@ -154,15 +156,15 @@ class Editor {
         }
 
         // Player ghost
-        Graphics.DrawRect(
-            new Rect(
-                (int!)(Settings.TileSize * 15 + 4 - scroll.x),
-                (int!)(Settings.TileSize * 8 - scroll.y),
-                14 * 4,
-                18 * 4
-            ),
-            255, 0, 0, 100
-        );
+        // Graphics.DrawRect(
+        //     new Rect(
+        //         (int!)(Settings.TileSize * 15 + 4 - scroll.x),
+        //         (int!)(Settings.TileSize * 8 - scroll.y),
+        //         14 * 4,
+        //         18 * 4
+        //     ),
+        //     255, 0, 0, 100
+        // );
 
         // Top left
         Graphics.DrawRect(

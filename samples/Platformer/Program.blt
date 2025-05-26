@@ -2,7 +2,6 @@
 class Program {
     ref Player player;
     ref TileMap tileMap;
-    ref Textures textures;
     bool previousSpace;
     bool previousRC;
     Vec2 scroll;
@@ -10,10 +9,13 @@ class Program {
     ref Clouds clouds;
     ref Rect[] leafSpawners;
     int leafSpawnerCount;
+    ref Enemy[] enemies;
+    int enemyCount;
 
     public ref Particle[] particles;
     public int particleCount;
     public ref Animations animations;
+    public ref Textures textures;
 
     public void Main() {
         Graphics.Initialize("Platformer", Settings.WindowWidth, Settings.WindowHeight, true);
@@ -48,6 +50,31 @@ class Program {
             leafSpawners[leafSpawnerCount++] = new Rect(16 + tree.x, 16 + tree.y, 23 * 4, 13 * 4);
         }
 
+        var foundPlayerSpawner = tileMap.Extract("spawners;0", false)[0];
+        var foundEnemySpawners = tileMap.Extract("spawners;1", false);
+
+        if (foundPlayerSpawner isnt null) {
+            if (foundPlayerSpawner.onGrid)
+                player.pos = new Vec2(foundPlayerSpawner.x * Settings.TileSize + 4, foundPlayerSpawner.y * Settings.TileSize - 4);
+            else
+                player.pos = new Vec2(foundPlayerSpawner.x + 4, foundPlayerSpawner.y - 4);
+        }
+
+        enemies = ref new Enemy[20];
+        enemyCount = 0;
+
+        for (int! i = 0; i < 20; i++) {
+            var spawner = foundEnemySpawners[i];
+
+            if (spawner is null)
+                break;
+
+            if (spawner.onGrid)
+                enemies[enemyCount++] = new Enemy(ref this, new Vec2(spawner.x * Settings.TileSize + 4, spawner.y * Settings.TileSize - 4));
+            else
+                enemies[enemyCount++] = new Enemy(ref this, new Vec2(spawner.x + 4, spawner.y - 4));
+        }
+
         particles = ref new Particle[100];
         particleCount = 0;
 
@@ -65,10 +92,10 @@ class Program {
         scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
         scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
 
-        if (Graphics.GetKey("A"))
+        if (Graphics.GetKey("A") && Math.Abs(player.dashing) <= 50)
             movement.x -= Settings.RunSpeed * deltaTime;
 
-        if (Graphics.GetKey("D"))
+        if (Graphics.GetKey("D") && Math.Abs(player.dashing) <= 50)
             movement.x += Settings.RunSpeed * deltaTime;
 
         if (Graphics.GetKey("SPACE") && !previousSpace)
@@ -96,12 +123,18 @@ class Program {
             }
         }
 
-        player.Update(deltaTime, tileMap, movement);
+        player.Update(deltaTime, ref tileMap, movement);
         clouds.Update(deltaTime);
 
         Graphics.DrawSprite(background);
         clouds.Render(scroll);
         tileMap.Render(scroll);
+
+        for (int! i = 0; i < enemyCount; i++) {
+            enemies[i].Update(deltaTime, ref tileMap, new Vec2(0, 0));
+            enemies[i].Render(scroll);
+        }
+
         player.Render(scroll);
 
         for (int! i = 0; i < particleCount; i++) {

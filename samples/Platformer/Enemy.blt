@@ -1,0 +1,60 @@
+
+class Enemy extends PhysicsEntity {
+    int! walking;
+
+    public constructor(ref Program game, Vec2 position) : base(ref game, position, 1) {
+        walking = 0;
+    }
+
+    public override void Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+        if (walking > 0) {
+            var nearTiles = tileMap.GetSortedNearTiles(box.x, box.y);
+            var target = nearTiles[flip ? 6 : 8];
+
+            if (target is null) {
+                flip = !flip;
+            } else {
+                if (collisions[LeftCollide] || collisions[RightCollide])
+                    flip = !flip;
+                else
+                    movement.x += flip ? -2 : 2;
+            }
+
+            walking = Math.Max(0, walking - 1);
+        } else if (Random.Random() < 0.4 * deltaTime) {
+            walking = Random.RandInt(90) + 30;
+        }
+
+        base.Update(deltaTime, ref tileMap, movement);
+
+        if (movement.x != 0)
+            SetAction(1);
+        else
+            SetAction(0);
+    }
+
+    public override void Render(Vec2 offset) {
+        base.Render(offset);
+        var texture = game.textures.gun;
+
+        if (flip) {
+            var dst = new Rect(
+                (int!)(box.x + box.w / 2 - 16 - texture.width * 4 - offset.x),
+                (int!)(box.y + box.h / 2 - offset.y),
+                texture.width * 4,
+                texture.height * 4
+            );
+
+            Graphics.Draw(texture, null, dst, 0, true, 1);
+        } else {
+            var dst = new Rect(
+                (int!)(box.x + box.w / 2 + 16 - offset.x),
+                (int!)(box.y + box.h / 2 - offset.y),
+                texture.width * 4,
+                texture.height * 4
+            );
+
+            Graphics.Draw(texture, null, dst, 0, false, 1);
+        }
+    }
+}
