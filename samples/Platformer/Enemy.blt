@@ -21,6 +21,17 @@ class Enemy extends PhysicsEntity {
             }
 
             walking = Math.Max(0, walking - 1);
+
+            if (walking == 0) {
+                var distance = new Vec2(game.player.pos.x - pos.x, game.player.pos.y - pos.y);
+
+                if (Math.Abs(distance.y) < Settings.TileSize) {
+                    if (flip && distance.x < 0)
+                        game.projectiles[game.projectileCount++] = new Projectile(ref game, -1.5 * 240, new Vec2(box.x + box.w / 2 - 7 * 4, box.y + box.h / 2));
+                    if (!flip && distance.x > 0)
+                        game.projectiles[game.projectileCount++] = new Projectile(ref game, 1.5 * 240, new Vec2(box.x + box.w / 2 + 7 * 4, box.y + box.h / 2));
+                }
+            }
         } else if (Random.Random() < 0.4 * deltaTime) {
             walking = Random.RandInt(90) + 30;
         }

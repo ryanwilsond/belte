@@ -1,0 +1,35 @@
+
+class Projectile {
+    ref Program game;
+    Sprite sprite;
+
+    public Vec2 position;
+    public decimal! speed;
+    public decimal! timer;
+
+    public constructor(ref Program game, decimal! speed, Vec2 position) {
+        this.game = ref game;
+        this.speed = speed;
+        this.position = position;
+        var texture = game.textures.projectile;
+        sprite = new Sprite(texture, position, new Vec2(texture.width * 4, texture.height * 4), 0);
+    }
+
+    public bool! Update(decimal! deltaTime) {
+        position.x += speed * deltaTime;
+        timer += deltaTime;
+
+        var nearTiles = game.tileMap.GetSortedNearTiles(sprite.dst.x, sprite.dst.y);
+        var target = nearTiles[4];
+
+        if (target isnt null)
+            return true;
+
+        return false;
+    }
+
+    public void Render(Vec2 offset) {
+        sprite.dst.x = (int!)position.x;
+        Graphics.DrawSprite(sprite, offset);
+    }
+}

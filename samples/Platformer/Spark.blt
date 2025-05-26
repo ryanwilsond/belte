@@ -1,0 +1,20 @@
+
+class Spark {
+    Vec2 position;
+    decimal! angle;
+    decimal! speed;
+
+    public constructor(Vec2 position, decimal! angle, decimal! speed) {
+        this.position = position;
+        this.angle = angle;
+        this.speed = speed;
+    }
+
+    public bool Update(decimal! deltaTime) {
+
+    }
+
+    public void Render(Vec2 offset) {
+
+    }
+}

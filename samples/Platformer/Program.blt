@@ -1,7 +1,5 @@
 
 class Program {
-    ref Player player;
-    ref TileMap tileMap;
     bool previousSpace;
     bool previousRC;
     Vec2 scroll;
@@ -12,8 +10,14 @@ class Program {
     ref Enemy[] enemies;
     int enemyCount;
 
+    public ref Player player;
+    public ref TileMap tileMap;
     public ref Particle[] particles;
     public int particleCount;
+    public ref Projectile[] projectiles;
+    public int projectileCount;
+    public ref Spark[] sparks;
+    public int sparkCount;
     public ref Animations animations;
     public ref Textures textures;
 
@@ -28,14 +32,22 @@ class Program {
         );
 
         textures = ref new Textures();
-        Console.PrintLine(textures);
-        Console.PrintLine("/\\");
-        tileMap = new TileMap(ref textures, Settings.TileSize);
-        tileMap.Load("samples/Platformer/map.txt");
-        animations = new Animations(ref textures);
         clouds = new Clouds(ref textures.cloud);
+        tileMap = new TileMap(ref textures, Settings.TileSize);
+        animations = new Animations(ref textures);
 
         player = new Player(ref this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
+
+        scroll = new Vec2(0, 0);
+
+        previousSpace = false;
+        previousRC = false;
+
+        LoadLevel("samples/Platformer/map.txt");
+    }
+
+    public void LoadLevel(string! path) {
+        tileMap.Load(path);
 
         leafSpawnerCount = 0;
         leafSpawners = new Rect[10];
@@ -75,13 +87,14 @@ class Program {
                 enemies[enemyCount++] = new Enemy(ref this, new Vec2(spawner.x + 4, spawner.y - 4));
         }
 
+        projectiles = new Projectile[10];
+        projectileCount = 0;
+
         particles = ref new Particle[100];
         particleCount = 0;
 
-        scroll = new Vec2(0, 0);
-
-        previousSpace = false;
-        previousRC = false;
+        sparks = ref new Spark[40];
+        sparkCount = 0;
     }
 
     public void Update(decimal! deltaTime) {
@@ -137,6 +150,42 @@ class Program {
 
         player.Render(scroll);
 
+        for (int! i = 0; i < projectileCount; i++) {
+            var remove = projectiles[i].Update(deltaTime) || projectiles[i].timer > 6;
+
+            if (Math.Abs(player.dashing) < 50) {
+                var pos = projectiles[i].position;
+
+                if (PointInsideRect(pos.x, pos.y, player.box))
+                    remove = true;
+            }
+
+            if (remove) {
+                for (int! j = i; j < projectileCount - 1; j++)
+                    projectiles[j] = projectiles[j + 1];
+
+                projectiles[projectileCount - 1] = null;
+                projectileCount--;
+                i--;
+            } else {
+                projectiles[i].Render(scroll);
+            }
+        }
+
+        for (int! i = 0; i < sparkCount; i++) {
+            var kill = sparks[i].Update(deltaTime);
+            sparks[i].Render(scroll);
+
+            if (kill) {
+                for (int! j = i; j < sparkCount - 1; j++)
+                    sparks[j] = sparks[j + 1];
+
+                sparks[sparkCount - 1] = null;
+                sparkCount--;
+                i--;
+            }
+        }
+
         for (int! i = 0; i < particleCount; i++) {
             var kill = particles[i].Update(deltaTime);
             particles[i].Render(scroll);
@@ -156,5 +205,11 @@ class Program {
 
         previousSpace = Graphics.GetKey("SPACE");
         previousRC = Graphics.GetMouseButton("right");
+    }
+
+    private bool PointInsideRect(decimal x, decimal y, Rect rect) {
+        var collidingX = x > rect.x && x < rect.x + rect.w;
+        var collidingY = y > rect.y && y < rect.y + rect.h;
+        return collidingX && collidingY;
     }
 }
