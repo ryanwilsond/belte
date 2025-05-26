@@ -17,6 +17,7 @@ internal sealed class Expander : BoundTreeExpander {
     private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
+    private int _conditionalDepth = 0;
 
     internal Expander(MethodSymbol container) {
         _container = container;
@@ -71,6 +72,19 @@ internal sealed class Expander : BoundTreeExpander {
         return baseStatements;
     }
 
+    private protected override List<BoundStatement> ExpandNullCoalescingOperator(
+        BoundNullCoalescingOperator expression,
+        out BoundExpression replacement) {
+        _operatorDepth++;
+        _conditionalDepth++;
+
+        var baseStatements = base.ExpandNullCoalescingOperator(expression, out replacement);
+
+        _operatorDepth--;
+        _conditionalDepth--;
+        return baseStatements;
+    }
+
     private protected override List<BoundStatement> ExpandNullCoalescingAssignmentOperator(
         BoundNullCoalescingAssignmentOperator expression,
         out BoundExpression replacement) {
@@ -108,7 +122,7 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         var syntax = expression.syntax;
 
-        if (_operatorDepth > 1) {
+        if (_conditionalDepth > 0) {
             var statements = ExpandCallExpressionInternal(expression, out var callReplacement);
             var tempLocal = GenerateTempLocal(expression.type);
 
@@ -161,8 +175,12 @@ internal sealed class Expander : BoundTreeExpander {
         BoundBinaryOperator expression,
         out BoundExpression replacement) {
         _operatorDepth++;
+        var savedConditionalDepth = _conditionalDepth;
 
-        if (_operatorDepth > 1) {
+        if (expression.left.type.IsNullableType() || expression.right.type.IsNullableType())
+            _conditionalDepth++;
+
+        if (_conditionalDepth > 1) {
             var syntax = expression.syntax;
             var statements = ExpandExpression(expression.left, out var newLeft);
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
@@ -187,11 +205,28 @@ internal sealed class Expander : BoundTreeExpander {
 
             replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
             _operatorDepth--;
+            _conditionalDepth = savedConditionalDepth;
             return statements;
         }
 
         var baseStatements = base.ExpandBinaryOperator(expression, out replacement);
         _operatorDepth--;
+        _conditionalDepth = savedConditionalDepth;
+        return baseStatements;
+    }
+
+    private protected override List<BoundStatement> ExpandUnaryOperator(
+        BoundUnaryOperator expression,
+        out BoundExpression replacement) {
+        _operatorDepth++;
+        var savedConditionalDepth = _conditionalDepth;
+
+        if (expression.operand.type.IsNullableType())
+            _conditionalDepth++;
+
+        var baseStatements = base.ExpandUnaryOperator(expression, out replacement);
+        _operatorDepth--;
+        _conditionalDepth = savedConditionalDepth;
         return baseStatements;
     }
 
@@ -199,8 +234,12 @@ internal sealed class Expander : BoundTreeExpander {
         BoundCastExpression expression,
         out BoundExpression replacement) {
         _operatorDepth++;
+        var savedConditionalDepth = _conditionalDepth;
 
-        if (_operatorDepth > 2 &&
+        if (expression.operand.type.IsNullableType() && expression.type.IsNullableType())
+            _conditionalDepth++;
+
+        if (_conditionalDepth > 1 &&
             (expression.type.IsNullableType() || expression.operand.type.IsNullableType()) &&
             expression.conversion.underlyingConversions != default &&
             expression.conversion.kind is ConversionKind.ImplicitNullable or ConversionKind.ExplicitNullable &&
@@ -225,11 +264,13 @@ internal sealed class Expander : BoundTreeExpander {
 
             replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
             _operatorDepth--;
+            _conditionalDepth = savedConditionalDepth;
             return statements;
         }
 
         var baseStatements = base.ExpandCastExpression(expression, out replacement);
         _operatorDepth--;
+        _conditionalDepth = savedConditionalDepth;
         return baseStatements;
     }
 

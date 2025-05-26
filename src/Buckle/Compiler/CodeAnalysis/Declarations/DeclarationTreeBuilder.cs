@@ -148,7 +148,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             kind: DeclarationKind.Class,
             name: WellKnownMemberNames.TopLevelStatementsEntryPointTypeName,
             arity: 0,
-            modifiers: DeclarationModifiers.None,
+            modifiers: DeclarationModifiers.Static,
             declFlags: (hasReturnWithExpression
                             ? SingleTypeDeclaration.TypeDeclarationFlags.HasReturnWithExpression
                             : SingleTypeDeclaration.TypeDeclarationFlags.None) |

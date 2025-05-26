@@ -686,7 +686,7 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort,
         bool isBaseCall = false) {
         if (method.isAbstract || method.isVirtual) {
-            var typeToLookup = isBaseCall ? receiver.type.baseType : receiver.type;
+            var typeToLookup = isBaseCall ? receiver.type.StrippedType().baseType : receiver.type.StrippedType();
 
             var newMethod = typeToLookup
                 .GetMembersUnordered()
