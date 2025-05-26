@@ -19,6 +19,7 @@ public sealed class EvaluatorObject {
         this.value = value;
         isReference = false;
         reference = null;
+        referenceSymbol = null;
         isExplicitReference = false;
         members = null;
         this.type = type;
@@ -32,6 +33,7 @@ public sealed class EvaluatorObject {
         value = null;
         isReference = false;
         reference = null;
+        referenceSymbol = null;
         isExplicitReference = false;
         this.members = members;
         this.type = type;
@@ -50,9 +52,14 @@ public sealed class EvaluatorObject {
     /// <param name="isExplicitReference">
     /// If this is just a variable, or if it explicitly a reference expression.
     /// </param>
-    internal EvaluatorObject(Symbol reference, TypeSymbol type, bool isExplicitReference = false) {
+    internal EvaluatorObject(
+        Symbol referenceSymbol,
+        EvaluatorObject reference,
+        TypeSymbol type,
+        bool isExplicitReference = false) {
         value = null;
         isReference = true;
+        this.referenceSymbol = referenceSymbol;
         this.reference = reference;
         this.isExplicitReference = isExplicitReference;
         members = null;
@@ -63,7 +70,7 @@ public sealed class EvaluatorObject {
 
     public bool isReference { get; internal set; }
 
-    public ISymbol publicReference => reference;
+    public ISymbol publicReference => referenceSymbol;
 
     public Dictionary<ISymbol, EvaluatorObject> publicMembers
         => members?.ToDictionary(item => (ISymbol)item.Key, item => item.Value);
@@ -72,7 +79,9 @@ public sealed class EvaluatorObject {
 
     internal bool isExplicitReference { get; set; }
 
-    internal Symbol reference { get; set; }
+    internal Symbol referenceSymbol { get; set; }
+
+    internal EvaluatorObject reference { get; set; }
 
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 

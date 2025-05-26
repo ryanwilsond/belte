@@ -255,6 +255,9 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && !this.IsNullableType())
+            other = other.StrippedType();
+
         if ((object)other == this)
             return true;
 

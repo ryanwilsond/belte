@@ -88,7 +88,7 @@ internal sealed class Conversions {
         );
     }
 
-    internal static bool HasIdentityConversion(TypeSymbol source, TypeSymbol target, bool includeNullability = false) {
+    internal static bool HasIdentityConversion(TypeSymbol source, TypeSymbol target, bool includeNullability = true) {
         var compareKind = includeNullability
             ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
             : TypeCompareKind.AllIgnoreOptions;

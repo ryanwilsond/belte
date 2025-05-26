@@ -704,7 +704,7 @@ internal partial class Binder {
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
         ImmutableArray<TypeOrConstant> templateArguments,
         BelteDiagnosticQueue diagnostics) {
-        if (templateArgumentsSyntax.Any(SyntaxKind.OmittedArgument)) {
+        if (templateArgumentsSyntax?.Any(SyntaxKind.OmittedArgument) == true) {
             diagnostics.Push(Error.BadArity(
                 typeSyntax.location,
                 type,
@@ -1456,7 +1456,9 @@ internal partial class Binder {
                     return false;
                 }
 
-                var isValueType = ((BoundThisExpression)expression).type.isPrimitiveType;
+                // var isValueType = ((BoundThisExpression)expression).type.isPrimitiveType;
+                // TODO Consider, should this auto-ref? Or do we allow 'ref this':
+                var isValueType = true;
 
                 if (!isValueType || (RequiresAssignableVariable(valueKind) &&
                     containingMember is MethodSymbol { isEffectivelyConst: true })) {
@@ -3688,7 +3690,7 @@ internal partial class Binder {
 
                     var type = (NamedTypeSymbol)symbol;
 
-                    if (!templateArguments.IsDefault) {
+                    if (!templateArguments.IsDefault && templateArgumentsSyntax != default) {
                         type = ConstructNamedTypeUnlessTemplateArgumentOmitted(
                             right,
                             type,
@@ -5015,6 +5017,8 @@ internal partial class Binder {
             // TODO Just having this here doesn't seem right, but..
             // else
             //     diagnostics.Push(Error.CannotUseThis(node.location));
+            else
+                hasErrors = false;
         } else {
             hasErrors = IsRefOrOutThisParameterCaptured(node.keyword, diagnostics);
         }
@@ -6035,7 +6039,7 @@ internal partial class Binder {
         var falseType = falseExpr.type;
 
         TypeSymbol type;
-        if (!Conversions.HasIdentityConversion(trueType, falseType)) {
+        if (!Conversions.HasIdentityConversion(trueType, falseType, includeNullability: false)) {
             if (!hasErrors)
                 diagnostics.Push(Error.RefConditionalDifferentTypes(falseExpr.syntax.location, trueType));
 

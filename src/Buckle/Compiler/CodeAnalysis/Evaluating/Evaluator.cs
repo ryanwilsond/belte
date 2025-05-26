@@ -126,8 +126,8 @@ internal sealed class Evaluator {
     #region Internal Model
 
     private object Value(EvaluatorObject value, bool traceCollections = false) {
-        if (value.isReference && value.reference is not null)
-            return GetVariableValue(value.reference, traceCollections);
+        if (value.reference is not null)
+            return Value(value.reference, traceCollections);
         else if (value.value is EvaluatorObject e)
             return Value(e, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
@@ -165,16 +165,18 @@ internal sealed class Evaluator {
         return builder;
     }
 
-    private object GetVariableValue(Symbol variable, bool traceCollections = false) {
-        var value = Get(variable);
-
-        try {
-            return Value(value, traceCollections);
-        } catch (BelteInternalException) {
-            throw new BelteEvaluatorException(
-                $"Reference cannot be deferred (what it was referencing was likely redefined)", null
-            );
+    private EvaluatorObject Get(Symbol symbol) {
+        if (symbol is DataContainerSymbol d && d.isGlobal) {
+            if (_context.TryGetSymbol(d, out var evaluatorObject))
+                return evaluatorObject;
+        } else {
+            foreach (var frame in _locals) {
+                if (frame.TryGetValue(symbol, out var evaluatorObject))
+                    return evaluatorObject;
+            }
         }
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     private void Create(DataContainerSymbol symbol, EvaluatorObject value) {
@@ -199,14 +201,20 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject Copy(EvaluatorObject evaluatorObject) {
-        if (evaluatorObject.reference is not null && !evaluatorObject.isExplicitReference)
-            return Copy(Get(evaluatorObject.reference));
-        else if (evaluatorObject.reference is not null)
-            return new EvaluatorObject(evaluatorObject.reference, evaluatorObject.type, isExplicitReference: true);
-        else if (evaluatorObject.members is not null)
+        if (evaluatorObject.reference is not null && !evaluatorObject.isExplicitReference) {
+            return Copy(evaluatorObject.reference);
+        } else if (evaluatorObject.reference is not null) {
+            return new EvaluatorObject(
+                evaluatorObject.referenceSymbol,
+                evaluatorObject.reference,
+                evaluatorObject.type,
+                isExplicitReference: true
+            );
+        } else if (evaluatorObject.members is not null) {
             return new EvaluatorObject(Copy(evaluatorObject.members), evaluatorObject.type);
-        else
+        } else {
             return new EvaluatorObject(evaluatorObject.value, evaluatorObject.type);
+        }
     }
 
     private Dictionary<Symbol, EvaluatorObject> Copy(Dictionary<Symbol, EvaluatorObject> members) {
@@ -218,28 +226,21 @@ internal sealed class Evaluator {
         return newMembers;
     }
 
-    private EvaluatorObject Get(Symbol symbol) {
-        if (symbol is DataContainerSymbol d && d.isGlobal) {
-            if (_context.TryGetSymbol(d, out var evaluatorObject))
-                return evaluatorObject;
-        } else {
-            foreach (var frame in _locals) {
-                if (frame.TryGetValue(symbol, out var evaluatorObject))
-                    return evaluatorObject;
-            }
-        }
-
-        throw ExceptionUtilities.Unreachable();
-    }
-
     private void Assign(EvaluatorObject left, EvaluatorObject right, BoundKind rightKind) {
         right = Dereference(right, false);
         left = Dereference(left, false);
 
         var isTakeable = IsTakeable(rightKind);
 
-        if (right.reference is not null && right.isExplicitReference && !isTakeable) {
+        if (right.isExplicitReference && isTakeable) {
+            left.reference = right;
+            left.isReference = true;
+            return;
+        }
+
+        if (right.reference is not null && right.isExplicitReference) {
             left.reference = right.reference;
+            left.referenceSymbol = right.referenceSymbol;
             left.isReference = true;
             return;
         } else if (left.isExplicitReference) {
@@ -270,7 +271,7 @@ internal sealed class Evaluator {
         while (reference.isReference) {
             if (!dereferenceOnExplicit && reference.isExplicitReference) {
                 // Ref parameters refer to a deeper location, we don't want to reference the parameter itself
-                if (reference.reference is not ParameterSymbol p || p.refKind == RefKind.None)
+                if (reference.referenceSymbol is not ParameterSymbol p || p.refKind == RefKind.None)
                     break;
             }
 
@@ -280,7 +281,7 @@ internal sealed class Evaluator {
             if (reference.reference is null)
                 return reference;
 
-            reference = Get(reference.reference);
+            reference = reference.reference;
         }
 
         return reference;
@@ -295,7 +296,7 @@ internal sealed class Evaluator {
 
             foreach (var member in typeMembers) {
                 if (member is FieldSymbol f) {
-                    var value = new EvaluatorObject(null, f.type);
+                    var value = new EvaluatorObject(value: null, f.type);
 
                     if (f.refKind != RefKind.None) {
                         value.isReference = true;
@@ -576,6 +577,8 @@ internal sealed class Evaluator {
             }
         }
 
+        // TODO Can this be moved to the top of the method ('var array = new EvaluatorObject(value: null, arrayType)')
+        array.type = arrayType;
         return array;
 
         static List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
@@ -669,9 +672,15 @@ internal sealed class Evaluator {
 
         if (argRefKinds != default) {
             for (var i = 0; i < arguments.Length; i++) {
-                if (argRefKinds[i] != RefKind.None) {
+                if (argRefKinds[i] != RefKind.None && !evaluatedArguments[i].isReference) {
+                    evaluatedArguments[i] = new EvaluatorObject(
+                        null,
+                        evaluatedArguments[i],
+                        evaluatedArguments[i].type,
+                        true
+                    );
+                } else {
                     evaluatedArguments[i].isExplicitReference = true;
-                    evaluatedArguments[i].isReference = true;
                 }
             }
         }
@@ -760,7 +769,11 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
-        return new EvaluatorObject(expression.dataContainer, expression.dataContainer.type);
+        return new EvaluatorObject(
+            expression.dataContainer,
+            Get(expression.dataContainer),
+            expression.dataContainer.type
+        );
     }
 
     private EvaluatorObject EvaluateConditionalOperator(BoundConditionalOperator expression, ValueWrapper<bool> abort) {
@@ -1053,7 +1066,11 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateParameterExpression(BoundParameterExpression expression) {
-        return new EvaluatorObject(expression.parameter, expression.parameter.type);
+        return new EvaluatorObject(
+            expression.parameter,
+            Get(expression.parameter),
+            expression.parameter.type
+        );
     }
 
     private EvaluatorObject EvaluateFieldAccessExpression(

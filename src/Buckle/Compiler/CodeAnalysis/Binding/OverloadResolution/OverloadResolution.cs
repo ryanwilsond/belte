@@ -2044,7 +2044,7 @@ internal sealed partial class OverloadResolution {
             return conversion;
         }
 
-        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType))
+        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType, includeNullability: false))
             return Conversion.Identity;
         else
             return Conversion.None;

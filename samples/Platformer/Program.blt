@@ -33,7 +33,7 @@ class Program {
         animations = new Animations(ref textures);
         clouds = new Clouds(ref textures.cloud);
 
-        player = new Player(this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
+        player = new Player(ref this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
 
         leafSpawnerCount = 0;
         leafSpawners = new Rect[10];
@@ -48,7 +48,7 @@ class Program {
             leafSpawners[leafSpawnerCount++] = new Rect(16 + tree.x, 16 + tree.y, 23 * 4, 13 * 4);
         }
 
-        particles = new Particle[30];
+        particles = ref new Particle[100];
         particleCount = 0;
 
         scroll = new Vec2(0, 0);

@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -28,5 +29,12 @@ internal sealed class SynthesizedFieldSymbol : SynthesizedFieldSymbolBase {
 
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
         return _type;
+    }
+
+    internal override ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress) {
+        if (hasConstantValue)
+            return new ConstantValue(constantValue, _type.specialType);
+
+        return null;
     }
 }

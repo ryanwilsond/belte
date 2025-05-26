@@ -17,7 +17,7 @@ class Animations {
         playerSlide = new Animation(textures.PlayerSlideTextures());
         playerWallSlide = new Animation(textures.PlayerWallSlideTextures());
         leaf = new Animation(textures.LeafTextures(), 20, false);
-        particle = new Animation(textures.ParticleTextures(), 6, false);
+        particle = new Animation(textures.ParticleTextures(), 8, false);
 
         playerAnimations = { playerIdle, playerRun, playerJump, playerSlide, playerWallSlide };
     }
