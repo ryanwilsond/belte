@@ -6,7 +6,7 @@ class Enemy extends PhysicsEntity {
         walking = 0;
     }
 
-    public override void Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+    public override bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
         if (walking > 0) {
             var nearTiles = tileMap.GetSortedNearTiles(box.x, box.y);
             var target = nearTiles[flip ? 6 : 8];
@@ -26,10 +26,21 @@ class Enemy extends PhysicsEntity {
                 var distance = new Vec2(game.player.pos.x - pos.x, game.player.pos.y - pos.y);
 
                 if (Math.Abs(distance.y) < Settings.TileSize) {
-                    if (flip && distance.x < 0)
-                        game.projectiles[game.projectileCount++] = new Projectile(ref game, -1.5 * 240, new Vec2(box.x + box.w / 2 - 7 * 4, box.y + box.h / 2));
-                    if (!flip && distance.x > 0)
-                        game.projectiles[game.projectileCount++] = new Projectile(ref game, 1.5 * 240, new Vec2(box.x + box.w / 2 + 7 * 4, box.y + box.h / 2));
+                    if (flip && distance.x < 0) {
+                        var projPos = new Vec2(box.x + box.w / 2 - 7 * 4, box.y + box.h / 2);
+                        game.projectiles[game.projectileCount++] = new Projectile(ref game, -1.5 * 240, projPos);
+
+                        for (int! i = 0; i < 4; i++)
+                            game.sparks[game.sparkCount++] = new Spark(projPos, Random.Random() - 0.5 + Math.PI, 2 * 6 + Random.Random() * 6);
+                    }
+
+                    if (!flip && distance.x > 0) {
+                        var projPos = new Vec2(box.x + box.w / 2 + 7 * 4, box.y + box.h / 2);
+                        game.projectiles[game.projectileCount++] = new Projectile(ref game, 1.5 * 240, projPos);
+
+                        for (int! i = 0; i < 4; i++)
+                            game.sparks[game.sparkCount++] = new Spark(projPos, Random.Random() - 0.5, 2 * 6 + Random.Random() * 6);
+                    }
                 }
             }
         } else if (Random.Random() < 0.4 * deltaTime) {
@@ -42,6 +53,38 @@ class Enemy extends PhysicsEntity {
             SetAction(1);
         else
             SetAction(0);
+
+        if (Math.Abs(game.player.dashing) >= 50) {
+            if (Colliding(box, game.player.box)) {
+                var projPos = new Vec2(box.x + box.w / 2, box.y + box.h / 2);
+
+                for (int! j = 0; j < 30; j++) {
+                    var angle = Random.Random() * Math.PI * 2;
+                    var speed = Random.Random() * 10 * 60;
+
+                    game.particles[game.particleCount++] = new Particle(
+                        projPos,
+                        new Vec2(Math.Cos(angle + Math.PI) * speed * 0.5, Math.Sin(angle + Math.PI) * speed * 0.5),
+                        game.animations.particle,
+                        "particle",
+                        Random.RandInt(1)
+                    );
+
+                    game.sparks[game.sparkCount++] = new Spark(
+                        projPos,
+                        angle,
+                        2 * 6 + Random.Random() * 6
+                    );
+                }
+
+                game.sparks[game.sparkCount++] = new Spark(projPos, 0, 5 * 6 + Random.Random() * 6);
+                game.sparks[game.sparkCount++] = new Spark(projPos, Math.PI, 5 * 6 + Random.Random() * 6);
+
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public override void Render(Vec2 offset) {

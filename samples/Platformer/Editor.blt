@@ -36,7 +36,7 @@ class Editor {
         previousT = false;
     }
 
-    public void EUpdate(decimal! deltaTime) {
+    public void Update(decimal! deltaTime) {
         var currentTileTexture = textures.GetTexture(tileGroup, tileVariant);
         var currentTileKey = textures.GetTextureKey(tileGroup, tileVariant);
 

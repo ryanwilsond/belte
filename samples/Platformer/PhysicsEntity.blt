@@ -35,7 +35,7 @@ class PhysicsEntity {
         lastMovement = new Vec2(0, 0);
     }
 
-    public virtual void Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+    public virtual bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
         collisions = { false, false, false, false };
         var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
 
@@ -104,6 +104,8 @@ class PhysicsEntity {
             velocity.y = 0;
 
         animation.Update(deltaTime);
+
+        return false;
     }
 
     public virtual void Render(Vec2 offset) {
@@ -134,7 +136,7 @@ class PhysicsEntity {
         }
     }
 
-    private static bool! Colliding(Rect a, Rect b) {
+    protected static bool! Colliding(Rect a, Rect b) {
         var collisionX = a.x + a.w > b.x && b.x + b.w > a.x;
         var collisionY = a.y + a.h > b.y && b.y + b.h > a.y;
         return collisionX && collisionY;

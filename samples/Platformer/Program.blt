@@ -10,6 +10,7 @@ class Program {
     ref Enemy[] enemies;
     int enemyCount;
 
+    public int dead;
     public ref Player player;
     public ref TileMap tileMap;
     public ref Particle[] particles;
@@ -43,11 +44,11 @@ class Program {
         previousSpace = false;
         previousRC = false;
 
-        LoadLevel("samples/Platformer/map.txt");
+        LoadLevel(0);
     }
 
-    public void LoadLevel(string! path) {
-        tileMap.Load(path);
+    public void LoadLevel(int! level) {
+        tileMap.Load(level == 0 ? "samples/Platformer/map.txt" : "samples/Platformer/map.txt");
 
         leafSpawnerCount = 0;
         leafSpawners = new Rect[10];
@@ -64,6 +65,8 @@ class Program {
 
         var foundPlayerSpawner = tileMap.Extract("spawners;0", false)[0];
         var foundEnemySpawners = tileMap.Extract("spawners;1", false);
+
+        player.airTime = 0;
 
         if (foundPlayerSpawner isnt null) {
             if (foundPlayerSpawner.onGrid)
@@ -93,12 +96,21 @@ class Program {
         particles = ref new Particle[100];
         particleCount = 0;
 
-        sparks = ref new Spark[40];
+        sparks = ref new Spark[80];
         sparkCount = 0;
+        dead = 0;
     }
 
     public void Update(decimal! deltaTime) {
         Console.PrintLine(1 / deltaTime);
+
+        if (dead > 0) {
+            dead++;
+
+            if (dead > 2400 * deltaTime)
+                LoadLevel(0);
+        }
+
         var movement = new Vec2(0, 0);
 
         // pseudo-Lerp camera to player position
@@ -136,7 +148,9 @@ class Program {
             }
         }
 
-        player.Update(deltaTime, ref tileMap, movement);
+        if (dead == 0)
+            player.Update(deltaTime, ref tileMap, movement);
+
         clouds.Update(deltaTime);
 
         Graphics.DrawSprite(background);
@@ -144,20 +158,63 @@ class Program {
         tileMap.Render(scroll);
 
         for (int! i = 0; i < enemyCount; i++) {
-            enemies[i].Update(deltaTime, ref tileMap, new Vec2(0, 0));
+            var kill = enemies[i].Update(deltaTime, ref tileMap, new Vec2(0, 0));
             enemies[i].Render(scroll);
+
+            if (kill) {
+                for (int! j = i; j < enemyCount - 1; j++)
+                    enemies[j] = enemies[j + 1];
+
+                enemies[enemyCount - 1] = null;
+                enemyCount--;
+                i--;
+            }
         }
 
-        player.Render(scroll);
+        if (dead == 0)
+            player.Render(scroll);
 
         for (int! i = 0; i < projectileCount; i++) {
-            var remove = projectiles[i].Update(deltaTime) || projectiles[i].timer > 6;
+            var hitWall = projectiles[i].Update(deltaTime);
+            var remove = hitWall || projectiles[i].timer > 6;
+
+            if (hitWall) {
+                for (int! j = 0; j < 4; j++) {
+                    sparks[sparkCount++] = new Spark(
+                        projectiles[i].position,
+                        Random.Random() - 0.5 + (projectiles[i].speed > 0 ? Math.PI : 0),
+                        2 * 6 + Random.Random() * 6
+                    );
+                }
+            }
 
             if (Math.Abs(player.dashing) < 50) {
                 var pos = projectiles[i].position;
 
-                if (PointInsideRect(pos.x, pos.y, player.box))
+                if (PointInsideRect(pos.x, pos.y, player.box)) {
                     remove = true;
+                    dead++;
+
+                    for (int! j = 0; j < 30; j++) {
+                        var angle = Random.Random() * Math.PI * 2;
+                        var speed = Random.Random() * 10 * 60;
+                        var projPos = new Vec2(player.box.x + player.box.w / 2, player.box.y + player.box.h / 2);
+
+                        particles[particleCount++] = new Particle(
+                            projPos,
+                            new Vec2(Math.Cos(angle + Math.PI) * speed * 0.5, Math.Sin(angle + Math.PI) * speed * 0.5),
+                            animations.particle,
+                            "particle",
+                            Random.RandInt(1)
+                        );
+
+                        sparks[sparkCount++] = new Spark(
+                            projPos,
+                            angle,
+                            2 * 6 + Random.Random() * 6
+                        );
+                    }
+                }
             }
 
             if (remove) {

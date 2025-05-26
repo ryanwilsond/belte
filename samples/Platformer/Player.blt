@@ -5,11 +5,11 @@ class Player extends PhysicsEntity {
     constexpr int! IdleAction = 0;
     constexpr int! WallSlideAction = 4;
 
-    int airTime;
     int! jumps;
     bool wallSlide;
     decimal! particleTimer;
 
+    public int airTime;
     public int! dashing;
 
     public constructor(ref Program game, Vec2 position) : base(ref game, position, 0) {
@@ -20,13 +20,16 @@ class Player extends PhysicsEntity {
         particleTimer = 0;
     }
 
-    public override void Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+    public override bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
         if (Math.Abs(dashing) > 50)
             velocity.y = 0;
 
         base.Update(deltaTime, ref tileMap, movement);
         airTime += 1;
         particleTimer += deltaTime;
+
+        if (airTime > 11000 * deltaTime)
+            game.dead++;
 
         if (collisions[DownCollide]) {
             airTime = 0;
@@ -94,9 +97,11 @@ class Player extends PhysicsEntity {
             dashing = Math.Min(0, dashing + 1);
 
         if (velocity.x > 0)
-            velocity.x = Math.Max(velocity.x - 0.4, 0);
+            velocity.x = Math.Max(velocity.x - 24 * deltaTime, 0);
         else
-            velocity.x = Math.Min(velocity.x + 0.4, 0);
+            velocity.x = Math.Min(velocity.x + 24 * deltaTime, 0);
+
+        return false;
     }
 
     public override void Render(Vec2 offset) {

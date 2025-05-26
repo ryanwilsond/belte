@@ -35,6 +35,7 @@ class TileMap {
 
                     offGridTiles[offGridCount - 1] = null;
                     offGridCount--;
+                    i--;
                 }
             }
         }
@@ -51,6 +52,7 @@ class TileMap {
 
                     tiles[tileCount - 1] = null;
                     tileCount--;
+                    i--;
                 }
             }
         }
@@ -79,6 +81,9 @@ class TileMap {
     }
 
     public void Load(string! path) {
+        tileCount = 0;
+        offGridCount = 0;
+
         var text = File.ReadText(path);
         var lines = String.Split(text!, "\r\n");
         var onGrid = true;
