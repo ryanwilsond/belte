@@ -39,7 +39,7 @@ class PhysicsEntity {
         collisions = { false, false, false, false };
         var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
 
-        pos.x += frameMovement.x;
+        pos.x += frameMovement.x * 60 * deltaTime;
         box.x = (int!)pos.x;
 
         var nearTiles = tileMap.GetNearTiles(box.x, box.y);
@@ -65,7 +65,7 @@ class PhysicsEntity {
             }
         }
 
-        pos.y += frameMovement.y;
+        pos.y += frameMovement.y * 60 * deltaTime;
         box.y = (int!)pos.y;
 
         nearTiles = tileMap.GetNearTiles(box.x, box.y);

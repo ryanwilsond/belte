@@ -110,7 +110,7 @@ class Program {
         if (dead > 0) {
             dead++;
 
-            if (dead > 2400 * deltaTime)
+            if (dead > 2400 * 0.016)
                 LoadLevel(0);
         }
 
@@ -122,15 +122,15 @@ class Program {
         scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
 
         if (Graphics.GetKey("A") && Math.Abs(player.dashing) <= 50)
-            movement.x -= Settings.RunSpeed * deltaTime;
+            movement.x -= Settings.RunSpeed* 0.016;
 
         if (Graphics.GetKey("D") && Math.Abs(player.dashing) <= 50)
-            movement.x += Settings.RunSpeed * deltaTime;
+            movement.x += Settings.RunSpeed * 0.016;
 
         if (Graphics.GetKey("SPACE") && !previousSpace)
             player.Jump();
 
-        if (Graphics.GetMouseButton("right") && !previousRC )
+        if (Graphics.GetMouseButton("right") && !previousRC)
             player.Dash();
 
         for (int! i = 0; i < leafSpawnerCount; i++) {

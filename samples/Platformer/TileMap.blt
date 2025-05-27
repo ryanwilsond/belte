@@ -7,12 +7,14 @@ class TileMap {
     private ref Textures textures;
 
     public ref Tile[] tiles;
+    public decimal! lowestY;
 
     public constructor(ref Textures textures, int! tileSize = 64) {
         this.tileSize = tileSize;
         this.textures = ref textures;
         tileCount = 0;
         offGridCount = 0;
+        lowestY = 0;
 
         // Arbitrary sizes, probably good enough
         tiles = new Tile[512];
@@ -83,6 +85,7 @@ class TileMap {
     public void Load(string! path) {
         tileCount = 0;
         offGridCount = 0;
+        lowestY = 0;
 
         var text = File.ReadText(path);
         var lines = String.Split(text!, "\r\n");
@@ -100,6 +103,8 @@ class TileMap {
             var v = (int!)parts[3];
             var texture = textures.GetTextureStr(parts[2], v);
             string! key = (string!)(parts[2] + ";" + parts[3]);
+
+            lowestY = Math.Max(lowestY, y * (onGrid ? tileSize : 1));
 
             if (onGrid)
                 tiles[tileCount++] = new Tile(x, y, texture, key, tileSize, true);
