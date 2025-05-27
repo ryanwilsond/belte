@@ -28,7 +28,7 @@ class Player extends PhysicsEntity {
         airTime += 1;
         particleTimer += deltaTime;
 
-        if (airTime > 11000 * deltaTime)
+        if (airTime > 15000 * deltaTime)
             game.dead++;
 
         if (collisions[DownCollide]) {

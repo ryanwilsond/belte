@@ -10,6 +10,7 @@ class Program {
     ref Enemy[] enemies;
     int enemyCount;
 
+    public int! screenShake;
     public int dead;
     public ref Player player;
     public ref TileMap tileMap;
@@ -43,6 +44,8 @@ class Program {
 
         previousSpace = false;
         previousRC = false;
+
+        screenShake = 0;
 
         LoadLevel(0);
     }
@@ -112,6 +115,7 @@ class Program {
         }
 
         var movement = new Vec2(0, 0);
+        screenShake = Math.Max(0, screenShake - 4);
 
         // pseudo-Lerp camera to player position
         scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
@@ -153,13 +157,16 @@ class Program {
 
         clouds.Update(deltaTime);
 
+        var screenShakeOffset = new Vec2(Random.Random() * screenShake - screenShake / 2, Random.Random() * screenShake - screenShake / 2);
+        var renderScroll = new Vec2(screenShakeOffset.x + scroll.x, screenShakeOffset.y + scroll.y);
+
         Graphics.DrawSprite(background);
-        clouds.Render(scroll);
-        tileMap.Render(scroll);
+        clouds.Render(renderScroll);
+        tileMap.Render(renderScroll);
 
         for (int! i = 0; i < enemyCount; i++) {
             var kill = enemies[i].Update(deltaTime, ref tileMap, new Vec2(0, 0));
-            enemies[i].Render(scroll);
+            enemies[i].Render(renderScroll);
 
             if (kill) {
                 for (int! j = i; j < enemyCount - 1; j++)
@@ -172,7 +179,7 @@ class Program {
         }
 
         if (dead == 0)
-            player.Render(scroll);
+            player.Render(renderScroll);
 
         for (int! i = 0; i < projectileCount; i++) {
             var hitWall = projectiles[i].Update(deltaTime);
@@ -192,6 +199,7 @@ class Program {
                 var pos = projectiles[i].position;
 
                 if (PointInsideRect(pos.x, pos.y, player.box)) {
+                    screenShake = Math.Max(Settings.TileSize, screenShake);
                     remove = true;
                     dead++;
 
@@ -225,13 +233,13 @@ class Program {
                 projectileCount--;
                 i--;
             } else {
-                projectiles[i].Render(scroll);
+                projectiles[i].Render(renderScroll);
             }
         }
 
         for (int! i = 0; i < sparkCount; i++) {
             var kill = sparks[i].Update(deltaTime);
-            sparks[i].Render(scroll);
+            sparks[i].Render(renderScroll);
 
             if (kill) {
                 for (int! j = i; j < sparkCount - 1; j++)
@@ -245,7 +253,7 @@ class Program {
 
         for (int! i = 0; i < particleCount; i++) {
             var kill = particles[i].Update(deltaTime);
-            particles[i].Render(scroll);
+            particles[i].Render(renderScroll);
 
             if (particles[i].kind == "leaf")
                 particles[i].position.x += Math.Sin(particles[i].animation.frame * 0.5) * 0.3 * 2;
