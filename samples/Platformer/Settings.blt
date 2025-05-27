@@ -8,6 +8,6 @@ static class Settings {
     public constexpr int! TileSize = 64;
     public constexpr int! JumpSpeed = 15;
     public constexpr int! RunSpeed = 400;
-    public constexpr int! WallSlideSpeed = 2;
-    public constexpr int! DashSpeed = 20;
+    public constexpr int! WallSlideSpeed = 4;
+    public constexpr int! DashSpeed = 30;
 }

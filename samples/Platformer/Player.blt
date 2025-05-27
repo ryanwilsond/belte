@@ -8,9 +8,13 @@ class Player extends PhysicsEntity {
     int! jumps;
     bool wallSlide;
     decimal! particleTimer;
+    bool dashHit51;
+    bool dashHit50;
+    bool resolved51;
+    bool resolved50;
 
     public decimal! airTime;
-    public int! dashing;
+    public decimal! dashing;
 
     public constructor(ref Program game, Vec2 position) : base(ref game, position, 0) {
         airTime = 0;
@@ -18,10 +22,14 @@ class Player extends PhysicsEntity {
         wallSlide = false;
         dashing = 0;
         particleTimer = 0;
+        dashHit51 = false;
+        dashHit50 = false;
+        resolved51 = false;
+        resolved50 = false;
     }
 
     public override bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
-        if (Math.Abs(dashing) > 50)
+        if (Math.Abs(dashing) >= 50)
             velocity.y = 0;
 
         base.Update(deltaTime, ref tileMap, movement);
@@ -61,10 +69,12 @@ class Player extends PhysicsEntity {
         if (Math.Abs(dashing) > 50) {
             velocity.x = Math.Abs(dashing) / dashing * Settings.DashSpeed;
 
-            if (Math.Abs(dashing) == 51)
-                velocity.x *= 0.4;
+            if (dashHit51 && !resolved51) {
+                velocity.x *= 0.1;
+                resolved51 = true;
+            }
 
-            if (particleTimer > 0.2) {
+            if (particleTimer > 0.1) {
                 game.particles[game.particleCount++] = new Particle(
                     new Vec2(box.x + (box.w / 2), box.y + (box.h / 2)),
                     new Vec2(Math.Abs(dashing) / dashing * Random.Random() * 12 * 60, 0),
@@ -73,16 +83,18 @@ class Player extends PhysicsEntity {
                     Random.RandInt(1)
                 );
 
-                particleTimer -= 0.2;
+                particleTimer -= 0.1;
             }
         }
 
-        if (Math.Abs(dashing) == 50) {
+        if (dashHit50 && !resolved50) {
+            resolved50 = true;
+
             for (int! i = 0; i < 20; i++) {
                 var angle = Random.Random() * Math.PI * 2;
                 var speed = Random.Random() * 3 * 60 + 3 * 60;
                 game.particles[game.particleCount++] = new Particle(
-                    new Vec2(box.x + (velocity.x * 8), box.y + (box.h / 2)),
+                    new Vec2(box.x + box.w / 2, box.y + (box.h / 2)),
                     new Vec2(Math.Cos(angle) * speed, Math.Sin(angle) * speed),
                     game.animations.particle,
                     "particle",
@@ -91,12 +103,20 @@ class Player extends PhysicsEntity {
             }
         }
 
-        if (dashing > 0)
-            dashing = (int!)Math.Max(0, Math.Round(dashing - 60 * deltaTime));
-        else if (dashing < 0)
-            dashing = (int!)Math.Min(0, Math.Round(dashing + 60 * deltaTime));
+        if (dashing != 0 && Math.Abs(dashing) <= 51)
+            dashHit51 = true;
 
-        if (velocity.x > 0)
+        if (dashing != 0 && Math.Abs(dashing) <= 50)
+            dashHit50 = true;
+
+        if (dashing > 0)
+            dashing = Math.Max(0, dashing - 60 * deltaTime);
+        else if (dashing < 0)
+            dashing = Math.Min(0, dashing + 60 * deltaTime);
+
+        if (dashHit50 && !resolved50)
+            velocity.x = 0;
+        else if (velocity.x > 0)
             velocity.x = Math.Max(velocity.x - 24 * deltaTime, 0);
         else
             velocity.x = Math.Min(velocity.x + 24 * deltaTime, 0);
@@ -105,7 +125,7 @@ class Player extends PhysicsEntity {
     }
 
     public override void Render(Vec2 offset) {
-        if (Math.Abs(dashing) <= 50)
+        if (Math.Abs(dashing) < 50)
             base.Render(offset);
     }
 
@@ -131,11 +151,16 @@ class Player extends PhysicsEntity {
 
     public void Dash() {
         if (dashing == 0) {
+            dashHit51 = false;
+            dashHit50 = false;
+            resolved51 = false;
+            resolved50 = false;
+
             // Higher number = longer dash time, Settings.DashSpeed effects velocity of dash
             if (flip)
-                dashing = -70;
+                dashing = -60;
             else
-                dashing = 70;
+                dashing = 60;
         }
     }
 }

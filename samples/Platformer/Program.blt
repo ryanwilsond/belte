@@ -9,6 +9,10 @@ class Program {
     int leafSpawnerCount;
     ref Enemy[] enemies;
     int enemyCount;
+    int! level;
+    decimal! transition;
+    string[]! maps;
+    int! mapCount;
 
     public int! screenShake;
     public int dead;
@@ -47,11 +51,15 @@ class Program {
 
         screenShake = 0;
 
-        LoadLevel(0);
+        maps = { "samples/Platformer/map.txt", "samples/Platformer/map.txt" };
+        mapCount = 2;
+
+        level = 0;
+        LoadLevel(level);
     }
 
     public void LoadLevel(int! level) {
-        tileMap.Load(level == 0 ? "samples/Platformer/map.txt" : "samples/Platformer/map.txt");
+        tileMap.Load(maps[level]!);
 
         leafSpawnerCount = 0;
         leafSpawners = new Rect[10];
@@ -96,42 +104,61 @@ class Program {
         projectiles = new Projectile[10];
         projectileCount = 0;
 
-        particles = ref new Particle[100];
+        particles = ref new Particle[200];
         particleCount = 0;
 
-        sparks = ref new Spark[80];
+        sparks = ref new Spark[200];
         sparkCount = 0;
         dead = 0;
+        transition = -30;
     }
 
     public void Update(decimal! deltaTime) {
-        Console.PrintLine(1 / deltaTime);
+        // Console.PrintLine(1 / deltaTime);
+
+        screenShake = Math.Max(0, screenShake - 4);
+
+        if (enemyCount == 0) {
+            transition += Math.Min(60 * deltaTime, 1);
+
+            if (transition > 30) {
+                level = ((level + 1) % mapCount + mapCount) % mapCount;
+                LoadLevel(level);
+            }
+        }
+
+        if (transition < 0)
+            transition += Math.Min(60 * deltaTime, 1);
 
         if (dead > 0) {
             dead++;
 
+            if (dead >= 60 * 0.016)
+                transition = Math.Min(transition + 1, 30);
+
             if (dead > 2400 * 0.016)
-                LoadLevel(0);
+                LoadLevel(level);
         }
 
         var movement = new Vec2(0, 0);
-        screenShake = Math.Max(0, screenShake - 4);
 
         // pseudo-Lerp camera to player position
         scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
         scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
 
-        if (Graphics.GetKey("A") && Math.Abs(player.dashing) <= 50)
-            movement.x -= Settings.RunSpeed* 0.016;
+        if (transition >= 0 && transition <= 1) {
+            if (Graphics.GetKey("A") && Math.Abs(player.dashing) <= 50)
+                movement.x -= Settings.RunSpeed* 0.016;
 
-        if (Graphics.GetKey("D") && Math.Abs(player.dashing) <= 50)
-            movement.x += Settings.RunSpeed * 0.016;
+            if (Graphics.GetKey("D") && Math.Abs(player.dashing) <= 50)
+                movement.x += Settings.RunSpeed * 0.016;
 
-        if (Graphics.GetKey("SPACE") && !previousSpace)
-            player.Jump();
+            if (Graphics.GetKey("SPACE") && !previousSpace)
+                player.Jump();
 
-        if (Graphics.GetMouseButton("right") && !previousRC)
-            player.Dash();
+            if (Graphics.GetMouseButton("right") && !previousRC)
+                player.Dash();
+        }
 
         for (int! i = 0; i < leafSpawnerCount; i++) {
             var leafSpawner = leafSpawners[i];
@@ -266,6 +293,21 @@ class Program {
                 particleCount--;
                 i--;
             }
+        }
+
+        if (transition >= -30 && transition <= 30 && ((int!)transition) != 0) {
+            Graphics.DrawRect(new Rect(
+                0,
+                0,
+                Settings.WindowWidth,
+                (int!)Math.Floor(Settings.WindowHeight / 2 * Math.Abs(transition / 30))
+            ), 0, 0, 0);
+            Graphics.DrawRect(new Rect(
+                0,
+                (int!)Math.Floor(Settings.WindowHeight - Settings.WindowHeight / 2 * Math.Abs(transition / 30)),
+                Settings.WindowWidth,
+                (int!)Math.Ceiling(Settings.WindowHeight / 2 * Math.Abs(transition / 30))
+            ), 0, 0, 0);
         }
 
         previousSpace = Graphics.GetKey("SPACE");
