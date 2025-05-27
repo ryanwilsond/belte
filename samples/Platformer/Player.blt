@@ -129,28 +129,34 @@ class Player extends PhysicsEntity {
             base.Render(offset);
     }
 
-    public void Jump() {
+    public bool! Jump() {
         if (wallSlide) {
             if (flip && lastMovement.x < 0) {
                 velocity.x = 3.5 * 3;
                 velocity.y = -2.5 * 5;
                 airTime = 5 * 0.016;
                 jumps = Math.Max(0, jumps - 1);
+                return true;
             } else if (!flip && lastMovement.x > 0) {
                 velocity.x = -3.5 * 3;
                 velocity.y = -2.5 * 5;
                 airTime = 5 * 0.016;
                 jumps = Math.Max(0, jumps - 1);
+                return true;
             }
         } else if (jumps > 0) {
             velocity.y = -Settings.JumpSpeed;
             jumps--;
             airTime = 5 * 0.016;
+            return true;
         }
+
+        return false;
     }
 
     public void Dash() {
         if (dashing == 0) {
+            Graphics.PlaySound(game.sfx[1]!);
             dashHit51 = false;
             dashHit50 = false;
             resolved51 = false;

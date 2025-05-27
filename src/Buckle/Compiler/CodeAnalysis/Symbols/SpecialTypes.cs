@@ -21,6 +21,7 @@ internal static class SpecialTypes {
         { "global::Text", SpecialType.Text },
         { "global::Rect", SpecialType.Rect },
         { "global::Texture", SpecialType.Texture },
+        { "global::Sound", SpecialType.Sound },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

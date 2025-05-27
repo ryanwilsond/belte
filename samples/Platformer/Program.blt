@@ -14,6 +14,7 @@ class Program {
     string[]! maps;
     int! mapCount;
 
+    public Sound[] sfx;
     public int! screenShake;
     public int dead;
     public ref Player player;
@@ -41,6 +42,27 @@ class Program {
         clouds = new Clouds(ref textures.cloud);
         tileMap = new TileMap(ref textures, Settings.TileSize);
         animations = new Animations(ref textures);
+
+        sfx = {
+            Graphics.LoadSound("samples/Platformer/data/sfx/jump.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/dash.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/hit.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/shoot.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/ambience.wav")
+        };
+
+        sfx[0].volume = 0.7;
+        sfx[1].volume = 0.3;
+        sfx[2].volume = 0.8;
+        sfx[3].volume = 0.4;
+        sfx[4].volume = 0.2;
+
+        var music = Graphics.LoadSound("samples/Platformer/data/music.wav")!;
+        music.volume = 0.5;
+        music.loop = true;
+        sfx[4].loop = true;
+        Graphics.PlaySound(music);
+        Graphics.PlaySound(sfx[4]!);
 
         player = new Player(ref this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
 
@@ -153,8 +175,10 @@ class Program {
             if (Graphics.GetKey("D") && Math.Abs(player.dashing) <= 50)
                 movement.x += Settings.RunSpeed * 0.016;
 
-            if (Graphics.GetKey("SPACE") && !previousSpace)
-                player.Jump();
+            if (Graphics.GetKey("SPACE") && !previousSpace) {
+                if (player.Jump())
+                    Graphics.PlaySound(sfx[0]!);
+            }
 
             if (Graphics.GetMouseButton("right") && !previousRC)
                 player.Dash();
@@ -229,6 +253,7 @@ class Program {
                     screenShake = Math.Max(Settings.TileSize, screenShake);
                     remove = true;
                     dead++;
+                    Graphics.PlaySound(sfx[2]!);
 
                     for (int! j = 0; j < 30; j++) {
                         var angle = Random.Random() * Math.PI * 2;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MonoGame.Extended.Text;
@@ -64,6 +65,25 @@ internal partial class GraphicsHandler : Game {
         textureWithTransparency.SetData(data);
 
         return textureWithTransparency;
+    }
+
+    internal SoundEffect LoadSound(string path) {
+        using var fileStream = new FileStream(path, FileMode.Open);
+        return SoundEffect.FromStream(fileStream);
+    }
+
+    internal void PlaySound(SoundEffect soundEffect, object volume, object loop) {
+        var volumeF = volume is null ? 1 : Convert.ToSingle(volume);
+        var loopB = loop is null ? false : Convert.ToBoolean(loop);
+
+        if (loopB) {
+            var instance = soundEffect.CreateInstance();
+            instance.Volume = volumeF;
+            instance.IsLooped = true;
+            instance.Play();
+        } else {
+            soundEffect.Play(volumeF, 0, 0);
+        }
     }
 
     internal DynamicSpriteFont LoadText(string path, float fontSize) {

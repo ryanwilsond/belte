@@ -13,7 +13,7 @@ internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
     private const int TotalSpecialTypes = 13 - 2; // TODO remove -2 after adding List and Dict
-    private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 5;
+    private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
     private const int TotalWellKnownMembers = 3;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];

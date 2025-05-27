@@ -40,6 +40,8 @@ internal static class GraphicsLibrary {
             StaticMethod("GetMouseButton", SpecialType.Bool, [("button", SpecialType.String)]),
             StaticMethod("GetScroll", SpecialType.Int),
             StaticMethod("GetMousePosition", SpecialType.Vec2),
+            StaticMethod("LoadSound", SpecialType.Sound, true, [("path", SpecialType.String)]),
+            StaticMethod("PlaySound", SpecialType.Void, [("sound", SpecialType.Sound)]),
         ]);
     }
 }

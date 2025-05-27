@@ -58,6 +58,7 @@ public static class LibraryHelpers {
                 libraryName != "Compiler.Texture.blt" &&
                 libraryName != "Compiler.FRect.blt" &&
                 libraryName != "Compiler.Vec4.blt" &&
+                libraryName != "Compiler.Sound.blt" &&
                 libraryName != "Compiler.Sprite.blt") {
                 continue;
             }

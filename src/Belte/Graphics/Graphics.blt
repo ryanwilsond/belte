@@ -31,4 +31,8 @@ public static class Graphics {
     public static bool! GetMouseButton(string! button);
 
     public static int! GetScroll();
+
+    public static Sound LoadSound(string! path);
+
+    public static void PlaySound(Sound! sound);
 }

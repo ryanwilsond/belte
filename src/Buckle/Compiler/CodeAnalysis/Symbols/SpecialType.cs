@@ -24,4 +24,5 @@ public enum SpecialType : byte {
     Text,
     Rect,
     Texture,
+    Sound,
 }

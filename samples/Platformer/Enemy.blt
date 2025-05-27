@@ -27,6 +27,7 @@ class Enemy extends PhysicsEntity {
 
                 if (Math.Abs(distance.y) < Settings.TileSize) {
                     if (flip && distance.x < 0) {
+                        Graphics.PlaySound(game.sfx[3]!);
                         var projPos = new Vec2(box.x + box.w / 2 - 7 * 4, box.y + box.h / 2);
                         game.projectiles[game.projectileCount++] = new Projectile(ref game, -1.5 * 240, projPos);
 
@@ -35,6 +36,7 @@ class Enemy extends PhysicsEntity {
                     }
 
                     if (!flip && distance.x > 0) {
+                        Graphics.PlaySound(game.sfx[3]!);
                         var projPos = new Vec2(box.x + box.w / 2 + 7 * 4, box.y + box.h / 2);
                         game.projectiles[game.projectileCount++] = new Projectile(ref game, 1.5 * 240, projPos);
 
@@ -43,7 +45,7 @@ class Enemy extends PhysicsEntity {
                     }
                 }
             }
-        } else if (Random.Random() < 0.4 * deltaTime) {
+        } else if (Random.Random() < 0.5 * deltaTime) {
             walking = Random.RandInt(90) + 30;
         }
 
@@ -56,6 +58,7 @@ class Enemy extends PhysicsEntity {
 
         if (Math.Abs(game.player.dashing) >= 50) {
             if (Colliding(box, game.player.box)) {
+                Graphics.PlaySound(game.sfx[2]!);
                 game.screenShake = Math.Max(Settings.TileSize, game.screenShake);
                 var projPos = new Vec2(box.x + box.w / 2, box.y + box.h / 2);
 

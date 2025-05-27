@@ -3,7 +3,7 @@
         "*.csproj": "msbuild",
     },
     "files.exclude": {
-        "**/bin": true,
+        // "**/bin": true,
         "**/obj": true,
         "**/.vs": true,
     },

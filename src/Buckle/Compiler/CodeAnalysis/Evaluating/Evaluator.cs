@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended.Text;
 using Shared;
@@ -22,6 +23,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 internal sealed class Evaluator {
     private static readonly Symbol HiddenTextData = new SynthesizedLabelSymbol("spriteFont");
     private static readonly Symbol HiddenTextureData = new SynthesizedLabelSymbol("texture2D");
+    private static readonly Symbol HiddenSoundData = new SynthesizedLabelSymbol("soundInstance");
 
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
@@ -1496,6 +1498,32 @@ internal sealed class Evaluator {
                         _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
                         result = null;
                     }
+                }
+
+                break;
+            case "Graphics_LoadSound_S": {
+                    var argument = (string)Value(EvaluateExpression(arguments[0], abort));
+
+                    if (!File.Exists(argument))
+                        throw new BelteEvaluatorException("Cannot load sound: path does not exist", location);
+
+                    var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
+                    var sound = CreateObject(soundType);
+                    sound.members[HiddenSoundData] = new EvaluatorObject(
+                        _context.graphicsHandler.LoadSound(argument),
+                        null
+                    );
+
+                    result = sound;
+                }
+
+                break;
+            case "Graphics_PlaySound_S": {
+                    var argument = Dereference(EvaluateExpression(arguments[0], abort));
+                    var volume = Slot(argument, 0).value;
+                    var loop = Slot(argument, 1).value;
+                    var soundInstance = argument.members[HiddenSoundData];
+                    _context.graphicsHandler.PlaySound((SoundEffect)soundInstance.value, volume, loop);
                 }
 
                 break;
