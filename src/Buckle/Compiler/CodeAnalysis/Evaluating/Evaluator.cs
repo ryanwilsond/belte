@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -1218,7 +1219,7 @@ internal sealed class Evaluator {
                 case "Console_Print_O?":
                     printed = true;
 
-                    if (mapKey != "Console_Print_A?") {
+                    if (arguments[0].type.StrippedType().isObjectType) {
                         var toStringResult = InvokeMethod(_toStringMethod, [], arguments[0], [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
                         result = func(Value(toStringResult), null, null);

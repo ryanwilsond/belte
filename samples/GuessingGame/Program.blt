@@ -69,7 +69,7 @@ static class Program {
 
             if (guessText == "") {
                 if (hintsWanted)
-                    guessText = (string)idealGuess;
+                    guessText = (string!)idealGuess;
                 else
                     return -1;
             }

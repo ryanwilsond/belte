@@ -226,6 +226,30 @@ class Program {
                 enemies[enemyCount - 1] = null;
                 enemyCount--;
                 i--;
+            } else if (dead == 0 && PhysicsEntity.Colliding(player.box, enemies[i].box)) {
+                screenShake = Math.Max(Settings.TileSize, screenShake);
+                dead++;
+                Graphics.PlaySound(sfx[2]!);
+
+                for (int! j = 0; j < 30; j++) {
+                    var angle = Random.Random() * Math.PI * 2;
+                    var speed = Random.Random() * 10 * 60;
+                    var projPos = new Vec2(player.box.x + player.box.w / 2, player.box.y + player.box.h / 2);
+
+                    particles[particleCount++] = new Particle(
+                        projPos,
+                        new Vec2(Math.Cos(angle + Math.PI) * speed * 0.5, Math.Sin(angle + Math.PI) * speed * 0.5),
+                        animations.particle,
+                        "particle",
+                        Random.RandInt(1)
+                    );
+
+                    sparks[sparkCount++] = new Spark(
+                        projPos,
+                        angle,
+                        2 * 6 + Random.Random() * 6
+                    );
+                }
             }
         }
 

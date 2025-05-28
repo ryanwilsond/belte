@@ -136,7 +136,7 @@ class PhysicsEntity {
         }
     }
 
-    protected static bool! Colliding(Rect a, Rect b) {
+    public static bool! Colliding(Rect a, Rect b) {
         var collisionX = a.x + a.w > b.x && b.x + b.w > a.x;
         var collisionY = a.y + a.h > b.y && b.y + b.h > a.y;
         return collisionX && collisionY;
