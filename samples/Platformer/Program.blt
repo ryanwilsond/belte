@@ -30,6 +30,7 @@ class Program {
 
     public void Main() {
         Graphics.Initialize("Platformer", Settings.WindowWidth, Settings.WindowHeight, true);
+        Graphics.SetCursorVisibility(false);
 
         background = Graphics.LoadSprite(
             "samples/Platformer/data/images/background.png",
@@ -73,8 +74,13 @@ class Program {
 
         screenShake = 0;
 
-        maps = { "samples/Platformer/map.txt", "samples/Platformer/map.txt" };
-        mapCount = 2;
+        mapCount = 4;
+        maps = {
+            "samples/Platformer/data/maps/0.txt",
+            "samples/Platformer/data/maps/1.txt",
+            "samples/Platformer/data/maps/2.txt",
+            "samples/Platformer/data/maps/3.txt"
+        };
 
         level = 0;
         LoadLevel(level);

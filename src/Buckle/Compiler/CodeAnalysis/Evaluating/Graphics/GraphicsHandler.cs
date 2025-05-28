@@ -33,7 +33,7 @@ internal partial class GraphicsHandler : Game {
         _fontManager = new FontManager();
         _abort = abort;
         _usePointClamp = usePointClamp;
-        IsMouseVisible = false;
+        IsMouseVisible = true;
         // IsFixedTimeStep = true;
         // TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
     }
@@ -42,6 +42,10 @@ internal partial class GraphicsHandler : Game {
 
     internal void SetUpdateHandler(UpdateHandler updateHandler) {
         _updateHandler = updateHandler;
+    }
+
+    internal void SetCursorVisibility(bool visible) {
+        IsMouseVisible = visible;
     }
 
     internal Texture2D LoadTexture(string path, bool useColorKey, object r, object g, object b) {

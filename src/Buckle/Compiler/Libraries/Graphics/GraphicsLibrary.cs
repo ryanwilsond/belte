@@ -42,6 +42,7 @@ internal static class GraphicsLibrary {
             StaticMethod("GetMousePosition", SpecialType.Vec2),
             StaticMethod("LoadSound", SpecialType.Sound, true, [("path", SpecialType.String)]),
             StaticMethod("PlaySound", SpecialType.Void, [("sound", SpecialType.Sound)]),
+            StaticMethod("SetCursorVisibility", SpecialType.Void, [("visible", SpecialType.Bool)]),
         ]);
     }
 }

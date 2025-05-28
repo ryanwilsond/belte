@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -1525,6 +1524,12 @@ internal sealed class Evaluator {
                     var loop = Slot(argument, 1).value;
                     var soundInstance = argument.members[HiddenSoundData];
                     _context.graphicsHandler.PlaySound((SoundEffect)soundInstance.value, volume, loop);
+                }
+
+                break;
+            case "Graphics_SetCursorVisibility_B": {
+                    var argument = (bool)Value(EvaluateExpression(arguments[0], abort));
+                    _context.graphicsHandler.SetCursorVisibility(argument);
                 }
 
                 break;

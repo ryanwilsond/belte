@@ -18,7 +18,7 @@ class Player extends PhysicsEntity {
 
     public constructor(ref Program game, Vec2 position) : base(ref game, position, 0) {
         airTime = 0;
-        jumps = 1;
+        jumps = Settings.MaxJumps;
         wallSlide = false;
         dashing = 0;
         particleTimer = 0;
@@ -41,7 +41,7 @@ class Player extends PhysicsEntity {
 
         if (collisions[DownCollide]) {
             airTime = 0;
-            jumps = 1;
+            jumps = Settings.MaxJumps;
         }
 
         wallSlide = false;

@@ -35,4 +35,6 @@ public static class Graphics {
     public static Sound LoadSound(string! path);
 
     public static void PlaySound(Sound! sound);
+
+    public static void SetCursorVisibility(bool! visible);
 }
