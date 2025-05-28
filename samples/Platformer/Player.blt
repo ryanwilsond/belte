@@ -47,6 +47,10 @@ class Player extends PhysicsEntity {
         wallSlide = false;
         if ((collisions[LeftCollide] || collisions[RightCollide]) && airTime > 0.064) {
             wallSlide = true;
+
+            if (game.wallSlideResetsJumps)
+                jumps = Settings.MaxJumps;
+
             velocity.y = Math.Min(velocity.y, Settings.WallSlideSpeed);
 
             if (collisions[RightCollide])

@@ -14,6 +14,7 @@ class Program {
     string[]! maps;
     int! mapCount;
 
+    public bool! wallSlideResetsJumps;
     public Sound[] sfx;
     public int! screenShake;
     public int dead;
@@ -139,6 +140,8 @@ class Program {
         sparkCount = 0;
         dead = 0;
         transition = -30;
+
+        wallSlideResetsJumps = level > 2 ? true : false;
     }
 
     public void Update(decimal! deltaTime) {
