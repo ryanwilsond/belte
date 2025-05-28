@@ -33,7 +33,7 @@ internal partial class GraphicsHandler : Game {
         _fontManager = new FontManager();
         _abort = abort;
         _usePointClamp = usePointClamp;
-        IsMouseVisible = true;
+        IsMouseVisible = false;
         // IsFixedTimeStep = true;
         // TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
     }
