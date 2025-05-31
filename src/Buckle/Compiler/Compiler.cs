@@ -271,8 +271,6 @@ public sealed class Compiler {
         };
 
         wrapperThread.Start(abort);
-
-        while (wrapperThread.IsAlive)
-            ;
+        wrapperThread.Join();
     }
 }

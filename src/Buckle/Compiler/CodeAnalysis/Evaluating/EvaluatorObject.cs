@@ -8,63 +8,12 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Encased Object that can also be a reference to a <see cref="VariableSymbol" />.
 /// </summary>
 public sealed class EvaluatorObject {
-    internal static EvaluatorObject Null => new EvaluatorObject(value: null, type: null);
+    // private static readonly ObjectPool<EvaluatorObject> PoolInstance = CreatePool();
+    // private readonly ObjectPool<EvaluatorObject> _pool;
 
-    /// <summary>
-    /// Creates an <see cref="EvaluatorObject" /> with a value (not a reference).
-    /// In this case <see cref="EvaluatorObject" /> acts purely as an Object wrapper.
-    /// </summary>
-    /// <param name="value">Value to store.</param>
-    internal EvaluatorObject(object value, TypeSymbol type) {
-        this.value = value;
-        isReference = false;
-        reference = null;
-        referenceSymbol = null;
-        isExplicitReference = false;
-        members = null;
-        this.type = type;
-    }
-
-    /// <summary>
-    /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a list of members.
-    /// </summary>
-    /// <param name="members">Members to contain by this.</param>
-    internal EvaluatorObject(Dictionary<Symbol, EvaluatorObject> members, TypeSymbol type) {
-        value = null;
-        isReference = false;
-        reference = null;
-        referenceSymbol = null;
-        isExplicitReference = false;
-        this.members = members;
-        this.type = type;
-    }
-
-    /// <summary>
-    /// Creates an <see cref="EvaluatorObject" /> without a value, and instead a reference to member of
-    /// a <see cref="VariableSymbol" />.
-    /// Note that it is not an actual C# reference, just a copy of a <see cref="VariableSymbol" /> stored in the locals
-    /// or globals dictionary.
-    /// </summary>
-    /// <param name="reference">
-    /// <see cref="VariableSymbol" /> to reference (not an explicit reference, passed by
-    /// reference by default).
-    /// </param>
-    /// <param name="isExplicitReference">
-    /// If this is just a variable, or if it explicitly a reference expression.
-    /// </param>
-    internal EvaluatorObject(
-        Symbol referenceSymbol,
-        EvaluatorObject reference,
-        TypeSymbol type,
-        bool isExplicitReference = false) {
-        value = null;
-        isReference = true;
-        this.referenceSymbol = referenceSymbol;
-        this.reference = reference;
-        this.isExplicitReference = isExplicitReference;
-        members = null;
-        this.type = type;
-    }
+    // private EvaluatorObject(ObjectPool<EvaluatorObject> pool) {
+    //     _pool = pool;
+    // }
 
     public object value { get; internal set; }
 
@@ -86,4 +35,69 @@ public sealed class EvaluatorObject {
     internal Dictionary<Symbol, EvaluatorObject> members { get; set; }
 
     internal TypeSymbol type { get; set; }
+
+    // internal bool isPersistent { get; set; }
+
+    internal static EvaluatorObject GetInstance() {
+        // return PoolInstance.Allocate();
+        return new EvaluatorObject();
+    }
+
+    internal static EvaluatorObject GetInstance(object value, TypeSymbol type) {
+        // var instance = PoolInstance.Allocate();
+        var instance = new EvaluatorObject();
+        instance.value = value;
+        instance.type = type;
+        return instance;
+    }
+
+    internal static EvaluatorObject GetInstance(Dictionary<Symbol, EvaluatorObject> members, TypeSymbol type) {
+        // var instance = PoolInstance.Allocate();
+        var instance = new EvaluatorObject();
+        instance.members = members;
+        instance.type = type;
+        return instance;
+    }
+
+    internal static EvaluatorObject GetInstance(
+        Symbol referenceSymbol,
+        EvaluatorObject reference,
+        TypeSymbol type,
+        bool isExplicitReference = false) {
+        // var instance = PoolInstance.Allocate();
+        var instance = new EvaluatorObject();
+        instance.isReference = true;
+        instance.referenceSymbol = referenceSymbol;
+        instance.reference = reference;
+        instance.isExplicitReference = isExplicitReference;
+        instance.type = type;
+        return instance;
+    }
+
+    // internal void Free() {
+    //     Reset();
+    //     _pool.Free(this);
+    // }
+
+    // private void Reset() {
+    //     value = null;
+    //     isReference = false;
+    //     reference = null;
+    //     referenceSymbol = null;
+    //     isExplicitReference = false;
+    //     type = null;
+
+    //     if (members is not null) {
+    //         foreach (var member in members.Values)
+    //             member.Free();
+
+    //         members = null;
+    //     }
+    // }
+
+    // private static ObjectPool<EvaluatorObject> CreatePool() {
+    //     ObjectPool<EvaluatorObject> pool = null;
+    //     pool = new ObjectPool<EvaluatorObject>(() => new EvaluatorObject(pool), 512);
+    //     return pool;
+    // }
 }

@@ -1513,11 +1513,6 @@ internal partial class Binder {
                     ((BoundArrayAccessExpression)expression).index,
                     diagnostics
                 );
-            case BoundKind.ObjectCreationExpression:
-            case BoundKind.ArrayCreationExpression:
-                // Allow assigning references with created objects
-                // TODO May be wrong for some valueKinds however
-                return true;
             case BoundKind.ValuePlaceholder:
                 break;
         }

@@ -10,4 +10,16 @@ internal static class RefKindExtensions {
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
+
+    internal static bool IsWritableReference(this RefKind refKind) {
+        switch (refKind) {
+            case RefKind.Ref:
+                return true;
+            case RefKind.None:
+            case RefKind.RefConstParameter:
+                return false;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(refKind);
+        }
+    }
 }

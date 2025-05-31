@@ -169,6 +169,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 processedInitializers.boundInitializers,
                 method
             );
+
+            processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasErrors;
+
+            RefSafetyAnalysis.Analyze(
+                method,
+                new BoundBlockStatement(analyzedInitializers.syntax, analyzedInitializers.statements, [], []),
+                currentDiagnostics
+            );
         }
 
         var body = BindMethodBody(
@@ -247,6 +255,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 return null;
 
             var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
+
+            RefSafetyAnalysis.Analyze(method, methodBody, diagnostics);
 
             switch (methodBody) {
                 case BoundConstructorMethodBody constructor:

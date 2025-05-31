@@ -34,23 +34,23 @@ class Program {
         Graphics.SetCursorVisibility(false);
 
         background = Graphics.LoadSprite(
-            "samples/Platformer/data/images/background.png",
+            "data/images/background.png",
             new Vec2(Settings.WindowWidth / 2, Settings.WindowHeight / 2),
             new Vec2(Settings.WindowWidth, Settings.WindowHeight),
             0
         );
 
-        textures = ref new Textures();
+        textures = new Textures();
         clouds = new Clouds(ref textures.cloud);
         tileMap = new TileMap(ref textures, Settings.TileSize);
         animations = new Animations(ref textures);
 
         sfx = {
-            Graphics.LoadSound("samples/Platformer/data/sfx/jump.wav"),
-            Graphics.LoadSound("samples/Platformer/data/sfx/dash.wav"),
-            Graphics.LoadSound("samples/Platformer/data/sfx/hit.wav"),
-            Graphics.LoadSound("samples/Platformer/data/sfx/shoot.wav"),
-            Graphics.LoadSound("samples/Platformer/data/sfx/ambience.wav")
+            Graphics.LoadSound("data/sfx/jump.wav"),
+            Graphics.LoadSound("data/sfx/dash.wav"),
+            Graphics.LoadSound("data/sfx/hit.wav"),
+            Graphics.LoadSound("data/sfx/shoot.wav"),
+            Graphics.LoadSound("data/sfx/ambience.wav")
         };
 
         sfx[0].volume = 0.7;
@@ -59,7 +59,7 @@ class Program {
         sfx[3].volume = 0.4;
         sfx[4].volume = 0.2;
 
-        var music = Graphics.LoadSound("samples/Platformer/data/music.wav")!;
+        var music = Graphics.LoadSound("data/music.wav")!;
         music.volume = 0.5;
         music.loop = true;
         sfx[4].loop = true;
@@ -77,10 +77,10 @@ class Program {
 
         mapCount = 4;
         maps = {
-            "samples/Platformer/data/maps/0.txt",
-            "samples/Platformer/data/maps/1.txt",
-            "samples/Platformer/data/maps/2.txt",
-            "samples/Platformer/data/maps/3.txt"
+            "data/maps/0.txt",
+            "data/maps/1.txt",
+            "data/maps/2.txt",
+            "data/maps/3.txt"
         };
 
         level = 0;
@@ -115,7 +115,7 @@ class Program {
                 player.pos = new Vec2(foundPlayerSpawner.x + 4, foundPlayerSpawner.y - 4);
         }
 
-        enemies = ref new Enemy[20];
+        enemies = new Enemy[20];
         enemyCount = 0;
 
         for (int! i = 0; i < 20; i++) {
@@ -133,10 +133,10 @@ class Program {
         projectiles = new Projectile[10];
         projectileCount = 0;
 
-        particles = ref new Particle[200];
+        particles = new Particle[200];
         particleCount = 0;
 
-        sparks = ref new Spark[200];
+        sparks = new Spark[200];
         sparkCount = 0;
         dead = 0;
         transition = -30;

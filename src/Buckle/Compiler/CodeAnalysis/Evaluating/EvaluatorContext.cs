@@ -31,22 +31,12 @@ public sealed class EvaluatorContext : IDisposable {
         graphicsThread = null;
     }
 
-    internal void WaitForCompletion(ValueWrapper<bool> abort) {
+    internal void WaitForCompletion() {
         maintainThread = false;
         createWindow = false;
 
         if (graphicsThread is null)
             return;
-
-        while (true) {
-            if (abort || !graphicsThread.IsAlive) {
-                graphicsHandler?.Exit();
-                graphicsHandler = null;
-                break;
-            }
-
-            Thread.Sleep(100);
-        }
 
         graphicsThread?.Join();
     }
@@ -75,6 +65,7 @@ public sealed class EvaluatorContext : IDisposable {
     }
 
     internal void AddOrUpdateSymbol(DataContainerSymbol symbol, EvaluatorObject value) {
+        // value.isPersistent = true;
         _symbols[symbol.name] = (symbol, value);
     }
 

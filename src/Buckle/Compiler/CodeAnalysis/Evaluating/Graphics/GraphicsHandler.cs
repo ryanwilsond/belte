@@ -244,6 +244,9 @@ internal partial class GraphicsHandler : Game {
 
     protected override void Update(GameTime gameTime) {
         base.Update(gameTime);
+
+        if (_abort)
+            Exit();
     }
 
     protected override void Draw(GameTime gameTime) {

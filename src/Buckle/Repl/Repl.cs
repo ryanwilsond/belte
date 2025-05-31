@@ -102,9 +102,7 @@ public abstract partial class Repl : IDisposable {
                     broke = false;
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
-
-                    while (evaluateSubmissionThread.IsAlive)
-                        ;
+                    evaluateSubmissionThread.Join();
 
                     if (broke || _showTime) {
                         var finishWord = broke ? "Aborted" : "Finished";

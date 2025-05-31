@@ -12,6 +12,7 @@ isnt
 lowerer
 lowlevel
 overloadable
+pathing
 preprocess
 preprocesses
 redeclaration

@@ -21,7 +21,7 @@ class TileMap {
         offGridTiles = new Tile[128];
     }
 
-    public ref Tile[] Extract(string! key, bool! keep) {
+    public Tile[] Extract(string! key, bool! keep) {
         var count = 0;
         var matches = new Tile[20];
 
@@ -59,7 +59,7 @@ class TileMap {
             }
         }
 
-        return ref matches;
+        return matches;
     }
 
     public void Save(string! path) {
@@ -199,7 +199,7 @@ class TileMap {
         }
     }
 
-    public ref Tile[] GetNearTiles(int! x, int! y) {
+    public Tile[] GetNearTiles(int! x, int! y) {
         var gx = Math.Round(x / (decimal)tileSize);
         var gy = Math.Round(y / (decimal)tileSize);
         var nearTileCount = 0;
@@ -214,10 +214,10 @@ class TileMap {
             }
         }
 
-        return ref nearTiles;
+        return nearTiles;
     }
 
-    public ref Tile[] GetSortedNearTilesG(int! gx, int! gy) {
+    public Tile[] GetSortedNearTilesG(int! gx, int! gy) {
         var unsorted = GetNearTiles(gx * tileSize, gy * tileSize);
         var sorted = new Tile[9];
 
@@ -236,7 +236,7 @@ class TileMap {
             }
         }
 
-        return ref sorted;
+        return sorted;
     }
 
     public ref Tile[] GetSortedNearTiles(int! x, int! y) {

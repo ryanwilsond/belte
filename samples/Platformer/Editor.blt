@@ -20,7 +20,7 @@ class Editor {
 
         textures = new Textures();
         tileMap = new TileMap(textures, Settings.TileSize);
-        tileMap.Load("samples/Platformer/map.txt");
+        tileMap.Load("map.txt");
 
         scroll = new Vec2(0, 0);
         tileGroup = 0;
@@ -87,8 +87,8 @@ class Editor {
         }
 
         if (Graphics.GetKey("O") && !previousO) {
-            tileMap.Save("samples/Platformer/map.txt");
-            Console.PrintLine("Saved to samples/Platformer/map.txt");
+            tileMap.Save("map.txt");
+            Console.PrintLine("Saved to map.txt");
         }
 
         var mousePosition = Graphics.GetMousePosition();
