@@ -9,6 +9,10 @@ Options:
   -r|--repl                   Invoke the Repl.
   -i                          Compile and run (default).
 
+  --script                    Compile and run using the interpreter.
+  --evaluate                  Compile and run using the evaluator.
+  --execute                   Compile and run using the executor.
+
   --type=[console|graphics|...]       Specify the type of Belte project (default console).
 
   --severity=<severity>       Specify a reporting severity; defaults to warning.

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using Buckle.CodeAnalysis.Emitting;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -1195,7 +1195,7 @@ internal partial class Binder {
             case BoundKind.DataContainerExpression:
                 var local = ((BoundDataContainerExpression)expression).dataContainer;
 
-                return !((ILEmitter.CodeGenerator.IsStackLocal(local, stackLocals) && local.refKind == RefKind.None) ||
+                return !((CodeGenerator.IsStackLocal(local, stackLocals) && local.refKind == RefKind.None) ||
                     (!IsAnyReadOnly(addressKind) && local.refKind == RefKind.RefConst));
             case BoundKind.CallExpression:
                 var methodRefKind = ((BoundCallExpression)expression).method.refKind;

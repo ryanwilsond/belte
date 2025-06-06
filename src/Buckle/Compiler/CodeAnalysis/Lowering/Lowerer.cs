@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Emitting;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -51,7 +51,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private bool ShouldBeTreatedAsNullable(TypeSymbol type) {
-        return type.IsNullableType() && ILEmitter.CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
+        return type.IsNullableType() && CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
     }
 
     private BoundExpression CreateNullable(

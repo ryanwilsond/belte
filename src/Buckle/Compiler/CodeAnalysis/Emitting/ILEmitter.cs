@@ -1,10 +1,10 @@
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -16,7 +16,7 @@ using Shared;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal sealed partial class ILEmitter {
+internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly AssemblyDefinition _assemblyDefinition;
     private readonly List<AssemblyDefinition> _assemblies;
@@ -90,7 +90,7 @@ internal sealed partial class ILEmitter {
 
         var stringWriter = new StringWriter();
 
-        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, "    ")) {
+        using (var indentedTextWriter = new System.CodeDom.Compiler.IndentedTextWriter(stringWriter, "    ")) {
             foreach (var type in _topLevelTypes) {
                 var typeDefinition = _types[type.originalDefinition];
                 WriteType(stringWriter, indentedTextWriter, typeDefinition);
@@ -103,7 +103,7 @@ internal sealed partial class ILEmitter {
 
         static void WriteType(
             StringWriter writer,
-            IndentedTextWriter indentedTextWriter,
+            System.CodeDom.Compiler.IndentedTextWriter indentedTextWriter,
             TypeDefinition typeDefinition) {
             using var classCurly = new CurlyIndenter(indentedTextWriter, typeDefinition.ToString());
             foreach (var field in typeDefinition.Fields)
@@ -125,7 +125,7 @@ internal sealed partial class ILEmitter {
         }
     }
 
-    private TypeReference GetType(TypeSymbol type) {
+    internal TypeReference GetType(TypeSymbol type) {
         if (type.specialType == SpecialType.Nullable) {
             var underlyingType = type.GetNullableUnderlyingType();
             var genericArgumentType = GetType(underlyingType);
@@ -150,14 +150,14 @@ internal sealed partial class ILEmitter {
         return _types[type.originalDefinition];
     }
 
-    private MethodReference GetMethod(MethodSymbol method) {
+    internal MethodReference GetMethod(MethodSymbol method) {
         if (_methods.TryGetValue(method, out var value))
             return value;
 
         return CheckStandardMap(method);
     }
 
-    private MethodReference GetNullableCtor(TypeSymbol genericType) {
+    internal MethodReference GetNullableCtor(TypeSymbol genericType) {
         var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
         var genericArgumentType = GetType(genericType);
         typeReference.GenericArguments.Add(genericArgumentType);
@@ -181,7 +181,7 @@ internal sealed partial class ILEmitter {
         return _assemblyDefinition.MainModule.ImportReference(genericCtor);
     }
 
-    private MethodReference GetNullableValue(TypeSymbol genericType) {
+    internal MethodReference GetNullableValue(TypeSymbol genericType) {
         var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
         var genericArgumentType = GetType(genericType);
         typeReference.GenericArguments.Add(genericArgumentType);
@@ -197,7 +197,7 @@ internal sealed partial class ILEmitter {
         return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
     }
 
-    private MethodReference GetNullableHasValue(TypeSymbol genericType) {
+    internal MethodReference GetNullableHasValue(TypeSymbol genericType) {
         var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
         var genericArgumentType = GetType(genericType);
         typeReference.GenericArguments.Add(genericArgumentType);
@@ -213,18 +213,18 @@ internal sealed partial class ILEmitter {
         return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
     }
 
-    private MethodReference GetNullAssert(TypeSymbol genericType) {
+    internal MethodReference GetNullAssert(TypeSymbol genericType) {
         // var methodRef = _assemblyDefinition.MainModule.ImportReference(_nullAssertMethod);
         var genericMethod = new GenericInstanceMethod(_nullAssertMethod);
         genericMethod.GenericArguments.Add(GetType(genericType));
         return genericMethod;
     }
 
-    private FieldReference GetField(FieldSymbol field) {
+    internal FieldReference GetField(FieldSymbol field) {
         return _fields[field];
     }
 
-    private void EmitGlobalsClass() {
+    internal override void EmitGlobalsClass() {
         _globalsClass = new TypeDefinition(
             "",
             "<Globals>",
@@ -433,9 +433,9 @@ internal sealed partial class ILEmitter {
     }
 
     private void EmitMethod(MethodDefinition methodDefinition) {
-        var methodAndBody = _methodBodies[methodDefinition];
-
-        var codeGen = new CodeGenerator(this, methodAndBody.Item1, methodAndBody.Item2, methodDefinition);
+        var (method, body) = _methodBodies[methodDefinition];
+        var ilBuilder = new CecilILBuilder(method, this, methodDefinition.Body.GetILProcessor());
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder);
         codeGen.Generate();
 
         methodDefinition.Body.OptimizeMacros();

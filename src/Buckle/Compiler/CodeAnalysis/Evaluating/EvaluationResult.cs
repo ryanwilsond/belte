@@ -29,11 +29,6 @@ public sealed class EvaluationResult {
         this.containsIO = containsIO;
     }
 
-    /// <summary>
-    /// Creates an empty <see cref="EvaluationResult" />.
-    /// </summary>
-    internal EvaluationResult() : this(null, false, null, null, false, false) { }
-
     internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
         return new EvaluationResult(null, false, diagnostics, null, false, false);
     }

@@ -269,7 +269,14 @@ public sealed class Compilation {
         }
 #endif
 
-        Executor.Execute(boundProgram, options.arguments);
+        var executor = new Executor(boundProgram, options.arguments);
+        var result = executor.Execute();
+
+#if DEBUG
+        if (options.enableOutput && result is not null)
+            Console.WriteLine(result);
+#endif
+
         return builder;
     }
 
