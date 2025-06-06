@@ -1,4 +1,6 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -19,6 +21,14 @@ internal static class AccessCheck {
             throughType,
             out failedThroughTypeCheck
         );
+    }
+
+    internal static BelteDiagnostic GetProtectedMemberInSealedTypeError(
+        NamedTypeSymbol containingType,
+        TextLocation errorLocation) {
+        return containingType.typeKind == TypeKind.Struct
+            ? Error.ProtectedInStruct(errorLocation, containingType)
+            : Error.ProtectedInSealed(errorLocation, containingType);
     }
 
     private static bool IsSymbolAccessibleCore(

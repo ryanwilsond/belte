@@ -318,6 +318,7 @@ public enum DiagnosticCode : ushort {
     ERR_FieldsCannotBeImplicitlyTyped = 307,
     ERR_NonIntArraySize = 308,
     ERR_BadArity = 309,
+    ERR_ProtectedInStruct = 310,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

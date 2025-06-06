@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Binding;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -22,16 +23,9 @@ internal abstract class SourceFieldSymbol : FieldSymbolWithModifiers {
     }
 
     private protected void ReportModifiersDiagnostics(BelteDiagnosticQueue diagnostics) {
-        // if (containingType.isSealed && declaredAccessibility == Accessibility.Protected) {
-        //     diagnostics.Add(AccessCheck.GetProtectedMemberInSealedTypeError(containingType), ErrorLocation, this);
-        // } else if (IsVolatile && IsReadOnly) {
-        //     diagnostics.Add(ErrorCode.ERR_VolatileAndReadonly, ErrorLocation, this);
-        // } else if (containingType.IsStatic && !IsStatic) {
-        //     diagnostics.Add(ErrorCode.ERR_InstanceMemberInStaticClass, ErrorLocation, this);
-        // } else if (!IsStatic && !IsReadOnly && containingType.IsReadOnly) {
-        //     diagnostics.Add(ErrorCode.ERR_FieldsInRoStruct, ErrorLocation);
-        // }
-
-        // TODO
+        if (containingType.isSealed && declaredAccessibility == Accessibility.Protected)
+            diagnostics.Push(AccessCheck.GetProtectedMemberInSealedTypeError(containingType, errorLocation));
+        else if (containingType.isStatic && !isStatic)
+            diagnostics.Push(Error.InstanceMemberInStatic(errorLocation, this));
     }
 }

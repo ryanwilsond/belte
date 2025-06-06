@@ -1601,6 +1601,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadArity, location, message);
     }
 
+    internal static BelteDiagnostic ProtectedInStruct(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': new protected member declared in struct";
+        return CreateError(DiagnosticCode.ERR_ProtectedInStruct, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
