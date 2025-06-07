@@ -24,9 +24,11 @@ internal abstract class ILBuilder {
 
     internal abstract void Emit(OpCode opCode, string value);
 
-    internal abstract void EmitSymbolToken(TypeSymbol type);
+    internal abstract void EmitWithSymbolToken(OpCode opCode, TypeSymbol type);
 
-    internal abstract void EmitSymbolToken(FieldSymbol type);
+    internal abstract void EmitWithSymbolToken(OpCode opCode, FieldSymbol type);
+
+    internal abstract void EmitWithSymbolToken(OpCode opCode, MethodSymbol type);
 
     internal abstract void EmitLocalAddress(DataContainerSymbol local);
 
@@ -36,6 +38,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitLocalLoad(VariableDefinition local);
 
+    internal abstract void EmitLocalStore(DataContainerSymbol local);
+
     internal abstract void EmitLocalStore(VariableDefinition local);
 
     internal abstract void EmitBranch(OpCode opCode, object label, OpCode revOpCode = OpCode.Nop);
@@ -44,7 +48,23 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitLoadArgumentAddr(int slot);
 
-    internal abstract VariableDefinition AllocateTemp(TypeSymbol type);
+    internal abstract void EmitStoreArgument(int slot);
+
+    internal abstract void EmitGetTypeFromHandle(TypeSymbol type);
+
+    internal abstract void EmitNullAssert(TypeSymbol type);
+
+    internal abstract void EmitStringConcat2();
+
+    internal abstract void EmitConvertCall(SpecialType from, SpecialType to);
+
+    internal abstract void EmitRandomNext();
+
+    internal abstract void EmitLdsfldRandom();
+
+    internal abstract void EmitNewobjNullable(TypeSymbol generic);
+
+    internal abstract VariableDefinition AllocateTemp(TypeSymbol type, bool isRef);
 
     internal abstract VariableDefinition GetLocal(DataContainerSymbol local);
 

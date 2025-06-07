@@ -31,8 +31,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     // <Globals> class members
     private TypeDefinition _globalsClass;
-    private FieldDefinition _randomField;
     private MethodDefinition _nullAssertMethod;
+
+    internal FieldDefinition randomField;
 
     private ILEmitter(BoundProgram program, string moduleName, string[] references, BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
@@ -232,13 +233,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _specialTypes[SpecialType.Object]
         );
 
-        _randomField = new FieldDefinition(
+        randomField = new FieldDefinition(
             "<random>",
             FieldAttributes.Static | FieldAttributes.Public,
             NetTypeReference.Random
         );
 
-        _globalsClass.Fields.Add(_randomField);
+        _globalsClass.Fields.Add(randomField);
 
         var cctor = new MethodDefinition(
             ".cctor",
@@ -249,7 +250,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         var cctorILProcessor = cctor.Body.GetILProcessor();
         cctorILProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
-        cctorILProcessor.Emit(OpCodes.Stsfld, _randomField);
+        cctorILProcessor.Emit(OpCodes.Stsfld, randomField);
         cctorILProcessor.Emit(OpCodes.Ret);
 
         _globalsClass.Methods.Insert(0, cctor);

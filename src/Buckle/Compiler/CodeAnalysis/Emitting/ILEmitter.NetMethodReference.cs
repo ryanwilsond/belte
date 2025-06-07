@@ -3,7 +3,7 @@ using Mono.Cecil;
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter {
-    private static class NetMethodReference {
+    internal static class NetMethodReference {
         internal static MethodReference Object_ctor;
         internal static MethodReference Object_Equals_OO;
         internal static MethodReference Console_Write_S;

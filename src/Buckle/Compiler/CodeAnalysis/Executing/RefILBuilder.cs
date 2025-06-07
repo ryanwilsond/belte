@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Reflection.Emit;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -73,12 +75,19 @@ internal sealed class RefILBuilder : ILBuilder {
             _iLGenerator.Emit(OpCodes.Ldarga, slot);
     }
 
-    internal override void EmitSymbolToken(TypeSymbol type) {
-        _iLGenerator.Emit(OpCodes.Ldtoken, _module.GetType(type));
+    internal override void EmitWithSymbolToken(CodeGeneration.OpCode opCode, TypeSymbol type) {
+        _iLGenerator.Emit(ConvertToRef(opCode), _module.GetType(type));
     }
 
-    internal override void EmitSymbolToken(FieldSymbol field) {
-        _iLGenerator.Emit(OpCodes.Ldtoken, _module.GetField(field));
+    internal override void EmitWithSymbolToken(CodeGeneration.OpCode opCode, FieldSymbol field) {
+        _iLGenerator.Emit(ConvertToRef(opCode), _module.GetField(field));
+    }
+
+    internal override void EmitWithSymbolToken(CodeGeneration.OpCode opCode, MethodSymbol method) {
+        if (method.methodKind == MethodKind.Constructor)
+            _iLGenerator.Emit(ConvertToRef(opCode), _module.GetConstructor(method));
+        else
+            _iLGenerator.Emit(ConvertToRef(opCode), _module.GetMethod(method));
     }
 
     internal override void EmitLocalAddress(DataContainerSymbol local) {
@@ -97,9 +106,17 @@ internal sealed class RefILBuilder : ILBuilder {
         }
     }
 
+    internal override void EmitLocalStore(DataContainerSymbol local) {
+        EmitLocalStore(_locals[local]);
+    }
+
     internal override void EmitLocalStore(VariableDefinition local) {
         var cLocal = ((RefVariableDefinition)local).localBuilder;
         _iLGenerator.Emit(OpCodes.Stloc, cLocal);
+    }
+
+    internal override void EmitStoreArgument(int slot) {
+        _iLGenerator.Emit(OpCodes.Starg, slot);
     }
 
     internal override void EmitLocalLoad(DataContainerSymbol local) {
@@ -109,6 +126,66 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void EmitLocalLoad(VariableDefinition local) {
         var cLocal = ((RefVariableDefinition)local).localBuilder;
         _iLGenerator.Emit(OpCodes.Ldloc, cLocal);
+    }
+
+    internal override void EmitGetTypeFromHandle(TypeSymbol type) {
+        var getTypeFromHandle = _module.GetType(type).GetMethod(
+            "GetTypeFromHandle",
+            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+            null,
+            [typeof(RuntimeTypeHandle)],
+            null
+        );
+
+        _iLGenerator.Emit(OpCodes.Call, getTypeFromHandle);
+    }
+
+    internal override void EmitNullAssert(TypeSymbol type) {
+        _iLGenerator.Emit(OpCodes.Call, _module.GetNullAssert(type));
+    }
+
+    internal override void EmitStringConcat2() {
+        _iLGenerator.Emit(OpCodes.Call, _module.GetStringConcat2());
+    }
+
+    internal override void EmitConvertCall(SpecialType from, SpecialType to) {
+        switch (from, to) {
+            case (SpecialType.String, SpecialType.Bool):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(string)]));
+                break;
+            case (SpecialType.Decimal, SpecialType.Int):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(double)]));
+                break;
+            case (SpecialType.String, SpecialType.Decimal):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(string)]));
+                break;
+            case (SpecialType.Int, SpecialType.Decimal):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(long)]));
+                break;
+            case (SpecialType.Int, SpecialType.String):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToString", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(long)]));
+                break;
+            case (SpecialType.Decimal, SpecialType.String):
+                _iLGenerator.Emit(OpCodes.Call, typeof(Convert).GetMethod("ToString", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static, [typeof(double)]));
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue((from, to));
+        }
+    }
+
+    internal override void EmitNewobjNullable(TypeSymbol generic) {
+        _iLGenerator.Emit(OpCodes.Newobj, _module.GetNullableCtor(generic));
+    }
+
+    internal override void EmitRandomNext() {
+        _iLGenerator.Emit(OpCodes.Callvirt, typeof(Random).GetMethod("Next", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, [typeof(int)]));
+    }
+
+    internal override void EmitLdsfldRandom() {
+        _iLGenerator.Emit(OpCodes.Ldsfld, _module.randomField);
     }
 
     internal override VariableDefinition GetLocal(DataContainerSymbol local) {
@@ -133,7 +210,12 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void MarkLabel(object label) {
-        _iLGenerator.MarkLabel(((RefLabelInfo)_labels[label]).label);
+        if (!_labels.TryGetValue(label, out var value)) {
+            value = new RefLabelInfo(_iLGenerator);
+            _labels.Add(label, value);
+        }
+
+        _iLGenerator.MarkLabel(((RefLabelInfo)value).label);
     }
 
     internal override void EmitBranch(
@@ -143,16 +225,18 @@ internal sealed class RefILBuilder : ILBuilder {
         // var cRevOpCode = ConvertToRef(revOpCode);
         var cOpCode = ConvertToRef(opCode);
 
-        if (!_labels.TryGetValue(label, out var labelInfo))
-            _labels.Add(label, new RefLabelInfo(_iLGenerator));
+        if (!_labels.TryGetValue(label, out var labelInfo)) {
+            labelInfo = new RefLabelInfo(_iLGenerator);
+            _labels.Add(label, labelInfo);
+        }
 
         _iLGenerator.Emit(cOpCode, ((RefLabelInfo)labelInfo).label);
     }
 
-    internal override VariableDefinition AllocateTemp(TypeSymbol type) {
+    internal override VariableDefinition AllocateTemp(TypeSymbol type, bool isRef) {
         var typeBuilder = _module.GetType(type);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
-        return new RefVariableDefinition(localBuilder, false);
+        return new RefVariableDefinition(localBuilder, isRef);
     }
 
     private static System.Reflection.Emit.OpCode ConvertToRef(CodeGeneration.OpCode opCode) {
@@ -202,6 +286,58 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Beq => OpCodes.Beq,
             CodeGeneration.OpCode.Bne_Un => OpCodes.Bne_Un,
             CodeGeneration.OpCode.Ret => OpCodes.Ret,
+            CodeGeneration.OpCode.Ldarg_0 => OpCodes.Ldarg_0,
+            CodeGeneration.OpCode.Ldelem_I8 => OpCodes.Ldelem_I8,
+            CodeGeneration.OpCode.Ldelem_U1 => OpCodes.Ldelem_U1,
+            CodeGeneration.OpCode.Ldelem_R8 => OpCodes.Ldelem_R8,
+            CodeGeneration.OpCode.Ldelem_Ref => OpCodes.Ldelem_Ref,
+            CodeGeneration.OpCode.Ldelem => OpCodes.Ldelem,
+            CodeGeneration.OpCode.Newarr => OpCodes.Newarr,
+            CodeGeneration.OpCode.Newobj => OpCodes.Newobj,
+            CodeGeneration.OpCode.Call => OpCodes.Call,
+            CodeGeneration.OpCode.Constrained => OpCodes.Constrained,
+            CodeGeneration.OpCode.Callvirt => OpCodes.Callvirt,
+            CodeGeneration.OpCode.Ceq => OpCodes.Ceq,
+            CodeGeneration.OpCode.Unbox_Any => OpCodes.Unbox_Any,
+            CodeGeneration.OpCode.Mul => OpCodes.Mul,
+            CodeGeneration.OpCode.Add => OpCodes.Add,
+            CodeGeneration.OpCode.Sub => OpCodes.Sub,
+            CodeGeneration.OpCode.Div => OpCodes.Div,
+            CodeGeneration.OpCode.Rem => OpCodes.Rem,
+            CodeGeneration.OpCode.Shl => OpCodes.Shl,
+            CodeGeneration.OpCode.Shr => OpCodes.Shr,
+            CodeGeneration.OpCode.Shr_Un => OpCodes.Shr_Un,
+            CodeGeneration.OpCode.And => OpCodes.And,
+            CodeGeneration.OpCode.Xor => OpCodes.Xor,
+            CodeGeneration.OpCode.Or => OpCodes.Or,
+            CodeGeneration.OpCode.Neg => OpCodes.Neg,
+            CodeGeneration.OpCode.Not => OpCodes.Not,
+            CodeGeneration.OpCode.Stobj => OpCodes.Stobj,
+            CodeGeneration.OpCode.Stelem_I1 => OpCodes.Stelem_I1,
+            CodeGeneration.OpCode.Stelem_I8 => OpCodes.Stelem_I8,
+            CodeGeneration.OpCode.Stelem_R8 => OpCodes.Stelem_R8,
+            CodeGeneration.OpCode.Stelem_Ref => OpCodes.Stelem_Ref,
+            CodeGeneration.OpCode.Stelem => OpCodes.Stelem,
+            CodeGeneration.OpCode.Stsfld => OpCodes.Stsfld,
+            CodeGeneration.OpCode.Stfld => OpCodes.Stfld,
+            CodeGeneration.OpCode.Stind_I1 => OpCodes.Stind_I1,
+            CodeGeneration.OpCode.Stind_I8 => OpCodes.Stind_I8,
+            CodeGeneration.OpCode.Stind_R8 => OpCodes.Stind_R8,
+            CodeGeneration.OpCode.Stind_Ref => OpCodes.Stind_Ref,
+            CodeGeneration.OpCode.Dup => OpCodes.Dup,
+            CodeGeneration.OpCode.Ldsfld => OpCodes.Ldsfld,
+            CodeGeneration.OpCode.Unbox => OpCodes.Unbox,
+            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Castclass => OpCodes.Castclass,
+            CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
+            CodeGeneration.OpCode.Ldind_I1 => OpCodes.Ldind_I1,
+            CodeGeneration.OpCode.Ldind_R8 => OpCodes.Ldind_R8,
+            CodeGeneration.OpCode.Ldind_Ref => OpCodes.Ldind_Ref,
+            CodeGeneration.OpCode.Ldobj => OpCodes.Ldobj,
+            CodeGeneration.OpCode.Box => OpCodes.Box,
+            CodeGeneration.OpCode.Pop => OpCodes.Pop,
+            CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
+            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             _ => throw new NotImplementedException()
         };
     }

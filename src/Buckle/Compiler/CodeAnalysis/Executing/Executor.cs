@@ -7,10 +7,14 @@ using System.Reflection.Emit;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
-internal sealed class Executor : ModuleBuilder {
+internal sealed partial class Executor : ModuleBuilder {
+    public static readonly Random Random = new Random();
+
     private readonly BoundProgram _program;
 
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
@@ -21,21 +25,25 @@ internal sealed class Executor : ModuleBuilder {
         { SpecialType.Bool, typeof(bool) },
         { SpecialType.Int, typeof(long) },
         { SpecialType.Decimal, typeof(double) },
-        { SpecialType.Nullable, typeof(Nullable) },
+        { SpecialType.Nullable, typeof(Nullable<>) },
         { SpecialType.Void, typeof(void) },
         { SpecialType.Type, typeof(Type) },
+        { SpecialType.String, typeof(string) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
     private readonly Dictionary<MethodSymbol, MethodBuilder> _methods = [];
+    private readonly Dictionary<MethodSymbol, ConstructorBuilder> _constructors = [];
     private readonly Dictionary<MethodBuilder, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
+    private readonly Dictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
     private readonly Dictionary<FieldSymbol, FieldBuilder> _fields = [];
 
-    private readonly AssemblyBuilder _assemblyBuilder;
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
 
     private NamedTypeSymbol _programNamedType;
     private Type _programType;
+
+    internal FieldInfo randomField;
 
     internal Executor(BoundProgram program, string[] arguments) {
         _program = program;
@@ -43,8 +51,8 @@ internal sealed class Executor : ModuleBuilder {
         _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
 
         var assemblyName = new AssemblyName("DynamicBoundTreeAssembly");
-        _assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-        _moduleBuilder = _assemblyBuilder.DefineDynamicModule("MainModule");
+        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+        _moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
     }
 
     internal object Execute() {
@@ -54,7 +62,7 @@ internal sealed class Executor : ModuleBuilder {
 
         object DynamicEvaluate(Executor executor) {
             <Program> <program> = new <Program>();
-            return <program>.Main(executor);
+            return <program>.Main();
         }
 
         The method varies depending on whether or not <Program> is static and <Program>.Main returns void
@@ -71,10 +79,10 @@ internal sealed class Executor : ModuleBuilder {
 
         var evaluateMethod = new DynamicMethod(
             "DynamicEvaluate",
-            entryPoint.returnsVoid ? typeof(void) : typeof(object),
+            typeof(object),
             [typeof(Executor)],
             typeof(Executor),
-            true
+            skipVisibility: true
         );
 
         var iLGenerator = evaluateMethod.GetILGenerator();
@@ -82,7 +90,6 @@ internal sealed class Executor : ModuleBuilder {
         if (_programNamedType.isStatic) {
             var mainMethod = _programType.GetMethod("Main", BindingFlags.Public | BindingFlags.Static);
 
-            iLGenerator.Emit(OpCodes.Ldarg_0);
             iLGenerator.Emit(OpCodes.Call, mainMethod);
 
             if (entryPoint.returnsVoid)
@@ -98,7 +105,6 @@ internal sealed class Executor : ModuleBuilder {
             iLGenerator.Emit(OpCodes.Stloc_0);
 
             iLGenerator.Emit(OpCodes.Ldloc_0);
-            iLGenerator.Emit(OpCodes.Ldarg_0);
             iLGenerator.Emit(OpCodes.Callvirt, mainMethod);
 
             if (entryPoint.returnsVoid)
@@ -119,7 +125,7 @@ internal sealed class Executor : ModuleBuilder {
             if (!CodeGenerator.IsValueType(underlyingType))
                 return genericArgumentType;
 
-            return typeof(Nullable).MakeGenericType(genericArgumentType);
+            return typeof(Nullable<>).MakeGenericType(genericArgumentType);
         }
 
         if (type is ArrayTypeSymbol array) {
@@ -137,7 +143,46 @@ internal sealed class Executor : ModuleBuilder {
         return _fields[field];
     }
 
-    internal override void EmitGlobalsClass() { }
+    internal MethodInfo GetMethod(MethodSymbol method) {
+        if (_methods.TryGetValue(method, out var value))
+            return value;
+
+        return CheckStandardMap(method);
+    }
+
+    internal ConstructorInfo GetConstructor(MethodSymbol method) {
+        if (_constructors.TryGetValue(method, out var value))
+            return value;
+
+        return CheckConstructorsStandardMap(method);
+    }
+
+    internal override void EmitGlobalsClass() {
+        randomField = typeof(Executor).GetField("Random", BindingFlags.Public | BindingFlags.Static);
+    }
+
+    internal MethodInfo GetNullAssert(TypeSymbol type) {
+        var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
+        var closedMethod = assertNull.MakeGenericMethod(GetType(type));
+        return closedMethod;
+    }
+
+    internal MethodInfo GetStringConcat2() {
+        return typeof(string).GetMethod(
+            "Concat",
+            BindingFlags.Public | BindingFlags.Static,
+            null,
+            [typeof(string), typeof(string)],
+            null
+        );
+    }
+
+    public static T AssertNull<T>(T value) {
+        if (value is null)
+            throw new NullReferenceException();
+
+        return value;
+    }
 
     private void EmitInternal() {
         foreach (var type in _topLevelTypes)
@@ -149,13 +194,14 @@ internal sealed class Executor : ModuleBuilder {
         foreach (var method in _methods)
             EmitMethod(method.Value);
 
-        foreach (var type in _types.Values) {
-            if (type is TypeBuilder t) {
-                if (type.Equals(_programNamedType))
-                    _programType = t.CreateType();
-                else
-                    t.CreateType();
-            }
+        foreach (var method in _constructors)
+            EmitConstructor(method.Value);
+
+        foreach (var (typeSymbol, typeBuilder) in _types) {
+            if (typeSymbol.Equals(_programNamedType.originalDefinition))
+                _programType = typeBuilder.CreateType();
+            else
+                typeBuilder.CreateType();
         }
     }
 
@@ -209,12 +255,14 @@ internal sealed class Executor : ModuleBuilder {
     }
 
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
-        MethodAttributes attributes = method.declaredAccessibility switch {
-            Accessibility.Private => MethodAttributes.Private,
-            Accessibility.Public => MethodAttributes.Private,
-            Accessibility.Protected => MethodAttributes.Family,
-            _ => 0
-        };
+        // MethodAttributes attributes = method.declaredAccessibility switch {
+        //     Accessibility.Private => MethodAttributes.Private,
+        //     Accessibility.Public => MethodAttributes.Private,
+        //     Accessibility.Protected => MethodAttributes.Family,
+        //     _ => 0
+        // };
+        // ? Just treating everything as public for now
+        var attributes = MethodAttributes.Public;
 
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
@@ -248,11 +296,33 @@ internal sealed class Executor : ModuleBuilder {
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
+        if (method.methodKind == MethodKind.Constructor)
+            CreateConstructorDefinition(method, body, typeBuilder);
+        else
+            CreateNormalMethodDefinition(method, body, typeBuilder);
+    }
+
+    private void CreateConstructorDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
+        var constructorBuilder = typeBuilder.DefineConstructor(
+            GetMethodAttributes(method),
+            CallingConventions.Standard,
+            method.parameters.Select(p => GetType(p.type))
+                // .Append(typeof(Executor))
+                .ToArray()
+        );
+
+        _constructors.Add(method, constructorBuilder);
+        _constructorBodies.Add(constructorBuilder, (method, body));
+    }
+
+    private void CreateNormalMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
         var methodBuilder = typeBuilder.DefineMethod(
             method.name,
             GetMethodAttributes(method),
             GetType(method.returnType),
-            method.parameters.Select(p => GetType(p.type)).Append(typeof(Executor)).ToArray()
+            method.parameters.Select(p => GetType(p.type))
+                // .Append(typeof(Executor))
+                .ToArray()
         );
 
         _methods.Add(method, methodBuilder);
@@ -264,5 +334,71 @@ internal sealed class Executor : ModuleBuilder {
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator());
         var codeGen = new CodeGenerator(this, method, body, ilBuilder);
         codeGen.Generate();
+    }
+
+    private void EmitConstructor(ConstructorBuilder constructorBuilder) {
+        var (constructor, body) = _constructorBodies[constructorBuilder];
+        var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator());
+        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder);
+        codeGen.Generate();
+    }
+
+    private ConstructorInfo CheckConstructorsStandardMap(MethodSymbol method) {
+        var mapKey = LibraryHelpers.BuildMapKey(method);
+
+        switch (mapKey) {
+            case "Object_.ctor":
+                return NetMethodInfo.Object_ctor;
+            case "Nullable_.ctor":
+                return GetNullableCtor(method.templateArguments[0].type.type);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(mapKey);
+        }
+    }
+
+    private MethodInfo CheckStandardMap(MethodSymbol method) {
+        var mapKey = LibraryHelpers.BuildMapKey(method);
+
+        switch (mapKey) {
+            case "Nullable_get_Value":
+                return GetNullableValue(method.templateArguments[0].type.type);
+            case "Nullable_get_HasValue":
+                return GetNullableHasValue(method.templateArguments[0].type.type);
+            case "Console_Print_S?":
+                return NetMethodInfo.Console_Write_S;
+            case "Console_Print_O?":
+                return NetMethodInfo.Console_Write_O;
+            case "Console_PrintLine":
+                return NetMethodInfo.Console_WriteLine;
+            case "Console_PrintLine_S?":
+                return NetMethodInfo.Console_WriteLine_S;
+            case "Console_PrintLine_O?":
+                return NetMethodInfo.Console_WriteLine_O;
+            case "Console_Input":
+                return NetMethodInfo.Console_ReadLine;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(mapKey);
+        }
+    }
+
+    internal ConstructorInfo GetNullableCtor(TypeSymbol type) {
+        var generic = GetType(type);
+        var nullable = typeof(Nullable<>);
+        var closedType = nullable.MakeGenericType(generic);
+        return closedType.GetConstructor([generic]);
+    }
+
+    internal MethodInfo GetNullableValue(TypeSymbol type) {
+        var generic = GetType(type);
+        var nullable = typeof(Nullable<>);
+        var closedType = nullable.MakeGenericType(generic);
+        return closedType.GetMethod("get_Value", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
+    }
+
+    internal MethodInfo GetNullableHasValue(TypeSymbol type) {
+        var generic = GetType(type);
+        var nullable = typeof(Nullable<>);
+        var closedType = nullable.MakeGenericType(generic);
+        return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 }

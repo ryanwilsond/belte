@@ -55,7 +55,7 @@ internal sealed partial class CodeGenerator {
 
     private VariableDefinition _lazyReturnTemp {
         get {
-            _returnTemp ??= _builder.AllocateTemp(_method.returnType);
+            _returnTemp ??= _builder.AllocateTemp(_method.returnType, _method.refKind != RefKind.None);
             return _returnTemp;
         }
     }
@@ -204,8 +204,7 @@ internal sealed partial class CodeGenerator {
             _builder.Emit(OpCode.Readonly);
 
         if (((ArrayTypeSymbol)arrayAccess.receiver.type).isSZArray) {
-            _builder.Emit(OpCode.Ldelema);
-            _builder.EmitSymbolToken(arrayAccess.type);
+            _builder.EmitWithSymbolToken(OpCode.Ldelema, arrayAccess.type);
         } else {
             // TODO We only have SZ arrays currently?
             // _builder.EmitArrayElementAddress(_module.Translate((ArrayTypeSymbol)arrayAccess.Expression.Type),
@@ -293,8 +292,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitStaticFieldAddress(FieldSymbol field) {
-        _builder.Emit(OpCode.Ldsflda);
-        _builder.EmitSymbolToken(field);
+        _builder.EmitWithSymbolToken(OpCode.Ldsflda, field);
     }
 
     private VariableDefinition EmitInstanceFieldAddress(
@@ -309,8 +307,7 @@ internal sealed partial class CodeGenerator {
                 : (addressKind != AddressKind.ReadOnlyStrict ? AddressKind.ReadOnly : addressKind)
             );
 
-        _builder.Emit(field.refKind == RefKind.None ? OpCode.Ldflda : OpCode.Ldfld);
-        _builder.EmitSymbolToken(field);
+        _builder.EmitWithSymbolToken(field.refKind == RefKind.None ? OpCode.Ldflda : OpCode.Ldfld, field);
         return tempOpt;
     }
 
@@ -337,7 +334,7 @@ internal sealed partial class CodeGenerator {
 
     private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
         EmitExpression(expression, true);
-        var value = _builder.AllocateTemp(expression.type);
+        var value = _builder.AllocateTemp(expression.type, false);
         _builder.EmitLocalStore(value);
         _builder.EmitLocalAddress(value);
         return value;
@@ -345,22 +342,21 @@ internal sealed partial class CodeGenerator {
 
     private void EmitInitObj(TypeSymbol type, bool used) {
         if (used) {
-            var temp = _builder.AllocateTemp(type);
+            var temp = _builder.AllocateTemp(type, false);
             _builder.EmitLocalAddress(temp);
-            _builder.Emit(OpCode.Initobj);
-            _builder.EmitSymbolToken(type);
+            _builder.EmitWithSymbolToken(OpCode.Initobj, type);
             _builder.EmitLocalLoad(temp);
             _builder.FreeTemp(temp);
         }
     }
 
-    private void EmitConstantValue(ConstantValue constant) {
+    private void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
         if (constant.value is null) {
             _builder.Emit(OpCode.Ldnull);
             return;
         }
 
-        switch (constant.specialType) {
+        switch (type.specialType) {
             case SpecialType.Int:
                 EmitLongConstant((long)constant.value);
                 break;
@@ -372,6 +368,11 @@ internal sealed partial class CodeGenerator {
                 break;
             case SpecialType.String:
                 EmitStringConstant((string)constant.value);
+                break;
+            case SpecialType.Nullable:
+                var underlyingType = type.GetNullableUnderlyingType();
+                EmitConstantValue(new ConstantValue(constant.value, underlyingType.specialType), underlyingType);
+                _builder.EmitNewobjNullable(underlyingType);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(constant.specialType);
@@ -602,8 +603,7 @@ oneMoreTime:
                 if (!operand.type.IsVerifierReference())
                     EmitBox(operand.type);
 
-                _builder.Emit(OpCode.Isinst);
-                _builder.EmitSymbolToken(isOp.right.type);
+                _builder.EmitWithSymbolToken(OpCode.Isinst, isOp.right.type);
                 iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
                 dest ??= new object();
                 _builder.EmitBranch(iLCode, dest);
@@ -778,6 +778,9 @@ oneMoreTime:
         var constantValue = expression.constantValue;
 
         if (constantValue is not null) {
+            if (!used)
+                return;
+
             EmitConstantExpression(expression.type, constantValue, used);
             return;
         }
@@ -864,26 +867,26 @@ oneMoreTime:
             if ((type is not null) && (type.typeKind == TypeKind.TemplateParameter) && constant.value is null)
                 EmitInitObj(type, used);
             else
-                EmitConstantValue(constant);
+                EmitConstantValue(constant, type);
         }
     }
 
     private void EmitMethodGroup(BoundMethodGroup _) {
         // Unresolved method groups are only legal in scripts where the Evaluator returns something
         // Has no semantic meaning
-        _builder.Emit(OpCodes.Nop);
+        _builder.Emit(OpCode.Nop);
     }
 
     private void EmitTypeExpression(BoundTypeExpression _) {
         // Isolated type expressions are only legal in scripts where the Evaluator returns something
         // Has no semantic meaning
-        _builder.Emit(OpCodes.Nop);
+        _builder.Emit(OpCode.Nop);
     }
 
     private void EmitTypeOfExpression(BoundTypeOfExpression expression) {
         var type = expression.sourceType.type;
-        _builder.Emit(OpCodes.Ldtoken, _module.GetType(type));
-        _builder.Emit(OpCodes.Call, NetMethodReference.Type_GetTypeFromHandle);
+        _builder.EmitWithSymbolToken(OpCode.Ldtoken, type);
+        _builder.EmitGetTypeFromHandle(type);
     }
 
     private void EmitArrayElementLoad(BoundArrayAccessExpression expression, bool used) {
@@ -895,26 +898,25 @@ oneMoreTime:
 
             switch (elementType.specialType) {
                 case SpecialType.Int:
-                    _builder.Emit(OpCodes.Ldelem_I8);
+                    _builder.Emit(OpCode.Ldelem_I8);
                     break;
                 case SpecialType.Bool:
-                    _builder.Emit(OpCodes.Ldelem_U1);
+                    _builder.Emit(OpCode.Ldelem_U1);
                     break;
                 case SpecialType.Decimal:
-                    _builder.Emit(OpCodes.Ldelem_R8);
+                    _builder.Emit(OpCode.Ldelem_R8);
                     break;
                 default:
                     if (elementType.IsVerifierReference()) {
-                        _builder.Emit(OpCodes.Ldelem_Ref);
+                        _builder.Emit(OpCode.Ldelem_Ref);
                     } else {
                         if (used) {
-                            // TODO Roslyn has Ldelem here, which we don't have?
-                            _builder.Emit(OpCodes.Ldelem_Any, _module.GetType(elementType));
+                            _builder.EmitWithSymbolToken(OpCode.Ldelem, elementType);
                         } else {
                             if (elementType.typeKind == TypeKind.TemplateParameter)
-                                _builder.Emit(OpCodes.Readonly);
+                                _builder.Emit(OpCode.Readonly);
 
-                            _builder.Emit(OpCodes.Ldelema, _module.GetType(elementType));
+                            _builder.EmitWithSymbolToken(OpCode.Ldelema, elementType);
                         }
                     }
 
@@ -938,7 +940,7 @@ oneMoreTime:
         EmitArrayIndices(expression.sizes);
 
         if (arrayType.isSZArray) {
-            _builder.Emit(OpCodes.Newarr, _module.GetType(arrayType.elementType));
+            _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
         } else {
             // TODO Only SZ currently?
             // _builder.EmitArrayCreation(_module.Translate(arrayType), expression.Syntax, _diagnostics.DiagnosticBag);
@@ -967,7 +969,7 @@ oneMoreTime:
 
             EmitArguments(expression.arguments, constructor.parameters, expression.argumentRefKinds);
 
-            _builder.Emit(OpCodes.Newobj, _module.GetMethod(constructor));
+            _builder.EmitWithSymbolToken(OpCode.Newobj, constructor);
 
             EmitPopIfUnused(used);
         }
@@ -1005,10 +1007,10 @@ oneMoreTime:
             if (receiver is not BoundTypeExpression { type.typeKind: TypeKind.TemplateParameter })
                 throw ExceptionUtilities.Unreachable();
 
-            _builder.Emit(OpCodes.Constrained, _module.GetType(receiver.type));
+            _builder.EmitWithSymbolToken(OpCode.Constrained, receiver.type);
         }
 
-        _builder.Emit(OpCodes.Call, _module.GetMethod(method));
+        _builder.EmitWithSymbolToken(OpCode.Call, method);
 
         EmitCallCleanup(method, useKind);
     }
@@ -1022,7 +1024,7 @@ oneMoreTime:
 
         switch (method.name) {
             case "RandInt": {
-                    _builder.Emit(OpCodes.Ldsfld, _module._randomField);
+                    _builder.EmitLdsfldRandom();
 
                     var argument = Lowerer.CreateNullableGetValueCall(
                         null,
@@ -1033,9 +1035,9 @@ oneMoreTime:
                     var refKind = GetArgumentRefKind(arguments, method.parameters, argumentRefKinds, 0);
                     EmitArgument(argument, refKind);
 
-                    _builder.Emit(OpCodes.Conv_I4);
-                    _builder.Emit(OpCodes.Callvirt, NetMethodReference.Random_Next_I);
-                    _builder.Emit(OpCodes.Conv_I8);
+                    _builder.Emit(OpCode.Conv_I4);
+                    _builder.EmitRandomNext();
+                    _builder.Emit(OpCode.Conv_I8);
 
                     EmitCallCleanup(method, useKind);
                 }
@@ -1161,7 +1163,7 @@ oneMoreTime:
                 } else if (addressKind is null) {
                 } else {
                     if (receiverUseKind != UseKind.UsedAsAddress)
-                        tempOpt = AllocateTemp(parentCallReceiverType);
+                        tempOpt = _builder.AllocateTemp(parentCallReceiverType, false);
 
                     EmitGenericReceiverCloneIfNecessary(call, callKind, ref tempOpt);
                 }
@@ -1227,7 +1229,9 @@ oneMoreTime:
                         ? CallKind.CallVirt
                         : CallKind.ConstrainedCallVirt;
 
-                addressKind = (callKind == CallKind.ConstrainedCallVirt) ? AddressKind.Constrained : AddressKind.Writeable;
+                addressKind = (callKind == CallKind.ConstrainedCallVirt)
+                    ? AddressKind.Constrained
+                    : AddressKind.Writeable;
             }
 
             return callKind;
@@ -1281,14 +1285,14 @@ oneMoreTime:
 
             switch (callKind) {
                 case CallKind.Call:
-                    _builder.Emit(OpCodes.Call, _module.GetMethod(actualMethodTargetedByTheCall));
+                    _builder.EmitWithSymbolToken(OpCode.Call, actualMethodTargetedByTheCall);
                     break;
                 case CallKind.CallVirt:
-                    _builder.Emit(OpCodes.Callvirt, _module.GetMethod(actualMethodTargetedByTheCall));
+                    _builder.EmitWithSymbolToken(OpCode.Callvirt, actualMethodTargetedByTheCall);
                     break;
                 case CallKind.ConstrainedCallVirt:
-                    _builder.Emit(OpCodes.Constrained, _module.GetType(receiver.type));
-                    _builder.Emit(OpCodes.Callvirt, _module.GetMethod(actualMethodTargetedByTheCall));
+                    _builder.EmitWithSymbolToken(OpCode.Constrained, receiver.type);
+                    _builder.EmitWithSymbolToken(OpCode.Callvirt, actualMethodTargetedByTheCall);
                     break;
             }
 
@@ -1305,24 +1309,24 @@ oneMoreTime:
             if (callKind == CallKind.ConstrainedCallVirt && temp is null && !IsValueType(receiverType) &&
                 !ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                 !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)) {
-                LabelSymbol whenNotNullLabel = null;
+                object whenNotNullLabel = null;
 
                 if (!IsReferenceType(receiverType)) {
                     // TODO Is EmitDefaultValue reachable?
                     // if ((object)default(T) == null)
                     // EmitDefaultValue(receiverType, true, receiver.Syntax);
                     EmitBox(receiverType);
-                    whenNotNullLabel = new SynthesizedLabelSymbol("whenNotNull");
-                    EmitBranch(OpCodes.Brtrue, whenNotNullLabel);
+                    whenNotNullLabel = new object();
+                    _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
                 }
 
                 EmitLoadIndirect(receiverType);
-                temp = AllocateTemp(receiverType);
-                EmitStloc(temp);
-                EmitLdloca(temp);
+                temp = _builder.AllocateTemp(receiverType, false);
+                _builder.EmitLocalStore(temp);
+                _builder.EmitLocalAddress(temp);
 
                 if (whenNotNullLabel is not null)
-                    MarkLabel(whenNotNullLabel);
+                    _builder.MarkLabel(whenNotNullLabel);
             }
         }
 
@@ -1520,14 +1524,14 @@ oneMoreTime:
         } else if (condition is BoundIsOperator isOp) {
             EmitIsOperator(isOp, used: true, omitBooleanConversion: true);
 
-            _builder.Emit(OpCodes.Ldnull);
-            _builder.Emit(sense ? OpCodes.Cgt_Un : OpCodes.Ceq);
+            _builder.Emit(OpCode.Ldnull);
+            _builder.Emit(sense ? OpCode.Cgt_Un : OpCode.Ceq);
             return true;
         } else {
             EmitExpression(condition, used: true);
 
-            _builder.Emit(OpCodes.Ldc_I4_0);
-            _builder.Emit(sense ? OpCodes.Cgt_Un : OpCodes.Ceq);
+            _builder.Emit(OpCode.Ldc_I4_0);
+            _builder.Emit(sense ? OpCode.Cgt_Un : OpCode.Ceq);
             return true;
         }
 
@@ -1564,9 +1568,9 @@ oneMoreTime:
             }
         }
 
-        EmitBranch(OpCodes.Br, doneLabel);
+        _builder.EmitBranch(OpCode.Br, doneLabel);
 
-        MarkLabel(consequenceLabel);
+        _builder.MarkLabel(consequenceLabel);
         EmitExpression(expression.trueExpression, used);
 
         if (used) {
@@ -1578,7 +1582,7 @@ oneMoreTime:
             }
         }
 
-        MarkLabel(doneLabel);
+        _builder.MarkLabel(doneLabel);
     }
 
     private TypeSymbol StackMergeType(BoundExpression expr) {
@@ -1609,11 +1613,11 @@ oneMoreTime:
             if (!operand.type.IsVerifierReference())
                 EmitBox(operand.type);
 
-            _builder.Emit(OpCodes.Isinst, _module.GetType(expression.right.type));
+            _builder.EmitWithSymbolToken(OpCode.Isinst, expression.right.type);
 
             if (!omitBooleanConversion) {
-                _builder.Emit(OpCodes.Ldnull);
-                _builder.Emit(OpCodes.Cgt_Un);
+                _builder.Emit(OpCode.Ldnull);
+                _builder.Emit(OpCode.Cgt_Un);
             }
         }
     }
@@ -1629,10 +1633,11 @@ oneMoreTime:
             if (operandType is not null && !operandType.IsVerifierReference())
                 EmitBox(operandType);
 
-            _builder.Emit(OpCodes.Isinst, _module.GetType(targetType));
+            _builder.EmitWithSymbolToken(OpCode.Isinst, targetType);
 
-            if (!targetType.IsVerifierReference())
-                _builder.Emit(OpCodes.Unbox_Any, _module.GetType(targetType));
+            if (!targetType.IsVerifierReference()) {
+                _builder.EmitWithSymbolToken(OpCode.Unbox_Any, targetType);
+            }
         }
     }
 
@@ -1646,7 +1651,7 @@ oneMoreTime:
 
         EmitExpression(expression.operand, true);
 
-        _builder.Emit(OpCodes.Call, _module.GetNullAssert(expression.type));
+        _builder.EmitNullAssert(expression.type);
 
         EmitPopIfUnused(used);
     }
@@ -1723,41 +1728,41 @@ oneMoreTime:
     private void EmitBinaryOperatorInstruction(BoundBinaryOperator expression) {
         switch (expression.operatorKind.Operator()) {
             case BinaryOperatorKind.Multiplication:
-                _builder.Emit(OpCodes.Mul);
+                _builder.Emit(OpCode.Mul);
                 break;
             case BinaryOperatorKind.Addition
                 when (expression.operatorKind & BinaryOperatorKind.TypeMask) == BinaryOperatorKind.String:
-                _builder.Emit(OpCodes.Call, NetMethodReference.String_Concat_SS);
+                _builder.EmitStringConcat2();
                 break;
             case BinaryOperatorKind.Addition:
-                _builder.Emit(OpCodes.Add);
+                _builder.Emit(OpCode.Add);
                 break;
             case BinaryOperatorKind.Subtraction:
-                _builder.Emit(OpCodes.Sub);
+                _builder.Emit(OpCode.Sub);
                 break;
             case BinaryOperatorKind.Division:
-                _builder.Emit(OpCodes.Div);
+                _builder.Emit(OpCode.Div);
                 break;
             case BinaryOperatorKind.Modulo:
-                _builder.Emit(OpCodes.Rem);
+                _builder.Emit(OpCode.Rem);
                 break;
             case BinaryOperatorKind.LeftShift:
-                _builder.Emit(OpCodes.Shl);
+                _builder.Emit(OpCode.Shl);
                 break;
             case BinaryOperatorKind.RightShift:
-                _builder.Emit(OpCodes.Shr);
+                _builder.Emit(OpCode.Shr);
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
-                _builder.Emit(OpCodes.Shr_Un);
+                _builder.Emit(OpCode.Shr_Un);
                 break;
             case BinaryOperatorKind.And:
-                _builder.Emit(OpCodes.And);
+                _builder.Emit(OpCode.And);
                 break;
             case BinaryOperatorKind.Xor:
-                _builder.Emit(OpCodes.Xor);
+                _builder.Emit(OpCode.Xor);
                 break;
             case BinaryOperatorKind.Or:
-                _builder.Emit(OpCodes.Or);
+                _builder.Emit(OpCode.Or);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.operatorKind.Operator());
@@ -1781,10 +1786,10 @@ oneMoreTime:
 
         switch (operatorKind.Operator()) {
             case UnaryOperatorKind.UnaryMinus:
-                _builder.Emit(OpCodes.Neg);
+                _builder.Emit(OpCode.Neg);
                 break;
             case UnaryOperatorKind.BitwiseComplement:
-                _builder.Emit(OpCodes.Not);
+                _builder.Emit(OpCode.Not);
                 break;
             case UnaryOperatorKind.UnaryPlus:
                 break;
@@ -1800,7 +1805,7 @@ oneMoreTime:
 
         if (constantValue is not null) {
             var constant = Convert.ToBoolean(constantValue.value);
-            _builder.Emit(OpCodes.Ldc_I4, constant == sense ? 1 : 0);
+            EmitBoolConstant(constant == sense);
             return;
         }
 
@@ -1833,16 +1838,16 @@ oneMoreTime:
 
                 return;
             case BinaryOperatorKind.And:
-                EmitBinaryCondOperatorHelper(OpCodes.And, binOp.left, binOp.right, sense);
+                EmitBinaryCondOperatorHelper(OpCode.And, binOp.left, binOp.right, sense);
                 return;
             case BinaryOperatorKind.Or:
-                EmitBinaryCondOperatorHelper(OpCodes.Or, binOp.left, binOp.right, sense);
+                EmitBinaryCondOperatorHelper(OpCode.Or, binOp.left, binOp.right, sense);
                 return;
             case BinaryOperatorKind.Xor:
                 if (sense)
-                    EmitBinaryCondOperatorHelper(OpCodes.Xor, binOp.left, binOp.right, true);
+                    EmitBinaryCondOperatorHelper(OpCode.Xor, binOp.left, binOp.right, true);
                 else
-                    EmitBinaryCondOperatorHelper(OpCodes.Ceq, binOp.left, binOp.right, true);
+                    EmitBinaryCondOperatorHelper(OpCode.Ceq, binOp.left, binOp.right, true);
 
                 return;
             case BinaryOperatorKind.NotEqual:
@@ -1896,7 +1901,7 @@ oneMoreTime:
                     }
                 }
 
-                EmitBinaryCondOperatorHelper(OpCodes.Ceq, binOp.left, binOp.right, sense);
+                EmitBinaryCondOperatorHelper(OpCode.Ceq, binOp.left, binOp.right, sense);
                 return;
             case BinaryOperatorKind.LessThan:
                 opIdx = 0;
@@ -1928,7 +1933,7 @@ oneMoreTime:
         bool sense,
         bool stopSense,
         bool stopValue) {
-        LabelSymbol lazyFallThrough = null;
+        object lazyFallThrough = null;
 
         EmitConditionalBranch(condition.left, ref lazyFallThrough, stopSense);
         EmitCondExpr(condition.right, sense);
@@ -1936,12 +1941,12 @@ oneMoreTime:
         if (lazyFallThrough is null)
             return;
 
-        var labEnd = new SynthesizedLabelSymbol("labEnd");
-        EmitBranch(OpCodes.Br, labEnd);
+        var labEnd = new object();
+        _builder.EmitBranch(OpCode.Br, labEnd);
 
-        MarkLabel(lazyFallThrough);
+        _builder.MarkLabel(lazyFallThrough);
         EmitBoolConstant(stopValue);
-        MarkLabel(labEnd);
+        _builder.MarkLabel(labEnd);
     }
 
     private void EmitBinaryCondOperatorHelper(
@@ -2005,8 +2010,8 @@ oneMoreTime:
 
     private void EmitIsSense(bool sense) {
         if (!sense) {
-            _builder.Emit(OpCodes.Ldc_I4_0);
-            _builder.Emit(OpCodes.Ceq);
+            _builder.Emit(OpCode.Ldc_I4_0);
+            _builder.Emit(OpCode.Ceq);
         }
     }
 
@@ -2027,11 +2032,11 @@ oneMoreTime:
         UseKind useKind) {
         if (temp is not null) {
             if (useKind == UseKind.UsedAsAddress)
-                EmitLdloca(temp);
+                _builder.EmitLocalAddress(temp);
             else
-                EmitLdloc(temp);
+                _builder.EmitLocalLoad(temp);
 
-            FreeTemp(temp);
+            _builder.FreeTemp(temp);
         }
 
         if (useKind == UseKind.UsedAsValue && assignment.isRef)
@@ -2076,7 +2081,7 @@ oneMoreTime:
                     if (IsStackLocal(local.dataContainer))
                         break;
                     else
-                        EmitStloc(GetLocal(local.dataContainer));
+                        _builder.EmitLocalStore(local.dataContainer);
                 }
 
                 break;
@@ -2111,7 +2116,7 @@ oneMoreTime:
     }
 
     private void EmitThisStore(BoundThisExpression thisRef) {
-        _builder.Emit(OpCodes.Stobj, _module.GetType(thisRef.type));
+        _builder.EmitWithSymbolToken(OpCode.Stobj, thisRef.type);
     }
 
     private void EmitArrayElementStore(ArrayTypeSymbol arrayType) {
@@ -2128,21 +2133,20 @@ oneMoreTime:
 
         switch (elementType.specialType) {
             case SpecialType.Bool:
-                _builder.Emit(OpCodes.Stelem_I1);
+                _builder.Emit(OpCode.Stelem_I1);
                 break;
             case SpecialType.Int:
-                _builder.Emit(OpCodes.Stelem_I8);
+                _builder.Emit(OpCode.Stelem_I8);
                 break;
             case SpecialType.Decimal:
-                _builder.Emit(OpCodes.Stelem_R8);
+                _builder.Emit(OpCode.Stelem_R8);
                 break;
 
             default:
                 if (elementType.IsVerifierReference()) {
-                    _builder.Emit(OpCodes.Stelem_Ref);
+                    _builder.Emit(OpCode.Stelem_Ref);
                 } else {
-                    // TODO Roslyn uses Stelem
-                    _builder.Emit(OpCodes.Stelem_Any, _module.GetType(elementType));
+                    _builder.EmitWithSymbolToken(OpCode.Stelem, elementType);
                 }
 
                 break;
@@ -2152,35 +2156,39 @@ oneMoreTime:
     private void EmitFieldStore(BoundFieldAccessExpression fieldAccess, bool refAssign) {
         var field = fieldAccess.field;
 
-        if (field.refKind != RefKind.None && !refAssign)
+        if (field.refKind != RefKind.None && !refAssign) {
             EmitIndirectStore(field.type);
-        else
-            _builder.Emit(field.isStatic ? OpCodes.Stsfld : OpCodes.Stfld, _module.GetField(field));
+        } else {
+            _builder.EmitWithSymbolToken(field.isStatic ? OpCode.Stsfld : OpCode.Stfld, field);
+        }
     }
 
     private void EmitParameterStore(BoundParameterExpression parameter, bool refAssign) {
-        if (parameter.parameter.refKind != RefKind.None && !refAssign)
+        if (parameter.parameter.refKind != RefKind.None && !refAssign) {
             EmitIndirectStore(parameter.parameter.type);
-        else
-            _builder.Emit(OpCodes.Starg, GetParameter(parameter.parameter));
+        } else {
+            var slot = ParameterSlot(parameter.parameter);
+            _builder.EmitStoreArgument(slot);
+        }
     }
 
     private void EmitIndirectStore(TypeSymbol type) {
         switch (type.specialType) {
             case SpecialType.Bool:
-                _builder.Emit(OpCodes.Stind_I1);
+                _builder.Emit(OpCode.Stind_I1);
                 break;
             case SpecialType.Int:
-                _builder.Emit(OpCodes.Stind_I8);
+                _builder.Emit(OpCode.Stind_I8);
                 break;
             case SpecialType.Decimal:
-                _builder.Emit(OpCodes.Stind_R8);
+                _builder.Emit(OpCode.Stind_R8);
                 break;
             default:
-                if (type.IsVerifierReference())
-                    _builder.Emit(OpCodes.Stind_Ref);
-                else
-                    _builder.Emit(OpCodes.Stobj, _module.GetType(type));
+                if (type.IsVerifierReference()) {
+                    _builder.Emit(OpCode.Stind_Ref);
+                } else {
+                    _builder.EmitWithSymbolToken(OpCode.Stobj, type);
+                }
 
                 break;
         }
@@ -2193,11 +2201,11 @@ oneMoreTime:
         VariableDefinition temp = null;
 
         if (useKind != UseKind.Unused) {
-            _builder.Emit(OpCodes.Dup);
+            _builder.Emit(OpCode.Dup);
 
             if (lhsUsesStack) {
-                temp = AllocateTemp(assignmentOperator.left.type);
-                EmitStloc(temp);
+                temp = _builder.AllocateTemp(assignmentOperator.left.type, assignmentOperator.isRef);
+                _builder.EmitLocalStore(temp);
             }
         }
 
@@ -2226,7 +2234,7 @@ oneMoreTime:
                     var left = (BoundParameterExpression)assignmentTarget;
 
                     if (left.parameter.refKind != RefKind.None && !assignmentOperator.isRef) {
-                        EmitLdarg(GetParameter(left.parameter));
+                        _builder.EmitLoadArgument(ParameterSlot(left.parameter));
                         lhsUsesStack = true;
                     }
                 }
@@ -2236,10 +2244,8 @@ oneMoreTime:
                     var left = (BoundDataContainerExpression)assignmentTarget;
 
                     if (left.dataContainer.refKind != RefKind.None && !assignmentOperator.isRef) {
-                        if (!IsStackLocal(left.dataContainer)) {
-                            var localDefinition = GetLocal(left.dataContainer);
-                            EmitLdloc(localDefinition);
-                        }
+                        if (!IsStackLocal(left.dataContainer))
+                            _builder.EmitLocalLoad(left.dataContainer);
 
                         lhsUsesStack = true;
                     }
@@ -2343,7 +2349,7 @@ oneMoreTime:
         var constructor = objCreation.constructor;
         EmitArguments(objCreation.arguments, constructor.parameters, objCreation.argumentRefKinds);
 
-        _builder.Emit(OpCodes.Call, _module.GetMethod(constructor));
+        _builder.EmitWithSymbolToken(OpCode.Call, constructor);
 
         if (used)
             EmitExpression(target, used: true);
@@ -2397,7 +2403,7 @@ oneMoreTime:
         var field = fieldAccess.field;
 
         if (field.isStatic) {
-            _builder.Emit(OpCodes.Ldsfld, _module.GetField(field));
+            _builder.EmitWithSymbolToken(OpCode.Ldsfld, field);
         } else {
             var receiver = fieldAccess.receiver;
             var fieldType = field.type;
@@ -2408,9 +2414,9 @@ oneMoreTime:
                 var temp = EmitFieldLoadReceiver(receiver);
 
                 if (temp is not null)
-                    FreeTemp(temp);
+                    _builder.FreeTemp(temp);
 
-                _builder.Emit(OpCodes.Ldfld, _module.GetField(field));
+                _builder.EmitWithSymbolToken(OpCode.Ldfld, field);
             }
         }
     }
@@ -2459,9 +2465,10 @@ oneMoreTime:
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
             var conversion = (BoundCastExpression)receiver;
+
             if (conversion.conversion.kind == ConversionKind.AnyUnboxing) {
                 EmitExpression(conversion.operand, true);
-                _builder.Emit(OpCodes.Unbox, _module.GetType(receiver.type));
+                _builder.EmitWithSymbolToken(OpCode.Unbox, receiver.type);
                 return true;
             }
         } else if (receiver.kind == BoundKind.FieldAccessExpression) {
@@ -2469,7 +2476,7 @@ oneMoreTime:
             var field = fieldAccess.field;
 
             if (!field.isStatic && EmitFieldLoadReceiverAddress(fieldAccess.receiver)) {
-                _builder.Emit(OpCodes.Ldflda, _module.GetField(field));
+                _builder.EmitWithSymbolToken(OpCode.Ldflda, field);
                 return true;
             }
         }
@@ -2495,7 +2502,8 @@ oneMoreTime:
 
     private void EmitParameterLoad(BoundParameterExpression expression) {
         var parameter = expression.parameter;
-        EmitLdarg(GetParameter(parameter));
+        var slot = ParameterSlot(parameter);
+        _builder.EmitLoadArgument(slot);
 
         if (parameter.refKind != RefKind.None) {
             var parameterType = parameter.type;
@@ -2511,8 +2519,8 @@ oneMoreTime:
             EmitPopIfUnused(used || isRefLocal);
         } else {
             if (used || isRefLocal) {
-                var definition = GetLocal(local);
-                _builder.Emit(OpCodes.Ldloc, definition);
+                var definition = _builder.GetLocal(local);
+                _builder.EmitLocalLoad(definition);
             } else {
                 return;
             }
@@ -2569,46 +2577,18 @@ oneMoreTime:
         if (IsNumeric(fromPredefTypeKind) && IsNumeric(toPredefTypeKind))
             EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
 
-        EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
-    }
-
-    private void EmitConvertCall(SpecialType from, SpecialType to) {
-        switch (from, to) {
-            case (SpecialType.String, SpecialType.Bool):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToBoolean_S);
-                break;
-            case (SpecialType.String, SpecialType.Int):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToInt64_S);
-                break;
-            case (SpecialType.Decimal, SpecialType.Int):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToInt64_D);
-                break;
-            case (SpecialType.String, SpecialType.Decimal):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToDouble_S);
-                break;
-            case (SpecialType.Int, SpecialType.Decimal):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToDouble_I);
-                break;
-            case (SpecialType.Int, SpecialType.String):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToString_I);
-                break;
-            case (SpecialType.Decimal, SpecialType.String):
-                _builder.Emit(OpCodes.Call, NetMethodReference.Convert_ToString_D);
-                break;
-            default:
-                throw ExceptionUtilities.UnexpectedValue((from, to));
-        }
+        _builder.EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
     }
 
     private void EmitNumericConversion(SpecialType from, SpecialType to) {
         if (to == SpecialType.Int) {
             if (from == SpecialType.Decimal)
-                _builder.Emit(OpCodes.Conv_I8);
+                _builder.Emit(OpCode.Conv_I8);
         }
 
         if (to == SpecialType.Decimal) {
             if (from == SpecialType.Int)
-                _builder.Emit(OpCodes.Conv_R8);
+                _builder.Emit(OpCode.Conv_R8);
         }
     }
 
@@ -2622,10 +2602,11 @@ oneMoreTime:
 
         var resultType = conversion.type;
 
-        if (!resultType.IsVerifierReference())
-            _builder.Emit(OpCodes.Unbox_Any, _module.GetType(conversion.type));
-        else if (resultType.IsArray())
+        if (!resultType.IsVerifierReference()) {
+            _builder.EmitWithSymbolToken(OpCode.Unbox_Any, conversion.type);
+        } else if (resultType.IsArray()) {
             EmitStaticCast(conversion.type);
+        }
 
         return;
     }
@@ -2634,22 +2615,23 @@ oneMoreTime:
         if (!conversion.operand.type.IsVerifierReference())
             EmitBox(conversion.operand.type);
 
-        if (conversion.type.IsVerifierReference())
-            _builder.Emit(OpCodes.Castclass, _module.GetType(conversion.type));
-        else
-            _builder.Emit(OpCodes.Unbox_Any, _module.GetType(conversion.type));
+        if (conversion.type.IsVerifierReference()) {
+            _builder.EmitWithSymbolToken(OpCode.Castclass, conversion.type);
+        } else {
+            _builder.EmitWithSymbolToken(OpCode.Unbox_Any, conversion.type);
+        }
     }
 
     private void EmitStaticCast(TypeSymbol to) {
-        var temp = AllocateTemp(to);
-        _builder.Emit(OpCodes.Stloc, temp);
-        _builder.Emit(OpCodes.Ldloc, temp);
-        FreeTemp(temp);
+        var temp = _builder.AllocateTemp(to, false);
+        _builder.EmitLocalStore(temp);
+        _builder.EmitLocalLoad(temp);
+        _builder.FreeTemp(temp);
     }
 
     private void EmitBaseExpression(BoundBaseExpression expression) {
-        EmitLdarg0();
         var thisType = _method.containingType;
+        _builder.Emit(OpCode.Ldarg_0);
 
         if (IsValueType(thisType)) {
             EmitLoadIndirect(thisType);
@@ -2658,8 +2640,8 @@ oneMoreTime:
     }
 
     private void EmitThisExpression(BoundThisExpression expression) {
-        EmitLdarg0();
         var thisType = expression.type;
+        _builder.Emit(OpCode.Ldarg_0);
 
         if (IsValueType(thisType))
             EmitLoadIndirect(thisType);
@@ -2668,31 +2650,32 @@ oneMoreTime:
     private void EmitLoadIndirect(TypeSymbol type) {
         switch (type.specialType) {
             case SpecialType.Int:
-                _builder.Emit(OpCodes.Ldind_I8);
+                _builder.Emit(OpCode.Ldind_I8);
                 break;
             case SpecialType.Bool:
-                _builder.Emit(OpCodes.Ldind_I1);
+                _builder.Emit(OpCode.Ldind_I1);
                 break;
             case SpecialType.Decimal:
-                _builder.Emit(OpCodes.Ldind_R8);
+                _builder.Emit(OpCode.Ldind_R8);
                 break;
             default:
-                if (type.IsVerifierReference())
-                    _builder.Emit(OpCodes.Ldind_Ref);
-                else
-                    _builder.Emit(OpCodes.Ldobj, _module.GetType(type));
+                if (type.IsVerifierReference()) {
+                    _builder.Emit(OpCode.Ldind_Ref);
+                } else {
+                    _builder.EmitWithSymbolToken(OpCode.Ldobj, type);
+                }
 
                 break;
         }
     }
 
     private void EmitBox(TypeSymbol type) {
-        _builder.Emit(OpCodes.Box, _module.GetType(type));
+        _builder.EmitWithSymbolToken(OpCode.Box, type);
     }
 
     private void EmitPopIfUnused(bool used) {
         if (!used)
-            _builder.Emit(OpCodes.Pop);
+            _builder.Emit(OpCode.Pop);
     }
 
     #endregion
