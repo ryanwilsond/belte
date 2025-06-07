@@ -48,5 +48,7 @@ internal abstract class ILBuilder {
 
     internal abstract VariableDefinition GetLocal(DataContainerSymbol local);
 
+    internal abstract void DeclareLocal(DataContainerSymbol local);
+
     internal abstract ParameterDefinition GetParameter(ParameterSymbol parameter);
 }

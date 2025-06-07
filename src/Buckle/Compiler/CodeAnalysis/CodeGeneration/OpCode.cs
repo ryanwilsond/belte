@@ -44,4 +44,7 @@ internal enum OpCode : byte {
     Ldc_I4_8,
     Ldc_R8,
     Ldstr,
+    Beq,
+    Bne_Un,
+    Ret,
 }

@@ -115,6 +115,14 @@ internal sealed class RefILBuilder : ILBuilder {
         return _locals[local];
     }
 
+    internal override void DeclareLocal(DataContainerSymbol local) {
+        var typeBuilder = _module.GetType(local.type);
+        var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
+        var mapLocal = new RefVariableDefinition(localBuilder, local.isRef);
+
+        _locals.Add(local, mapLocal);
+    }
+
     internal override ParameterDefinition GetParameter(ParameterSymbol parameter) {
         var slot = parameter.ordinal;
 
@@ -191,6 +199,9 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldc_I4_8 => OpCodes.Ldc_I4_8,
             CodeGeneration.OpCode.Ldc_R8 => OpCodes.Ldc_R8,
             CodeGeneration.OpCode.Ldstr => OpCodes.Ldstr,
+            CodeGeneration.OpCode.Beq => OpCodes.Beq,
+            CodeGeneration.OpCode.Bne_Un => OpCodes.Bne_Un,
+            CodeGeneration.OpCode.Ret => OpCodes.Ret,
             _ => throw new NotImplementedException()
         };
     }

@@ -7,8 +7,6 @@ using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
-using Mono.Cecil;
-using Mono.Cecil.Cil;
 using static Buckle.CodeAnalysis.Binding.Binder;
 
 namespace Buckle.CodeAnalysis.CodeGeneration;
@@ -352,7 +350,7 @@ internal sealed partial class CodeGenerator {
             _builder.Emit(OpCode.Initobj);
             _builder.EmitSymbolToken(type);
             _builder.EmitLocalLoad(temp);
-            FreeTemp(temp);
+            _builder.FreeTemp(temp);
         }
     }
 
@@ -473,7 +471,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitNopStatement(BoundNopStatement _) {
-        _builder.Emit(OpCodes.Nop);
+        _builder.Emit(OpCode.Nop);
     }
 
     private void EmitLabelStatement(BoundLabelStatement statement) {
@@ -481,15 +479,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitGotoStatement(BoundGotoStatement statement) {
-        // TODO Roslyn uses Br
-        EmitBranch(OpCodes.Br_S, statement.label);
-    }
-
-    private void EmitBranch(OpCode opCode, LabelSymbol dest, OpCode? revCode = null) {
-        // TODO What exactly is revCode used for?
-        revCode ??= OpCodes.Nop;
-        _unhandledGotos.Add((_count, dest));
-        _builder.Emit(opCode, Instruction.Create(OpCodes.Nop));
+        _builder.EmitBranch(OpCode.Br, statement.label);
     }
 
     private void EmitConditionalGotoStatement(BoundConditionalGotoStatement statement) {
@@ -521,7 +511,7 @@ oneMoreTime:
 
                 if (binOp.operatorKind.OperatorWithConditional() is
                     BinaryOperatorKind.ConditionalOr or BinaryOperatorKind.ConditionalAnd) {
-                    var stack = ArrayBuilder<(BoundExpression? condition, StrongBox<object> destBox, bool sense)>
+                    var stack = ArrayBuilder<(BoundExpression condition, StrongBox<object> destBox, bool sense)>
                         .GetInstance();
 
                     var destBox = new StrongBox<object>(dest);
@@ -541,7 +531,7 @@ oneMoreTime:
                                     is BinaryOperatorKind.ConditionalOr or BinaryOperatorKind.ConditionalAnd) {
                             if (binary.operatorKind.OperatorWithConditional() is BinaryOperatorKind.ConditionalOr
                                 ? !top.sense : top.sense) {
-                                var fallThrough = new StrongBox<LabelSymbol>();
+                                var fallThrough = new StrongBox<object>();
 
                                 stack.Push((null, fallThrough, true));
                                 stack.Push((binary.right, top.destBox, top.sense));
@@ -588,8 +578,8 @@ oneMoreTime:
                         EmitExpression(binOp.right, true);
                         OpCode revOpCode;
                         iLCode = CodeForJump(binOp, sense, out revOpCode);
-                        dest ??= new SynthesizedLabelSymbol("dest");
-                        EmitBranch(iLCode, dest, revOpCode);
+                        dest ??= new object();
+                        _builder.EmitBranch(iLCode, dest, revOpCode);
                         return;
                 }
 
@@ -615,8 +605,8 @@ oneMoreTime:
                 _builder.Emit(OpCode.Isinst);
                 _builder.EmitSymbolToken(isOp.right.type);
                 iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
-                dest ??= new SynthesizedLabelSymbol("dest");
-                EmitBranch(iLCode, dest);
+                dest ??= new object();
+                _builder.EmitBranch(iLCode, dest);
                 return;
             default:
                 EmitExpression(condition, true);
@@ -626,9 +616,9 @@ oneMoreTime:
                 if (IsReferenceType(conditionType) && !conditionType.IsVerifierReference())
                     EmitBox(conditionType);
 
-                iLCode = sense ? OpCodes.Brtrue : OpCodes.Brfalse;
-                dest ??= new SynthesizedLabelSymbol("dest");
-                EmitBranch(iLCode, dest);
+                iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
+                dest ??= new object();
+                _builder.EmitBranch(iLCode, dest);
                 return;
         }
     }
@@ -638,11 +628,11 @@ oneMoreTime:
 
         switch (op.operatorKind.Operator()) {
             case BinaryOperatorKind.Equal:
-                revOpCode = !sense ? OpCodes.Beq : OpCodes.Bne_Un;
-                return sense ? OpCodes.Beq : OpCodes.Bne_Un;
+                revOpCode = !sense ? OpCode.Beq : OpCode.Bne_Un;
+                return sense ? OpCode.Beq : OpCode.Bne_Un;
             case BinaryOperatorKind.NotEqual:
-                revOpCode = !sense ? OpCodes.Bne_Un : OpCodes.Beq;
-                return sense ? OpCodes.Bne_Un : OpCodes.Beq;
+                revOpCode = !sense ? OpCode.Bne_Un : OpCode.Beq;
+                return sense ? OpCode.Bne_Un : OpCode.Beq;
             case BinaryOperatorKind.LessThan:
                 opIdx = 0;
                 break;
@@ -736,7 +726,7 @@ oneMoreTime:
 
         if (ShouldUseIndirectReturn()) {
             if (expression is not null)
-                EmitStloc(_lazyReturnTemp);
+                _builder.EmitLocalStore(_lazyReturnTemp);
 
             // TODO fill this out when Try is added
         } else {
@@ -746,7 +736,7 @@ oneMoreTime:
 
     private void EmitRet(bool isVoid) {
         // TODO Gets more complicated with blocks
-        _builder.Emit(OpCodes.Ret);
+        _builder.Emit(OpCode.Ret);
     }
 
     private bool ShouldUseIndirectReturn() {
@@ -761,10 +751,7 @@ oneMoreTime:
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
         var declaration = statement.declaration;
         var local = declaration.dataContainer;
-        var typeReference = _module.GetType(local.type);
-        var variableDefinition = new VariableDefinition(typeReference);
-        _locals.Add(local, variableDefinition);
-        _builder.Body.Variables.Add(variableDefinition);
+        _builder.DeclareLocal(local);
 
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation

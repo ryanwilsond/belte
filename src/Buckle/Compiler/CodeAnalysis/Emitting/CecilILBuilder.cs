@@ -125,6 +125,15 @@ internal sealed class CecilILBuilder : ILBuilder {
         return new CecilParameterDefinition(_definition.Parameters[slot]);
     }
 
+    internal override void DeclareLocal(DataContainerSymbol local) {
+        var typeReference = _module.GetType(local.type);
+        var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
+        var mapLocal = new CecilVariableDefinition(variableDefinition, local.isRef);
+
+        _locals.Add(local, mapLocal);
+        _iLProcessor.Body.Variables.Add(variableDefinition);
+    }
+
     internal override CodeGeneration.VariableDefinition AllocateTemp(TypeSymbol type) {
         var typeReference = _module.GetType(type);
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
@@ -190,6 +199,9 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldc_I4_8 => OpCodes.Ldc_I4_8,
             CodeGeneration.OpCode.Ldc_R8 => OpCodes.Ldc_R8,
             CodeGeneration.OpCode.Ldstr => OpCodes.Ldstr,
+            CodeGeneration.OpCode.Beq => OpCodes.Beq,
+            CodeGeneration.OpCode.Bne_Un => OpCodes.Bne_Un,
+            CodeGeneration.OpCode.Ret => OpCodes.Ret,
             _ => throw new NotImplementedException()
         };
     }
