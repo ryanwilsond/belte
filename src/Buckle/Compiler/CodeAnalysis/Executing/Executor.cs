@@ -133,6 +133,10 @@ internal sealed class Executor : ModuleBuilder {
         return _types[type.originalDefinition];
     }
 
+    internal FieldBuilder GetField(FieldSymbol field) {
+        return _fields[field];
+    }
+
     internal override void EmitGlobalsClass() { }
 
     private void EmitInternal() {

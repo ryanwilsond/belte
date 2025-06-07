@@ -176,7 +176,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         };
 
         foreach (var p in ctorRef.Parameters)
-            genericCtor.Parameters.Add(new ParameterDefinition(p.ParameterType));
+            genericCtor.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
 
         return _assemblyDefinition.MainModule.ImportReference(genericCtor);
     }
@@ -263,7 +263,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var nullAssertT = new GenericParameter("T", _nullAssertMethod);
         _nullAssertMethod.GenericParameters.Add(nullAssertT);
         _nullAssertMethod.ReturnType = nullAssertT;
-        _nullAssertMethod.Parameters.Add(new ParameterDefinition("o", ParameterAttributes.None, nullAssertT));
+        _nullAssertMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("o", ParameterAttributes.None, nullAssertT));
 
         var nullAssertILProcessor = _nullAssertMethod.Body.GetILProcessor();
 
@@ -353,7 +353,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         );
 
         foreach (var parameter in method.parameters) {
-            var parameterDefinition = new ParameterDefinition(
+            var parameterDefinition = new Mono.Cecil.ParameterDefinition(
                 parameter.name,
                 ParameterAttributes.None,
                 GetType(parameter.type)
@@ -434,7 +434,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitMethod(MethodDefinition methodDefinition) {
         var (method, body) = _methodBodies[methodDefinition];
-        var ilBuilder = new CecilILBuilder(method, this, methodDefinition.Body.GetILProcessor());
+        var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
         var codeGen = new CodeGenerator(this, method, body, ilBuilder);
         codeGen.Generate();
 

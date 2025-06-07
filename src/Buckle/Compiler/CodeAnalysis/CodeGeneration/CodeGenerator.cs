@@ -40,6 +40,10 @@ internal sealed partial class CodeGenerator {
     private readonly HashSet<DataContainerSymbol> _stackLocals = [];
     private readonly List<(int instructionIndex, LabelSymbol target)> _unhandledGotos = [];
 
+    private ArrayBuilder<VariableDefinition> _expressionTemps;
+    private VariableDefinition _returnTemp;
+    private int _tryNestingLevel;
+
     internal CodeGenerator(
         ModuleBuilder module,
         MethodSymbol method,
@@ -51,11 +55,19 @@ internal sealed partial class CodeGenerator {
         _builder = iLBuilder;
     }
 
+    private VariableDefinition _lazyReturnTemp {
+        get {
+            _returnTemp ??= _builder.AllocateTemp(_method.returnType);
+            return _returnTemp;
+        }
+    }
+
     internal void Generate() {
         foreach (var statement in _body.statements)
             EmitStatement(statement);
 
         _builder.Finish();
+        _expressionTemps?.Free();
     }
 
     internal static bool IsReferenceType(TypeSymbol type) {
@@ -76,18 +88,14 @@ internal sealed partial class CodeGenerator {
         return IsStackLocal(local, _stackLocals);
     }
 
-    // private VariableDefinition GetLocal(DataContainerSymbol local) {
-    //     return _locals[local];
-    // }
+    private int ParameterSlot(ParameterSymbol parameter) {
+        var slot = parameter.ordinal;
 
-    // private ParameterDefinition GetParameter(ParameterSymbol parameter) {
-    //     var slot = parameter.ordinal;
+        if (!_method.isStatic)
+            slot++;
 
-    //     if (!_method.isStatic)
-    //         slot++;
-
-    //     return _definition.Parameters[slot];
-    // }
+        return slot;
+    }
 
     private void EnsureGlobalsClassIsBuilt() {
         if (!_module.hasGeneratedGlobalsClass)
@@ -113,9 +121,9 @@ internal sealed partial class CodeGenerator {
                     if (!HasHome(expression, addressKind))
                         goto default;
 
-                    EmitLdarg0();
+                    _builder.EmitLoadArgument(0);
                 } else {
-                    EmitLdarga0();
+                    _builder.EmitLoadArgumentAddr(0);
                 }
 
                 break;
@@ -231,7 +239,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitArrayIndices(ImmutableArray<int> indices) {
-        for (var i = 0; i < indices.Length; ++i) {
+        for (var i = 0; i < indices.Length; i++) {
             var index = indices[i];
             _builder.Emit(OpCode.Ldc_I4, index);
         }
@@ -264,10 +272,11 @@ internal sealed partial class CodeGenerator {
         if (!HasHome(parameter, addressKind))
             return EmitAddressOfTempClone(parameter);
 
+        var slot = ParameterSlot(parameterSymbol);
         if (parameterSymbol.refKind == RefKind.None)
-            EmitLdarga(GetParameter(parameterSymbol));
+            _builder.EmitLoadArgumentAddr(slot);
         else
-            EmitLdarg(GetParameter(parameterSymbol));
+            _builder.EmitLoadArgument(slot);
 
         return null;
     }
@@ -286,7 +295,8 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitStaticFieldAddress(FieldSymbol field) {
-        _builder.Emit(OpCodes.Ldsflda, _module.GetField(field));
+        _builder.Emit(OpCode.Ldsflda);
+        _builder.EmitSymbolToken(field);
     }
 
     private VariableDefinition EmitInstanceFieldAddress(
@@ -301,7 +311,8 @@ internal sealed partial class CodeGenerator {
                 : (addressKind != AddressKind.ReadOnlyStrict ? AddressKind.ReadOnly : addressKind)
             );
 
-        _builder.Emit(field.refKind == RefKind.None ? OpCodes.Ldflda : OpCodes.Ldfld, _module.GetField(field));
+        _builder.Emit(field.refKind == RefKind.None ? OpCode.Ldflda : OpCode.Ldfld);
+        _builder.EmitSymbolToken(field);
         return tempOpt;
     }
 
@@ -328,91 +339,100 @@ internal sealed partial class CodeGenerator {
 
     private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
         EmitExpression(expression, true);
-        var value = AllocateTemp(expression.type);
-        EmitStloc(value);
-        EmitLdloca(value);
+        var value = _builder.AllocateTemp(expression.type);
+        _builder.EmitLocalStore(value);
+        _builder.EmitLocalAddress(value);
         return value;
-    }
-
-    private void EmitLdarg(ParameterDefinition parameter) {
-        _builder.Emit(OpCodes.Ldarg, parameter);
-    }
-
-    private void EmitLdarga(ParameterDefinition parameter) {
-        _builder.Emit(OpCodes.Ldarga, parameter);
-    }
-
-    private void EmitLdarg0() {
-        _builder.Emit(OpCodes.Ldarg_0);
-    }
-
-    private void EmitLdarga0() {
-        // TODO How do we get the this parameter?
-        // _iLProcessor.Emit(OpCodes.Ldarga);
-        EmitLdarg0();
-    }
-
-    private void EmitLdloc(VariableDefinition local) {
-        _builder.Emit(OpCodes.Ldloc, local);
-    }
-
-    private void EmitStloc(VariableDefinition local) {
-        _builder.Emit(OpCodes.Stloc, local);
-    }
-
-    private void EmitLdloca(VariableDefinition local) {
-        if (local.VariableType.IsByReference)
-            EmitLdloc(local);
-        else
-            _builder.Emit(OpCodes.Ldloca, local);
     }
 
     private void EmitInitObj(TypeSymbol type, bool used) {
         if (used) {
-            var temp = AllocateTemp(type);
-            EmitLdloca(temp);
-            _builder.Emit(OpCodes.Initobj, _module.GetType(type));
-            EmitLdloc(temp);
+            var temp = _builder.AllocateTemp(type);
+            _builder.EmitLocalAddress(temp);
+            _builder.Emit(OpCode.Initobj);
+            _builder.EmitSymbolToken(type);
+            _builder.EmitLocalLoad(temp);
             FreeTemp(temp);
         }
     }
 
     private void EmitConstantValue(ConstantValue constant) {
         if (constant.value is null) {
-            _builder.Emit(OpCodes.Ldnull);
+            _builder.Emit(OpCode.Ldnull);
             return;
         }
 
         switch (constant.specialType) {
             case SpecialType.Int:
-                _builder.Emit(OpCodes.Ldc_I8, (long)constant.value);
+                EmitLongConstant((long)constant.value);
                 break;
             case SpecialType.Bool:
                 EmitBoolConstant((bool)constant.value);
                 break;
             case SpecialType.Decimal:
-                _builder.Emit(OpCodes.Ldc_R8, (double)constant.value);
+                EmitDoubleConstant((double)constant.value);
                 break;
             case SpecialType.String:
-                _builder.Emit(OpCodes.Ldstr, (string)constant.value);
+                EmitStringConstant((string)constant.value);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(constant.specialType);
         }
     }
 
-    private void EmitBoolConstant(bool value) {
-        _builder.Emit(OpCodes.Ldc_I4, value ? 1 : 0);
+    private void EmitDoubleConstant(double value) {
+        _builder.Emit(OpCode.Ldc_R8, value);
     }
 
-    private void FreeTemp(VariableDefinition temp) {
-        // TODO Will this suffice?
-        _builder.Body.Variables.Remove(temp);
+    private void EmitStringConstant(string value) {
+        _builder.Emit(OpCode.Ldstr, value);
+    }
+
+    private void EmitLongConstant(long value) {
+        if (value >= int.MinValue && value <= int.MaxValue) {
+            EmitIntConstant((int)value);
+            _builder.Emit(OpCode.Conv_I8);
+        } else if (value >= uint.MinValue && value <= uint.MaxValue) {
+            EmitIntConstant(unchecked((int)value));
+            _builder.Emit(OpCode.Conv_U8);
+        } else {
+            _builder.Emit(OpCode.Ldc_I8, value);
+        }
+    }
+
+    private void EmitIntConstant(int value) {
+        var code = OpCode.Nop;
+
+        switch (value) {
+            case -1: code = OpCode.Ldc_I4_M1; break;
+            case 0: code = OpCode.Ldc_I4_0; break;
+            case 1: code = OpCode.Ldc_I4_1; break;
+            case 2: code = OpCode.Ldc_I4_2; break;
+            case 3: code = OpCode.Ldc_I4_3; break;
+            case 4: code = OpCode.Ldc_I4_4; break;
+            case 5: code = OpCode.Ldc_I4_5; break;
+            case 6: code = OpCode.Ldc_I4_6; break;
+            case 7: code = OpCode.Ldc_I4_7; break;
+            case 8: code = OpCode.Ldc_I4_8; break;
+        }
+
+        if (code != OpCode.Nop) {
+            _builder.Emit(code);
+        } else {
+            if (unchecked((sbyte)value == value))
+                _builder.Emit(OpCode.Ldc_I4_S, unchecked((sbyte)value));
+            else
+                _builder.Emit(OpCode.Ldc_I4, value);
+        }
+    }
+
+    private void EmitBoolConstant(bool value) {
+        EmitIntConstant(value ? 1 : 0);
     }
 
     private void FreeOptTemp(VariableDefinition temp) {
         if (temp is not null)
-            FreeTemp(temp);
+            _builder.FreeTemp(temp);
     }
 
     private bool HasHome(BoundExpression expression, AddressKind addressKind) {
