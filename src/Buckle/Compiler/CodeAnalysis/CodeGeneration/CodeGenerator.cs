@@ -352,7 +352,11 @@ internal sealed partial class CodeGenerator {
 
     private void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
         if (constant.value is null) {
-            _builder.Emit(OpCode.Ldnull);
+            if (IsReferenceType(type.StrippedType()))
+                _builder.Emit(OpCode.Ldnull);
+            else
+                EmitInitObj(type, true);
+
             return;
         }
 

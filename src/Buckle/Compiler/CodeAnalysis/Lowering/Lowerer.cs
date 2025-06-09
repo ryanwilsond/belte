@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -55,7 +56,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private BoundExpression CreateNullable(
-        Syntax.SyntaxNode syntax,
+        SyntaxNode syntax,
         BoundExpression expression,
         TypeSymbol nullableType) {
         if (!ShouldBeTreatedAsNullable(nullableType))
@@ -79,11 +80,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
         var type = expression.type;
 
+        if (expression.constantValue.value is null)
+            type = CorLibrary.GetOrCreateNullableType(type);
+
         return new BoundLiteralExpression(
-            syntax,
-            expression.constantValue,
-            ShouldBeTreatedAsNullable(type) ? type : type.StrippedType()
-        );
+                syntax,
+                expression.constantValue,
+                ShouldBeTreatedAsNullable(type) ? type : type.StrippedType()
+            );
 
         // return literal;
 
@@ -111,15 +115,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <left> is nullable and <right> is nullable
 
-        ((HasValue(<left>) && HasValue(<right>)) ? Value(<left>) <op> Value(<right>) : null)
+        ((HasValue(<left>) && HasValue(<right>)) ? new Nullable( Value(<left>) <op> Value(<right>) ) : null)
 
         ----> <left> is nullable
 
-        (HasValue(<left>) ? Value(<left>) <op> <right> : null)
+        (HasValue(<left>) ? new Nullable( Value(<left>) <op> <right> ) : null)
 
         ----> <right> is nullable
 
-        (<right> isnt null ? <left> <op> Value(<right>) : null)
+        (<right> isnt null ? new Nullable( <left> <op> Value(<right>) ) : null)
 
         */
         var syntax = expression.syntax;
@@ -139,12 +143,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
                             HasValue(syntax, expression.left),
                             HasValue(syntax, expression.right)
                         ),
-                        @then: Binary(syntax,
+                        @then: CreateNullable(syntax, Binary(syntax,
                             Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
                             op,
                             Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                             expression.type
-                        ),
+                        ), expression.type),
                         @else: Literal(syntax, null, expression.type),
                         expression.type
                     )
@@ -155,12 +159,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 return VisitConditionalOperator(
                     Conditional(syntax,
                         @if: HasValue(syntax, expression.left),
-                        @then: Binary(syntax,
+                        @then: CreateNullable(syntax, Binary(syntax,
                             Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
                             op,
                             DeNull(expression.right),
                             expression.type
-                        ),
+                        ), expression.type),
                         @else: Literal(syntax, null, expression.type),
                         expression.type
                     )
@@ -171,12 +175,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 return VisitConditionalOperator(
                     Conditional(syntax,
                         @if: HasValue(syntax, expression.right),
-                        @then: Binary(syntax,
+                        @then: CreateNullable(syntax, Binary(syntax,
                             DeNull(expression.left),
                             op,
                             Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                             expression.type
-                        ),
+                        ), expression.type),
                         @else: Literal(syntax, null, expression.type),
                         expression.type
                     )
@@ -194,7 +198,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ---->
 
-        (HasValue(<left>) ? Value(<left>) : <right>)
+        (HasValue(<left>) ? <left> : <right>)
 
         */
         var syntax = expression.syntax;
@@ -202,7 +206,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return VisitConditionalOperator(
             Conditional(syntax,
                 @if: HasValue(syntax, expression.left),
-                @then: Value(syntax, expression.left, expression.left.type),
+                @then: expression.left,
                 @else: expression.right,
                 expression.type
             )
@@ -224,7 +228,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <operand> is nullable
 
-        (HasValue(<operand>) ? <op> Value(<operand>) : null)
+        (HasValue(<operand>) ? new Nullable( <op> Value(<operand>) ) : null)
 
         */
         var syntax = expression.syntax;
@@ -241,11 +245,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return VisitConditionalOperator(
                 Conditional(syntax,
                     @if: HasValue(syntax, expression.operand),
-                    @then: Unary(syntax,
+                    @then: CreateNullable(syntax, Unary(syntax,
                         op,
                         Value(syntax, expression.operand, expression.operand.type.GetNullableUnderlyingType()),
                         expression.type
-                    ),
+                    ), expression.type),
                     @else: Literal(syntax, null, expression.type),
                     expression.type
                 )
@@ -331,12 +335,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
 
             var binaryOp = expression.isNot ? BinaryOperatorKind.NotEqual : BinaryOperatorKind.Equal;
+            var right = Literal(expression.right.syntax, null, expression.left.type);
 
             binaryOp |= expression.left.type.specialType == SpecialType.String
                 ? BinaryOperatorKind.String
                 : BinaryOperatorKind.Object;
 
-            return Visit(Binary(syntax, expression.left, binaryOp, expression.right, expression.type));
+            return Visit(Binary(syntax, expression.left, binaryOp, right, expression.type));
         }
 
         return base.VisitIsOperator(expression);
@@ -397,7 +402,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = expression.type;
         var operandType = operand.type;
 
-        if (operandType?.Equals(type) ?? false)
+        if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
             return Visit(operand);
 
         if (expression.conversion.underlyingConversions == default)

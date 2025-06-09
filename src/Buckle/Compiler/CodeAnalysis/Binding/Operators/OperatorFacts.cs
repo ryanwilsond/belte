@@ -125,7 +125,14 @@ internal static class OperatorFacts {
             case BinaryOperatorKind.LessThan:
             case BinaryOperatorKind.GreaterThanOrEqual:
             case BinaryOperatorKind.LessThanOrEqual:
-                return new BinaryOperatorSignature(kind, left, left, CorLibrary.GetSpecialType(SpecialType.Bool));
+                return new BinaryOperatorSignature(
+                    kind,
+                    left,
+                    left,
+                    kind.IsLifted()
+                        ? CorLibrary.GetNullableType(SpecialType.Bool)
+                        : CorLibrary.GetSpecialType(SpecialType.Bool)
+                );
         }
 
         return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));

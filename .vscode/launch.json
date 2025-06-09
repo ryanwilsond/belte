@@ -8,11 +8,7 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net9.0/CommandLine.dll",
             "args": [
-                // "-r"
-                // "--execute",
-                // "samples/GuessingGame"
-                "-d",
-                "samples/Temp/Program.blt"
+                "-r"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

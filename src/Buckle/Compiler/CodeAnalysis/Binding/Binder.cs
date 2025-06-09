@@ -2845,6 +2845,15 @@ internal partial class Binder {
     }
 
     internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindBooleanExpressionCore(node, diagnostics);
+        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+
+        var conversion = conversions.ClassifyConversionFromType(expression.type, boolean);
+
+        return CreateConversion(expression, conversion, boolean, diagnostics);
+    }
+
+    internal BoundExpression BindBooleanExpressionCore(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindValue(node, diagnostics, BindValueKind.RValue);
         var boolean = CorLibrary.GetNullableType(SpecialType.Bool);
 

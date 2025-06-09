@@ -248,6 +248,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _specialTypes[SpecialType.Void]
         );
 
+        cctor.Body.InitLocals = true;
         var cctorILProcessor = cctor.Body.GetILProcessor();
         cctorILProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
         cctorILProcessor.Emit(OpCodes.Stsfld, randomField);
@@ -266,6 +267,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _nullAssertMethod.ReturnType = nullAssertT;
         _nullAssertMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("o", ParameterAttributes.None, nullAssertT));
 
+        _nullAssertMethod.Body.InitLocals = true;
         var nullAssertILProcessor = _nullAssertMethod.Body.GetILProcessor();
 
         /*

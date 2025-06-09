@@ -20,6 +20,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         _method = method;
         _module = module;
         _definition = definition;
+        definition.Body.InitLocals = true;
         _iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
         _locals = [];
