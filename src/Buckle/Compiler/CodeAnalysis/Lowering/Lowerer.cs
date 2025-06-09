@@ -78,12 +78,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
         // TODO Handle initializer list constants
         var syntax = expression.syntax;
         var type = expression.type;
-        var literal = new BoundLiteralExpression(syntax, expression.constantValue, type?.StrippedType());
 
-        if (expression.constantValue.value is null)
-            return literal;
+        return new BoundLiteralExpression(
+            syntax,
+            expression.constantValue,
+            ShouldBeTreatedAsNullable(type) ? type : type.StrippedType()
+        );
 
-        return CreateNullable(syntax, literal, type);
+        // return literal;
+
+        // if (expression.constantValue.value is null)
+        //     return literal;
+
+        // return CreateNullable(syntax, literal, type);
+    }
+
+    private BoundExpression DeNull(BoundExpression expression) {
+        if (expression.constantValue is null)
+            return expression;
+
+        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.type.StrippedType());
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
@@ -144,7 +158,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         @then: Binary(syntax,
                             Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
                             op,
-                            expression.right,
+                            DeNull(expression.right),
                             expression.type
                         ),
                         @else: Literal(syntax, null, expression.type),
@@ -158,7 +172,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     Conditional(syntax,
                         @if: HasValue(syntax, expression.right),
                         @then: Binary(syntax,
-                            expression.left,
+                            DeNull(expression.left),
                             op,
                             Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
                             expression.type

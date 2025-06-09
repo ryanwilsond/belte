@@ -6,7 +6,7 @@ COMPILER_DIR:=$(BUCKLE_DIR)/Compiler
 REPL_DIR:=$(BUCKLE_DIR)/Repl
 DIAGNOSTICS_DIR:=$(DEPENDENCY_DIR)/Diagnostics
 
-NETVER:=net8.0
+NETVER:=net9.0
 SYSTEM:=win-x64
 SLN:=Belte.sln
 CP=cp

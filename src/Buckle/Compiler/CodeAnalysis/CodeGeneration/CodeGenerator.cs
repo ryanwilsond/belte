@@ -561,8 +561,8 @@ oneMoreTime:
                     case BinaryOperatorKind.ConditionalOr:
                     case BinaryOperatorKind.ConditionalAnd:
                         throw ExceptionUtilities.Unreachable();
-                    case BinaryOperatorKind.Equal:
-                    case BinaryOperatorKind.NotEqual:
+                    case BinaryOperatorKind.Equal when binOp.left.type.specialType != SpecialType.String:
+                    case BinaryOperatorKind.NotEqual when binOp.left.type.specialType != SpecialType.String:
                         var reduced = TryReduce(binOp, ref sense);
 
                         if (reduced is not null) {
@@ -1854,6 +1854,11 @@ oneMoreTime:
                 sense = !sense;
                 goto case BinaryOperatorKind.Equal;
             case BinaryOperatorKind.Equal:
+                if (binOp.left.type.specialType == SpecialType.String) {
+                    EmitStringEqualityOperator(binOp, sense);
+                    return;
+                }
+
                 var constant = binOp.left.constantValue;
                 var comparand = binOp.right;
 
@@ -1926,6 +1931,13 @@ oneMoreTime:
 
         EmitBinaryCondOperatorHelper(CompOpCodes[opIdx], binOp.left, binOp.right, sense);
         return;
+    }
+
+    private void EmitStringEqualityOperator(BoundBinaryOperator condition, bool sense) {
+        EmitExpression(condition.left, true);
+        EmitExpression(condition.right, true);
+        _builder.EmitStringEquality();
+        EmitIsSense(sense);
     }
 
     private void EmitShortCircuitingOperator(

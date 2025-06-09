@@ -16,6 +16,7 @@ internal sealed partial class ILEmitter {
         internal static MethodReference String_Concat_SSS;
         internal static MethodReference String_Concat_SSSS;
         internal static MethodReference String_Concat_A;
+        internal static MethodReference String_Equality_SS;
         internal static MethodReference Convert_ToBoolean_S;
         internal static MethodReference Convert_ToInt64_S;
         internal static MethodReference Convert_ToInt64_D;

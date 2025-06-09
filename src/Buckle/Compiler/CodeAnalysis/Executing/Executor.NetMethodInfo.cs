@@ -13,10 +13,11 @@ internal sealed partial class Executor {
         internal static MethodInfo Console_WriteLine_S = typeof(Console).GetMethod("WriteLine", BindingFlags.Public | BindingFlags.Static, [typeof(string)]);
         internal static MethodInfo Console_WriteLine_O = typeof(Console).GetMethod("WriteLine", BindingFlags.Public | BindingFlags.Static, [typeof(object)]);
         internal static MethodInfo Console_ReadLine = typeof(Console).GetMethod("ReadLine", BindingFlags.Public | BindingFlags.Static, Type.EmptyTypes);
-        internal static MethodInfo String_Concat_SS;
+        internal static MethodInfo String_Concat_SS = typeof(string).GetMethod("Concat", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(string)]);
         internal static MethodInfo String_Concat_SSS;
         internal static MethodInfo String_Concat_SSSS;
         internal static MethodInfo String_Concat_A;
+        internal static MethodInfo String_Equality_SS = typeof(string).GetMethod("op_Equality", BindingFlags.Public | BindingFlags.Static, [typeof(string), typeof(string)]);
         internal static MethodInfo Convert_ToBoolean_S;
         internal static MethodInfo Convert_ToInt64_S;
         internal static MethodInfo Convert_ToInt64_D;

@@ -167,16 +167,6 @@ internal sealed partial class Executor : ModuleBuilder {
         return closedMethod;
     }
 
-    internal MethodInfo GetStringConcat2() {
-        return typeof(string).GetMethod(
-            "Concat",
-            BindingFlags.Public | BindingFlags.Static,
-            null,
-            [typeof(string), typeof(string)],
-            null
-        );
-    }
-
     public static T AssertNull<T>(T value) {
         if (value is null)
             throw new NullReferenceException();

@@ -44,8 +44,13 @@ internal sealed class Optimizer : BoundTreeRewriter {
         ;
 
         */
-        if (ConstantValue.IsNotNull(statement.condition.constantValue)) {
-            var condition = (bool)statement.condition.constantValue.value;
+        var constantValue = statement.condition.constantValue;
+
+        if (statement.condition is BoundObjectCreationExpression { type.specialType: Symbols.SpecialType.Nullable } o)
+            constantValue = o.arguments[0].constantValue;
+
+        if (ConstantValue.IsNotNull(constantValue)) {
+            var condition = (bool)constantValue.value;
             condition = statement.jumpIfTrue ? condition : !condition;
 
             if (condition)

@@ -137,6 +137,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Concat_SS);
     }
 
+    internal override void EmitStringEquality() {
+        _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Equality_SS);
+    }
+
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):

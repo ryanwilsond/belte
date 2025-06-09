@@ -145,7 +145,11 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitStringConcat2() {
-        _iLGenerator.Emit(OpCodes.Call, _module.GetStringConcat2());
+        _iLGenerator.Emit(OpCodes.Call, Executor.NetMethodInfo.String_Concat_SS);
+    }
+
+    internal override void EmitStringEquality() {
+        _iLGenerator.Emit(OpCodes.Call, Executor.NetMethodInfo.String_Equality_SS);
     }
 
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
