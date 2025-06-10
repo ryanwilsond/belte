@@ -20,9 +20,11 @@ internal partial class GraphicsHandler : Game {
     private readonly FontManager _fontManager;
     private readonly ValueWrapper<bool> _abort;
     private readonly ConcurrentDictionary<int, Action> _updateActions = [];
-    private readonly bool _usePointClamp;
 
+    private bool _usePointClamp;
     private UpdateHandler _updateHandler;
+    private Action<double> _executeHandler;
+    private Action _executeMain;
     private SpriteBatch _spriteBatch;
     private int _actionCount;
 
@@ -34,11 +36,28 @@ internal partial class GraphicsHandler : Game {
         _abort = abort;
         _usePointClamp = usePointClamp;
         IsMouseVisible = true;
-        // IsFixedTimeStep = true;
-        // TargetElapsedTime = TimeSpan.FromSeconds(1d / 60d);
+        IsFixedTimeStep = false;
+        _graphics.SynchronizeWithVerticalRetrace = false;
     }
 
     internal delegate void UpdateHandler(double deltaTicks, ValueWrapper<bool> abort);
+
+    internal void SetUsePointClamp(bool usePointClamp) {
+        _usePointClamp = usePointClamp;
+    }
+
+    internal void LockFramerate(int fps) {
+        IsFixedTimeStep = true;
+        TargetElapsedTime = TimeSpan.FromSeconds(1d / fps);
+    }
+
+    internal void SetExecuteHandler(Action<double> executeHandler) {
+        _executeHandler = executeHandler;
+    }
+
+    internal void SetExecuteMain(Action executeMain) {
+        _executeMain = executeMain;
+    }
 
     internal void SetUpdateHandler(UpdateHandler updateHandler) {
         _updateHandler = updateHandler;
@@ -210,6 +229,11 @@ internal partial class GraphicsHandler : Game {
         GraphicsDevice.Clear(color);
     }
 
+    public void Fill(long r, long g, long b) {
+        var color = new Color(r, g, b);
+        GraphicsDevice.Clear(color);
+    }
+
     private Color GetColor(object r, object g, object b, object a = null) {
         var ri = r is null ? 255 : Convert.ToInt32(r);
         var gi = g is null ? 255 : Convert.ToInt32(g);
@@ -219,8 +243,8 @@ internal partial class GraphicsHandler : Game {
     }
 
     protected override void Initialize() {
-        IsFixedTimeStep = false;
-        _graphics.SynchronizeWithVerticalRetrace = false;
+        if (_executeMain is not null)
+            _executeMain();
 
         _graphics.IsFullScreen = false;
         _graphics.PreferredBackBufferWidth = Width;
@@ -255,11 +279,15 @@ internal partial class GraphicsHandler : Game {
 
         _spriteBatch.Begin(samplerState: _usePointClamp ? SamplerState.PointClamp : null);
 
-        if (_updateHandler is not null)
-            _updateHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0, _abort);
+        if (_executeHandler is not null) {
+            _executeHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0);
+        } else {
+            if (_updateHandler is not null)
+                _updateHandler(gameTime.ElapsedGameTime.Ticks / 10000000.0, _abort);
 
-        foreach (var action in _updateActions.Values)
-            action.Invoke();
+            foreach (var action in _updateActions.Values)
+                action.Invoke();
+        }
 
         _spriteBatch.End();
         base.Draw(gameTime);

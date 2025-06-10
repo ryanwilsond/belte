@@ -231,12 +231,12 @@ public sealed class Compilation {
         return result;
     }
 
-    public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
-        var timer = logTime ? Stopwatch.StartNew() : null;
+    public BelteDiagnosticQueue Emit(string outputPath, bool log = false) {
+        var timer = log ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
-        Log(logTime, timer, diagnostics, $"Compiled in {timer?.ElapsedMilliseconds} ms");
+        Log(log, timer, diagnostics, $"Compiled in {timer?.ElapsedMilliseconds} ms");
 
         if (diagnostics.AnyErrors())
             return diagnostics;
@@ -249,12 +249,12 @@ public sealed class Compilation {
             diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
         if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
-            Log(logTime, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
+            Log(log, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
 
         return diagnostics;
     }
 
-    public BelteDiagnosticQueue Execute() {
+    public BelteDiagnosticQueue Execute(bool log = false) {
         var builder = GetDiagnostics();
 
         if (builder.AnyErrors())
@@ -270,7 +270,7 @@ public sealed class Compilation {
 #endif
 
         var executor = new Executor(boundProgram, options.arguments);
-        var result = executor.Execute();
+        var result = executor.Execute(log);
 
 #if DEBUG
         if (options.enableOutput && result is not null)

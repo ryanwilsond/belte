@@ -32,6 +32,7 @@ class Program {
 
         // `Graphics.Initialize` creates the window and must be the first Graphics call made
         Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
+        Graphics.LockFramerate(120);
 
         centerOfScreen = new Vec2(Settings.ScreenWidth / 2.0, Settings.ScreenHeight / 2.0);
 
@@ -101,13 +102,13 @@ class Program {
         lPaddle.SetPosition(lPaddle.position.x, lerpedYl);
 
         if (aiOn) {
-            if (rPaddle.position.y < ball.position.y) {
+            if (rPaddle.position.y! < ball.position.y!) {
                 var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
                 newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
                 rPaddleTargetPosition.y = newY;
             }
 
-            if (rPaddle.position.y > ball.position.y) {
+            if (rPaddle.position.y! > ball.position.y!) {
                 var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
                 newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
                 rPaddleTargetPosition.y = newY;
@@ -163,7 +164,7 @@ class Program {
         var topEdge = ballY - scaleY / 2;
         var bottomEdge = ballY + scaleY / 2;
 
-        if (topEdge <= 0 || bottomEdge >= Settings.ScreenHeight) {
+        if (topEdge! <= 0 || bottomEdge! >= Settings.ScreenHeight) {
             var vX = ballVelocity.x;
             var vY = ballVelocity.y;
             vY *= -1;
@@ -171,7 +172,7 @@ class Program {
             return;
         }
 
-        if (ballX < 0) {
+        if (ballX! < 0) {
             var ballPos = centerOfScreen;
             ballPos.x -= ball.dst.w;
             ballPos.y -= ball.dst.h;
@@ -181,7 +182,7 @@ class Program {
             scoreTwo.text = (string!)(((int)scoreTwo.text) + 1);
         }
 
-        if (ballX > Settings.ScreenWidth) {
+        if (ballX! > Settings.ScreenWidth) {
             var ballPos = centerOfScreen;
             ballPos.x -= ball.dst.w;
             ballPos.y -= ball.dst.h;

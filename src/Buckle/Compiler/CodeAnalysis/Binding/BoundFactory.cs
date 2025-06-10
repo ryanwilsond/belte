@@ -11,7 +11,7 @@ internal static partial class BoundFactory {
         return new BoundNopStatement(null);
     }
 
-    internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type = null) {
+    internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
         if (type is not null)
             return new BoundLiteralExpression(syntax, new ConstantValue(value, type.specialType), type);
 

@@ -2846,16 +2846,16 @@ internal partial class Binder {
 
     internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindBooleanExpressionCore(node, diagnostics);
-        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
-
-        var conversion = conversions.ClassifyConversionFromType(expression.type, boolean);
-
-        return CreateConversion(expression, conversion, boolean, diagnostics);
+        // TODO HAVE to allow nullable conditions
+        // var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+        // var conversion = conversions.ClassifyConversionFromType(expression.type, boolean);
+        // return CreateConversion(expression, conversion, boolean, diagnostics);
+        return expression;
     }
 
     internal BoundExpression BindBooleanExpressionCore(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindValue(node, diagnostics, BindValueKind.RValue);
-        var boolean = CorLibrary.GetNullableType(SpecialType.Bool);
+        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
 
         if (expression.hasErrors) {
             return new BoundCastExpression(
@@ -5782,6 +5782,7 @@ internal partial class Binder {
         out LookupResultKind resultKind,
         out ImmutableArray<MethodSymbol> originalUserDefinedOperators) {
         var result = BinaryOperatorOverloadResolutionResult.GetInstance();
+
         overloadResolution.BinaryOperatorOverloadResolution(kind, left, right, result);
         var possiblyBest = result.best;
 
@@ -5809,6 +5810,7 @@ internal partial class Binder {
         }
 
         result.Free();
+
         return possiblyBest;
     }
 
@@ -8401,6 +8403,8 @@ symIsHidden:;
             if (returnRefKind != RefKind.None) {
                 if (conversion.kind is not ConversionKind.Identity and not ConversionKind.NullLiteral)
                     diagnostics.Push(Error.RefReturnMustHaveIdentityConversion(argument.syntax.location, returnType));
+                else if (conversion.kind == ConversionKind.NullLiteral)
+                    return BoundFactory.Literal(argument.syntax, null, returnType);
                 else
                     return BindToNaturalType(argument, diagnostics);
             }
@@ -8616,13 +8620,13 @@ symIsHidden:;
         var constantValue = ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination));
 
         return new BoundCastExpression(
-            node,
-            BindToNaturalType(source, diagnostics),
-            conversion,
-            constantValue,
-            destination,
-            hasErrors
-        );
+                node,
+                BindToNaturalType(source, diagnostics),
+                conversion,
+                constantValue,
+                destination,
+                hasErrors
+            );
     }
 
     internal BoundExpression CreateConversion(

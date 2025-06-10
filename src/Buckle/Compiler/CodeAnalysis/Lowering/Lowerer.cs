@@ -364,7 +364,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal static BoundExpression CreateNullableGetValueCall(
-        Syntax.SyntaxNode syntax,
+        SyntaxNode syntax,
         BoundExpression operand,
         TypeSymbol genericType) {
         return InstanceCall(

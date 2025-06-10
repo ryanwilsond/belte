@@ -160,7 +160,7 @@ public sealed class Compiler {
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute());
+                    diagnostics.PushRange(compilation.Execute(state.verboseMode));
                 }
             }
 

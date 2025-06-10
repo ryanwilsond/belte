@@ -69,13 +69,25 @@ internal sealed partial class CodeGenerator {
     }
 
     internal static bool IsReferenceType(TypeSymbol type) {
-        return (type.isObjectType && type.specialType != SpecialType.Nullable) ||
-            type.specialType == SpecialType.String;
+        return (type.isObjectType && !IsTrueNullable(type)) ||
+            type.specialType == SpecialType.String || type.specialType == SpecialType.Array;
     }
 
     internal static bool IsValueType(TypeSymbol type) {
-        return (type.isPrimitiveType || type.specialType == SpecialType.Nullable) &&
-            type.specialType != SpecialType.String;
+        return (type.isPrimitiveType || IsTrueNullable(type)) &&
+            type.specialType != SpecialType.String && type.specialType != SpecialType.Array;
+    }
+
+    private static bool IsTrueNullable(TypeSymbol type) {
+        if (type.specialType != SpecialType.Nullable)
+            return false;
+
+        // This happens when looking at the containing type of methods on Nullable, in which case yes it is nullable
+        if (((NamedTypeSymbol)type).templateArguments.Length == 0)
+            return true;
+
+        var underlyingType = type.GetNullableUnderlyingType();
+        return IsValueType(underlyingType);
     }
 
     internal static bool IsStackLocal(DataContainerSymbol local, HashSet<DataContainerSymbol> stackLocals) {
@@ -203,7 +215,7 @@ internal sealed partial class CodeGenerator {
         if (ShouldEmitReadOnlyPrefix(arrayAccess, addressKind))
             _builder.Emit(OpCode.Readonly);
 
-        if (((ArrayTypeSymbol)arrayAccess.receiver.type).isSZArray) {
+        if (((ArrayTypeSymbol)arrayAccess.receiver.type.StrippedType()).isSZArray) {
             _builder.EmitWithSymbolToken(OpCode.Ldelema, arrayAccess.type);
         } else {
             // TODO We only have SZ arrays currently?
@@ -897,7 +909,7 @@ oneMoreTime:
         EmitExpression(expression.receiver, used: true);
         EmitArrayIndex(expression.index);
 
-        if (((ArrayTypeSymbol)expression.receiver.type).isSZArray) {
+        if (((ArrayTypeSymbol)expression.receiver.type.StrippedType()).isSZArray) {
             var elementType = expression.type;
 
             switch (elementType.specialType) {
@@ -2592,8 +2604,8 @@ oneMoreTime:
 
         if (IsNumeric(fromPredefTypeKind) && IsNumeric(toPredefTypeKind))
             EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
-
-        _builder.EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
+        else
+            _builder.EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
     }
 
     private void EmitNumericConversion(SpecialType from, SpecialType to) {

@@ -2,6 +2,8 @@
 public static class Graphics {
     public static void Initialize(string! title, int! width, int! height, bool! usePointClamp = false);
 
+    public static void LockFramerate(int! fps);
+
     public static Texture LoadTexture(string! path);
 
     public static Texture LoadTexture(string! path, int! r, int! g, int! b);

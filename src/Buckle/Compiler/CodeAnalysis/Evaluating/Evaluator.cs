@@ -1632,6 +1632,12 @@ internal sealed class Evaluator {
                 }
 
                 break;
+            case "Graphics_LockFramerate_I": {
+                    var argument = Convert.ToInt32(Value(EvaluateExpression(arguments[0], abort)));
+                    _context.graphicsHandler.LockFramerate(argument);
+                }
+
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(mapKey);
         }

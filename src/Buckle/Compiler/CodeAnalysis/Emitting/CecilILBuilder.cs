@@ -134,6 +134,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssert(type));
     }
 
+    internal override void EmitNullValue(TypeSymbol type) {
+        _iLProcessor.Emit(OpCodes.Call, _module.GetNullableValue(type));
+    }
+
     internal override void EmitStringConcat2() {
         _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Concat_SS);
     }

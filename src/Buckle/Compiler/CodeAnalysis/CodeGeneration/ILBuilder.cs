@@ -62,6 +62,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitRandomNext();
 
+    internal abstract void EmitNullValue(TypeSymbol generic);
+
     internal abstract void EmitLdsfldRandom();
 
     internal abstract void EmitNewobjNullable(TypeSymbol generic);
