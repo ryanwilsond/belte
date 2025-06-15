@@ -18,19 +18,11 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     private static readonly BoxedMemberNames EmptyMemberNames
         = new BoxedMemberNames(ImmutableSegmentedHashSet<string>.Empty);
 
-    private readonly SyntaxTree _syntaxTree;
-    private readonly string _scriptClassName;
-    private readonly bool _isSubmission;
     private readonly OneOrMany<WeakReference<BoxedMemberNames>> _previousMemberNames;
 
     private int _currentTypeIndex;
 
-    private DeclarationTreeBuilder(
-        SyntaxTree syntaxTree,
-        OneOrMany<WeakReference<BoxedMemberNames>> previousMemberNames) {
-        _syntaxTree = syntaxTree;
-        _scriptClassName = "";
-        _isSubmission = false;
+    private DeclarationTreeBuilder(OneOrMany<WeakReference<BoxedMemberNames>> previousMemberNames) {
         _previousMemberNames = previousMemberNames;
     }
 
@@ -38,7 +30,6 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         SyntaxTree syntaxTree,
         OneOrMany<WeakReference<BoxedMemberNames>>? previousMemberNames = null) {
         var builder = new DeclarationTreeBuilder(
-            syntaxTree,
             previousMemberNames ?? OneOrMany<WeakReference<BoxedMemberNames>>.Empty);
         return (RootSingleNamespaceDeclaration)builder.Visit(syntaxTree.GetRoot());
     }
@@ -61,9 +52,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             return [];
 
         var hasGlobalMembers = false;
-        var acceptSimpleProgram = node.kind == SyntaxKind.CompilationUnit /*&& _syntaxTree.kind == SourceCodeKind.Regular*/;
-        var hasAwaitExpressions = false;
-        var isIterator = false;
+        var acceptSimpleProgram = node.kind == SyntaxKind.CompilationUnit;
         var hasReturnWithExpression = false;
         GlobalStatementSyntax firstGlobalStatement = null;
         var hasNonEmptyGlobalStatement = false;
@@ -162,28 +151,20 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     }
 
     internal override SingleNamespaceOrTypeDeclaration VisitCompilationUnit(CompilationUnitSyntax compilationUnit) {
-        // TODO The REPL kind of just assumes the compiler treats the submissions as regular
-        // TODO And to compensate, the compiler assumes it might be compiling scripts at any time
-        // TODO Perhaps this is not optimal
-        // if (_syntaxTree.kind != SourceCodeKind.Regular) {
-        //     return CreateScriptRootDeclaration(compilationUnit);
-        // }
         var children = VisitNamespaceChildren(
             compilationUnit,
             compilationUnit.members,
             ((CoreInternalSyntax.CompilationUnitSyntax)compilationUnit.green).members
         );
 
-        return CreateRootSingleNamespaceDeclaration(compilationUnit, children, isForScript: false);
+        return CreateRootSingleNamespaceDeclaration(compilationUnit, children);
     }
 
     private RootSingleNamespaceDeclaration CreateRootSingleNamespaceDeclaration(
         CompilationUnitSyntax compilationUnit,
-        ImmutableArray<SingleNamespaceOrTypeDeclaration> children,
-        bool isForScript) {
+        ImmutableArray<SingleNamespaceOrTypeDeclaration> children) {
         var hasUsings = false;
         var hasGlobalUsings = false;
-        var reportedGlobalUsingOutOfOrder = false;
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 

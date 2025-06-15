@@ -208,7 +208,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         }
     }
 
-    private protected BoundExpression FramePointer(SyntaxNode syntax, NamedTypeSymbol frameClass) {
+    private BoundExpression FramePointer(SyntaxNode syntax, NamedTypeSymbol frameClass) {
         if (_currentFrameThis is not null &&
             TypeSymbol.Equals(_currentFrameThis.type, frameClass, TypeCompareKind.ConsiderEverything)) {
             return new BoundThisExpression(syntax, frameClass);

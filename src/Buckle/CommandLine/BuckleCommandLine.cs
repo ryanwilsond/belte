@@ -126,92 +126,92 @@ public static partial class BuckleCommandLine {
         return diagnostics;
     }
 
-    private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
+    private static void ShowErrorHelp(string _, out DiagnosticQueue<Diagnostic> diagnostics) {
         diagnostics = new DiagnosticQueue<Diagnostic>();
         diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
         return;
 
-        string prefix;
+        // string prefix;
 
-        if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
-            prefix = "BU";
-            error = prefix + error;
-        } else {
-            prefix = error.Substring(0, 2);
-        }
+        // if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
+        //     prefix = "BU";
+        //     error = prefix + error;
+        // } else {
+        //     prefix = error.Substring(0, 2);
+        // }
 
-        diagnostics = new DiagnosticQueue<Diagnostic>();
-        var errorCode = 0;
+        // diagnostics = new DiagnosticQueue<Diagnostic>();
+        // var errorCode = 0;
 
-        try {
-            errorCode = Convert.ToInt32(error.Substring(2));
-        } catch (Exception e) when (e is FormatException || e is OverflowException) {
-            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-            return;
-        }
+        // try {
+        //     errorCode = Convert.ToInt32(error.Substring(2));
+        // } catch (Exception e) when (e is FormatException || e is OverflowException) {
+        //     diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
+        //     return;
+        // }
 
-        string allDescriptions = null;
+        // string allDescriptions = null;
 
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
-            var foundDescriptions = assembly.GetManifestResourceNames()
-                .Where(r => r.EndsWith($"Resources.ErrorDescriptions{prefix}.txt"));
+        // foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
+        //     var foundDescriptions = assembly.GetManifestResourceNames()
+        //         .Where(r => r.EndsWith($"Resources.ErrorDescriptions{prefix}.txt"));
 
-            if (foundDescriptions.Any()) {
-                using var stream = assembly.GetManifestResourceStream(foundDescriptions.First());
-                using var reader = new StreamReader(stream);
-                allDescriptions = reader.ReadToEnd();
-                break;
-            }
-        }
+        //     if (foundDescriptions.Any()) {
+        //         using var stream = assembly.GetManifestResourceStream(foundDescriptions.First());
+        //         using var reader = new StreamReader(stream);
+        //         allDescriptions = reader.ReadToEnd();
+        //         break;
+        //     }
+        // }
 
-        if (allDescriptions is null) {
-            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-            return;
-        }
+        // if (allDescriptions is null) {
+        //     diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
+        //     return;
+        // }
 
-        var messages = new Dictionary<int, string>();
+        // var messages = new Dictionary<int, string>();
 
-        foreach (var message in allDescriptions.Split($"${prefix}")) {
-            try {
-                var code = message.Substring(0, 4);
-                messages[Convert.ToInt32(code)] = message.Substring(4);
-            } catch (ArgumentOutOfRangeException) { }
-        }
+        // foreach (var message in allDescriptions.Split($"${prefix}")) {
+        //     try {
+        //         var code = message.Substring(0, 4);
+        //         messages[Convert.ToInt32(code)] = message.Substring(4);
+        //     } catch (ArgumentOutOfRangeException) { }
+        // }
 
-        if (!messages.ContainsKey(errorCode)) {
-            diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(error));
-            return;
-        }
+        // if (!messages.ContainsKey(errorCode)) {
+        //     diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(error));
+        //     return;
+        // }
 
-        var foundMessage = messages[errorCode].Substring(2);
+        // var foundMessage = messages[errorCode].Substring(2);
 
-        if (foundMessage.EndsWith(Environment.NewLine))
-            foundMessage = foundMessage.Substring(0, foundMessage.Length - 1);
+        // if (foundMessage.EndsWith(Environment.NewLine))
+        //     foundMessage = foundMessage.Substring(0, foundMessage.Length - 1);
 
-        var lines = foundMessage.Split(Environment.NewLine);
-        var count = 0;
+        // var lines = foundMessage.Split(Environment.NewLine);
+        // var count = 0;
 
-        while (count < lines.Length) {
-            // First -1 is required, second -1 is because we are printing -- More --
-            // -2 is to account for the next terminal input line
-            if (count > Console.WindowHeight - 1 - 1 - 2) {
-                var key = ' ';
+        // while (count < lines.Length) {
+        //     // First -1 is required, second -1 is because we are printing -- More --
+        //     // -2 is to account for the next terminal input line
+        //     if (count > Console.WindowHeight - 1 - 1 - 2) {
+        //         var key = ' ';
 
-                do {
-                    Console.Write("-- More --");
-                    key = Console.ReadKey().KeyChar;
-                    var currentLineCursor = Console.CursorTop;
-                    Console.SetCursorPosition(0, Console.CursorTop);
-                    // * Does not need -1 in some terminals
-                    // Unfortunately the program cant tell what terminal is being used
-                    Console.Write(new string(' ', Console.WindowWidth - 1));
-                    Console.SetCursorPosition(0, currentLineCursor);
-                } while (key != '\n' && key != '\r');
-            }
+        //         do {
+        //             Console.Write("-- More --");
+        //             key = Console.ReadKey().KeyChar;
+        //             var currentLineCursor = Console.CursorTop;
+        //             Console.SetCursorPosition(0, Console.CursorTop);
+        //             // * Does not need -1 in some terminals
+        //             // Unfortunately the program cant tell what terminal is being used
+        //             Console.Write(new string(' ', Console.WindowWidth - 1));
+        //             Console.SetCursorPosition(0, currentLineCursor);
+        //         } while (key != '\n' && key != '\r');
+        //     }
 
-            var line = lines[count++];
-            Console.WriteLine(line);
-        }
+        //     var line = lines[count++];
+        //     Console.WriteLine(line);
+        // }
     }
 
     private static void ShowHelpDialog() {

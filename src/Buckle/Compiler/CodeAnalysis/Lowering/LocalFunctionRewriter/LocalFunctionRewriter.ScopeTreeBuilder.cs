@@ -21,7 +21,6 @@ internal sealed partial class LocalFunctionRewriter {
 
         private Scope _currentScope;
         private NestedFunction _currentFunction;
-        private bool _inExpressionTree;
 
         private ScopeTreeBuilder(Scope rootScope, MethodSymbol topLevelMethod, CompilationOptions options) {
             _currentScope = rootScope;
@@ -155,11 +154,9 @@ internal sealed partial class LocalFunctionRewriter {
             var oldScope = _currentScope;
             CreateAndPushScope(body);
 
-            DeclareLocals(_currentScope, functionSymbol.parameters, _inExpressionTree);
+            DeclareLocals(_currentScope, functionSymbol.parameters);
 
-            var result = _inExpressionTree
-                ? base.VisitBlockStatement(body)
-                : VisitBlockStatement(body);
+            var result = VisitBlockStatement(body);
 
             PopScope(oldScope);
             _currentFunction = oldFunction;

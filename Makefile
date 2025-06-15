@@ -5,12 +5,12 @@ CL_DIR:=$(BUCKLE_DIR)/CommandLine
 COMPILER_DIR:=$(BUCKLE_DIR)/Compiler
 REPL_DIR:=$(BUCKLE_DIR)/Repl
 DIAGNOSTICS_DIR:=$(DEPENDENCY_DIR)/Diagnostics
+DEBUG_DIR:=bin/debug
+RELEASE_DIR:=bin/release
 
 NETVER:=net9.0
 SYSTEM:=win-x64
 SLN:=Belte.sln
-CP=cp
-RM=rm
 
 RESOURCES:=Resources
 TEST_RESOURCES:=$(COMPILER_DIR).Tests/bin/Debug/$(NETVER)/$(RESOURCES)
@@ -21,32 +21,40 @@ GENERATED_DIR:=$(COMPILER_DIR)/CodeAnalysis/Generated
 FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
 	--sc true -c Release -f $(NETVER)
 
+ifeq ($(OS), Windows_NT)
+	RM:=powershell -Command "Remove-Item -Recurse -Force"
+	CP:=powershell -Command "Copy-Item -Recurse"
+	MV:=powershell -Command "Move-Item -Force"
+	MKDIR:= powershell -Command "New-Item -ItemType Directory -Force"
+else
+	RM:=rm -rf
+	CP:=cp
+	MV:=mv
+	MKDIR:=mkdir -p
+endif
+
 all: debug
-release: prebuild build postbuild
+release: prebuild copydlls build postbuild
 portable: prebuild buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
 setup: prebuild generate
 
-# Tests the solution
 .PHONY: test
+
+# Tests the solution
 test:
 	@echo Started testing the Belte solution ...
 	@dotnet build $(CL_DIR).Tests/CommandLine.Tests.csproj
 	@dotnet build $(COMPILER_DIR).Tests/Compiler.Tests.csproj
 	@dotnet build $(DIAGNOSTICS_DIR).Tests/Diagnostics.Tests.csproj
-# @$(RM) -f -r $(TEST_RESOURCES)
-# @mkdir $(TEST_RESOURCES)
-# @$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-# @$(CP) -a $(COMPILER_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
-# @$(CP) -a $(REPL_DIR)/$(RESOURCES)/. $(TEST_RESOURCES)
 	@dotnet test $(SLN)
 	@echo "    Finished"
 
 # Cleans the solution
 clean:
 	@dotnet clean $(SLN)
-	@$(RM) -f -r bin
+	@$(RM) bin
 	@echo Hard cleaned the solution
 
 # Formats the solution
@@ -56,7 +64,7 @@ format:
 
 # Generates syntax
 generate:
-	@mkdir -p $(GENERATED_DIR)
+	@$(MKDIR) $(GENERATED_DIR)
 	@dotnet run --project $(BUCKLE_DIR)/SourceGenerators/SyntaxGenerator/SyntaxGenerator.csproj --framework $(NETVER) \
 		$(SYNTAXPATH) $(GENERATED_DIR)
 	@dotnet run --project $(BUCKLE_DIR)/SourceGenerators/BoundTreeGenerator/BoundTreeGenerator.csproj \
@@ -64,26 +72,26 @@ generate:
 	@echo Generated compiler source files
 
 prebuild:
-	@mkdir -p bin
-	@mkdir -p bin/release
-	@mkdir -p bin/portable
-	@mkdir -p bin/debug
-	@mkdir -p bin/linux
+	@$(MKDIR) bin
+	@$(MKDIR) bin/release
+	@$(MKDIR) bin/portable
+	@$(MKDIR) bin/debug
+	@$(MKDIR) bin/linux
 
 postbuild:
-	@mv bin/release/CommandLine.exe bin/release/buckle.exe
+	@$(MV) bin/release/CommandLine.exe bin/release/buckle.exe
 	@echo "    Finished"
 
 postbuildportable:
-	@mv bin/release/CommandLine.exe bin/portable/buckle.exe
+	@$(MV) bin/release/CommandLine.exe bin/portable/buckle.exe
 	@echo "    Finished"
 
 postbuilddebug:
-	@mv bin/debug/CommandLine.exe bin/debug/buckle.exe
+	@$(MV) bin/debug/CommandLine.exe bin/debug/buckle.exe
 	@echo "    Finished"
 
 postbuildlinux:
-	@mv bin/linux/CommandLine bin/linux/buckle
+	@$(MV) bin/linux/CommandLine bin/linux/buckle
 	@echo "    Finished"
 
 build:
@@ -102,3 +110,14 @@ builddebug:
 buildlinux:
 	@echo "Started building the Buckle project (linux) ..."
 	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -o bin/linux
+
+copydlls:
+ifeq (,$(wildcard $(RELEASE_DIR)/freetype6.dll))
+	@$(MAKE) builddebug
+	@$(MAKE) copydllscore
+endif
+
+copydllscore:
+	@$(CP) $(DEBUG_DIR)/freetype6.dll $(RELEASE_DIR)/
+	@$(CP) $(DEBUG_DIR)/openal.dll $(RELEASE_DIR)/
+	@$(CP) $(DEBUG_DIR)/SDL2.dll $(RELEASE_DIR)/

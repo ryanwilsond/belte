@@ -1139,27 +1139,26 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         return BindValue(node, diagnostics, valueKind);
         // TODO Do we want to distinguish collection expressions from array initializers?
+        // if (node.kind != SyntaxKind.InitializerListExpression)
+        //     return BindValue(node, diagnostics, valueKind);
 
-        if (node.kind != SyntaxKind.InitializerListExpression)
-            return BindValue(node, diagnostics, valueKind);
+        // BoundExpression result;
+        // if (destinationType.kind == SymbolKind.ArrayType) {
+        //     result = BindArrayCreationWithInitializer(
+        //         diagnostics,
+        //         null,
+        //         (InitializerListExpressionSyntax)node,
+        //         (ArrayTypeSymbol)destinationType,
+        //         []
+        //     );
+        // } else {
+        //     // TODO Pretty sure we can just do nothing and a conversion error will be produced somewhere
+        //     result = BindValue(node, diagnostics, valueKind);
+        //     // result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)node, diagnostics, ErrorCode.ERR_ArrayInitToNonArrayType);
+        //     // result = null;
+        // }
 
-        BoundExpression result;
-        if (destinationType.kind == SymbolKind.ArrayType) {
-            result = BindArrayCreationWithInitializer(
-                diagnostics,
-                null,
-                (InitializerListExpressionSyntax)node,
-                (ArrayTypeSymbol)destinationType,
-                []
-            );
-        } else {
-            // TODO Pretty sure we can just do nothing and a conversion error will be produced somewhere
-            result = BindValue(node, diagnostics, valueKind);
-            // result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)node, diagnostics, ErrorCode.ERR_ArrayInitToNonArrayType);
-            // result = null;
-        }
-
-        return CheckValue(result, valueKind, diagnostics);
+        // return CheckValue(result, valueKind, diagnostics);
     }
 
     internal static bool IsAnyReadOnly(AddressKind addressKind) => addressKind >= AddressKind.ReadOnly;
@@ -1645,6 +1644,7 @@ internal partial class Binder {
             3 => Error.RefReturnConstNotField2(node.location, symbolKind, symbol),
             4 => Error.RefConstNotField2(node.location, symbolKind, symbol),
             5 => Error.ConstantAssignmentNotField2(node.location, symbolKind, symbol),
+            _ => throw ExceptionUtilities.Unreachable()
         });
     }
 
@@ -1671,6 +1671,7 @@ internal partial class Binder {
             9 => Error.RefReturnConstantStatic2(node.location, field),
             10 => Error.RefConstantStatic2(node.location, field),
             11 => Error.AssignmentConstantStatic2(node.location, field),
+            _ => throw ExceptionUtilities.Unreachable()
         });
     }
 
@@ -2846,16 +2847,14 @@ internal partial class Binder {
 
     internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindBooleanExpressionCore(node, diagnostics);
-        // TODO HAVE to allow nullable conditions
-        // var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
-        // var conversion = conversions.ClassifyConversionFromType(expression.type, boolean);
-        // return CreateConversion(expression, conversion, boolean, diagnostics);
-        return expression;
+        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var conversion = conversions.ClassifyConversionFromType(expression.type, boolean);
+        return CreateConversion(expression, conversion, boolean, diagnostics);
     }
 
     internal BoundExpression BindBooleanExpressionCore(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindValue(node, diagnostics, BindValueKind.RValue);
-        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolean = CorLibrary.GetNullableType(SpecialType.Bool);
 
         if (expression.hasErrors) {
             return new BoundCastExpression(
@@ -3093,7 +3092,6 @@ internal partial class Binder {
             case SymbolKind.Local: {
                     var localSymbol = (DataContainerSymbol)symbol;
                     TypeSymbol type;
-                    bool isNullableUnknown;
 
                     if (IsUsedBeforeDeclaration(node, localSymbol)) {
                         FieldSymbol possibleField;
@@ -3131,7 +3129,6 @@ internal partial class Binder {
                             variableUsedBeforeDeclaration: true
                         );
 
-                        isNullableUnknown = true;
                     } else if (localSymbol is SourceDataContainerSymbol { isImplicitlyTyped: true } &&
                         localSymbol.forbiddenZone?.Contains(node) == true) {
                         diagnostics.Push(localSymbol.forbiddenDiagnostic);
@@ -3144,10 +3141,8 @@ internal partial class Binder {
                             variableUsedBeforeDeclaration: true
                         );
 
-                        isNullableUnknown = true;
                     } else {
                         type = localSymbol.type;
-                        isNullableUnknown = false;
 
                         if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
                             isError = true;

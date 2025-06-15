@@ -20,7 +20,7 @@ class PhysicsEntity {
     public Vec2 velocity;
 
     public constructor(ref Program game, Vec2 position, int kind) {
-        this.game = ref game;
+        this.game = game;
         pos = position;
         this.kind = kind;
 

@@ -231,12 +231,7 @@ public sealed partial class BelteRepl : Repl {
             return true;
 
         var lines = text.Split(Environment.NewLine);
-        lines.Reverse();
-
-        var twoBlankLines = lines
-            .TakeWhile(s => string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s))
-            .Take(2)
-            .Count() == 2;
+        var twoBlankLines = lines.TakeLast(2).All(string.IsNullOrWhiteSpace);
 
         if (twoBlankLines)
             return true;

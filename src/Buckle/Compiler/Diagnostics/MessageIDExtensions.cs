@@ -1,3 +1,4 @@
+using Buckle.Utilities;
 
 namespace Buckle.Diagnostics;
 
@@ -17,6 +18,7 @@ internal static class MessageIDExtensions {
             MessageID.IDS_SK_ARRAY => "array",
             MessageID.IDS_MethodGroup => "method group",
             MessageID.IDS_ArrayAccess => "array access",
+            _ => throw ExceptionUtilities.Unreachable()
         };
     }
 }

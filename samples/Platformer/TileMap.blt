@@ -11,7 +11,7 @@ class TileMap {
 
     public constructor(ref Textures textures, int! tileSize = 64) {
         this.tileSize = tileSize;
-        this.textures = ref textures;
+        this.textures = textures;
         tileCount = 0;
         offGridCount = 0;
         lowestY = 0;
@@ -239,7 +239,7 @@ class TileMap {
         return sorted;
     }
 
-    public ref Tile[] GetSortedNearTiles(int! x, int! y) {
+    public Tile[] GetSortedNearTiles(int! x, int! y) {
         var gx = Math.Round(x / (decimal)tileSize);
         var gy = Math.Round(y / (decimal)tileSize);
         var unsorted = GetNearTiles(x, y);
@@ -260,7 +260,7 @@ class TileMap {
             }
         }
 
-        return ref sorted;
+        return sorted;
     }
 
     public void Render(Vec2 offset) {

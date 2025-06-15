@@ -1761,9 +1761,8 @@ internal sealed class Evaluator {
             IsBackground = true
         };
 
-#if _WINDOWS
-        _context.graphicsThread.SetApartmentState(ApartmentState.STA);
-#endif
+        if (OperatingSystem.IsWindows())
+            _context.graphicsThread.SetApartmentState(ApartmentState.STA);
 
         _context.graphicsThread.Start();
     }

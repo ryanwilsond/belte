@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -336,7 +337,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             return true;
 
         if (expression.constantValue is not null) {
-            // Error(diagnostics, GetStandardRValueRefEscapeError(escapeTo), node);
+            diagnostics.Push(GetStandardRValueRefEscapeError(node.location, escapeTo));
             return false;
         }
 
@@ -436,7 +437,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return true;
         }
 
-        // Error(diagnostics, GetStandardRValueRefEscapeError(escapeTo), node);
+        diagnostics.Push(GetStandardRValueRefEscapeError(node.location, escapeTo));
         return false;
     }
 
@@ -657,7 +658,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 var localSymbol = ((BoundDataContainerExpression)expression).dataContainer;
 
                 if (GetLocalScopes(localSymbol).valEscapeScope > escapeTo) {
-                    // Error(diagnostics, ErrorCode.ERR_EscapeVariable, node, localSymbol);
+                    diagnostics.Push(Error.EscapeLocal(node.location, localSymbol));
                     return false;
                 }
 
@@ -908,8 +909,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
                 if (!valid) {
                     if ((object)argument != receiver)
-                        // ReportInvocationEscapeError(syntax, symbol, param, checkingReceiver, diagnostics);
-                        ;
+                        ReportInvocationEscapeError(syntax, symbol, param, checkingReceiver, diagnostics);
 
                     result = false;
                     break;
@@ -919,6 +919,44 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
         argsAndParamsAll.Free();
         return result;
+    }
+
+    private static BelteDiagnostic GetStandardRValueRefEscapeError(TextLocation location, uint escapeTo) {
+        if (escapeTo is CallingMethodScope or ReturnOnlyScope) {
+            return Error.RefReturnLValueExpected(location);
+        }
+
+        return Error.EscapeOther(location);
+    }
+
+    private static string GetInvocationParameterName(ParameterSymbol parameter) {
+        var parameterName = parameter.name;
+
+        if (string.IsNullOrEmpty(parameterName))
+            parameterName = parameter.ordinal.ToString();
+
+        return parameterName;
+    }
+
+    private static void ReportInvocationEscapeError(
+        SyntaxNode syntax,
+        Symbol symbol,
+        ParameterSymbol parameter,
+        bool checkingReceiver,
+        BelteDiagnosticQueue diagnostics) {
+        diagnostics.Push(GetCallEscapeError(syntax.location, symbol, checkingReceiver, parameter));
+    }
+
+    private static BelteDiagnostic GetCallEscapeError(
+        TextLocation location,
+        Symbol symbol,
+        bool checkingReceiver,
+        ParameterSymbol parameter) {
+        var parameterName = GetInvocationParameterName(parameter);
+
+        return checkingReceiver
+            ? Error.EscapeCall2(location, symbol, parameterName)
+            : Error.EscapeCall(location, symbol, parameterName);
     }
 
     private void GetFilteredInvocationArgumentsForEscape(
@@ -1066,7 +1104,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 parameter.type.IsRefLikeOrAllowsRefLikeType() &&
                 parameter.refKind.IsWritableReference();
 
-        static bool IsMixableArgument(BoundExpression argument) {
+        static bool IsMixableArgument(BoundExpression _) {
             return true;
         }
 
@@ -1140,7 +1178,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         uint escapeTo,
         BelteDiagnosticQueue diagnostics) {
         if (GetParameterValEscape(parameter) > escapeTo) {
-            // Error(diagnostics, ErrorCode.ERR_EscapeVariable, node, parameter);
+            diagnostics.Push(Error.EscapeLocal(node.location, parameter));
             return false;
         }
 
@@ -1160,26 +1198,31 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             var isRefScoped = parameterSymbol.effectiveScope == ScopedKind.ScopedRef;
 
             if (parameter is BoundThisExpression) {
+                // TODO Reachable?
                 // Error(diagnostics, ErrorCode.ERR_RefReturnStructThis, node);
                 return false;
             }
 
             switch ((checkingReceiver, isRefScoped, refSafeToEscape)) {
-                // TODO Errors
-                // case (checkingReceiver: true, isRefScoped: true, _):
-                //     diagnostics.Push(Error.RefReturnOnlyParameter2());
-                //     break;
+                case (checkingReceiver: true, isRefScoped: true, _):
+                    diagnostics.Push(Error.RefReturnScopedParameter2(parameter.syntax.location, parameterSymbol.name));
+                    break;
+                case (checkingReceiver: true, isRefScoped: false, ReturnOnlyScope):
+                    diagnostics.Push(Error.RefReturnOnlyParameter2(parameter.syntax.location, parameterSymbol.name));
+                    break;
+                case (checkingReceiver: true, isRefScoped: false, _):
+                    diagnostics.Push(Error.RefReturnParameter2(parameter.syntax.location, parameterSymbol.name));
+                    break;
+                case (checkingReceiver: false, isRefScoped: true, _):
+                    diagnostics.Push(Error.RefReturnScopedParameter(node.location, parameterSymbol.name));
+                    break;
+                case (checkingReceiver: false, isRefScoped: false, ReturnOnlyScope):
+                    diagnostics.Push(Error.RefReturnOnlyParameter(node.location, parameterSymbol.name));
+                    break;
+                case (checkingReceiver: false, isRefScoped: false, _):
+                    diagnostics.Push(Error.RefReturnParameter(node.location, parameterSymbol.name));
+                    break;
             }
-
-            // var (errorCode, syntax) = (checkingReceiver, isRefScoped, refSafeToEscape) switch {
-            //      => (ErrorCode.ERR_RefReturnScopedParameter2, parameter.Syntax),
-            //     (checkingReceiver: true, isRefScoped: false, ReturnOnlyScope) => (ErrorCode.ERR_RefReturnOnlyParameter2, parameter.Syntax),
-            //     (checkingReceiver: true, isRefScoped: false, _) => (ErrorCode.ERR_RefReturnParameter2, parameter.Syntax),
-            //     (checkingReceiver: false, isRefScoped: true, _) => (ErrorCode.ERR_RefReturnScopedParameter, node),
-            //     (checkingReceiver: false, isRefScoped: false, ReturnOnlyScope) => (ErrorCode.ERR_RefReturnOnlyParameter, node),
-            //     (checkingReceiver: false, isRefScoped: false, _) => (ErrorCode.ERR_RefReturnParameter, node),
-            // };
-            // Error(diagnostics, errorCode, syntax, parameterSymbol.Name);
 
             return false;
         }
@@ -1278,25 +1321,23 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
         if (escapeTo is CallingMethodScope or ReturnOnlyScope) {
             if (localSymbol.refKind == RefKind.None) {
-                if (checkingReceiver) {
-                    // Error(diagnostics, inUnsafeRegion ? ErrorCode.WRN_RefReturnLocal2 : ErrorCode.ERR_RefReturnLocal2, local.Syntax, localSymbol);
-                } else {
-                    // Error(diagnostics, inUnsafeRegion ? ErrorCode.WRN_RefReturnLocal : ErrorCode.ERR_RefReturnLocal, node, localSymbol);
-                }
+                if (checkingReceiver)
+                    diagnostics.Push(Error.RefReturnLocal2(local.syntax.location, localSymbol));
+                else
+                    diagnostics.Push(Error.RefReturnLocal(node.location, localSymbol));
 
                 return false;
             }
 
-            if (checkingReceiver) {
-                // Error(diagnostics, inUnsafeRegion ? ErrorCode.WRN_RefReturnNonreturnableLocal2 : ErrorCode.ERR_RefReturnNonreturnableLocal2, local.Syntax, localSymbol);
-            } else {
-                // Error(diagnostics, inUnsafeRegion ? ErrorCode.WRN_RefReturnNonreturnableLocal : ErrorCode.ERR_RefReturnNonreturnableLocal, node, localSymbol);
-            }
+            if (checkingReceiver)
+                diagnostics.Push(Error.RefReturnNonreturnableLocal2(local.syntax.location, localSymbol));
+            else
+                diagnostics.Push(Error.RefReturnNonreturnableLocal(node.location, localSymbol));
 
             return false;
         }
 
-        // Error(diagnostics, inUnsafeRegion ? ErrorCode.WRN_EscapeVariable : ErrorCode.ERR_EscapeVariable, node, localSymbol);
+        diagnostics.Push(Error.EscapeLocal(node.location, localSymbol));
         return false;
     }
 
@@ -1314,20 +1355,18 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 var rightEscape = GetRefEscape(op2, _localScopeDepth);
 
                 if (leftEscape < rightEscape) {
-                    // var errorCode = rightEscape switch {
-                    //     ReturnOnlyScope => ErrorCode.ERR_RefAssignReturnOnly,
-                    //     _ => ErrorCode.ERR_RefAssignNarrower,
-                    // };
+                    if (rightEscape == ReturnOnlyScope)
+                        diagnostics.Push(Error.RefAssignReturnOnly(node.location, GetName(op1), op1.syntax));
+                    else
+                        diagnostics.Push(Error.RefAssignNarrower(node.location, GetName(op1), op2.syntax));
 
-                    // Error(diagnostics, errorCode, node, GetName(op1), op2.Syntax);
                     hasErrors = true;
                 } else if (op1.kind is BoundKind.DataContainerExpression or BoundKind.ParameterExpression) {
                     leftEscape = GetValEscape(op1, _localScopeDepth);
                     rightEscape = GetValEscape(op2, _localScopeDepth);
 
                     if (leftEscape > rightEscape) {
-                        // var errorCode = _inUnsafeRegion ? ErrorCode.WRN_RefAssignValEscapeWider : ErrorCode.ERR_RefAssignValEscapeWider;
-                        // Error(diagnostics, errorCode, node, GetName(op1), op2.Syntax);
+                        diagnostics.Push(Error.RefAssignValEscapeWider(node.location, GetName(op1), op2.syntax));
                         hasErrors = true;
                     }
                 }
@@ -1406,8 +1445,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     );
 
                 if (!valid) {
-                    // var parameterName = GetInvocationParameterName(fromParameter);
-                    // Error(diagnostics, ErrorCode.ERR_CallArgMixing, syntax, methodInfo.Symbol, parameterName);
+                    var parameterName = GetInvocationParameterName(fromParameter);
+                    diagnostics.Push(Error.CallArgMixing(syntax.location, methodInfo.symbol, parameterName));
                     break;
                 }
             }
@@ -1475,7 +1514,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             else
                 CheckValEscape(trueExpression.syntax, trueExpression, currentScope, whenFalseEscape, false, diagnostics);
 
-            // diagnostics.Add(_inUnsafeRegion ? ErrorCode.WRN_MismatchedRefEscapeInTernary : ErrorCode.ERR_MismatchedRefEscapeInTernary, node.Location);
+            diagnostics.Push(Error.MismatchedRefEscapeInTernary(node.location));
         }
     }
 }

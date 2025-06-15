@@ -1,13 +1,14 @@
 using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using Microsoft.Xna.Framework;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
 internal partial class GraphicsHandler {
+    [SupportedOSPlatform("windows")]
     private static void SetWindowIcon(GameWindow window) {
-#if _WINDOWS
         var assembly = Assembly.GetExecutingAssembly();
         using var stream = assembly.GetManifestResourceStream("Compiler.BelteCapital.png");
 
@@ -33,7 +34,6 @@ internal partial class GraphicsHandler {
 
         SDL_SetWindowIcon(window.Handle, surface);
         bmp.UnlockBits(data);
-#endif
     }
 
 #if _WINDOWS

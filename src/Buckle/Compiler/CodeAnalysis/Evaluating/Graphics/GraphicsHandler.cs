@@ -254,7 +254,9 @@ internal partial class GraphicsHandler : Game {
         base.Initialize();
 
         Window.Title = Title;
-        SetWindowIcon(Window);
+
+        if (OperatingSystem.IsWindows())
+            SetWindowIcon(Window);
     }
 
     protected override void LoadContent() {

@@ -1398,7 +1398,7 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ParameterIsStatic, location, message);
     }
 
-    internal static BelteDiagnostic CircularConstantValue(TextLocation location, DataContainerSymbol symbol) {
+    internal static BelteDiagnostic CircularConstantValue(TextLocation location, Symbol symbol) {
         var message = $"the evaluation of the constant value for '{symbol}' involves a circular definition";
         return CreateError(DiagnosticCode.ERR_CircularConstantValue, location, message);
     }
@@ -1604,6 +1604,101 @@ internal static class Error {
     internal static BelteDiagnostic ProtectedInStruct(TextLocation location, Symbol symbol) {
         var message = $"'{symbol}': new protected member declared in struct";
         return CreateError(DiagnosticCode.ERR_ProtectedInStruct, location, message);
+    }
+
+    internal static BelteDiagnostic EscapeCall(TextLocation location, Symbol symbol, string name) {
+        var message = $"use of result of '{symbol}' in this context may expose locals referenced by parameter '{name}' outside of their declaration scope";
+        return CreateError(DiagnosticCode.ERR_EscapeCall, location, message);
+    }
+
+    internal static BelteDiagnostic EscapeCall2(TextLocation location, Symbol symbol, string name) {
+        var message = $"use of member of result of '{symbol}' in this context may expose locals referenced by parameter '{name}' outside of their declaration scope";
+        return CreateError(DiagnosticCode.ERR_EscapeCall2, location, message);
+    }
+
+    internal static BelteDiagnostic EscapeLocal(TextLocation location, Symbol symbol) {
+        var message = $"use of local '{symbol}' in this context may expose referenced locals outside of their declaration scope";
+        return CreateError(DiagnosticCode.ERR_EscapeLocal, location, message);
+    }
+
+    internal static BelteDiagnostic RefAssignReturnOnly(TextLocation location, object name, SyntaxNode syntax) {
+        var message = $"this ref-assigns '{syntax}' to '{name}' but '{syntax}' can only escape the current method through a return statement";
+        return CreateError(DiagnosticCode.ERR_RefAssignReturnOnly, location, message);
+    }
+
+    internal static BelteDiagnostic RefAssignNarrower(TextLocation location, object name, SyntaxNode syntax) {
+        var message = $"this ref-assigns '{syntax}' to '{name}' but '{syntax}' has a narrower escape scope than '{name}'";
+        return CreateError(DiagnosticCode.ERR_RefAssignNarrower, location, message);
+    }
+
+    internal static BelteDiagnostic RefAssignValEscapeWider(TextLocation location, object name, SyntaxNode syntax) {
+        var message = $"this ref-assigns '{syntax}' to '{name}' but '{syntax}' has a wider value escape scope than '{name}' allowing assignment through '{name}' of values with narrower escapes scopes than '{syntax}'";
+        return CreateError(DiagnosticCode.ERR_RefAssignValEscapeWider, location, message);
+    }
+
+    internal static BelteDiagnostic CallArgMixing(TextLocation location, Symbol symbol, string name) {
+        var message = $"this combination of arguments to '{symbol}' is disallowed because it may expose variables referenced by parameter '{name}' outside of their declaration scope";
+        return CreateError(DiagnosticCode.ERR_CallArgMixing, location, message);
+    }
+
+    internal static BelteDiagnostic MismatchedRefEscapeInTernary(TextLocation location) {
+        var message = $"branches of a ref conditional operator cannot refer to variables with incompatible declaration scopes";
+        return CreateError(DiagnosticCode.ERR_MismatchedRefEscapeInTernary, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnLocal(TextLocation location, Symbol symbol) {
+        var message = $"this returns local '{symbol}' by reference but it is not a ref local";
+        return CreateError(DiagnosticCode.ERR_RefReturnLocal, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnLocal2(TextLocation location, Symbol symbol) {
+        var message = $"this returns a member of local '{symbol}' by reference but it is not a ref local";
+        return CreateError(DiagnosticCode.ERR_RefReturnLocal2, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnNonreturnableLocal(TextLocation location, Symbol symbol) {
+        var message = $"local '{symbol}' is returned by reference but was initialized to a value that cannot be returned by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnNonreturnableLocal, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnNonreturnableLocal2(TextLocation location, Symbol symbol) {
+        var message = $"a member of '{symbol}' is returned by reference but was initialized to a value that cannot be returned by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnNonreturnableLocal2, location, message);
+    }
+
+    internal static BelteDiagnostic EscapeOther(TextLocation location) {
+        var message = $"expression cannot be used in this context because it may indirectly expose variables outside of their declaration scope";
+        return CreateError(DiagnosticCode.ERR_EscapeOther, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnParameter(TextLocation location, string name) {
+        var message = $"cannot return a parameter by reference '{name}' because it is not a ref parameter";
+        return CreateError(DiagnosticCode.ERR_RefReturnParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnParameter2(TextLocation location, string name) {
+        var message = $"this returns by reference a member of parameter '{name}' that is not a ref or out parameter";
+        return CreateError(DiagnosticCode.ERR_RefReturnParameter2, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnOnlyParameter(TextLocation location, string name) {
+        var message = $"cannot return a parameter by reference '{name}' through a ref parameter; it can only be returned in a return statement";
+        return CreateError(DiagnosticCode.ERR_RefReturnOnlyParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnOnlyParameter2(TextLocation location, string name) {
+        var message = $"cannot return by reference a member of parameter '{name}' through a ref parameter; it can only be returned in a return statement";
+        return CreateError(DiagnosticCode.ERR_RefReturnOnlyParameter2, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnScopedParameter(TextLocation location, string name) {
+        var message = $"cannot return a parameter by reference '{name}' because it is scoped to the current method";
+        return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnScopedParameter2(TextLocation location, string name) {
+        var message = $"cannot return by reference a member of parameter '{name}' because it is scoped to the current method";
+        return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter2, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
