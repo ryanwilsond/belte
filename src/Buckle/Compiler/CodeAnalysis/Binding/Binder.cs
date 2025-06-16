@@ -8434,17 +8434,37 @@ symIsHidden:;
                 diagnostics.Push(Error.RefAssignmentMustHaveIdentityConversion(expression.syntax.location, targetType));
             else
                 return expression;
-        } else if (!conversion.exists ||
+        } else {
+            conversion = CollapseConversion(conversion);
+
+            if (!conversion.exists ||
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
                 ? !conversion.isImplicit
                 : (conversion.isExplicit && ((flags & ConversionForAssignmentFlags.PredefinedOperator) == 0)))) {
-            if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0)
-                GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
+                if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0)
+                    GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
 
-            diagnostics = BelteDiagnosticQueue.Discarded;
+                diagnostics = BelteDiagnosticQueue.Discarded;
+            }
         }
 
         return CreateConversion(expression.syntax, expression, conversion, false, targetType, diagnostics);
+    }
+
+    private Conversion CollapseConversion(Conversion conversion) {
+        var current = conversion;
+
+        while (true) {
+            if (current.isExplicit)
+                break;
+
+            if (current.underlyingConversions != default)
+                current = current.underlyingConversions[0];
+            else
+                break;
+        }
+
+        return current;
     }
 
     private protected void GenerateImplicitConversionError(
