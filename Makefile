@@ -1,7 +1,7 @@
 # Works with bash and powershell
 BUCKLE_DIR:=src/Buckle
 DEPENDENCY_DIR:=src/Dependencies
-RUNTIME_DIR:=src/Belte.Runtime
+BELTE_DIR:=src/Belte
 CL_DIR:=$(BUCKLE_DIR)/CommandLine
 COMPILER_DIR:=$(BUCKLE_DIR)/Compiler
 REPL_DIR:=$(BUCKLE_DIR)/Repl
@@ -74,11 +74,13 @@ generate:
 		--framework $(NETVER) $(BOUNDNODESPATH) $(GENERATED_DIR)
 	@echo Generated compiler source files
 
-# Builds the Belte.Runtime DLL
-runtime:
+# Builds the Belte libraries
+libs:
+	@echo "Started building the Belte libraries ..."
 	@$(MKDIR) lib
-	@dotnet publish $(PUBLISH_FLAGS) $(RUNTIME_DIR)/Belte.Runtime.csproj -o lib
-	@echo Built Belte.Runtime.dll
+	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Runtime/Belte.Runtime.csproj -o lib
+	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
+	@echo "    Finished"
 
 prebuild:
 	@$(MKDIR) bin
