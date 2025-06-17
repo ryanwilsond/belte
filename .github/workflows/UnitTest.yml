@@ -15,11 +15,8 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Clean
-        run: make clean
-
-      - name: Generate
-        run: make generate
+      - name: Setup
+        run: make setup
 
       - name: Build
         run: make

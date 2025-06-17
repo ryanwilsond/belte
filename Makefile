@@ -40,7 +40,7 @@ release: prebuild copydlls build postbuild
 portable: prebuild buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
-setup: prebuild generate
+setup: prebuild generate libs
 
 .PHONY: test
 
