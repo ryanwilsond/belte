@@ -137,24 +137,32 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         goto <label> if (<C.condition> ? <C.trueExpr>! : LowLevel.ThrowNullConditionException())
 
+        ----> <condition> is nullable
+
+        goto <label> if <condition>.get_Value()
+
         */
         var condition = (BoundExpression)Visit(statement.condition);
 
         if (condition.constantValue is null &&
-            condition is BoundConditionalOperator conditional &&
-            conditional.type.IsNullableType()) {
+            condition.type.IsNullableType()) {
             var syntax = statement.syntax;
+
+            if (condition is BoundConditionalOperator conditional) {
+                condition = Conditional(
+                    syntax,
+                    conditional.condition,
+                    RewriteNull(syntax, conditional.trueExpression),
+                    RewriteNull(syntax, conditional.falseExpression),
+                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                );
+            }
 
             return VisitConditionalGotoStatement(
                 new BoundConditionalGotoStatement(
                     syntax,
                     statement.label,
-                    Conditional(syntax,
-                        conditional.condition,
-                        RewriteNull(syntax, conditional.trueExpression),
-                        RewriteNull(syntax, conditional.falseExpression),
-                        CorLibrary.GetSpecialType(SpecialType.Bool)
-                    ),
+                    RewriteNull(syntax, condition),
                     statement.jumpIfTrue
                 )
             );
