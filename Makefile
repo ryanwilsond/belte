@@ -24,7 +24,7 @@ SINGLE_FILE_FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExt
 FLAGS:=$(PUBLISH_FLAGS) $(SINGLE_FILE_FLAGS)
 
 ifeq ($(OS), Windows_NT)
-	RM:=powershell -Command "Remove-Item -Recurse -Force"
+	RM:=powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
 	CP:=powershell -Command "Copy-Item -Recurse"
 	MV:=powershell -Command "Move-Item -Force"
 	MKDIR:= powershell -Command "New-Item -ItemType Directory -Force"

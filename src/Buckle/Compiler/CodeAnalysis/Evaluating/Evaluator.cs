@@ -1286,7 +1286,7 @@ internal sealed class Evaluator {
                         var res = text.Split(separator);
 
                         result = res.Select(
-                            r => EvaluatorObject.GetInstance(r, CorLibrary.GetSpecialType(SpecialType.Sprite))
+                            r => EvaluatorObject.GetInstance(r, CorLibrary.GetSpecialType(SpecialType.String))
                         ).ToArray();
                     }
 

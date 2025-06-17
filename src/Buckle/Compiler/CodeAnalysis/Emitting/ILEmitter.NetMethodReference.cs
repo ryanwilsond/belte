@@ -4,14 +4,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter {
     internal static class NetMethodReference {
-        internal static MethodReference Object_ctor;
         internal static MethodReference Object_Equals_OO;
-        internal static MethodReference Console_Write_S;
-        internal static MethodReference Console_Write_O;
-        internal static MethodReference Console_WriteLine;
-        internal static MethodReference Console_WriteLine_S;
-        internal static MethodReference Console_WriteLine_O;
-        internal static MethodReference Console_ReadLine;
         internal static MethodReference String_Concat_SS;
         internal static MethodReference String_Concat_SSS;
         internal static MethodReference String_Concat_SSSS;
@@ -31,6 +24,5 @@ internal sealed partial class ILEmitter {
         internal static MethodReference Nullable_HasValue;
         internal static MethodReference Type_GetTypeFromHandle;
         internal static MethodReference NullReferenceException_ctor;
-        internal static MethodReference ThrowNullConditionException;
     }
 }

@@ -9,7 +9,6 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
-using Buckle.Utilities;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -30,6 +29,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
 
+    private Dictionary<string, MethodReference> _stlMap;
+
     // <Globals> class members
     private TypeDefinition _globalsClass;
     private MethodDefinition _nullAssertMethod;
@@ -42,7 +43,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),                  // System.Private.CoreLib
-            AssemblyDefinition.ReadAssembly(typeof(Console).Assembly.Location),                 // System.Console
+            AssemblyDefinition.ReadAssembly(typeof(System.Console).Assembly.Location),                 // System.Console
             AssemblyDefinition.ReadAssembly(typeof(NullConditionException).Assembly.Location)   // Belte.Runtime
         ];
 
@@ -60,6 +61,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         ResolveTypes();
         ResolveMethods();
+        GenerateSTLMap();
 
         _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
     }
@@ -506,37 +508,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private void ResolveMethods() {
-        NetMethodReference.Object_ctor = ResolveMethod("System.Object", ".ctor", []);
-        NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
-        NetMethodReference.Console_Write_S = ResolveMethod("System.Console", "Write", ["System.String"]);
-        NetMethodReference.Console_Write_O = ResolveMethod("System.Console", "Write", ["System.Object"]);
-        NetMethodReference.Console_WriteLine = ResolveMethod("System.Console", "WriteLine", []);
-        NetMethodReference.Console_WriteLine_S = ResolveMethod("System.Console", "WriteLine", ["System.String"]);
-        NetMethodReference.Console_WriteLine_O = ResolveMethod("System.Console", "WriteLine", ["System.Object"]);
-        NetMethodReference.Console_ReadLine = ResolveMethod("System.Console", "ReadLine", []);
-        NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
-        NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
-        NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
-        NetMethodReference.String_Concat_A = ResolveMethod("System.String", "Concat", ["System.String[]"]);
-        NetMethodReference.String_Equality_SS = ResolveMethod("System.String", "op_Equality", ["System.String", "System.String"]);
-        NetMethodReference.Convert_ToBoolean_S = ResolveMethod("System.Convert", "ToBoolean", ["System.String"]);
-        NetMethodReference.Convert_ToInt64_S = ResolveMethod("System.Convert", "ToInt64", ["System.String"]);
-        NetMethodReference.Convert_ToInt64_D = ResolveMethod("System.Convert", "ToInt64", ["System.Double"]);
-        NetMethodReference.Convert_ToDouble_S = ResolveMethod("System.Convert", "ToDouble", ["System.String"]);
-        NetMethodReference.Convert_ToDouble_I = ResolveMethod("System.Convert", "ToDouble", ["System.Int64"]);
-        NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
-        NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
-        NetMethodReference.Random_ctor = ResolveMethod("System.Random", ".ctor", []);
-        NetMethodReference.Random_Next_I = ResolveMethod("System.Random", "Next", ["System.Int32"]);
-        NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
-        NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
-        NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
-        NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
-        NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
-        NetMethodReference.ThrowNullConditionException = ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []);
-    }
-
     private void ResolveTypes() {
         var builtInTypes = new List<(SpecialType type, string metadataName)>() {
             (SpecialType.Object, "System.Object"),
@@ -564,30 +535,75 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         switch (mapKey) {
-            case "Object_.ctor":
-                return NetMethodReference.Object_ctor;
             case "Nullable_.ctor":
                 return GetNullableCtor(method.templateArguments[0].type.type);
             case "Nullable_get_Value":
                 return GetNullableValue(method.templateArguments[0].type.type);
             case "Nullable_get_HasValue":
                 return GetNullableHasValue(method.templateArguments[0].type.type);
-            case "Console_Print_S?":
-                return NetMethodReference.Console_Write_S;
-            case "Console_Print_O?":
-                return NetMethodReference.Console_Write_O;
-            case "Console_PrintLine":
-                return NetMethodReference.Console_WriteLine;
-            case "Console_PrintLine_S?":
-                return NetMethodReference.Console_WriteLine_S;
-            case "Console_PrintLine_O?":
-                return NetMethodReference.Console_WriteLine_O;
-            case "Console_Input":
-                return NetMethodReference.Console_ReadLine;
-            case "LowLevel_ThrowNullConditionException":
-                return NetMethodReference.ThrowNullConditionException;
             default:
-                throw ExceptionUtilities.UnexpectedValue(mapKey);
+                return _stlMap[mapKey];
         }
+    }
+
+    private void ResolveMethods() {
+        NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
+        NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
+        NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
+        NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
+        NetMethodReference.String_Concat_A = ResolveMethod("System.String", "Concat", ["System.String[]"]);
+        NetMethodReference.String_Equality_SS = ResolveMethod("System.String", "op_Equality", ["System.String", "System.String"]);
+        NetMethodReference.Convert_ToBoolean_S = ResolveMethod("System.Convert", "ToBoolean", ["System.String"]);
+        NetMethodReference.Convert_ToInt64_S = ResolveMethod("System.Convert", "ToInt64", ["System.String"]);
+        NetMethodReference.Convert_ToInt64_D = ResolveMethod("System.Convert", "ToInt64", ["System.Double"]);
+        NetMethodReference.Convert_ToDouble_S = ResolveMethod("System.Convert", "ToDouble", ["System.String"]);
+        NetMethodReference.Convert_ToDouble_I = ResolveMethod("System.Convert", "ToDouble", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
+        NetMethodReference.Random_ctor = ResolveMethod("System.Random", ".ctor", []);
+        NetMethodReference.Random_Next_I = ResolveMethod("System.Random", "Next", ["System.Int32"]);
+        NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
+        NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
+        NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
+        NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
+        NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
+    }
+
+    private void GenerateSTLMap() {
+        _stlMap = new Dictionary<string, MethodReference>() {
+            { "Object_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+            { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
+            { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
+            { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+            { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+            { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
+            { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
+            { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+            { "Console_PrintLine_O?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+            { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
+            { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
+            { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
+            { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
+            { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable<System.Int64>", "System.Nullable<System.Int64>"]) },
+            { "Directory_Create_S", ResolveMethod("System.IO.Directory", "CreateDirectory", ["System.String"]) },
+            { "Directory_Delete_S", ResolveMethod("System.IO.Directory", "Delete", ["System.String"]) },
+            { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
+            { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
+            { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },
+            { "File_Create_S", ResolveMethod("System.IO.File", "Create", ["System.String"]) },
+            { "File_Copy_S", ResolveMethod("System.IO.File", "Copy", ["System.String", "System.String"]) },
+            { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
+            { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
+            { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
+            { "File_WriteText_S", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
+            { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
+            { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
+            { "LowLevel_Sort_A?", ResolveMethod("Belte.Runtime.Utilities", "Sort", ["System.Object[]"]) },
+            { "LowLevel_Length_A?", ResolveMethod("Belte.Runtime.Utilities", "Length", ["System.Object[]"]) },
+            { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
+            { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
+            { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
+        };
     }
 }
