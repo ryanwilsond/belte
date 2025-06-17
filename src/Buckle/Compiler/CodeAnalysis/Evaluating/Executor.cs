@@ -52,6 +52,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private NamedTypeSymbol _programNamedType;
     private Type _programType;
     private Dictionary<string, MethodInfo> _stlMap;
+    private bool _graphicsInitialized;
     // Used for debugging
     private bool _logIL;
 
@@ -89,9 +90,13 @@ internal sealed partial class Executor : ModuleBuilder {
 
         EmitInternal();
 
-        Program = Activator.CreateInstance(_programType);
-        programField = typeof(Executor).GetField("Program");
-        GraphicsHandler = new GraphicsHandler(false, false);
+        if (!_programNamedType.isStatic) {
+            Program = Activator.CreateInstance(_programType);
+            programField = typeof(Executor).GetField("Program");
+        }
+
+        if (_graphicsEnabled && _graphicsInitialized)
+            GraphicsHandler = new GraphicsHandler(false, false);
 
         var mainMethod = _programType.GetMethod(
             "Main",
@@ -100,7 +105,7 @@ internal sealed partial class Executor : ModuleBuilder {
                 : BindingFlags.Public | BindingFlags.Instance
         );
 
-        if (_graphicsEnabled && _program.updatePoint is not null) {
+        if (_graphicsEnabled && _graphicsInitialized && _program.updatePoint is not null) {
             var updateMethod = _programType.GetMethod(
                 "Update",
                 _programNamedType.isStatic
@@ -113,11 +118,13 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         if (log) {
+            var assemblyPath = "DynamicBoundTreeAssembly.dll";
+            Console.WriteLine($"Dumping dynamic executor assembly to '{assemblyPath}'");
             var generator = new Lokad.ILPack.AssemblyGenerator();
-            generator.GenerateAssembly(_programType.Assembly, "DynamicBoundTreeAssembly.dll");
+            generator.GenerateAssembly(_programType.Assembly, assemblyPath);
         }
 
-        if (_graphicsEnabled) {
+        if (_graphicsEnabled && _graphicsInitialized) {
             var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
             GraphicsHandler.SetExecuteMain(mainAction);
             GraphicsHandler.Run();
@@ -410,6 +417,9 @@ internal sealed partial class Executor : ModuleBuilder {
                 return GetNullableValue(method.templateArguments[0].type.type);
             case "Nullable_get_HasValue":
                 return GetNullableHasValue(method.templateArguments[0].type.type);
+            case "Graphics_Initialize_SIIB":
+                _graphicsInitialized = true;
+                goto default;
             default:
                 return _stlMap[mapKey];
         }
@@ -444,6 +454,10 @@ internal sealed partial class Executor : ModuleBuilder {
             return null;
 
         return Math.Sin(a.Value);
+    }
+
+    public static void ThrowNullConditionException() {
+        throw new NullConditionException();
     }
 
     public static void Fill(long r, long g, long b) {
@@ -529,6 +543,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Lerp_DDD", typeof(Executor).GetMethod("Lerp", flags, [typeof(double), typeof(double), typeof(double)]) },
             { "Math_Cos_D?", typeof(Executor).GetMethod("Cos", flags, [typeof(double?)]) },
             { "Math_Sin_D?", typeof(Executor).GetMethod("Sin", flags, [typeof(double?)]) },
+            { "LowLevel_ThrowNullConditionException", typeof(Executor).GetMethod("ThrowNullConditionException", flags, Type.EmptyTypes) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", flags, [typeof(string)]) },

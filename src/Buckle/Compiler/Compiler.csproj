@@ -81,6 +81,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Belte.Runtime\Belte.Runtime.csproj" />
     <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />
     <ProjectReference Include="..\..\Dependencies\MonoGame.Extended.Text\MonoGame.Extended.Text.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />

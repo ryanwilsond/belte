@@ -1,6 +1,7 @@
 # Works with bash and powershell
 BUCKLE_DIR:=src/Buckle
 DEPENDENCY_DIR:=src/Dependencies
+RUNTIME_DIR:=src/Belte.Runtime
 CL_DIR:=$(BUCKLE_DIR)/CommandLine
 COMPILER_DIR:=$(BUCKLE_DIR)/Compiler
 REPL_DIR:=$(BUCKLE_DIR)/Repl
@@ -18,8 +19,9 @@ SYNTAXPATH:=$(COMPILER_DIR)/CodeAnalysis/Syntax/Syntax.xml
 BOUNDNODESPATH:=$(COMPILER_DIR)/CodeAnalysis/Binding/BoundTree/BoundNodes.xml
 GENERATED_DIR:=$(COMPILER_DIR)/CodeAnalysis/Generated
 
-FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false \
-	--sc true -c Release -f $(NETVER)
+PUBLISH_FLAGS:=-p:DebugType=None -p:DebugSymbols=false --sc true -c Release -f $(NETVER)
+SINGLE_FILE_FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+FLAGS:=$(PUBLISH_FLAGS) $(SINGLE_FILE_FLAGS)
 
 ifeq ($(OS), Windows_NT)
 	RM:=powershell -Command "Remove-Item -Recurse -Force"
@@ -55,6 +57,7 @@ test:
 clean:
 	@dotnet clean $(SLN)
 	@$(RM) bin
+	@$(RM) lib
 	@echo Hard cleaned the solution
 
 # Formats the solution
@@ -70,6 +73,12 @@ generate:
 	@dotnet run --project $(BUCKLE_DIR)/SourceGenerators/BoundTreeGenerator/BoundTreeGenerator.csproj \
 		--framework $(NETVER) $(BOUNDNODESPATH) $(GENERATED_DIR)
 	@echo Generated compiler source files
+
+# Builds the Belte.Runtime DLL
+runtime:
+	@$(MKDIR) lib
+	@dotnet publish $(PUBLISH_FLAGS) $(RUNTIME_DIR)/Belte.Runtime.csproj -o lib
+	@echo Built Belte.Runtime.dll
 
 prebuild:
 	@$(MKDIR) bin

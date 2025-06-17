@@ -136,6 +136,7 @@ internal static class StandardLibrary {
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
             StaticMethod("Length", SpecialType.Int, true, [("array", SpecialType.Any, true)]),
             StaticMethod("Sort", SpecialType.Void, [("array", SpecialType.Any, true)]),
+            StaticMethod("ThrowNullConditionException", SpecialType.Void),
         ]);
     }
 
@@ -446,7 +447,7 @@ internal static class StandardLibrary {
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
-                => { Thread.Sleep(Convert.ToInt32(a)); return null; }) }
+                => { Thread.Sleep(Convert.ToInt32(a)); return null; }) },
         };
     }
 }

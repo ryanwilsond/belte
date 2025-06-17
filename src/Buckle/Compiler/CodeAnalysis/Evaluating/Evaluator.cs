@@ -1263,6 +1263,8 @@ internal sealed class Evaluator {
                     var max = Value(EvaluateExpression(arguments[0], abort));
                     result = Convert.ToInt64(_lazyRandom.Next(Convert.ToInt32(max)));
                     return true;
+                case "LowLevel_ThrowNullConditionException":
+                    throw new BelteNullConditionException(location);
                 case "Random_Random":
                     _lazyRandom ??= new Random();
                     result = _lazyRandom.NextDouble();

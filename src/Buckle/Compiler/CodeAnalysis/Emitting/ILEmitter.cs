@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using Belte.Runtime;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -40,8 +41,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _program = program;
 
         _assemblies = [
-            AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),      // System.Private.CoreLib
-            AssemblyDefinition.ReadAssembly(typeof(Console).Assembly.Location),     // System.Console
+            AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),                  // System.Private.CoreLib
+            AssemblyDefinition.ReadAssembly(typeof(Console).Assembly.Location),                 // System.Console
+            AssemblyDefinition.ReadAssembly(typeof(NullConditionException).Assembly.Location)   // Belte.Runtime
         ];
 
         foreach (var reference in references) {
@@ -532,6 +534,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
+        NetMethodReference.ThrowNullConditionException = ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []);
     }
 
     private void ResolveTypes() {
@@ -581,6 +584,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 return NetMethodReference.Console_WriteLine_O;
             case "Console_Input":
                 return NetMethodReference.Console_ReadLine;
+            case "LowLevel_ThrowNullConditionException":
+                return NetMethodReference.ThrowNullConditionException;
             default:
                 throw ExceptionUtilities.UnexpectedValue(mapKey);
         }
