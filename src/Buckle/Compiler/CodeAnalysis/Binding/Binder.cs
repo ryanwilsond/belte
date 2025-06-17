@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Lowering;
@@ -325,17 +326,56 @@ internal partial class Binder {
 
     #region Symbols
 
+    internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindNamespaceOrTypeSymbol(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var result = BindNamespaceOrTypeOrAliasSymbol(syntax, diagnostics, basesBeingResolved);
+        return UnwrapAlias(result, diagnostics, syntax, basesBeingResolved);
+    }
+
     internal TypeWithAnnotations BindType(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        TypeWithAnnotations nonNullableType;
+        var symbol = BindTypeOrAlias(syntax, diagnostics, basesBeingResolved);
+        return UnwrapAlias(symbol, diagnostics, syntax, basesBeingResolved).typeWithAnnotations;
+    }
+
+    internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindTypeOrAlias(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var symbol = BindNamespaceOrTypeOrAliasSymbol(syntax, diagnostics, basesBeingResolved);
+
+        if (symbol.isType ||
+            (symbol.isAlias && UnwrapAliasNoDiagnostics(symbol.symbol, basesBeingResolved) is TypeSymbol)) {
+            return symbol;
+        }
+
+        var error = Error.BadSKKnown(symbol.symbol, symbol.symbol.kind.Localize(), MessageID.IDS_SK_TYPE.Localize());
+
+        return new TypeWithAnnotations(
+            new ExtendedErrorTypeSymbol(
+                GetContainingNamespaceOrType(symbol.symbol),
+                symbol.symbol,
+                LookupResultKind.NotATypeOrNamespace,
+                error
+            )
+        );
+    }
+
+    internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindNamespaceOrTypeOrAliasSymbol(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        NamespaceOrTypeOrAliasSymbolWithAnnotations namespaceOrNonNullableType;
 
         switch (syntax.kind) {
             case SyntaxKind.NonNullableType:
                 return BindNonNullable();
             case SyntaxKind.IdentifierName:
-                nonNullableType = BindNonTemplateSimpleType(
+                namespaceOrNonNullableType = BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
                     (IdentifierNameSyntax)syntax,
                     diagnostics,
                     basesBeingResolved,
@@ -344,7 +384,7 @@ internal partial class Binder {
 
                 break;
             case SyntaxKind.TemplateName:
-                nonNullableType = BindTemplateSimpleType(
+                namespaceOrNonNullableType = BindTemplateSimpleNamespaceOrTypeOrAliasSymbol(
                     (TemplateNameSyntax)syntax,
                     diagnostics,
                     basesBeingResolved,
@@ -352,18 +392,35 @@ internal partial class Binder {
                 );
 
                 break;
+            case SyntaxKind.AliasQualifiedName:
+                namespaceOrNonNullableType = BindAlias();
+                break;
             case SyntaxKind.QualifiedName: {
                     var node = (QualifiedNameSyntax)syntax;
-                    nonNullableType = BindQualifiedName(node.left, node.right, diagnostics, basesBeingResolved);
+
+                    namespaceOrNonNullableType = BindQualifiedName(
+                        node.left,
+                        node.right,
+                        diagnostics,
+                        basesBeingResolved
+                    );
+
                     break;
                 }
             case SyntaxKind.MemberAccessExpression: {
                     var node = (MemberAccessExpressionSyntax)syntax;
-                    nonNullableType = BindQualifiedName(node.expression, node.name, diagnostics, basesBeingResolved);
+
+                    namespaceOrNonNullableType = BindQualifiedName(
+                        node.expression,
+                        node.name,
+                        diagnostics,
+                        basesBeingResolved
+                    );
+
                     break;
                 }
             case SyntaxKind.ArrayType:
-                nonNullableType = BindArrayType(
+                namespaceOrNonNullableType = BindArrayType(
                     (ArrayTypeSyntax)syntax,
                     diagnostics,
                     false,
@@ -381,16 +438,152 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        if (nonNullableType.specialType == SpecialType.Void || nonNullableType.typeKind == TypeKind.TemplateParameter)
-            return nonNullableType;
+        if (namespaceOrNonNullableType.isType) {
+            var nonNullableType = namespaceOrNonNullableType.typeWithAnnotations;
 
-        return nonNullableType.SetIsAnnotated();
+            if (nonNullableType.specialType == SpecialType.Void || nonNullableType.typeKind == TypeKind.TemplateParameter)
+                return nonNullableType;
+
+            return nonNullableType.SetIsAnnotated();
+        }
+
+        return namespaceOrNonNullableType;
 
         TypeWithAnnotations BindNonNullable() {
             var nonNullableSyntax = (NonNullableTypeSyntax)syntax;
             var nullableType = BindType(nonNullableSyntax.type, diagnostics, basesBeingResolved);
             return new TypeWithAnnotations(nullableType.type.GetNullableUnderlyingType(), false);
         }
+
+        NamespaceOrTypeOrAliasSymbolWithAnnotations BindAlias() {
+            var node = (AliasQualifiedNameSyntax)syntax;
+            var bindingResult = BindNamespaceAliasSymbol(node.alias, diagnostics);
+            var left = bindingResult is AliasSymbol alias ? alias.target : (NamespaceOrTypeSymbol)bindingResult;
+
+            if (left.kind == SymbolKind.NamedType) {
+                var error = Error.ColonColonWithTypeAlias(node.alias.location, node.alias.identifier.text);
+                diagnostics.Push(error);
+
+                return new TypeWithAnnotations(
+                    new ExtendedErrorTypeSymbol(
+                        left,
+                        LookupResultKind.NotATypeOrNamespace,
+                        error
+                    )
+                );
+            }
+
+            return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, left);
+        }
+    }
+
+    internal Symbol BindNamespaceAliasSymbol(IdentifierNameSyntax node, BelteDiagnosticQueue diagnostics) {
+        if (node.identifier.kind == SyntaxKind.GlobalKeyword) {
+            return compilation.globalNamespaceAlias;
+        } else {
+            var plainName = node.identifier.text;
+            var result = LookupResult.GetInstance();
+            LookupSymbolsWithFallback(result, plainName, 0, null, LookupOptions.NamespaceAliasesOnly);
+
+            var bindingResult = ResultSymbol(
+                result,
+                plainName,
+                0,
+                node,
+                diagnostics,
+                out _,
+                null,
+                LookupOptions.NamespaceAliasesOnly
+            );
+
+            result.Free();
+
+            return bindingResult;
+        }
+    }
+
+    private NamespaceOrTypeOrAliasSymbolWithAnnotations BindSimpleNamespaceOrTypeOrAliasSymbol(
+        SimpleNameSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved,
+        NamespaceOrTypeSymbol qualifierOpt = null) {
+        switch (syntax.kind) {
+            case SyntaxKind.IdentifierName:
+                return BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
+                    (IdentifierNameSyntax)syntax,
+                    diagnostics,
+                    basesBeingResolved,
+                    qualifierOpt
+                );
+            case SyntaxKind.TemplateName:
+                return BindTemplateSimpleNamespaceOrTypeOrAliasSymbol(
+                    (TemplateNameSyntax)syntax,
+                    diagnostics,
+                    basesBeingResolved,
+                    qualifierOpt
+                );
+            default:
+                return new TypeWithAnnotations(
+                    new ExtendedErrorTypeSymbol(
+                        qualifierOpt ?? compilation.globalNamespaceInternal,
+                        "",
+                        arity: 0,
+                        error: null
+                    )
+                );
+        }
+    }
+
+    private static Symbol UnwrapAliasNoDiagnostics(Symbol symbol, ConsList<TypeSymbol> basesBeingResolved = null) {
+        if (symbol.kind == SymbolKind.Alias)
+            return ((AliasSymbol)symbol).GetAliasTarget(basesBeingResolved);
+
+        return symbol;
+    }
+
+    private NamespaceOrTypeOrAliasSymbolWithAnnotations UnwrapAlias(
+        in NamespaceOrTypeOrAliasSymbolWithAnnotations symbol,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        if (symbol.isAlias) {
+            return NamespaceOrTypeOrAliasSymbolWithAnnotations.CreateUnannotated(
+                symbol.isNullable,
+                (NamespaceOrTypeSymbol)UnwrapAlias(
+                    symbol.symbol,
+                    out _,
+                    diagnostics,
+                    syntax,
+                    basesBeingResolved
+                )
+            );
+        }
+
+        return symbol;
+    }
+
+    private Symbol UnwrapAlias(
+        Symbol symbol,
+        out AliasSymbol alias,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        if (symbol.kind == SymbolKind.Alias) {
+            alias = (AliasSymbol)symbol;
+            var result = alias.GetAliasTarget(basesBeingResolved);
+
+            if (result is TypeSymbol type) {
+                var args = (this, diagnostics, syntax);
+                type.VisitType((typePart, argTuple, isNested) => {
+                    return false;
+                }, args);
+            }
+
+            return result;
+        }
+
+        alias = null;
+        return symbol;
     }
 
     private NamespaceOrTypeSymbol GetContainingNamespaceOrType(Symbol symbol) {
@@ -464,7 +657,7 @@ internal partial class Binder {
         return new TypeWithAnnotations(array);
     }
 
-    private protected TypeWithAnnotations BindNonTemplateSimpleType(
+    private protected NamespaceOrTypeOrAliasSymbolWithAnnotations BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
         IdentifierNameSyntax node,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved,
@@ -499,15 +692,15 @@ internal partial class Binder {
         var bindingResult = ResultSymbol(result, name, 0, node, diagnostics, out _, qualifier, options);
 
         result.Free();
-        return new TypeWithAnnotations((TypeSymbol)bindingResult);
+        return NamespaceOrTypeOrAliasSymbolWithAnnotations.CreateUnannotated(false, bindingResult);
     }
 
-    private TypeWithAnnotations BindQualifiedName(
+    private NamespaceOrTypeOrAliasSymbolWithAnnotations BindQualifiedName(
         ExpressionSyntax leftName,
         SimpleNameSyntax rightName,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
-        var left = BindType(leftName, diagnostics, basesBeingResolved).type;
+        var left = BindNamespaceOrTypeSymbol(leftName, diagnostics, basesBeingResolved).namespaceOrTypeSymbol;
 
         var isLeftUnboundTemplateType = left.kind == SymbolKind.NamedType &&
             ((NamedTypeSymbol)left).isUnboundTemplateType;
@@ -515,15 +708,15 @@ internal partial class Binder {
         if (isLeftUnboundTemplateType)
             left = ((NamedTypeSymbol)left).originalDefinition;
 
-        var right = BindSimpleType(rightName, diagnostics, basesBeingResolved, left);
+        var right = BindSimpleNamespaceOrTypeOrAliasSymbol(rightName, diagnostics, basesBeingResolved, left);
 
         if (isLeftUnboundTemplateType)
             return ConvertToUnbound();
 
         return right;
 
-        TypeWithAnnotations ConvertToUnbound() {
-            var namedTypeRight = right.type as NamedTypeSymbol;
+        NamespaceOrTypeOrAliasSymbolWithAnnotations ConvertToUnbound() {
+            var namedTypeRight = right.symbol as NamedTypeSymbol;
 
             if (namedTypeRight is not null && namedTypeRight.isTemplateType)
                 return new TypeWithAnnotations(namedTypeRight.AsUnboundTemplateType(), right.isNullable);
@@ -532,23 +725,7 @@ internal partial class Binder {
         }
     }
 
-    private TypeWithAnnotations BindSimpleType(
-        SimpleNameSyntax node,
-        BelteDiagnosticQueue diagnostics,
-        ConsList<TypeSymbol> basesBeingResolved,
-        NamespaceOrTypeSymbol qualifier = null) {
-        return node.kind switch {
-            SyntaxKind.IdentifierName
-                => BindNonTemplateSimpleType((IdentifierNameSyntax)node, diagnostics, basesBeingResolved, qualifier),
-            SyntaxKind.TemplateName
-                => BindTemplateSimpleType((TemplateNameSyntax)node, diagnostics, basesBeingResolved, qualifier),
-            _ => new TypeWithAnnotations(
-                new ExtendedErrorTypeSymbol(qualifier ?? compilation.globalNamespaceInternal, "", 0, null)
-            )
-        };
-    }
-
-    private TypeWithAnnotations BindTemplateSimpleType(
+    private NamespaceOrTypeOrAliasSymbolWithAnnotations BindTemplateSimpleNamespaceOrTypeOrAliasSymbol(
         TemplateNameSyntax node,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved,
@@ -6687,7 +6864,7 @@ internal partial class Binder {
         if (result.error is not null && (qualifier is null || qualifier.kind != SymbolKind.ErrorType))
             diagnostics.Push(result.error);
 
-        if ((symbols.Count > 1) || (symbols[0] is NamespaceOrTypeSymbol) || result.kind == LookupResultKind.NotAType) {
+        if ((symbols.Count > 1) || (symbols[0] is NamespaceOrTypeSymbol) || result.kind == LookupResultKind.NotATypeOrNamespace) {
             return new ExtendedErrorTypeSymbol(
                 GetContainingNamespaceOrType(symbols[0]),
                 symbols.ToImmutable(),

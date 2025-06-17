@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -26,6 +28,10 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
     internal sealed override Accessibility declaredAccessibility => Accessibility.Public;
 
     internal abstract NamespaceExtent extent { get; }
+
+    internal abstract ImmutableArray<SyntaxReference> declaringSyntaxReferences { get; }
+
+    internal abstract ImmutableArray<TextLocation> locations { get; }
 
     internal NamedTypeSymbol implicitType {
         get {

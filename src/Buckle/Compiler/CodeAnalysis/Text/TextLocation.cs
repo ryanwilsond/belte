@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -12,8 +13,10 @@ public sealed class TextLocation {
     /// </summary>
     /// <param name="text"><see cref="StringText" /> the location is referencing.</param>
     /// <param name="span"><see cref="TextSpan" /> of how much <see cref="TextLocation" /> is referencing.</param>
-    internal TextLocation(SourceText text, TextSpan span) {
+    /// <param name="tree">The associated <see cref="SyntaxTree"/>.</param>
+    internal TextLocation(SourceText text, TextSpan span, SyntaxTree tree = null) {
         this.text = text;
+        this.tree = tree;
         this.span = span;
     }
 
@@ -21,6 +24,11 @@ public sealed class TextLocation {
     /// <see cref="SourceText" /> the location resides in.
     /// </summary>
     public SourceText text { get; }
+
+    /// <summary>
+    /// The associated <see cref="SyntaxTree"/>.
+    /// </summary>
+    public SyntaxTree tree { get; }
 
     /// <summary>
     /// The amount of text the location is referring to.
@@ -36,6 +44,8 @@ public sealed class TextLocation {
             return stringText?.fileName;
         }
     }
+
+    public bool isInSource => tree is not null;
 
     /// <summary>
     /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by start of

@@ -32,6 +32,11 @@ internal enum CompletionParts : ushort {
 
     NamedTypeSymbolAll = NamedTypeSymbolWithLocationAll | MembersCompletedChecksStarted | MembersCompleted,
 
+    // For Usings
+    StartValidatingImports = 1 << 2,
+    FinishValidatingImports = 1 << 3,
+    ImportsAll = StartValidatingImports | FinishValidatingImports,
+
     // For namespaces
     NameToMembersMap = 1 << 6,
     NamespaceSymbolAll = NameToMembersMap | MembersCompleted,
@@ -54,4 +59,7 @@ internal enum CompletionParts : ushort {
     // For template parameters
     TemplateParameterConstraints = 1 << 8,
     TemplateParameterSymbolAll = TemplateParameterConstraints | StartDefaultSyntaxValue | EndDefaultSyntaxValue,
+
+    // For alias symbols
+    AliasTarget = 1 << 2,
 }

@@ -83,7 +83,7 @@ public class SyntaxTrivia {
     /// The location of this trivia in the <see cref="SourceText" /> that contains it.
     /// </summary>
     /// <returns></returns>
-    public TextLocation location => new TextLocation(syntaxTree.text, span);
+    public TextLocation location => new TextLocation(syntaxTree.text, span, syntaxTree);
 
     private string GetDebuggerDisplay() {
         return GetType().Name + " " + kind + " " + ToString();

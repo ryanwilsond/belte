@@ -48,6 +48,24 @@ internal static class ImmutableArrayExtensions {
         return dictionary;
     }
 
+    internal static ImmutableArray<T> Distinct<T>(this ImmutableArray<T> array, IEqualityComparer<T>? comparer = null) {
+        if (array.Length < 2)
+            return array;
+
+        var set = new HashSet<T>(comparer);
+        var builder = ArrayBuilder<T>.GetInstance();
+
+        foreach (var a in array) {
+            if (set.Add(a)) {
+                builder.Add(a);
+            }
+        }
+
+        var result = (builder.Count == array.Length) ? array : builder.ToImmutable();
+        builder.Free();
+        return result;
+    }
+
     internal static ImmutableArray<TResult> SelectAsArray<TItem, TResult>(
         this ImmutableArray<TItem> items,
         Func<TItem, TResult> map) {

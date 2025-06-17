@@ -1701,6 +1701,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter2, location, message);
     }
 
+    internal static Diagnostic UnexpectedAliasName() {
+        var message = $"unexpected use of an aliased name";
+        return CreateError(DiagnosticCode.ERR_UnexpectedAliasName, message);
+    }
+
+    internal static BelteDiagnostic ColonColonWithTypeAlias(TextLocation location, string name) {
+        var message = $"cannot use alias '{name}' with '::' since the alias references a type; use '.' instead";
+        return CreateError(DiagnosticCode.ERR_ColonColonWithTypeAlias, location, message, $"{name}.");
+    }
+
+    internal static BelteDiagnostic DuplicateNameInNamespace(TextLocation location, string name, NamespaceSymbol @namespace) {
+        var message = $"the namespace '{@namespace}' already contains a definition for '{name}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateNameInNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic NoNamespacePrivate(TextLocation location) {
+        var message = $"members defined in a namespace cannot be explicitly declared as private or protected";
+        return CreateError(DiagnosticCode.ERR_NoNamespacePrivate, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

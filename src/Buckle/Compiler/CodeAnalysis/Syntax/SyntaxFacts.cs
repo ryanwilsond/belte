@@ -182,6 +182,9 @@ internal static class SyntaxFacts {
             "throw" => SyntaxKind.ThrowKeyword,
             "primitive" => SyntaxKind.PrimitiveKeyword,
             "notnull" => SyntaxKind.NotnullKeyword,
+            "using" => SyntaxKind.UsingKeyword,
+            "namespace" => SyntaxKind.NamespaceKeyword,
+            "global" => SyntaxKind.GlobalKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -221,6 +224,7 @@ internal static class SyntaxFacts {
             SyntaxKind.CloseBracketToken => "]",
             SyntaxKind.SemicolonToken => ";",
             SyntaxKind.ColonToken => ":",
+            SyntaxKind.ColonColonToken => "::",
             SyntaxKind.QuestionToken => "?",
             SyntaxKind.EqualsEqualsToken => "==",
             SyntaxKind.ExclamationEqualsToken => "!=",
@@ -289,6 +293,9 @@ internal static class SyntaxFacts {
             SyntaxKind.ThrowKeyword => "throw",
             SyntaxKind.PrimitiveKeyword => "primitive",
             SyntaxKind.NotnullKeyword => "notnull",
+            SyntaxKind.UsingKeyword => "using",
+            SyntaxKind.NamespaceKeyword => "namespace",
+            SyntaxKind.GlobalKeyword => "global",
             _ => null,
         };
     }

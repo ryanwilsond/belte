@@ -32,6 +32,7 @@ public enum SyntaxKind : ushort {
     SlashToken,
     QuestionToken,
     ColonToken,
+    ColonColonToken,
     PeriodToken,
     HashToken,
 
@@ -109,6 +110,9 @@ public enum SyntaxKind : ushort {
     ThrowKeyword,
     PrimitiveKeyword,
     NotnullKeyword,
+    UsingKeyword,
+    NamespaceKeyword,
+    GlobalKeyword,
 
     // Tokens with text
     BadToken,
@@ -173,9 +177,14 @@ public enum SyntaxKind : ushort {
     CatchClause,
     FinallyClause,
 
+    // Directives
+    UsingDirective,
+
     // Declarations
     CompilationUnit,
     GlobalStatement,
+    NamespaceDeclaration,
+    FileScopedNamespaceDeclaration,
     VariableDeclaration,
     EqualsValueClause,
     StructDeclaration,
@@ -190,11 +199,13 @@ public enum SyntaxKind : ushort {
     IdentifierName,
     TemplateName,
     QualifiedName,
+    AliasQualifiedName,
     EmptyName,
     ArrayType,
     NonNullableType,
     ReferenceType,
     BaseType,
+    NameEquals,
 
     // Lists
     Argument,

@@ -7,6 +7,8 @@ public abstract class StructuredTriviaSyntax : BelteSyntaxNode {
     internal StructuredTriviaSyntax(SyntaxNode parent, GreenNode green, int position)
         : base(green, position, parent?.syntaxTree) { }
 
+    internal SyntaxTrivia parentTrivia => _parent;
+
     internal static StructuredTriviaSyntax Create(SyntaxTrivia trivia) {
         var node = trivia.green;
         var parent = trivia.token.parent;
