@@ -1225,7 +1225,7 @@ internal sealed class Evaluator {
 
         // First check if we are in a graphics project before comparing
         // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
-        if (_context.options.outputKind == OutputKind.Graphics) {
+        if (_context.options.outputKind == OutputKind.GraphicsApplication) {
             if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
                 return HandleGraphicsCall(location, method, arguments, abort, out result);
         }

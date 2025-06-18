@@ -14,6 +14,8 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class SubmissionBinder : LocalScopeBinder {
     private readonly CompilationUnitSyntax _declarationSyntax;
 
+    private QuickAttributeChecker _lazyQuickAttributeChecker;
+
     internal SubmissionBinder(
         NamespaceSymbol globalNamespace,
         CompilationUnitSyntax declarationSyntax,
@@ -23,6 +25,18 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
     }
 
     internal override Symbol containingMember { get; }
+
+    internal override QuickAttributeChecker quickAttributeChecker {
+        get {
+            if (_lazyQuickAttributeChecker is null) {
+                var result = next.quickAttributeChecker;
+                result = result.AddAliasesIfAny(_declarationSyntax.usings);
+                _lazyQuickAttributeChecker = result;
+            }
+
+            return _lazyQuickAttributeChecker;
+        }
+    }
 
     internal override void LookupSymbolsInSingleBinder(
         LookupResult result,

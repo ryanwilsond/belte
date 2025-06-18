@@ -44,6 +44,8 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
         }
     }
 
+    internal virtual ImmutableArray<NamespaceSymbol> constituentNamespaces => [this];
+
     internal abstract ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name);
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name)

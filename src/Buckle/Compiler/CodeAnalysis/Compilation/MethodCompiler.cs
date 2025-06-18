@@ -42,12 +42,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
-        Predicate<Symbol> filter,
-        bool emitting) {
+        Predicate<Symbol> filter) {
+        var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+        var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
+
         var globalNamespace = compilation.globalNamespaceInternal;
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
-        var entryPoint = GetEntryPoint(compilation, diagnostics);
-        var updatePoint = GetUpdatePoint(compilation, entryPoint, diagnostics);
+        var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
+        var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
         if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
             diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
@@ -59,7 +61,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             entryPoint,
             updatePoint,
             filter,
-            emitting
+            !transpiling
         );
 
         methodCompiler.CompileNamespace(globalNamespace);

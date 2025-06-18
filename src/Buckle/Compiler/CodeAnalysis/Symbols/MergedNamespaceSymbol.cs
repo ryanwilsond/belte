@@ -62,7 +62,10 @@ internal sealed class MergedNamespaceSymbol : NamespaceSymbol {
 
     internal override SyntaxReference syntaxReference => throw new InvalidOperationException();
 
-    internal ImmutableArray<NamespaceSymbol> constituentNamespaces => _namespacesToMerge;
+    internal override ImmutableArray<NamespaceSymbol> constituentNamespaces => _namespacesToMerge;
+
+    internal override AssemblySymbol containingAssembly
+        => extent.kind == NamespaceKind.Assembly ? extent.assembly : null;
 
     internal NamespaceSymbol GetConstituentForCompilation(Compilation compilation) {
         foreach (var n in _namespacesToMerge) {

@@ -10,68 +10,49 @@ namespace Belte.Diagnostics;
 /// accurately.
 /// </summary>
 internal static class Fatal {
-    /// <summary>
-    /// CL0011. Run `buckle --explain CL0011` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotSpecifyWithDotnet() {
         var message = "cannot specify '-p', '-s', '-c', or '-t' with .NET integration";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyWithDotnet), message);
     }
 
-    /// <summary>
-    /// CL0012. Run `buckle --explain CL0012` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotSpecifyWithMultipleFiles() {
         var message = "cannot specify output file with '-p', '-s', '-c', or '-t' with multiple files";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyWithMultipleFiles), message);
     }
 
-    /// <summary>
-    /// CL0013. Run `buckle --explain CL0013` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotSpecifyWithInterpreter() {
         var message = "cannot specify output path or use '-p', '-s', '-c', or '-t' with interpreter";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyWithInterpreter), message);
     }
 
-    /// <summary>
-    /// CL0014. Run `buckle --explain CL0014` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotSpecifyModuleNameWithoutDotnet() {
         var message = "cannot specify module name without .NET integration";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyModuleNameWithoutDotnet), message);
     }
 
-    /// <summary>
-    /// CL0015. Run `buckle --explain CL0015` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotSpecifyReferencesWithoutDotnet() {
         var message = "cannot specify references without .NET integration";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyReferencesWithoutDotnet), message);
     }
 
-    /// <summary>
-    /// CL0016. Run `buckle --explain CL0016` on the command line for more info.
-    /// </summary>
     internal static Diagnostic NoInputFiles() {
         var message = "no input files";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_NoInputFiles), message);
     }
 
-    /// <summary>
-    /// CL0022. Run `buckle --explain CL0022` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotInterpretWithMultipleFiles() {
         var message = "cannot pass multiple files when running as a script";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotInterpretWithMultipleFiles), message);
     }
 
-    /// <summary>
-    /// CL0023. Run `buckle --explain CL0023` on the command line for more info.
-    /// </summary>
     internal static Diagnostic CannotInterpretFile() {
         var message = "cannot interpret file";
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotInterpretFile), message);
+    }
+
+    internal static Diagnostic DLLWithWrongBuildMode() {
+        var message = "cannot compile to a dynamically linked library without .NET integration";
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_DLLWithWrongBuildMode), message);
     }
 
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {

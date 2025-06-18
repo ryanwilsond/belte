@@ -85,6 +85,8 @@ internal partial class Binder {
 
     internal virtual bool isInsideNameof => next.isInsideNameof;
 
+    internal virtual QuickAttributeChecker quickAttributeChecker => next.quickAttributeChecker;
+
     internal NamedTypeSymbol containingType => containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,

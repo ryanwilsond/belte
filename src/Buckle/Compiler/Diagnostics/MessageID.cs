@@ -13,7 +13,10 @@ internal enum MessageID : ushort {
     IDS_SK_LABEL = 7,
     IDS_SK_CONSTRUCTOR = 8,
     IDS_SK_ARRAY = 9,
+    IDS_SK_NAMESPACE = 10,
+    IDS_SK_ALIAS = 11,
+    IDS_SK_TYPE_OR_NAMESPACE = 12,
 
-    IDS_MethodGroup = 10,
-    IDS_ArrayAccess = 11,
+    IDS_MethodGroup = 13,
+    IDS_ArrayAccess = 14,
 }

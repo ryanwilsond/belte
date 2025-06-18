@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -25,14 +26,14 @@ namespace Buckle.CodeAnalysis;
 /// <summary>
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
-public sealed class Compilation {
+public sealed partial class Compilation {
     private readonly static Predicate<Symbol> SkipLibrariesFilter
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
     private readonly SyntaxAndDeclarationManager _syntax;
-    private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
+
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
     private BoundProgram _lazyBoundProgram;
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
@@ -41,6 +42,9 @@ public sealed class Compilation {
     private MethodSymbol _lazyUpdatePoint;
     private NamedTypeSymbol _lazyScriptClass;
     private AliasSymbol _lazyGlobalNamespaceAlias;
+    private AssemblySymbol _lazyAssembly;
+    private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
+    private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
 
     private Compilation(
         string assemblyName,
@@ -90,22 +94,20 @@ public sealed class Compilation {
 
     internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
-    internal NamespaceSymbol globalNamespaceInternal {
+    internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
+
+    internal DeclarationTable declarationTable => _syntax.state.declarationTable;
+
+    internal AssemblySymbol assembly {
         get {
-            if (_lazyGlobalNamespace is null) {
-                var extent = new NamespaceExtent(this);
-                var result = new GlobalNamespaceSymbol(
-                    extent,
-                    _syntax.state.declarationTable.GetMergedRoot(this),
-                    declarationDiagnostics
-                );
+            if (_lazyAssembly is null)
+                Interlocked.CompareExchange(ref _lazyAssembly, new SourceAssemblySymbol(this, assemblyName), null);
 
-                Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
-            }
-
-            return _lazyGlobalNamespace;
+            return _lazyAssembly;
         }
     }
+
+    internal NamespaceSymbol globalNamespaceInternal => assembly.globalNamespace;
 
     internal AliasSymbol globalNamespaceAlias {
         get {
@@ -417,6 +419,28 @@ public sealed class Compilation {
         return _syntax.state.ordinalMap[syntaxTree];
     }
 
+    internal void RecordImport(UsingDirectiveSyntax syntax) {
+        LazyInitializer.EnsureInitialized(ref _lazyImportInfos)
+            .TryAdd(new ImportInfo(syntax.syntaxTree, syntax.kind, syntax.span), default);
+    }
+
+    internal void AddUsedAssemblies(ICollection<AssemblySymbol> assemblies) {
+        if (!assemblies.IsNullOrEmpty()) {
+            foreach (var candidate in assemblies)
+                AddUsedAssembly(candidate);
+        }
+    }
+
+    internal bool AddUsedAssembly(AssemblySymbol assembly) {
+        if (assembly is null || assembly == this.assembly || assembly.isMissing)
+            return false;
+
+        if (_lazyUsedAssemblyReferences is null)
+            Interlocked.CompareExchange(ref _lazyUsedAssemblyReferences, new ConcurrentSet<AssemblySymbol>(), null);
+
+        return _lazyUsedAssemblyReferences.Add(assembly);
+    }
+
     private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
         var classes = globalNamespaceInternal.GetTypeMembersUnordered();
@@ -492,7 +516,7 @@ public sealed class Compilation {
 
         MethodSymbol entryPoint = null;
 
-        if (entryPointCandidates.Length == 0 && !options.isScript && options.outputKind != OutputKind.Library) {
+        if (entryPointCandidates.Length == 0 && !options.isScript) {
             diagnostics.Push(Error.NoSuitableEntryPoint());
         } else if (entryPointCandidates.Length == 1) {
             entryPoint = entryPointCandidates[0];
@@ -625,7 +649,7 @@ public sealed class Compilation {
         }
 
         if (includeDeclaration) {
-            globalNamespaceInternal.ForceComplete(null);
+            assembly.ForceComplete(null);
             builder.PushRange(declarationDiagnostics);
         }
 
@@ -641,13 +665,11 @@ public sealed class Compilation {
     }
 
     private void CreateBoundProgramAndMethodDiagnostics() {
-        var emitting = options.buildMode is not BuildMode.CSharpTranspile;
         _lazyMethodDiagnostics = new BelteDiagnosticQueue();
         _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
             this,
             _lazyMethodDiagnostics,
-            SkipLibrariesFilter,
-            emitting
+            SkipLibrariesFilter
         );
     }
 

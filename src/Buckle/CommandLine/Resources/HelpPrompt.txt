@@ -13,7 +13,7 @@ Options:
   --evaluate                  Compile and run using the evaluator.
   --execute                   Compile and run using the executor.
 
-  --type=[console|graphics|...]       Specify the type of Belte project (default console).
+  --type=[console|graphics|dll]         Specify the type of Belte project (default console).
 
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.

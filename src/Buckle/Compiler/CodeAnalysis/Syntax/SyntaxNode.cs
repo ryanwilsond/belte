@@ -121,6 +121,8 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal bool isList => green.isList;
 
+    internal bool isFabricated => green.isFabricated;
+
     public override string ToString() {
         return green.ToString();
     }

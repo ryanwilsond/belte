@@ -100,6 +100,8 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         }
     }
 
+    internal sealed override AssemblySymbol containingAssembly => originalDefinition.containingAssembly;
+
     internal override NamedTypeSymbol containingType { get; }
 
     internal override MethodSymbol constructedFrom { get; }

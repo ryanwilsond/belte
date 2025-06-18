@@ -5,7 +5,7 @@ namespace Buckle;
 /// The type of project the Belte source is.
 /// </summary>
 public enum OutputKind : byte {
-    Console,
-    Graphics,
-    Library,
+    ConsoleApplication,
+    GraphicsApplication,
+    DynamicallyLinkedLibrary,
 }

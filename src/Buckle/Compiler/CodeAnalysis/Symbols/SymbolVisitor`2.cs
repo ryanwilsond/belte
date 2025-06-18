@@ -56,4 +56,8 @@ internal abstract class SymbolVisitor<TArgument, TResult> {
     internal virtual TResult VisitAlias(AliasSymbol symbol, TArgument argument) {
         return DefaultVisit(symbol, argument);
     }
+
+    internal virtual TResult VisitAssembly(AssemblySymbol symbol, TArgument argument) {
+        return DefaultVisit(symbol, argument);
+    }
 }

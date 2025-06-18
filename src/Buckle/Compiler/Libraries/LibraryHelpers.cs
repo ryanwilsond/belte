@@ -16,7 +16,7 @@ namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
     internal static readonly CompilationOptions LibraryOptions
-        = new CompilationOptions(BuildMode.None, OutputKind.Library);
+        = new CompilationOptions(BuildMode.None, OutputKind.DynamicallyLinkedLibrary);
 
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
@@ -82,7 +82,7 @@ public static class LibraryHelpers {
         CompilationOptions options) {
         AddTypesToBuilder(StandardLibrary.GetTypes());
 
-        if (options.outputKind == OutputKind.Graphics)
+        if (options.outputKind == OutputKind.GraphicsApplication)
             AddTypesToBuilder(GraphicsLibrary.GetTypes());
 
         void AddTypesToBuilder(IEnumerable<NamedTypeSymbol> types) {

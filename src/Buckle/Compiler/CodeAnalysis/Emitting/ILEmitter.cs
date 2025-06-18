@@ -22,6 +22,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly List<AssemblyDefinition> _assemblies;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
+    private readonly bool _isDll;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
@@ -37,13 +38,18 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     internal FieldDefinition randomField;
 
-    private ILEmitter(BoundProgram program, string moduleName, string[] references, BelteDiagnosticQueue diagnostics) {
+    private ILEmitter(
+        BoundProgram program,
+        string assemblySimpleName,
+        string[] references,
+        BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
+        _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),                  // System.Private.CoreLib
-            AssemblyDefinition.ReadAssembly(typeof(System.Console).Assembly.Location),                 // System.Console
+            AssemblyDefinition.ReadAssembly(typeof(System.Console).Assembly.Location),          // System.Console
             AssemblyDefinition.ReadAssembly(typeof(NullConditionException).Assembly.Location)   // Belte.Runtime
         ];
 
@@ -56,8 +62,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             }
         }
 
-        var assemblyName = new AssemblyNameDefinition(moduleName, new Version(1, 0));
-        _assemblyDefinition = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
+        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, new Version(1, 0));
+
+        _assemblyDefinition = AssemblyDefinition.CreateAssembly(
+            assemblyName,
+            assemblySimpleName,
+            _isDll ? ModuleKind.Dll : ModuleKind.Console
+        );
 
         ResolveTypes();
         ResolveMethods();

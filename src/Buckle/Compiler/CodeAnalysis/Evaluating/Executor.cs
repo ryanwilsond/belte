@@ -65,7 +65,7 @@ internal sealed partial class Executor : ModuleBuilder {
     internal Executor(BoundProgram program, string[] arguments) {
         _arguments = arguments;
         _program = program;
-        _graphicsEnabled = program.compilation.options.outputKind == OutputKind.Graphics;
+        _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
         _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
 

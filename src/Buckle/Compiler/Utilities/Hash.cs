@@ -1,4 +1,6 @@
 
+using System.Collections.Immutable;
+
 namespace Buckle.Utilities;
 
 /// <summary>
@@ -16,12 +18,38 @@ internal static class Hash {
         return hashCode;
     }
 
+    internal static int CombineFNVHash(int hashCode, char ch) {
+        return unchecked((hashCode ^ ch) * FnvPrime);
+    }
+
     internal static int GetFNVHashCode(string text) {
         return CombineFNVHash(FnvOffsetBias, text);
     }
 
+    internal static int GetFNVHashCode(byte[] data) {
+        var hashCode = FnvOffsetBias;
+
+        for (var i = 0; i < data.Length; i++)
+            hashCode = unchecked((hashCode ^ data[i]) * FnvPrime);
+
+        return hashCode;
+    }
+
+    internal static int GetFNVHashCode(ImmutableArray<byte> data) {
+        var hashCode = FnvOffsetBias;
+
+        for (var i = 0; i < data.Length; i++)
+            hashCode = unchecked((hashCode ^ data[i]) * FnvPrime);
+
+        return hashCode;
+    }
+
     internal static int Combine(int newKey, int currentKey) {
         return unchecked((currentKey * (int)0xA5555529) + newKey);
+    }
+
+    internal static int Combine(bool newKeyPart, int currentKey) {
+        return Combine(currentKey, newKeyPart ? 1 : 0);
     }
 
     internal static int Combine<T>(T newKeyPart, int currentKey) where T : class? {

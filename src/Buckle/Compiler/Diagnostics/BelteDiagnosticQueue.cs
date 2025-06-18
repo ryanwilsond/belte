@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
+using Buckle.CodeAnalysis.Symbols;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -16,6 +17,8 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
 
     private static readonly ObjectPool<BelteDiagnosticQueue> Pool
         = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
+
+    internal readonly ICollection<AssemblySymbol> dependenciesBag;
 
     private readonly ObjectPool<BelteDiagnosticQueue> _pool;
 
@@ -94,6 +97,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal void Free() {
         if (_pool is not null) {
             Clear();
+            ((PooledHashSet<AssemblySymbol>)dependenciesBag)?.Free();
             _pool.Free(this);
         }
     }
@@ -112,6 +116,26 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal ImmutableArray<BelteDiagnostic> ToImmutableAndFree() {
         return ToArrayAndFree().ToImmutableArray();
     }
+
+    internal void AddAssembliesUsedByNamespaceReference(NamespaceSymbol ns) {
+        if (dependenciesBag is null)
+            return;
+
+        AddAssembliesUsedByNamespaceReferenceImpl(ns);
+
+        void AddAssembliesUsedByNamespaceReferenceImpl(NamespaceSymbol ns) {
+            if (ns.extent.kind == NamespaceKind.Compilation) {
+                foreach (var constituent in ns.constituentNamespaces)
+                    AddAssembliesUsedByNamespaceReferenceImpl(constituent);
+            } else {
+                var containingAssembly = ns.containingAssembly;
+
+                if (containingAssembly?.isMissing == false)
+                    dependenciesBag.Add(containingAssembly);
+            }
+        }
+    }
+
 
     private string GetDebuggerDisplay() {
         return "Count = " + (_diagnostics?.Count ?? 0);

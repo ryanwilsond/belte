@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Reflection;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -90,12 +92,14 @@ internal abstract class Symbol : ISymbol {
             if (!isDefinition)
                 return originalDefinition.declaringCompilation;
 
-            if (this is NamespaceSymbol @namespace)
-                return @namespace.containingCompilation;
+            if (this is AssemblySymbol assembly)
+                return assembly.declaringCompilation;
 
             return containingSymbol.declaringCompilation;
         }
     }
+
+    internal virtual AssemblySymbol containingAssembly => containingSymbol?.containingAssembly;
 
     internal virtual NamespaceSymbol containingNamespace {
         get {
@@ -307,6 +311,19 @@ internal abstract class Symbol : ISymbol {
             default:
                 return this;
         }
+    }
+
+    internal bool LoadAndValidateAttributes(
+        OneOrMany<SyntaxList<AttributeListSyntax>> attributesSyntaxLists,
+        ref CustomAttributesBag<AttributeData> lazyCustomAttributesBag,
+        AttributeLocation symbolPart = AttributeLocation.None,
+        bool earlyDecodingOnly = false,
+        Binder? binderOpt = null,
+        Func<AttributeSyntax, bool> attributeMatchesOpt = null,
+        Action<AttributeSyntax> beforeAttributePartBound = null,
+        Action<AttributeSyntax> afterAttributePartBound = null) {
+        // TODO
+        return true;
     }
 
     private protected static bool IsLocationContainedWithin(

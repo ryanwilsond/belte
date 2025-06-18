@@ -16,4 +16,5 @@ public enum SymbolKind : byte {
     Label,
     Namespace,
     Alias,
+    Assembly,
 }

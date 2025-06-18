@@ -69,6 +69,12 @@ public static class SymbolDisplay {
             case SymbolKind.Label:
                 DisplayLabel(text, (LabelSymbol)symbol, format);
                 break;
+            case SymbolKind.Alias:
+                DisplayAlias(text, (AliasSymbol)symbol);
+                break;
+            case SymbolKind.Assembly:
+                DisplayAssembly(text, (AssemblySymbol)symbol);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
@@ -199,6 +205,24 @@ public static class SymbolDisplay {
 
         nameText.segments.Reverse();
         text.Write(nameText.segments);
+    }
+
+    private static void DisplayAssembly(DisplayText text, AssemblySymbol assembly) {
+        text.Write(CreateKeyword("assembly"));
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(assembly.name));
+    }
+
+    private static void DisplayAlias(DisplayText text, AliasSymbol alias) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(alias.name));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        AppendToDisplayText(text, alias.target);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
     private static void DisplayLabel(DisplayText text, LabelSymbol label, SymbolDisplayFormat _) {
@@ -448,8 +472,10 @@ public static class SymbolDisplay {
 
         DisplayContainedNames(text, symbol, format);
 
-        if (symbol is not GlobalNamespaceSymbol)
+        if (!symbol.isGlobalNamespace ||
+            ((format.qualificationStyle & SymbolDisplayQualificationStyle.IncludeGlobalNamespace) == 0)) {
             text.Write(CreateIdentifier(symbol.name));
+        }
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {

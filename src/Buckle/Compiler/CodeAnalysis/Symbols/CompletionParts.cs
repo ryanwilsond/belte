@@ -6,26 +6,29 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal enum CompletionParts : ushort {
     None = 0,
 
+    // For all symbols
+    Attributes = 1 << 0,
+
     // For methods
-    Parameters = 1 << 0,
+    Parameters = 1 << 1,
 
     // For symbols with type (methods, fields)
-    Type = 1 << 1,
+    Type = 1 << 2,
 
     // For named type symbols
-    StartBaseType = 1 << 2,
-    FinishBaseType = 1 << 3,
-    TemplateArguments = 1 << 4,
-    TemplateParameters = 1 << 5,
-    Members = 1 << 6,
-    TypeMembers = 1 << 7,
-    SynthesizedExplicitImplementations = 1 << 8,
-    StartMemberChecks = 1 << 9,
-    FinishMemberChecks = 1 << 10,
-    MembersCompletedChecksStarted = 1 << 11,
-    MembersCompleted = 1 << 12,
+    StartBaseType = 1 << 3,
+    FinishBaseType = 1 << 4,
+    TemplateArguments = 1 << 5,
+    TemplateParameters = 1 << 6,
+    Members = 1 << 7,
+    TypeMembers = 1 << 8,
+    SynthesizedExplicitImplementations = 1 << 9,
+    StartMemberChecks = 1 << 10,
+    FinishMemberChecks = 1 << 11,
+    MembersCompletedChecksStarted = 1 << 12,
+    MembersCompleted = 1 << 13,
 
-    All = (1 << 13) - 1,
+    All = (1 << 14) - 1,
 
     NamedTypeSymbolWithLocationAll = StartBaseType | FinishBaseType | TemplateArguments | TemplateParameters |
         Members | TypeMembers | SynthesizedExplicitImplementations | StartMemberChecks | FinishMemberChecks,
@@ -33,33 +36,42 @@ internal enum CompletionParts : ushort {
     NamedTypeSymbolAll = NamedTypeSymbolWithLocationAll | MembersCompletedChecksStarted | MembersCompleted,
 
     // For Usings
-    StartValidatingImports = 1 << 2,
-    FinishValidatingImports = 1 << 3,
+    StartValidatingImports = 1 << 3,
+    FinishValidatingImports = 1 << 4,
     ImportsAll = StartValidatingImports | FinishValidatingImports,
 
     // For namespaces
-    NameToMembersMap = 1 << 6,
+    NameToMembersMap = 1 << 7,
     NamespaceSymbolAll = NameToMembersMap | MembersCompleted,
 
     // For fields
-    ConstantValue = 1 << 6,
+    ConstantValue = 1 << 7,
     FieldSymbolAll = Type | ConstantValue,
 
     // For methods
-    StartMethodChecks = 1 << 6,
-    FinishMethodChecks = 1 << 7,
+    StartMethodChecks = 1 << 7,
+    FinishMethodChecks = 1 << 8,
     MethodSymbolAll = Parameters | Type | TemplateParameters | StartMethodChecks | FinishMethodChecks,
 
     // For complex parameters
-    StartDefaultSyntaxValue = 1 << 6,
-    EndDefaultSyntaxValue = 1 << 7,
-    EndDefaultSyntaxValueDiagnostics = 1 << 13,
+    StartDefaultSyntaxValue = 1 << 7,
+    EndDefaultSyntaxValue = 1 << 8,
+    EndDefaultSyntaxValueDiagnostics = 1 << 14,
     ComplexParameterSymbolAll = StartDefaultSyntaxValue | EndDefaultSyntaxValue | EndDefaultSyntaxValueDiagnostics,
 
     // For template parameters
-    TemplateParameterConstraints = 1 << 8,
+    TemplateParameterConstraints = 1 << 9,
     TemplateParameterSymbolAll = TemplateParameterConstraints | StartDefaultSyntaxValue | EndDefaultSyntaxValue,
 
     // For alias symbols
-    AliasTarget = 1 << 2,
+    AliasTarget = 1 << 3,
+
+    // For assembly symbols
+    StartAttributeChecks = 1 << 3,
+    FinishAttributeChecks = 1 << 4,
+    Module = 1 << 5,
+    StartValidatingAddedModules = 1 << 6,
+    FinishValidatingAddedModules = 1 << 7,
+    AssemblySymbolAll = Attributes | StartAttributeChecks | FinishAttributeChecks |
+        Module | StartValidatingAddedModules | FinishValidatingAddedModules,
 }

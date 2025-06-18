@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -17,6 +20,8 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
 
     private static readonly Func<SingleNamespaceDeclaration, SyntaxReference> DeclaringSyntaxReferencesSelector = d =>
         new NamespaceDeclarationSyntaxReference(d.syntaxReference);
+
+    private readonly SourceAssemblySymbol _assembly;
 
     private SymbolCompletionState _state;
     private ImmutableArray<TextLocation> _locations;
@@ -35,10 +40,12 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
     private LexicalSortKey _lazyLexicalSortKey = LexicalSortKey.NotInitialized;
 
     internal SourceNamespaceSymbol(
+        SourceAssemblySymbol assembly,
         Symbol container,
         MergedNamespaceDeclaration mergedDeclaration,
         BelteDiagnosticQueue diagnostics) {
         containingSymbol = container;
+        _assembly = assembly;
         this.mergedDeclaration = mergedDeclaration;
 
         foreach (var singleDeclaration in mergedDeclaration.declarations)
@@ -71,7 +78,9 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
 
     internal override Symbol containingSymbol { get; }
 
-    internal override NamespaceExtent extent => new NamespaceExtent();
+    internal override NamespaceExtent extent => new NamespaceExtent(containingAssembly);
+
+    internal override AssemblySymbol containingAssembly => _assembly;
 
     internal override LexicalSortKey GetLexicalSortKey() {
         if (!_lazyLexicalSortKey.isInitialized)
@@ -258,7 +267,10 @@ done:
 
     private protected virtual void AdditionalRegistration(
         PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        CompilationOptions options) { }
+        CompilationOptions options) {
+        if (isGlobalNamespace)
+            LibraryHelpers.DeclareLibrariesInNamespace(builder, declaringCompilation.options);
+    }
 
     private static void CheckMembers(
         NamespaceSymbol @namespace,
@@ -323,7 +335,7 @@ done:
         BelteDiagnosticQueue diagnostics) {
         switch (declaration.kind) {
             case DeclarationKind.Namespace:
-                return new SourceNamespaceSymbol(this, (MergedNamespaceDeclaration)declaration, diagnostics);
+                return new SourceNamespaceSymbol(_assembly, this, (MergedNamespaceDeclaration)declaration, diagnostics);
             case DeclarationKind.Struct:
             case DeclarationKind.Class:
                 return new SourceNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
@@ -340,7 +352,7 @@ done:
         if (declaringCompilation.keepLookingForCorTypes) {
             foreach (var member in members.Values) {
                 if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
-                    containingCompilation.RegisterDeclaredSpecialType(type);
+                    declaringCompilation.RegisterDeclaredSpecialType(type);
 
                     if (!declaringCompilation.keepLookingForCorTypes)
                         return;
@@ -370,4 +382,223 @@ done:
 
         return false;
     }
+
+    #region Imports
+
+    internal Imports GetImports(BelteSyntaxNode declarationSyntax, ConsList<TypeSymbol> basesBeingResolved) {
+        switch (declarationSyntax) {
+            case CompilationUnitSyntax compilationUnit:
+                if (!compilationUnit.usings.Any())
+                    return GetGlobalUsingImports(basesBeingResolved);
+
+                break;
+
+            case BaseNamespaceDeclarationSyntax namespaceDecl:
+                if (!namespaceDecl.usings.Any())
+                    return Imports.Empty;
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+        }
+
+        return GetAliasesAndUsings(declarationSyntax)
+            .GetImports(this, declarationSyntax, basesBeingResolved);
+    }
+
+    private AliasesAndUsings GetAliasesAndUsings(BelteSyntaxNode declarationSyntax) {
+        return GetAliasesAndUsings(GetMatchingNamespaceDeclaration(declarationSyntax));
+    }
+
+    private SingleNamespaceDeclaration GetMatchingNamespaceDeclaration(BelteSyntaxNode declarationSyntax) {
+        foreach (var declaration in mergedDeclaration.declarations) {
+            var declarationSyntaxRef = declaration.syntaxReference;
+
+            if (declarationSyntaxRef.syntaxTree != declarationSyntax.syntaxTree)
+                continue;
+
+            if (declarationSyntaxRef.node == declarationSyntax)
+                return declaration;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private static AliasesAndUsings GetOrCreateAliasAndUsings(
+        ref ImmutableDictionary<SingleNamespaceDeclaration, AliasesAndUsings> dictionary,
+        SingleNamespaceDeclaration declaration) {
+        return ImmutableInterlocked.GetOrAdd(
+            ref dictionary,
+            declaration,
+            static _ => new AliasesAndUsings());
+    }
+
+    private AliasesAndUsings GetAliasesAndUsings(SingleNamespaceDeclaration declaration)
+        => GetOrCreateAliasAndUsings(ref _aliasesAndUsings_doNotAccessDirectly, declaration);
+
+    internal ImmutableArray<AliasAndUsingDirective> GetUsingAliases(
+        BelteSyntaxNode declarationSyntax,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        switch (declarationSyntax) {
+            case CompilationUnitSyntax compilationUnit:
+                if (!compilationUnit.usings.Any())
+                    return [];
+
+                break;
+            case BaseNamespaceDeclarationSyntax namespaceDecl:
+                if (!namespaceDecl.usings.Any())
+                    return [];
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+        }
+
+        return GetAliasesAndUsings(declarationSyntax).GetUsingAliases(this, declarationSyntax, basesBeingResolved);
+    }
+
+    internal ImmutableDictionary<string, AliasAndUsingDirective> GetUsingAliasesMap(
+        BelteSyntaxNode declarationSyntax,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        switch (declarationSyntax) {
+            case CompilationUnitSyntax compilationUnit:
+                if (!compilationUnit.usings.Any())
+                    return GetGlobalUsingAliasesMap(basesBeingResolved);
+
+                break;
+            case BaseNamespaceDeclarationSyntax namespaceDecl:
+                if (!namespaceDecl.usings.Any())
+                    return ImmutableDictionary<string, AliasAndUsingDirective>.Empty;
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+        }
+
+        return GetAliasesAndUsings(declarationSyntax).GetUsingAliasesMap(this, declarationSyntax, basesBeingResolved);
+    }
+
+    internal ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsingNamespacesOrTypes(
+        BelteSyntaxNode declarationSyntax,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        switch (declarationSyntax) {
+            case CompilationUnitSyntax compilationUnit:
+                if (!compilationUnit.usings.Any())
+                    return GetGlobalUsingNamespacesOrTypes(basesBeingResolved);
+
+                break;
+            case BaseNamespaceDeclarationSyntax namespaceDecl:
+                if (!namespaceDecl.usings.Any())
+                    return [];
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
+        }
+
+        return GetAliasesAndUsings(declarationSyntax)
+            .GetUsingNamespacesOrTypes(this, declarationSyntax, basesBeingResolved);
+    }
+
+    private Imports GetGlobalUsingImports(ConsList<TypeSymbol> basesBeingResolved) {
+        return GetMergedGlobalAliasesAndUsings(basesBeingResolved).imports;
+    }
+
+    private ImmutableDictionary<string, AliasAndUsingDirective> GetGlobalUsingAliasesMap(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return GetMergedGlobalAliasesAndUsings(basesBeingResolved).usingAliasesMap;
+    }
+
+    private ImmutableArray<NamespaceOrTypeAndUsingDirective> GetGlobalUsingNamespacesOrTypes(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return GetMergedGlobalAliasesAndUsings(basesBeingResolved).usingNamespacesOrTypes;
+    }
+
+    private MergedGlobalAliasesAndUsings GetMergedGlobalAliasesAndUsings(ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyMergedGlobalAliasesAndUsings is null) {
+            if (!isGlobalNamespace) {
+                _lazyMergedGlobalAliasesAndUsings = MergedGlobalAliasesAndUsings.Empty;
+            } else {
+                ImmutableDictionary<string, AliasAndUsingDirective>? mergedAliases = null;
+                var mergedNamespacesOrTypes = ArrayBuilder<NamespaceOrTypeAndUsingDirective>.GetInstance();
+                var uniqueUsings = SpecializedSymbolCollections.GetPooledSymbolHashSetInstance<NamespaceOrTypeSymbol>();
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                try {
+                    foreach (var singleDeclaration in mergedDeclaration.declarations) {
+                        if (singleDeclaration.hasGlobalUsings) {
+                            var aliases = GetAliasesAndUsings(singleDeclaration)
+                                .GetGlobalUsingAliasesMap(this, singleDeclaration.syntaxReference, basesBeingResolved);
+
+                            if (!aliases.IsEmpty) {
+                                if (mergedAliases is null) {
+                                    mergedAliases = aliases;
+                                } else {
+                                    var builder = mergedAliases.ToBuilder();
+                                    var added = false;
+
+                                    foreach (var pair in aliases) {
+                                        if (builder.ContainsKey(pair.Key)) {
+                                            diagnostics.Push(Error.DuplicateAlias(pair.Value.alias.location, pair.Key));
+                                        } else {
+                                            builder.Add(pair);
+                                            added = true;
+                                        }
+                                    }
+
+                                    if (added)
+                                        mergedAliases = builder.ToImmutable();
+                                }
+                            }
+
+                            var namespacesOrTypes = GetAliasesAndUsings(singleDeclaration)
+                                .GetGlobalUsingNamespacesOrTypes(
+                                    this,
+                                    singleDeclaration.syntaxReference,
+                                    basesBeingResolved
+                                );
+
+                            if (!namespacesOrTypes.IsEmpty) {
+                                if (mergedNamespacesOrTypes.Count == 0) {
+                                    mergedNamespacesOrTypes.AddRange(namespacesOrTypes);
+                                    uniqueUsings.AddAll(namespacesOrTypes.Select(n => n.namespaceOrType));
+                                } else {
+                                    foreach (var namespaceOrType in namespacesOrTypes) {
+                                        if (!uniqueUsings.Add(namespaceOrType.namespaceOrType)) {
+                                            diagnostics.Push(Error.DuplicateWithGlobalUsing(
+                                                namespaceOrType.usingDirective.namespaceOrType.location,
+                                                namespaceOrType.namespaceOrType
+                                            ));
+                                        } else {
+                                            mergedNamespacesOrTypes.Add(namespaceOrType);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Interlocked.CompareExchange(ref _lazyMergedGlobalAliasesAndUsings,
+                        new MergedGlobalAliasesAndUsings() {
+                            usingAliasesMap = mergedAliases ?? ImmutableDictionary<string, AliasAndUsingDirective>.Empty,
+                            usingNamespacesOrTypes = mergedNamespacesOrTypes.ToImmutableAndFree(),
+                            diagnostics = diagnostics.ToImmutableAndFree()
+                        },
+                        null
+                    );
+
+                    mergedNamespacesOrTypes = null;
+                    diagnostics = null;
+                } finally {
+                    uniqueUsings.Free();
+                    mergedNamespacesOrTypes?.Free();
+                    diagnostics?.Free();
+                }
+            }
+        }
+
+        return _lazyMergedGlobalAliasesAndUsings;
+    }
+
+    #endregion
 }

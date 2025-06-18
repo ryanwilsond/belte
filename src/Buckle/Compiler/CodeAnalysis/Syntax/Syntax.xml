@@ -204,8 +204,14 @@
   </Node>
   <Node Name="UsingDirectiveSyntax" Base="SyntaxNode">
     <Kind Name="UsingDirective"/>
+    <Field Name="globalKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="GlobalKeyword" />
+    </Field>
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="UsingKeyword" />
+    </Field>
+    <Field Name="staticKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="StaticKeyword" />
     </Field>
     <Field Name="alias" Type="NameEqualsSyntax" Optional="true"/>
     <Field Name="namespaceOrType" Type="TypeSyntax"/>
@@ -276,6 +282,7 @@
   <!-- Declarations -->
   <Node Name="CompilationUnitSyntax" Base="SyntaxNode">
     <Kind Name="CompilationUnit"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
     <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;"/>
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;"/>
     <Field Name="endOfFile" Type="SyntaxToken">

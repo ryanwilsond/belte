@@ -39,10 +39,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     /// </summary>
     /// <returns>The parsed file.</returns>
     internal CompilationUnitSyntax ParseCompilationUnit() {
+        var attributeLists = ParseAttributeLists();
         var usings = ParseUsings();
         var members = ParseMembers(true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
-        return SyntaxFactory.CompilationUnit(usings, members, endOfFile);
+        return SyntaxFactory.CompilationUnit(attributeLists, usings, members, endOfFile);
     }
 
     private new ResetPoint GetResetPoint() {
@@ -259,7 +260,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private SyntaxList<UsingDirectiveSyntax> ParseUsings() {
         var usings = SyntaxListBuilder<UsingDirectiveSyntax>.Create();
 
-        while (currentToken.kind == SyntaxKind.UsingKeyword) {
+        while (PeekIsUsingDirective()) {
             var usingDirective = ParseUsingDirective();
             usings.Add(usingDirective);
         }
@@ -267,12 +268,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return usings.ToList();
     }
 
+    private bool PeekIsUsingDirective() {
+        if (currentToken.kind == SyntaxKind.UsingKeyword)
+            return true;
+
+        if (currentToken.kind == SyntaxKind.GlobalKeyword && Peek(1).kind == SyntaxKind.UsingKeyword)
+            return true;
+
+        return false;
+    }
+
     private UsingDirectiveSyntax ParseUsingDirective() {
-        var keyword = EatToken();
+        var globalKeyword = currentToken.kind == SyntaxKind.GlobalKeyword ? EatToken() : null;
+        var keyword = Match(SyntaxKind.UsingKeyword);
+        var staticKeyword = currentToken.kind == SyntaxKind.StaticKeyword ? EatToken() : null;
         var alias = IsNamedAssignment() ? ParseNameEquals() : null;
         var namespaceOrType = alias is null ? ParseQualifiedName() : ParseType();
         var semicolon = Match(SyntaxKind.SemicolonToken);
-        return SyntaxFactory.UsingDirective(keyword, alias, namespaceOrType, semicolon);
+        return SyntaxFactory.UsingDirective(globalKeyword, keyword, staticKeyword, alias, namespaceOrType, semicolon);
     }
 
     private bool IsNamedAssignment() {

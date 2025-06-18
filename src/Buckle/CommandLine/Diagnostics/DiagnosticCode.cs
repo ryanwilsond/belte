@@ -39,4 +39,5 @@ public enum DiagnosticCode : ushort {
     ERR_CodeIsNotWarning = 28,
     ERR_MissingType = 29,
     ERR_UnrecognizedType = 30,
+    FTL_DLLWithWrongBuildMode = 31,
 }
