@@ -55,6 +55,11 @@ internal static class Fatal {
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_DLLWithWrongBuildMode), message);
     }
 
+    internal static Diagnostic CannotSpecifyOutAndModuleWithDll() {
+        var message = "cannot specify an output file and module name when building a dynamically linked library";
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyOutAndModuleWithDll), message);
+    }
+
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Fatal);
     }

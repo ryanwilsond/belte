@@ -482,7 +482,7 @@ public static partial class BuckleCommandLine {
         state.buildMode = BuildMode.AutoRun;
         state.finishStage = CompilerStage.Finished;
         state.outputFilename = "a.exe";
-        state.moduleName = "defaultModuleName";
+        state.moduleName = "a";
         state.noOut = false;
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
@@ -686,6 +686,17 @@ public static partial class BuckleCommandLine {
         state.includeWarnings = includeWarnings.ToArray();
         state.excludeWarnings = excludeWarnings.ToArray();
 
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+            if (!specifyBuildMode)
+                state.buildMode = BuildMode.Dotnet;
+
+            if (state.buildMode != BuildMode.Dotnet)
+                diagnostics.Push(Belte.Diagnostics.Fatal.DLLWithWrongBuildMode());
+
+            if (!specifyOut)
+                state.outputFilename = "a.dll";
+        }
+
         if (!specifyWarningLevel &&
             state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
             state.warningLevel = 0;
@@ -723,14 +734,12 @@ public static partial class BuckleCommandLine {
             diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
 
         if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
-            if (!specifyBuildMode)
-                state.buildMode = BuildMode.Dotnet;
-
-            if (state.buildMode != BuildMode.Dotnet)
-                diagnostics.Push(Belte.Diagnostics.Fatal.DLLWithWrongBuildMode());
-
-            if (!specifyOut)
-                state.outputFilename = "a.dll";
+            if (specifyOut && specifyModule)
+                diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyOutAndModuleWithDll());
+            else if (!specifyOut)
+                state.outputFilename = state.moduleName + ".dll";
+            else if (!specifyModule)
+                state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
         }
 
         state.outputFilename = state.outputFilename.Trim();

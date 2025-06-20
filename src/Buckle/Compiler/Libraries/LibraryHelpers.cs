@@ -42,7 +42,7 @@ public static class LibraryHelpers {
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries(CompilationOptions options) {
+    public static Compilation LoadLibraries() {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
