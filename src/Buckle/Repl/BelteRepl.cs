@@ -896,6 +896,11 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
 
+        if (signature.StartsWith("global::"))
+            signature = signature.Substring(8);
+        else if (signature.StartsWith("global."))
+            signature = signature.Substring(7);
+
         // Prefer tracked symbols first
         foreach (var symbolAndObject in state.context.GetTrackedSymbolsAndObjects()) {
             var local = symbolAndObject.Key;

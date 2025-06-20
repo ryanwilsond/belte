@@ -32,7 +32,7 @@ internal abstract class AssemblySymbol : Symbol {
 
     internal sealed override bool isOverride => false;
 
-    internal abstract override ImmutableArray<SyntaxReference> declaringSyntaxReferences { get; }
+    internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
 
     internal abstract override ImmutableArray<TextLocation> locations { get; }
 

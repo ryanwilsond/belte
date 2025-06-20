@@ -42,6 +42,8 @@ internal abstract class ModuleSymbol : Symbol {
 
     internal abstract override ImmutableArray<TextLocation> locations { get; }
 
+    internal override TextLocation location => null;
+
     internal abstract ImmutableArray<AssemblyIdentity> referencedAssemblies { get; }
 
     internal abstract ImmutableArray<AssemblySymbol> referencedAssemblySymbols { get; }

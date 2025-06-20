@@ -846,7 +846,7 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     }
 
     internal override IEnumerable<NamedTypeSymbol> GetAllTopLevelForwardedTypes() {
-        return PEModuleBuilder.GetForwardedTypes(this, builder: null);
+        return PEModuleBuilder.GetForwardedTypes(this);
     }
 
     internal override AssemblyMetadata GetMetadata() => null;

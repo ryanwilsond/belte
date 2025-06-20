@@ -166,7 +166,7 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
                         children.Add(PENamedTypeSymbol.Create(moduleSymbol, this, t, g.Key));
                     } else {
                         try {
-                            string typeDefName = moduleSymbol.module.GetTypeDefNameOrThrow(t);
+                            var typeDefName = moduleSymbol.module.GetTypeDefNameOrThrow(t);
 
                             noPiaLocalTypes ??= new Dictionary<string, TypeDefinitionHandle>(
                                 StringOrdinalComparer.Instance
@@ -196,11 +196,7 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
 
         if (_lazyNoPiaLocalTypes is not null &&
             _lazyNoPiaLocalTypes.TryGetValue(emittedTypeName.typeName, out var typeDef)) {
-
-            var result = (NamedTypeSymbol)new MetadataDecoder(containingPEModule)
-                .GetTypeOfToken(typeDef, out bool isNoPiaLocalType);
-
-            return result;
+            return (NamedTypeSymbol)new MetadataDecoder(containingPEModule).GetTypeOfToken(typeDef, out _);
         }
 
         return null;

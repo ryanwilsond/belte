@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -29,25 +30,25 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
 
     internal override AssemblyIdentity identity => _assembly.identity;
 
-    internal ImmutableArray<ModuleSymbol> modules => _modules;
+    internal override ImmutableArray<ModuleSymbol> modules => _modules;
 
     internal override ImmutableArray<TextLocation> locations
         => primaryModule.metadataLocation.Cast<MetadataLocation, TextLocation>();
 
-    internal override int metadataToken => MetadataTokens.GetToken(_assembly.handle);
+    // internal override int metadataToken => MetadataTokens.GetToken(_assembly.handle);
 
-    internal override bool hasImportedFromTypeLibAttribute
-        => primaryModule.module.HasImportedFromTypeLibAttribute(assembly.handle, out _);
+    // internal override bool hasImportedFromTypeLibAttribute
+    //     => primaryModule.module.HasImportedFromTypeLibAttribute(assembly.handle, out _);
 
-    internal override bool hasPrimaryInteropAssemblyAttribute
-        => primaryModule.module.HasPrimaryInteropAssemblyAttribute(assembly.handle, out _, out _);
+    // internal override bool hasPrimaryInteropAssemblyAttribute
+    //     => primaryModule.module.HasPrimaryInteropAssemblyAttribute(assembly.handle, out _, out _);
 
-    internal override ImmutableArray<AttributeData> GetAttributes() {
-        if (_lazyCustomAttributes.IsDefault)
-            primaryModule.LoadCustomAttributes(_assembly.handle, ref _lazyCustomAttributes);
+    // internal override ImmutableArray<AttributeData> GetAttributes() {
+    //     if (_lazyCustomAttributes.IsDefault)
+    //         primaryModule.LoadCustomAttributes(_assembly.handle, ref _lazyCustomAttributes);
 
-        return _lazyCustomAttributes;
-    }
+    //     return _lazyCustomAttributes;
+    // }
 
     internal (AssemblySymbol FirstSymbol, AssemblySymbol SecondSymbol) LookupAssembliesForForwardedMetadataType(
         ref MetadataTypeName emittedName) {
@@ -73,11 +74,14 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
                 );
             }
 
-            // Don't bother to check the forwarded-to assembly if we've already seen it.
-            if (visitedAssemblies != null && visitedAssemblies.Contains(firstSymbol)) {
+            if (visitedAssemblies is not null && visitedAssemblies.Contains(firstSymbol)) {
                 return CreateCycleInTypeForwarderErrorTypeSymbol(ref emittedName);
             } else {
-                visitedAssemblies = new ConsList<AssemblySymbol>(this, visitedAssemblies ?? ConsList<AssemblySymbol>.Empty);
+                visitedAssemblies = new ConsList<AssemblySymbol>(
+                    this,
+                    visitedAssemblies ?? ConsList<AssemblySymbol>.Empty
+                );
+
                 return firstSymbol.LookupDeclaredOrForwardedTopLevelMetadataType(ref emittedName, visitedAssemblies);
             }
         }
@@ -108,7 +112,7 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
     }
 
     internal override bool AreInternalsVisibleToThisAssembly(AssemblySymbol potentialGiverOfAccess) {
-        IVTConclusion conclusion = MakeFinalIVTDetermination(potentialGiverOfAccess);
+        var conclusion = MakeFinalIVTDetermination(potentialGiverOfAccess);
         return conclusion == IVTConclusion.Match || conclusion == IVTConclusion.OneSignedOneNot;
     }
 
@@ -127,5 +131,4 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
     internal sealed override Compilation declaringCompilation => null;
 
     internal override AssemblyMetadata GetMetadata() => _assembly.GetNonDisposableMetadata();
-
 }

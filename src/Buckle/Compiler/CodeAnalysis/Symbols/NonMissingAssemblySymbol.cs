@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Linq;
+using System.Threading;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -6,7 +8,26 @@ internal abstract class NonMissingAssemblySymbol : AssemblySymbol {
     private readonly ConcurrentDictionary<MetadataTypeName.Key, NamedTypeSymbol> _emittedNameToTypeMap =
         new ConcurrentDictionary<MetadataTypeName.Key, NamedTypeSymbol>();
 
+    private NamespaceSymbol _globalNamespace;
+
     internal sealed override bool isMissing => false;
+
+    internal sealed override NamespaceSymbol globalNamespace {
+        get {
+            if (_globalNamespace is null) {
+                var allGlobalNamespaces = from m in modules select m.globalNamespace;
+                var result = MergedNamespaceSymbol.Create(
+                    new NamespaceExtent(this),
+                    null,
+                    allGlobalNamespaces.AsImmutable()
+                );
+
+                Interlocked.CompareExchange(ref _globalNamespace, result, null);
+            }
+
+            return _globalNamespace;
+        }
+    }
 
     internal sealed override NamedTypeSymbol LookupDeclaredOrForwardedTopLevelMetadataType(
         ref MetadataTypeName emittedName,

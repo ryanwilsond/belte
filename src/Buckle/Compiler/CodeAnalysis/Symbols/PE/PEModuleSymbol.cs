@@ -1,16 +1,20 @@
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Reflection;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
+using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed partial class PEModuleSymbol : ModuleSymbol {
+internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
     private const int DefaultTypeMapCapacity = 31;
 
     private readonly AssemblySymbol _assemblySymbol;
@@ -57,14 +61,6 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
         : this((AssemblySymbol)assemblySymbol, module, importOptions, ordinal) {
     }
 
-    internal PEModuleSymbol(
-        RetargetingAssemblySymbol assemblySymbol,
-        PEModule module,
-        MetadataImportOptions importOptions,
-        int ordinal)
-        : this((AssemblySymbol)assemblySymbol, module, importOptions, ordinal) {
-    }
-
     private PEModuleSymbol(
         AssemblySymbol assemblySymbol,
         PEModule module,
@@ -100,7 +96,7 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
 
     internal ImmutableArray<AttributeData> GetAttributes() {
         if (_lazyCustomAttributes.IsDefault)
-            this.LoadCustomAttributes(Token, ref _lazyCustomAttributes);
+            LoadCustomAttributes(Token, ref _lazyCustomAttributes);
 
         return _lazyCustomAttributes;
     }
@@ -124,7 +120,7 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
             //             try {
             //                 foreach (var customAttributeHandle in Module.GetCustomAttributesOrThrow(typerefAssemblyAttributesGoHere)) {
             //                     if (moduleAssemblyAttributesBuilder == null) {
-            //                         moduleAssemblyAttributesBuilder = new ArrayBuilder<CSharpAttributeData>();
+            //                         moduleAssemblyAttributesBuilder = new ArrayBuilder<AttributeData>();
             //                     }
             //                     moduleAssemblyAttributesBuilder.Add(new PEAttributeData(this, customAttributeHandle));
             //                 }
@@ -144,24 +140,24 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
         return _lazyAssemblyAttributes;
     }
 
-    internal void LoadCustomAttributes(EntityHandle token, ref ImmutableArray<CSharpAttributeData> customAttributes) {
+    internal void LoadCustomAttributes(EntityHandle token, ref ImmutableArray<AttributeData> customAttributes) {
         var loaded = GetCustomAttributesForToken(token);
         ImmutableInterlocked.InterlockedInitialize(ref customAttributes, loaded);
     }
 
     internal void LoadCustomAttributesFilterExtensions(EntityHandle token,
-        ref ImmutableArray<CSharpAttributeData> customAttributes) {
+        ref ImmutableArray<AttributeData> customAttributes) {
         var loadedCustomAttributes = GetCustomAttributesFilterCompilerAttributes(token, out _, out _);
         ImmutableInterlocked.InterlockedInitialize(ref customAttributes, loadedCustomAttributes);
     }
 
-    internal ImmutableArray<CSharpAttributeData> GetCustomAttributesForToken(EntityHandle token,
+    internal ImmutableArray<AttributeData> GetCustomAttributesForToken(EntityHandle token,
         out CustomAttributeHandle filteredOutAttribute1,
         AttributeDescription filterOut1) {
         return GetCustomAttributesForToken(token, out filteredOutAttribute1, filterOut1, out _, default, out _, default, out _, default, out _, default, out _, default);
     }
 
-    internal ImmutableArray<CSharpAttributeData> GetCustomAttributesForToken(EntityHandle token,
+    internal ImmutableArray<AttributeData> GetCustomAttributesForToken(EntityHandle token,
         out CustomAttributeHandle filteredOutAttribute1,
         AttributeDescription filterOut1,
         out CustomAttributeHandle filteredOutAttribute2,
@@ -169,11 +165,7 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
         return GetCustomAttributesForToken(token, out filteredOutAttribute1, filterOut1, out filteredOutAttribute2, filterOut2, out _, default, out _, default, out _, default, out _, default);
     }
 
-    /// <summary>
-    /// Returns attributes with up-to 6 filters applied. For each filter, the last application of the
-    /// attribute will be tracked and returned.
-    /// </summary>
-    internal ImmutableArray<CSharpAttributeData> GetCustomAttributesForToken(EntityHandle token,
+    internal ImmutableArray<AttributeData> GetCustomAttributesForToken(EntityHandle token,
         out CustomAttributeHandle filteredOutAttribute1,
         AttributeDescription filterOut1,
         out CustomAttributeHandle filteredOutAttribute2,
@@ -192,73 +184,62 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
         filteredOutAttribute4 = default;
         filteredOutAttribute5 = default;
         filteredOutAttribute6 = default;
-        ArrayBuilder<CSharpAttributeData> customAttributesBuilder = null;
+        ArrayBuilder<AttributeData> customAttributesBuilder = null;
 
         try {
             foreach (var customAttributeHandle in _module.GetCustomAttributesOrThrow(token)) {
-                // It is important to capture the last application of the attribute that we run into,
-                // it makes a difference for default and constant values.
-
-                if (matchesFilter(customAttributeHandle, filterOut1)) {
+                if (MatchesFilter(customAttributeHandle, filterOut1)) {
                     filteredOutAttribute1 = customAttributeHandle;
                     continue;
                 }
 
-                if (matchesFilter(customAttributeHandle, filterOut2)) {
+                if (MatchesFilter(customAttributeHandle, filterOut2)) {
                     filteredOutAttribute2 = customAttributeHandle;
                     continue;
                 }
 
-                if (matchesFilter(customAttributeHandle, filterOut3)) {
+                if (MatchesFilter(customAttributeHandle, filterOut3)) {
                     filteredOutAttribute3 = customAttributeHandle;
                     continue;
                 }
 
-                if (matchesFilter(customAttributeHandle, filterOut4)) {
+                if (MatchesFilter(customAttributeHandle, filterOut4)) {
                     filteredOutAttribute4 = customAttributeHandle;
                     continue;
                 }
 
-                if (matchesFilter(customAttributeHandle, filterOut5)) {
+                if (MatchesFilter(customAttributeHandle, filterOut5)) {
                     filteredOutAttribute5 = customAttributeHandle;
                     continue;
                 }
 
-                if (matchesFilter(customAttributeHandle, filterOut6)) {
+                if (MatchesFilter(customAttributeHandle, filterOut6)) {
                     filteredOutAttribute6 = customAttributeHandle;
                     continue;
                 }
 
                 if (customAttributesBuilder == null) {
-                    customAttributesBuilder = ArrayBuilder<CSharpAttributeData>.GetInstance();
+                    customAttributesBuilder = ArrayBuilder<AttributeData>.GetInstance();
                 }
 
                 customAttributesBuilder.Add(new PEAttributeData(this, customAttributeHandle));
             }
         } catch (BadImageFormatException) { }
 
-        if (customAttributesBuilder != null) {
+        if (customAttributesBuilder is not null)
             return customAttributesBuilder.ToImmutableAndFree();
-        }
 
-        return ImmutableArray<CSharpAttributeData>.Empty;
+        return [];
 
-        bool matchesFilter(CustomAttributeHandle handle, AttributeDescription filter)
-            => filter.Signatures != null && Module.GetTargetAttributeSignatureIndex(handle, filter) != -1;
+        bool MatchesFilter(CustomAttributeHandle handle, AttributeDescription filter)
+            => filter.signatures is not null && module.GetTargetAttributeSignatureIndex(handle, filter) != -1;
     }
 
-    internal ImmutableArray<CSharpAttributeData> GetCustomAttributesForToken(EntityHandle token) {
-        // Do not filter anything and therefore ignore the out results
+    internal ImmutableArray<AttributeData> GetCustomAttributesForToken(EntityHandle token) {
         return GetCustomAttributesForToken(token, out _, default);
     }
 
-    /// <summary>
-    /// Get the custom attributes, but filter out any ParamArrayAttributes.
-    /// </summary>
-    /// <param name="token">The parameter token handle.</param>
-    /// <param name="paramArrayAttribute">Set to a ParamArrayAttribute</param>
-    /// CustomAttributeHandle if any are found. Nil token otherwise.
-    internal ImmutableArray<CSharpAttributeData> GetCustomAttributesForToken(EntityHandle token,
+    internal ImmutableArray<AttributeData> GetCustomAttributesForToken(EntityHandle token,
         out CustomAttributeHandle paramArrayAttribute) {
         return GetCustomAttributesForToken(token, out paramArrayAttribute, AttributeDescription.ParamArrayAttribute);
     }
@@ -274,27 +255,23 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
     }
 
     internal TypeSymbol TryDecodeAttributeWithTypeArgument(EntityHandle handle, AttributeDescription attributeDescription) {
-        string typeName;
-        if (_module.HasStringValuedAttribute(handle, attributeDescription, out typeName)) {
+        if (_module.HasStringValuedAttribute(handle, attributeDescription, out var typeName))
             return new MetadataDecoder(this).GetTypeSymbolForSerializedType(typeName);
-        }
 
         return null;
     }
 
-    /// <summary>
-    /// Filters extension attributes from the attribute results.
-    /// </summary>
-    /// <param name="token"></param>
-    /// <param name="foundExtension">True if we found an extension method, false otherwise.</param>
-    /// <returns>The attributes on the token, minus any ExtensionAttributes.</returns>
-    private ImmutableArray<CSharpAttributeData> GetCustomAttributesFilterCompilerAttributes(EntityHandle token, out bool foundExtension, out bool foundReadOnly) {
+    private ImmutableArray<AttributeData> GetCustomAttributesFilterCompilerAttributes(
+        EntityHandle token,
+        out bool foundExtension,
+        out bool foundReadOnly) {
         var result = GetCustomAttributesForToken(
             token,
-            filteredOutAttribute1: out CustomAttributeHandle extensionAttribute,
+            filteredOutAttribute1: out var extensionAttribute,
             filterOut1: AttributeDescription.CaseSensitiveExtensionAttribute,
-            filteredOutAttribute2: out CustomAttributeHandle isReadOnlyAttribute,
-            filterOut2: AttributeDescription.IsReadOnlyAttribute);
+            filteredOutAttribute2: out var isReadOnlyAttribute,
+            filterOut2: AttributeDescription.IsReadOnlyAttribute
+        );
 
         foundExtension = !extensionAttribute.IsNil;
         foundReadOnly = !isReadOnlyAttribute.IsNil;
@@ -303,37 +280,39 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
 
     internal void OnNewTypeDeclarationsLoaded(
         Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> typesDict) {
-        bool keepLookingForDeclaredCorTypes = (_ordinal == 0 && _assemblySymbol.KeepLookingForDeclaredSpecialTypes);
+        // TODO CorLib interop
+        // bool keepLookingForDeclaredCorTypes = _ordinal == 0 && _assemblySymbol.KeepLookingForDeclaredSpecialTypes;
 
-        foreach (var types in typesDict.Values) {
-            foreach (var type in types) {
-                bool added;
-                added = typeHandleToTypeMap.TryAdd(type.Handle, type);
-                Debug.Assert(added);
+        // foreach (var types in typesDict.Values) {
+        //     foreach (var type in types) {
+        //         bool added;
+        //         added = typeHandleToTypeMap.TryAdd(type.handle, type);
 
-                // Register newly loaded COR types
-                if (keepLookingForDeclaredCorTypes && type.SpecialType != SpecialType.None) {
-                    _assemblySymbol.RegisterDeclaredSpecialType(type);
-                    keepLookingForDeclaredCorTypes = _assemblySymbol.KeepLookingForDeclaredSpecialTypes;
-                }
-            }
-        }
+        //         if (keepLookingForDeclaredCorTypes && type.specialType != SpecialType.None) {
+        //             _assemblySymbol.RegisterDeclaredSpecialType(type);
+        //             keepLookingForDeclaredCorTypes = _assemblySymbol.KeepLookingForDeclaredSpecialTypes;
+        //         }
+        //     }
+        // }
     }
 
-    internal override ICollection<string> TypeNames {
+    internal override ICollection<string> typeNames {
         get {
-            if (_lazyTypeNames == null) {
-                Interlocked.CompareExchange(ref _lazyTypeNames, _module.TypeNames.AsCaseSensitiveCollection(), null);
-            }
+            if (_lazyTypeNames is null)
+                Interlocked.CompareExchange(ref _lazyTypeNames, _module.typeNames.AsCaseSensitiveCollection(), null);
 
             return _lazyTypeNames;
         }
     }
 
-    internal override ICollection<string> NamespaceNames {
+    internal override ICollection<string> namespaceNames {
         get {
-            if (_lazyNamespaceNames == null) {
-                Interlocked.CompareExchange(ref _lazyNamespaceNames, _module.NamespaceNames.AsCaseSensitiveCollection(), null);
+            if (_lazyNamespaceNames is null) {
+                Interlocked.CompareExchange(
+                    ref _lazyNamespaceNames,
+                    _module.namespaceNames.AsCaseSensitiveCollection(),
+                    null
+                );
             }
 
             return _lazyNamespaceNames;
@@ -342,105 +321,6 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
 
     internal override ImmutableArray<byte> GetHash(AssemblyHashAlgorithm algorithmId) {
         return _module.GetHash(algorithmId);
-    }
-
-    internal DocumentationProvider DocumentationProvider {
-        get {
-            var assembly = _assemblySymbol as PEAssemblySymbol;
-            if ((object)assembly != null) {
-                return assembly.DocumentationProvider;
-            } else {
-                return DocumentationProvider.Default;
-            }
-        }
-    }
-
-#nullable enable
-
-    internal NamedTypeSymbol EventRegistrationToken {
-        get {
-            if ((object?)_lazyEventRegistrationTokenSymbol == null) {
-                Interlocked.CompareExchange(ref _lazyEventRegistrationTokenSymbol,
-                                            GetTypeSymbolForWellKnownType(
-                                                WellKnownType.System_Runtime_InteropServices_WindowsRuntime_EventRegistrationToken
-                                                ),
-                                            null);
-                Debug.Assert((object)_lazyEventRegistrationTokenSymbol != null);
-            }
-            return _lazyEventRegistrationTokenSymbol;
-        }
-    }
-
-    internal NamedTypeSymbol EventRegistrationTokenTable_T {
-        get {
-            if ((object?)_lazyEventRegistrationTokenTableSymbol == null) {
-                Interlocked.CompareExchange(ref _lazyEventRegistrationTokenTableSymbol,
-                                            GetTypeSymbolForWellKnownType(
-                                                WellKnownType.System_Runtime_InteropServices_WindowsRuntime_EventRegistrationTokenTable_T
-                                                ),
-                                            null);
-                Debug.Assert((object)_lazyEventRegistrationTokenTableSymbol != null);
-            }
-            return _lazyEventRegistrationTokenTableSymbol;
-        }
-    }
-
-    internal NamedTypeSymbol SystemTypeSymbol {
-        get {
-            if ((object?)_lazySystemTypeSymbol == null) {
-                Interlocked.CompareExchange(ref _lazySystemTypeSymbol,
-                                            GetTypeSymbolForWellKnownType(WellKnownType.System_Type),
-                                            null);
-                Debug.Assert((object)_lazySystemTypeSymbol != null);
-            }
-            return _lazySystemTypeSymbol;
-        }
-    }
-
-    private NamedTypeSymbol GetTypeSymbolForWellKnownType(WellKnownType type) {
-        MetadataTypeName emittedName = MetadataTypeName.FromFullName(type.GetMetadataName(), useCLSCompliantNameArityEncoding: true);
-        // First, check this module
-        NamedTypeSymbol? currentModuleResult = this.LookupTopLevelMetadataType(ref emittedName);
-        Debug.Assert(currentModuleResult?.IsErrorType() != true);
-
-        if (currentModuleResult is not null) {
-            Debug.Assert(isAcceptableSystemTypeSymbol(currentModuleResult));
-
-            // It doesn't matter if there's another of this type in a referenced assembly -
-            // we prefer the one in the current module.
-            return currentModuleResult;
-        }
-
-        // If we didn't find it in this module, check the referenced assemblies
-        NamedTypeSymbol? referencedAssemblyResult = null;
-        foreach (AssemblySymbol assembly in this.GetReferencedAssemblySymbols()) {
-            NamedTypeSymbol currResult = assembly.LookupDeclaredOrForwardedTopLevelMetadataType(ref emittedName, visitedAssemblies: null);
-            if (isAcceptableSystemTypeSymbol(currResult)) {
-                if ((object?)referencedAssemblyResult == null) {
-                    referencedAssemblyResult = currResult;
-                } else {
-                    // CONSIDER: setting result to null will result in a MissingMetadataTypeSymbol
-                    // being returned.  Do we want to differentiate between no result and ambiguous
-                    // results?  There doesn't seem to be an existing error code for "duplicate well-
-                    // known type".
-                    if (!TypeSymbol.Equals(referencedAssemblyResult, currResult, TypeCompareKind.ConsiderEverything2)) {
-                        referencedAssemblyResult = null;
-                    }
-                    break;
-                }
-            }
-        }
-
-        if ((object?)referencedAssemblyResult != null) {
-            Debug.Assert(isAcceptableSystemTypeSymbol(referencedAssemblyResult));
-            return referencedAssemblyResult;
-        }
-
-        return new MissingMetadataTypeSymbol.TopLevel(this, ref emittedName);
-
-        static bool isAcceptableSystemTypeSymbol(NamedTypeSymbol candidate) {
-            return candidate.Kind != SymbolKind.ErrorType || !(candidate is MissingMetadataTypeSymbol);
-        }
     }
 
     internal override bool hasAssemblyCompilationRelaxationsAttribute {
@@ -472,7 +352,7 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
             return _lazyRefSafetyRulesAttributeVersion;
 
             RefSafetyRulesAttributeVersion GetAttributeVersion() {
-                if (_module.HasRefSafetyRulesAttribute(Token, out int version, out bool foundAttributeType)) {
+                if (_module.HasRefSafetyRulesAttribute(Token, out var version, out var foundAttributeType)) {
                     return version == 11
                         ? RefSafetyRulesAttributeVersion.Version11
                         : RefSafetyRulesAttributeVersion.UnrecognizedAttribute;
@@ -485,19 +365,20 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
         }
     }
 
-    internal NamedTypeSymbol LookupTopLevelMetadataTypeWithNoPiaLocalTypeUnification(ref MetadataTypeName emittedName, out bool isNoPiaLocalType) {
-        NamedTypeSymbol? result;
-        var scope = (PENamespaceSymbol?)this.GlobalNamespace.LookupNestedNamespace(emittedName.NamespaceSegmentsMemory);
+    internal NamedTypeSymbol LookupTopLevelMetadataTypeWithNoPiaLocalTypeUnification(
+        ref MetadataTypeName emittedName,
+        out bool isNoPiaLocalType) {
+        NamedTypeSymbol result;
+        var scope = (PENamespaceSymbol)globalNamespace.LookupNestedNamespace(emittedName.namespaceSegmentsMemory);
 
-        if ((object?)scope == null) {
-            // We failed to locate the namespace
+        if (scope is null) {
             result = null;
         } else {
             result = scope.LookupMetadataType(ref emittedName);
-            Debug.Assert(result?.IsErrorType() != true);
 
             if (result is null) {
                 result = scope.UnifyIfNoPiaLocalType(ref emittedName);
+
                 if (result is not null) {
                     isNoPiaLocalType = true;
                     return result;
@@ -520,86 +401,67 @@ internal sealed partial class PEModuleSymbol : ModuleSymbol {
     /// The returned assemblies may also forward the type.
     /// </remarks>
     internal (AssemblySymbol FirstSymbol, AssemblySymbol SecondSymbol) GetAssembliesForForwardedType(ref MetadataTypeName fullName) {
-        string matchedName;
-        (int firstIndex, int secondIndex) = this.Module.GetAssemblyRefsForForwardedType(fullName.FullName, ignoreCase: false, matchedName: out matchedName);
+        var (firstIndex, secondIndex) = module.GetAssemblyRefsForForwardedType(
+            fullName.fullName,
+            ignoreCase: false,
+            matchedName: out _
+        );
 
-        if (firstIndex < 0) {
+        if (firstIndex < 0)
             return (null, null);
-        }
 
-        AssemblySymbol firstSymbol = GetReferencedAssemblySymbol(firstIndex);
+        var firstSymbol = GetReferencedAssemblySymbol(firstIndex);
 
-        if (secondIndex < 0) {
+        if (secondIndex < 0)
             return (firstSymbol, null);
-        }
 
-        AssemblySymbol secondSymbol = GetReferencedAssemblySymbol(secondIndex);
+        var secondSymbol = GetReferencedAssemblySymbol(secondIndex);
         return (firstSymbol, secondSymbol);
     }
 
-#nullable enable
-
     internal IEnumerable<NamedTypeSymbol> GetForwardedTypes() {
-        foreach (KeyValuePair<string, (int FirstIndex, int SecondIndex)> forwarder in Module.GetForwardedTypes()) {
+        foreach (var forwarder in module.GetForwardedTypes()) {
             var name = MetadataTypeName.FromFullName(forwarder.Key);
 
-            Debug.Assert(forwarder.Value.FirstIndex >= 0, "First index should never be negative");
-            AssemblySymbol firstSymbol = this.GetReferencedAssemblySymbol(forwarder.Value.FirstIndex);
-            Debug.Assert((object)firstSymbol != null, "Invalid indexes (out of bound) are discarded during reading metadata in PEModule.EnsureForwardTypeToAssemblyMap()");
+            var firstSymbol = GetReferencedAssemblySymbol(forwarder.Value.FirstIndex);
 
             if (forwarder.Value.SecondIndex >= 0) {
-                var secondSymbol = this.GetReferencedAssemblySymbol(forwarder.Value.SecondIndex);
-                Debug.Assert((object)secondSymbol != null, "Invalid indexes (out of bound) are discarded during reading metadata in PEModule.EnsureForwardTypeToAssemblyMap()");
+                var secondSymbol = GetReferencedAssemblySymbol(forwarder.Value.SecondIndex);
 
-                yield return ContainingAssembly.CreateMultipleForwardingErrorTypeSymbol(ref name, this, firstSymbol, secondSymbol);
+                yield return containingAssembly.CreateMultipleForwardingErrorTypeSymbol(
+                    ref name,
+                    this,
+                    firstSymbol,
+                    secondSymbol
+                );
             } else {
-                yield return firstSymbol.LookupDeclaredOrForwardedTopLevelMetadataType(ref name, visitedAssemblies: null);
+                yield return firstSymbol.LookupDeclaredOrForwardedTopLevelMetadataType(ref name, null);
             }
         }
     }
 
-#nullable disable
-    public override ModuleMetadata GetMetadata() => _module.GetNonDisposableMetadata();
+    internal override ModuleMetadata GetMetadata() => _module.GetNonDisposableMetadata();
 
     internal bool ShouldDecodeNullableAttributes(Symbol symbol) {
-        Debug.Assert(symbol is object);
-        Debug.Assert(symbol.IsDefinition);
-        Debug.Assert((object)symbol.ContainingModule == this);
-
         if (_lazyNullableMemberMetadata == NullableMemberMetadata.Unknown) {
-            _lazyNullableMemberMetadata = _module.HasNullablePublicOnlyAttribute(Token, out bool includesInternals) ?
-                (includesInternals ? NullableMemberMetadata.Internal : NullableMemberMetadata.Public) :
-                NullableMemberMetadata.All;
+            _lazyNullableMemberMetadata = _module.HasNullablePublicOnlyAttribute(Token, out bool includesInternals)
+                ? (includesInternals ? NullableMemberMetadata.Internal : NullableMemberMetadata.Public)
+                : NullableMemberMetadata.All;
         }
 
-        NullableMemberMetadata nullableMemberMetadata = _lazyNullableMemberMetadata;
-        if (nullableMemberMetadata == NullableMemberMetadata.All) {
+        var nullableMemberMetadata = _lazyNullableMemberMetadata;
+
+        if (nullableMemberMetadata == NullableMemberMetadata.All)
             return true;
-        }
 
-        if (AccessCheck.IsEffectivelyPublicOrInternal(symbol, out bool isInternal)) {
-            switch (nullableMemberMetadata) {
-                case NullableMemberMetadata.Public:
-                    return !isInternal;
-                case NullableMemberMetadata.Internal:
-                    return true;
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(nullableMemberMetadata);
-            }
+        if (AccessCheck.IsEffectivelyPublicOrInternal(symbol, out var isInternal)) {
+            return nullableMemberMetadata switch {
+                NullableMemberMetadata.Public => !isInternal,
+                NullableMemberMetadata.Internal => true,
+                _ => throw ExceptionUtilities.UnexpectedValue(nullableMemberMetadata),
+            };
         }
 
         return false;
-    }
-
-#nullable enable
-    internal DiagnosticInfo? GetCompilerFeatureRequiredDiagnostic() {
-        if (_lazyCachedCompilerFeatureRequiredDiagnosticInfo == CSDiagnosticInfo.EmptyErrorInfo) {
-            Interlocked.CompareExchange(
-                ref _lazyCachedCompilerFeatureRequiredDiagnosticInfo,
-                PEUtilities.DeriveCompilerFeatureRequiredAttributeDiagnostic(this, this, Token, CompilerFeatureRequiredFeatures.None, new MetadataDecoder(this)),
-                CSDiagnosticInfo.EmptyErrorInfo);
-        }
-
-        return _lazyCachedCompilerFeatureRequiredDiagnosticInfo ?? (_assemblySymbol as PEAssemblySymbol)?.GetCompilerFeatureRequiredDiagnostic();
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
@@ -41,7 +42,9 @@ internal sealed partial class PEModule : IDisposable {
     private readonly CryptographicHashProvider _hashesOpt;
 
     private delegate bool AttributeValueExtractor<T>(out T value, ref BlobReader sigReader);
-    private static readonly AttributeValueExtractor<string?> AttributeStringValueExtractor = CrackStringInAttributeValue;
+    private static readonly AttributeValueExtractor<string> AttributeStringValueExtractor = CrackStringInAttributeValue;
+    private static readonly AttributeValueExtractor<int> AttributeIntValueExtractor = CrackIntInAttributeValue;
+    private static readonly AttributeValueExtractor<bool> AttributeBooleanValueExtractor = CrackBooleanInAttributeValue;
 
     internal PEModule(
         ModuleMetadata owner,
@@ -79,6 +82,10 @@ internal sealed partial class PEModule : IDisposable {
         }
     }
 
+    internal IdentifierCollection typeNames => _lazyTypeNameCollection.Value;
+
+    internal IdentifierCollection namespaceNames => _lazyNamespaceNameCollection.Value;
+
     internal string name {
         get {
             _lazyName ??= metadataReader.GetString(metadataReader.GetModuleDefinition().Name);
@@ -113,6 +120,214 @@ internal sealed partial class PEModule : IDisposable {
 
     internal Guid GetModuleVersionIdOrThrow() {
         return metadataReader.GetModuleVersionIdOrThrow();
+    }
+
+    internal bool IsNoPiaLocalType(TypeDefinitionHandle typeDef) {
+        return IsNoPiaLocalType(typeDef, out _);
+    }
+
+    internal IEnumerable<IGrouping<string, TypeDefinitionHandle>> GroupTypesByNamespaceOrThrow(
+        StringComparer nameComparer) {
+        var namespaces = new Dictionary<string, ArrayBuilder<TypeDefinitionHandle>>();
+
+        GetTypeNamespaceNamesOrThrow(namespaces);
+        GetForwardedTypeNamespaceNamesOrThrow(namespaces);
+
+        var result = new ArrayBuilder<IGrouping<string, TypeDefinitionHandle>>(namespaces.Count);
+
+        foreach (var pair in namespaces) {
+            result.Add(new Grouping<string, TypeDefinitionHandle>(
+                pair.Key,
+                pair.Value ?? SpecializedCollections.EmptyEnumerable<TypeDefinitionHandle>()
+            ));
+        }
+
+        result.Sort(new TypesByNamespaceSortComparer(nameComparer));
+        return result;
+    }
+
+    internal IEnumerable<KeyValuePair<string, (int FirstIndex, int SecondIndex)>> GetForwardedTypes() {
+        EnsureForwardTypeToAssemblyMap();
+        return _lazyForwardedTypesToAssemblyIndexMap;
+    }
+
+    private void GetTypeNamespaceNamesOrThrow(Dictionary<string, ArrayBuilder<TypeDefinitionHandle>> namespaces) {
+        var namespaceHandles = new Dictionary<NamespaceDefinitionHandle, ArrayBuilder<TypeDefinitionHandle>>(
+            NamespaceHandleEqualityComparer.Singleton
+        );
+
+        foreach (var pair in GetTypeDefsOrThrow(topLevelOnly: true)) {
+            var nsHandle = pair.namespaceHandle;
+            var typeDef = pair.typeDef;
+
+            if (namespaceHandles.TryGetValue(nsHandle, out var builder))
+                builder.Add(typeDef);
+            else
+                namespaceHandles.Add(nsHandle, [typeDef]);
+        }
+
+        foreach (var kvp in namespaceHandles) {
+            var @namespace = metadataReader.GetString(kvp.Key);
+
+            if (namespaces.TryGetValue(@namespace, out var builder))
+                builder.AddRange(kvp.Value);
+            else
+                namespaces.Add(@namespace, kvp.Value);
+        }
+    }
+
+    private void GetForwardedTypeNamespaceNamesOrThrow(
+        Dictionary<string, ArrayBuilder<TypeDefinitionHandle>> namespaces) {
+        EnsureForwardTypeToAssemblyMap();
+
+        foreach (var typeName in _lazyForwardedTypesToAssemblyIndexMap.Keys) {
+            var index = typeName.LastIndexOf('.');
+            var namespaceName = index >= 0 ? typeName.Substring(0, index) : "";
+
+            if (!namespaces.ContainsKey(namespaceName))
+                namespaces.Add(namespaceName, null);
+        }
+    }
+
+    private void EnsureForwardTypeToAssemblyMap() {
+        if (_lazyForwardedTypesToAssemblyIndexMap is null) {
+            Dictionary<string, (int FirstIndex, int SecondIndex)>? typesToAssemblyIndexMap = null;
+
+            try {
+                var forwarders = metadataReader.ExportedTypes;
+
+                foreach (var handle in forwarders) {
+                    var exportedType = metadataReader.GetExportedType(handle);
+
+                    if (!exportedType.IsForwarder)
+                        continue;
+
+                    var refHandle = (AssemblyReferenceHandle)exportedType.Implementation;
+
+                    if (refHandle.IsNil)
+                        continue;
+
+                    int referencedAssemblyIndex;
+
+                    try {
+                        referencedAssemblyIndex = GetAssemblyReferenceIndexOrThrow(refHandle);
+                    } catch (BadImageFormatException) {
+                        continue;
+                    }
+
+                    if (referencedAssemblyIndex < 0 || referencedAssemblyIndex >= referencedAssemblies.Length)
+                        continue;
+
+                    var name = metadataReader.GetString(exportedType.Name);
+                    var ns = exportedType.Namespace;
+
+                    if (!ns.IsNil) {
+                        var namespaceString = metadataReader.GetString(ns);
+
+                        if (namespaceString.Length > 0)
+                            name = namespaceString + "." + name;
+                    }
+
+                    typesToAssemblyIndexMap ??= [];
+
+                    if (typesToAssemblyIndexMap.TryGetValue(name, out var indices)) {
+                        if (indices.FirstIndex != referencedAssemblyIndex && indices.SecondIndex < 0) {
+                            indices.SecondIndex = referencedAssemblyIndex;
+                            typesToAssemblyIndexMap[name] = indices;
+                        }
+                    } else {
+                        typesToAssemblyIndexMap.Add(name, (FirstIndex: referencedAssemblyIndex, SecondIndex: -1));
+                    }
+                }
+            } catch (BadImageFormatException) { }
+
+            if (typesToAssemblyIndexMap is null)
+                _lazyForwardedTypesToAssemblyIndexMap = SharedEmptyForwardedTypes;
+            else
+                _lazyForwardedTypesToAssemblyIndexMap = typesToAssemblyIndexMap;
+        }
+    }
+
+    internal int GetAssemblyReferenceIndexOrThrow(AssemblyReferenceHandle assemblyRef) {
+        return metadataReader.GetRowNumber(assemblyRef) - 1;
+    }
+
+    internal bool HasStringValuedAttribute(EntityHandle token, AttributeDescription description, out string value) {
+        var info = FindTargetAttribute(token, description);
+
+        if (info.hasValue)
+            return TryExtractStringValueFromAttribute(info.handle, out value);
+
+        value = null;
+        return false;
+    }
+
+    internal AttributeInfo FindTargetAttribute(EntityHandle hasAttribute, AttributeDescription description) {
+        return FindTargetAttribute(metadataReader, hasAttribute, description, out _);
+    }
+
+    internal static AttributeInfo FindTargetAttribute(
+        MetadataReader metadataReader,
+        EntityHandle hasAttribute,
+        AttributeDescription description,
+        out bool foundAttributeType) {
+        foundAttributeType = false;
+
+        try {
+            foreach (var attributeHandle in metadataReader.GetCustomAttributes(hasAttribute)) {
+                var signatureIndex = GetTargetAttributeSignatureIndex(
+                    metadataReader,
+                    attributeHandle,
+                    description,
+                    out var matchedAttributeType
+                );
+
+                if (matchedAttributeType)
+                    foundAttributeType = true;
+
+                if (signatureIndex != -1)
+                    return new AttributeInfo(attributeHandle, signatureIndex);
+            }
+        } catch (BadImageFormatException) { }
+
+        return default;
+    }
+
+    internal CustomAttributeHandleCollection GetCustomAttributesOrThrow(EntityHandle handle) {
+        return metadataReader.GetCustomAttributes(handle);
+    }
+
+    private bool IsNoPiaLocalType(TypeDefinitionHandle typeDef, out AttributeInfo attributeInfo) {
+        if (_lazyContainsNoPiaLocalTypes == ThreeState.False) {
+            attributeInfo = default;
+            return false;
+        }
+
+        if (_lazyNoPiaLocalTypeCheckBitMap is not null && _lazyTypeDefToTypeIdentifierMap is not null) {
+            var rid = metadataReader.GetRowNumber(typeDef);
+            var item = rid / 32;
+            var bit = 1 << (rid % 32);
+
+            if ((_lazyNoPiaLocalTypeCheckBitMap[item] & bit) != 0)
+                return _lazyTypeDefToTypeIdentifierMap.TryGetValue(typeDef, out attributeInfo);
+        }
+
+        try {
+            foreach (var attributeHandle in metadataReader.GetCustomAttributes(typeDef)) {
+                var signatureIndex = IsTypeIdentifierAttribute(attributeHandle);
+
+                if (signatureIndex != -1) {
+                    _lazyContainsNoPiaLocalTypes = ThreeState.True;
+                    RegisterNoPiaLocalType(typeDef, attributeHandle, signatureIndex);
+                    attributeInfo = new AttributeInfo(attributeHandle, signatureIndex);
+                    return true;
+                }
+            }
+        } catch (BadImageFormatException) { }
+
+        RecordNoPiaLocalTypeCheck(typeDef);
+        attributeInfo = default;
+        return false;
     }
 
     private unsafe void InitializeMetadataReader() {
@@ -172,6 +387,10 @@ internal sealed partial class PEModule : IDisposable {
         } finally {
             builder.Free();
         }
+    }
+
+    internal ImmutableArray<byte> GetHash(AssemblyHashAlgorithm algorithmId) {
+        return _hashesOpt.GetHash(algorithmId);
     }
 
     private static void ThrowMetadataDisposed() {
@@ -327,6 +546,26 @@ internal sealed partial class PEModule : IDisposable {
             value = null;
             return false;
         }
+    }
+
+    private static bool CrackIntInAttributeValue(out int value, ref BlobReader sig) {
+        if (sig.RemainingBytes >= 4) {
+            value = sig.ReadInt32();
+            return true;
+        }
+
+        value = -1;
+        return false;
+    }
+
+    private static bool CrackBooleanInAttributeValue(out bool value, ref BlobReader sig) {
+        if (sig.RemainingBytes >= 1) {
+            value = sig.ReadBoolean();
+            return true;
+        }
+
+        value = false;
+        return false;
     }
 
     internal BlobHandle GetCustomAttributeValueOrThrow(CustomAttributeHandle handle) {
@@ -615,6 +854,63 @@ internal sealed partial class PEModule : IDisposable {
         RecordNoPiaLocalTypeCheck(typeDef);
     }
 
+    internal bool HasRefSafetyRulesAttribute(EntityHandle token, out int version, out bool foundAttributeType) {
+        var info = FindTargetAttribute(metadataReader, token, AttributeDescription.RefSafetyRulesAttribute, out foundAttributeType);
+
+        if (info.hasValue) {
+            if (TryExtractValueFromAttribute(info.handle, out var value, AttributeIntValueExtractor)) {
+                version = value;
+                return true;
+            }
+        }
+
+        version = 0;
+        return false;
+    }
+
+    internal (int FirstIndex, int SecondIndex) GetAssemblyRefsForForwardedType(
+        string fullName,
+        bool ignoreCase,
+        out string matchedName) {
+        EnsureForwardTypeToAssemblyMap();
+
+        if (ignoreCase) {
+            EnsureCaseInsensitiveDictionary();
+
+            if (_lazyCaseInsensitiveForwardedTypesToAssemblyIndexMap.TryGetValue(fullName, out var value)) {
+                matchedName = value.OriginalName;
+                return (value.FirstIndex, value.SecondIndex);
+            }
+        } else {
+            if (_lazyForwardedTypesToAssemblyIndexMap.TryGetValue(fullName, out var assemblyIndices)) {
+                matchedName = fullName;
+                return assemblyIndices;
+            }
+        }
+
+        matchedName = null;
+        return (FirstIndex: -1, SecondIndex: -1);
+
+        void EnsureCaseInsensitiveDictionary() {
+            if (_lazyCaseInsensitiveForwardedTypesToAssemblyIndexMap is not null)
+                return;
+
+            if (_lazyForwardedTypesToAssemblyIndexMap.Count == 0) {
+                _lazyCaseInsensitiveForwardedTypesToAssemblyIndexMap = SharedEmptyCaseInsensitiveForwardedTypes;
+                return;
+            }
+
+            var caseInsensitiveMap = new Dictionary<string, (string OriginalName, int FirstIndex, int SecondIndex)>(
+                StringComparer.OrdinalIgnoreCase
+            );
+
+            foreach (var (key, (firstIndex, secondIndex)) in _lazyForwardedTypesToAssemblyIndexMap)
+                _ = caseInsensitiveMap.TryAdd(key, (key, firstIndex, secondIndex));
+
+            _lazyCaseInsensitiveForwardedTypesToAssemblyIndexMap = caseInsensitiveMap;
+        }
+    }
+
     private void RecordNoPiaLocalTypeCheck(TypeDefinitionHandle typeDef) {
         if (_lazyNoPiaLocalTypeCheckBitMap is null)
             return;
@@ -635,4 +931,25 @@ internal sealed partial class PEModule : IDisposable {
     internal AssemblyIdentity ReadAssemblyIdentityOrThrow() {
         return metadataReader.ReadAssemblyIdentityOrThrow();
     }
+
+
+    internal bool HasNullablePublicOnlyAttribute(EntityHandle token, out bool includesInternals) {
+        var info = FindTargetAttribute(token, AttributeDescription.NullablePublicOnlyAttribute);
+
+        if (info.hasValue) {
+            if (TryExtractValueFromAttribute(info.handle, out var value, AttributeBooleanValueExtractor)) {
+                includesInternals = value;
+                return true;
+            }
+        }
+
+        includesInternals = false;
+        return false;
+    }
+
+    internal bool HasGuidAttribute(EntityHandle token, out string guidValue) {
+        return HasStringValuedAttribute(token, AttributeDescription.GuidAttribute, out guidValue);
+    }
+
+    internal ModuleMetadata GetNonDisposableMetadata() => _owner.Copy();
 }

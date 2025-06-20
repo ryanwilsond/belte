@@ -40,6 +40,7 @@ The Repl provides many commands usefully for debug snippets or code.
 | Command Name | Usage | Description |
 |-|-|-|
 | [Clear](#clear-command) | `#clear` | Clear the screen |
+| [Dump](#dump-command-no-arguments) | `#dump` | Locate a symbol to show the contents of |
 | [Dump](#dump-command) | `#dump <signature>` | Show contents of symbol \<signature> |
 | [Exit](#exit-command) | `#exit` | Exit the Repl |
 | [Help](#help-command) | `#help` | Show this document |
@@ -48,6 +49,7 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Reset](#reset-command) | `#reset` | Clear previous submissions |
 | [Save to File](#save-to-file-command) | `#saveToFile <path> <count=1>` | Save previous \<count> submissions to \<path> |
 | [Settings](#settings-command) | `#settings` | Open settings page |
+| [Show CS](#show-c-command) | `#showCS` | Toggle display of C# code |
 | [Show IL](#show-il-command) | `#showIL` | Toggle display of IL code |
 | [Show Program](#show-program-command) | `#showProgram` | Toggle display of the intermediate representation |
 | [Show Time](#show-time-command) | `#showTime` | Toggle display of submission execution time |
@@ -56,8 +58,6 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Show Warnings](#show-warnings-command) | `#showWarnings` | Toggle display of warnings |
 | [State](#state-command) | `#state` | Dump the current state of the Repl |
 
-<!-- | [Show C#](#show-c-command) | `#showCS` | Toggle display of C# code | -->
-
 ### Clear Command
 
 Usage: `#clear`
@@ -65,31 +65,83 @@ Usage: `#clear`
 The clear command will clear the entire terminal of any past submissions, and then you can continue coding snippets.
 This command does not affect any of the Repl state like the reset command, it only clears the terminal buffer.
 
+### Dump Command (no arguments)
+
+Usage: `#dump`
+
+Using the dump command without providing a symbol signature as an argument will invoke the dump locator screen where
+the user can use up and down arrow keys to dig into symbols and display them. Unlike the `#list` command, the dump
+locator can be used to dig into natively written library types.
+
+```belte
+» class MyClass {
+·     public int Add(int a, int b) {
+·         return a + b;
+·     }
+· }
+» #dump
+```
+
+Moves to dump locator screen:
+
+```
+#dump [none]
+
+        Exit
+        MyClass
+        public Object
+        ...
+```
+
+Example screen:
+
+```
+#dump global::MyClass
+
+        Exit
+        ..
+        Select Current Symbol
+        public Nullable<int> MyClass.Add(Nullable<int> a, Nullable<int> b)
+        public void MyClass..ctor()
+```
+
+Example result:
+
+```
+#dump global::MyClass.Add
+public Nullable<int> MyClass.Add(Nullable<int> a, Nullable<int> b) {
+    return ((a.get_HasValue() && b.get_HasValue()) ? new Nullable<int>((a.get_Value() + b.get_Value())) : null)
+}
+»
+```
+
 ### Dump Command
 
 Usage: `#dump <signature>`
 
-The dump command will display information about any symbol defined in any scope. Currently, this information is only
-declaration information and not the current state of any symbol (like a variable's value). It will show member
-declarations and bodies.
+The dump command will display the declaration of any symbol defined in any scope. If the given symbol is a local, the
+current state of the local will be displayed in addition to the declaration.
 
 Examples:
 
 ```belte
 » int myInt = 3;
 » #dump myInt
-int myInt
+Nullable<int> myInt = 3
 ```
 
 ```belte
-» struct MyStruct {
-·     int field1;
+» class MyClass {
+·     public int field1;
 ·     string! field2;
 · }
 » #dump MyStruct
-struct MyStruct {
-    int field1
-    string! field2
+class MyClass extends Object {
+  public Nullable<int> MyClass.field1
+
+  private string MyClass.field2
+
+  public void MyClass..ctor()
 }
 ```
 
@@ -163,32 +215,15 @@ The Repl:
 
 Usage: `#list`
 
-The list command lists all currently declared symbols, including built-in ones.
+The list command lists all user-declared symbols.
 
 For example:
 
 ```belte
 » int myInt = 3;
-» #ls
-int myInt
-int! Ascii(string! char)
-string! Char(int! ascii)
-bool! HasValue(any value)
-bool! HasValue(bool value)
-bool! HasValue(decimal value)
-bool! HasValue(int value)
-bool! HasValue(string value)
-string! Hex(int! value, bool! prefix)
-string! Input()
-void Print(any text)
-void PrintLine(any text)
-void PrintLine()
-int! RandInt(int max)
-any! Value(any value)
-bool! Value(bool value)
-decimal! Value(decimal value)
-int! Value(int value)
-string! Value(string value)
+» #list
+Global symbols:
+    Nullable<int> myInt
 ```
 
 ### Reset Command
@@ -256,9 +291,8 @@ All Repl settings:
 
 | Setting Name | Options | Default | Description |
 |-|-|-|-|
-| Theme | Dark, Light, Green | Dark | The color theme of the Repl; each contributor gets their own color theme! |
+| Theme | Dark, Light, Green, Purpura, TrafficStop | Dark | The color theme of the Repl; each contributor gets their own color theme! |
 
-<!--
 ### Show C# Command
 
 Usage: `#showCS`
@@ -285,7 +319,6 @@ public static class Program {
 
 }
 ```
--->
 
 ### Show IL Command
 
@@ -418,14 +451,17 @@ use outside of development.
 
 ```belte
 » #state
+showTokens          False
 showTree            False
 showProgram         False
-showWarnings        True
 showIL              False
+showCS              False
+showWarnings        False
 loadingSubmissions  False
 colorTheme          Repl.Themes.DarkTheme
 currentPage         Repl
 previous            Buckle.CodeAnalysis.Compilation
+baseCompilation     Buckle.CodeAnalysis.Compilation
 tree                #state
-variables           System.Collections.Generic.Dictionary`2[Buckle.CodeAnalysis.Symbols.IVariableSymbol,Buckle.CodeAnalysis.Evaluating.IEvaluatorObject]
+variables           EvaluatorContext [ Tracking 2 symbols ]
 ```

@@ -11,7 +11,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
 
-internal static class MetadataHelpers {
+internal static partial class MetadataHelpers {
     private static readonly ImmutableArray<string> SplitQualifiedNameSystem = [SystemString];
     private static readonly ImmutableArray<ReadOnlyMemory<char>> SplitQualifiedNameSystemMemory
         = [SystemString.AsMemory()];
@@ -307,5 +307,10 @@ DoneWithSequence:
             return fullName.Substring(parentNamespaceNameLength);
         else
             return fullName.Substring(parentNamespaceNameLength, index - parentNamespaceNameLength);
+    }
+
+    internal static AssemblyQualifiedTypeName DecodeTypeName(string s) {
+        var decoder = new SerializedTypeDecoder(s);
+        return decoder.DecodeTypeName();
     }
 }
