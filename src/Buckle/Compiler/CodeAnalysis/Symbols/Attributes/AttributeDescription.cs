@@ -1,8 +1,11 @@
+using System.Collections.Immutable;
 using System.Reflection.Metadata;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal struct AttributeDescription {
+internal partial struct AttributeDescription {
+    internal static ImmutableArray<TypeHandleTargetInfo> TypeHandleTargets;
+
     internal readonly string @namespace;
     internal readonly string name;
     internal readonly byte[][] signatures;
@@ -38,7 +41,13 @@ internal struct AttributeDescription {
     private const byte SzArray = (byte)SignatureTypeCode.SZArray;
     private const byte TypeHandle = (byte)SignatureTypeCode.TypeHandle;
 
-    private static readonly byte[] Signature_HasThis_Void_String = new byte[] { (byte)SignatureAttributes.Instance, 1, Void, String };
+    private static readonly byte[] Signature_HasThis_Void = [(byte)SignatureAttributes.Instance, 0, Void];
+    private static readonly byte[] Signature_HasThis_Void_String = [(byte)SignatureAttributes.Instance, 1, Void, String];
+    private static readonly byte[] Signature_HasThis_Void_String_String = [(byte)SignatureAttributes.Instance, 2, Void, String, String];
 
     private static readonly byte[][] Signatures_HasThis_Void_String_Only = { Signature_HasThis_Void_String };
+    private static readonly byte[][] SignaturesOfTypeIdentifierAttribute = { Signature_HasThis_Void, Signature_HasThis_Void_String_String };
+
+    internal static readonly AttributeDescription InternalsVisibleToAttribute = new AttributeDescription("System.Runtime.CompilerServices", "InternalsVisibleToAttribute", Signatures_HasThis_Void_String_Only);
+    internal static readonly AttributeDescription TypeIdentifierAttribute = new AttributeDescription("System.Runtime.InteropServices", "TypeIdentifierAttribute", SignaturesOfTypeIdentifierAttribute);
 }

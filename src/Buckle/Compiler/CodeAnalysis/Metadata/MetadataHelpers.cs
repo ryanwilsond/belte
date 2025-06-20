@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
@@ -9,6 +12,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal static class MetadataHelpers {
+    private static readonly ImmutableArray<string> SplitQualifiedNameSystem = [SystemString];
     private static readonly ImmutableArray<ReadOnlyMemory<char>> SplitQualifiedNameSystemMemory
         = [SystemString.AsMemory()];
 
@@ -23,6 +27,9 @@ internal static class MetadataHelpers {
     internal const int MaxStringLengthForParamSize = 22;
 
     internal static bool IsValidPublicKey(ImmutableArray<byte> bytes) => CryptoBlobParser.IsValidPublicKey(bytes);
+
+    internal static ImmutableArray<string> SplitQualifiedName(string name)
+        => SplitQualifiedNameWorker(name.AsMemory(), SplitQualifiedNameSystem, static memory => memory.ToString());
 
     internal static ImmutableArray<ReadOnlyMemory<char>> SplitQualifiedName(ReadOnlyMemory<char> name)
         => SplitQualifiedNameWorker(name, SplitQualifiedNameSystemMemory, static memory => memory);
@@ -192,5 +199,113 @@ internal static class MetadataHelpers {
 
             return null;
         }
+    }
+
+    internal static void GetInfoForImmediateNamespaceMembers(
+        bool isGlobalNamespace,
+        int namespaceNameLength,
+        IEnumerable<IGrouping<string, TypeDefinitionHandle>> typesByNS,
+        StringComparer nameComparer,
+        out IEnumerable<IGrouping<string, TypeDefinitionHandle>> types,
+        out IEnumerable<KeyValuePair<string, IEnumerable<IGrouping<string, TypeDefinitionHandle>>>> namespaces) {
+        var nestedTypes = new List<IGrouping<string, TypeDefinitionHandle>>();
+        var nestedNamespaces = new List<KeyValuePair<string, IEnumerable<IGrouping<string, TypeDefinitionHandle>>>>();
+        var possiblyHavePairsWithDuplicateKey = false;
+        var enumerator = typesByNS.GetEnumerator();
+
+        using (enumerator) {
+            if (enumerator.MoveNext()) {
+                var pair = enumerator.Current;
+
+                string lastChildNamespaceName = null;
+                List<IGrouping<string, TypeDefinitionHandle>> typesInLastChildNamespace = null;
+
+                while (pair.Key.Length == namespaceNameLength) {
+                    nestedTypes.Add(pair);
+
+                    if (!enumerator.MoveNext())
+                        goto DoneWithSequence;
+
+                    pair = enumerator.Current;
+                }
+
+                if (!isGlobalNamespace)
+                    namespaceNameLength++;
+
+                do {
+                    pair = enumerator.Current;
+
+                    var childNamespaceName = ExtractSimpleNameOfChildNamespace(namespaceNameLength, pair.Key);
+                    var cmp = nameComparer.Compare(lastChildNamespaceName, childNamespaceName);
+
+                    if (cmp == 0) {
+                        typesInLastChildNamespace.Add(pair);
+                    } else {
+                        if (cmp > 0)
+                            possiblyHavePairsWithDuplicateKey = true;
+
+                        if (typesInLastChildNamespace is not null) {
+                            nestedNamespaces.Add(
+                                new KeyValuePair<string, IEnumerable<IGrouping<string, TypeDefinitionHandle>>>(
+                                    lastChildNamespaceName, typesInLastChildNamespace));
+                        }
+
+                        typesInLastChildNamespace = [];
+                        lastChildNamespaceName = childNamespaceName;
+                        typesInLastChildNamespace.Add(pair);
+                    }
+                }
+                while (enumerator.MoveNext());
+
+                if (typesInLastChildNamespace is not null) {
+                    nestedNamespaces.Add(
+                        new KeyValuePair<string, IEnumerable<IGrouping<string, TypeDefinitionHandle>>>(
+                            lastChildNamespaceName, typesInLastChildNamespace));
+                }
+
+DoneWithSequence:
+                ;
+            }
+        }
+
+        types = nestedTypes;
+
+        if (possiblyHavePairsWithDuplicateKey) {
+            var names = new Dictionary<string, int>(nestedNamespaces.Count, nameComparer);
+
+            for (var i = nestedNamespaces.Count - 1; i >= 0; i--)
+                names[nestedNamespaces[i].Key] = i;
+
+            if (names.Count != nestedNamespaces.Count) {
+                for (var i = 1; i < nestedNamespaces.Count; i++) {
+                    var pair = nestedNamespaces[i];
+                    var keyIndex = names[pair.Key];
+
+                    if (keyIndex != i) {
+                        var primaryPair = nestedNamespaces[keyIndex];
+
+                        nestedNamespaces[keyIndex] = KeyValuePairUtilities.Create(
+                            primaryPair.Key,
+                            primaryPair.Value.Concat(pair.Value)
+                        );
+
+                        nestedNamespaces[i] = default;
+                    }
+                }
+
+                var removed = nestedNamespaces.RemoveAll(pair => pair.Key is null);
+            }
+        }
+
+        namespaces = nestedNamespaces;
+    }
+
+    private static string ExtractSimpleNameOfChildNamespace(int parentNamespaceNameLength, string fullName) {
+        var index = fullName.IndexOf('.', parentNamespaceNameLength);
+
+        if (index < 0)
+            return fullName.Substring(parentNamespaceNameLength);
+        else
+            return fullName.Substring(parentNamespaceNameLength, index - parentNamespaceNameLength);
     }
 }

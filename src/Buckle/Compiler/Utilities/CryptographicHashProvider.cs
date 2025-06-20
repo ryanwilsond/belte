@@ -4,7 +4,9 @@ using System.Security.Cryptography;
 
 namespace Buckle.Utilities;
 
-internal static class CryptographicHashProvider {
+internal abstract class CryptographicHashProvider {
+    internal abstract ImmutableArray<byte> ComputeHash(HashAlgorithm algorithm);
+
     internal static ImmutableArray<byte> ComputeSha1(ImmutableArray<byte> bytes) {
         return ComputeSha1(bytes.ToArray());
     }

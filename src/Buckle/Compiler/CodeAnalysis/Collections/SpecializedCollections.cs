@@ -23,6 +23,11 @@ internal static partial class SpecializedCollections {
         return Empty.Set<T>.Instance;
     }
 
+    internal static IDictionary<TKey, TValue> EmptyDictionary<TKey, TValue>()
+        where TKey : notnull {
+        return Empty.Dictionary<TKey, TValue>.Instance;
+    }
+
     internal static IEnumerable<T> SingletonEnumerable<T>(T value) {
         return new Singleton.List<T>(value);
     }

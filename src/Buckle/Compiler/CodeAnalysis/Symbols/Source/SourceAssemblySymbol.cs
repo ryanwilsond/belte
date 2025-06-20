@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -17,6 +19,10 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     [ThreadStatic]
     private static AssemblySymbol AssemblyForWhichCurrentThreadIsComputingKeys;
 
+    [ThreadStatic]
+    private static PooledHashSet<AttributeSyntax> ForwardedTypesAttributesInProgress;
+
+    private readonly ImmutableArray<ModuleSymbol> _modules;
     private readonly string _assemblySimpleName;
 
     private CustomAttributesBag<AttributeData> _lazySourceAttributesBag;
@@ -25,6 +31,9 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     private NamespaceSymbol _lazyGlobalNamespace;
     private AssemblyIdentity _lazyAssemblyIdentity;
     private ConcurrentSet<int> _lazyOmittedAttributeIndices;
+    private ConcurrentDictionary<string, ConcurrentDictionary<ImmutableArray<byte>, Tuple<TextLocation, string>>> _lazyInternalsVisibleToMap;
+    private IDictionary<string, NamedTypeSymbol> _lazyForwardedTypesFromSource;
+    private ConcurrentDictionary<AssemblySymbol, bool> _optimisticallyGrantedInternalsAccess;
 
     private SymbolCompletionState _state;
 
@@ -43,6 +52,14 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
             return _lazyAssemblyIdentity;
         }
     }
+
+    internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
+
+    internal override ImmutableArray<TextLocation> locations => [];
+
+    internal override ImmutableArray<byte> publicKey => strongNameKeys.publicKey;
+
+    internal override ImmutableArray<ModuleSymbol> modules => _modules;
 
     internal override NamespaceSymbol globalNamespace {
         get {
@@ -64,6 +81,8 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
             return _lazyGlobalNamespace;
         }
     }
+
+    internal override bool isLinked => false;
 
     private Version _assemblyVersionAttributeSetting {
         get {
@@ -330,41 +349,39 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
                 diagnostics
             );
         } else {
-            var unused = GetUniqueSourceAssemblyAttributes();
+            _ = GetUniqueSourceAssemblyAttributes();
         }
 
         HashSet<NamedTypeSymbol> forwardedTypes = null;
 
-        // TODO
-        // for (int i = _modules.Length - 1; i > 0; i--) {
-        //     var peModuleSymbol = (PEModuleSymbol)_modules[i];
+        for (var i = _modules.Length - 1; i > 0; i--) {
+            var peModuleSymbol = (PEModuleSymbol)_modules[i];
 
-        //     foreach (NamedTypeSymbol forwarded in peModuleSymbol.GetForwardedTypes()) {
-        //         if (forwardedTypes == null) {
-        //             if (wellKnownData == null) {
-        //                 wellKnownData = new CommonAssemblyWellKnownAttributeData();
-        //             }
+            foreach (var forwarded in peModuleSymbol.GetForwardedTypes()) {
+                if (forwardedTypes is null) {
+                    wellKnownData ??= new CommonAssemblyWellKnownAttributeData();
+                    forwardedTypes = ((CommonAssemblyWellKnownAttributeData)wellKnownData).forwardedTypes;
 
-        //             forwardedTypes = ((CommonAssemblyWellKnownAttributeData)wellKnownData).ForwardedTypes;
-        //             if (forwardedTypes == null) {
-        //                 forwardedTypes = new HashSet<NamedTypeSymbol>();
-        //                 ((CommonAssemblyWellKnownAttributeData)wellKnownData).ForwardedTypes = forwardedTypes;
-        //             }
-        //         }
+                    if (forwardedTypes is null) {
+                        forwardedTypes = [];
+                        ((CommonAssemblyWellKnownAttributeData)wellKnownData).forwardedTypes = forwardedTypes;
+                    }
+                }
 
-        //         if (forwardedTypes.Add(forwarded)) {
-        //             if (forwarded.IsErrorType()) {
-        //                 if (!diagnostics.ReportUseSite(forwarded, NoLocation.Singleton)) {
-        //                     DiagnosticInfo info = ((ErrorTypeSymbol)forwarded).ErrorInfo;
+                if (forwardedTypes.Add(forwarded)) {
+                    if (forwarded.IsErrorType()) {
+                        // TODO error
+                        // if (!diagnostics.ReportUseSite(forwarded, NoLocation.Singleton)) {
+                        //     DiagnosticInfo info = ((ErrorTypeSymbol)forwarded).ErrorInfo;
 
-        //                     if ((object)info != null) {
-        //                         diagnostics.Add(info, NoLocation.Singleton);
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                        //     if ((object)info != null) {
+                        //         diagnostics.Add(info, NoLocation.Singleton);
+                        //     }
+                        // }
+                    }
+                }
+            }
+        }
 
         CustomAttributesBag<AttributeData> netModuleAttributesBag;
 
@@ -415,20 +432,20 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
         ArrayBuilder<AttributeData> moduleAssemblyAttributesBuilder = null;
         ArrayBuilder<string> netModuleNameBuilder = null;
 
-        // TODO
-        // for (var i = 1; i < _modules.Length; i++) {
-        //     var peModuleSymbol = (Metadata.PE.PEModuleSymbol)_modules[i];
-        //     string netModuleName = peModuleSymbol.Name;
-        //     foreach (var attributeData in peModuleSymbol.GetAssemblyAttributes()) {
-        //         if (netModuleNameBuilder == null) {
-        //             netModuleNameBuilder = ArrayBuilder<string>.GetInstance();
-        //             moduleAssemblyAttributesBuilder = ArrayBuilder<CSharpAttributeData>.GetInstance();
-        //         }
+        for (var i = 1; i < _modules.Length; i++) {
+            var peModuleSymbol = (PEModuleSymbol)_modules[i];
+            var netModuleName = peModuleSymbol.name;
 
-        //         netModuleNameBuilder.Add(netModuleName);
-        //         moduleAssemblyAttributesBuilder.Add(attributeData);
-        //     }
-        // }
+            foreach (var attributeData in peModuleSymbol.GetAssemblyAttributes()) {
+                if (netModuleNameBuilder is null) {
+                    netModuleNameBuilder = ArrayBuilder<string>.GetInstance();
+                    moduleAssemblyAttributesBuilder = ArrayBuilder<AttributeData>.GetInstance();
+                }
+
+                netModuleNameBuilder.Add(netModuleName);
+                moduleAssemblyAttributesBuilder.Add(attributeData);
+            }
+        }
 
         if (netModuleNameBuilder is null) {
             netModuleNames = [];
@@ -633,4 +650,204 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
 
         _lazyOmittedAttributeIndices.Add(index);
     }
+
+    internal override IEnumerable<ImmutableArray<byte>> GetInternalsVisibleToPublicKeys(string simpleName) {
+        EnsureAttributesAreBound();
+
+        if (_lazyInternalsVisibleToMap is null)
+            return SpecializedCollections.EmptyEnumerable<ImmutableArray<byte>>();
+
+        _lazyInternalsVisibleToMap.TryGetValue(simpleName, out var result);
+        return (result is not null) ? result.Keys : SpecializedCollections.EmptyEnumerable<ImmutableArray<byte>>();
+    }
+
+    internal override void SetLinkedReferencedAssemblies(ImmutableArray<AssemblySymbol> assemblies) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override IEnumerable<string> GetInternalsVisibleToAssemblyNames() {
+        EnsureAttributesAreBound();
+
+        if (_lazyInternalsVisibleToMap is null)
+            return SpecializedCollections.EmptyEnumerable<string>();
+
+        return _lazyInternalsVisibleToMap.Keys;
+    }
+
+    internal override bool GetGuidString(out string guidString) {
+        guidString = GetSourceDecodedWellKnownAttributeData()?.guidAttribute;
+        return guidString != null;
+    }
+
+    internal override ImmutableArray<AssemblySymbol> GetLinkedReferencedAssemblies() {
+        return default;
+    }
+
+    internal override void SetNoPiaResolutionAssemblies(ImmutableArray<AssemblySymbol> assemblies) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override NamedTypeSymbol TryLookupForwardedMetadataTypeWithCycleDetection(
+        ref MetadataTypeName emittedName,
+        ConsList<AssemblySymbol> visitedAssemblies) {
+        var forcedArity = emittedName.forcedArity;
+
+        if (emittedName.useCLSCompliantNameArityEncoding) {
+            if (forcedArity == -1)
+                forcedArity = emittedName.inferredArity;
+            else if (forcedArity != emittedName.inferredArity)
+                return null;
+        }
+
+        if (_lazyForwardedTypesFromSource is null) {
+            IDictionary<string, NamedTypeSymbol> forwardedTypesFromSource;
+            var forwardedTypes = GetForwardedTypes();
+
+            if (forwardedTypes is not null) {
+                forwardedTypesFromSource = new Dictionary<string, NamedTypeSymbol>(StringOrdinalComparer.Instance);
+
+                foreach (var forwardedType in forwardedTypes) {
+                    var originalDefinition = forwardedType.originalDefinition;
+                    var fullEmittedName = MetadataHelpers.BuildQualifiedName(
+                        originalDefinition.containingSymbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat),
+                        originalDefinition.metadataName
+                    );
+
+                    forwardedTypesFromSource[fullEmittedName] = originalDefinition;
+                }
+            } else {
+                forwardedTypesFromSource = SpecializedCollections.EmptyDictionary<string, NamedTypeSymbol>();
+            }
+
+            _lazyForwardedTypesFromSource = forwardedTypesFromSource;
+        }
+
+
+        if (_lazyForwardedTypesFromSource.TryGetValue(emittedName.fullName, out var result)) {
+            if ((forcedArity == -1 || result.arity == forcedArity) &&
+                (!emittedName.useCLSCompliantNameArityEncoding || result.arity == 0 || result.mangleName)) {
+                return result;
+            }
+        } else {
+            for (var i = _modules.Length - 1; i > 0; i--) {
+                var peModuleSymbol = (PEModuleSymbol)_modules[i];
+
+                var (firstSymbol, secondSymbol) = peModuleSymbol.GetAssembliesForForwardedType(ref emittedName);
+
+                if (firstSymbol is not null) {
+                    if (secondSymbol is not null) {
+                        return CreateMultipleForwardingErrorTypeSymbol(
+                            ref emittedName,
+                            peModuleSymbol,
+                            firstSymbol,
+                            secondSymbol
+                        );
+                    }
+
+                    if (visitedAssemblies is not null && visitedAssemblies.Contains(firstSymbol)) {
+                        return CreateCycleInTypeForwarderErrorTypeSymbol(ref emittedName);
+                    } else {
+                        visitedAssemblies = new ConsList<AssemblySymbol>(
+                            this, visitedAssemblies ?? ConsList<AssemblySymbol>.Empty
+                        );
+
+                        return firstSymbol.LookupDeclaredOrForwardedTopLevelMetadataType(
+                            ref emittedName,
+                            visitedAssemblies
+                        );
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    internal HashSet<NamedTypeSymbol> GetForwardedTypes() {
+        var attributesBag = _lazySourceAttributesBag;
+
+        if (attributesBag?.isDecodedWellKnownAttributeDataComputed == true) {
+            return ((CommonAssemblyWellKnownAttributeData)attributesBag.decodedWellKnownAttributeData)?.forwardedTypes;
+        }
+
+        var allocate = ForwardedTypesAttributesInProgress is null;
+
+        if (allocate)
+            ForwardedTypesAttributesInProgress = PooledHashSet<AttributeSyntax>.GetInstance();
+
+        try {
+            attributesBag = null;
+            LoadAndValidateAttributes(
+                OneOrMany.Create(GetAttributeDeclarations()), ref attributesBag,
+                attributeMatchesOpt: IsPossibleForwardedTypesAttribute,
+                beforeAttributePartBound: BeforePossibleForwardedTypesAttributePartBound,
+                afterAttributePartBound: AfterPossibleForwardedTypesAttributePartBound);
+
+            var wellKnownAttributeData = (CommonAssemblyWellKnownAttributeData)attributesBag?
+                .decodedWellKnownAttributeData;
+
+            return wellKnownAttributeData?.forwardedTypes;
+        } finally {
+            if (allocate) {
+                var toFree = ForwardedTypesAttributesInProgress;
+                ForwardedTypesAttributesInProgress = null;
+                toFree.Free();
+            }
+        }
+    }
+
+    private static void BeforePossibleForwardedTypesAttributePartBound(AttributeSyntax node) {
+        ForwardedTypesAttributesInProgress.Add(node);
+    }
+
+    private static void AfterPossibleForwardedTypesAttributePartBound(AttributeSyntax node) {
+        ForwardedTypesAttributesInProgress.Remove(node);
+    }
+
+    private bool IsPossibleForwardedTypesAttribute(AttributeSyntax node) {
+        var checker = declaringCompilation.GetBinderFactory(node.syntaxTree).GetBinder(node).quickAttributeChecker;
+
+        if (checker.IsPossibleMatch(node, QuickAttributes.TypeForwardedTo)) {
+            if (!ForwardedTypesAttributesInProgress.Contains(node))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal override bool AreInternalsVisibleToThisAssembly(AssemblySymbol potentialGiverOfAccess) {
+        if (_lazyStrongNameKeys is null) {
+            var assemblyWhoseKeysAreBeingComputed = AssemblyForWhichCurrentThreadIsComputingKeys;
+
+            if (assemblyWhoseKeysAreBeingComputed is not null) {
+                if (!potentialGiverOfAccess.GetInternalsVisibleToPublicKeys(name).IsEmpty()) {
+                    if (_optimisticallyGrantedInternalsAccess is null) {
+                        Interlocked.CompareExchange(
+                            ref _optimisticallyGrantedInternalsAccess,
+                            new ConcurrentDictionary<AssemblySymbol, bool>(),
+                            null
+                        );
+                    }
+
+                    _optimisticallyGrantedInternalsAccess.TryAdd(potentialGiverOfAccess, true);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        var conclusion = MakeFinalIVTDetermination(potentialGiverOfAccess);
+        return conclusion == IVTConclusion.Match || conclusion == IVTConclusion.OneSignedOneNot;
+    }
+
+    internal override ImmutableArray<AssemblySymbol> GetNoPiaResolutionAssemblies() {
+        return _modules[0].referencedAssemblySymbols;
+    }
+
+    internal override IEnumerable<NamedTypeSymbol> GetAllTopLevelForwardedTypes() {
+        return PEModuleBuilder.GetForwardedTypes(this, builder: null);
+    }
+
+    internal override AssemblyMetadata GetMetadata() => null;
 }

@@ -1,4 +1,4 @@
-
+using System;
 using System.Collections.Immutable;
 
 namespace Buckle.Utilities;
@@ -18,12 +18,63 @@ internal static class Hash {
         return hashCode;
     }
 
+    internal static int CombineFNVHash(int hashCode, ReadOnlySpan<char> data) {
+        for (var i = 0; i < data.Length; i++)
+            hashCode = unchecked((hashCode ^ data[i]) * FnvPrime);
+
+        return hashCode;
+    }
+
     internal static int CombineFNVHash(int hashCode, char ch) {
         return unchecked((hashCode ^ ch) * FnvPrime);
     }
 
     internal static int GetFNVHashCode(string text) {
         return CombineFNVHash(FnvOffsetBias, text);
+    }
+
+    internal static int GetFNVHashCode(char ch) {
+        return CombineFNVHash(FnvOffsetBias, ch);
+    }
+
+    internal static int GetFNVHashCode(ReadOnlySpan<char> data) {
+        return CombineFNVHash(FnvOffsetBias, data);
+    }
+
+    internal static int GetFNVHashCode(System.Text.StringBuilder text) {
+        var hashCode = FnvOffsetBias;
+
+        foreach (var chunk in text.GetChunks())
+            hashCode = CombineFNVHash(hashCode, chunk.Span);
+
+        return hashCode;
+    }
+
+    internal static int GetFNVHashCode(string text, int start, int length)
+        => GetFNVHashCode(text.AsSpan(start, length));
+
+    internal static int GetFNVHashCode(char[] text, int start, int length) {
+        var hashCode = FnvOffsetBias;
+        var end = start + length;
+
+        for (var i = start; i < end; i++)
+            hashCode = unchecked((hashCode ^ text[i]) * FnvPrime);
+
+        return hashCode;
+    }
+
+    internal static int GetFNVHashCode(ReadOnlySpan<byte> data, out bool isAscii) {
+        var hashCode = FnvOffsetBias;
+        byte asciiMask = 0;
+
+        for (var i = 0; i < data.Length; i++) {
+            var b = data[i];
+            asciiMask |= b;
+            hashCode = unchecked((hashCode ^ b) * FnvPrime);
+        }
+
+        isAscii = (asciiMask & 0x80) == 0;
+        return hashCode;
     }
 
     internal static int GetFNVHashCode(byte[] data) {

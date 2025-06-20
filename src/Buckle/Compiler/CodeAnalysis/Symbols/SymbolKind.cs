@@ -17,4 +17,5 @@ public enum SymbolKind : byte {
     Namespace,
     Alias,
     Assembly,
+    Module,
 }

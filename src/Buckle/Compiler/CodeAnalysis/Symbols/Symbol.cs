@@ -112,6 +112,10 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
+    internal virtual ImmutableArray<SyntaxReference> declaringSyntaxReferences => [syntaxReference];
+
+    internal virtual ImmutableArray<TextLocation> locations => [location];
+
     internal abstract SyntaxReference syntaxReference { get; }
 
     internal abstract TextLocation location { get; }

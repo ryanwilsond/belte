@@ -401,14 +401,11 @@ internal sealed partial class Executor : ModuleBuilder {
     private ConstructorInfo CheckConstructorsStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        switch (mapKey) {
-            case "Object_.ctor":
-                return MethodInfoCache.Object_ctor;
-            case "Nullable_.ctor":
-                return GetNullableCtor(method.templateArguments[0].type.type);
-            default:
-                throw ExceptionUtilities.UnexpectedValue(mapKey);
-        }
+        return mapKey switch {
+            "Object_.ctor" => MethodInfoCache.Object_ctor,
+            "Nullable_.ctor" => GetNullableCtor(method.templateArguments[0].type.type),
+            _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
+        };
     }
 
     private MethodInfo CheckStandardMap(MethodSymbol method) {

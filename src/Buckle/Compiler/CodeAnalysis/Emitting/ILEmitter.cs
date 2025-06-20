@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
-using Belte.Runtime;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -59,9 +58,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(runtimeDll),
-            // AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),                  // System.Private.CoreLib
-            // AssemblyDefinition.ReadAssembly(typeof(System.Console).Assembly.Location),          // System.Console
-            AssemblyDefinition.ReadAssembly(typeof(NullConditionException).Assembly.Location)   // Belte.Runtime
+            AssemblyDefinition.ReadAssembly(typeof(Belte.Runtime.Console).Assembly.Location)
         ];
 
         foreach (var reference in references) {
@@ -563,16 +560,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private MethodReference CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        switch (mapKey) {
-            case "Nullable_.ctor":
-                return GetNullableCtor(method.templateArguments[0].type.type);
-            case "Nullable_get_Value":
-                return GetNullableValue(method.templateArguments[0].type.type);
-            case "Nullable_get_HasValue":
-                return GetNullableHasValue(method.templateArguments[0].type.type);
-            default:
-                return _stlMap[mapKey];
-        }
+        return mapKey switch {
+            "Nullable_.ctor" => GetNullableCtor(method.templateArguments[0].type.type),
+            "Nullable_get_Value" => GetNullableValue(method.templateArguments[0].type.type),
+            "Nullable_get_HasValue" => GetNullableHasValue(method.templateArguments[0].type.type),
+            _ => _stlMap[mapKey],
+        };
     }
 
     private void ResolveMethods() {

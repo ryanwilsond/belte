@@ -303,6 +303,12 @@ internal sealed partial class AssemblyIdentity : IEquatable<AssemblyIdentity> {
         );
     }
 
+    internal static bool TryParseDisplayName(string displayName, out AssemblyIdentity identity) {
+        return displayName is null
+            ? throw new ArgumentNullException(nameof(displayName))
+            : TryParseDisplayName(displayName, out identity, parts: out _);
+    }
+
     internal static bool TryParseDisplayName(
         string displayName,
         out AssemblyIdentity identity,
@@ -796,6 +802,23 @@ internal sealed partial class AssemblyIdentity : IEquatable<AssemblyIdentity> {
             unchecked((ushort)(version >> 16)),
             unchecked((ushort)version)
         );
+    }
+
+    internal IVTConclusion PerformIVTCheck(
+        ImmutableArray<byte> assemblyWantingAccessKey,
+        ImmutableArray<byte> grantedToPublicKey) {
+        var q1 = isStrongName;
+        var q2 = !grantedToPublicKey.IsDefaultOrEmpty;
+        var q3 = !assemblyWantingAccessKey.IsDefaultOrEmpty;
+        var q4 = (q2 & q3) && ByteSequenceComparer.Equals(grantedToPublicKey, assemblyWantingAccessKey);
+
+        if (q2 && !q4)
+            return IVTConclusion.PublicKeyDoesntMatch;
+
+        if (!q1 && q3)
+            return IVTConclusion.OneSignedOneNot;
+
+        return IVTConclusion.Match;
     }
 
     private static bool TryParsePublicKeyToken(string value, out ImmutableArray<byte> token) {

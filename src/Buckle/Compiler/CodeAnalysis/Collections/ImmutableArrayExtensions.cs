@@ -11,6 +11,22 @@ internal static class ImmutableArrayExtensions {
         return [.. items];
     }
 
+    internal static ImmutableArray<T> AsImmutableOrNull<T>(this IEnumerable<T>? items) {
+        if (items is null)
+            return default;
+
+        return [.. items];
+    }
+
+    internal static int Sum<T>(this ImmutableArray<T> items, Func<T, int> selector) {
+        var sum = 0;
+
+        foreach (var item in items)
+            sum += selector(item);
+
+        return sum;
+    }
+
     internal static Dictionary<K, ImmutableArray<T>> ToDictionary<K, T>(
         this ImmutableArray<T> items,
         Func<T, K> keySelector,
