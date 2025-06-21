@@ -89,7 +89,7 @@ public static partial class BuckleCommandLine {
             return err;
 
         if (state.verboseMode && !state.noOut)
-            LogTasks(state.tasks);
+            LogCompilerState(state);
 
         compiler.Compile();
 
@@ -130,88 +130,6 @@ public static partial class BuckleCommandLine {
         diagnostics = new DiagnosticQueue<Diagnostic>();
         diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
         return;
-
-        // string prefix;
-
-        // if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
-        //     prefix = "BU";
-        //     error = prefix + error;
-        // } else {
-        //     prefix = error.Substring(0, 2);
-        // }
-
-        // diagnostics = new DiagnosticQueue<Diagnostic>();
-        // var errorCode = 0;
-
-        // try {
-        //     errorCode = Convert.ToInt32(error.Substring(2));
-        // } catch (Exception e) when (e is FormatException || e is OverflowException) {
-        //     diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-        //     return;
-        // }
-
-        // string allDescriptions = null;
-
-        // foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
-        //     var foundDescriptions = assembly.GetManifestResourceNames()
-        //         .Where(r => r.EndsWith($"Resources.ErrorDescriptions{prefix}.txt"));
-
-        //     if (foundDescriptions.Any()) {
-        //         using var stream = assembly.GetManifestResourceStream(foundDescriptions.First());
-        //         using var reader = new StreamReader(stream);
-        //         allDescriptions = reader.ReadToEnd();
-        //         break;
-        //     }
-        // }
-
-        // if (allDescriptions is null) {
-        //     diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-        //     return;
-        // }
-
-        // var messages = new Dictionary<int, string>();
-
-        // foreach (var message in allDescriptions.Split($"${prefix}")) {
-        //     try {
-        //         var code = message.Substring(0, 4);
-        //         messages[Convert.ToInt32(code)] = message.Substring(4);
-        //     } catch (ArgumentOutOfRangeException) { }
-        // }
-
-        // if (!messages.ContainsKey(errorCode)) {
-        //     diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(error));
-        //     return;
-        // }
-
-        // var foundMessage = messages[errorCode].Substring(2);
-
-        // if (foundMessage.EndsWith(Environment.NewLine))
-        //     foundMessage = foundMessage.Substring(0, foundMessage.Length - 1);
-
-        // var lines = foundMessage.Split(Environment.NewLine);
-        // var count = 0;
-
-        // while (count < lines.Length) {
-        //     // First -1 is required, second -1 is because we are printing -- More --
-        //     // -2 is to account for the next terminal input line
-        //     if (count > Console.WindowHeight - 1 - 1 - 2) {
-        //         var key = ' ';
-
-        //         do {
-        //             Console.Write("-- More --");
-        //             key = Console.ReadKey().KeyChar;
-        //             var currentLineCursor = Console.CursorTop;
-        //             Console.SetCursorPosition(0, Console.CursorTop);
-        //             // * Does not need -1 in some terminals
-        //             // Unfortunately the program cant tell what terminal is being used
-        //             Console.Write(new string(' ', Console.WindowWidth - 1));
-        //             Console.SetCursorPosition(0, currentLineCursor);
-        //         } while (key != '\n' && key != '\r');
-        //     }
-
-        //     var line = lines[count++];
-        //     Console.WriteLine(line);
-        // }
     }
 
     private static void ShowHelpDialog() {
@@ -243,61 +161,36 @@ public static partial class BuckleCommandLine {
         where Type : Diagnostic {
         var previous = Console.ForegroundColor;
 
-        void ResetColor() {
-            if (textColor is not null)
-                Console.ForegroundColor = textColor.Value;
-            else
-                Console.ResetColor();
-        }
+        if (textColor is not null)
+            Console.ForegroundColor = textColor.Value;
+        else
+            Console.ResetColor();
 
-        var severity = diagnostic.info.severity;
-        ResetColor();
+        var info = diagnostic.info;
 
-        var ignoreDiagnostic = (int)state.severity > (int)severity;
-        ignoreDiagnostic |= CheckWarningLevel(diagnostic.info, state);
-        ignoreDiagnostic &= !WarningIncluded(diagnostic.info, state);
-        ignoreDiagnostic |= WarningExcluded(diagnostic.info, state);
+        var ignoreDiagnostic = CheckDiagnosticSeverity(info, state);
+        ignoreDiagnostic |= CheckWarningLevel(info, state);
+        ignoreDiagnostic &= !WarningIncluded(info, state);
+        ignoreDiagnostic |= WarningExcluded(info, state);
 
-        if (ignoreDiagnostic) {
-        } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location is null)) {
-            Console.Write($"{me}: ");
-
-            switch (severity) {
-                case DiagnosticSeverity.Debug:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.Write("debug");
-                    break;
-                case DiagnosticSeverity.Info:
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write("info");
-                    break;
-                case DiagnosticSeverity.Warning:
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.Write("warning");
-                    break;
-                case DiagnosticSeverity.Error:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("error");
-                    break;
-                case DiagnosticSeverity.Fatal:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("fatal");
-                    break;
+        if (!ignoreDiagnostic) {
+            if (info.module != "BU") {
+                Console.Write($"{me}: ");
+                DiagnosticFormatter.PrettyPrint(diagnostic, textColor);
+            } else {
+                DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
             }
-
-            Console.Write(
-                $"{(diagnostic.info.code is null && diagnostic.info.module is null ? "" : $" {diagnostic.info}")}: "
-            );
-
-            ResetColor();
-            Console.WriteLine(diagnostic.message);
-        } else {
-            DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
         }
 
         Console.ForegroundColor = previous;
+        return info.severity;
+    }
 
-        return severity;
+    private static bool CheckDiagnosticSeverity(DiagnosticInfo info, CompilerState state) {
+        if (state.time && info.severity == DiagnosticSeverity.Debug)
+            return false;
+
+        return (int)state.severity > (int)info.severity;
     }
 
     private static bool CheckWarningLevel(DiagnosticInfo info, CompilerState state) {
@@ -437,14 +330,31 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static void LogTasks(FileState[] tasks) {
-        Console.WriteLine($"File Tasks ({tasks.Length}):");
+    private static void LogCompilerState(CompilerState state) {
+        Console.WriteLine();
+        Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.severity)}");
+        Console.WriteLine($"Warning reporting level: {state.warningLevel}");
+        Console.WriteLine($"Included warnings: {string.Join(", ", state.includeWarnings.AsEnumerable())}");
+        Console.WriteLine($"Excluded warnings: {string.Join(", ", state.excludeWarnings.AsEnumerable())}");
+        Console.WriteLine();
+        Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
+        Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
+        Console.WriteLine();
+        Console.WriteLine(".NET Information:");
+        Console.WriteLine($"    Module name: {state.moduleName}");
+        Console.WriteLine($"    References: {string.Join(", ", state.references.Select(r => $"\"{r}\""))}");
+        Console.WriteLine();
+
+        LogTasks(state);
+    }
+
+    private static void LogTasks(CompilerState state) {
+        var tasks = state.tasks;
+        Console.WriteLine($"File Tasks ({tasks.Length}) -> \"{state.outputFilename}\": {Enum.GetName(state.finishStage)}");
 
         foreach (var task in tasks) {
             Console.Write("    ");
-            Console.WriteLine(
-                $"{task.inputFileName}{(task.outputFilename is null ? "" : $" -> {task.outputFilename}")}: {task.stage}"
-            );
+            Console.WriteLine($"\"{task.inputFileName}\"{(task.outputFilename is null ? "" : $" -> \"{task.outputFilename}\"")}: {task.stage}");
         }
 
         Console.WriteLine();
@@ -488,6 +398,7 @@ public static partial class BuckleCommandLine {
         state.severity = DiagnosticSeverity.Warning;
         state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
+        state.time = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -549,6 +460,9 @@ public static partial class BuckleCommandLine {
                     break;
                 case "--verbose":
                     state.verboseMode = true;
+                    break;
+                case "--time":
+                    state.time = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -744,8 +658,11 @@ public static partial class BuckleCommandLine {
 
         state.outputFilename = state.outputFilename.Trim();
 
-        if (state.verboseMode)
+        if (state.verboseMode) {
             state.severity = DiagnosticSeverity.All;
+            state.warningLevel = 2;
+            state.time = true;
+        }
 
         return state;
     }

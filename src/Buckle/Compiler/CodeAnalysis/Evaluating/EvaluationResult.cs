@@ -29,10 +29,6 @@ public sealed class EvaluationResult {
         this.containsIO = containsIO;
     }
 
-    internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
-        return new EvaluationResult(null, false, diagnostics, null, false, false);
-    }
-
     /// <summary>
     /// Diagnostics related to a single evaluation.
     /// </summary>
@@ -41,26 +37,48 @@ public sealed class EvaluationResult {
     /// <summary>
     /// Value resulting from evaluation.
     /// </summary>
-    public object value { get; }
+    public object value { get; private set; }
 
     /// <summary>
     /// Flag to distinguish the lack of value from the value of null.
     /// </summary>
-    public bool hasValue { get; }
+    public bool hasValue { get; private set; }
 
     /// <summary>
     /// If the last output to the terminal was a `Print`, and not a `PrintLine`, meaning the caller might want to write
     /// an extra line to prevent formatting problems.
     /// </summary>
-    public bool lastOutputWasPrint { get; }
+    public bool lastOutputWasPrint { get; private set; }
 
     /// <summary>
     /// If the submission contains File/Directory IO.
     /// </summary>
-    public bool containsIO { get; }
+    public bool containsIO { get; private set; }
 
     /// <summary>
     /// All exceptions thrown while evaluating.
     /// </summary>
     public List<Exception> exceptions { get; }
+
+    internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
+        return new EvaluationResult(null, false, diagnostics, null, false, false);
+    }
+
+    internal void Update(
+        object value,
+        bool hasValue,
+        BelteDiagnosticQueue diagnostics,
+        List<Exception> exceptions,
+        bool lastOutputWasPrint,
+        bool containsIO) {
+        if (hasValue) {
+            this.value = value;
+            this.hasValue = true;
+        }
+
+        this.diagnostics.PushRange(diagnostics);
+        this.exceptions.AddRange(exceptions);
+        this.lastOutputWasPrint = lastOutputWasPrint;
+        this.containsIO |= containsIO;
+    }
 }

@@ -1,5 +1,8 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
+using Diagnostics;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -24,7 +27,8 @@ internal sealed class Interpreter {
     internal static EvaluationResult Interpret(
         SyntaxTree syntaxTree,
         CompilationOptions options,
-        ValueWrapper<bool> abort) {
+        ValueWrapper<bool> abort,
+        bool logTime) {
         // This pseudo interpreter parses all of the source files at once, so there is a short delay before running the
         // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the
         // parser would have to be written to support partial parsing. This would be a large undertaking, but maybe
@@ -40,6 +44,8 @@ internal sealed class Interpreter {
         Compilation previous = null;
         var root = parsedSyntaxTree.GetCompilationUnitRoot();
 
+        var timer = logTime ? Stopwatch.StartNew() : null;
+
         foreach (var member in root.members) {
             textOffset += member.position;
 
@@ -54,11 +60,18 @@ internal sealed class Interpreter {
             );
 
             previous = Compilation.CreateScript("interpreter", options, newSyntaxTree, previous);
-            result = previous.Evaluate(context, abort);
+            previous.Evaluate(context, abort, ref result);
 
-            // ? If any diagnostics are found, we quit early. Is this what we want though?
-            if (result.diagnostics.AnyErrors())
+            if (result.diagnostics.AnyErrors() || result.exceptions.Count > 0)
                 break;
+        }
+
+        if (logTime) {
+            timer.Stop();
+            result.diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Interpreted the program in {timer.ElapsedMilliseconds} ms"
+            ));
         }
 
         return result;

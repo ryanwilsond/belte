@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -9,8 +10,10 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -18,6 +21,8 @@ internal sealed partial class Executor : ModuleBuilder {
     public static readonly Random Random = new Random();
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
+
+    private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
     private readonly BoundProgram _program;
 
@@ -50,6 +55,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
     private readonly bool _graphicsEnabled;
     private readonly string[] _arguments;
+    private readonly BelteDiagnosticQueue _diagnostics;
 
     private NamedTypeSymbol _programNamedType;
     private Type _programType;
@@ -62,14 +68,15 @@ internal sealed partial class Executor : ModuleBuilder {
     internal FieldInfo graphicsHandlerField;
     internal FieldInfo programField;
 
-    internal Executor(BoundProgram program, string[] arguments) {
+    internal Executor(BoundProgram program, string[] arguments, BelteDiagnosticQueue diagnostics) {
         _arguments = arguments;
         _program = program;
+        _diagnostics = diagnostics;
         _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
         _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
 
-        var assemblyName = new AssemblyName("DynamicBoundTreeAssembly");
+        var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         _moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
     }
@@ -81,7 +88,9 @@ internal sealed partial class Executor : ModuleBuilder {
         return value;
     }
 
-    internal object Execute(bool log) {
+    internal object Execute(bool verbose, bool logTime) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is null)
@@ -119,21 +128,40 @@ internal sealed partial class Executor : ModuleBuilder {
             GraphicsHandler.SetExecuteHandler(updateAction);
         }
 
-        if (log) {
-            var assemblyPath = "DynamicBoundTreeAssembly.dll";
-            Console.WriteLine($"Dumping dynamic executor assembly to '{assemblyPath}'");
-            var generator = new Lokad.ILPack.AssemblyGenerator();
-            generator.GenerateAssembly(_programType.Assembly, assemblyPath);
+        if (logTime) {
+            timer.Stop();
+
+            if (verbose) {
+                var assemblyPath = $"{DynamicAssemblyName}.dll";
+                Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
+                var generator = new Lokad.ILPack.AssemblyGenerator();
+                generator.GenerateAssembly(_programType.Assembly, assemblyPath);
+            }
+
+            _diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Emitted the program in {timer.ElapsedMilliseconds} ms"
+            ));
+
+            timer.Restart();
         }
 
-        if (_graphicsEnabled && _graphicsInitialized) {
-            var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
-            GraphicsHandler.SetExecuteMain(mainAction);
-            GraphicsHandler.Run();
-            return null;
-        }
+        try {
+            if (_graphicsEnabled && _graphicsInitialized) {
+                var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction);
+                GraphicsHandler.Run();
+                return null;
+            }
 
-        return mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
+            return mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
+        } finally {
+            timer.Stop();
+            _diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Executed the program in {timer.ElapsedMilliseconds} ms"
+            ));
+        }
     }
 
     internal Type GetType(TypeSymbol type) {

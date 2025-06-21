@@ -7,11 +7,15 @@ namespace Buckle.Diagnostics;
 
 public static partial class DiagnosticFormatter {
     public static string Format(BelteDiagnostic diagnostic) {
-        return ToDisplayParts(diagnostic).ToString();
+        return ToDisplayParts(diagnostic, diagnostic.location).ToString();
     }
 
     public static void PrettyPrint(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
-        ToDisplayParts(diagnostic, foregroundColor).Write();
+        ToDisplayParts(diagnostic, diagnostic.location, foregroundColor).Write();
+    }
+
+    public static void PrettyPrint(Diagnostic diagnostic, ConsoleColor? foregroundColor = null) {
+        ToDisplayParts(diagnostic, null, foregroundColor).Write();
     }
 
     public static void PrettyPrintException(Exception exception, ConsoleColor? foregroundColor = null) {
@@ -55,38 +59,42 @@ public static partial class DiagnosticFormatter {
         if (!string.IsNullOrEmpty(fileName))
             displayParts.Add($"{fileName}:", color);
 
-        displayParts.Add($"{lineNumber + 1}:{column}:", color);
+        displayParts.Add($"{lineNumber + 1}:{column}: ", color);
     }
 
-    private static DisplayParts ToDisplayParts(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
+    private static DisplayParts ToDisplayParts(
+        Diagnostic diagnostic,
+        TextLocation location,
+        ConsoleColor? foregroundColor = null) {
         var displayParts = new DisplayParts();
         var initialColor = foregroundColor ?? Console.ForegroundColor;
 
-        AddLocationToDisplayParts(displayParts, diagnostic.location, initialColor);
+        if (location is not null)
+            AddLocationToDisplayParts(displayParts, location, initialColor);
 
         var highlightColor = ConsoleColor.White;
         var severity = diagnostic.info.severity;
 
         switch (severity) {
             case DiagnosticSeverity.Debug:
-                highlightColor = ConsoleColor.Gray;
-                displayParts.Add(" debug", highlightColor);
+                highlightColor = ConsoleColor.DarkGray;
+                displayParts.Add("debug", highlightColor);
                 break;
             case DiagnosticSeverity.Info:
                 highlightColor = ConsoleColor.Yellow;
-                displayParts.Add(" info", highlightColor);
+                displayParts.Add("info", highlightColor);
                 break;
             case DiagnosticSeverity.Warning:
                 highlightColor = ConsoleColor.Magenta;
-                displayParts.Add(" warning", highlightColor);
+                displayParts.Add("warning", highlightColor);
                 break;
             case DiagnosticSeverity.Error:
                 highlightColor = ConsoleColor.Red;
-                displayParts.Add(" error", highlightColor);
+                displayParts.Add("error", highlightColor);
                 break;
             case DiagnosticSeverity.Fatal:
                 highlightColor = ConsoleColor.Red;
-                displayParts.Add(" fatal", highlightColor);
+                displayParts.Add("fatal", highlightColor);
                 break;
         }
 
@@ -97,7 +105,8 @@ public static partial class DiagnosticFormatter {
 
         displayParts.Add($"{diagnostic.message}\n", initialColor);
 
-        AddTextAtLocation(displayParts, diagnostic.location, diagnostic.suggestions, initialColor, highlightColor);
+        if (location is not null)
+            AddTextAtLocation(displayParts, location, diagnostic.suggestions, initialColor, highlightColor);
 
         return displayParts;
     }

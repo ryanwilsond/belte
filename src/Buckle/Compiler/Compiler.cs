@@ -74,9 +74,9 @@ public sealed class Compiler {
                 diagnostics.Clear();
 
                 if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
-                    diagnostics = InternalInterpreter();
+                    InternalInterpreter();
                 else
-                    diagnostics = InternalCompiler();
+                    InternalCompiler();
 
                 return CalculateExitCode(diagnostics);
             }
@@ -93,9 +93,9 @@ public sealed class Compiler {
         return worst;
     }
 
-    public void AddLibraryErrors(BelteDiagnosticQueue diagnostics) {
-        this.diagnostics.PushRange(diagnostics.Errors());
-        this.diagnostics.Push(Fatal.LibraryError());
+    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
+        diagnostics.PushRange(libraryDiagnostics.Errors());
+        diagnostics.Push(Fatal.LibraryError());
     }
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
@@ -110,16 +110,13 @@ public sealed class Compiler {
         return _lazyCorLibraryDiagnostics;
     }
 
-    private BelteDiagnosticQueue ReportAndReturnLibraryErrors() {
-        var diagnostics = new BelteDiagnosticQueue();
+    private void ReportAndReturnLibraryErrors() {
         diagnostics.PushRange(_lazyCorLibraryDiagnostics);
         diagnostics.Push(Fatal.LibraryError());
-        return diagnostics;
     }
 
-    private BelteDiagnosticQueue InternalInterpreter() {
-        var diagnostics = new BelteDiagnosticQueue();
-        var timer = state.verboseMode ? Stopwatch.StartNew() : null;
+    private void InternalInterpreter() {
+        var timer = state.time ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
 
@@ -144,23 +141,27 @@ public sealed class Compiler {
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
 
-            if (GetCorLibrary(out var corLibrary).AnyErrors())
-                return ReportAndReturnLibraryErrors();
+            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+                ReportAndReturnLibraryErrors();
+                return;
+            }
 
             var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
-            if (state.noOut)
-                return compilation.GetParseDiagnostics();
+            if (state.noOut) {
+                diagnostics.PushRange(compilation.GetParseDiagnostics());
+                return;
+            }
 
             LogParseTime(timer, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode);
+                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.time);
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(state.verboseMode));
+                    diagnostics.PushRange(compilation.Execute(state.verboseMode, state.time));
                 }
             }
 
@@ -173,15 +174,22 @@ public sealed class Compiler {
             var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
             task.stage = CompilerStage.Finished;
 
-            var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree);
+            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+                ReportAndReturnLibraryErrors();
+                return;
+            }
 
-            if (state.noOut)
-                return compilation.GetParseDiagnostics();
+            var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree, corLibrary);
+
+            if (state.noOut) {
+                diagnostics.PushRange(compilation.GetParseDiagnostics());
+                return;
+            }
 
             LogParseTime(timer, 1);
 
             void Wrapper(object parameter) {
-                var result = compilation.Interpret((ValueWrapper<bool>)parameter);
+                var result = compilation.Interpret((ValueWrapper<bool>)parameter, state.time);
                 diagnostics.PushRange(result.diagnostics);
             }
 
@@ -189,29 +197,27 @@ public sealed class Compiler {
         }
 
         LogCompilationTime(timer);
-
-        return diagnostics;
     }
 
-    private BelteDiagnosticQueue InternalCompiler() {
-        var timer = state.verboseMode ? Stopwatch.StartNew() : null;
+    private void InternalCompiler() {
+        var timer = state.time ? Stopwatch.StartNew() : null;
         var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
 
-        if (GetCorLibrary(out var corLibrary).AnyErrors())
-            return ReportAndReturnLibraryErrors();
+        if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+            ReportAndReturnLibraryErrors();
+            return;
+        }
 
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
         if (state.noOut)
-            return BelteDiagnosticQueue.Discarded;
+            return;
 
         LogParseTime(timer, syntaxTrees.Length);
 
-        var diagnostics = compilation.Emit(state.outputFilename, state.verboseMode);
+        diagnostics.PushRange(compilation.Emit(state.outputFilename, state.time));
 
         LogCompilationTime(timer);
-
-        return diagnostics;
     }
 
     private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
@@ -246,7 +252,7 @@ public sealed class Compiler {
     }
 
     private void Log(Stopwatch timer, string message) {
-        if (state.verboseMode) {
+        if (state.time) {
             timer.Stop();
             diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
             timer.Start();

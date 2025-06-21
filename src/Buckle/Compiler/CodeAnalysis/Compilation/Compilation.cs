@@ -219,56 +219,66 @@ public sealed partial class Compilation {
         EvaluatorContext context,
         ValueWrapper<bool> abort,
         bool logTime = false) {
+        EvaluationResult result = null;
+        Evaluate(context, abort, ref result, logTime);
+        return result;
+    }
+
+    internal void Evaluate(
+        EvaluatorContext context,
+        ValueWrapper<bool> abort,
+        ref EvaluationResult rollingResult,
+        bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var builder = GetDiagnostics();
+        var diagnostics = GetDiagnostics();
         var program = boundProgram;
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (diagnostics.AnyErrors())
+            rollingResult = EvaluationResult.Failed(diagnostics);
 
 #if DEBUG
         if (options.enableOutput) {
-            if (!builder.AnyErrors())
+            if (!diagnostics.AnyErrors())
                 EmitCFG();
 
             EmitBoundProgram();
         }
 #endif
 
-        Log(logTime, timer, builder, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
-
-        if (logTime) {
-            timer.Stop();
-            builder.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Bound the program in {timer.ElapsedMilliseconds} ms"
-            ));
-            timer.Restart();
-        }
-
-        if (builder.AnyErrors())
-            return EvaluationResult.Failed(builder);
-
         var evaluator = new Evaluator(program, context, options.arguments);
         var evalResult = evaluator.Evaluate(abort, out var hasValue);
 
-        Log(logTime, timer, builder, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
+        Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
-        var result = new EvaluationResult(
-            evalResult,
-            hasValue,
-            builder,
-            evaluator.exceptions,
-            evaluator.lastOutputWasPrint,
-            evaluator.containsIO
-        );
-
-        return result;
+        if (rollingResult is null) {
+            rollingResult = new EvaluationResult(
+                evalResult,
+                hasValue,
+                diagnostics,
+                evaluator.exceptions,
+                evaluator.lastOutputWasPrint,
+                evaluator.containsIO
+            );
+        } else {
+            rollingResult.Update(
+                evalResult,
+                hasValue,
+                diagnostics,
+                evaluator.exceptions,
+                evaluator.lastOutputWasPrint,
+                evaluator.containsIO
+            );
+        }
     }
 
-    public BelteDiagnosticQueue Emit(string outputPath, bool log = false) {
-        var timer = log ? Stopwatch.StartNew() : null;
+    public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
-        Log(log, timer, diagnostics, $"Compiled in {timer?.ElapsedMilliseconds} ms");
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
         if (diagnostics.AnyErrors())
             return diagnostics;
@@ -281,39 +291,43 @@ public sealed partial class Compilation {
             diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
         if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
-            Log(log, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
+            Log(logTime, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
 
         return diagnostics;
     }
 
-    public BelteDiagnosticQueue Execute(bool log = false) {
-        var builder = GetDiagnostics();
+    public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var diagnostics = GetDiagnostics();
+        var program = boundProgram;
 
-        if (builder.AnyErrors())
-            return builder;
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (diagnostics.AnyErrors())
+            return diagnostics;
 
 #if DEBUG
         if (options.enableOutput) {
-            if (!builder.AnyErrors())
+            if (!diagnostics.AnyErrors())
                 EmitCFG();
 
             EmitBoundProgram();
         }
 #endif
 
-        var executor = new Executor(boundProgram, options.arguments);
-        var result = executor.Execute(log);
+        var executor = new Executor(boundProgram, options.arguments, diagnostics);
+        var result = executor.Execute(verbose, logTime);
 
 #if DEBUG
         if (options.enableOutput && result is not null)
             Console.WriteLine(result);
 #endif
 
-        return builder;
+        return diagnostics;
     }
 
-    public EvaluationResult Interpret(ValueWrapper<bool> abort) {
-        return Interpreter.Interpret(_syntax.syntaxTrees[0], options, abort);
+    public EvaluationResult Interpret(ValueWrapper<bool> abort, bool logTime) {
+        return Interpreter.Interpret(_syntax.syntaxTrees[0], options, abort, logTime);
     }
 
     public string EmitToString(out BelteDiagnosticQueue diagnostics, BuildMode? alternateBuildMode = null) {
