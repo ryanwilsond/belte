@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -25,14 +26,14 @@ namespace Buckle.CodeAnalysis;
 /// <summary>
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
-public sealed class Compilation {
+public sealed partial class Compilation {
     private readonly static Predicate<Symbol> SkipLibrariesFilter
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
     private readonly SyntaxAndDeclarationManager _syntax;
-    private NamespaceSymbol _lazyGlobalNamespace;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
+
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
     private BoundProgram _lazyBoundProgram;
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
@@ -40,6 +41,10 @@ public sealed class Compilation {
     private MethodSymbol _lazyEntryPoint;
     private MethodSymbol _lazyUpdatePoint;
     private NamedTypeSymbol _lazyScriptClass;
+    private AliasSymbol _lazyGlobalNamespaceAlias;
+    private AssemblySymbol _lazyAssembly;
+    private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
+    private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
 
     private Compilation(
         string assemblyName,
@@ -89,15 +94,27 @@ public sealed class Compilation {
 
     internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
-    internal NamespaceSymbol globalNamespaceInternal {
-        get {
-            if (_lazyGlobalNamespace is null) {
-                var extent = new NamespaceExtent(this);
-                var result = new GlobalNamespaceSymbol(extent, _syntax.state.declarationTable.GetMergedRoot(this));
-                Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
-            }
+    internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
-            return _lazyGlobalNamespace;
+    internal DeclarationTable declarationTable => _syntax.state.declarationTable;
+
+    internal AssemblySymbol assembly {
+        get {
+            if (_lazyAssembly is null)
+                Interlocked.CompareExchange(ref _lazyAssembly, new SourceAssemblySymbol(this, assemblyName), null);
+
+            return _lazyAssembly;
+        }
+    }
+
+    internal NamespaceSymbol globalNamespaceInternal => assembly.globalNamespace;
+
+    internal AliasSymbol globalNamespaceAlias {
+        get {
+            if (_lazyGlobalNamespaceAlias is null)
+                Interlocked.CompareExchange(ref _lazyGlobalNamespaceAlias, CreateGlobalNamespaceAlias(), null);
+
+            return _lazyGlobalNamespaceAlias;
         }
     }
 
@@ -332,6 +349,98 @@ public sealed class Compilation {
         return _lazyUpdatePoint;
     }
 
+    internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
+        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
+
+        if (comparison != 0)
+            return comparison;
+
+        return syntax1.span.start - syntax2.span.start;
+    }
+
+    internal int CompareSourceLocations(
+        SyntaxReference syntax1,
+        TextLocation location1,
+        SyntaxReference syntax2,
+        TextLocation location2) {
+        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
+
+        if (comparison != 0)
+            return comparison;
+
+        return location1.span.start - location2.span.start;
+    }
+
+    internal int CompareSyntaxTreeOrdering(SyntaxTree tree1, SyntaxTree tree2) {
+        if (tree1 == tree2)
+            return 0;
+
+        return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
+    }
+
+    internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
+        // TODO Maybe make the CorLibrary not static?
+        CorLibrary.RegisterDeclaredSpecialType(type);
+    }
+
+    internal Binder GetBinder(BelteSyntaxNode syntax) {
+        return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
+    }
+
+    internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree, bool ignoreAccessibility = false) {
+        if (ignoreAccessibility && SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this) is not null)
+            return GetBinderFactory(syntaxTree, ignoreAccessibility: true, ref _ignoreAccessibilityBinderFactories);
+
+        return GetBinderFactory(syntaxTree, ignoreAccessibility: false, ref _binderFactories);
+    }
+
+    internal BinderFactory GetBinderFactory(
+        SyntaxTree syntaxTree,
+        bool ignoreAccessibility,
+        ref WeakReference<BinderFactory>[] cachedBinderFactories) {
+        var treeOrdinal = GetSyntaxTreeOrdinal(syntaxTree);
+        var binderFactories = cachedBinderFactories;
+
+        if (binderFactories is null) {
+            binderFactories = new WeakReference<BinderFactory>[syntaxTrees.Length];
+            binderFactories = Interlocked.CompareExchange(ref cachedBinderFactories, binderFactories, null)
+                ?? binderFactories;
+        }
+
+        var previousWeakReference = binderFactories[treeOrdinal];
+
+        if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
+            return previousFactory;
+
+        return AddNewFactory(syntaxTree, ignoreAccessibility, ref binderFactories[treeOrdinal]);
+    }
+
+    internal int GetSyntaxTreeOrdinal(SyntaxTree syntaxTree) {
+        return _syntax.state.ordinalMap[syntaxTree];
+    }
+
+    internal void RecordImport(UsingDirectiveSyntax syntax) {
+        LazyInitializer.EnsureInitialized(ref _lazyImportInfos)
+            .TryAdd(new ImportInfo(syntax.syntaxTree, syntax.kind, syntax.span), default);
+    }
+
+    internal void AddUsedAssemblies(ICollection<AssemblySymbol> assemblies) {
+        if (!assemblies.IsNullOrEmpty()) {
+            foreach (var candidate in assemblies)
+                AddUsedAssembly(candidate);
+        }
+    }
+
+    internal bool AddUsedAssembly(AssemblySymbol assembly) {
+        if (assembly is null || assembly == this.assembly || assembly.isMissing)
+            return false;
+
+        if (_lazyUsedAssemblyReferences is null)
+            Interlocked.CompareExchange(ref _lazyUsedAssemblyReferences, new ConcurrentSet<AssemblySymbol>(), null);
+
+        return _lazyUsedAssemblyReferences.Add(assembly);
+    }
+
     private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
         var classes = globalNamespaceInternal.GetTypeMembersUnordered();
@@ -407,7 +516,7 @@ public sealed class Compilation {
 
         MethodSymbol entryPoint = null;
 
-        if (entryPointCandidates.Length == 0 && !options.isScript && options.outputKind != OutputKind.Library) {
+        if (entryPointCandidates.Length == 0 && !options.isScript) {
             diagnostics.Push(Error.NoSuitableEntryPoint());
         } else if (entryPointCandidates.Length == 1) {
             entryPoint = entryPointCandidates[0];
@@ -457,74 +566,8 @@ public sealed class Compilation {
         return true;
     }
 
-    internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
-        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
-
-        if (comparison != 0)
-            return comparison;
-
-        return syntax1.span.start - syntax2.span.start;
-    }
-
-    internal int CompareSourceLocations(
-        SyntaxReference syntax1,
-        TextLocation location1,
-        SyntaxReference syntax2,
-        TextLocation location2) {
-        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
-
-        if (comparison != 0)
-            return comparison;
-
-        return location1.span.start - location2.span.start;
-    }
-
-    internal int CompareSyntaxTreeOrdering(SyntaxTree tree1, SyntaxTree tree2) {
-        if (tree1 == tree2)
-            return 0;
-
-        return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
-    }
-
-    internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
-        // TODO Maybe make the CorLibrary not static?
-        CorLibrary.RegisterDeclaredSpecialType(type);
-    }
-
-    internal Binder GetBinder(BelteSyntaxNode syntax) {
-        return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
-    }
-
-    internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree, bool ignoreAccessibility = false) {
-        if (ignoreAccessibility && SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this) is not null)
-            return GetBinderFactory(syntaxTree, ignoreAccessibility: true, ref _ignoreAccessibilityBinderFactories);
-
-        return GetBinderFactory(syntaxTree, ignoreAccessibility: false, ref _binderFactories);
-    }
-
-    internal BinderFactory GetBinderFactory(
-        SyntaxTree syntaxTree,
-        bool ignoreAccessibility,
-        ref WeakReference<BinderFactory>[] cachedBinderFactories) {
-        var treeOrdinal = GetSyntaxTreeOrdinal(syntaxTree);
-        var binderFactories = cachedBinderFactories;
-
-        if (binderFactories is null) {
-            binderFactories = new WeakReference<BinderFactory>[syntaxTrees.Length];
-            binderFactories = Interlocked.CompareExchange(ref cachedBinderFactories, binderFactories, null)
-                ?? binderFactories;
-        }
-
-        var previousWeakReference = binderFactories[treeOrdinal];
-
-        if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
-            return previousFactory;
-
-        return AddNewFactory(syntaxTree, ignoreAccessibility, ref binderFactories[treeOrdinal]);
-    }
-
-    internal int GetSyntaxTreeOrdinal(SyntaxTree syntaxTree) {
-        return _syntax.state.ordinalMap[syntaxTree];
+    private AliasSymbol CreateGlobalNamespaceAlias() {
+        return AliasSymbol.CreateGlobalNamespaceAlias(globalNamespaceInternal);
     }
 
     private Compilation AddSyntaxTrees(IEnumerable<SyntaxTree> trees) {
@@ -606,7 +649,7 @@ public sealed class Compilation {
         }
 
         if (includeDeclaration) {
-            globalNamespaceInternal.ForceComplete(null);
+            assembly.ForceComplete(null);
             builder.PushRange(declarationDiagnostics);
         }
 
@@ -622,13 +665,11 @@ public sealed class Compilation {
     }
 
     private void CreateBoundProgramAndMethodDiagnostics() {
-        var emitting = options.buildMode is not BuildMode.CSharpTranspile;
         _lazyMethodDiagnostics = new BelteDiagnosticQueue();
         _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
             this,
             _lazyMethodDiagnostics,
-            SkipLibrariesFilter,
-            emitting
+            SkipLibrariesFilter
         );
     }
 

@@ -1,11 +1,12 @@
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
 
 public struct CompilationOptions {
     public CompilationOptions(
         BuildMode buildMode,
-        OutputKind outputKind = OutputKind.Console,
+        OutputKind outputKind = OutputKind.ConsoleApplication,
         string[] arguments = null,
         bool isScript = false,
         bool enableOutput = true,
@@ -56,4 +57,12 @@ public struct CompilationOptions {
     internal bool enableOutput { get; }
 
     internal string[] references { get; }
+
+    internal string cryptoKeyFile { get; }
+
+    internal string cryptoKeyContainer { get; }
+
+    internal bool publicSign { get; }
+
+    internal StrongNameProvider strongNameProvider { get; }
 }

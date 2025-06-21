@@ -45,6 +45,65 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
         return null;
     }
 
+    internal virtual NamedTypeSymbol LookupMetadataType(ref MetadataTypeName emittedTypeName) {
+        var scope = this;
+
+        if (scope.kind == SymbolKind.ErrorType)
+            return null;
+
+        NamedTypeSymbol namedType = null;
+        ImmutableArray<NamedTypeSymbol> namespaceOrTypeMembers;
+
+        if (emittedTypeName.isMangled) {
+            if (emittedTypeName.forcedArity == -1 || emittedTypeName.forcedArity == emittedTypeName.inferredArity) {
+                namespaceOrTypeMembers = scope.GetTypeMembers(emittedTypeName.unmangledTypeNameMemory);
+
+                foreach (var named in namespaceOrTypeMembers) {
+                    if (emittedTypeName.inferredArity == named.arity &&
+                        named.mangleName &&
+                        ReadOnlyMemoryOfCharComparer.Equals(
+                            named.metadataName.AsSpan(),
+                            emittedTypeName.typeNameMemory)) {
+                        if (namedType is not null) {
+                            namedType = null;
+                            break;
+                        }
+
+                        namedType = named;
+                    }
+                }
+            }
+        }
+
+        var forcedArity = emittedTypeName.forcedArity;
+
+        if (emittedTypeName.useCLSCompliantNameArityEncoding) {
+            if (emittedTypeName.inferredArity > 0)
+                goto Done;
+            else if (forcedArity == -1)
+                forcedArity = 0;
+            else if (forcedArity != 0)
+                goto Done;
+        }
+
+        namespaceOrTypeMembers = scope.GetTypeMembers(emittedTypeName.typeNameMemory);
+
+        foreach (var named in namespaceOrTypeMembers) {
+            if (!named.mangleName &&
+                (forcedArity == -1 || forcedArity == named.arity) &&
+                ReadOnlyMemoryOfCharComparer.Equals(named.metadataName.AsSpan(), emittedTypeName.typeNameMemory)) {
+                if (namedType is not null) {
+                    namedType = null;
+                    break;
+                }
+
+                namedType = named;
+            }
+        }
+
+Done:
+        return namedType;
+    }
 
     internal abstract ImmutableArray<Symbol> GetMembers();
 

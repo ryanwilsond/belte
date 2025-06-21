@@ -1,10 +1,13 @@
+using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Reflection;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -89,12 +92,14 @@ internal abstract class Symbol : ISymbol {
             if (!isDefinition)
                 return originalDefinition.declaringCompilation;
 
-            if (this is NamespaceSymbol @namespace)
-                return @namespace.containingCompilation;
+            if (this is AssemblySymbol assembly)
+                return assembly.declaringCompilation;
 
             return containingSymbol.declaringCompilation;
         }
     }
+
+    internal virtual AssemblySymbol containingAssembly => containingSymbol?.containingAssembly;
 
     internal virtual NamespaceSymbol containingNamespace {
         get {
@@ -106,6 +111,10 @@ internal abstract class Symbol : ISymbol {
             return null;
         }
     }
+
+    internal virtual ImmutableArray<SyntaxReference> declaringSyntaxReferences => [syntaxReference];
+
+    internal virtual ImmutableArray<TextLocation> locations => [location];
 
     internal abstract SyntaxReference syntaxReference { get; }
 
@@ -308,6 +317,83 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
+    internal bool LoadAndValidateAttributes(
+        OneOrMany<SyntaxList<AttributeListSyntax>> attributesSyntaxLists,
+        ref CustomAttributesBag<AttributeData> lazyCustomAttributesBag,
+        AttributeLocation symbolPart = AttributeLocation.None,
+        bool earlyDecodingOnly = false,
+        Binder? binderOpt = null,
+        Func<AttributeSyntax, bool> attributeMatchesOpt = null,
+        Action<AttributeSyntax> beforeAttributePartBound = null,
+        Action<AttributeSyntax> afterAttributePartBound = null) {
+        // TODO
+        return true;
+    }
+
+    // For PE interop use only
+    internal virtual byte? GetNullableContextValue() {
+        return GetLocalNullableContextValue() ?? containingSymbol?.GetNullableContextValue();
+    }
+
+    // For PE interop use only
+    internal virtual byte? GetLocalNullableContextValue() {
+        return null;
+    }
+
+    private protected static bool IsLocationContainedWithin(
+        TextLocation location,
+        SyntaxTree tree,
+        TextSpan declarationSpan,
+        out bool wasZeroWidthMatch) {
+        if (location.isInSource && location.tree == tree && declarationSpan.Contains(location.span)) {
+            wasZeroWidthMatch = location.span.length == 0 && location.span.end == declarationSpan.start;
+            return true;
+        }
+
+        wasZeroWidthMatch = false;
+        return false;
+    }
+
+    internal static ImmutableArray<SyntaxReference> GetDeclaringSyntaxReferenceHelper<TNode>(
+        ImmutableArray<TextLocation> locations)
+        where TNode : BelteSyntaxNode {
+        if (locations.IsEmpty)
+            return [];
+
+        var builder = ArrayBuilder<SyntaxReference>.GetInstance();
+
+        foreach (var location in locations) {
+            if (location is null || !location.isInSource) {
+                continue;
+            }
+
+            if (location.span.length != 0) {
+                var token = location.tree.GetRoot().FindToken(location.span.start);
+
+                if (token.kind != SyntaxKind.None) {
+                    var node = token.parent.FirstAncestorOrSelf<TNode>();
+
+                    if (node is not null)
+                        builder.Add(new SyntaxReference(node));
+                }
+            } else {
+                SyntaxNode parent = location.tree.GetRoot();
+                SyntaxNode found = null;
+
+                foreach (var descendant in parent.DescendantNodesAndSelf(
+                    c => c.location.span.Contains(location.span))) {
+                    if (descendant is TNode && descendant.location.span.Contains(location.span))
+                        found = descendant;
+                }
+
+                if (found is not null)
+                    builder.Add(new SyntaxReference(found));
+            }
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
     internal bool IsFromCompilation(Compilation compilation) {
         return compilation == declaringCompilation;
     }
@@ -318,6 +404,13 @@ internal abstract class Symbol : ISymbol {
 
     internal bool Equals(Symbol other, SymbolEqualityComparer comparer) {
         return Equals(other, comparer.compareKind);
+    }
+
+    internal static bool Equals(Symbol first, Symbol second, TypeCompareKind compareKind) {
+        if (first is null)
+            return second is null;
+
+        return first.Equals(second, compareKind);
     }
 
     internal virtual bool Equals(Symbol other, TypeCompareKind compareKind) {

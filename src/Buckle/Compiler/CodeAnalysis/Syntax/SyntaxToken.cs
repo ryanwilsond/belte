@@ -110,7 +110,7 @@ public sealed class SyntaxToken {
     /// The absolute location of this token in the
     /// <see cref="SyntaxTree.text" /> of the <see cref="SyntaxTree" /> that contains this token.
     /// </summary>
-    public TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span) : null;
+    public TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span, syntaxTree) : null;
 
     /// <summary>
     /// Determines whether this token has any leading trivia.

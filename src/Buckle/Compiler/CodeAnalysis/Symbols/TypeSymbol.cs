@@ -8,6 +8,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
+#pragma warning disable CS0660
+
 /// <summary>
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>

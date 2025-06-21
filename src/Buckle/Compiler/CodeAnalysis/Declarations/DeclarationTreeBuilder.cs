@@ -174,6 +174,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             hasExternAliases: false,
             treeNode: new SyntaxReference(compilationUnit),
             children: children,
+            hasAssemblyAttributes: compilationUnit.attributeLists.Any(),
             diagnostics: diagnostics.ToImmutableAndFree()
         );
     }

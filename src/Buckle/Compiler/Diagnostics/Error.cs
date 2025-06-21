@@ -1179,6 +1179,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
     }
 
+    internal static BelteDiagnostic BadSKKnown(TextLocation location, SyntaxNode node, string kind1, string kind2) {
+        var message = $"'{node}' is a {kind1} but is used like a {kind2}";
+        return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
+    }
+
     internal static BelteDiagnostic NonInvocableMemberCalled(Symbol symbol) {
         var message = $"non-invocable member '{symbol}' cannot be used like a method";
         return CreateError(DiagnosticCode.ERR_NonInvocableMemberCalled, null, message);
@@ -1699,6 +1704,61 @@ internal static class Error {
     internal static BelteDiagnostic RefReturnScopedParameter2(TextLocation location, string name) {
         var message = $"cannot return by reference a member of parameter '{name}' because it is scoped to the current method";
         return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter2, location, message);
+    }
+
+    internal static Diagnostic UnexpectedAliasName() {
+        var message = $"unexpected use of an aliased name";
+        return CreateError(DiagnosticCode.ERR_UnexpectedAliasName, message);
+    }
+
+    internal static BelteDiagnostic ColonColonWithTypeAlias(TextLocation location, string name) {
+        var message = $"cannot use alias '{name}' with '::' since the alias references a type; use '.' instead";
+        return CreateError(DiagnosticCode.ERR_ColonColonWithTypeAlias, location, message, $"{name}.");
+    }
+
+    internal static BelteDiagnostic DuplicateNameInNamespace(TextLocation location, string name, NamespaceSymbol @namespace) {
+        var message = $"the namespace '{@namespace}' already contains a definition for '{name}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateNameInNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic NoNamespacePrivate(TextLocation location) {
+        var message = $"members defined in a namespace cannot be explicitly declared as private or protected";
+        return CreateError(DiagnosticCode.ERR_NoNamespacePrivate, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateAlias(TextLocation location, string name) {
+        var message = $"the using alias '{name}' appeared previously in this namespace";
+        return CreateError(DiagnosticCode.ERR_DuplicateAlias, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateWithGlobalUsing(TextLocation location, Symbol symbol) {
+        var message = $"the using directive for '{symbol}' appeared previously as global using";
+        return CreateError(DiagnosticCode.ERR_DuplicateWithGlobalUsing, location, message);
+    }
+
+    internal static BelteDiagnostic NoAliasHere(TextLocation location) {
+        var message = $"a 'using static' directive cannot be used to declare an alias";
+        return CreateError(DiagnosticCode.ERR_NoAliasHere, location, message);
+    }
+
+    internal static BelteDiagnostic BadUsingType(TextLocation location, NamespaceOrTypeSymbol symbol) {
+        var message = $"a 'using static' directive can only be applied to types; '{symbol}' is a namespace not a type; consider a 'using namespace' directive instead";
+        return CreateError(DiagnosticCode.ERR_BadUsingType, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateUsing(TextLocation location, Symbol symbol) {
+        var message = $"the using directive for '{symbol}' appeared previously in this namespace";
+        return CreateError(DiagnosticCode.ERR_DuplicateUsing, location, message);
+    }
+
+    internal static BelteDiagnostic BadUsingNamespace(TextLocation location, Symbol symbol) {
+        var message = $"a 'using namespace' directive can only be applied to namespaces; '{symbol}' is a type not a namespace; consider a 'using static' directive instead";
+        return CreateError(DiagnosticCode.ERR_BadUsingNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic BadUsingStaticType(TextLocation location, string kind) {
+        var message = $"'{kind}' type is not valid for 'using static'; only a class or namespace can be used";
+        return CreateError(DiagnosticCode.ERR_BadUsingStaticType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

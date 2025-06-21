@@ -40,7 +40,7 @@ internal sealed partial class CodeGenerator {
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
     private VariableDefinition _returnTemp;
-    private int _tryNestingLevel;
+    private int _tryNestingLevel = 0;
 
     internal CodeGenerator(
         ModuleBuilder module,

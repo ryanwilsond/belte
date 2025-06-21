@@ -14,12 +14,12 @@ namespace Buckle.Tests;
 /// </summary>
 internal static class Assertions {
     private static CompilationOptions DefaultOptions
-        => new CompilationOptions(BuildMode.Independent, OutputKind.Console, [], true, false);
+        => new CompilationOptions(BuildMode.Independent, OutputKind.ConsoleApplication, [], true, false);
 
     private readonly static Compilation BaseCompilation;
 
     static Assertions() {
-        var compilation = LibraryHelpers.LoadLibraries(DefaultOptions);
+        var compilation = LibraryHelpers.LoadLibraries();
         _ = compilation.boundProgram;
         BaseCompilation = compilation;
     }
@@ -152,7 +152,7 @@ internal static class Assertions {
     /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var options = new CompilationOptions(buildMode, OutputKind.Console, [], false, false);
+        var options = new CompilationOptions(buildMode, OutputKind.ConsoleApplication, [], false, false);
         var compilation = Compilation.Create(
             "EmitterTests",
             options,

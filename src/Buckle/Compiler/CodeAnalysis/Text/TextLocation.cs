@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -6,36 +7,47 @@ namespace Buckle.CodeAnalysis.Text;
 /// A specific location in a source file.
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
-public sealed class TextLocation {
+public class TextLocation {
+    private protected TextLocation() { }
+
     /// <summary>
     /// Creates a <see cref="TextLocation" />.
     /// </summary>
     /// <param name="text"><see cref="StringText" /> the location is referencing.</param>
     /// <param name="span"><see cref="TextSpan" /> of how much <see cref="TextLocation" /> is referencing.</param>
-    internal TextLocation(SourceText text, TextSpan span) {
+    /// <param name="tree">The associated <see cref="SyntaxTree"/>.</param>
+    internal TextLocation(SourceText text, TextSpan span, SyntaxTree tree = null) {
         this.text = text;
+        this.tree = tree;
         this.span = span;
     }
 
     /// <summary>
     /// <see cref="SourceText" /> the location resides in.
     /// </summary>
-    public SourceText text { get; }
+    public virtual SourceText text { get; }
+
+    /// <summary>
+    /// The associated <see cref="SyntaxTree"/>.
+    /// </summary>
+    public virtual SyntaxTree tree { get; }
 
     /// <summary>
     /// The amount of text the location is referring to.
     /// </summary>
-    public TextSpan span { get; }
+    public virtual TextSpan span { get; }
 
     /// <summary>
     /// The filename of the source file.
     /// </summary>
-    public string fileName {
+    public virtual string fileName {
         get {
             var stringText = text as StringText;
             return stringText?.fileName;
         }
     }
+
+    public bool isInSource => tree is not null;
 
     /// <summary>
     /// Checks what line (divided by line breaks) the <see cref="TextLocation" /> refers to by start of
@@ -63,7 +75,7 @@ public sealed class TextLocation {
     /// </summary>
     public int endCharacter => span.end - text.GetLine(startLine).start;
 
-    public bool Equals(TextLocation other) {
+    public virtual bool Equals(TextLocation other) {
         return text == other.text && span.start == other.span.start && span.length == other.span.length;
     }
 

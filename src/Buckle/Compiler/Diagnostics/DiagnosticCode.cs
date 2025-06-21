@@ -338,6 +338,17 @@ public enum DiagnosticCode : ushort {
     ERR_RefReturnParameter2 = 327,
     ERR_RefReturnOnlyParameter2 = 328,
     ERR_RefReturnScopedParameter2 = 329,
+    ERR_UnexpectedAliasName = 330,
+    ERR_ColonColonWithTypeAlias = 331,
+    ERR_DuplicateNameInNamespace = 332,
+    ERR_NoNamespacePrivate = 333,
+    ERR_DuplicateAlias = 334,
+    ERR_DuplicateWithGlobalUsing = 335,
+    ERR_NoAliasHere = 336,
+    ERR_BadUsingType = 337,
+    ERR_DuplicateUsing = 338,
+    ERR_BadUsingNamespace = 339,
+    ERR_BadUsingStaticType = 340,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

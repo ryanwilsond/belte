@@ -1,4 +1,8 @@
 
 public static class String {
     public static string[]! Split(string! text, string! separator);
+
+    public static int Ascii(string! chr);
+
+    public static string! Char(int! ascii);
 }

@@ -26,7 +26,7 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, OutputKind.Graphics, [], true, false);
+        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true, false);
     // TODO Any benefit to generating numbered assembly names so they are unique?
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
@@ -296,9 +296,8 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private BelteDiagnosticQueue LoadLibraries() {
-        var compilation = LibraryHelpers.LoadLibraries(DefaultOptions);
+        var compilation = LibraryHelpers.LoadLibraries();
         state.baseCompilation = compilation;
-        // compilation.Evaluate(_abortEvaluation);
         return compilation.GetDiagnostics();
     }
 
@@ -896,6 +895,11 @@ public sealed partial class BelteRepl : Repl {
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
+
+        if (signature.StartsWith("global::"))
+            signature = signature.Substring(8);
+        else if (signature.StartsWith("global."))
+            signature = signature.Substring(7);
 
         // Prefer tracked symbols first
         foreach (var symbolAndObject in state.context.GetTrackedSymbolsAndObjects()) {

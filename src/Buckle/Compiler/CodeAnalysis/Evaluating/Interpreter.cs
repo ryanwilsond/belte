@@ -38,13 +38,16 @@ internal sealed class Interpreter {
 
         EvaluationResult result = null;
         Compilation previous = null;
+        var root = parsedSyntaxTree.GetCompilationUnitRoot();
 
-        foreach (var member in parsedSyntaxTree.GetCompilationUnitRoot().members) {
+        foreach (var member in root.members) {
             textOffset += member.position;
 
             var newSyntaxTree = SyntaxTree.Create(
                 syntaxTree.text.GetSubText(new TextSpan(textOffset, syntaxTree.text.length - textOffset)),
                 SyntaxFactory.CompilationUnit(
+                    root.attributeLists,
+                    root.usings,
                     new SyntaxList<MemberDeclarationSyntax>(member),
                     parsedSyntaxTree.endOfFile
                 )

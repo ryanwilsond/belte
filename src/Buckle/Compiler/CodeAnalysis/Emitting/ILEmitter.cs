@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using Belte.Runtime;
+using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -22,6 +22,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly List<AssemblyDefinition> _assemblies;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
+    private readonly bool _isDll;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
@@ -37,14 +38,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     internal FieldDefinition randomField;
 
-    private ILEmitter(BoundProgram program, string moduleName, string[] references, BelteDiagnosticQueue diagnostics) {
+    private ILEmitter(
+        BoundProgram program,
+        string assemblySimpleName,
+        string[] references,
+        BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
+        _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+
+        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var attr = currentAssembly
+            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
+            .OfType<TargetFrameworkAttribute>()
+            .FirstOrDefault();
+
+        var tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
 
         _assemblies = [
-            AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),                  // System.Private.CoreLib
-            AssemblyDefinition.ReadAssembly(typeof(System.Console).Assembly.Location),                 // System.Console
-            AssemblyDefinition.ReadAssembly(typeof(NullConditionException).Assembly.Location)   // Belte.Runtime
+            AssemblyDefinition.ReadAssembly(runtimeDll),
+            AssemblyDefinition.ReadAssembly(typeof(Belte.Runtime.Console).Assembly.Location)
         ];
 
         foreach (var reference in references) {
@@ -56,8 +70,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             }
         }
 
-        var assemblyName = new AssemblyNameDefinition(moduleName, new Version(1, 0));
-        _assemblyDefinition = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
+        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, new Version(1, 0));
+
+        _assemblyDefinition = AssemblyDefinition.CreateAssembly(
+            assemblyName,
+            assemblySimpleName,
+            _isDll ? ModuleKind.Dll : ModuleKind.Console
+        );
 
         ResolveTypes();
         ResolveMethods();
@@ -317,7 +336,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
         var typeDefinition = new TypeDefinition(
-            "",
+            GetNamespaceName(type),
             type.name,
             GetTypeAttributes(type, isNested),
             type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : _specialTypes[SpecialType.Object]
@@ -330,6 +349,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
+    }
+
+    private string GetNamespaceName(Symbol symbol) {
+        if (symbol.containingNamespace is null || symbol.containingNamespace.isGlobalNamespace)
+            return "";
+
+        return symbol.containingNamespace.name;
     }
 
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
@@ -398,7 +424,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private static FieldAttributes GetFieldAttributes(FieldSymbol field) {
         FieldAttributes attributes = field.declaredAccessibility switch {
             Accessibility.Private => FieldAttributes.Private,
-            Accessibility.Public => FieldAttributes.Private,
+            Accessibility.Public => FieldAttributes.Public,
             Accessibility.Protected => FieldAttributes.Family,
             _ => 0
         };
@@ -412,7 +438,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
         MethodAttributes attributes = method.declaredAccessibility switch {
             Accessibility.Private => MethodAttributes.Private,
-            Accessibility.Public => MethodAttributes.Private,
+            Accessibility.Public => MethodAttributes.Public,
             Accessibility.Protected => MethodAttributes.Family,
             _ => 0
         };
@@ -534,16 +560,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private MethodReference CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        switch (mapKey) {
-            case "Nullable_.ctor":
-                return GetNullableCtor(method.templateArguments[0].type.type);
-            case "Nullable_get_Value":
-                return GetNullableValue(method.templateArguments[0].type.type);
-            case "Nullable_get_HasValue":
-                return GetNullableHasValue(method.templateArguments[0].type.type);
-            default:
-                return _stlMap[mapKey];
-        }
+        return mapKey switch {
+            "Nullable_.ctor" => GetNullableCtor(method.templateArguments[0].type.type),
+            "Nullable_get_Value" => GetNullableValue(method.templateArguments[0].type.type),
+            "Nullable_get_HasValue" => GetNullableHasValue(method.templateArguments[0].type.type),
+            _ => _stlMap[mapKey],
+        };
     }
 
     private void ResolveMethods() {
@@ -585,7 +607,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
             { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
             { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
-            { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable<System.Int64>", "System.Nullable<System.Int64>"]) },
+            { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
             { "Directory_Create_S", ResolveMethod("System.IO.Directory", "CreateDirectory", ["System.String"]) },
             { "Directory_Delete_S", ResolveMethod("System.IO.Directory", "Delete", ["System.String"]) },
             { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },

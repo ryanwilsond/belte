@@ -6,4 +6,5 @@ internal enum ScopedKind : byte {
     Ref,
     Value,
     ScopedRef,
+    ScopedValue,
 }

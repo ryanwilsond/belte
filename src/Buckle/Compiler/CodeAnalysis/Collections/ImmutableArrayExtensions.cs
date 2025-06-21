@@ -11,6 +11,22 @@ internal static class ImmutableArrayExtensions {
         return [.. items];
     }
 
+    internal static ImmutableArray<T> AsImmutableOrNull<T>(this IEnumerable<T>? items) {
+        if (items is null)
+            return default;
+
+        return [.. items];
+    }
+
+    internal static int Sum<T>(this ImmutableArray<T> items, Func<T, int> selector) {
+        var sum = 0;
+
+        foreach (var item in items)
+            sum += selector(item);
+
+        return sum;
+    }
+
     internal static Dictionary<K, ImmutableArray<T>> ToDictionary<K, T>(
         this ImmutableArray<T> items,
         Func<T, K> keySelector,
@@ -46,6 +62,24 @@ internal static class ImmutableArrayExtensions {
             dictionary.Add(pair.Key, pair.Value.ToImmutableAndFree());
 
         return dictionary;
+    }
+
+    internal static ImmutableArray<T> Distinct<T>(this ImmutableArray<T> array, IEqualityComparer<T>? comparer = null) {
+        if (array.Length < 2)
+            return array;
+
+        var set = new HashSet<T>(comparer);
+        var builder = ArrayBuilder<T>.GetInstance();
+
+        foreach (var a in array) {
+            if (set.Add(a)) {
+                builder.Add(a);
+            }
+        }
+
+        var result = (builder.Count == array.Length) ? array : builder.ToImmutable();
+        builder.Free();
+        return result;
     }
 
     internal static ImmutableArray<TResult> SelectAsArray<TItem, TResult>(

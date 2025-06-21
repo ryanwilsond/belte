@@ -120,6 +120,8 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateString() {
         return StaticClass("String", [
             StaticMethod("Split", StringArray, [("text", SpecialType.String), ("separator", SpecialType.String)]),
+            StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
+            StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
         ]);
     }
 
@@ -448,6 +450,10 @@ internal static class StandardLibrary {
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
                 => { Thread.Sleep(Convert.ToInt32(a)); return null; }) },
+            { "String_Ascii_S", new Func<object, object, object, object>((a, b, c)
+                => { return char.TryParse((string)a, out var result) ? (long)result : null; }) },
+            { "String_Char_I", new Func<object, object, object, object>((a, b, c)
+                => { return (char)a; }) },
         };
     }
 }

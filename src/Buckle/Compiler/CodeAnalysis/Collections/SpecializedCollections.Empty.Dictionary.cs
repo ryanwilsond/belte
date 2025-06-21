@@ -1,0 +1,49 @@
+using System;
+using System.Collections.Generic;
+
+namespace Buckle.CodeAnalysis;
+
+internal static partial class SpecializedCollections {
+    private partial class Empty {
+        internal class Dictionary<TKey, TValue>
+            : Collection<KeyValuePair<TKey, TValue>>, IDictionary<TKey, TValue>, IReadOnlyDictionary<TKey, TValue>
+            where TKey : notnull {
+            public static new readonly Dictionary<TKey, TValue> Instance = new();
+
+            private Dictionary() { }
+
+            public void Add(TKey key, TValue value) {
+                throw new NotSupportedException();
+            }
+
+            public bool ContainsKey(TKey key) {
+                return false;
+            }
+
+            public ICollection<TKey> Keys => Collection<TKey>.Instance;
+
+            IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Keys;
+            IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Values;
+
+            public bool Remove(TKey key) {
+                throw new NotSupportedException();
+            }
+
+            public bool TryGetValue(TKey key, out TValue value) {
+                value = default!;
+                return false;
+            }
+
+            public ICollection<TValue> Values => Collection<TValue>.Instance;
+
+            public TValue this[TKey key] {
+                get {
+                    throw new NotSupportedException();
+                }
+                set {
+                    throw new NotSupportedException();
+                }
+            }
+        }
+    }
+}

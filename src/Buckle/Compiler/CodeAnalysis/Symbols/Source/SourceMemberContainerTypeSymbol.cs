@@ -49,7 +49,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 ? Warning.TopLevelNullabilityMismatchInParameterTypeOnOverride(location, overridingParameter)
                 : Warning.NullabilityMismatchInParameterTypeOnOverride(location, overridingParameter));
 
-
     private readonly DeclarationModifiers _modifiers;
     private protected SymbolCompletionState _state;
     private protected readonly MergedTypeDeclaration _declaration;

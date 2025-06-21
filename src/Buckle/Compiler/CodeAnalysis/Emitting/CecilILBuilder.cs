@@ -69,10 +69,12 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitLoadArgument(int slot) {
+        slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
         _iLProcessor.Emit(OpCodes.Ldarg, _definition.Parameters[slot]);
     }
 
     internal override void EmitLoadArgumentAddr(int slot) {
+        slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
         _iLProcessor.Emit(OpCodes.Ldarga, _definition.Parameters[slot]);
     }
 
@@ -105,6 +107,7 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitStoreArgument(int slot) {
+        slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
         _iLProcessor.Emit(OpCodes.Starg, _definition.Parameters[slot]);
     }
 
@@ -191,12 +194,12 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override CodeGeneration.ParameterDefinition GetParameter(ParameterSymbol parameter) {
-        var slot = parameter.ordinal;
+        // var slot = parameter.ordinal;
 
-        if (!_method.isStatic)
-            slot++;
+        // if (!_method.isStatic)
+        //     slot++;
 
-        return new CecilParameterDefinition(_definition.Parameters[slot]);
+        return new CecilParameterDefinition(_definition.Parameters[parameter.ordinal]);
     }
 
     internal override void DeclareLocal(DataContainerSymbol local) {

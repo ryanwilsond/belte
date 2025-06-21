@@ -108,7 +108,7 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
     /// </summary>
-    internal TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span);
+    internal TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span, syntaxTree);
 
     /// <summary>
     /// If any diagnostics have spans that overlap with this node.
@@ -120,6 +120,8 @@ public abstract partial class SyntaxNode {
     /// If this node is a list.
     /// </summary>
     internal bool isList => green.isList;
+
+    internal bool isFabricated => green.isFabricated;
 
     public override string ToString() {
         return green.ToString();
@@ -370,6 +372,27 @@ public abstract partial class SyntaxNode {
         }
 
         return result;
+    }
+
+    internal TNode FirstAncestorOrSelf<TNode>(Func<TNode, bool> predicate = null, bool ascendOutOfTrivia = true)
+        where TNode : SyntaxNode {
+        for (var node = this; node is not null; node = GetParent(node, ascendOutOfTrivia)) {
+            if (node is TNode tNode && (predicate == null || predicate(tNode)))
+                return tNode;
+        }
+
+        return null;
+    }
+
+    private static SyntaxNode GetParent(SyntaxNode node, bool ascendOutOfTrivia) {
+        var parent = node.parent;
+
+        if (parent is null && ascendOutOfTrivia) {
+            if (node is StructuredTriviaSyntax structuredTrivia)
+                parent = structuredTrivia.parentTrivia.token.parent;
+        }
+
+        return parent;
     }
 
     private protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {

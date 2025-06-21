@@ -1,12 +1,22 @@
+using System;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-// TODO This will be populated when necessary
 internal sealed class UnsupportedMetadataTypeSymbol : ErrorTypeSymbol {
-    internal UnsupportedMetadataTypeSymbol() { }
+    private readonly BadImageFormatException _mrEx;
+
+    internal UnsupportedMetadataTypeSymbol(BadImageFormatException mrEx = null) {
+        _mrEx = mrEx;
+    }
+
+    internal override BelteDiagnostic error {
+        get {
+            // TODO error
+            // return new CSDiagnosticInfo(ErrorCode.ERR_BogusType, string.Empty);
+            return null;
+        }
+    }
 
     internal override bool mangleName => false;
-
-    internal override BelteDiagnostic error => null;
 }

@@ -202,6 +202,22 @@ internal abstract partial class SyntaxParser : IDisposable {
         return SyntaxFirstTokenReplacer.Replace(node, newToken, skippedSyntax.fullWidth);
     }
 
+    private protected T AddTrailingSkippedSyntax<T>(T node, GreenNode skippedSyntax) where T : BelteSyntaxNode {
+        if (node is SyntaxToken token) {
+            return (T)(object)AddSkippedSyntax(token, skippedSyntax, true);
+        } else {
+            var lastToken = node.GetLastToken();
+            var newToken = AddSkippedSyntax(lastToken, skippedSyntax, true);
+            return SyntaxLastTokenReplacer.Replace(node, newToken);
+        }
+    }
+
+    private protected SyntaxToken ConvertToMissingWithTrailingTrivia(SyntaxToken token, SyntaxKind expectedKind) {
+        var newToken = SyntaxFactory.Missing(expectedKind);
+        newToken = AddTrailingSkippedSyntax(newToken, token);
+        return newToken;
+    }
+
     private protected SyntaxToken AddSkippedSyntax(SyntaxToken target, GreenNode skippedSyntax, bool isTrailing) {
         var builder = new SyntaxListBuilder(4);
 

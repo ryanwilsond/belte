@@ -467,6 +467,7 @@ public static partial class BuckleCommandLine {
         var specifyStage = false;
         var specifyOut = false;
         var specifyModule = false;
+        var specifyBuildMode = false;
         var specifyWarningLevel = false;
 
         var tempDialogs = new ShowDialogs {
@@ -481,11 +482,11 @@ public static partial class BuckleCommandLine {
         state.buildMode = BuildMode.AutoRun;
         state.finishStage = CompilerStage.Finished;
         state.outputFilename = "a.exe";
-        state.moduleName = "defaultModuleName";
+        state.moduleName = "a";
         state.noOut = false;
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
-        state.projectType = OutputKind.Console;
+        state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
 
         void DecodeSimpleOption(string arg) {
@@ -500,29 +501,37 @@ public static partial class BuckleCommandLine {
                     break;
                 case "-r":
                 case "--repl":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Repl;
                     break;
                 case "-n":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Independent;
                     break;
                 case "-i":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.AutoRun;
                     break;
                 case "--script":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Interpret;
                     break;
                 case "--evaluate":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Evaluate;
                     break;
                 case "--execute":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Execute;
                     break;
                 case "-t":
                 case "--transpile":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.CSharpTranspile;
                     break;
                 case "-d":
                 case "--dotnet":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Dotnet;
                     break;
                 case "-h":
@@ -648,9 +657,11 @@ public static partial class BuckleCommandLine {
                 var type = arg.Substring(7).ToLower();
 
                 if (type == "console")
-                    state.projectType = OutputKind.Console;
+                    state.projectType = OutputKind.ConsoleApplication;
                 else if (type == "graphics")
-                    state.projectType = OutputKind.Graphics;
+                    state.projectType = OutputKind.GraphicsApplication;
+                else if (type == "dll")
+                    state.projectType = OutputKind.DynamicallyLinkedLibrary;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
             } else if (arg == "--") {
@@ -674,6 +685,17 @@ public static partial class BuckleCommandLine {
         state.arguments = arguments;
         state.includeWarnings = includeWarnings.ToArray();
         state.excludeWarnings = excludeWarnings.ToArray();
+
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+            if (!specifyBuildMode)
+                state.buildMode = BuildMode.Dotnet;
+
+            if (state.buildMode != BuildMode.Dotnet)
+                diagnostics.Push(Belte.Diagnostics.Fatal.DLLWithWrongBuildMode());
+
+            if (!specifyOut)
+                state.outputFilename = "a.dll";
+        }
 
         if (!specifyWarningLevel &&
             state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
@@ -710,6 +732,15 @@ public static partial class BuckleCommandLine {
 
         if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
             diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
+
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+            if (specifyOut && specifyModule)
+                diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyOutAndModuleWithDll());
+            else if (!specifyOut)
+                state.outputFilename = state.moduleName + ".dll";
+            else if (!specifyModule)
+                state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
+        }
 
         state.outputFilename = state.outputFilename.Trim();
 

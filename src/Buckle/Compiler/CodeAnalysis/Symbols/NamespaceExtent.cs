@@ -5,11 +5,26 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal readonly struct NamespaceExtent : IEquatable<NamespaceExtent> {
     private readonly object _symbolOrCompilation;
 
+    internal NamespaceExtent(AssemblySymbol assembly) {
+        kind = NamespaceKind.Assembly;
+        _symbolOrCompilation = assembly;
+    }
+
     internal NamespaceExtent(Compilation compilation) {
         kind = NamespaceKind.Compilation;
         _symbolOrCompilation = compilation;
     }
+
     internal NamespaceKind kind { get; }
+
+    internal AssemblySymbol assembly {
+        get {
+            if (kind == NamespaceKind.Assembly)
+                return (AssemblySymbol)_symbolOrCompilation;
+
+            throw new InvalidOperationException();
+        }
+    }
 
     internal Compilation compilation {
         get {
