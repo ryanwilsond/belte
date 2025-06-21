@@ -1026,7 +1026,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
 
         var initializer = ParseStatement();
-        var condition = ParseNonAssignmentExpression();
+        var condition = currentToken.kind == SyntaxKind.SemicolonToken ? null : ParseNonAssignmentExpression();
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         ExpressionSyntax step = null;
@@ -1038,7 +1038,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var body = ParseStatement();
 
         return SyntaxFactory.ForStatement(
-            keyword, openParenthesis, initializer, condition, semicolon, step, closeParenthesis, body
+            keyword,
+            openParenthesis,
+            initializer,
+            condition,
+            semicolon,
+            step,
+            closeParenthesis,
+            body
         );
     }
 

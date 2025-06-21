@@ -573,6 +573,14 @@ internal sealed partial class Executor : ModuleBuilder {
         GraphicsHandler.LockFramerate((int)fps);
     }
 
+    public static long? Ascii(string chr) {
+        return char.TryParse(chr, out var result) ? result : null;
+    }
+
+    public static string Char(long ascii) {
+        return ((char)ascii).ToString();
+    }
+
     private void GenerateSTLMap() {
         var flags = BindingFlags.Public | BindingFlags.Static;
         _stlMap = new Dictionary<string, MethodInfo>() {
@@ -587,9 +595,9 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Console_PrintLine_O?", typeof(Console).GetMethod("WriteLine", flags, [typeof(object)]) },
             { "Console_Input", typeof(Console).GetMethod("ReadLine", flags, Type.EmptyTypes) },
             { "Console_ResetColor", typeof(Console).GetMethod("ResetColor", flags, Type.EmptyTypes) },
-            { "Console_SetForegroundColor", typeof(Executor).GetMethod("SetForegroundColor", flags, [typeof(long)]) },
-            { "Console_SetBackgroundColor", typeof(Executor).GetMethod("SetBackgroundColor", flags, [typeof(long)]) },
-            { "Console_SetCursorPosition", typeof(Executor).GetMethod("SetCursorPosition", flags, [typeof(long?), typeof(long?)]) },
+            { "Console_SetForegroundColor_I", typeof(Executor).GetMethod("SetForegroundColor", flags, [typeof(long)]) },
+            { "Console_SetBackgroundColor_I", typeof(Executor).GetMethod("SetBackgroundColor", flags, [typeof(long)]) },
+            { "Console_SetCursorPosition_I?I?", typeof(Executor).GetMethod("SetCursorPosition", flags, [typeof(long?), typeof(long?)]) },
             { "Directory_Create_S", typeof(Directory).GetMethod("CreateDirectory", flags, [typeof(string)]) },
             { "Directory_Delete_S", typeof(Directory).GetMethod("Delete", flags, [typeof(string)]) },
             { "Directory_Exists_S", typeof(Directory).GetMethod("Exists", flags, [typeof(string)]) },
@@ -612,6 +620,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_ThrowNullConditionException", typeof(Executor).GetMethod("ThrowNullConditionException", flags, Type.EmptyTypes) },
             { "Time_Now", typeof(Executor).GetMethod("TimeNow", flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Executor).GetMethod("TimeSleep", flags, [typeof(long)]) },
+            { "String_Ascii_S", typeof(Executor).GetMethod("Ascii", flags, [typeof(string)]) },
+            { "String_Char_I", typeof(Executor).GetMethod("Char", flags, [typeof(long)]) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", flags, [typeof(string)]) },

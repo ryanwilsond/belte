@@ -555,7 +555,7 @@
       <Kind Name="OpenParenToken"/>
     </Field>
     <Field Name="initializer" Type="StatementSyntax"/>
-    <Field Name="condition" Type="ExpressionSyntax"/>
+    <Field Name="condition" Type="ExpressionSyntax" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>

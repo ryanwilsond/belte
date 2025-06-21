@@ -249,8 +249,8 @@
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="initializer" Type="BoundStatement"/>
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
-    <Field Name="condition" Type="BoundExpression"/>
-    <Field Name="step" Type="BoundExpression"/>
+    <Field Name="condition" Type="BoundExpression?"/>
+    <Field Name="step" Type="BoundExpression?"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">
