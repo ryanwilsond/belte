@@ -158,6 +158,15 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         result.AddRange(templateParameters);
     }
 
+    internal ImmutableArray<TemplateParameterSymbol> GetAllTypeParameters() {
+        if (containingType is null)
+            return templateParameters;
+
+        var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+        GetAllTypeParameters(builder);
+        return builder.ToImmutableAndFree();
+    }
+
     internal static readonly Func<TypeOrConstant, bool> TypeOrConstantIsNullFunction = type
         => type.isType && type.type.type is null;
 

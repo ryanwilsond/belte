@@ -114,17 +114,17 @@ internal static class QuickAttributeHelpers {
 
         return result;
 
-        bool Matches(AttributeDescription attributeDescription) {
-            if (name == attributeDescription.name)
-                return true;
+        // bool Matches(AttributeDescription attributeDescription) {
+        //     if (name == attributeDescription.name)
+        //         return true;
 
-            if (inAttribute &&
-                (name.Length + nameof(Attribute).Length) == attributeDescription.name.Length &&
-                attributeDescription.name.StartsWith(name)) {
-                return true;
-            }
+        //     if (inAttribute &&
+        //         (name.Length + nameof(Attribute).Length) == attributeDescription.name.Length &&
+        //         attributeDescription.name.StartsWith(name)) {
+        //         return true;
+        //     }
 
-            return false;
-        }
+        //     return false;
+        // }
     }
 }

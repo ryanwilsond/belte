@@ -107,7 +107,7 @@
   <Node Name="BoundCompoundAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
-    <Field Name="op" Type="BinaryOperatorSignature"/>
+    <Field Name="op" Type="BinaryOperatorSignature" Null="NotApplicable"/>
     <Field Name="leftPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="leftConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="finalPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>

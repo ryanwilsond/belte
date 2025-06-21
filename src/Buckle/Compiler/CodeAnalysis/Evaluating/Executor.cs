@@ -56,7 +56,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private Dictionary<string, MethodInfo> _stlMap;
     private bool _graphicsInitialized;
     // Used for debugging
-    private bool _logIL;
+    private bool _logIL = false;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;

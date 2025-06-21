@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 
 namespace Buckle.CodeAnalysis;
 
 internal partial class SpecializedCollections {
     private partial class Empty {
         internal class Set<T> : Collection<T>, ISet<T>, IReadOnlySet<T> {
-            public static readonly Set<T> Instance = new();
+            public static new readonly Set<T> Instance = new();
 
             private protected Set() { }
 

@@ -32,9 +32,19 @@ internal static partial class SpecializedCollections {
         return new Singleton.List<T>(value);
     }
 
+    internal static ICollection<T> SingletonCollection<T>(T value) {
+        return new Singleton.List<T>(value);
+    }
+
     internal static ISet<T> ReadOnlySet<T>(ISet<T>? set) {
-        return set == null || set.Count == 0
+        return set is null || set.Count == 0
             ? EmptySet<T>()
             : new ReadOnly.Set<ISet<T>, T>(set);
+    }
+
+    internal static ICollection<T> ReadOnlyCollection<T>(ICollection<T>? collection) {
+        return collection is null || collection.Count == 0
+            ? EmptyCollection<T>()
+            : [.. collection];
     }
 }

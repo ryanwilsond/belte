@@ -27,6 +27,14 @@ internal abstract partial class MissingMetadataTypeSymbol {
             ) {
         }
 
+        internal TopLevel(
+            ModuleSymbol module,
+            ref MetadataTypeName fullName,
+            SpecialType specialType,
+            BelteDiagnostic errorInfo = null)
+            : this(module, ref fullName, (int)specialType, errorInfo) {
+        }
+
         internal TopLevel(ModuleSymbol module, ref MetadataTypeName fullName, BelteDiagnostic errorInfo = null)
             : this(module, ref fullName, -1, errorInfo) {
         }

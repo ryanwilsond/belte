@@ -22,7 +22,7 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     [ThreadStatic]
     private static PooledHashSet<AttributeSyntax> ForwardedTypesAttributesInProgress;
 
-    private readonly ImmutableArray<ModuleSymbol> _modules;
+    private readonly ImmutableArray<ModuleSymbol> _modules = default;
     private readonly string _assemblySimpleName;
 
     private CustomAttributesBag<AttributeData> _lazySourceAttributesBag;
@@ -31,7 +31,7 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     private NamespaceSymbol _lazyGlobalNamespace;
     private AssemblyIdentity _lazyAssemblyIdentity;
     private ConcurrentSet<int> _lazyOmittedAttributeIndices;
-    private ConcurrentDictionary<string, ConcurrentDictionary<ImmutableArray<byte>, Tuple<TextLocation, string>>> _lazyInternalsVisibleToMap;
+    private ConcurrentDictionary<string, ConcurrentDictionary<ImmutableArray<byte>, Tuple<TextLocation, string>>> _lazyInternalsVisibleToMap = default;
     private IDictionary<string, NamedTypeSymbol> _lazyForwardedTypesFromSource;
     private ConcurrentDictionary<AssemblySymbol, bool> _optimisticallyGrantedInternalsAccess;
 
@@ -60,6 +60,13 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     internal override ImmutableArray<byte> publicKey => strongNameKeys.publicKey;
 
     internal override ImmutableArray<ModuleSymbol> modules => _modules;
+
+    internal bool internalsAreVisible {
+        get {
+            EnsureAttributesAreBound();
+            return _lazyInternalsVisibleToMap is not null;
+        }
+    }
 
     internal override NamespaceSymbol globalNamespace {
         get {

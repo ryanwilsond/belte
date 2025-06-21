@@ -12,7 +12,7 @@ internal abstract class NonMissingAssemblySymbol : AssemblySymbol {
 
     internal sealed override bool isMissing => false;
 
-    internal sealed override NamespaceSymbol globalNamespace {
+    internal override NamespaceSymbol globalNamespace {
         get {
             if (_globalNamespace is null) {
                 var allGlobalNamespaces = from m in modules select m.globalNamespace;

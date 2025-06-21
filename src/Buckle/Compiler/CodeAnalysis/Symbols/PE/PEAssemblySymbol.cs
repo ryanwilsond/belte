@@ -12,7 +12,6 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
     private ImmutableArray<AssemblySymbol> _noPiaResolutionAssemblies;
     private ImmutableArray<AssemblySymbol> _linkedReferencedAssemblies;
     private readonly bool _isLinked;
-    private ImmutableArray<AttributeData> _lazyCustomAttributes;
 
     internal PEAssemblySymbol(PEAssembly assembly, bool isLinked, MetadataImportOptions importOptions) {
         _assembly = assembly;
@@ -34,21 +33,6 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
 
     internal override ImmutableArray<TextLocation> locations
         => primaryModule.metadataLocation.Cast<MetadataLocation, TextLocation>();
-
-    // internal override int metadataToken => MetadataTokens.GetToken(_assembly.handle);
-
-    // internal override bool hasImportedFromTypeLibAttribute
-    //     => primaryModule.module.HasImportedFromTypeLibAttribute(assembly.handle, out _);
-
-    // internal override bool hasPrimaryInteropAssemblyAttribute
-    //     => primaryModule.module.HasPrimaryInteropAssemblyAttribute(assembly.handle, out _, out _);
-
-    // internal override ImmutableArray<AttributeData> GetAttributes() {
-    //     if (_lazyCustomAttributes.IsDefault)
-    //         primaryModule.LoadCustomAttributes(_assembly.handle, ref _lazyCustomAttributes);
-
-    //     return _lazyCustomAttributes;
-    // }
 
     internal (AssemblySymbol FirstSymbol, AssemblySymbol SecondSymbol) LookupAssembliesForForwardedMetadataType(
         ref MetadataTypeName emittedName) {

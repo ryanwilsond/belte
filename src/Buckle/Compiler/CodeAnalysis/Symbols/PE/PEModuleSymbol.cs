@@ -22,10 +22,6 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
     private readonly PEModule _module;
     private readonly PENamespaceSymbol _globalNamespace;
 
-    private NamedTypeSymbol _lazySystemTypeSymbol;
-    private NamedTypeSymbol _lazyEventRegistrationTokenSymbol;
-    private NamedTypeSymbol _lazyEventRegistrationTokenTableSymbol;
-
     internal readonly ConcurrentDictionary<TypeDefinitionHandle, TypeSymbol> typeHandleToTypeMap =
         new ConcurrentDictionary<TypeDefinitionHandle, TypeSymbol>(concurrencyLevel: 2, capacity: DefaultTypeMapCapacity);
 

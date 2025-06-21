@@ -844,4 +844,72 @@ internal sealed partial class AssemblyIdentity : IEquatable<AssemblyIdentity> {
     private static bool IsNameTokenTerminator(char c) {
         return c == '=' || c == ',';
     }
+
+    internal string GetDisplayName(bool fullKey = false) {
+        if (fullKey)
+            return BuildDisplayName(fullKey: true);
+
+        _lazyDisplayName ??= BuildDisplayName(fullKey: false);
+        return _lazyDisplayName;
+    }
+
+    private string BuildDisplayName(bool fullKey) {
+        var pooledBuilder = PooledStringBuilder.GetInstance();
+        var sb = pooledBuilder.Builder;
+        EscapeName(sb, name);
+
+        sb.Append(", Version=");
+        sb.Append(_version.Major);
+        sb.Append('.');
+        sb.Append(_version.Minor);
+        sb.Append('.');
+        sb.Append(_version.Build);
+        sb.Append('.');
+        sb.Append(_version.Revision);
+
+        sb.Append(", Culture=");
+
+        if (_cultureName.Length == 0)
+            sb.Append(InvariantCultureDisplay);
+        else
+            EscapeName(sb, _cultureName);
+
+        if (fullKey && hasPublicKey) {
+            sb.Append(", PublicKey=");
+            AppendKey(sb, _publicKey);
+        } else {
+            sb.Append(", PublicKeyToken=");
+
+            if (publicKeyToken.Length > 0)
+                AppendKey(sb, publicKeyToken);
+            else
+                sb.Append("null");
+        }
+
+        if (isRetargetable)
+            sb.Append(", Retargetable=Yes");
+
+        switch (_contentType) {
+            case AssemblyContentType.Default:
+                break;
+            case AssemblyContentType.WindowsRuntime:
+                sb.Append(", ContentType=WindowsRuntime");
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(_contentType);
+        }
+
+        var result = sb.ToString();
+        pooledBuilder.Free();
+        return result;
+    }
+
+    private static void AppendKey(StringBuilder sb, ImmutableArray<byte> key) {
+        foreach (var b in key)
+            sb.Append(b.ToString("x2"));
+    }
+
+    private string GetDebuggerDisplay() {
+        return GetDisplayName(fullKey: true);
+    }
 }

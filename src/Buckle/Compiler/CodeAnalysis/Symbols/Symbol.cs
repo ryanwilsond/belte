@@ -330,6 +330,16 @@ internal abstract class Symbol : ISymbol {
         return true;
     }
 
+    // For PE interop use only
+    internal virtual byte? GetNullableContextValue() {
+        return GetLocalNullableContextValue() ?? containingSymbol?.GetNullableContextValue();
+    }
+
+    // For PE interop use only
+    internal virtual byte? GetLocalNullableContextValue() {
+        return null;
+    }
+
     private protected static bool IsLocationContainedWithin(
         TextLocation location,
         SyntaxTree tree,

@@ -313,4 +313,11 @@ DoneWithSequence:
         var decoder = new SerializedTypeDecoder(s);
         return decoder.DecodeTypeName();
     }
+
+    internal static string UnmangleMetadataNameForArity(string emittedTypeName, int arity) {
+        if (arity == InferTypeArityFromMetadataName(emittedTypeName.AsSpan(), out var suffixStartsAt))
+            return emittedTypeName[..suffixStartsAt];
+
+        return emittedTypeName;
+    }
 }

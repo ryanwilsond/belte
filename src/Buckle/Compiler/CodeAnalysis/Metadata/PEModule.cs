@@ -19,6 +19,8 @@ internal sealed partial class PEModule : IDisposable {
     private static readonly Dictionary<string, (int FirstIndex, int SecondIndex)> SharedEmptyForwardedTypes = [];
     private static readonly Dictionary<string, (string OriginalName, int FirstIndex, int SecondIndex)> SharedEmptyCaseInsensitiveForwardedTypes = [];
 
+    private const string VTableGapMethodNamePrefix = "_VtblGap";
+
     private readonly ModuleMetadata _owner;
     private readonly PEReader _peReaderOpt;
     private readonly IntPtr _metadataPointerOpt;
@@ -45,6 +47,9 @@ internal sealed partial class PEModule : IDisposable {
     private static readonly AttributeValueExtractor<string> AttributeStringValueExtractor = CrackStringInAttributeValue;
     private static readonly AttributeValueExtractor<int> AttributeIntValueExtractor = CrackIntInAttributeValue;
     private static readonly AttributeValueExtractor<bool> AttributeBooleanValueExtractor = CrackBooleanInAttributeValue;
+    private static readonly AttributeValueExtractor<StringAndInt> AttributeStringAndIntValueExtractor = CrackStringAndIntInAttributeValue;
+    private static readonly AttributeValueExtractor<byte> AttributeByteValueExtractor = CrackByteInAttributeValue;
+    private static readonly AttributeValueExtractor<ImmutableArray<byte>> AttributeByteArrayValueExtractor = CrackByteArrayInAttributeValue;
 
     internal PEModule(
         ModuleMetadata owner,
@@ -568,6 +573,55 @@ internal sealed partial class PEModule : IDisposable {
         return false;
     }
 
+    private static bool CrackStringAndIntInAttributeValue(out StringAndInt value, ref BlobReader sig) {
+        value = default;
+        return CrackStringInAttributeValue(out value.stringValue, ref sig) &&
+            CrackIntInAttributeValue(out value.intValue, ref sig);
+    }
+
+    private static bool CrackByteInAttributeValue(out byte value, ref BlobReader sig) {
+        if (sig.RemainingBytes >= 1) {
+            value = sig.ReadByte();
+            return true;
+        }
+
+        value = 0xff;
+        return false;
+    }
+
+    private static bool CrackByteArrayInAttributeValue(out ImmutableArray<byte> value, ref BlobReader sig) {
+        if (sig.RemainingBytes >= 4) {
+            var arrayLen = sig.ReadUInt32();
+
+            if (IsArrayNull(arrayLen)) {
+                value = default;
+                return false;
+            }
+
+            if (sig.RemainingBytes >= arrayLen) {
+                var byteArrayBuilder = ArrayBuilder<byte>.GetInstance((int)arrayLen);
+
+                for (var i = 0; i < arrayLen; i++)
+                    byteArrayBuilder.Add(sig.ReadByte());
+
+                value = byteArrayBuilder.ToImmutableAndFree();
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static bool IsArrayNull(uint length) {
+        const uint NullArray = 0xFFFF_FFFF;
+
+        if (length == NullArray)
+            return true;
+
+        return false;
+    }
+
     internal BlobHandle GetCustomAttributeValueOrThrow(CustomAttributeHandle handle) {
         return metadataReader.GetCustomAttribute(handle).Value;
     }
@@ -952,4 +1006,356 @@ internal sealed partial class PEModule : IDisposable {
     }
 
     internal ModuleMetadata GetNonDisposableMetadata() => _owner.Copy();
+
+    internal void GetFieldDefPropsOrThrow(
+        FieldDefinitionHandle fieldDef,
+        out string name,
+        out FieldAttributes flags) {
+        var fieldRow = metadataReader.GetFieldDefinition(fieldDef);
+        name = metadataReader.GetString(fieldRow.Name);
+        flags = fieldRow.Attributes;
+    }
+
+    internal bool HasFixedBufferAttribute(EntityHandle token, out string elementTypeName, out int bufferSize) {
+        return HasStringAndIntValuedAttribute(token, AttributeDescription.FixedBufferAttribute, out elementTypeName, out bufferSize);
+    }
+
+    private bool HasStringAndIntValuedAttribute(EntityHandle token, AttributeDescription description, out string stringValue, out int intValue) {
+        var info = FindTargetAttribute(token, description);
+
+        if (info.hasValue)
+            return TryExtractStringAndIntValueFromAttribute(info.handle, out stringValue, out intValue);
+
+        stringValue = null;
+        intValue = 0;
+        return false;
+    }
+
+    private bool TryExtractStringAndIntValueFromAttribute(
+        CustomAttributeHandle handle,
+        out string stringValue,
+        out int intValue) {
+        var result = TryExtractValueFromAttribute(handle, out var data, AttributeStringAndIntValueExtractor);
+        stringValue = data.stringValue;
+        intValue = data.intValue;
+        return result;
+    }
+
+    internal GenericParameterHandleCollection GetTypeDefGenericParamsOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetGenericParameters();
+    }
+
+    internal ConstantValue GetConstantFieldValue(FieldDefinitionHandle fieldDef) {
+        try {
+            var constantHandle = metadataReader.GetFieldDefinition(fieldDef).GetDefaultValue();
+
+            return constantHandle.IsNil ? null : GetConstantValueOrThrow(constantHandle);
+        } catch (BadImageFormatException) {
+            return null;
+        }
+    }
+    private ConstantValue GetConstantValueOrThrow(ConstantHandle handle) {
+        var constantRow = metadataReader.GetConstant(handle);
+        var reader = metadataReader.GetBlobReader(constantRow.Value);
+
+        switch (constantRow.TypeCode) {
+            case ConstantTypeCode.Boolean:
+                return new ConstantValue(reader.ReadBoolean());
+            case ConstantTypeCode.Char:
+                return new ConstantValue(reader.ReadChar());
+            case ConstantTypeCode.SByte:
+                return new ConstantValue(reader.ReadSByte());
+            case ConstantTypeCode.Int16:
+                return new ConstantValue(reader.ReadInt16());
+            case ConstantTypeCode.Int32:
+                return new ConstantValue(reader.ReadInt32());
+            case ConstantTypeCode.Int64:
+                return new ConstantValue(reader.ReadInt64());
+            case ConstantTypeCode.Byte:
+                return new ConstantValue(reader.ReadByte());
+            case ConstantTypeCode.UInt16:
+                return new ConstantValue(reader.ReadUInt16());
+            case ConstantTypeCode.UInt32:
+                return new ConstantValue(reader.ReadUInt32());
+            case ConstantTypeCode.UInt64:
+                return new ConstantValue(reader.ReadUInt64());
+            case ConstantTypeCode.Single:
+                return new ConstantValue(reader.ReadSingle());
+            case ConstantTypeCode.Double:
+                return new ConstantValue(reader.ReadDouble());
+            case ConstantTypeCode.String:
+                return new ConstantValue(reader.ReadUTF16(reader.Length));
+            case ConstantTypeCode.NullReference:
+                if (reader.ReadUInt32() == 0) {
+                    // TODO Correct equivalency?
+                    // return ConstantValue.Null;
+                    return new ConstantValue(null);
+                }
+
+                break;
+        }
+
+        return null;
+    }
+
+    internal EntityHandle GetBaseTypeOfTypeOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).BaseType;
+    }
+
+    internal TypeAttributes GetTypeDefFlagsOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).Attributes;
+    }
+
+    internal void GetGenericParamPropsOrThrow(
+        GenericParameterHandle handle,
+        out string name,
+        out GenericParameterAttributes flags) {
+        var row = metadataReader.GetGenericParameter(handle);
+        name = metadataReader.GetString(row.Name);
+        flags = row.Attributes;
+    }
+
+    internal ImmutableArray<TypeDefinitionHandle> GetNestedTypeDefsOrThrow(TypeDefinitionHandle container) {
+        return metadataReader.GetTypeDefinition(container).GetNestedTypes();
+    }
+
+    internal FieldAttributes GetFieldDefFlagsOrThrow(FieldDefinitionHandle fieldDef) {
+        return metadataReader.GetFieldDefinition(fieldDef).Attributes;
+    }
+
+    internal FieldDefinitionHandleCollection GetFieldsOfTypeOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetFields();
+    }
+
+    internal MethodDefinitionHandleCollection GetMethodsOfTypeOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetMethods();
+    }
+
+    internal MethodAttributes GetMethodDefFlagsOrThrow(MethodDefinitionHandle methodDef) {
+        return metadataReader.GetMethodDefinition(methodDef).Attributes;
+    }
+
+    internal string GetMethodDefNameOrThrow(MethodDefinitionHandle methodDef) {
+        return metadataReader.GetString(metadataReader.GetMethodDefinition(methodDef).Name);
+    }
+
+    internal MethodImplementationHandleCollection GetMethodImplementationsOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetMethodImplementations();
+    }
+
+    internal string GetFieldDefNameOrThrow(FieldDefinitionHandle fieldDef) {
+        return metadataReader.GetString(metadataReader.GetFieldDefinition(fieldDef).Name);
+    }
+
+    internal void GetMethodDefPropsOrThrow(
+        MethodDefinitionHandle methodDef,
+        out string name,
+        out MethodImplAttributes implFlags,
+        out MethodAttributes flags,
+        out int rva) {
+        var methodRow = metadataReader.GetMethodDefinition(methodDef);
+        name = metadataReader.GetString(methodRow.Name);
+        implFlags = methodRow.ImplAttributes;
+        flags = methodRow.Attributes;
+        rva = methodRow.RelativeVirtualAddress;
+    }
+
+    internal bool HasIsByRefLikeAttribute(EntityHandle token) {
+        return FindTargetAttribute(token, AttributeDescription.IsByRefLikeAttribute).hasValue;
+    }
+
+    internal void GetMethodImplPropsOrThrow(
+        MethodImplementationHandle methodImpl,
+        out EntityHandle body,
+        out EntityHandle declaration) {
+        var impl = metadataReader.GetMethodImplementation(methodImpl);
+        body = impl.MethodBody;
+        declaration = impl.MethodDeclaration;
+    }
+
+    internal bool ShouldImportField(FieldDefinitionHandle field, MetadataImportOptions importOptions) {
+        try {
+            var flags = GetFieldDefFlagsOrThrow(field);
+            return ShouldImportField(flags, importOptions);
+        } catch (BadImageFormatException) {
+            return true;
+        }
+    }
+
+    internal static bool ShouldImportField(FieldAttributes flags, MetadataImportOptions importOptions) {
+        switch (flags & FieldAttributes.FieldAccessMask) {
+            case FieldAttributes.Private:
+            case FieldAttributes.PrivateScope:
+                return importOptions == MetadataImportOptions.All;
+            case FieldAttributes.Assembly:
+                return importOptions >= MetadataImportOptions.Internal;
+            default:
+                return true;
+        }
+    }
+
+    internal bool ShouldImportMethod(
+        TypeDefinitionHandle typeDef,
+        MethodDefinitionHandle methodDef,
+        MetadataImportOptions importOptions) {
+        try {
+            var flags = GetMethodDefFlagsOrThrow(methodDef);
+
+            if ((flags & MethodAttributes.Virtual) == 0 && !AcceptBasedOnAccessibility(importOptions, flags) &&
+                ((flags & MethodAttributes.Static) == 0 || !IsMethodImpl(typeDef, methodDef))) {
+                return false;
+            }
+        } catch (BadImageFormatException) { }
+
+        try {
+            var name = GetMethodDefNameOrThrow(methodDef);
+            return !name.StartsWith(VTableGapMethodNamePrefix, StringComparison.Ordinal);
+        } catch (BadImageFormatException) {
+            return true;
+        }
+
+        static bool AcceptBasedOnAccessibility(MetadataImportOptions importOptions, MethodAttributes flags) {
+            switch (flags & MethodAttributes.MemberAccessMask) {
+                case MethodAttributes.Private:
+                case MethodAttributes.PrivateScope:
+                    if (importOptions != MetadataImportOptions.All) {
+                        return false;
+                    }
+
+                    break;
+
+                case MethodAttributes.Assembly:
+                    if (importOptions == MetadataImportOptions.Public) {
+                        return false;
+                    }
+
+                    break;
+            }
+
+            return true;
+        }
+
+        bool IsMethodImpl(TypeDefinitionHandle typeDef, MethodDefinitionHandle methodDef) {
+            foreach (var methodImpl in GetMethodImplementationsOrThrow(typeDef)) {
+                GetMethodImplPropsOrThrow(methodImpl, out var body, out _);
+
+                if (body == methodDef)
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    internal bool HasIsUnmanagedAttribute(EntityHandle token) {
+        return FindTargetAttribute(token, AttributeDescription.IsUnmanagedAttribute).hasValue;
+    }
+
+    internal bool HasNullableAttribute(EntityHandle token, out byte defaultTransform, out ImmutableArray<byte> nullableTransforms) {
+        var info = FindTargetAttribute(token, AttributeDescription.NullableAttribute);
+
+        defaultTransform = 0;
+        nullableTransforms = default;
+
+        if (!info.hasValue)
+            return false;
+
+        if (info.signatureIndex == 0)
+            return TryExtractValueFromAttribute(info.handle, out defaultTransform, AttributeByteValueExtractor);
+
+        return TryExtractByteArrayValueFromAttribute(info.handle, out nullableTransforms);
+    }
+
+    private bool TryExtractByteArrayValueFromAttribute(CustomAttributeHandle handle, out ImmutableArray<byte> value) {
+        return TryExtractValueFromAttribute(handle, out value, AttributeByteArrayValueExtractor);
+    }
+
+    internal bool HasNullableContextAttribute(EntityHandle token, out byte value) {
+        var info = FindTargetAttribute(token, AttributeDescription.NullableContextAttribute);
+
+        if (!info.hasValue) {
+            value = 0;
+            return false;
+        }
+
+        return TryExtractValueFromAttribute(info.handle, out value, AttributeByteValueExtractor);
+    }
+
+    internal bool HasIsReadOnlyAttribute(EntityHandle token) {
+        return FindTargetAttribute(token, AttributeDescription.IsReadOnlyAttribute).hasValue;
+    }
+
+    internal BlobHandle GetMethodSignatureOrThrow(MethodDefinitionHandle methodDef) {
+        return GetMethodSignatureOrThrow(metadataReader, methodDef);
+    }
+
+    internal bool HasUnscopedRefAttribute(EntityHandle token) {
+        return FindTargetAttribute(token, AttributeDescription.UnscopedRefAttribute).hasValue;
+    }
+
+    internal GenericParameterHandleCollection GetGenericParametersForMethodOrThrow(MethodDefinitionHandle methodDef) {
+        return metadataReader.GetMethodDefinition(methodDef).GetGenericParameters();
+    }
+
+    internal void GetParamPropsOrThrow(
+        ParameterHandle parameterDef,
+        out string name,
+        out ParameterAttributes flags) {
+        var parameter = metadataReader.GetParameter(parameterDef);
+        name = metadataReader.GetString(parameter.Name);
+        flags = parameter.Attributes;
+    }
+
+    internal bool HasRequiresLocationAttribute(EntityHandle token) {
+        return FindTargetAttribute(token, AttributeDescription.RequiresLocationAttribute).hasValue;
+    }
+
+    internal bool HasScopedRefAttribute(EntityHandle token) {
+        return FindTargetAttribute(token, AttributeDescription.ScopedRefAttribute).hasValue;
+    }
+
+    internal ConstantValue GetParamDefaultValue(ParameterHandle param) {
+        try {
+            var constantHandle = metadataReader.GetParameter(param).GetDefaultValue();
+            return constantHandle.IsNil ? null : GetConstantValueOrThrow(constantHandle);
+        } catch (BadImageFormatException) {
+            return null;
+        }
+    }
+
+    internal BlobReader GetMemoryReaderOrThrow(BlobHandle blob) {
+        return metadataReader.GetBlobReader(blob);
+    }
+
+    internal BlobHandle GetFieldSignatureOrThrow(FieldDefinitionHandle fieldDef) {
+        return metadataReader.GetFieldDefinition(fieldDef).Signature;
+    }
+
+    internal void GetTypeRefPropsOrThrow(
+        TypeReferenceHandle handle,
+        out string name,
+        out string @namespace,
+        out EntityHandle resolutionScope) {
+        var typeRef = metadataReader.GetTypeReference(handle);
+        resolutionScope = typeRef.ResolutionScope;
+        name = metadataReader.GetString(typeRef.Name);
+        @namespace = metadataReader.GetString(typeRef.Namespace);
+    }
+
+    internal BlobReader GetTypeSpecificationSignatureReaderOrThrow(TypeSpecificationHandle typeSpec) {
+        var signature = metadataReader.GetTypeSpecification(typeSpec).Signature;
+        return metadataReader.GetBlobReader(signature);
+    }
+
+    internal string GetModuleRefNameOrThrow(ModuleReferenceHandle moduleRef) {
+        return metadataReader.GetString(metadataReader.GetModuleReference(moduleRef).Name);
+    }
+
+    internal ParameterHandleCollection GetParametersOfMethodOrThrow(MethodDefinitionHandle methodDef) {
+        return metadataReader.GetMethodDefinition(methodDef).GetParameters();
+    }
+
+    internal int GetParameterSequenceNumberOrThrow(ParameterHandle param) {
+        return metadataReader.GetParameter(param).SequenceNumber;
+    }
 }

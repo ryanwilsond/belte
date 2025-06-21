@@ -17,7 +17,7 @@ internal sealed class MetadataLocation : TextLocation {
 
     public override SyntaxTree tree => null;
 
-    public override string fileName => _module.fileName;
+    public override string fileName => _module.containingAssembly.metadataName;
 
     public override bool Equals(TextLocation other) {
         return Equals(other as MetadataLocation);
