@@ -646,13 +646,27 @@ public sealed partial class BelteRepl : Repl {
         if (mode == "global" || mode == "all") {
             writer.WriteLine("Global Symbols:");
 
-            foreach (var symbol in state.context.GetTrackedSymbols()) {
-                displayText.Write(CreateIndent());
-                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
-                displayText.WriteLine();
-            }
+            if (state.previous is not null) {
+                var seenLocals = new HashSet<string>();
+                var seenMethods = new HashSet<string>();
 
-            WriteDisplayText(displayText);
+                var globals = state.previous.GetSymbols(
+                    includePreviousCompilations: true,
+                    includeSimpleProgramLocals: true
+                ).Where(
+                    s => (s.kind == SymbolKind.Local && seenLocals.Add(s.name)) ||
+                    (s is IMethodSymbol m &&
+                        m.methodKind == MethodKind.LocalFunction &&
+                        seenMethods.Add(s.name)));
+
+                foreach (var symbol in globals) {
+                    displayText.Write(CreateIndent());
+                    SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
+                    displayText.WriteLine();
+                }
+
+                WriteDisplayText(displayText);
+            }
         }
     }
 
@@ -921,7 +935,7 @@ public sealed partial class BelteRepl : Repl {
 
         // Then do a deeper search for non-global symbols
         var compilation = state.previous ?? EmptyCompilation;
-        var allSymbols = compilation.GetSymbols(true);
+        var allSymbols = compilation.GetSymbols(includePreviousCompilations: true, includeSimpleProgramLocals: true);
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 

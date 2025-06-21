@@ -3516,7 +3516,7 @@ internal partial class Binder {
         }
 
         boundLeft = BindToNaturalType(boundLeft, diagnostics);
-        leftType = boundLeft.type;
+        leftType = boundLeft.type.StrippedType();
         var isConditional = operatorToken.kind == SyntaxKind.QuestionPeriodToken;
         var lookupResult = LookupResult.GetInstance();
 
@@ -3745,7 +3745,7 @@ internal partial class Binder {
         bool called,
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
-        var leftType = boundLeft.type;
+        var leftType = boundLeft.type.StrippedType();
         var lookupResult = LookupResult.GetInstance();
 
         try {
@@ -7004,9 +7004,6 @@ internal partial class Binder {
         LookupOptions options,
         Binder originalBinder,
         bool diagnose) {
-        // TODO Consider moving this line
-        type = type.StrippedType();
-
         switch (type.typeKind) {
             case TypeKind.TemplateParameter:
                 LookupMembersInTemplateParameter(

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -148,31 +147,6 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         return null;
     }
 
-    private static bool TypeDependsOn(NamedTypeSymbol depends, NamedTypeSymbol on) {
-        var hashSet = PooledHashSet<Symbol>.GetInstance();
-        TypeDependsClosure(depends, depends.declaringCompilation, hashSet);
-        var result = hashSet.Contains(on);
-        hashSet.Free();
-        return result;
-    }
-
-    private static void TypeDependsClosure(
-        NamedTypeSymbol type,
-        Compilation currentCompilation,
-        HashSet<Symbol> partialClosure) {
-        if (type is null)
-            return;
-
-        type = type.originalDefinition;
-
-        if (partialClosure.Add(type)) {
-            TypeDependsClosure(type.GetDeclaredBaseType(null), currentCompilation, partialClosure);
-
-            if (currentCompilation is not null && type.IsFromCompilation(currentCompilation))
-                TypeDependsClosure(type.containingType, currentCompilation, partialClosure);
-        }
-    }
-
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
         var typeKind = this.typeKind;
         var declaredBase = GetDeclaredBaseType(basesBeingResolved: null);
@@ -193,7 +167,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             }
         }
 
-        if (TypeDependsOn(declaredBase, this)) {
+        if (typeKind == TypeKind.Class && BaseTypeAnalysis.TypeDependsOn(declaredBase, this)) {
             return new ExtendedErrorTypeSymbol(
                 declaredBase,
                 LookupResultKind.NotReferencable,

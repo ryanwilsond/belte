@@ -918,7 +918,11 @@ internal sealed class Evaluator {
             case UnaryOperatorKind.UnaryPlus:
                 return operand;
             case UnaryOperatorKind.UnaryMinus:
-                result = expressionType == SpecialType.Int ? -(long)operandValue : -Convert.ToDouble(operandValue);
+                if (expressionType == SpecialType.Int)
+                    result = -(long)operandValue;
+                else
+                    result = -Convert.ToDouble(operandValue);
+
                 break;
             case UnaryOperatorKind.LogicalNegation:
                 result = !(bool)operandValue;

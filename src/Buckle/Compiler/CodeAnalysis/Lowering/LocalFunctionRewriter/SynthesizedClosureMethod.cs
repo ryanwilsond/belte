@@ -159,7 +159,7 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
 
     internal ClosureKind closureKind { get; }
 
-    private protected override ImmutableArray<ParameterSymbol> _baseMethodParameters => _baseMethod.parameters;
+    private protected override ImmutableArray<ParameterSymbol> _baseMethodParameters => baseMethod.parameters;
 
     private protected override ImmutableArray<NamedTypeSymbol> _extraSynthesizedRefParameters
         => ImmutableArray<NamedTypeSymbol>.CastUp(_structEnvironments);

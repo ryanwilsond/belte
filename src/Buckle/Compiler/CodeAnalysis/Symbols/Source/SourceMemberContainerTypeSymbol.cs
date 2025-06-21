@@ -1407,6 +1407,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var fieldSyntax = (FieldDeclarationSyntax)m;
 
                         var modifiers = SourceMemberFieldSymbol.MakeModifiers(
+                            this,
                             fieldSyntax.declaration.identifier,
                             fieldSyntax.modifiers,
                             diagnostics,

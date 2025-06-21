@@ -301,7 +301,7 @@ internal static class StandardLibrary {
             { "Console_SetBackgroundColor_I", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
             { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition((int?)a ?? System.Console.CursorLeft, (int?)b ?? System.Console.CursorTop); } return null; }) },
+                => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition(a is null ? System.Console.CursorLeft : Convert.ToInt32(a), b is null ? System.Console.CursorTop : Convert.ToInt32(b)); } return null; }) },
             { "Directory_Create_S", new Func<object, object, object, object>((a, b, c)
                 => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
             { "Directory_Delete_S", new Func<object, object, object, object>((a, b, c)
@@ -453,7 +453,7 @@ internal static class StandardLibrary {
             { "String_Ascii_S", new Func<object, object, object, object>((a, b, c)
                 => { return char.TryParse((string)a, out var result) ? (long)result : null; }) },
             { "String_Char_I", new Func<object, object, object, object>((a, b, c)
-                => { return (char)a; }) },
+                => { return Convert.ToChar(a); }) },
         };
     }
 }

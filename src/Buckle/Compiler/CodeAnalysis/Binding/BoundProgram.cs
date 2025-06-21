@@ -1,9 +1,13 @@
 using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed class BoundProgram {
+internal sealed partial class BoundProgram {
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _lazyOriginalDefinitions;
+
     internal BoundProgram(
         Compilation compilation,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
@@ -31,7 +35,22 @@ internal sealed class BoundProgram {
 
     internal BoundProgram previous { get; }
 
-    internal bool TryGetMethodBodyIncludingParents(MethodSymbol method, out BoundBlockStatement body) {
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _originalDefinitions {
+        get {
+            if (_lazyOriginalDefinitions is null)
+                Interlocked.CompareExchange(ref _lazyOriginalDefinitions, CreateOriginalDefinitions(), null);
+
+            return _lazyOriginalDefinitions;
+        }
+    }
+
+    internal bool TryGetMethodBodyIncludingParents(
+        MethodSymbol method,
+        out BoundBlockStatement body,
+        bool useOriginalDefinitions = false) {
+        if (useOriginalDefinitions)
+            return MethodBodyLookupUsingOriginals(method, out body);
+
         var current = this;
 
         while (current is not null) {
@@ -45,5 +64,30 @@ internal sealed class BoundProgram {
 
         body = null;
         return false;
+    }
+
+    private bool MethodBodyLookupUsingOriginals(MethodSymbol method, out BoundBlockStatement body) {
+        var current = this;
+
+        while (current is not null) {
+            if (current._originalDefinitions.TryGetValue(method.originalDefinition, out var value)) {
+                body = value;
+                return true;
+            }
+
+            current = current.previous;
+        }
+
+        body = null;
+        return false;
+    }
+
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> CreateOriginalDefinitions() {
+        return methodBodies.ToDictionary(
+            pair => pair.Key is SynthesizedMethodSymbolBase b
+                ? b.baseMethod.originalDefinition
+                : pair.Key.originalDefinition,
+            pair => pair.Value)
+                .ToImmutableDictionary();
     }
 }

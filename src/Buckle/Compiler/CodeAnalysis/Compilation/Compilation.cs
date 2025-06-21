@@ -146,7 +146,10 @@ public sealed partial class Compilation {
         }
     }
 
-    public ImmutableArray<ISymbol> GetSymbols(bool includePreviousCompilations = false, bool includeExternal = false) {
+    public ImmutableArray<ISymbol> GetSymbols(
+        bool includePreviousCompilations = false,
+        bool includeExternal = false,
+        bool includeSimpleProgramLocals = false) {
         if (!includePreviousCompilations)
             return globalNamespace.GetMembers();
 
@@ -162,6 +165,18 @@ public sealed partial class Compilation {
                 foreach (var member in current.globalNamespace.GetMembers()) {
                     if (member is not SynthesizedFinishedNamedTypeSymbol)
                         builder.Add(member);
+                }
+            }
+
+            if (includeSimpleProgramLocals) {
+                if (current.entryPoint is SynthesizedEntryPoint synthesizedEntryPoint) {
+                    var compilationUnit = synthesizedEntryPoint.compilationUnit;
+                    var entryPointBinder = synthesizedEntryPoint
+                        .TryGetBodyBinder(null, true)
+                        .GetBinder(compilationUnit);
+
+                    builder.AddRange(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
+                    builder.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
                 }
             }
 
