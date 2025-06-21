@@ -235,8 +235,10 @@ public sealed partial class Compilation {
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
-        if (diagnostics.AnyErrors())
+        if (diagnostics.AnyErrors()) {
             rollingResult = EvaluationResult.Failed(diagnostics);
+            return;
+        }
 
 #if DEBUG
         if (options.enableOutput) {

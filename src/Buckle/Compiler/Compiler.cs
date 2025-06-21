@@ -21,9 +21,6 @@ public sealed class Compiler {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
-    // Eventually have these automatically calculated to be optimal
-    private const int InterpreterMaxTextLength = 4096;
-    private const int EvaluatorMaxTextLength = 4096 * 4;
 
     private Compilation _lazyCorLibrary;
     private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
@@ -127,16 +124,10 @@ public sealed class Compiler {
             }
         }
 
-        var buildMode = state.buildMode != BuildMode.AutoRun
-            ? state.buildMode
-            : textLength switch {
-                // ! Temporary, `-i` will not use `--script` until it allows entry points such as `Main`
-                // <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
-                <= EvaluatorMaxTextLength => BuildMode.Evaluate,
-                // ! Temporary, `-i` will not use `--execute` until it is implemented
-                // _ => BuildMode.Execute
-                _ => BuildMode.Evaluate,
-            };
+        // From profiling we found:
+        //      1) Interpreter is almost always the slowest option
+        //      2) Evaluator is only better than Executor for trivially simple programs
+        var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
