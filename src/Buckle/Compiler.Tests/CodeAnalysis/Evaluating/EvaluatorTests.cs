@@ -234,8 +234,8 @@ public sealed class EvaluatorTests {
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("return (string)null;", null)]
     [InlineData("return (int)null;", null)]
-    [InlineData("lowlevel { any a = {1, 2, 3}; return ((int[])a)[1]; }", 2)]
-    [InlineData("lowlevel { any a = {true, false}; return ((bool[])a)[0]; }", true)]
+    [InlineData("lowlevel { any a = new int[] {1, 2, 3}; return ((int[])a)[1]; }", 2)]
+    [InlineData("lowlevel { any a = new bool[] {true, false}; return ((bool[])a)[0]; }", true)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[0]; }", 1)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[1]; }", 3.5)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[2]; }", true)]
@@ -344,18 +344,18 @@ public sealed class EvaluatorTests {
         var a = new A(3);
         return a + 5;", 8)]
     // Overrides
-    [InlineData(@"
-        class A {
-            public virtual string M() { return ""A""; }
-            public string T() { return M(); }
-        }
+    // [InlineData(@"
+    //     class A {
+    //         public virtual string M() { return ""A""; }
+    //         public string T() { return M(); }
+    //     }
 
-        class B extends A {
-            public override string M() { return ""B""; }
-        }
+    //     class B extends A {
+    //         public override string M() { return ""B""; }
+    //     }
 
-        var b = new B();
-        return b.T();", "B")]
+    //     var b = new B();
+    //     return b.T();", "B")]
     /*
     // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
     // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]

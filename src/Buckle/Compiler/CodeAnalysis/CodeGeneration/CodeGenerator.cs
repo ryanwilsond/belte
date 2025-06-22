@@ -2700,13 +2700,20 @@ oneMoreTime:
     }
 
     private void EmitCast(BoundCastExpression cast) {
+        if (IsReferenceType(cast.operand.type) && cast.type.specialType == SpecialType.Nullable)
+            return;
+
+        var involvesRefTypes = cast.operand.type.IsVerifierReference() || cast.type.IsVerifierReference();
+
         switch (cast.conversion.kind) {
             case ConversionKind.Identity:
                 break;
+            case ConversionKind.Implicit when involvesRefTypes:
             case ConversionKind.ImplicitReference:
             case ConversionKind.AnyBoxing:
                 EmitImplicitReferenceConversion(cast);
                 break;
+            case ConversionKind.Explicit when involvesRefTypes:
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 EmitExplicitReferenceConversion(cast);
@@ -2755,24 +2762,22 @@ oneMoreTime:
 
         var resultType = conversion.type;
 
-        if (!resultType.IsVerifierReference()) {
-            _builder.EmitWithSymbolToken(OpCode.Unbox_Any, conversion.type);
-        } else if (resultType.IsArray()) {
-            EmitStaticCast(conversion.type);
-        }
-
-        return;
+        if (!resultType.IsVerifierReference())
+            _builder.EmitWithSymbolToken(OpCode.Unbox_Any, resultType);
+        else if (resultType.IsArray())
+            EmitStaticCast(resultType);
     }
 
     private void EmitExplicitReferenceConversion(BoundCastExpression conversion) {
         if (!conversion.operand.type.IsVerifierReference())
             EmitBox(conversion.operand.type);
 
-        if (conversion.type.IsVerifierReference()) {
-            _builder.EmitWithSymbolToken(OpCode.Castclass, conversion.type);
-        } else {
-            _builder.EmitWithSymbolToken(OpCode.Unbox_Any, conversion.type);
-        }
+        var resultType = conversion.type;
+
+        if (resultType.IsVerifierReference())
+            _builder.EmitWithSymbolToken(OpCode.Castclass, resultType);
+        else
+            _builder.EmitWithSymbolToken(OpCode.Unbox_Any, resultType);
     }
 
     private void EmitStaticCast(TypeSymbol to) {

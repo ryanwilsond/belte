@@ -157,9 +157,6 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
 
-        if (to is SpecialType.Object or SpecialType.Any && CodeGenerator.IsReferenceType(from))
-            return;
-
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", flags, [typeof(string)]));

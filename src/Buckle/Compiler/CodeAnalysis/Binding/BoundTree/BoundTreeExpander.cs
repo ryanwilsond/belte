@@ -682,7 +682,7 @@ internal abstract class BoundTreeExpander {
         }
 
         var statements = ExpandExpression(expression.initializer, out var newInitializer);
-        replacement = expression.Update(expression.sizes, newInitializer, expression.type);
+        replacement = expression.Update(expression.sizes, (BoundInitializerList)newInitializer, expression.type);
         return statements;
     }
 

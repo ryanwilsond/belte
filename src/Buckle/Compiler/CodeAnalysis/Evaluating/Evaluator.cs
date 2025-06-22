@@ -619,9 +619,6 @@ internal sealed class Evaluator {
         if (node.initializer is BoundInitializerList initList)
             return EvaluateInitializerList(initList, abort);
 
-        if (node.initializer is BoundCastExpression { operand.kind: BoundKind.InitializerList } c)
-            return EvaluateInitializerList((BoundInitializerList)c.operand, abort);
-
         var array = EvaluatorObject.GetInstance();
         var arrayType = (ArrayTypeSymbol)node.type;
 

@@ -701,6 +701,7 @@
       <Kind Name="NewKeyword"/>
     </Field>
     <Field Name="type" Type="ArrayTypeSyntax"/>
+    <Field Name="initializer" Type="InitializerListExpressionSyntax" Optional="true" />
   </Node>
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>

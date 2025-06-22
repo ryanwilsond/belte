@@ -1,1 +1,1 @@
-int[] a = {1, 2, 3}; return a[2];
+lowlevel { int[] a = {1, 2, null}; return a[0]; }

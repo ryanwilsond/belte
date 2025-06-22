@@ -1358,14 +1358,10 @@ internal partial class Binder {
         BoundExpression result = tryArrayCreation;
 
         if (!result.hasErrors) {
-            var initializer = tryArrayCreation.initializer is BoundCastExpression c
-                ? (BoundInitializerList)c.operand
-                : (BoundInitializerList)tryArrayCreation.initializer;
-
             result = new BoundInitializerList(
                 node,
-                initializer.items,
-                initializer.type,
+                tryArrayCreation.initializer.items,
+                tryArrayCreation.initializer.type,
                 hasErrors: true
             );
         }
@@ -2236,6 +2232,20 @@ internal partial class Binder {
         return new BoundErrorExpression(syntax, lookupResultKind, [], [expression], CreateErrorType(), true);
     }
 
+    private BoundErrorExpression ErrorExpression(
+        SyntaxNode syntax,
+        LookupResultKind resultKind,
+        ImmutableArray<Symbol> symbols,
+        ImmutableArray<BoundExpression> childNodes) {
+        return new BoundErrorExpression(
+            syntax,
+            resultKind,
+            symbols,
+            childNodes.SelectAsArray((e, self) => self.BindToTypeForErrorRecovery(e), this),
+            CreateErrorType()
+        );
+    }
+
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax) {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
     }
@@ -2385,7 +2395,13 @@ internal partial class Binder {
                 // TODO What to do about conditional access?
                 return BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
             default:
-                return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
+                return ErrorIndexerExpression(
+                    node,
+                    expression,
+                    analyzedArguments,
+                    Error.CannotApplyIndexing(node.location, expression.type),
+                    diagnostics
+                );
         }
     }
 
@@ -2451,7 +2467,7 @@ internal partial class Binder {
             : ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1);
 
         if (analyzedArguments.arguments.Count != 1) {
-            diagnostics.Push(Error.BadIndexCount(node.location));
+            diagnostics.Push(Error.BadIndexCount(node.location, 1));
             var errorArguments = BuildArgumentsForErrorRecovery(analyzedArguments);
 
             return new BoundArrayAccessExpression(
@@ -2626,16 +2642,190 @@ internal partial class Binder {
         ExpressionSyntax creationSyntax,
         InitializerListExpressionSyntax initSyntax,
         ArrayTypeSymbol type,
-        ImmutableArray<BoundExpression> sizes,
-        ImmutableArray<BoundExpression> boundInitializerExpression = default,
-        bool hasErrors = false) {
-        BoundExpression initializerList = BindInitializerListExpression(initSyntax, diagnostics);
-        initializerList = GenerateConversionForAssignment(type, initializerList, diagnostics);
+        ImmutableArray<BoundExpression> sizes) {
+        var rank = type.rank;
+        var numSizes = sizes.Length;
+        var knownSizes = new long?[Math.Max(rank, numSizes)];
+        var hasErrors = false;
 
-        hasErrors = hasErrors || initializerList.hasErrors;
+        for (var i = 0; i < numSizes; ++i) {
+            var size = sizes[i];
+            knownSizes[i] = size.constantValue?.value is long l ? l : null;
+
+            if (!size.hasErrors && knownSizes[i] is null) {
+                diagnostics.Push(Error.ConstantExpected(size.syntax.location));
+                hasErrors = true;
+            }
+        }
+
+        var initializer = BindArrayInitializerList(
+            diagnostics,
+            initSyntax,
+            type,
+            knownSizes,
+            1,
+            false,
+            default
+        );
+
+        hasErrors = hasErrors || initializer.hasErrors;
         var nonNullSyntax = (SyntaxNode)creationSyntax ?? initSyntax;
 
-        return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
+        if (numSizes == 0) {
+            var sizeArray = new BoundExpression[rank];
+
+            for (var i = 0; i < rank; i++) {
+                sizeArray[i] = BoundFactory.Literal(
+                    nonNullSyntax,
+                    knownSizes[i] ?? 0,
+                    CorLibrary.GetSpecialType(SpecialType.Int)
+                );
+            }
+
+            sizes = sizeArray.AsImmutableOrNull();
+        } else if (!hasErrors && rank != numSizes) {
+            diagnostics.Push(Error.BadIndexCount(nonNullSyntax.location, type.rank));
+            hasErrors = true;
+        }
+
+        return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializer, type, hasErrors);
+    }
+
+    private BoundInitializerList BindArrayInitializerList(
+        BelteDiagnosticQueue diagnostics,
+        InitializerListExpressionSyntax node,
+        ArrayTypeSymbol type,
+        long?[] knownSizes,
+        int dimension,
+        bool isInferred,
+        ImmutableArray<BoundExpression> boundInitExprOpt = default) {
+        if (boundInitExprOpt.IsDefault)
+            boundInitExprOpt = BindArrayInitializerExpressions(node, diagnostics, dimension, type.rank);
+
+        var boundInitExprIndex = 0;
+
+        return ConvertAndBindArrayInitialization(
+            diagnostics,
+            node,
+            type,
+            knownSizes,
+            dimension,
+            boundInitExprOpt,
+            ref boundInitExprIndex,
+            isInferred
+        );
+    }
+
+    private BoundInitializerList ConvertAndBindArrayInitialization(
+        BelteDiagnosticQueue diagnostics,
+        InitializerListExpressionSyntax node,
+        ArrayTypeSymbol type,
+        long?[] knownSizes,
+        int dimension,
+        ImmutableArray<BoundExpression> boundInitExpr,
+        ref int boundInitExprIndex,
+        bool isInferred) {
+        var initializers = ArrayBuilder<BoundExpression>.GetInstance();
+
+        if (dimension == type.rank) {
+            var elemType = type.elementType;
+
+            foreach (var expressionSyntax in node.items) {
+                var boundExpression = boundInitExpr[boundInitExprIndex];
+                boundInitExprIndex++;
+
+                var convertedExpression = GenerateConversionForAssignment(elemType, boundExpression, diagnostics);
+                initializers.Add(convertedExpression);
+            }
+        } else {
+            foreach (var expr in node.items) {
+                BoundExpression init = null;
+
+                if (expr.kind == SyntaxKind.InitializerListExpression) {
+                    init = ConvertAndBindArrayInitialization(
+                        diagnostics,
+                        (InitializerListExpressionSyntax)expr,
+                        type,
+                        knownSizes,
+                        dimension + 1,
+                        boundInitExpr,
+                        ref boundInitExprIndex,
+                        isInferred
+                    );
+                } else {
+                    init = boundInitExpr[boundInitExprIndex];
+                    boundInitExprIndex++;
+                }
+
+                initializers.Add(init);
+            }
+        }
+
+        var hasErrors = false;
+        var knownSizeOpt = knownSizes[dimension - 1];
+
+        if (knownSizeOpt is null) {
+            knownSizes[dimension - 1] = initializers.Count;
+        } else if (knownSizeOpt != initializers.Count) {
+            if (knownSizeOpt >= 0) {
+                diagnostics.Push(Error.ArrayInitWrongLength(node.location, knownSizeOpt.Value));
+                hasErrors = true;
+            }
+        }
+
+        return new BoundInitializerList(node, initializers.ToImmutableAndFree(), type, hasErrors: hasErrors);
+    }
+
+    private ImmutableArray<BoundExpression> BindArrayInitializerExpressions(
+        InitializerListExpressionSyntax initializer,
+        BelteDiagnosticQueue diagnostics,
+        int dimension,
+        int rank) {
+        var exprBuilder = ArrayBuilder<BoundExpression>.GetInstance();
+        BindArrayInitializerExpressions(initializer, exprBuilder, diagnostics, dimension, rank);
+        return exprBuilder.ToImmutableAndFree();
+    }
+
+    private void BindArrayInitializerExpressions(
+        InitializerListExpressionSyntax initializer,
+        ArrayBuilder<BoundExpression> exprBuilder,
+        BelteDiagnosticQueue diagnostics,
+        int dimension,
+        int rank) {
+        if (dimension == rank) {
+            foreach (var expression in initializer.items) {
+                var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
+                exprBuilder.Add(boundExpression);
+            }
+        } else {
+            foreach (var expression in initializer.items) {
+                if (expression.kind == SyntaxKind.InitializerListExpression) {
+                    BindArrayInitializerExpressions(
+                        (InitializerListExpressionSyntax)expression,
+                        exprBuilder,
+                        diagnostics,
+                        dimension + 1,
+                        rank
+                    );
+                } else {
+                    var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
+
+                    if (boundExpression.type is null || !boundExpression.type.IsErrorType()) {
+                        if (!boundExpression.hasErrors)
+                            diagnostics.Push(Error.ArrayInitExpected(expression.location));
+
+                        boundExpression = ErrorExpression(
+                            expression,
+                            LookupResultKind.Empty,
+                            ImmutableArray.Create(boundExpression.expressionSymbol),
+                            ImmutableArray.Create(boundExpression)
+                        );
+                    }
+
+                    exprBuilder.Add(boundExpression);
+                }
+            }
+        }
     }
 
     private BoundExpression BindArrayCreationExpression(
@@ -2658,7 +2848,9 @@ internal partial class Binder {
             }
         }
 
-        return new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type);
+        return node.initializer is null
+            ? new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type)
+            : BindArrayCreationWithInitializer(diagnostics, node, node.initializer, type, sizes.ToImmutable());
     }
 
     private protected BoundExpression BindObjectCreationExpression(

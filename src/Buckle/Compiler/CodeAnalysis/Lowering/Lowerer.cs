@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -380,21 +379,59 @@ internal sealed class Lowerer : BoundTreeRewriter {
             new BoundArrayCreationExpression(
                 syntax,
                 [Literal(syntax, (long)expression.items.Length, sizeType)],
-                expression,
+                VisitNonIsolatedList(expression),
                 expression.type
             )
         );
     }
 
-    internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression expression) {
-        if (expression.initializer.kind == BoundKind.InitializerList ||
-            expression.initializer is BoundCastExpression { operand.kind: BoundKind.InitializerList } ) {
-            var sizes = VisitList(expression.sizes);
-            var type = VisitType(expression.type);
-            return expression.Update(sizes, expression.initializer, type);
+    private BoundInitializerList VisitNonIsolatedList(BoundInitializerList expression) {
+        var syntax = expression.syntax;
+        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+        ArrayBuilder<BoundExpression>? newList = null;
+
+        for (var i = 0; i < expression.items.Length; i++) {
+            var item = expression.items[i];
+            var visited = VisitListItem(item);
+
+            if (newList is null && item != visited) {
+                newList = ArrayBuilder<BoundExpression>.GetInstance();
+
+                if (i > 0)
+                    newList.AddRange(expression.items, i);
+            }
+
+            if (newList is not null && visited is not null)
+                newList.Add((BoundExpression)visited);
         }
 
-        return base.VisitArrayCreationExpression(expression);
+        if (newList is not null)
+            return new BoundInitializerList(syntax, newList.ToImmutableAndFree(), expression.type);
+
+        return expression;
+
+        BoundNode VisitListItem(BoundExpression item) {
+            if (ShouldBeTreatedAsNullable(arrayType.elementType) &&
+                !item.type.IsNullableType()) {
+                if (item.constantValue is null)
+                    return Visit(CreateNullable(syntax, item, arrayType.elementType));
+                else
+                    return VisitConstant(Literal(syntax, item.constantValue.value, arrayType.elementType));
+            }
+
+            return Visit(item);
+        }
+    }
+
+    internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression expression) {
+        var sizes = VisitList(expression.sizes);
+
+        var initializer = expression.initializer is null
+            ? null
+            : VisitNonIsolatedList(expression.initializer);
+
+        var type = VisitType(expression.type);
+        return expression.Update(sizes, initializer, type);
     }
 
     internal override BoundNode VisitIncrementOperator(BoundIncrementOperator expression) {
@@ -801,6 +838,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (!ShouldBeTreatedAsNullable(nullableType))
             return expression;
 
+        if (expression is BoundObjectCreationExpression creation &&
+            creation.type.specialType == SpecialType.Nullable) {
+            return expression;
+        }
+
         return new BoundObjectCreationExpression(
             syntax,
             CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
@@ -815,7 +857,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     private BoundNode VisitConstant(BoundExpression expression) {
-        // TODO Handle initializer list constants
         var syntax = expression.syntax;
         var type = expression.type;
 
