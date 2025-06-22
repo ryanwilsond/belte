@@ -424,6 +424,11 @@ internal sealed class Expander : BoundTreeExpander {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new SynthesizedDataContainerSymbol(_container, new TypeWithAnnotations(type), name);
+        return new SynthesizedDataContainerSymbol(
+            _container,
+            new TypeWithAnnotations(type),
+            SynthesizedLocalKind.ExpanderTemp,
+            name
+        );
     }
 }

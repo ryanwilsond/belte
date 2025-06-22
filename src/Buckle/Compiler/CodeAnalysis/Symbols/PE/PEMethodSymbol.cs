@@ -443,4 +443,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
             return [];
         }
     }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

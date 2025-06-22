@@ -72,4 +72,9 @@ internal sealed class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSy
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
+    internal sealed override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
+        return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree);
+    }
 }

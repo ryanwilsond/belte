@@ -240,6 +240,22 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         return loweredBody;
     }
 
+    internal static BoundBlockStatement BindSynthesizedMethodBody(
+        MethodSymbol method,
+        TypeCompilationState compilationState,
+        BelteDiagnosticQueue diagnostics) {
+        MethodSymbol _ = null;
+
+        return BindMethodBody(
+            method,
+            compilationState,
+            diagnostics,
+            includeInitializers: false,
+            initializersBody: null,
+            entryPoint: ref _
+        );
+    }
+
     private static BoundBlockStatement BindMethodBody(
         MethodSymbol method,
         TypeCompilationState state,
@@ -347,7 +363,12 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (body is not null)
             builder.Add(body);
 
-        return new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), [], []);
+        return new BoundBlockStatement(
+            syntax,
+            builder.ToImmutableAndFree(),
+            body?.locals ?? [],
+            body?.localFunctions ?? []
+        );
     }
 
     private static BoundStatement BindImplicitConstructorInitializerIfAny(

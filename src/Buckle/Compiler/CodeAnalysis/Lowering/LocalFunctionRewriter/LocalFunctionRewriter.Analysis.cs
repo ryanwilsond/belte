@@ -40,6 +40,7 @@ internal sealed partial class LocalFunctionRewriter {
             var analysis = new Analysis(scopeTree, method, topLevelMethodOrdinal, compilationState);
 
             analysis.MakeAndAssignEnvironments();
+            analysis.ComputeLambdaScopesAndFrameCaptures();
 
             // TODO We don't have debugging yet, so we can always perform this merge
             // This can affect when a variable is in scope whilst debugging, so only do this in release mode.
@@ -92,36 +93,14 @@ internal sealed partial class LocalFunctionRewriter {
         }
 
         internal int GetClosureOrdinal(ClosureEnvironment environment, SyntaxNode syntax) {
-            return _closureCounter++;
+            var parentClosure = environment.parent?.synthesizedEnvironment;
+            var parentClosureId = parentClosure?.closureId;
 
-            // TODO This shouldn't really matter
-            // var parentClosure = environment.Parent?.SynthesizedEnvironment;
+            var closureId = _closureCounter++;
 
-            // // Frames are created and assigned top-down, so the parent scope's environment has to be assigned at this point.
-            // // This may not be true if environments are merged in release build.
-            // Debug.Assert(_slotAllocator == null || environment.Parent is null || parentClosure is not null);
+            var syntaxOffset = _topLevelMethod.CalculateLocalSyntaxOffset(syntax.span.start, syntax.syntaxTree);
 
-            // rudeEdit = parentClosure?.RudeEdit;
-            // var parentClosureId = parentClosure?.ClosureId;
-
-            // var structCaptures = _slotAllocator != null && environment.IsStruct
-            //     ? environment.CapturedVariables.SelectAsArray(v => v is ThisParameterSymbol ? GeneratedNames.ThisProxyFieldName() : v.Name)
-            //     : default;
-
-            // DebugId closureId;
-            // if (rudeEdit == null &&
-            //     _slotAllocator != null &&
-            //     _slotAllocator.TryGetPreviousClosure(syntax, parentClosureId, structCaptures, out var previousClosureId, out rudeEdit) &&
-            //     rudeEdit == null) {
-            //     closureId = previousClosureId;
-            // } else {
-            //     closureId = new DebugId(closureDebugInfo.Count, _compilationState.ModuleBuilderOpt.CurrentGenerationOrdinal);
-            // }
-
-            // int syntaxOffset = _topLevelMethod.CalculateLocalSyntaxOffset(LambdaUtilities.GetDeclaratorPosition(syntax), syntax.SyntaxTree);
-            // closureDebugInfo.Add(new EncClosureInfo(new ClosureDebugInfo(syntaxOffset, closureId), parentClosureId, structCaptures));
-
-            // return closureId;
+            return closureId + syntaxOffset + (parentClosureId ?? 0);
         }
 
         internal static void VisitNestedFunctions(Scope scope, Action<Scope, NestedFunction> action) {
@@ -352,6 +331,54 @@ internal sealed partial class LocalFunctionRewriter {
                 set.Free();
 
             closuresCapturingScopeVariables.Free();
+        }
+
+        private void ComputeLambdaScopesAndFrameCaptures() {
+            VisitNestedFunctions(scopeTree, (scope, function) => {
+                if (function.capturedEnvironments.Count > 0) {
+                    var capturedEnvs = PooledHashSet<ClosureEnvironment>.GetInstance();
+                    capturedEnvs.AddAll(function.capturedEnvironments);
+
+                    var curScope = scope;
+
+                    while (curScope is not null) {
+                        var env = curScope.declaredEnvironment;
+
+                        if (env is not null && capturedEnvs.Remove(env) && !env.isStruct) {
+                            function.containingEnvironment = env;
+                            break;
+                        }
+
+                        curScope = curScope.parent;
+                    }
+
+                    var oldEnv = curScope?.declaredEnvironment;
+                    curScope = curScope?.parent;
+
+                    while (curScope is not null) {
+                        if (capturedEnvs.Count == 0)
+                            break;
+
+                        var env = curScope.declaredEnvironment;
+
+                        if (env is not null) {
+                            if (!env.isStruct) {
+                                oldEnv.parent = env;
+                                oldEnv = env;
+                            }
+
+                            capturedEnvs.Remove(env);
+                        }
+
+                        curScope = curScope.parent;
+                    }
+
+                    if (capturedEnvs.Count > 0)
+                        throw ExceptionUtilities.Unreachable();
+
+                    capturedEnvs.Free();
+                }
+            });
         }
     }
 }

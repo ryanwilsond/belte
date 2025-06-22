@@ -173,4 +173,8 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         bool ignoreAccessibility = false) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        return topLevelMethod.CalculateLocalSyntaxOffset(localPosition, localTree);
+    }
 }

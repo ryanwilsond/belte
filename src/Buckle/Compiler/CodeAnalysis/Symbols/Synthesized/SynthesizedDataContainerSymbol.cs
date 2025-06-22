@@ -11,6 +11,7 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
     internal SynthesizedDataContainerSymbol(
         Symbol containingSymbol,
         TypeWithAnnotations type,
+        SynthesizedLocalKind kind,
         SyntaxNode syntax = null,
         RefKind refKind = RefKind.None) {
         this.containingSymbol = containingSymbol;
@@ -18,17 +19,20 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         typeWithAnnotations = type;
         // This is the syntax of just the name
         _syntax = syntax;
+        synthesizedKind = kind;
     }
 
     internal SynthesizedDataContainerSymbol(
         Symbol containingSymbol,
         TypeWithAnnotations type,
+        SynthesizedLocalKind kind,
         string name,
         RefKind refKind = RefKind.None) {
         this.containingSymbol = containingSymbol;
         this.refKind = refKind;
         typeWithAnnotations = type;
         this.name = name;
+        synthesizedKind = kind;
     }
 
     public override string name { get; }
@@ -56,6 +60,8 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
     internal override ScopedKind scope => ScopedKind.None;
 
     internal override bool hasSourceLocation => _syntax is not null;
+
+    internal override SynthesizedLocalKind synthesizedKind { get; }
 
     internal override SyntaxNode GetDeclarationSyntax() {
         return _syntax;

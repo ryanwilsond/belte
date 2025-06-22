@@ -17,6 +17,7 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
     private ImmutableArray<Symbol> _members;
 
     internal readonly int closureOrdinal;
+    internal readonly int closureId;
 
     internal SynthesizedClosureEnvironment(
         MethodSymbol topLevelMethod,
@@ -37,12 +38,13 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
 
     internal override Symbol containingSymbol => topLevelMethod.containingSymbol;
 
-    // TODO Is lambda a euphemism for lambda or local functions here?
-    // internal void AddHoistedField(LambdaCapturedVariable captured) => _membersBuilder.Add(captured);
+    internal void AddHoistedField(LambdaCapturedVariable captured) => _membersBuilder.Add(captured);
 
     private static string MakeName(SyntaxNode scopeSyntaxOpt, int methodId, int closureId) {
-        // Currently closures are unwrapped and not present in the final tree
-        return "<closure>";
+        if (scopeSyntaxOpt is null)
+            return MakeDisplayClassName(methodId, 0);
+
+        return MakeDisplayClassName(methodId, closureId);
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {
@@ -60,4 +62,28 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
         => singletonCache is not null
         ? SpecializedCollections.SingletonEnumerable(singletonCache)
         : SpecializedCollections.EmptyEnumerable<FieldSymbol>();
+
+    private static string MakeDisplayClassName(int methodId, int closureId) {
+        var result = PooledStringBuilder.GetInstance();
+        var builder = result.Builder;
+        builder.Append('<');
+        builder.Append('>');
+        builder.Append("Closure");
+
+        if (methodId >= 0 || closureId >= 0) {
+            builder.Append("__");
+
+            if (methodId >= 0)
+                builder.Append(methodId);
+
+            if (closureId >= 0) {
+                if (methodId >= 0)
+                    builder.Append('_');
+
+                builder.Append(closureId);
+            }
+        }
+
+        return result.ToStringAndFree();
+    }
 }

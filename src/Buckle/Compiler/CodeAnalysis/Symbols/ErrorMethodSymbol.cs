@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -71,4 +72,8 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
     internal sealed override bool hasUnscopedRefAttribute => false;
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

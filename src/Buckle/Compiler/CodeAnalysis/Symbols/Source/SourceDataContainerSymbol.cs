@@ -75,6 +75,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         }
     }
 
+    internal override SynthesizedLocalKind synthesizedKind => SynthesizedLocalKind.UserDefined;
+
     internal bool isImplicitlyTyped {
         get {
             if (_typeSyntax is null)

@@ -2538,6 +2538,9 @@ oneMoreTime:
         var field = expression.field;
 
         if (!used) {
+            if (field.isCapturedFrame)
+                return;
+
             if (!field.isStatic && expression.receiver.type.IsVerifierValue() && field.refKind == RefKind.None) {
                 EmitExpression(expression.receiver, used: false);
                 return;

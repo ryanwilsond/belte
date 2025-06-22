@@ -6,11 +6,15 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
+    private const int StaticClosureOrdinal = -1;
+    private const int ThisOnlyClosureOrdinal = -2;
+
     private readonly Analysis _analysis;
     private readonly MethodSymbol _topLevelMethod;
     private readonly TypeCompilationState _compilationState;
@@ -19,6 +23,11 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
     private readonly Dictionary<NamedTypeSymbol, Symbol> _framePointers = [];
     private readonly Dictionary<ParameterSymbol, ParameterSymbol> _parameterMap = [];
     private readonly List<Analysis> _previousAnalyses;
+    private readonly Dictionary<Symbol, CapturedSymbolReplacement> _proxies = [];
+    private readonly HashSet<DataContainerSymbol> _assignLocals;
+    private readonly Dictionary<DataContainerSymbol, DataContainerSymbol> _localMap = [];
+    private readonly ImmutableHashSet<Symbol> _allCapturedVariables;
+    private readonly BelteDiagnosticQueue _diagnostics;
 
     private MethodSymbol _currentMethod;
     private ParameterSymbol _currentFrameThis;
@@ -28,6 +37,9 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
     private ArrayBuilder<(MethodSymbol, BoundBlockStatement)> _synthesizedMethods;
     private ArrayBuilder<DataContainerSymbol> _addedLocals;
     private ArrayBuilder<BoundStatement> _addedStatements;
+    private int _synthesizedFieldNameIdDispenser;
+    private bool _seenBaseCall;
+    private BoundExpression _thisProxyInitDeferred;
 
     private LocalFunctionRewriter(
         Analysis analysis,
@@ -36,7 +48,8 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         MethodSymbol method,
         MethodSymbol substitutedSourceMethod,
         TypeCompilationState compilationState,
-        List<Analysis> previousAnalyses) {
+        List<Analysis> previousAnalyses,
+        BelteDiagnosticQueue diagnostics) {
         _analysis = analysis;
         _topLevelMethod = method;
         _currentMethod = method;
@@ -46,6 +59,13 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         _innermostFramePointer = _currentFrameThis = thisParameter;
         _framePointers[thisType] = thisParameter;
         _previousAnalyses = previousAnalyses;
+        _diagnostics = diagnostics;
+
+        var allCapturedVars = ImmutableHashSet.CreateBuilder<Symbol>();
+        Analysis.VisitNestedFunctions(analysis.scopeTree, (scope, function) => {
+            allCapturedVars.UnionWith(function.capturedVariables);
+        });
+        _allCapturedVariables = allCapturedVars.ToImmutable();
     }
 
     internal static BoundBlockStatement Rewrite(
@@ -65,13 +85,14 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
             method,
             substitutedSourceMethod,
             state,
-            previousAnalyses
+            previousAnalyses,
+            diagnostics
         );
 
         rewriter.SynthesizeClosureEnvironments();
         rewriter.SynthesizeClosureMethods();
 
-        var body = (BoundBlockStatement)rewriter.Visit(loweredBody);
+        var body = rewriter.AddStatementsIfNeeded((BoundBlockStatement)rewriter.Visit(loweredBody));
 
         if (rewriter._synthesizedMethods is not null) {
             if (state.synthesizedMethods is null) {
@@ -84,7 +105,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
 
         // analysis.Free();
         previousAnalyses.Add(analysis);
-        return body;
+        return (BoundBlockStatement)body;
     }
 
     private void SynthesizeClosureEnvironments() {
@@ -93,15 +114,18 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
                 var frame = MakeFrame(scope, env);
                 env.synthesizedEnvironment = frame;
 
-                // TODO Do we do this anyway even though its unwrapped later
-                // _compilationState.ModuleBuilderOpt.AddSynthesizedDefinition(ContainingType, frame.GetCciAdapter());
-                // if (frame.constructor is not null) {
-                //     AddSynthesizedMethod(
-                //         frame.Constructor,
-                //         FlowAnalysisPass.AppendImplicitReturn(
-                //             MethodCompiler.BindSynthesizedMethodBody(frame.Constructor, CompilationState, Diagnostics),
-                //             frame.Constructor));
-                // }
+                if (frame.constructor is not null) {
+                    AddSynthesizedMethod(
+                        frame.constructor,
+                        FlowAnalysisPass.AppendImplicitReturn(
+                            MethodCompiler.BindSynthesizedMethodBody(
+                                frame.constructor,
+                                _compilationState,
+                                _diagnostics
+                            )
+                        )
+                    );
+                }
 
                 _frames.Add(scope.boundNode, env);
             }
@@ -130,11 +154,14 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
             );
 
             foreach (var captured in env.capturedVariables) {
-                // TODO Do we need to do this?
-                // var hoistedField = LambdaCapturedVariable.Create(synthesizedEnvironment, captured, ref _synthesizedFieldNameIdDispenser);
-                // proxies.Add(captured, new CapturedToFrameSymbolReplacement(hoistedField, isReusable: false));
-                // synthesizedEnvironment.AddHoistedField(hoistedField);
-                // CompilationState.ModuleBuilderOpt.AddSynthesizedDefinition(synthesizedEnvironment, hoistedField.GetCciAdapter());
+                var hoistedField = LambdaCapturedVariable.Create(
+                    synthesizedEnvironment,
+                    captured,
+                    ref _synthesizedFieldNameIdDispenser
+                );
+
+                _proxies.Add(captured, new CapturedToFrameSymbolReplacement(hoistedField, isReusable: false));
+                synthesizedEnvironment.AddHoistedField(hoistedField);
             }
 
             return synthesizedEnvironment;
@@ -162,23 +189,23 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
                 containerAsFrame = null;
                 closureKind = ClosureKind.ThisOnly;
                 translatedLambdaContainer = _topLevelMethod.containingType;
-                // TODO What should the ordinal be
-                // closureOrdinal = LambdaDebugInfo.ThisOnlyClosureOrdinal;
+                closureOrdinal = ThisOnlyClosureOrdinal;
             } else {
                 containerAsFrame = null;
                 translatedLambdaContainer = _topLevelMethod.containingType;
                 closureKind = ClosureKind.Static;
-                // TODO What should the ordinal be
-                // closureOrdinal = LambdaDebugInfo.StaticClosureOrdinal;
+                closureOrdinal = StaticClosureOrdinal;
             }
 
             var structEnvironments = GetStructEnvironments(nestedFunction);
 
-            // Move the body of the lambda to a freshly generated synthetic method on its frame.
             topLevelMethodOrdinal = _analysis.GetTopLevelMethodOrdinal();
-            // TODO What should the ordinal be
-            methodOrdinal = 0;
-            // methodOrdinal = GetMethodOrdinal(syntax, closureKind, closureOrdinal, structEnvironments.SelectAsArray(e => e.ClosureId), containerAsFrame?.RudeEdit);
+            methodOrdinal = GetLambdaId(
+                syntax.node,
+                closureKind,
+                closureOrdinal,
+                structEnvironments.SelectAsArray(e => e.closureId)
+            );
 
             var synthesizedMethod = new SynthesizedClosureMethod(
                 translatedLambdaContainer,
@@ -231,17 +258,14 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         }
 
         var framePointer = _framePointers[frameClass];
-        // TODO Pretty sure we won't ever actually use the FramePointer
-        // CapturedSymbolReplacement proxyField;
-        // if (proxies.TryGetValue(framePointer, out proxyField)) {
-        //     // However, frame pointer local variables themselves can be "captured".  In that case
-        //     // the inner frames contain pointers to the enclosing frames.  That is, nested
-        //     // frame pointers are organized in a linked list.
-        //     return proxyField.Replacement(
-        //         syntax,
-        //         static (frameType, arg) => arg.self.FramePointer(arg.syntax, frameType),
-        //         (syntax, self: this));
-        // }
+
+        if (_proxies.TryGetValue(framePointer, out var proxyField)) {
+            return proxyField.Replacement(
+                syntax,
+                static (frameType, arg) => arg.self.FramePointer(arg.syntax, frameType),
+                (syntax, self: this)
+            );
+        }
 
         var localFrame = (DataContainerSymbol)framePointer;
         return new BoundDataContainerExpression(syntax, localFrame, null, localFrame.type);
@@ -434,20 +458,6 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
                 ref argRefKinds
             );
 
-            // return node.Update(
-            //     receiver,
-            //     node.initialBindingReceiverIsSubjectToCloning,
-            //     method,
-            //     args,
-            //     node.argumentNames,
-            //     argRefKinds,
-            //     node.IsDelegateCall,
-            //     node.Expanded,
-            //     node.InvokedAsExtensionMethod,
-            //     node.ArgsToParamsOpt,
-            //     node.DefaultArguments,
-            //     node.ResultKind,
-            //     type);
             return node.Update(receiver, method, args, argRefKinds, node.defaultArguments, node.resultKind, type);
         }
 
@@ -458,23 +468,21 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
 
         var rewritten = (BoundCallExpression)visited;
 
-        // TODO do we need this?
-        // Check if we need to init the 'this' proxy in a ctor call
-        // if (!_seenBaseCall) {
-        //     if (_currentMethod == _topLevelMethod && node.IsConstructorInitializer()) {
-        //         _seenBaseCall = true;
-        //         if (_thisProxyInitDeferred != null) {
-        //             // Insert the this proxy assignment after the ctor call.
-        //             // Create bound sequence: { ctor call, thisProxyInitDeferred }
-        //             return new BoundSequence(
-        //                 syntax: node.Syntax,
-        //                 locals: ImmutableArray<LocalSymbol>.Empty,
-        //                 sideEffects: ImmutableArray.Create<BoundExpression>(rewritten),
-        //                 value: _thisProxyInitDeferred,
-        //                 type: rewritten.Type);
-        //         }
-        //     }
-        // }
+        if (!_seenBaseCall) {
+            if (_currentMethod == _topLevelMethod && node.IsConstructorInitializer()) {
+                _seenBaseCall = true;
+
+                if (_thisProxyInitDeferred is not null) {
+                    // return new BoundSequence(
+                    //     syntax: node.syntax,
+                    //     locals: ImmutableArray<LocalSymbol>.Empty,
+                    //     sideEffects: ImmutableArray.Create<BoundExpression>(rewritten),
+                    //     value: _thisProxyInitDeferred,
+                    //     type: rewritten.Type);
+                    throw new NotImplementedException();
+                }
+            }
+        }
 
         return rewritten;
     }
@@ -508,6 +516,7 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         var framePointer = new SynthesizedDataContainerSymbol(
             _topLevelMethod,
             new TypeWithAnnotations(frameType),
+            SynthesizedLocalKind.LambdaDisplayClass,
             frame.scopeSyntax
         );
 
@@ -515,41 +524,58 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
 
         var prologue = ArrayBuilder<BoundExpression>.GetInstance();
 
-        // if (frame.constructor is not null) {
-        //     var constructor = frame.constructor.AsMember(frameType);
+        if (frame.constructor is not null) {
+            var constructor = frame.constructor.AsMember(frameType);
 
-        //     prologue.Add(new BoundAssignmentOperator(syntax,
-        //         new BoundLocal(syntax, framePointer, null, frameType),
-        //         new BoundObjectCreationExpression(syntax: syntax, constructor: constructor),
-        //         frameType));
-        // }
+            prologue.Add(new BoundAssignmentOperator(syntax,
+                new BoundDataContainerExpression(syntax, framePointer, null, frameType),
+                new BoundObjectCreationExpression(
+                    syntax,
+                    constructor,
+                    [],
+                    [],
+                    [],
+                    default,
+                    false,
+                    constructor.containingType
+                ),
+                false,
+                frameType
+            ));
+        }
 
-        // CapturedSymbolReplacement oldInnermostFrameProxy = null;
-        // if ((object)_innermostFramePointer != null) {
-        //     proxies.TryGetValue(_innermostFramePointer, out oldInnermostFrameProxy);
-        //     if (env.CapturesParent) {
-        //         var capturedFrame = LambdaCapturedVariable.Create(frame, _innermostFramePointer, ref _synthesizedFieldNameIdDispenser);
-        //         FieldSymbol frameParent = capturedFrame.AsMember(frameType);
-        //         BoundExpression left = new BoundFieldAccess(syntax, new BoundLocal(syntax, framePointer, null, frameType), frameParent, null);
-        //         BoundExpression right = FrameOfType(syntax, frameParent.Type as NamedTypeSymbol);
-        //         BoundExpression assignment = new BoundAssignmentOperator(syntax, left, right, left.Type);
-        //         prologue.Add(assignment);
+        CapturedSymbolReplacement oldInnermostFrameProxy = null;
+        if (_innermostFramePointer is not null) {
+            _proxies.TryGetValue(_innermostFramePointer, out oldInnermostFrameProxy);
 
-        //         if (CompilationState.Emitting) {
-        //             Debug.Assert(capturedFrame.Type.IsReferenceType); // Make sure we're not accidentally capturing a struct by value
-        //             frame.AddHoistedField(capturedFrame);
-        //             CompilationState.ModuleBuilderOpt.AddSynthesizedDefinition(frame, capturedFrame.GetCciAdapter());
-        //         }
+            if (env.capturesParent) {
+                var capturedFrame = LambdaCapturedVariable.Create(frame, _innermostFramePointer, ref _synthesizedFieldNameIdDispenser);
+                var frameParent = capturedFrame.AsMember(frameType);
 
-        //         proxies[_innermostFramePointer] = new CapturedToFrameSymbolReplacement(capturedFrame, isReusable: false);
-        //     }
-        // }
+                var left = new BoundFieldAccessExpression(
+                    syntax,
+                    new BoundDataContainerExpression(syntax, framePointer, null, frameType),
+                    frameParent,
+                    null,
+                    frameParent.type
+                );
 
-        // Capture any parameters of this block.  This would typically occur
-        // at the top level of a method or lambda with captured parameters.
-        // foreach (var variable in env.CapturedVariables) {
-        //     InitVariableProxy(syntax, variable, framePointer, prologue);
-        // }
+                var right = FrameOfType(syntax, frameParent.type as NamedTypeSymbol);
+                BoundExpression assignment = new BoundAssignmentOperator(syntax, left, right, false, left.type);
+                prologue.Add(assignment);
+
+                // if (_compilationState.Emitting) {
+                //     frame.AddHoistedField(capturedFrame);
+                //     // _compilationState.AddSynthesizedMethod(frame, capturedFrame.GetCciAdapter());
+                // }
+                frame.AddHoistedField(capturedFrame);
+
+                _proxies[_innermostFramePointer] = new CapturedToFrameSymbolReplacement(capturedFrame, false);
+            }
+        }
+
+        foreach (var variable in env.capturedVariables)
+            InitVariableProxy(syntax, variable, framePointer, prologue);
 
         var oldInnermostFramePointer = _innermostFramePointer;
 
@@ -564,26 +590,79 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
 
         _innermostFramePointer = oldInnermostFramePointer;
 
-        // if ((object)_innermostFramePointer != null) {
-        //     if (oldInnermostFrameProxy != null) {
-        //         proxies[_innermostFramePointer] = oldInnermostFrameProxy;
-        //     } else {
-        //         proxies.Remove(_innermostFramePointer);
-        //     }
-        // }
+        if (_innermostFramePointer is not null) {
+            if (oldInnermostFrameProxy is not null)
+                _proxies[_innermostFramePointer] = oldInnermostFrameProxy;
+            else
+                _proxies.Remove(_innermostFramePointer);
+        }
 
         return result;
+    }
+
+    private void InitVariableProxy(
+        SyntaxNode syntax,
+        Symbol symbol,
+        DataContainerSymbol framePointer,
+        ArrayBuilder<BoundExpression> prologue) {
+        if (_proxies.TryGetValue(symbol, out var proxy)) {
+            BoundExpression value;
+
+            switch (symbol.kind) {
+                case SymbolKind.Parameter:
+                    var parameter = (ParameterSymbol)symbol;
+                    ParameterSymbol parameterToUse;
+
+                    if (!_parameterMap.TryGetValue(parameter, out parameterToUse))
+                        parameterToUse = parameter;
+
+                    value = new BoundParameterExpression(syntax, parameterToUse, null, parameterToUse.type);
+                    break;
+                case SymbolKind.Local:
+                    var local = (DataContainerSymbol)symbol;
+
+                    if (_assignLocals is null || !_assignLocals.Contains(local))
+                        return;
+
+                    DataContainerSymbol localToUse;
+
+                    if (!_localMap.TryGetValue(local, out localToUse))
+                        localToUse = local;
+
+                    value = new BoundDataContainerExpression(syntax, localToUse, null, localToUse.type);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+            }
+
+            var left = proxy.Replacement(
+                syntax,
+                static (frameType1, arg)
+                    => new BoundDataContainerExpression(arg.syntax, arg.framePointer, null, arg.framePointer.type),
+                (syntax, framePointer)
+            );
+
+            var assignToProxy = new BoundAssignmentOperator(syntax, left, value, false, value.type);
+
+            if (_currentMethod.methodKind == MethodKind.Constructor &&
+                symbol == _currentMethod.thisParameter &&
+                !_seenBaseCall) {
+                _thisProxyInitDeferred = assignToProxy;
+            } else {
+                prologue.Add(assignToProxy);
+            }
+        }
     }
 
     private BoundBlockStatement RewriteBlock(
         BoundBlockStatement node,
         ArrayBuilder<BoundExpression> prologue,
         ArrayBuilder<DataContainerSymbol> newLocals) {
-        // RewriteLocals(node.locals, newLocals);
+        RewriteLocals(node.locals, newLocals);
 
         var newStatements = ArrayBuilder<BoundStatement>.GetInstance();
 
-        // InsertAndFreePrologue(newStatements, prologue);
+        InsertAndFreePrologue(newStatements, prologue);
 
         foreach (var statement in node.statements) {
             var replacement = (BoundStatement)Visit(statement);
@@ -595,19 +674,55 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         return node.Update(newStatements.ToImmutableAndFree(), newLocals.ToImmutableAndFree(), node.localFunctions);
     }
 
-    // TODO Visit Try/Catch
+    private static void InsertAndFreePrologue<T>(
+        ArrayBuilder<BoundStatement> result,
+        ArrayBuilder<T> prologue) where T : BoundNode {
+        foreach (var node in prologue) {
+            if (node is BoundStatement stmt)
+                result.Add(stmt);
+            else
+                result.Add(new BoundExpressionStatement(node.syntax, (BoundExpression)(BoundNode)node));
+        }
+
+        prologue.Free();
+    }
+
+    private void RewriteLocals(
+        ImmutableArray<DataContainerSymbol> locals,
+        ArrayBuilder<DataContainerSymbol> newLocals) {
+        foreach (var local in locals) {
+            if (TryRewriteLocal(local, out var newLocal))
+                newLocals.Add(newLocal);
+        }
+    }
+
+    private bool TryRewriteLocal(DataContainerSymbol local, out DataContainerSymbol newLocal) {
+        if (NeedsProxy(local)) {
+            newLocal = null;
+            return false;
+        }
+
+        if (_localMap.TryGetValue(local, out newLocal))
+            return true;
+
+        var newType = VisitType(local.type);
+
+        if (TypeSymbol.Equals(newType, local.type, TypeCompareKind.ConsiderEverything)) {
+            newLocal = local;
+        } else {
+            newLocal = new TypeSubstitutedLocalSymbol(local, new TypeWithAnnotations(newType), _currentMethod);
+            _localMap.Add(local, newLocal);
+        }
+
+        return true;
+    }
+
+    private bool NeedsProxy(Symbol localOrParameter) {
+        return _allCapturedVariables.Contains(localOrParameter);
+    }
 
     internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {
-        RewriteLambdaOrLocalFunction(
-            node,
-            out var closureKind,
-            out var translatedLambdaContainer,
-            out var containerAsFrame,
-            out var lambdaScope,
-            out var topLevelMethodOrdinal,
-            out var methodOrdinal
-        );
-
+        RewriteLambdaOrLocalFunction(node, out _, out _, out _, out _, out _, out _);
         return new BoundNopStatement(node.syntax);
     }
 
@@ -639,12 +754,9 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
             lambdaScope = null;
         }
 
-        // _compilationState.synthesizedMethods.AddSynthesizedDefinition(translatedLambdaContainer, synthesizedMethod.GetCciAdapter());
-
         foreach (var parameter in node.symbol.parameters)
             _parameterMap.Add(parameter, synthesizedMethod.parameters[parameter.ordinal]);
 
-        // rewrite the lambda body as the generated method's body
         var oldMethod = _currentMethod;
         var oldFrameThis = _currentFrameThis;
         var oldTemplateParameters = _currentTemplateParameters;
@@ -655,11 +767,8 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         _addedStatements = null;
         _addedLocals = null;
 
-        // switch to the generated method
-
         _currentMethod = synthesizedMethod;
         if (closureKind == ClosureKind.Static || closureKind == ClosureKind.Singleton) {
-            // no link from a static lambda to its container
             _innermostFramePointer = _currentFrameThis = null;
         } else {
             _currentFrameThis = synthesizedMethod.thisParameter;
@@ -671,11 +780,9 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         _currentBodyTemplateMap = synthesizedMethod.templateMap;
 
         if (node.body is BoundBlockStatement block) {
-            // var body = AddStatementsIfNeeded((BoundStatement)VisitBlock(block));
-            var body = (BoundBlockStatement)VisitBlockStatement(block);
+            var body = AddStatementsIfNeeded((BoundStatement)VisitBlockStatement(block));
             body = Lowerer.Flatten(synthesizedMethod, body);
-            // CheckLocalsDefined(body);
-            AddSynthesizedMethod(synthesizedMethod, body);
+            AddSynthesizedMethod(synthesizedMethod, (BoundBlockStatement)body);
         }
 
         _currentMethod = oldMethod;
@@ -689,9 +796,67 @@ internal sealed partial class LocalFunctionRewriter : BoundTreeRewriter {
         return synthesizedMethod;
     }
 
+    private BoundStatement AddStatementsIfNeeded(BoundStatement body) {
+        if (_addedLocals is not null) {
+            _addedStatements.Add(body);
+
+            body = new BoundBlockStatement(
+                body.syntax,
+                _addedStatements.ToImmutableAndFree(),
+                _addedLocals.ToImmutableAndFree(),
+                []
+            );
+
+            _addedLocals = null;
+            _addedStatements = null;
+        }
+
+        return body;
+    }
+
     private void AddSynthesizedMethod(MethodSymbol method, BoundBlockStatement body) {
         _synthesizedMethods ??= ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance();
         _synthesizedMethods.Add((method, body));
     }
 
+    private int GetLambdaId(
+        SyntaxNode syntax,
+        ClosureKind closureKind,
+        int closureOrdinal,
+        ImmutableArray<int> structClosureIds) {
+        // SyntaxNode? lambdaOrLambdaBodySyntax;
+        // bool isLambdaBody;
+
+        // if (syntax is LocalFunctionStatementSyntax localFunction) {
+        //     lambdaOrLambdaBodySyntax = localFunction.body;
+
+        //     if (lambdaOrLambdaBodySyntax is null) {
+        //         lambdaOrLambdaBodySyntax = localFunction;
+        //         isLambdaBody = false;
+        //     } else {
+        //         isLambdaBody = true;
+        //     }
+        // }
+
+        // int lambdaId;
+        // int previousLambdaId = default;
+
+        // if (closureRudeEdit == null &&
+        //     slotAllocator?.TryGetPreviousLambda(lambdaOrLambdaBodySyntax, isLambdaBody, closureOrdinal, structClosureIds, out previousLambdaId, out lambdaRudeEdit) == true &&
+        //     lambdaRudeEdit == null) {
+        //     lambdaId = previousLambdaId;
+        // } else {
+        //     lambdaId = new DebugId(_lambdaDebugInfoBuilder.Count, CompilationState.ModuleBuilderOpt.CurrentGenerationOrdinal);
+
+        //     var rudeEdit = closureRudeEdit ?? lambdaRudeEdit;
+        //     if (rudeEdit != null) {
+        //         _lambdaRuntimeRudeEditsBuilder.Add(new LambdaRuntimeRudeEditInfo(previousLambdaId, rudeEdit.Value));
+        //     }
+        // }
+
+        // int syntaxOffset = _topLevelMethod.CalculateLocalSyntaxOffset(LambdaUtilities.GetDeclaratorPosition(lambdaOrLambdaBodySyntax), lambdaOrLambdaBodySyntax.SyntaxTree);
+        // _lambdaDebugInfoBuilder.Add(new EncLambdaInfo(new LambdaDebugInfo(syntaxOffset, lambdaId, closureOrdinal), structClosureIds));
+        // return lambdaId;
+        return 1;
+    }
 }

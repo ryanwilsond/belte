@@ -92,18 +92,7 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
     }
 
     internal override void VisitVariableDeclaration(VariableDeclarationSyntax node) {
-        var argumentSyntax = node.parent as ArgumentSyntax;
-        var argumentListSyntaxOpt = argumentSyntax?.parent as ArgumentListSyntax;
-        var variable = MakeDeclarationExpressionVariable(
-            node,
-            node.identifier,
-            argumentListSyntaxOpt,
-            null,
-            _nodeToBind
-        );
-
-        if (variable is not null)
-            _variablesBuilder.Add(variable);
+        VisitNodeToBind(node.initializer);
     }
 
     internal override void VisitAssignmentExpression(AssignmentExpressionSyntax node) {

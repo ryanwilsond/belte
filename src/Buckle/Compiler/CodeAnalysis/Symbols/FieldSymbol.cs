@@ -56,6 +56,10 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal sealed override bool isVirtual => false;
 
+    internal virtual bool isCapturedFrame => false;
+
+    internal bool isMetadataConstant => isConstExpr;
+
     internal abstract ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress);
 
     internal abstract TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound);

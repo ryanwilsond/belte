@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.Libraries;
 
@@ -27,4 +29,8 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
     internal override int parameterCount => parameters.Length;
 
     internal override Symbol containingSymbol { get; }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

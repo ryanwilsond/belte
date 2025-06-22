@@ -62,7 +62,12 @@ internal abstract class BoundTreeExpander {
         foreach (var childStatement in statement.statements)
             statements.AddRange(ExpandStatement(childStatement));
 
-        return [Block(statement.syntax, statements.ToArray())];
+        return [new BoundBlockStatement(
+            statement.syntax,
+            statements.ToImmutableArray(),
+            statement.locals,
+            statement.localFunctions
+        )];
     }
 
     private protected virtual List<BoundStatement> ExpandLocalDeclarationStatement(

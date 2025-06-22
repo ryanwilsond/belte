@@ -126,6 +126,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         return visitor.VisitMethod(this, argument);
     }
 
+    internal abstract int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree);
+
     internal virtual bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         thisParameter = null;
         return false;

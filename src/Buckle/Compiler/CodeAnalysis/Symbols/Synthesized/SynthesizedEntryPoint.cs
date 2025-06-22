@@ -82,6 +82,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         return GetBodyBinder(ignoreAccessibility);
     }
 
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        return localPosition;
+    }
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) { }
