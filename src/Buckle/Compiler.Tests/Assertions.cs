@@ -38,15 +38,20 @@ internal static class Assertions {
             BaseCompilation
         );
 
-        var result = compilation.Evaluate(false);
+        var evalResult = compilation.Evaluate(false);
 
-        if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
+        if (evalResult.value is double && Convert.ToDouble(expectedValue).CompareTo(evalResult.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
-        else if (result.value is long && Convert.ToInt64(expectedValue).CompareTo(result.value) == 0)
+        else if (evalResult.value is long && Convert.ToInt64(expectedValue).CompareTo(evalResult.value) == 0)
             expectedValue = Convert.ToInt64(expectedValue);
 
-        Assert.Empty(result.diagnostics.Errors().ToArray());
-        Assert.Equal(expectedValue, result.value);
+        Assert.Empty(evalResult.diagnostics.Errors().ToArray());
+        Assert.Equal(expectedValue, evalResult.value);
+
+        var execDiags = compilation.Execute(false, false, out var execResult);
+
+        Assert.Empty(execDiags.Errors().ToArray());
+        Assert.Equal(expectedValue, execResult);
     }
 
     /// <summary>

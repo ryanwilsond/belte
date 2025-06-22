@@ -1316,28 +1316,62 @@ internal partial class Binder {
         TypeSymbol destinationType,
         BindValueKind valueKind,
         BelteDiagnosticQueue diagnostics) {
-        return BindValue(node, diagnostics, valueKind);
-        // TODO Do we want to distinguish collection expressions from array initializers?
-        // if (node.kind != SyntaxKind.InitializerListExpression)
-        //     return BindValue(node, diagnostics, valueKind);
+        if (node.kind != SyntaxKind.InitializerListExpression)
+            return BindValue(node, diagnostics, valueKind);
 
-        // BoundExpression result;
-        // if (destinationType.kind == SymbolKind.ArrayType) {
+        var result = BindValue(node, diagnostics, valueKind);
+
+        // if (destinationType.StrippedType().kind == SymbolKind.ArrayType) {
         //     result = BindArrayCreationWithInitializer(
         //         diagnostics,
         //         null,
         //         (InitializerListExpressionSyntax)node,
-        //         (ArrayTypeSymbol)destinationType,
+        //         (ArrayTypeSymbol)destinationType.StrippedType(),
         //         []
         //     );
         // } else {
-        //     // TODO Pretty sure we can just do nothing and a conversion error will be produced somewhere
-        //     result = BindValue(node, diagnostics, valueKind);
-        //     // result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)node, diagnostics, ErrorCode.ERR_ArrayInitToNonArrayType);
-        //     // result = null;
+        //     result = BindUnexpectedArrayInitializer(
+        //         (InitializerListExpressionSyntax)node,
+        //         diagnostics,
+        //         Error.ArrayInitToNonArrayType(node.location)
+        //     );
         // }
 
-        // return CheckValue(result, valueKind, diagnostics);
+        if (destinationType.StrippedType().kind != SymbolKind.ArrayType)
+            diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
+
+        return CheckValue(result, valueKind, diagnostics);
+    }
+
+    private BoundExpression BindUnexpectedArrayInitializer(
+        InitializerListExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        BelteDiagnostic error) {
+        var tryArrayCreation = BindArrayCreationWithInitializer(
+            diagnostics,
+            null,
+            node,
+            CreateArrayTypeSymbol(CorLibrary.GetSpecialType(SpecialType.Any)),
+            [BoundFactory.Literal(node, 1, CorLibrary.GetSpecialType(SpecialType.Int))]
+        );
+
+        BoundExpression result = tryArrayCreation;
+
+        if (!result.hasErrors) {
+            var initializer = tryArrayCreation.initializer is BoundCastExpression c
+                ? (BoundInitializerList)c.operand
+                : (BoundInitializerList)tryArrayCreation.initializer;
+
+            result = new BoundInitializerList(
+                node,
+                initializer.items,
+                initializer.type,
+                hasErrors: true
+            );
+        }
+
+        diagnostics.Push(error);
+        return result;
     }
 
     internal static bool IsAnyReadOnly(AddressKind addressKind) => addressKind >= AddressKind.ReadOnly;
@@ -2587,7 +2621,7 @@ internal partial class Binder {
         diagnostics.Push(Error.CannotConvert(syntax.location, operand.type, targetType));
     }
 
-    private BoundExpression BindArrayCreationWithInitializer(
+    private BoundArrayCreationExpression BindArrayCreationWithInitializer(
         BelteDiagnosticQueue diagnostics,
         ExpressionSyntax creationSyntax,
         InitializerListExpressionSyntax initSyntax,
@@ -2595,15 +2629,13 @@ internal partial class Binder {
         ImmutableArray<BoundExpression> sizes,
         ImmutableArray<BoundExpression> boundInitializerExpression = default,
         bool hasErrors = false) {
-        // TODO Double check this method thoroughly
         BoundExpression initializerList = BindInitializerListExpression(initSyntax, diagnostics);
         initializerList = GenerateConversionForAssignment(type, initializerList, diagnostics);
 
         hasErrors = hasErrors || initializerList.hasErrors;
         var nonNullSyntax = (SyntaxNode)creationSyntax ?? initSyntax;
 
-        // return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
-        return ErrorExpression(creationSyntax);
+        return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
     }
 
     private BoundExpression BindArrayCreationExpression(
@@ -3187,7 +3219,8 @@ internal partial class Binder {
         SimpleNameSyntax node,
         Symbol symbol,
         BelteDiagnosticQueue diagnostics) {
-        if (symbol.containingSymbol is SynthesizedEntryPoint && containingMember is not SynthesizedEntryPoint) {
+        if (symbol.containingSymbol is SynthesizedEntryPoint &&
+            !containingType.Equals(symbol.containingSymbol.containingType)) {
             diagnostics.Push(Error.ProgramLocalReferencedOutsideOfTopLevelStatement(node.location, node));
             return true;
         }
@@ -3986,7 +4019,7 @@ internal partial class Binder {
         if (fieldSymbol.isConstExpr && !isInsideNameof) {
             constantValueOpt = fieldSymbol.GetConstantValue(constantFieldsInProgress);
 
-            if (constantValueOpt == ConstantValue.Unset)
+            if ((object)constantValueOpt == (object)ConstantValue.Unset)
                 constantValueOpt = null;
         }
 
@@ -8254,7 +8287,8 @@ symIsHidden:;
                           and not BoundErrorExpression
                           and not BoundCompoundAssignmentOperator
                           and not BoundThrowExpression
-                          and not BoundIncrementOperator) {
+                          and not BoundIncrementOperator
+                          and not BoundNullCoalescingAssignmentOperator) {
                 diagnostics.Push(Error.InvalidExpressionStatement(node.location));
             }
         }
@@ -8571,6 +8605,8 @@ symIsHidden:;
                     return BoundFactory.Literal(argument.syntax, null, returnType);
                 else
                     return BindToNaturalType(argument, diagnostics);
+            } else if (!conversion.isImplicit || !conversion.exists) {
+                GenerateImplicitConversionError(diagnostics, argument.syntax, conversion, argument, returnType);
             }
         }
 
@@ -8804,13 +8840,13 @@ symIsHidden:;
         var constantValue = ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination));
 
         return new BoundCastExpression(
-                node,
-                BindToNaturalType(source, diagnostics),
-                conversion,
-                constantValue,
-                destination,
-                hasErrors
-            );
+            node,
+            BindToNaturalType(source, diagnostics),
+            conversion,
+            constantValue,
+            destination,
+            hasErrors
+        );
     }
 
     internal BoundExpression CreateConversion(

@@ -590,6 +590,11 @@ public sealed class DisplayText {
     private static void DisplayDataContainerDeclaration(DisplayText text, BoundDataContainerDeclaration node) {
         var dataContainer = node.dataContainer;
 
+        if (dataContainer.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
         SymbolDisplay.DisplayType(
             text,
             dataContainer.type,
@@ -601,6 +606,12 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
+
+        if (dataContainer.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
         DisplayNode(text, node.initializer);
         text.WriteLine();
     }
@@ -655,7 +666,12 @@ public sealed class DisplayText {
     private static void DisplayArrayCreationExpression(DisplayText text, BoundArrayCreationExpression node) {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.DisplayType(text, node.type);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.BoundDisplayFormat);
+
+        if (node.initializer is not null) {
+            text.Write(CreateSpace());
+            DisplayNode(text, node.initializer);
+        }
     }
 
     private static void DisplayThisExpression(DisplayText text) {

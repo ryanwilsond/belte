@@ -40,17 +40,16 @@ public static partial class Profiler {
                 }
             }
         ",
-        // TODO Broken
-        // @"
-        //     public static class Program {
-        //         static int! sum(int! acc, int! n) {
-        //             return n == 0 ? acc : sum(acc + n, n - 1);
-        //         }
-        //         public static void Main() {
-        //             Console.PrintLine(sum(0, 10000));
-        //         }
-        //     }
-        // ",
+        @"
+            public static class Program {
+                static int! sum(int! acc, int! n) {
+                    return n == 0 ? acc : sum(acc + n, n - 1);
+                }
+                public static void Main() {
+                    Console.PrintLine(sum(0, 10000));
+                }
+            }
+        ",
         @"
             class A {}
             for (int! i = 0; i < 100000; i++) {

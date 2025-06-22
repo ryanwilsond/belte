@@ -1761,6 +1761,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadUsingStaticType, location, message);
     }
 
+    internal static BelteDiagnostic ArrayInitToNonArrayType(TextLocation location) {
+        var message = $"can only use array initializer expressions to assign to array types; try using a new expression instead";
+        return CreateError(DiagnosticCode.ERR_ArrayInitToNonArrayType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

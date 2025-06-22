@@ -99,4 +99,5 @@ internal enum OpCode : byte {
     Pop,
     Ldtoken,
     Conv_I4,
+    Throw,
 }

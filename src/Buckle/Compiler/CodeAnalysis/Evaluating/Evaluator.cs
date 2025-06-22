@@ -549,7 +549,6 @@ internal sealed class Evaluator {
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
             BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)expression, abort),
-            BoundKind.InitializerList => EvaluateInitializerList((BoundInitializerList)expression, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)expression, abort),
@@ -617,6 +616,12 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateArrayCreationExpression(
         BoundArrayCreationExpression node,
         ValueWrapper<bool> abort) {
+        if (node.initializer is BoundInitializerList initList)
+            return EvaluateInitializerList(initList, abort);
+
+        if (node.initializer is BoundCastExpression { operand.kind: BoundKind.InitializerList } c)
+            return EvaluateInitializerList((BoundInitializerList)c.operand, abort);
+
         var array = EvaluatorObject.GetInstance();
         var arrayType = (ArrayTypeSymbol)node.type;
 

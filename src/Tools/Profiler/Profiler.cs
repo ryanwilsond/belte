@@ -135,7 +135,7 @@ public static partial class Profiler {
             var comp1 = Compilation.Create("Profiling", DefaultOptions, CorLibrary, st1);
 
             try {
-                var executeDiagnostics = comp1.Execute(false, true).ToArray();
+                var executeDiagnostics = comp1.Execute(logTime: true).ToArray();
 
                 if (executeDiagnostics.Length != 3) {
                     result.eE = $"Executor produced too many ({executeDiagnostics.Length}) diagnostics!";
@@ -171,8 +171,7 @@ public static partial class Profiler {
             var comp3 = Compilation.Create("Profiling", DefaultOptions, CorLibrary, st3);
 
             try {
-                var evaluateDiagnostics = comp3.Evaluate(false, true).diagnostics.ToArray();
-
+                var evaluateDiagnostics = comp3.Evaluate(false, logTime: true).diagnostics.ToArray();
 
                 if (evaluateDiagnostics.Length != 2) {
                     result.evE = $"Evaluator produced too many ({evaluateDiagnostics.Length}) diagnostics!";

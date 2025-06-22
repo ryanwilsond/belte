@@ -349,6 +349,7 @@ public enum DiagnosticCode : ushort {
     ERR_DuplicateUsing = 338,
     ERR_BadUsingNamespace = 339,
     ERR_BadUsingStaticType = 340,
+    ERR_ArrayInitToNonArrayType = 341,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

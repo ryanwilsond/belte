@@ -13,5 +13,6 @@
 
 *.dot
 *.g.cs
+*.g.blt
 *.Generated.cs
 *.log

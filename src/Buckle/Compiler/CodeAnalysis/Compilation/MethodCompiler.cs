@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -15,11 +16,12 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly MethodSymbol _entryPoint;
     private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly Predicate<Symbol> _filter;
+
+    private MethodSymbol _entryPoint;
 
     private MethodCompiler(
         Compilation compilation,
@@ -186,7 +188,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             state,
             currentDiagnostics,
             includeInitializers,
-            analyzedInitializers
+            analyzedInitializers,
+            ref _entryPoint
         );
 
         if (body is null || !_emitting || currentDiagnostics.AnyErrors()) {
@@ -242,7 +245,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         TypeCompilationState state,
         BelteDiagnosticQueue diagnostics,
         bool includeInitializers,
-        BoundBlockStatement initializersBody) {
+        BoundBlockStatement initializersBody,
+        ref MethodSymbol entryPoint) {
         BoundBlockStatement body = null;
         var syntax = method.GetNonNullSyntaxNode();
         initializersBody ??= new BoundBlockStatement(syntax, [], [], []);
@@ -303,6 +307,42 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (constructorInitializer is not null)
             builder.Add(constructorInitializer);
+
+        if (method == entryPoint && method is SynthesizedEntryPoint synth && body.localFunctions.Length > 0) {
+            var candidateLocals = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var local in body.localFunctions) {
+                if (Compilation.HasEntryPointSignature(local))
+                    candidateLocals.Add(local);
+            }
+
+            if (candidateLocals.Count > 0) {
+                var bodyHasLogic = body.statements.Any(t => t.kind != BoundKind.LocalFunctionStatement);
+
+                if (bodyHasLogic)
+                    candidateLocals.Add(synth);
+
+                var newEntryPoint = Compilation.SelectEntryPoint(
+                    bodyHasLogic ? synth : null,
+                    candidateLocals.ToImmutableAndFree(),
+                    diagnostics,
+                    false
+                );
+
+                if (newEntryPoint is not null && !bodyHasLogic) {
+                    body = new BoundBlockStatement(
+                        syntax,
+                        [
+                            ..body.statements,
+                            BoundFactory.Statement(syntax, BoundFactory.Call(syntax, newEntryPoint)),
+                            new BoundReturnStatement(syntax, RefKind.None, null),
+                        ],
+                        body.locals,
+                        body.localFunctions
+                    );
+                }
+            }
+        }
 
         if (body is not null)
             builder.Add(body);

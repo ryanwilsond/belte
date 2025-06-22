@@ -68,6 +68,16 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitNewobjNullable(TypeSymbol generic);
 
+    internal abstract void EmitThrowNullCondition();
+
+    internal abstract void EmitArrayAddress(ArrayTypeSymbol type);
+
+    internal abstract void EmitArraySet(ArrayTypeSymbol type);
+
+    internal abstract void EmitArrayGet(ArrayTypeSymbol type);
+
+    internal abstract void EmitArrayCreate(ArrayTypeSymbol type);
+
     internal abstract VariableDefinition AllocateTemp(TypeSymbol type, bool isRef);
 
     internal abstract VariableDefinition GetLocal(DataContainerSymbol local);

@@ -130,13 +130,14 @@ public sealed class Compiler {
         var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
-            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
-
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {
                 ReportAndReturnLibraryErrors();
                 return;
             }
 
+            var libTime = LogLibraryLoadTime(timer);
+
+            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
             var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
             if (state.noOut) {
@@ -144,11 +145,11 @@ public sealed class Compiler {
                 return;
             }
 
-            LogParseTime(timer, syntaxTrees.Length);
+            LogParseTime(timer, libTime, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.time);
+                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode, state.time);
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
@@ -160,15 +161,17 @@ public sealed class Compiler {
         } else {
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
-            ref var task = ref state.tasks[0];
-            var sourceText = new StringText(task.inputFileName, task.fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
-            task.stage = CompilerStage.Finished;
-
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {
                 ReportAndReturnLibraryErrors();
                 return;
             }
+
+            var libTime = LogLibraryLoadTime(timer);
+
+            ref var task = ref state.tasks[0];
+            var sourceText = new StringText(task.inputFileName, task.fileContent.text);
+            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
+            task.stage = CompilerStage.Finished;
 
             var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree, corLibrary);
 
@@ -177,7 +180,7 @@ public sealed class Compiler {
                 return;
             }
 
-            LogParseTime(timer, 1);
+            LogParseTime(timer, libTime, 1);
 
             void Wrapper(object parameter) {
                 var result = compilation.Interpret((ValueWrapper<bool>)parameter, state.time);
@@ -192,19 +195,21 @@ public sealed class Compiler {
 
     private void InternalCompiler() {
         var timer = state.time ? Stopwatch.StartNew() : null;
-        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
 
         if (GetCorLibrary(out var corLibrary).AnyErrors()) {
             ReportAndReturnLibraryErrors();
             return;
         }
 
+        var libTime = LogLibraryLoadTime(timer);
+
+        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
         if (state.noOut)
             return;
 
-        LogParseTime(timer, syntaxTrees.Length);
+        LogParseTime(timer, libTime, syntaxTrees.Length);
 
         diagnostics.PushRange(compilation.Emit(state.outputFilename, state.time));
 
@@ -228,11 +233,22 @@ public sealed class Compiler {
         return builder.ToArrayAndFree();
     }
 
-    private void LogParseTime(Stopwatch timer, int count) {
+    private void LogParseTime(Stopwatch timer, long libTime, int count) {
         if (timer is null)
             return;
 
-        Log(timer, $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds} ms");
+        Log(timer, $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds - libTime} ms");
+    }
+
+    private long LogLibraryLoadTime(Stopwatch timer) {
+        if (timer is null)
+            return 0;
+
+        var libTime = timer.ElapsedMilliseconds;
+
+        Log(timer, $"Loaded the Standard Library in {libTime} ms");
+
+        return libTime;
     }
 
     private void LogCompilationTime(Stopwatch timer) {

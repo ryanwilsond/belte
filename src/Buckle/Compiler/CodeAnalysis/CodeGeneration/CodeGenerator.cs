@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.Binder;
@@ -68,14 +69,26 @@ internal sealed partial class CodeGenerator {
         _expressionTemps?.Free();
     }
 
+    internal static bool IsReferenceType(SpecialType type) {
+        return type == SpecialType.String ||
+               type == SpecialType.Array ||
+               type == SpecialType.Any ||
+               type == SpecialType.Type;
+    }
+
+    internal static bool IsValueType(SpecialType type) {
+        return type != SpecialType.String &&
+               type != SpecialType.Array &&
+               type != SpecialType.Any &&
+               type != SpecialType.Type;
+    }
+
     internal static bool IsReferenceType(TypeSymbol type) {
-        return (type.isObjectType && !IsTrueNullable(type)) ||
-            type.specialType == SpecialType.String || type.specialType == SpecialType.Array;
+        return (type.isObjectType && !IsTrueNullable(type)) || IsReferenceType(type.specialType);
     }
 
     internal static bool IsValueType(TypeSymbol type) {
-        return (type.isPrimitiveType || IsTrueNullable(type)) &&
-            type.specialType != SpecialType.String && type.specialType != SpecialType.Array;
+        return (type.isPrimitiveType || IsTrueNullable(type)) && IsValueType(type.specialType);
     }
 
     private static bool IsTrueNullable(TypeSymbol type) {
@@ -215,13 +228,26 @@ internal sealed partial class CodeGenerator {
         if (ShouldEmitReadOnlyPrefix(arrayAccess, addressKind))
             _builder.Emit(OpCode.Readonly);
 
-        if (((ArrayTypeSymbol)arrayAccess.receiver.type.StrippedType()).isSZArray) {
+        if (((ArrayTypeSymbol)arrayAccess.receiver.type.StrippedType()).isSZArray)
             _builder.EmitWithSymbolToken(OpCode.Ldelema, arrayAccess.type);
-        } else {
-            // TODO We only have SZ arrays currently?
-            // _builder.EmitArrayElementAddress(_module.Translate((ArrayTypeSymbol)arrayAccess.Expression.Type),
-            //                                 arrayAccess.Syntax, _diagnostics.DiagnosticBag);
-        }
+        else
+            EmitArrayElementAddressInternal((ArrayTypeSymbol)arrayAccess.index.type);
+    }
+
+    private void EmitArrayElementAddressInternal(ArrayTypeSymbol type) {
+        _builder.EmitArrayAddress(type);
+    }
+
+    private void EmitArrayElementStoreInternal(ArrayTypeSymbol type) {
+        _builder.EmitArraySet(type);
+    }
+
+    private void EmitArrayElementLoadInternal(ArrayTypeSymbol type) {
+        _builder.EmitArrayGet(type);
+    }
+
+    private void EmitArrayCreation(ArrayTypeSymbol type) {
+        _builder.EmitArrayCreate(type);
     }
 
     private bool ShouldEmitReadOnlyPrefix(BoundArrayAccessExpression arrayAccess, AddressKind addressKind) {
@@ -363,7 +389,9 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
-        if (constant.value is null) {
+        var value = constant.value;
+
+        if (value is null) {
             if (IsReferenceType(type.StrippedType()))
                 _builder.Emit(OpCode.Ldnull);
             else
@@ -374,25 +402,46 @@ internal sealed partial class CodeGenerator {
 
         switch (type.specialType) {
             case SpecialType.Int:
-                EmitLongConstant((long)constant.value);
+                EmitLongConstant((long)value);
                 break;
             case SpecialType.Bool:
-                EmitBoolConstant((bool)constant.value);
+                EmitBoolConstant((bool)value);
                 break;
             case SpecialType.Decimal:
-                EmitDoubleConstant((double)constant.value);
+                EmitDoubleConstant((double)value);
                 break;
             case SpecialType.String:
-                EmitStringConstant((string)constant.value);
+                EmitStringConstant((string)value);
                 break;
-            case SpecialType.Nullable:
-                var underlyingType = type.GetNullableUnderlyingType();
-                EmitConstantValue(new ConstantValue(constant.value, underlyingType.specialType), underlyingType);
-                _builder.EmitNewobjNullable(underlyingType);
+            case SpecialType.Nullable: {
+                    var underlyingType = type.GetNullableUnderlyingType();
+
+                    if (IsValueType(underlyingType)) {
+                        EmitConstantValue(new ConstantValue(value, underlyingType.specialType), underlyingType);
+                        _builder.EmitNewobjNullable(underlyingType);
+                    } else if (underlyingType.specialType == SpecialType.Any) {
+                        goto case SpecialType.Any;
+                    } else {
+                        var inferredType = InferType(value);
+                        EmitConstantValue(constant, inferredType);
+                    }
+                }
+
+                break;
+            case SpecialType.Any: {
+                    var inferredType = InferType(value);
+                    EmitConstantValue(constant, inferredType);
+                    EmitBox(inferredType);
+                }
+
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(constant.specialType);
         }
+    }
+
+    private TypeSymbol InferType(object value) {
+        return CorLibrary.GetSpecialType(LiteralUtilities.AssumeTypeFromLiteral(value));
     }
 
     private void EmitDoubleConstant(double value) {
@@ -510,9 +559,7 @@ oneMoreTime:
         OpCode iLCode;
 
         if (condition.constantValue is not null) {
-            // TODO Add when default values are added
-            // bool taken = condition.constantValue.IsDefaultValue != sense;
-            var taken = false != sense;
+            var taken = condition.constantValue.isDefaultValue != sense;
 
             if (taken) {
                 dest ??= new object();
@@ -856,9 +903,6 @@ oneMoreTime:
             case BoundKind.ArrayCreationExpression:
                 EmitArrayCreationExpression((BoundArrayCreationExpression)expression, used);
                 break;
-            case BoundKind.InitializerList:
-                EmitInitializerList((BoundInitializerList)expression, used);
-                break;
             case BoundKind.ArrayAccessExpression:
                 EmitArrayElementLoad((BoundArrayAccessExpression)expression, used);
                 break;
@@ -939,35 +983,31 @@ oneMoreTime:
                     break;
             }
         } else {
-            // TODO Only SZ currently?
-            // _builder.EmitArrayElementLoad(_module.Translate((ArrayTypeSymbol)arrayAccess.Expression.Type), arrayAccess.Expression.Syntax, _diagnostics.DiagnosticBag);
+            EmitArrayElementLoadInternal((ArrayTypeSymbol)expression.index.type);
         }
 
         EmitPopIfUnused(used);
-    }
-
-    private void EmitInitializerList(BoundInitializerList expression, bool used) {
-        throw new NotImplementedException();
     }
 
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
-        var arrayType = (ArrayTypeSymbol)expression.type;
+        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
 
         EmitArrayIndices(expression.sizes);
 
-        if (arrayType.isSZArray) {
+        if (arrayType.isSZArray)
             _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
-        } else {
-            // TODO Only SZ currently?
-            // _builder.EmitArrayCreation(_module.Translate(arrayType), expression.Syntax, _diagnostics.DiagnosticBag);
-        }
+        else
+            EmitArrayCreation(arrayType);
 
-        if (expression.initializer is not null) {
-            // TODO arrays
-            // EmitArrayInitializers(arrayType, expression.initializer);
-        }
+        if (expression.initializer is not null)
+            EmitArrayInitializers(arrayType, expression.initializer as BoundInitializerList);
 
         EmitPopIfUnused(used);
+    }
+
+    private void EmitArrayInitializers(ArrayTypeSymbol arrayType, BoundInitializerList initList) {
+        var initExprs = initList.items;
+        EmitElementInitializers(arrayType, initExprs, true);
     }
 
     private void EmitObjectCreationExpression(BoundObjectCreationExpression expression, bool used) {
@@ -991,6 +1031,87 @@ oneMoreTime:
         }
     }
 
+    private void EmitElementInitializers(
+        ArrayTypeSymbol arrayType,
+        ImmutableArray<BoundExpression> inits,
+        bool includeConstants) {
+        if (!IsMultidimensionalInitializer(inits)) {
+            EmitVectorElementInitializers(arrayType, inits, includeConstants);
+        } else {
+            EmitMultidimensionalElementInitializers(arrayType, inits, includeConstants);
+        }
+    }
+
+    private void EmitVectorElementInitializers(
+        ArrayTypeSymbol arrayType,
+        ImmutableArray<BoundExpression> inits,
+        bool includeConstants) {
+        for (var i = 0; i < inits.Length; i++) {
+            var init = inits[i];
+
+            if (ShouldEmitInitExpression(includeConstants, init)) {
+                _builder.Emit(OpCode.Dup);
+                EmitIntConstant(i);
+                EmitExpression(init, true);
+                EmitVectorElementStore(arrayType);
+            }
+        }
+    }
+
+    private void EmitMultidimensionalElementInitializers(
+        ArrayTypeSymbol arrayType,
+        ImmutableArray<BoundExpression> inits,
+        bool includeConstants) {
+        var indices = new ArrayBuilder<IndexDesc>();
+
+        for (var i = 0; i < inits.Length; i++) {
+            indices.Push(new IndexDesc(i, ((BoundInitializerList)inits[i]).items));
+            EmitAllElementInitializersRecursive(arrayType, indices, includeConstants);
+        }
+    }
+
+    private void EmitAllElementInitializersRecursive(
+        ArrayTypeSymbol arrayType,
+        ArrayBuilder<IndexDesc> indices,
+        bool includeConstants) {
+        var top = indices.Peek();
+        var inits = top.initializers;
+
+        if (IsMultidimensionalInitializer(inits)) {
+            for (var i = 0; i < inits.Length; i++) {
+                indices.Push(new IndexDesc(i, ((BoundInitializerList)inits[i]).items));
+                EmitAllElementInitializersRecursive(arrayType, indices, includeConstants);
+            }
+        } else {
+            for (var i = 0; i < inits.Length; i++) {
+                var init = inits[i];
+
+                if (ShouldEmitInitExpression(includeConstants, init)) {
+                    _builder.Emit(OpCode.Dup);
+
+                    foreach (var row in indices)
+                        EmitIntConstant(row.index);
+
+                    EmitIntConstant(i);
+
+                    var initExpr = inits[i];
+                    EmitExpression(initExpr, true);
+                    EmitArrayElementStore(arrayType);
+                }
+            }
+        }
+
+        indices.Pop();
+    }
+
+    private static bool ShouldEmitInitExpression(bool includeConstants, BoundExpression init) {
+        return includeConstants || init.constantValue is null;
+    }
+
+    private static bool IsMultidimensionalInitializer(ImmutableArray<BoundExpression> inits) {
+        return inits.Length != 0 && inits[0].kind == BoundKind.InitializerList;
+    }
+
     private bool ConstructorNotSideEffecting(MethodSymbol constructor) {
         var originalDef = constructor.originalDefinition;
 
@@ -1012,7 +1133,13 @@ oneMoreTime:
         var receiver = expression.receiver;
         var arguments = expression.arguments;
 
-        if (method.containingType.Equals(Libraries.StandardLibrary.Random.underlyingNamedType)) {
+        if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType) &&
+            method.name == "ThrowNullConditionException") {
+            _builder.EmitThrowNullCondition();
+            return;
+        }
+
+        if (method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
             EmitRandomCall(method, arguments, expression.argumentRefKinds, useKind);
             return;
         }
@@ -2115,7 +2242,7 @@ oneMoreTime:
                 break;
             case BoundKind.ArrayAccessExpression:
                 var array = ((BoundArrayAccessExpression)expression).receiver;
-                var arrayType = (ArrayTypeSymbol)array.type;
+                var arrayType = (ArrayTypeSymbol)array.type.StrippedType();
                 EmitArrayElementStore(arrayType);
                 break;
             case BoundKind.ThisExpression:
@@ -2148,12 +2275,10 @@ oneMoreTime:
     }
 
     private void EmitArrayElementStore(ArrayTypeSymbol arrayType) {
-        if (arrayType.isSZArray) {
+        if (arrayType.isSZArray)
             EmitVectorElementStore(arrayType);
-        } else {
-            // TODO Only SZ?
-            // _builder.EmitArrayElementStore(_module.Translate(arrayType), syntaxNode, _diagnostics.DiagnosticBag);
-        }
+        else
+            EmitArrayElementStoreInternal(arrayType);
     }
 
     private void EmitVectorElementStore(ArrayTypeSymbol arrayType) {

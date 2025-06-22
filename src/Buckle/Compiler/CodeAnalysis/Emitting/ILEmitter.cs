@@ -149,29 +149,38 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    internal TypeReference GetType(TypeSymbol type) {
-        if (type.specialType == SpecialType.Nullable) {
-            var underlyingType = type.GetNullableUnderlyingType();
-            var genericArgumentType = GetType(underlyingType);
+    internal TypeReference GetType(TypeSymbol type, bool byRef = false) {
+        var typeRef = GetTypeCore(type);
 
-            if (!CodeGenerator.IsValueType(underlyingType))
-                return genericArgumentType;
+        if (byRef)
+            typeRef = typeRef.MakeByReferenceType();
 
-            var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
-            typeReference.GenericArguments.Add(genericArgumentType);
-            return typeReference;
+        return typeRef;
+
+        TypeReference GetTypeCore(TypeSymbol type) {
+            if (type.specialType == SpecialType.Nullable) {
+                var underlyingType = type.GetNullableUnderlyingType();
+                var genericArgumentType = GetTypeCore(underlyingType);
+
+                if (!CodeGenerator.IsValueType(underlyingType))
+                    return genericArgumentType;
+
+                var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+                typeReference.GenericArguments.Add(genericArgumentType);
+                return typeReference;
+            }
+
+            if (type is ArrayTypeSymbol array) {
+                var elementType = GetTypeCore(array.elementType);
+                var arrayType = elementType.MakeArrayType(array.rank);
+                return arrayType.Resolve();
+            }
+
+            if (type.specialType != SpecialType.None)
+                return _specialTypes[type.specialType];
+
+            return _types[type.originalDefinition];
         }
-
-        if (type is ArrayTypeSymbol array) {
-            var elementType = GetType(array.elementType);
-            var arrayType = elementType.MakeArrayType(array.rank);
-            return arrayType.Resolve();
-        }
-
-        if (type.specialType != SpecialType.None)
-            return _specialTypes[type.specialType];
-
-        return _types[type.originalDefinition];
     }
 
     internal MethodReference GetMethod(MethodSymbol method) {
@@ -363,7 +372,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
-                var fieldDefinition = new FieldDefinition(f.name, GetFieldAttributes(f), GetType(f.type));
+                var fieldDefinition = new FieldDefinition(
+                    f.name,
+                    GetFieldAttributes(f),
+                    GetType(f.type, f.refKind != RefKind.None)
+                );
+
                 _fields.Add(f, fieldDefinition);
                 typeDefinition.Fields.Add(fieldDefinition);
             } else if (member is NamedTypeSymbol t) {
@@ -382,14 +396,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var methodDefinition = new MethodDefinition(
             method.name,
             GetMethodAttributes(method),
-            GetType(method.returnType)
+            GetType(method.returnType, method.returnsByRef)
         );
 
         foreach (var parameter in method.parameters) {
             var parameterDefinition = new Mono.Cecil.ParameterDefinition(
                 parameter.name,
                 ParameterAttributes.None,
-                GetType(parameter.type)
+                GetType(parameter.type, parameter.refKind != RefKind.None)
             );
 
             methodDefinition.Parameters.Add(parameterDefinition);
@@ -545,6 +559,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             (SpecialType.Nullable, "System.Nullable`1"),
             (SpecialType.Void, "System.Void"),
             (SpecialType.Type, "System.Type"),
+            (SpecialType.Char, "System.Char"),
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
@@ -589,6 +604,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
+        NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
     }
 
     private void GenerateSTLMap() {
@@ -626,6 +642,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
             { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
             { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
+            { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
+            { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
+            { "Math_Pow_I?I?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
         };
     }
 }

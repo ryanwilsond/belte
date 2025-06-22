@@ -135,15 +135,7 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitGetTypeFromHandle(TypeSymbol type) {
-        var getTypeFromHandle = _module.GetType(type).GetMethod(
-            "GetTypeFromHandle",
-            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
-            null,
-            [typeof(RuntimeTypeHandle)],
-            null
-        );
-
-        EmitWithSymbolToken(OpCodes.Call, getTypeFromHandle);
+        EmitWithSymbolToken(OpCodes.Call, Executor.MethodInfoCache.Type_GetTypeFromHandle);
     }
 
     internal override void EmitNullAssert(TypeSymbol type) {
@@ -164,6 +156,9 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
+
+        if (to is SpecialType.Object or SpecialType.Any && CodeGenerator.IsReferenceType(from))
+            return;
 
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
@@ -211,12 +206,33 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Ldsfld, _module.randomField);
     }
 
+    internal override void EmitThrowNullCondition() {
+        _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
+        _iLGenerator.Emit(OpCodes.Throw);
+    }
+
+    internal override void EmitArrayAddress(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitArrayCreate(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitArrayGet(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitArraySet(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
     internal override VariableDefinition GetLocal(DataContainerSymbol local) {
         return _locals[local];
     }
 
     internal override void DeclareLocal(DataContainerSymbol local) {
-        var typeBuilder = _module.GetType(local.type);
+        var typeBuilder = _module.GetType(local.type, local.isRef);
         LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
         var mapLocal = new RefVariableDefinition(localBuilder, local.isRef);
@@ -262,7 +278,7 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override VariableDefinition AllocateTemp(TypeSymbol type, bool isRef) {
-        var typeBuilder = _module.GetType(type);
+        var typeBuilder = _module.GetType(type, isRef);
         LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
         return new RefVariableDefinition(localBuilder, isRef);
@@ -479,6 +495,7 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Pop => OpCodes.Pop,
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
             CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
+            CodeGeneration.OpCode.Throw => OpCodes.Throw,
             _ => throw new NotImplementedException()
         };
     }

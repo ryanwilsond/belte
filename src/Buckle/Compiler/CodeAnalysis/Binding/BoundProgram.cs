@@ -70,7 +70,7 @@ internal sealed partial class BoundProgram {
         var current = this;
 
         while (current is not null) {
-            if (current._originalDefinitions.TryGetValue(method.originalDefinition, out var value)) {
+            if (current._originalDefinitions.TryGetValue(GetOriginalDefinition(method), out var value)) {
                 body = value;
                 return true;
             }
@@ -83,11 +83,11 @@ internal sealed partial class BoundProgram {
     }
 
     private ImmutableDictionary<MethodSymbol, BoundBlockStatement> CreateOriginalDefinitions() {
-        return methodBodies.ToDictionary(
-            pair => pair.Key is SynthesizedMethodSymbolBase b
-                ? b.baseMethod.originalDefinition
-                : pair.Key.originalDefinition,
-            pair => pair.Value)
-                .ToImmutableDictionary();
+        return methodBodies.ToDictionary(pair => GetOriginalDefinition(pair.Key), pair => pair.Value)
+            .ToImmutableDictionary();
+    }
+
+    private static MethodSymbol GetOriginalDefinition(MethodSymbol method) {
+        return method is SynthesizedMethodSymbolBase b ? b.baseMethod.originalDefinition : method.originalDefinition;
     }
 }
