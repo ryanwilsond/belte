@@ -307,14 +307,19 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateTypeBuilder(NamedTypeSymbol type) {
-        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false));
+        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetType(type.baseType));
         CreateNestedTypes(type, typeBuilder);
         _types.Add(type.originalDefinition, typeBuilder);
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder) {
         foreach (var member in type.GetTypeMembers()) {
-            var nestedBuilder = typeBuilder.DefineNestedType(member.name, GetTypeAttributes(member, true));
+            var nestedBuilder = typeBuilder.DefineNestedType(
+                member.name,
+                GetTypeAttributes(member, true),
+                GetType(type.baseType)
+            );
+
             CreateNestedTypes(member, nestedBuilder);
             _types.Add(member.originalDefinition, nestedBuilder);
         }
@@ -356,16 +361,16 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
-        var attributes = MethodAttributes.Public;
+        var attributes = MethodAttributes.Public | MethodAttributes.HideBySig;
 
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
         if (method.isAbstract)
-            attributes |= MethodAttributes.Abstract;
+            attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
         if (method.isVirtual)
             attributes |= MethodAttributes.Virtual;
-        if (method.overriddenOrHiddenMembers.hiddenMembers.Any())
-            attributes |= MethodAttributes.HideBySig;
+        if (method.isOverride)
+            attributes |= MethodAttributes.Virtual;
 
         return attributes;
     }

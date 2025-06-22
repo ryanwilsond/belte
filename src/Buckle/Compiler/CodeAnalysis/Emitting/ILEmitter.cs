@@ -348,7 +348,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetNamespaceName(type),
             type.name,
             GetTypeAttributes(type, isNested),
-            type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : _specialTypes[SpecialType.Object]
+            type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
         );
 
         foreach (var member in type.GetTypeMembers()) {
@@ -450,21 +450,21 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
-        MethodAttributes attributes = method.declaredAccessibility switch {
+        var attributes = method.declaredAccessibility switch {
             Accessibility.Private => MethodAttributes.Private,
             Accessibility.Public => MethodAttributes.Public,
             Accessibility.Protected => MethodAttributes.Family,
             _ => 0
-        };
+        } | MethodAttributes.HideBySig;
 
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
         if (method.isAbstract)
-            attributes |= MethodAttributes.Abstract;
+            attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
         if (method.isVirtual)
             attributes |= MethodAttributes.Virtual;
-        if (method.overriddenOrHiddenMembers.hiddenMembers.Any())
-            attributes |= MethodAttributes.HideBySig;
+        if (method.isOverride)
+            attributes |= MethodAttributes.Virtual;
 
         return attributes;
     }

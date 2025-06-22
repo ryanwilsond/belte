@@ -279,11 +279,11 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
     // Local function statements
-    // [InlineData("int A() { int B() { return 2; } return B() + 1; } return A();", 3)]
-    // [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
-    // [InlineData("int A() { int a = 1; int B(int b) { return a + b; } return B(4); } return A(); ", 5)]
-    // [InlineData("int A() { int a = 5; int B(int b) { return a + b; } return B(1); } return A(); ", 6)]
-    // [InlineData("int A() { int a = 5; void B() { a = 6; } B(); return a; } return A();", 6)]
+    [InlineData("int A() { int B() { return 2; } return B() + 1; } return A();", 3)]
+    [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
+    [InlineData("int A() { int a = 1; int B(int b) { return a + b; } return B(4); } return A(); ", 5)]
+    [InlineData("int A() { int a = 5; int B(int b) { return a + b; } return B(1); } return A(); ", 6)]
+    [InlineData("int A() { int a = 5; void B() { a = 6; } B(); return a; } return A();", 6)]
     // Block statements and return statements
     [InlineData("{ int a = 3; return a; }", 3)]
     [InlineData("int a = 5; { a = 3; return a; }", 3)]
@@ -344,18 +344,18 @@ public sealed class EvaluatorTests {
         var a = new A(3);
         return a + 5;", 8)]
     // Overrides
-    // [InlineData(@"
-    //     class A {
-    //         public virtual string M() { return ""A""; }
-    //         public string T() { return M(); }
-    //     }
+    [InlineData(@"
+        class A {
+            public virtual string M() { return ""A""; }
+            public string T() { return M(); }
+        }
 
-    //     class B extends A {
-    //         public override string M() { return ""B""; }
-    //     }
+        class B extends A {
+            public override string M() { return ""B""; }
+        }
 
-    //     var b = new B();
-    //     return b.T();", "B")]
+        var b = new B();
+        return b.T();", "B")]
     /*
     // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
     // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]

@@ -1,1 +1,11 @@
-lowlevel { int[] a = {1, 2, null}; return a[0]; }
+class A {
+            public virtual string M() { return "A"; }
+            public string T() { return M(); }
+        }
+
+        class B extends A {
+            public override string M() { return "B"; }
+        }
+
+        var b = new B();
+        return b.T();
