@@ -686,9 +686,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotBeRefAndConstexpr, location, message);
     }
 
-    internal static BelteDiagnostic NotConstantExpression(TextLocation location) {
-        var message = $"expression is not a compile-time constant";
-        return CreateError(DiagnosticCode.ERR_NotConstantExpression, location, message);
+    internal static BelteDiagnostic ConstantExpected(TextLocation location) {
+        var message = $"expected a compile-time constant value";
+        return CreateError(DiagnosticCode.ERR_ConstantExpected, location, message);
     }
 
     internal static BelteDiagnostic CannotReturnStatic(TextLocation location, TypeSymbol type) {
@@ -1573,8 +1573,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
     }
 
-    internal static BelteDiagnostic BadIndexCount(TextLocation location) {
-        var message = $"wrong number of indices inside []; expected 1";
+    internal static BelteDiagnostic BadIndexCount(TextLocation location, int rank) {
+        var message = $"wrong number of indices inside []; expected {rank}";
         return CreateError(DiagnosticCode.ERR_BadIndexCount, location, message);
     }
 
@@ -1759,6 +1759,21 @@ internal static class Error {
     internal static BelteDiagnostic BadUsingStaticType(TextLocation location, string kind) {
         var message = $"'{kind}' type is not valid for 'using static'; only a class or namespace can be used";
         return CreateError(DiagnosticCode.ERR_BadUsingStaticType, location, message);
+    }
+
+    internal static BelteDiagnostic ArrayInitToNonArrayType(TextLocation location) {
+        var message = $"can only use array initializer expressions to assign to array types; try using a new expression instead";
+        return CreateError(DiagnosticCode.ERR_ArrayInitToNonArrayType, location, message);
+    }
+
+    internal static BelteDiagnostic ArrayInitExpected(TextLocation location) {
+        var message = $"a nested initializer list is expected";
+        return CreateError(DiagnosticCode.ERR_ArrayInitExpected, location, message);
+    }
+
+    internal static BelteDiagnostic ArrayInitWrongLength(TextLocation location, long length) {
+        var message = $"an array initializer of length '{length}' is expected";
+        return CreateError(DiagnosticCode.ERR_ArrayInitWrongLength, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

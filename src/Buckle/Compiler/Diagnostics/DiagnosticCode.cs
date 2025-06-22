@@ -114,7 +114,7 @@ public enum DiagnosticCode : ushort {
     ERR_NonConstantCallInConstant = 103,
     ERR_NonConstantCallOnConstant = 104,
     ERR_CannotBeRefAndConstexpr = 105,
-    ERR_NotConstantExpression = 106,
+    ERR_ConstantExpected = 106,
     ERR_CannotReturnStatic = 107,
     ERR_IncorrectOperatorParameterCount = 108,
     ERR_OperatorMustBePublicAndStatic = 109,
@@ -349,6 +349,9 @@ public enum DiagnosticCode : ushort {
     ERR_DuplicateUsing = 338,
     ERR_BadUsingNamespace = 339,
     ERR_BadUsingStaticType = 340,
+    ERR_ArrayInitToNonArrayType = 341,
+    ERR_ArrayInitExpected = 342,
+    ERR_ArrayInitWrongLength = 343,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

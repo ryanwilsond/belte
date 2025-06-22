@@ -30,4 +30,22 @@ public static class Math {
 
         return System.Math.Sin(a.Value);
     }
+
+    public static double? Pow(double? a, double? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Pow(a.Value, b.Value);
+    }
+
+    public static long? Pow(long? a, long? b) {
+        if (a is null || b is null)
+            return null;
+
+        return (long?)System.Math.Pow(a.Value, b.Value);
+    }
+
+    public static long Pow(long a, long b) {
+        return (long)System.Math.Pow(a, b);
+    }
 }

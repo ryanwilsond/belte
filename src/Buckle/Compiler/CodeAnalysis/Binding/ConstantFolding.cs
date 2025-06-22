@@ -89,7 +89,7 @@ internal static class ConstantFolding {
                 if (specialType == SpecialType.Int)
                     return new ConstantValue((long)Math.Pow((long)leftValue, (long)rightValue), specialType);
                 else
-                    return new ConstantValue((double)Math.Pow((double)leftValue, (double)rightValue), specialType);
+                    return new ConstantValue(Math.Pow((double)leftValue, (double)rightValue), specialType);
             case BinaryOperatorKind.ConditionalAnd:
                 return new ConstantValue((bool)leftValue && (bool)rightValue, specialType);
             case BinaryOperatorKind.ConditionalOr:

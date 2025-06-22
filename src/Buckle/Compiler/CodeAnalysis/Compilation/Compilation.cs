@@ -208,9 +208,9 @@ public sealed partial class Compilation {
         return Create(assemblyName, options, previous, syntaxTress);
     }
 
-    public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool logTime = false) {
+    public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool verbose = false, bool logTime = false) {
         using var context = new EvaluatorContext(options);
-        var result = Evaluate(context, abort, logTime);
+        var result = Evaluate(context, abort, verbose, logTime);
         context.WaitForCompletion();
         return result;
     }
@@ -218,9 +218,10 @@ public sealed partial class Compilation {
     public EvaluationResult Evaluate(
         EvaluatorContext context,
         ValueWrapper<bool> abort,
+        bool verbose = false,
         bool logTime = false) {
         EvaluationResult result = null;
-        Evaluate(context, abort, ref result, logTime);
+        Evaluate(context, abort, ref result, verbose, logTime);
         return result;
     }
 
@@ -228,6 +229,7 @@ public sealed partial class Compilation {
         EvaluatorContext context,
         ValueWrapper<bool> abort,
         ref EvaluationResult rollingResult,
+        bool verbose = false,
         bool logTime = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
@@ -235,17 +237,17 @@ public sealed partial class Compilation {
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
-        if (diagnostics.AnyErrors())
+        if (diagnostics.AnyErrors()) {
             rollingResult = EvaluationResult.Failed(diagnostics);
+            return;
+        }
 
-#if DEBUG
-        if (options.enableOutput) {
+        if (verbose && options.enableOutput) {
             if (!diagnostics.AnyErrors())
                 EmitCFG();
 
             EmitBoundProgram();
         }
-#endif
 
         var evaluator = new Evaluator(program, context, options.arguments);
         var evalResult = evaluator.Evaluate(abort, out var hasValue);
@@ -297,31 +299,33 @@ public sealed partial class Compilation {
     }
 
     public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false) {
+        return Execute(verbose, logTime, out _);
+    }
+
+    internal BelteDiagnosticQueue Execute(bool verbose, bool logTime, out object result) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
-        if (diagnostics.AnyErrors())
+        if (diagnostics.AnyErrors()) {
+            result = null;
             return diagnostics;
+        }
 
-#if DEBUG
-        if (options.enableOutput) {
+        if (verbose && options.enableOutput) {
             if (!diagnostics.AnyErrors())
                 EmitCFG();
 
             EmitBoundProgram();
         }
-#endif
 
-        var executor = new Executor(boundProgram, options.arguments, diagnostics);
-        var result = executor.Execute(verbose, logTime);
+        var executor = new Executor(program, options.arguments, diagnostics);
+        result = executor.Execute(verbose, logTime);
 
-#if DEBUG
-        if (options.enableOutput && result is not null)
+        if (verbose && options.enableOutput && result is not null)
             Console.WriteLine(result);
-#endif
 
         return diagnostics;
     }
@@ -526,9 +530,7 @@ public sealed partial class Compilation {
         return true;
     }
 
-    private MethodSymbol FindEntryPoint(
-        SynthesizedEntryPoint simpleEntryPoint,
-        BelteDiagnosticQueue diagnostics) {
+    private MethodSymbol FindEntryPoint(SynthesizedEntryPoint simpleEntryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
         var classes = globalNamespaceInternal.GetTypeMembersUnordered();
 
@@ -541,26 +543,37 @@ public sealed partial class Compilation {
 
         builder.AddIfNotNull(simpleEntryPoint);
         var entryPointCandidates = builder.ToImmutableAndFree();
+        return SelectEntryPoint(simpleEntryPoint, entryPointCandidates, diagnostics, options.isScript);
+    }
+
+    internal static MethodSymbol SelectEntryPoint(
+        SynthesizedEntryPoint simpleEntryPoint,
+        ImmutableArray<MethodSymbol> methods,
+        BelteDiagnosticQueue diagnostics,
+        bool isScript) {
         var expectedCount = simpleEntryPoint is null ? 1 : 2;
 
         MethodSymbol entryPoint = null;
 
-        if (entryPointCandidates.Length == 0 && !options.isScript) {
+        if (methods.Length == 0 && !isScript) {
             diagnostics.Push(Error.NoSuitableEntryPoint());
-        } else if (entryPointCandidates.Length == 1) {
-            entryPoint = entryPointCandidates[0];
-        } else if (entryPointCandidates.Length > 1) {
-            if (entryPointCandidates.Length > expectedCount)
-                diagnostics.Push(Error.MultipleMains(entryPointCandidates[0].location));
+        } else if (methods.Length == 1) {
+            entryPoint = methods[0];
+        } else if (methods.Length > 1) {
+            if (methods.Length > expectedCount)
+                diagnostics.Push(Error.MultipleMains(methods[0].location));
 
-            if (entryPointCandidates.Length > 1 && simpleEntryPoint is not null)
-                diagnostics.Push(Error.MainAndGlobals(entryPointCandidates[0].location));
+            if (methods.Length > 1 && simpleEntryPoint is not null)
+                diagnostics.Push(Error.MainAndGlobals(methods[0].location));
         }
 
         return entryPoint;
     }
 
-    private static bool HasEntryPointSignature(MethodSymbol method) {
+    internal static bool HasEntryPointSignature(MethodSymbol method) {
+        if (!method.name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+            return false;
+
         var returnType = method.returnType;
 
         if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType()) {
@@ -716,14 +729,17 @@ public sealed partial class Compilation {
     }
 
     private void EmitBoundProgram() {
+        const string BoundProgramName = "BoundProgram.g.blt";
+
         var program = boundProgram;
-        var programPath = GetProjectPath("program.blt");
+        Console.WriteLine($"Dumping bound program to \"{BoundProgramName}\"");
+
         var displayText = new DisplayText();
 
         foreach (var pair in program.methodBodies)
             CompilationExtensions.EmitTree(pair.Key, displayText, program);
 
-        using var streamWriter = new StreamWriter(programPath);
+        using var streamWriter = new StreamWriter(BoundProgramName);
         var segments = displayText.Flush();
 
         foreach (var segment in segments) {
@@ -734,6 +750,8 @@ public sealed partial class Compilation {
             else
                 streamWriter.Write(segment.text);
         }
+
+        streamWriter.Close();
     }
 
     private static string GetProjectPath(string fileName) {

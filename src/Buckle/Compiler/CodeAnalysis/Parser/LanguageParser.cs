@@ -1496,7 +1496,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ExpressionSyntax ParseArrayCreationExpression(SyntaxToken newKeyword, ArrayTypeSyntax type) {
-        return SyntaxFactory.ArrayCreationExpression(newKeyword, type);
+        var initializer = currentToken.kind == SyntaxKind.OpenBraceToken
+            ? (InitializerListExpressionSyntax)ParseInitializerListExpression(EatToken())
+            : null;
+
+        return SyntaxFactory.ArrayCreationExpression(newKeyword, type, initializer);
     }
 
     private ExpressionSyntax ParseThisExpression() {

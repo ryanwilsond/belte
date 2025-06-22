@@ -110,6 +110,10 @@ internal static class StandardLibrary {
         yield return String;
     }
 
+    internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
+        return (MethodSymbol)Math.GetMembers("Pow")[(isLifted ? 0 : 1) + (isInt ? 2 : 0)];
+    }
+
     private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
         return StaticClass("Random", [
             StaticMethod("RandInt", SpecialType.Int, [("max", SpecialType.Int, true)]),
@@ -255,6 +259,8 @@ internal static class StandardLibrary {
             StaticMethod("Min", SpecialType.Int, [("val1", SpecialType.Int), ("val2", SpecialType.Int)]),
             StaticMethod("Pow", SpecialType.Decimal, true, [("x", SpecialType.Decimal, true), ("y", SpecialType.Decimal, true)]),
             StaticMethod("Pow", SpecialType.Decimal, [("x", SpecialType.Decimal), ("y", SpecialType.Decimal)]),
+            StaticMethod("Pow", SpecialType.Int, true, [("x", SpecialType.Int, true), ("y", SpecialType.Int, true)]),
+            StaticMethod("Pow", SpecialType.Int, [("x", SpecialType.Int), ("y", SpecialType.Int)]),
             StaticMethod("Round", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
             StaticMethod("Round", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
             StaticMethod("Sin", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
@@ -416,6 +422,10 @@ internal static class StandardLibrary {
                 => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Pow_DD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Pow_I?I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : Convert.ToInt64(System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b))); }) },
+            { "Math_Pow_II", new Func<object, object, object, object>((a, b, c)
+                => { return Convert.ToInt64(System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b))); }) },
             { "Math_Round_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Round(Convert.ToDouble(a)); }) },
             { "Math_Round_D", new Func<object, object, object, object>((a, b, c)

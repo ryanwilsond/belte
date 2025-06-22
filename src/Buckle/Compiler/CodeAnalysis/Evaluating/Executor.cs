@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -35,6 +34,7 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Int, typeof(long) },
         { SpecialType.Decimal, typeof(double) },
         { SpecialType.Nullable, typeof(Nullable<>) },
+        { SpecialType.Char, typeof(char) },
         { SpecialType.Void, typeof(void) },
         { SpecialType.Type, typeof(Type) },
         { SpecialType.String, typeof(string) },
@@ -156,34 +156,45 @@ internal sealed partial class Executor : ModuleBuilder {
 
             return mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
         } finally {
-            timer.Stop();
-            _diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Executed the program in {timer.ElapsedMilliseconds} ms"
-            ));
+            if (logTime) {
+                timer.Stop();
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Executed the program in {timer.ElapsedMilliseconds} ms"
+                ));
+            }
         }
     }
 
-    internal Type GetType(TypeSymbol type) {
-        if (type.specialType == SpecialType.Nullable) {
-            var underlyingType = type.GetNullableUnderlyingType();
-            var genericArgumentType = GetType(underlyingType);
+    internal Type GetType(TypeSymbol type, bool byRef = false) {
+        var typeRef = GetTypeCore(type);
 
-            if (!CodeGenerator.IsValueType(underlyingType))
-                return genericArgumentType;
+        if (byRef)
+            typeRef = typeRef.MakeByRefType();
 
-            return typeof(Nullable<>).MakeGenericType(genericArgumentType);
+        return typeRef;
+
+        Type GetTypeCore(TypeSymbol type) {
+            if (type.specialType == SpecialType.Nullable) {
+                var underlyingType = type.GetNullableUnderlyingType();
+                var genericArgumentType = GetType(underlyingType);
+
+                if (!CodeGenerator.IsValueType(underlyingType))
+                    return genericArgumentType;
+
+                return typeof(Nullable<>).MakeGenericType(genericArgumentType);
+            }
+
+            if (type is ArrayTypeSymbol array) {
+                var elementType = GetType(array.elementType);
+                return elementType.MakeArrayType(array.rank);
+            }
+
+            if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
+                return value;
+
+            return _types[type.originalDefinition];
         }
-
-        if (type is ArrayTypeSymbol array) {
-            var elementType = GetType(array.elementType);
-            return elementType.MakeArrayType(array.rank);
-        }
-
-        if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
-            return value;
-
-        return _types[type.originalDefinition];
     }
 
     internal FieldInfo GetField(FieldSymbol field) {
@@ -279,13 +290,15 @@ internal sealed partial class Executor : ModuleBuilder {
                     if (m.methodKind == MethodKind.Constructor) {
                         _constructors.Add(
                             m,
-                            native.GetConstructor(m.parameters.Select(p => GetType(p.type)).ToArray())
+                            native.GetConstructor(
+                                m.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
+                            )
                         );
                     } else {
                         _methods.Add(m, native.GetMethod(
                             m.name,
                             BindingFlags.Public | BindingFlags.Instance,
-                            m.parameters.Select(p => GetType(p.type)).ToArray()
+                            m.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
                         ));
                     }
                 }
@@ -294,14 +307,19 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateTypeBuilder(NamedTypeSymbol type) {
-        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false));
+        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetType(type.baseType));
         CreateNestedTypes(type, typeBuilder);
         _types.Add(type.originalDefinition, typeBuilder);
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder) {
         foreach (var member in type.GetTypeMembers()) {
-            var nestedBuilder = typeBuilder.DefineNestedType(member.name, GetTypeAttributes(member, true));
+            var nestedBuilder = typeBuilder.DefineNestedType(
+                member.name,
+                GetTypeAttributes(member, true),
+                GetType(type.baseType)
+            );
+
             CreateNestedTypes(member, nestedBuilder);
             _types.Add(member.originalDefinition, nestedBuilder);
         }
@@ -331,7 +349,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private static FieldAttributes GetFieldAttributes(FieldSymbol field) {
         FieldAttributes attributes = field.declaredAccessibility switch {
             Accessibility.Private => FieldAttributes.Private,
-            Accessibility.Public => FieldAttributes.Private,
+            Accessibility.Public => FieldAttributes.Public,
             Accessibility.Protected => FieldAttributes.Family,
             _ => 0
         };
@@ -343,16 +361,16 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
-        var attributes = MethodAttributes.Public;
+        var attributes = MethodAttributes.Public | MethodAttributes.HideBySig;
 
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
         if (method.isAbstract)
-            attributes |= MethodAttributes.Abstract;
+            attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
         if (method.isVirtual)
             attributes |= MethodAttributes.Virtual;
-        if (method.overriddenOrHiddenMembers.hiddenMembers.Any())
-            attributes |= MethodAttributes.HideBySig;
+        if (method.isOverride)
+            attributes |= MethodAttributes.Virtual;
 
         return attributes;
     }
@@ -362,7 +380,12 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
-                var fieldBuilder = typeBuilder.DefineField(f.name, GetType(f.type), GetFieldAttributes(f));
+                var fieldBuilder = typeBuilder.DefineField(
+                    f.name,
+                    GetType(f.type, f.refKind != RefKind.None),
+                    GetFieldAttributes(f)
+                );
+
                 _fields.Add(f, fieldBuilder);
             } else if (member is NamedTypeSymbol t) {
                 CreateMemberDefinitions(t);
@@ -386,7 +409,7 @@ internal sealed partial class Executor : ModuleBuilder {
         var constructorBuilder = typeBuilder.DefineConstructor(
             GetMethodAttributes(method),
             CallingConventions.Standard,
-            method.parameters.Select(p => GetType(p.type)).ToArray()
+            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
         _constructors.Add(method, constructorBuilder);
@@ -397,8 +420,8 @@ internal sealed partial class Executor : ModuleBuilder {
         var methodBuilder = typeBuilder.DefineMethod(
             method.name,
             GetMethodAttributes(method),
-            GetType(method.returnType),
-            method.parameters.Select(p => GetType(p.type)).ToArray()
+            GetType(method.returnType, method.returnsByRef),
+            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
         _methods.Add(method, methodBuilder);
@@ -453,84 +476,6 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     #region Libraries
-
-    public static long GetWidth() {
-        return Console.WindowWidth;
-    }
-
-    public static long GetHeight() {
-        return Console.WindowHeight;
-    }
-
-    public static void SetForegroundColor(long color) {
-        Console.ForegroundColor = (ConsoleColor)color;
-    }
-
-    public static void SetBackgroundColor(long color) {
-        Console.BackgroundColor = (ConsoleColor)color;
-    }
-
-    public static void SetCursorPosition(long? x, long? y) {
-        Console.SetCursorPosition((int?)x ?? Console.CursorLeft, (int?)y ?? Console.CursorTop);
-    }
-
-    public static double? Lerp(double? a, double? b, double? c) {
-        return a + c * (b - a);
-    }
-
-    public static double Lerp(double a, double b, double c) {
-        return a + c * (b - a);
-    }
-
-    public static double? Clamp(double? a, double? b, double? c) {
-        if (a is null || b is null || c is null)
-            return null;
-
-        return Math.Clamp(a.Value, b.Value, c.Value);
-    }
-
-    public static double? Cos(double? a) {
-        if (a is null)
-            return null;
-
-        return Math.Cos(a.Value);
-    }
-
-    public static double? Sin(double? a) {
-        if (a is null)
-            return null;
-
-        return Math.Sin(a.Value);
-    }
-
-    public static int GetHashCodeOfObject(object o) {
-        return o.GetHashCode();
-    }
-
-    public static string GetTypeNameOfObject(object o) {
-        return o.GetType().Name;
-    }
-
-    public static object[] Sort(object[] array) {
-        Array.Sort(array);
-        return array;
-    }
-
-    public static long? Length(object[] array) {
-        return array?.LongLength;
-    }
-
-    public static void ThrowNullConditionException() {
-        throw new NullConditionException();
-    }
-
-    public static long TimeNow() {
-        return DateTime.Now.Ticks;
-    }
-
-    public static void TimeSleep(long ms) {
-        Thread.Sleep((int)ms);
-    }
 
     public static void Fill(long r, long g, long b) {
         GraphicsHandler.Fill(r, g, b);
@@ -610,54 +555,62 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void GenerateSTLMap() {
-        var flags = BindingFlags.Public | BindingFlags.Static;
+        const BindingFlags Flags = BindingFlags.Public | BindingFlags.Static;
+        const BindingFlags InstFlags = BindingFlags.Public | BindingFlags.Instance;
+
         _stlMap = new Dictionary<string, MethodInfo>() {
-            { "Console_GetWidth", typeof(Executor).GetMethod("GetWidth", flags, Type.EmptyTypes) },
-            { "Console_GetHeight", typeof(Executor).GetMethod("GetHeight", flags, Type.EmptyTypes) },
-            { "Console_Print_S?", typeof(Console).GetMethod("Write", flags, [typeof(string)]) },
-            { "Console_Print_A?", typeof(Console).GetMethod("Write", flags, [typeof(object)]) },
-            { "Console_Print_O?", typeof(Console).GetMethod("Write", flags, [typeof(object)]) },
-            { "Console_PrintLine", typeof(Console).GetMethod("WriteLine", flags, Type.EmptyTypes) },
-            { "Console_PrintLine_S?", typeof(Console).GetMethod("WriteLine", flags, [typeof(string)]) },
-            { "Console_PrintLine_A?", typeof(Console).GetMethod("WriteLine", flags, [typeof(object)]) },
-            { "Console_PrintLine_O?", typeof(Console).GetMethod("WriteLine", flags, [typeof(object)]) },
-            { "Console_Input", typeof(Console).GetMethod("ReadLine", flags, Type.EmptyTypes) },
-            { "Console_ResetColor", typeof(Console).GetMethod("ResetColor", flags, Type.EmptyTypes) },
-            { "Console_SetForegroundColor_I", typeof(Executor).GetMethod("SetForegroundColor", flags, [typeof(long)]) },
-            { "Console_SetBackgroundColor_I", typeof(Executor).GetMethod("SetBackgroundColor", flags, [typeof(long)]) },
-            { "Console_SetCursorPosition_I?I?", typeof(Executor).GetMethod("SetCursorPosition", flags, [typeof(long?), typeof(long?)]) },
-            { "Directory_Create_S", typeof(Directory).GetMethod("CreateDirectory", flags, [typeof(string)]) },
-            { "Directory_Delete_S", typeof(Directory).GetMethod("Delete", flags, [typeof(string)]) },
-            { "Directory_Exists_S", typeof(Directory).GetMethod("Exists", flags, [typeof(string)]) },
-            { "File_AppendText_SS", typeof(File).GetMethod("AppendAllText", flags, [typeof(string), typeof(string)]) },
-            { "File_Create_S", typeof(File).GetMethod("Create", flags, [typeof(string)]) },
-            { "File_Copy_SS", typeof(File).GetMethod("Copy", flags, [typeof(string), typeof(string)]) },
-            { "File_Delete_S", typeof(File).GetMethod("Delete", flags, [typeof(string)]) },
-            { "File_Exists_S", typeof(File).GetMethod("Exists", flags, [typeof(string)]) },
-            { "File_ReadText_SS", typeof(File).GetMethod("ReadAllText", flags, [typeof(string), typeof(string)]) },
-            { "File_WriteText_SS", typeof(File).GetMethod("WriteAllText", flags, [typeof(string), typeof(string)]) },
-            { "Math_Clamp_D?D?D?", typeof(Executor).GetMethod("Clamp", flags, [typeof(double?), typeof(double?), typeof(double?)]) },
-            { "Math_Lerp_D?D?D?", typeof(Executor).GetMethod("Lerp", flags, [typeof(double?), typeof(double?), typeof(double?)]) },
-            { "Math_Lerp_DDD", typeof(Executor).GetMethod("Lerp", flags, [typeof(double), typeof(double), typeof(double)]) },
-            { "Math_Cos_D?", typeof(Executor).GetMethod("Cos", flags, [typeof(double?)]) },
-            { "Math_Sin_D?", typeof(Executor).GetMethod("Sin", flags, [typeof(double?)]) },
-            { "LowLevel_GetHashCode_O", typeof(Executor).GetMethod("GetHashCodeOfObject", flags, [typeof(object)]) },
-            { "LowLevel_GetTypeName_O", typeof(Executor).GetMethod("GetTypeNameOfObject", flags, [typeof(object)]) },
-            { "LowLevel_Sort_A?", typeof(Executor).GetMethod("Sort", flags, [typeof(object[])]) },
-            { "LowLevel_Length_A?", typeof(Executor).GetMethod("Length", flags, [typeof(object[])]) },
-            { "LowLevel_ThrowNullConditionException", typeof(Executor).GetMethod("ThrowNullConditionException", flags, Type.EmptyTypes) },
-            { "Time_Now", typeof(Executor).GetMethod("TimeNow", flags, Type.EmptyTypes) },
-            { "Time_Sleep_I", typeof(Executor).GetMethod("TimeSleep", flags, [typeof(long)]) },
-            { "String_Ascii_S", typeof(Executor).GetMethod("Ascii", flags, [typeof(string)]) },
-            { "String_Char_I", typeof(Executor).GetMethod("Char", flags, [typeof(long)]) },
-            { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
-            { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", flags, [typeof(long), typeof(long), typeof(long)]) },
-            { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", flags, [typeof(string)]) },
-            { "Graphics_DrawSprite_S?", typeof(Executor).GetMethod("DrawSprite", flags, [typeof(BSprite)]) },
-            { "Graphics_DrawText_T?", typeof(Executor).GetMethod("DrawText", flags, [typeof(BText)]) },
-            { "Graphics_LoadSprite_SV?V?I?", typeof(Executor).GetMethod("LoadSprite", flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
-            { "Graphics_LoadText_S?SV?DD?I?I?I?", typeof(Executor).GetMethod("LoadText", flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
-            { "Graphics_LockFramerate_I", typeof(Executor).GetMethod("LockFramerate", flags, [typeof(long)]) },
+            { "Console_GetWidth", typeof(Belte.Runtime.Console).GetMethod("GetWidth", Flags, Type.EmptyTypes) },
+            { "Console_GetHeight", typeof(Belte.Runtime.Console).GetMethod("GetHeight", Flags, Type.EmptyTypes) },
+            { "Console_Print_S?", typeof(Console).GetMethod("Write", Flags, [typeof(string)]) },
+            { "Console_Print_A?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
+            { "Console_Print_O?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
+            { "Console_PrintLine", typeof(Console).GetMethod("WriteLine", Flags, Type.EmptyTypes) },
+            { "Console_PrintLine_S?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(string)]) },
+            { "Console_PrintLine_A?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
+            { "Console_PrintLine_O?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
+            { "Console_Input", typeof(Console).GetMethod("ReadLine", Flags, Type.EmptyTypes) },
+            { "Console_ResetColor", typeof(Console).GetMethod("ResetColor", Flags, Type.EmptyTypes) },
+            { "Console_SetForegroundColor_I", typeof(Belte.Runtime.Console).GetMethod("SetForegroundColor", Flags, [typeof(long)]) },
+            { "Console_SetBackgroundColor_I", typeof(Belte.Runtime.Console).GetMethod("SetBackgroundColor", Flags, [typeof(long)]) },
+            { "Console_SetCursorPosition_I?I?", typeof(Belte.Runtime.Console).GetMethod("SetCursorPosition", Flags, [typeof(long?), typeof(long?)]) },
+            { "Directory_Create_S", typeof(Directory).GetMethod("CreateDirectory", Flags, [typeof(string)]) },
+            { "Directory_Delete_S", typeof(Directory).GetMethod("Delete", Flags, [typeof(string)]) },
+            { "Directory_Exists_S", typeof(Directory).GetMethod("Exists", Flags, [typeof(string)]) },
+            { "File_AppendText_SS", typeof(File).GetMethod("AppendAllText", Flags, [typeof(string), typeof(string)]) },
+            { "File_Create_S", typeof(File).GetMethod("Create", Flags, [typeof(string)]) },
+            { "File_Copy_SS", typeof(File).GetMethod("Copy", Flags, [typeof(string), typeof(string)]) },
+            { "File_Delete_S", typeof(File).GetMethod("Delete", Flags, [typeof(string)]) },
+            { "File_Exists_S", typeof(File).GetMethod("Exists", Flags, [typeof(string)]) },
+            { "File_ReadText_SS", typeof(File).GetMethod("ReadAllText", Flags, [typeof(string), typeof(string)]) },
+            { "File_WriteText_SS", typeof(File).GetMethod("WriteAllText", Flags, [typeof(string), typeof(string)]) },
+            { "Math_Clamp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
+            { "Math_Lerp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
+            { "Math_Lerp_DDD", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double), typeof(double), typeof(double)]) },
+            { "Math_Cos_D?", typeof(Belte.Runtime.Math).GetMethod("Cos", Flags, [typeof(double?)]) },
+            { "Math_Sin_D?", typeof(Belte.Runtime.Math).GetMethod("Sin", Flags, [typeof(double?)]) },
+            { "Math_Pow_DD", typeof(Math).GetMethod("Pow", Flags, [typeof(double), typeof(double)]) },
+            { "Math_Pow_D?D?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(double?), typeof(double?)]) },
+            { "Math_Pow_II", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long), typeof(long)]) },
+            { "Math_Pow_I?I?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long?), typeof(long?)]) },
+            { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
+            { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
+            { "LowLevel_Sort_A?", typeof(Belte.Runtime.Utilities).GetMethod("Sort", Flags, [typeof(object[])]) },
+            { "LowLevel_Length_A?", typeof(Belte.Runtime.Utilities).GetMethod("Length", Flags, [typeof(object[])]) },
+            { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
+            { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
+            { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
+            { "String_Ascii_S", typeof(Executor).GetMethod("Ascii", Flags, [typeof(string)]) },
+            { "String_Char_I", typeof(Executor).GetMethod("Char", Flags, [typeof(long)]) },
+            { "Object_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
+            { "Object_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
+            { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
+            { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", Flags, [typeof(long), typeof(long), typeof(long)]) },
+            { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", Flags, [typeof(string)]) },
+            { "Graphics_DrawSprite_S?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite)]) },
+            { "Graphics_DrawText_T?", typeof(Executor).GetMethod("DrawText", Flags, [typeof(BText)]) },
+            { "Graphics_LoadSprite_SV?V?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
+            { "Graphics_LoadText_S?SV?DD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Graphics_LockFramerate_I", typeof(Executor).GetMethod("LockFramerate", Flags, [typeof(long)]) },
         };
     }
 

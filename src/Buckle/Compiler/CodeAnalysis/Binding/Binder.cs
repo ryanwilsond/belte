@@ -1316,28 +1316,58 @@ internal partial class Binder {
         TypeSymbol destinationType,
         BindValueKind valueKind,
         BelteDiagnosticQueue diagnostics) {
-        return BindValue(node, diagnostics, valueKind);
-        // TODO Do we want to distinguish collection expressions from array initializers?
-        // if (node.kind != SyntaxKind.InitializerListExpression)
-        //     return BindValue(node, diagnostics, valueKind);
+        if (node.kind != SyntaxKind.InitializerListExpression)
+            return BindValue(node, diagnostics, valueKind);
 
-        // BoundExpression result;
-        // if (destinationType.kind == SymbolKind.ArrayType) {
+        var result = BindValue(node, diagnostics, valueKind);
+
+        // if (destinationType.StrippedType().kind == SymbolKind.ArrayType) {
         //     result = BindArrayCreationWithInitializer(
         //         diagnostics,
         //         null,
         //         (InitializerListExpressionSyntax)node,
-        //         (ArrayTypeSymbol)destinationType,
+        //         (ArrayTypeSymbol)destinationType.StrippedType(),
         //         []
         //     );
         // } else {
-        //     // TODO Pretty sure we can just do nothing and a conversion error will be produced somewhere
-        //     result = BindValue(node, diagnostics, valueKind);
-        //     // result = BindUnexpectedArrayInitializer((InitializerExpressionSyntax)node, diagnostics, ErrorCode.ERR_ArrayInitToNonArrayType);
-        //     // result = null;
+        //     result = BindUnexpectedArrayInitializer(
+        //         (InitializerListExpressionSyntax)node,
+        //         diagnostics,
+        //         Error.ArrayInitToNonArrayType(node.location)
+        //     );
         // }
 
-        // return CheckValue(result, valueKind, diagnostics);
+        if (destinationType.StrippedType().kind != SymbolKind.ArrayType)
+            diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
+
+        return CheckValue(result, valueKind, diagnostics);
+    }
+
+    private BoundExpression BindUnexpectedArrayInitializer(
+        InitializerListExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        BelteDiagnostic error) {
+        var tryArrayCreation = BindArrayCreationWithInitializer(
+            diagnostics,
+            null,
+            node,
+            CreateArrayTypeSymbol(CorLibrary.GetSpecialType(SpecialType.Any)),
+            [BoundFactory.Literal(node, 1, CorLibrary.GetSpecialType(SpecialType.Int))]
+        );
+
+        BoundExpression result = tryArrayCreation;
+
+        if (!result.hasErrors) {
+            result = new BoundInitializerList(
+                node,
+                tryArrayCreation.initializer.items,
+                tryArrayCreation.initializer.type,
+                hasErrors: true
+            );
+        }
+
+        diagnostics.Push(error);
+        return result;
     }
 
     internal static bool IsAnyReadOnly(AddressKind addressKind) => addressKind >= AddressKind.ReadOnly;
@@ -2202,6 +2232,20 @@ internal partial class Binder {
         return new BoundErrorExpression(syntax, lookupResultKind, [], [expression], CreateErrorType(), true);
     }
 
+    private BoundErrorExpression ErrorExpression(
+        SyntaxNode syntax,
+        LookupResultKind resultKind,
+        ImmutableArray<Symbol> symbols,
+        ImmutableArray<BoundExpression> childNodes) {
+        return new BoundErrorExpression(
+            syntax,
+            resultKind,
+            symbols,
+            childNodes.SelectAsArray((e, self) => self.BindToTypeForErrorRecovery(e), this),
+            CreateErrorType()
+        );
+    }
+
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax) {
         return new BoundErrorExpression(syntax, LookupResultKind.Empty, [], [], CreateErrorType(), true);
     }
@@ -2351,7 +2395,13 @@ internal partial class Binder {
                 // TODO What to do about conditional access?
                 return BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
             default:
-                return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
+                return ErrorIndexerExpression(
+                    node,
+                    expression,
+                    analyzedArguments,
+                    Error.CannotApplyIndexing(node.location, expression.type),
+                    diagnostics
+                );
         }
     }
 
@@ -2417,7 +2467,7 @@ internal partial class Binder {
             : ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1);
 
         if (analyzedArguments.arguments.Count != 1) {
-            diagnostics.Push(Error.BadIndexCount(node.location));
+            diagnostics.Push(Error.BadIndexCount(node.location, 1));
             var errorArguments = BuildArgumentsForErrorRecovery(analyzedArguments);
 
             return new BoundArrayAccessExpression(
@@ -2587,23 +2637,195 @@ internal partial class Binder {
         diagnostics.Push(Error.CannotConvert(syntax.location, operand.type, targetType));
     }
 
-    private BoundExpression BindArrayCreationWithInitializer(
+    private BoundArrayCreationExpression BindArrayCreationWithInitializer(
         BelteDiagnosticQueue diagnostics,
         ExpressionSyntax creationSyntax,
         InitializerListExpressionSyntax initSyntax,
         ArrayTypeSymbol type,
-        ImmutableArray<BoundExpression> sizes,
-        ImmutableArray<BoundExpression> boundInitializerExpression = default,
-        bool hasErrors = false) {
-        // TODO Double check this method thoroughly
-        BoundExpression initializerList = BindInitializerListExpression(initSyntax, diagnostics);
-        initializerList = GenerateConversionForAssignment(type, initializerList, diagnostics);
+        ImmutableArray<BoundExpression> sizes) {
+        var rank = type.rank;
+        var numSizes = sizes.Length;
+        var knownSizes = new long?[Math.Max(rank, numSizes)];
+        var hasErrors = false;
 
-        hasErrors = hasErrors || initializerList.hasErrors;
+        for (var i = 0; i < numSizes; ++i) {
+            var size = sizes[i];
+            knownSizes[i] = size.constantValue?.value is long l ? l : null;
+
+            if (!size.hasErrors && knownSizes[i] is null) {
+                diagnostics.Push(Error.ConstantExpected(size.syntax.location));
+                hasErrors = true;
+            }
+        }
+
+        var initializer = BindArrayInitializerList(
+            diagnostics,
+            initSyntax,
+            type,
+            knownSizes,
+            1,
+            false,
+            default
+        );
+
+        hasErrors = hasErrors || initializer.hasErrors;
         var nonNullSyntax = (SyntaxNode)creationSyntax ?? initSyntax;
 
-        // return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializerList, type, hasErrors);
-        return ErrorExpression(creationSyntax);
+        if (numSizes == 0) {
+            var sizeArray = new BoundExpression[rank];
+
+            for (var i = 0; i < rank; i++) {
+                sizeArray[i] = BoundFactory.Literal(
+                    nonNullSyntax,
+                    knownSizes[i] ?? 0,
+                    CorLibrary.GetSpecialType(SpecialType.Int)
+                );
+            }
+
+            sizes = sizeArray.AsImmutableOrNull();
+        } else if (!hasErrors && rank != numSizes) {
+            diagnostics.Push(Error.BadIndexCount(nonNullSyntax.location, type.rank));
+            hasErrors = true;
+        }
+
+        return new BoundArrayCreationExpression(nonNullSyntax, sizes, initializer, type, hasErrors);
+    }
+
+    private BoundInitializerList BindArrayInitializerList(
+        BelteDiagnosticQueue diagnostics,
+        InitializerListExpressionSyntax node,
+        ArrayTypeSymbol type,
+        long?[] knownSizes,
+        int dimension,
+        bool isInferred,
+        ImmutableArray<BoundExpression> boundInitExprOpt = default) {
+        if (boundInitExprOpt.IsDefault)
+            boundInitExprOpt = BindArrayInitializerExpressions(node, diagnostics, dimension, type.rank);
+
+        var boundInitExprIndex = 0;
+
+        return ConvertAndBindArrayInitialization(
+            diagnostics,
+            node,
+            type,
+            knownSizes,
+            dimension,
+            boundInitExprOpt,
+            ref boundInitExprIndex,
+            isInferred
+        );
+    }
+
+    private BoundInitializerList ConvertAndBindArrayInitialization(
+        BelteDiagnosticQueue diagnostics,
+        InitializerListExpressionSyntax node,
+        ArrayTypeSymbol type,
+        long?[] knownSizes,
+        int dimension,
+        ImmutableArray<BoundExpression> boundInitExpr,
+        ref int boundInitExprIndex,
+        bool isInferred) {
+        var initializers = ArrayBuilder<BoundExpression>.GetInstance();
+
+        if (dimension == type.rank) {
+            var elemType = type.elementType;
+
+            foreach (var expressionSyntax in node.items) {
+                var boundExpression = boundInitExpr[boundInitExprIndex];
+                boundInitExprIndex++;
+
+                var convertedExpression = GenerateConversionForAssignment(elemType, boundExpression, diagnostics);
+                initializers.Add(convertedExpression);
+            }
+        } else {
+            foreach (var expr in node.items) {
+                BoundExpression init = null;
+
+                if (expr.kind == SyntaxKind.InitializerListExpression) {
+                    init = ConvertAndBindArrayInitialization(
+                        diagnostics,
+                        (InitializerListExpressionSyntax)expr,
+                        type,
+                        knownSizes,
+                        dimension + 1,
+                        boundInitExpr,
+                        ref boundInitExprIndex,
+                        isInferred
+                    );
+                } else {
+                    init = boundInitExpr[boundInitExprIndex];
+                    boundInitExprIndex++;
+                }
+
+                initializers.Add(init);
+            }
+        }
+
+        var hasErrors = false;
+        var knownSizeOpt = knownSizes[dimension - 1];
+
+        if (knownSizeOpt is null) {
+            knownSizes[dimension - 1] = initializers.Count;
+        } else if (knownSizeOpt != initializers.Count) {
+            if (knownSizeOpt >= 0) {
+                diagnostics.Push(Error.ArrayInitWrongLength(node.location, knownSizeOpt.Value));
+                hasErrors = true;
+            }
+        }
+
+        return new BoundInitializerList(node, initializers.ToImmutableAndFree(), type, hasErrors: hasErrors);
+    }
+
+    private ImmutableArray<BoundExpression> BindArrayInitializerExpressions(
+        InitializerListExpressionSyntax initializer,
+        BelteDiagnosticQueue diagnostics,
+        int dimension,
+        int rank) {
+        var exprBuilder = ArrayBuilder<BoundExpression>.GetInstance();
+        BindArrayInitializerExpressions(initializer, exprBuilder, diagnostics, dimension, rank);
+        return exprBuilder.ToImmutableAndFree();
+    }
+
+    private void BindArrayInitializerExpressions(
+        InitializerListExpressionSyntax initializer,
+        ArrayBuilder<BoundExpression> exprBuilder,
+        BelteDiagnosticQueue diagnostics,
+        int dimension,
+        int rank) {
+        if (dimension == rank) {
+            foreach (var expression in initializer.items) {
+                var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
+                exprBuilder.Add(boundExpression);
+            }
+        } else {
+            foreach (var expression in initializer.items) {
+                if (expression.kind == SyntaxKind.InitializerListExpression) {
+                    BindArrayInitializerExpressions(
+                        (InitializerListExpressionSyntax)expression,
+                        exprBuilder,
+                        diagnostics,
+                        dimension + 1,
+                        rank
+                    );
+                } else {
+                    var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
+
+                    if (boundExpression.type is null || !boundExpression.type.IsErrorType()) {
+                        if (!boundExpression.hasErrors)
+                            diagnostics.Push(Error.ArrayInitExpected(expression.location));
+
+                        boundExpression = ErrorExpression(
+                            expression,
+                            LookupResultKind.Empty,
+                            ImmutableArray.Create(boundExpression.expressionSymbol),
+                            ImmutableArray.Create(boundExpression)
+                        );
+                    }
+
+                    exprBuilder.Add(boundExpression);
+                }
+            }
+        }
     }
 
     private BoundExpression BindArrayCreationExpression(
@@ -2626,7 +2848,9 @@ internal partial class Binder {
             }
         }
 
-        return new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type);
+        return node.initializer is null
+            ? new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type)
+            : BindArrayCreationWithInitializer(diagnostics, node, node.initializer, type, sizes.ToImmutable());
     }
 
     private protected BoundExpression BindObjectCreationExpression(
@@ -3187,7 +3411,8 @@ internal partial class Binder {
         SimpleNameSyntax node,
         Symbol symbol,
         BelteDiagnosticQueue diagnostics) {
-        if (symbol.containingSymbol is SynthesizedEntryPoint && containingMember is not SynthesizedEntryPoint) {
+        if (symbol.containingSymbol is SynthesizedEntryPoint &&
+            !containingType.Equals(symbol.containingSymbol.containingType)) {
             diagnostics.Push(Error.ProgramLocalReferencedOutsideOfTopLevelStatement(node.location, node));
             return true;
         }
@@ -3986,7 +4211,7 @@ internal partial class Binder {
         if (fieldSymbol.isConstExpr && !isInsideNameof) {
             constantValueOpt = fieldSymbol.GetConstantValue(constantFieldsInProgress);
 
-            if (constantValueOpt == ConstantValue.Unset)
+            if ((object)constantValueOpt == (object)ConstantValue.Unset)
                 constantValueOpt = null;
         }
 
@@ -8254,7 +8479,8 @@ symIsHidden:;
                           and not BoundErrorExpression
                           and not BoundCompoundAssignmentOperator
                           and not BoundThrowExpression
-                          and not BoundIncrementOperator) {
+                          and not BoundIncrementOperator
+                          and not BoundNullCoalescingAssignmentOperator) {
                 diagnostics.Push(Error.InvalidExpressionStatement(node.location));
             }
         }
@@ -8571,6 +8797,8 @@ symIsHidden:;
                     return BoundFactory.Literal(argument.syntax, null, returnType);
                 else
                     return BindToNaturalType(argument, diagnostics);
+            } else if (!conversion.isImplicit || !conversion.exists) {
+                GenerateImplicitConversionError(diagnostics, argument.syntax, conversion, argument, returnType);
             }
         }
 
@@ -8804,13 +9032,13 @@ symIsHidden:;
         var constantValue = ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination));
 
         return new BoundCastExpression(
-                node,
-                BindToNaturalType(source, diagnostics),
-                conversion,
-                constantValue,
-                destination,
-                hasErrors
-            );
+            node,
+            BindToNaturalType(source, diagnostics),
+            conversion,
+            constantValue,
+            destination,
+            hasErrors
+        );
     }
 
     internal BoundExpression CreateConversion(

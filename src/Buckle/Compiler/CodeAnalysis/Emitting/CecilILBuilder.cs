@@ -189,6 +189,27 @@ internal sealed class CecilILBuilder : ILBuilder {
         _iLProcessor.Emit(OpCodes.Ldsfld, _module.randomField);
     }
 
+    internal override void EmitThrowNullCondition() {
+        _iLProcessor.Emit(OpCodes.Newobj, ILEmitter.NetMethodReference.NullConditionException_ctor);
+        _iLProcessor.Emit(OpCodes.Throw);
+    }
+
+    internal override void EmitArrayAddress(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitArrayCreate(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitArrayGet(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitArraySet(ArrayTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
     internal override CodeGeneration.VariableDefinition GetLocal(DataContainerSymbol local) {
         return _locals[local];
     }
@@ -203,7 +224,7 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void DeclareLocal(DataContainerSymbol local) {
-        var typeReference = _module.GetType(local.type);
+        var typeReference = _module.GetType(local.type, local.isRef);
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
         var mapLocal = new CecilVariableDefinition(variableDefinition, local.isRef);
 
@@ -331,6 +352,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Pop => OpCodes.Pop,
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
             CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
+            CodeGeneration.OpCode.Throw => OpCodes.Throw,
             _ => throw new NotImplementedException()
         };
     }
