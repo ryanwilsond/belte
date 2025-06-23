@@ -32,9 +32,13 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
         originalContainingMethod = containingMethod;
         this.closureOrdinal = closureOrdinal;
         this.scopeSyntax = scopeSyntax;
+        // constructor = isStruct ? null : new SynthesizedClosureEnvironmentConstructor(this);
+        constructor = new SynthesizedClosureEnvironmentConstructor(this);
     }
 
     public override TypeKind typeKind { get; }
+
+    internal override MethodSymbol constructor { get; }
 
     internal override Symbol containingSymbol => topLevelMethod.containingSymbol;
 
@@ -42,9 +46,9 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
 
     private static string MakeName(SyntaxNode scopeSyntaxOpt, int methodId, int closureId) {
         if (scopeSyntaxOpt is null)
-            return MakeDisplayClassName(methodId, 0);
+            return GeneratedNames.MakeDisplayClassName(methodId, 0);
 
-        return MakeDisplayClassName(methodId, closureId);
+        return GeneratedNames.MakeDisplayClassName(methodId, closureId);
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {
@@ -62,28 +66,4 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
         => singletonCache is not null
         ? SpecializedCollections.SingletonEnumerable(singletonCache)
         : SpecializedCollections.EmptyEnumerable<FieldSymbol>();
-
-    private static string MakeDisplayClassName(int methodId, int closureId) {
-        var result = PooledStringBuilder.GetInstance();
-        var builder = result.Builder;
-        builder.Append('<');
-        builder.Append('>');
-        builder.Append("Closure");
-
-        if (methodId >= 0 || closureId >= 0) {
-            builder.Append("__");
-
-            if (methodId >= 0)
-                builder.Append(methodId);
-
-            if (closureId >= 0) {
-                if (methodId >= 0)
-                    builder.Append('_');
-
-                builder.Append(closureId);
-            }
-        }
-
-        return result.ToStringAndFree();
-    }
 }

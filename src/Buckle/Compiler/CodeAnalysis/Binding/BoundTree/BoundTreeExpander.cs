@@ -42,7 +42,7 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandErrorStatement(BoundErrorStatement statement) {
-        // Even though there is protential for expanding the childBoundNodes, it will be an error anyways so why bother
+        // Even though there is potential for expanding the childBoundNodes, it will be an error anyways so why bother
         return [statement];
     }
 
@@ -51,7 +51,6 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandLocalFunctionStatement(BoundLocalFunctionStatement statement) {
-        // ExpandBlockStatement always returns a single block statement
         var newBody = (BoundBlockStatement)ExpandBlockStatement(statement.body)[0];
         return [new BoundLocalFunctionStatement(statement.syntax, statement.symbol, newBody)];
     }

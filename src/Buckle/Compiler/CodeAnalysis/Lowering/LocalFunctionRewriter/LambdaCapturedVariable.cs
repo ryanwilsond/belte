@@ -44,7 +44,7 @@ internal sealed class LambdaCapturedVariable : SynthesizedFieldSymbolBase {
         if (variable is DataContainerSymbol local) {
             switch (local.synthesizedKind) {
                 case SynthesizedLocalKind.LambdaDisplayClass:
-                    return MakeLambdaDisplayLocalName(uniqueId++);
+                    return GeneratedNames.MakeLambdaDisplayLocalName(uniqueId++);
             }
 
             // if (local.synthesizedKind == SynthesizedLocalKind.UserDefined &&
@@ -59,10 +59,6 @@ internal sealed class LambdaCapturedVariable : SynthesizedFieldSymbolBase {
         }
 
         return variable.name;
-    }
-
-    private static string MakeLambdaDisplayLocalName(int uniqueId) {
-        return "BLT$" + "<>8__locals" + uniqueId;
     }
 
     private static TypeSymbol GetCapturedVariableFieldType(SynthesizedContainer frame, Symbol variable) {

@@ -10,8 +10,10 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed class TypeCompilationState {
     private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
+    private Dictionary<MethodSymbol, MethodSymbol> _wrappers;
 
     internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods;
+    internal ArrayBuilder<(NamedTypeSymbol, NamedTypeSymbol)> synthesizedTypes;
 
     internal TypeCompilationState(NamedTypeSymbol type, Compilation compilation) {
         this.type = type;
@@ -22,8 +24,25 @@ internal sealed class TypeCompilationState {
 
     internal NamedTypeSymbol type { get; }
 
+    internal int nextWrapperMethodIndex => _wrappers is null ? 0 : _wrappers.Count;
+
     internal void Free() {
         _constructorInitializers = null;
+    }
+
+    internal void AddMethodWrapper(MethodSymbol method, MethodSymbol wrapper, BoundBlockStatement body) {
+        AddSynthesizedMethod(wrapper, body);
+        _wrappers ??= [];
+        _wrappers.Add(method, wrapper);
+    }
+
+    internal MethodSymbol GetMethodWrapper(MethodSymbol method) {
+        return _wrappers is not null && _wrappers.TryGetValue(method, out var wrapper) ? wrapper : null;
+    }
+
+    internal void AddSynthesizedType(NamedTypeSymbol containingType, NamedTypeSymbol type) {
+        synthesizedTypes ??= ArrayBuilder<(NamedTypeSymbol, NamedTypeSymbol)>.GetInstance();
+        synthesizedTypes.Add((containingType, type));
     }
 
     internal void AddSynthesizedMethod(MethodSymbol symbol, BoundBlockStatement body) {

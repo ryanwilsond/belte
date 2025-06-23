@@ -18,6 +18,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly Predicate<Symbol> _filter;
 
@@ -39,6 +40,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         _methodBodies = methodBodiesBeingBuilt;
+        _synthesizedNestedTypes = [];
     }
 
     internal static BoundProgram CompileMethodBodies(
@@ -86,6 +88,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _compilation,
             _methodBodies.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
+            _synthesizedNestedTypes,
             _entryPoint,
             _updatePoint,
             _compilation.previous?.boundProgram
@@ -142,6 +145,13 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                         f.GetConstantValue(ConstantFieldsInProgress.Empty);
 
                     break;
+            }
+        }
+
+        if (state.synthesizedTypes is not null) {
+            foreach (var synthesizedType in state.synthesizedTypes) {
+                _types.Add(synthesizedType.Item2);
+                _synthesizedNestedTypes.Add(synthesizedType.Item1, synthesizedType.Item2);
             }
         }
 

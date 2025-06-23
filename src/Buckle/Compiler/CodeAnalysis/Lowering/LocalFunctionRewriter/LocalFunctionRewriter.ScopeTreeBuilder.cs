@@ -93,6 +93,11 @@ internal sealed partial class LocalFunctionRewriter {
             return base.VisitParameterExpression(node);
         }
 
+        internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
+            AddIfCaptured(node.declaration.dataContainer);
+            return base.VisitLocalDeclarationStatement(node);
+        }
+
         internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
             AddIfCaptured(node.dataContainer);
             return base.VisitDataContainerExpression(node);

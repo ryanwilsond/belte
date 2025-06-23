@@ -6,7 +6,7 @@ using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
+internal class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
     internal SynthesizedConstructorSymbol(NamedTypeSymbol containingType) {
         this.containingType = containingType;
     }

@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -120,10 +121,16 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal abstract bool hasUnscopedRefAttribute { get; }
 
+    internal virtual bool synthesizesLoweredBoundBody => false;
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
         return visitor.VisitMethod(this, argument);
+    }
+
+    internal virtual void GenerateMethodBody(TypeCompilationState compilationState, BelteDiagnosticQueue diagnostics) {
+        throw ExceptionUtilities.Unreachable();
     }
 
     internal abstract int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree);
@@ -166,6 +173,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             return this;
 
         return new ConstructedMethodSymbol(this, templateArguments);
+    }
+
+    internal MethodSymbol ConstructIfTemplate(ImmutableArray<TypeOrConstant> templateArguments) {
+        return isTemplateMethod ? Construct(templateArguments) : this;
     }
 
     internal bool IncludeFieldInitializersInBody() {

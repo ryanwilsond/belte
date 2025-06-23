@@ -113,11 +113,14 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
 
         if (!extraSynthed.IsDefaultOrEmpty) {
             foreach (var extra in extraSynthed) {
+                var paramType = templateMap.SubstituteType(extra).type;
+
                 builder.Add(SynthesizedParameterSymbol.Create(
                     this,
-                    templateMap.SubstituteType(extra).type,
+                    paramType,
                     ordinal++,
-                    RefKind.Ref
+                    RefKind.Ref,
+                    GeneratedNames.MakeSynthedParameterName(ordinal, paramType)
                 ));
             }
         }

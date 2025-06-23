@@ -6,6 +6,8 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
+    private static int _synthCount;
+
     private readonly SyntaxNode _syntax;
 
     internal SynthesizedDataContainerSymbol(
@@ -20,6 +22,7 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         // This is the syntax of just the name
         _syntax = syntax;
         synthesizedKind = kind;
+        name = GeneratedNames.MakeSynthedLocalName(type, _synthCount++);
     }
 
     internal SynthesizedDataContainerSymbol(

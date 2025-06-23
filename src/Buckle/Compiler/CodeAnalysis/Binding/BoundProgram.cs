@@ -12,12 +12,14 @@ internal sealed partial class BoundProgram {
         Compilation compilation,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
         ImmutableArray<NamedTypeSymbol> types,
+        MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
         BoundProgram previous = null) {
         this.compilation = compilation;
         this.methodBodies = methodBodies;
         this.types = types;
+        this.nestedTypes = nestedTypes;
         this.entryPoint = entryPoint;
         this.updatePoint = updatePoint;
         this.previous = previous;
@@ -28,6 +30,8 @@ internal sealed partial class BoundProgram {
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
     internal ImmutableArray<NamedTypeSymbol> types { get; }
+
+    internal MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes { get; }
 
     internal MethodSymbol entryPoint { get; }
 

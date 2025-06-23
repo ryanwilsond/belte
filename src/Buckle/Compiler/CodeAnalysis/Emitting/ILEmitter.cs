@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -22,6 +23,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly List<AssemblyDefinition> _assemblies;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
+    private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
     private readonly bool _isDll;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
@@ -83,6 +85,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         GenerateSTLMap();
 
         _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
+
+        var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
+        foreach (var set in _program.nestedTypes)
+            linearBuilder.AddRange(set.Value);
+
+        _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
     internal static void Emit(
@@ -336,6 +345,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateMemberDefinitions(type);
 
+        foreach (var type in _linearNestedTypes)
+            CreateMemberDefinitions(type);
+
         foreach (var type in _topLevelTypes)
             EmitNamedType(type);
 
@@ -351,13 +363,21 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
         );
 
-        foreach (var member in type.GetTypeMembers()) {
-            var nestedDefinition = CreateNamedTypeDefinition(member, isNested: true);
-            typeDefinition.NestedTypes.Add(nestedDefinition);
+        foreach (var member in type.GetTypeMembers())
+            CreateNestedType(member);
+
+        if (_program.nestedTypes.ContainsKey(type)) {
+            foreach (var nestedType in _program.nestedTypes[type])
+                CreateNestedType(nestedType);
         }
 
         _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
+
+        void CreateNestedType(NamedTypeSymbol nestedType) {
+            var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
+            typeDefinition.NestedTypes.Add(nestedDefinition);
+        }
     }
 
     private string GetNamespaceName(Symbol symbol) {
