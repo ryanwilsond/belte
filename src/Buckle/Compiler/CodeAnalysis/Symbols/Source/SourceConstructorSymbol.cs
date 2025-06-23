@@ -101,4 +101,20 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         else if (containingType.isStatic)
             diagnostics.Push(Error.ConstructorInStaticClass(location));
     }
+
+    private protected override SyntaxNode GetInitializer() {
+        return GetSyntax().constructorInitializer;
+    }
+
+    private protected override bool IsWithinBody(int position, out int offset) {
+        var ctorSyntax = GetSyntax();
+
+        if (ctorSyntax.body.span.Contains(position)) {
+            offset = position - ctorSyntax.body.span.start;
+            return true;
+        }
+
+        offset = -1;
+        return false;
+    }
 }

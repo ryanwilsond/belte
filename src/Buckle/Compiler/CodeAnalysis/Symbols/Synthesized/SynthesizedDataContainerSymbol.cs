@@ -6,11 +6,14 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
+    private static int _synthCount;
+
     private readonly SyntaxNode _syntax;
 
     internal SynthesizedDataContainerSymbol(
         Symbol containingSymbol,
         TypeWithAnnotations type,
+        SynthesizedLocalKind kind,
         SyntaxNode syntax = null,
         RefKind refKind = RefKind.None) {
         this.containingSymbol = containingSymbol;
@@ -18,17 +21,21 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         typeWithAnnotations = type;
         // This is the syntax of just the name
         _syntax = syntax;
+        synthesizedKind = kind;
+        name = GeneratedNames.MakeSynthedLocalName(type, _synthCount++);
     }
 
     internal SynthesizedDataContainerSymbol(
         Symbol containingSymbol,
         TypeWithAnnotations type,
+        SynthesizedLocalKind kind,
         string name,
         RefKind refKind = RefKind.None) {
         this.containingSymbol = containingSymbol;
         this.refKind = refKind;
         typeWithAnnotations = type;
         this.name = name;
+        synthesizedKind = kind;
     }
 
     public override string name { get; }
@@ -56,6 +63,8 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
     internal override ScopedKind scope => ScopedKind.None;
 
     internal override bool hasSourceLocation => _syntax is not null;
+
+    internal override SynthesizedLocalKind synthesizedKind { get; }
 
     internal override SyntaxNode GetDeclarationSyntax() {
         return _syntax;

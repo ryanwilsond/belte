@@ -12,7 +12,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Expander : BoundTreeExpander {
     private readonly List<string> _localNames = [];
-    private readonly MethodSymbol _container;
+    private MethodSymbol _container;
 
     private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
@@ -25,6 +25,15 @@ internal sealed class Expander : BoundTreeExpander {
 
     internal BoundStatement Expand(BoundStatement statement) {
         return Simplify(statement.syntax, ExpandStatement(statement));
+    }
+
+    private protected override List<BoundStatement> ExpandLocalFunctionStatement(
+        BoundLocalFunctionStatement statement) {
+        var oldContainer = _container;
+        _container = statement.symbol;
+        var newStatements = base.ExpandLocalFunctionStatement(statement);
+        _container = oldContainer;
+        return newStatements;
     }
 
     private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
@@ -424,6 +433,11 @@ internal sealed class Expander : BoundTreeExpander {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new SynthesizedDataContainerSymbol(_container, new TypeWithAnnotations(type), name);
+        return new SynthesizedDataContainerSymbol(
+            _container,
+            new TypeWithAnnotations(type),
+            SynthesizedLocalKind.ExpanderTemp,
+            name
+        );
     }
 }

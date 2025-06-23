@@ -206,7 +206,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override bool isSealed => isMetadataFinal && !isAbstract && isOverride;
 
-    internal bool isMetadataFinal => HasFlag(MethodAttributes.Final);
+    internal override bool isMetadataFinal => HasFlag(MethodAttributes.Final);
 
     internal override int parameterCount {
         get {
@@ -442,5 +442,9 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         } catch (BadImageFormatException) {
             return [];
         }
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

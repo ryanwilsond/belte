@@ -78,6 +78,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitArrayCreate(ArrayTypeSymbol type);
 
+    internal abstract void EmitToString();
+
     internal abstract VariableDefinition AllocateTemp(TypeSymbol type, bool isRef);
 
     internal abstract VariableDefinition GetLocal(DataContainerSymbol local);

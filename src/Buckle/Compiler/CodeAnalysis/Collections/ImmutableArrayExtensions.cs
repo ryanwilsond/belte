@@ -7,6 +7,35 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal static class ImmutableArrayExtensions {
+    internal static int BinarySearch<TElement, TValue>(
+        this ImmutableArray<TElement> array,
+        TValue value,
+        Func<TElement, TValue, int> comparer)
+            => BinarySearch(array.AsSpan(), value, comparer);
+
+    internal static int BinarySearch<TElement, TValue>(
+        this ReadOnlySpan<TElement> array,
+        TValue value,
+        Func<TElement, TValue, int> comparer) {
+        var low = 0;
+        var high = array.Length - 1;
+
+        while (low <= high) {
+            var middle = low + ((high - low) >> 1);
+            var comparison = comparer(array[middle], value);
+
+            if (comparison == 0)
+                return middle;
+
+            if (comparison > 0)
+                high = middle - 1;
+            else
+                low = middle + 1;
+        }
+
+        return ~low;
+    }
+
     internal static ImmutableArray<T> AsImmutable<T>(this IEnumerable<T> items) {
         return [.. items];
     }

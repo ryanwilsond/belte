@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -147,6 +148,10 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
 
             return substituted.ToImmutableAndFree();
         }
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
     }
 
     private int ComputeHashCode() {

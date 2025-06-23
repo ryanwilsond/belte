@@ -157,7 +157,7 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
             while (<condition>) {
                 <body>
             continue:
-                <step>;
+                <step>
             }
         }
 
@@ -176,7 +176,7 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
                 syntax,
                 statement.body,
                 Label(syntax, continueLabel),
-                Statement(syntax, statement.step)
+                statement.step
             );
         }
 

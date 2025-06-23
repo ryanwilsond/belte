@@ -18,6 +18,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly Predicate<Symbol> _filter;
 
@@ -39,6 +40,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         _methodBodies = methodBodiesBeingBuilt;
+        _synthesizedNestedTypes = [];
     }
 
     internal static BoundProgram CompileMethodBodies(
@@ -86,6 +88,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _compilation,
             _methodBodies.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
+            _synthesizedNestedTypes,
             _entryPoint,
             _updatePoint,
             _compilation.previous?.boundProgram
@@ -142,6 +145,13 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                         f.GetConstantValue(ConstantFieldsInProgress.Empty);
 
                     break;
+            }
+        }
+
+        if (state.synthesizedTypes is not null) {
+            foreach (var synthesizedType in state.synthesizedTypes) {
+                _types.Add(synthesizedType.Item2);
+                _synthesizedNestedTypes.Add(synthesizedType.Item1, synthesizedType.Item2);
             }
         }
 
@@ -204,7 +214,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             body,
             state,
             _compilation.previousAnalyses,
-            _compilation.options.buildMode,
             currentDiagnostics
         );
 
@@ -218,26 +227,39 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BoundBlockStatement body,
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
-        BuildMode buildMode,
         BelteDiagnosticQueue currentDiagnostics) {
-        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
+        var loweredBody = Lowerer.Lower(method, body);
 
-        // ? C# handles closure a little different than we do so we just let the C# compiler handle that itself
-        if (buildMode != BuildMode.CSharpTranspile) {
-            // ? TODO Why do we have a substitutedMethodSymbol parameter here if it's never supplied?
-            loweredBody = LocalFunctionRewriter.Rewrite(
-                loweredBody,
-                state.type,
-                method,
-                methodOrdinal,
-                null,
-                state,
-                previousAnalyses,
-                currentDiagnostics
-            );
-        }
+        loweredBody = LocalFunctionRewriter.Rewrite(
+            loweredBody,
+            state.type,
+            method,
+            methodOrdinal,
+            null,
+            state,
+            previousAnalyses,
+            currentDiagnostics
+        );
+
+        loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
 
         return loweredBody;
+    }
+
+    internal static BoundBlockStatement BindSynthesizedMethodBody(
+        MethodSymbol method,
+        TypeCompilationState compilationState,
+        BelteDiagnosticQueue diagnostics) {
+        MethodSymbol _ = null;
+
+        return BindMethodBody(
+            method,
+            compilationState,
+            diagnostics,
+            includeInitializers: false,
+            initializersBody: null,
+            entryPoint: ref _
+        );
     }
 
     private static BoundBlockStatement BindMethodBody(
@@ -347,7 +369,12 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (body is not null)
             builder.Add(body);
 
-        return new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), [], []);
+        return new BoundBlockStatement(
+            syntax,
+            builder.ToImmutableAndFree(),
+            body?.locals ?? [],
+            body?.localFunctions ?? []
+        );
     }
 
     private static BoundStatement BindImplicitConstructorInitializerIfAny(

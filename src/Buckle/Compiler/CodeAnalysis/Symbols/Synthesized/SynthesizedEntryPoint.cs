@@ -46,6 +46,8 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
 
+    internal override bool isMetadataFinal => false;
+
     // TODO Reference says members.First is what we want, but why?? Double check this
     internal SyntaxNode returnTypeSyntax => compilationUnit.members.Last(m => m.kind == SyntaxKind.GlobalStatement);
 
@@ -80,6 +82,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {
         return GetBodyBinder(ignoreAccessibility);
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        return localPosition;
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;

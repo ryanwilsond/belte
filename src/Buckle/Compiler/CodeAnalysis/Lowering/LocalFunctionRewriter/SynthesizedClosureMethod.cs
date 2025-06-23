@@ -30,7 +30,13 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
                 originalMethod,
                 blockSyntax,
                 location,
-                MakeName(topLevelMethod.name, originalMethod.name, topLevelMethodOrdinal, closureKind, methodOrdinal),
+                GeneratedNames.MakeClosureName(
+                    topLevelMethod.name,
+                    originalMethod.name,
+                    topLevelMethodOrdinal,
+                    closureKind,
+                    methodOrdinal
+                ),
                 MakeDeclarationModifiers(closureKind)) {
         this.topLevelMethod = topLevelMethod;
         this.methodOrdinal = methodOrdinal;
@@ -102,59 +108,6 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         return mods;
     }
 
-    private static string MakeName(
-        string topLevelMethodName,
-        string localFunctionName,
-        int topLevelMethodOrdinal,
-        ClosureKind closureKind,
-        int methodOrdinal) {
-        var result = PooledStringBuilder.GetInstance();
-        var builder = result.Builder;
-        builder.Append('<');
-
-        if (topLevelMethodName is not null)
-            builder.Append(topLevelMethodName);
-
-        builder.Append('>');
-
-        switch (closureKind) {
-            case ClosureKind.Static:
-                builder.Append("ss");
-                break;
-            case ClosureKind.Singleton:
-                builder.Append('s');
-                break;
-            case ClosureKind.ThisOnly:
-                builder.Append('t');
-                break;
-            case ClosureKind.General:
-                builder.Append('g');
-                break;
-        }
-
-        if (localFunctionName is not null || topLevelMethodOrdinal >= 0 || methodOrdinal >= 0) {
-            // '__' represents the suffix separator
-            builder.Append("__");
-            builder.Append(localFunctionName);
-            // '|' represents the local function suffix terminator
-            builder.Append('|');
-
-            if (topLevelMethodOrdinal >= 0)
-                builder.Append(topLevelMethodOrdinal);
-
-            if (methodOrdinal >= 0) {
-                if (methodOrdinal >= 0) {
-                    // '_' represents the ID separator
-                    builder.Append('_');
-                }
-
-                builder.Append(methodOrdinal);
-            }
-        }
-
-        return result.ToStringAndFree();
-    }
-
     internal MethodSymbol topLevelMethod { get; }
 
     internal ClosureKind closureKind { get; }
@@ -172,5 +125,9 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         BinderFactory binderFactoryOpt = null,
         bool ignoreAccessibility = false) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        return topLevelMethod.CalculateLocalSyntaxOffset(localPosition, localTree);
     }
 }

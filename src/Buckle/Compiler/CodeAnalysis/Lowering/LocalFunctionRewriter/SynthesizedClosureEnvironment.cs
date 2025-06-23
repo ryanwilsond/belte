@@ -17,6 +17,7 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
     private ImmutableArray<Symbol> _members;
 
     internal readonly int closureOrdinal;
+    internal readonly int closureId;
 
     internal SynthesizedClosureEnvironment(
         MethodSymbol topLevelMethod,
@@ -31,18 +32,23 @@ internal sealed class SynthesizedClosureEnvironment : SynthesizedContainer {
         originalContainingMethod = containingMethod;
         this.closureOrdinal = closureOrdinal;
         this.scopeSyntax = scopeSyntax;
+        // constructor = isStruct ? null : new SynthesizedClosureEnvironmentConstructor(this);
+        constructor = new SynthesizedClosureEnvironmentConstructor(this);
     }
 
     public override TypeKind typeKind { get; }
 
+    internal override MethodSymbol constructor { get; }
+
     internal override Symbol containingSymbol => topLevelMethod.containingSymbol;
 
-    // TODO Is lambda a euphemism for lambda or local functions here?
-    // internal void AddHoistedField(LambdaCapturedVariable captured) => _membersBuilder.Add(captured);
+    internal void AddHoistedField(LambdaCapturedVariable captured) => _membersBuilder.Add(captured);
 
     private static string MakeName(SyntaxNode scopeSyntaxOpt, int methodId, int closureId) {
-        // Currently closures are unwrapped and not present in the final tree
-        return "<closure>";
+        if (scopeSyntaxOpt is null)
+            return GeneratedNames.MakeDisplayClassName(methodId, 0);
+
+        return GeneratedNames.MakeDisplayClassName(methodId, closureId);
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {

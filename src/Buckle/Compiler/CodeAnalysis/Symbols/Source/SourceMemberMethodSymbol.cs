@@ -143,6 +143,10 @@ done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
     }
 
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        return localPosition - body.span.start;
+    }
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) {
         if (forceComplete && !_flags.isMetadataVirtualLocked)
             containingSymbol.ForceComplete(null);

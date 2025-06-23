@@ -15,11 +15,7 @@ internal sealed partial class LocalFunctionRewriter {
         internal SynthesizedClosureEnvironment synthesizedEnvironment;
 
         internal ClosureEnvironment(IEnumerable<Symbol> capturedVariables, bool isStruct) {
-            this.capturedVariables = new SetWithInsertionOrder<Symbol>();
-
-            foreach (var item in capturedVariables)
-                this.capturedVariables.Add(item);
-
+            this.capturedVariables = [.. capturedVariables];
             this.isStruct = isStruct;
         }
 

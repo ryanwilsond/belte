@@ -113,7 +113,7 @@
     <Field Name="finalPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="finalConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
-    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
+    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
   <Node Name="BoundNullCoalescingAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
@@ -215,7 +215,7 @@
     <Field Name="resultPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="resultConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
-    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
+    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">
@@ -250,7 +250,7 @@
     <Field Name="initializer" Type="BoundStatement"/>
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="condition" Type="BoundExpression?"/>
-    <Field Name="step" Type="BoundExpression?"/>
+    <Field Name="step" Type="BoundStatement?"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">

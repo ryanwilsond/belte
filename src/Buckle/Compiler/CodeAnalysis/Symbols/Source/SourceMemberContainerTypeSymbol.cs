@@ -1682,6 +1682,130 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal bool TryCalculateSyntaxOffsetOfPositionInInitializer(
+        int position,
+        SyntaxTree tree,
+        int ctorInitializerLength,
+        out int syntaxOffset) {
+        var membersAndInitializers = GetMembersAndInitializers();
+        var allInitializers = membersAndInitializers.fieldInitializers;
+
+        if (!FindInitializer(allInitializers, position, tree, out var initializer, out var precedingLength)) {
+            syntaxOffset = 0;
+            return false;
+        }
+
+        var initializersLength = GetInitializersLength(allInitializers);
+        var distanceFromInitializerStart = position - initializer.syntax.span.start;
+
+        var distanceFromCtorBody =
+            initializersLength + ctorInitializerLength -
+            (precedingLength + distanceFromInitializerStart);
+
+        syntaxOffset = -distanceFromCtorBody;
+        return true;
+
+        static bool FindInitializer(
+            ImmutableArray<ImmutableArray<FieldInitializer>> initializers,
+            int position,
+            SyntaxTree tree,
+            out FieldInitializer found,
+            out int precedingLength) {
+            precedingLength = 0;
+
+            foreach (var group in initializers) {
+                if (!group.IsEmpty &&
+                    group[0].syntax.syntaxTree == tree &&
+                    position < group.Last().syntax.span.end) {
+                    var initializerIndex = IndexOfInitializerContainingPosition(group, position);
+
+                    if (initializerIndex < 0)
+                        break;
+
+                    precedingLength += GetPrecedingInitializersLength(group, initializerIndex);
+                    found = group[initializerIndex];
+                    return true;
+                }
+
+                precedingLength += GetGroupLength(group);
+            }
+
+            found = default;
+            return false;
+        }
+
+        static int GetGroupLength(ImmutableArray<FieldInitializer> initializers) {
+            var length = 0;
+
+            foreach (var initializer in initializers)
+                length += GetInitializerLength(initializer);
+
+            return length;
+        }
+
+        static int GetPrecedingInitializersLength(ImmutableArray<FieldInitializer> initializers, int index) {
+            var length = 0;
+
+            for (var i = 0; i < index; i++)
+                length += GetInitializerLength(initializers[i]);
+
+            return length;
+        }
+
+        static int GetInitializersLength(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
+            var length = 0;
+
+            foreach (var group in initializers)
+                length += GetGroupLength(group);
+
+            return length;
+        }
+
+        static int GetInitializerLength(FieldInitializer initializer) {
+            if (initializer.field is null || !initializer.field.isMetadataConstant)
+                return initializer.syntax.span.length;
+
+            return 0;
+        }
+    }
+
+    private static int IndexOfInitializerContainingPosition(
+        ImmutableArray<FieldInitializer> initializers,
+        int position) {
+        var index = initializers.BinarySearch(
+            position,
+            (initializer, pos) => initializer.syntax.span.start.CompareTo(pos)
+        );
+
+        if (index >= 0)
+            return index;
+
+        var precedingInitializerIndex = ~index - 1;
+
+        if (precedingInitializerIndex >= 0 && initializers[precedingInitializerIndex].syntax.span.Contains(position))
+            return precedingInitializerIndex;
+
+        return -1;
+    }
+
+    internal int CalculateSyntaxOffsetInSynthesizedConstructor(int position, SyntaxTree tree) {
+        if (TryCalculateSyntaxOffsetOfPositionInInitializer(
+            position,
+            tree,
+            0,
+            out var syntaxOffset)) {
+            return syntaxOffset;
+        }
+
+        if (_declaration.declarations.Length >= 1 &&
+            position == _declaration.declarations[0].location.span.start) {
+            return 0;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasFlag(DeclarationModifiers flag) => (_modifiers & flag) != 0;
 }

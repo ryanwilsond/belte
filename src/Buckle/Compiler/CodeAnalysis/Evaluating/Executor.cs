@@ -13,6 +13,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -24,8 +25,8 @@ internal sealed partial class Executor : ModuleBuilder {
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
     private readonly BoundProgram _program;
-
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
+    private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
 
     private readonly Dictionary<SpecialType, Type> _specialTypes = new Dictionary<SpecialType, Type>{
         { SpecialType.Object, typeof(object) },
@@ -79,6 +80,13 @@ internal sealed partial class Executor : ModuleBuilder {
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
         _moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
+
+        var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
+        foreach (var set in _program.nestedTypes)
+            linearBuilder.AddRange(set.Value);
+
+        _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
     public static T AssertNull<T>(T value) {
@@ -256,6 +264,9 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateMemberDefinitions(type);
 
+        foreach (var type in _linearNestedTypes)
+            CreateMemberDefinitions(type);
+
         foreach (var method in _methods) {
             if (method.Value is MethodBuilder mb)
                 EmitMethod(method.Key, mb);
@@ -313,15 +324,23 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder) {
-        foreach (var member in type.GetTypeMembers()) {
+        foreach (var member in type.GetTypeMembers())
+            AddNestedType(member);
+
+        if (_program.nestedTypes.ContainsKey(type)) {
+            foreach (var nestedType in _program.nestedTypes[type])
+                AddNestedType(nestedType);
+        }
+
+        void AddNestedType(NamedTypeSymbol nestedType) {
             var nestedBuilder = typeBuilder.DefineNestedType(
-                member.name,
-                GetTypeAttributes(member, true),
-                GetType(type.baseType)
+                nestedType.name,
+                GetTypeAttributes(nestedType, true),
+                GetType(nestedType.baseType)
             );
 
-            CreateNestedTypes(member, nestedBuilder);
-            _types.Add(member.originalDefinition, nestedBuilder);
+            CreateNestedTypes(nestedType, nestedBuilder);
+            _types.Add(nestedType.originalDefinition, nestedBuilder);
         }
     }
 
@@ -366,11 +385,13 @@ internal sealed partial class Executor : ModuleBuilder {
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
         if (method.isAbstract)
-            attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
-        if (method.isVirtual)
+            attributes |= MethodAttributes.Abstract;
+        if (method.IsMetadataVirtual())
             attributes |= MethodAttributes.Virtual;
         if (method.isOverride)
-            attributes |= MethodAttributes.Virtual;
+            attributes |= MethodAttributes.ReuseSlot;
+        if (method.isMetadataFinal)
+            attributes |= MethodAttributes.Final;
 
         return attributes;
     }

@@ -224,6 +224,10 @@ internal sealed class RefILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
+    internal override void EmitToString() {
+        _iLGenerator.Emit(OpCodes.Call, Executor.MethodInfoCache.Object_ToString);
+    }
+
     internal override VariableDefinition GetLocal(DataContainerSymbol local) {
         return _locals[local];
     }

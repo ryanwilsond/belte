@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -22,6 +23,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly List<AssemblyDefinition> _assemblies;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
+    private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
     private readonly bool _isDll;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
@@ -83,6 +85,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         GenerateSTLMap();
 
         _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
+
+        var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
+        foreach (var set in _program.nestedTypes)
+            linearBuilder.AddRange(set.Value);
+
+        _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
     internal static void Emit(
@@ -336,11 +345,20 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateMemberDefinitions(type);
 
-        foreach (var type in _topLevelTypes)
-            EmitNamedType(type);
+        foreach (var type in _linearNestedTypes)
+            CreateMemberDefinitions(type);
 
-        if (_program.entryPoint is not null)
-            _assemblyDefinition.EntryPoint = _methods[_program.entryPoint];
+        foreach (var method in _methods)
+            EmitMethod(method.Value);
+
+        var entryPoint = _program.entryPoint;
+
+        if (entryPoint is not null) {
+            _assemblyDefinition.EntryPoint = _methods[entryPoint];
+
+            if (!entryPoint.returnsVoid)
+                _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+        }
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
@@ -351,13 +369,21 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
         );
 
-        foreach (var member in type.GetTypeMembers()) {
-            var nestedDefinition = CreateNamedTypeDefinition(member, isNested: true);
-            typeDefinition.NestedTypes.Add(nestedDefinition);
+        foreach (var member in type.GetTypeMembers())
+            CreateNestedType(member);
+
+        if (_program.nestedTypes.ContainsKey(type)) {
+            foreach (var nestedType in _program.nestedTypes[type])
+                CreateNestedType(nestedType);
         }
 
         _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
+
+        void CreateNestedType(NamedTypeSymbol nestedType) {
+            var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
+            typeDefinition.NestedTypes.Add(nestedDefinition);
+        }
     }
 
     private string GetNamespaceName(Symbol symbol) {
@@ -469,16 +495,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return attributes;
     }
 
-    private void EmitNamedType(NamedTypeSymbol type) {
-        var typeDefinition = _types[type];
-
-        foreach (var method in typeDefinition.Methods)
-            EmitMethod(method);
-
-        foreach (var member in type.GetTypeMembers())
-            EmitNamedType(member);
-    }
-
     private void EmitMethod(MethodDefinition methodDefinition) {
         var (method, body) = _methodBodies[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
@@ -585,6 +601,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void ResolveMethods() {
         NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
+        NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
         NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
@@ -613,7 +630,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
             { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
             { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
-            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
             { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
             { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
             { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },

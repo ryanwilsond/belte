@@ -254,6 +254,9 @@ public sealed partial class Compilation {
 
         Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
+        if (verbose && options.enableOutput && evalResult is not null)
+            Console.WriteLine(evalResult);
+
         if (rollingResult is null) {
             rollingResult = new EvaluationResult(
                 evalResult,

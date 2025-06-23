@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -113,11 +114,14 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
 
         if (!extraSynthed.IsDefaultOrEmpty) {
             foreach (var extra in extraSynthed) {
+                var paramType = templateMap.SubstituteType(extra).type;
+
                 builder.Add(SynthesizedParameterSymbol.Create(
                     this,
-                    templateMap.SubstituteType(extra).type,
+                    paramType,
                     ordinal++,
-                    RefKind.Ref
+                    paramType.type.IsVerifierReference() ? RefKind.None : RefKind.Ref,
+                    GeneratedNames.MakeSynthedParameterName(ordinal, paramType)
                 ));
             }
         }

@@ -38,6 +38,10 @@ internal sealed partial class LocalFunctionRewriter {
 
         private void Build() {
             DeclareLocals(_currentScope, _topLevelMethod.parameters);
+
+            if (_topLevelMethod.TryGetThisParameter(out var thisParam) && thisParam is not null)
+                DeclareLocals(_currentScope, ImmutableArray.Create<Symbol>(thisParam));
+
             Visit(_currentScope.boundNode);
 
             foreach (var scopes in _scopesAfterLabel.Values)
@@ -87,6 +91,11 @@ internal sealed partial class LocalFunctionRewriter {
         internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
             AddIfCaptured(node.parameter);
             return base.VisitParameterExpression(node);
+        }
+
+        internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
+            AddIfCaptured(node.declaration.dataContainer);
+            return base.VisitLocalDeclarationStatement(node);
         }
 
         internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
@@ -237,7 +246,9 @@ internal sealed partial class LocalFunctionRewriter {
             where TSymbol : Symbol {
             foreach (var local in locals) {
                 if (!declareAsFree)
-                    _localToScope.Add(local, scope);
+                    // Chained submissions can have duplicate locals/functions
+                    // _localToScope.Add(local, scope);
+                    _localToScope[local] = scope;
             }
         }
     }
