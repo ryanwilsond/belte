@@ -71,6 +71,8 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal sealed override bool hasUnscopedRefAttribute => false;
 
+    internal override bool isMetadataFinal => false;
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {

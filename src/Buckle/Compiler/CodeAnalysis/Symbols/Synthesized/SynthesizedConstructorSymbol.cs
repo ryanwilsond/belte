@@ -67,6 +67,8 @@ internal class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
 
     internal override bool hasUnscopedRefAttribute => false;
 
+    internal override bool isMetadataFinal => false;
+
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCtor;
     }

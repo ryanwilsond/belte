@@ -1421,6 +1421,8 @@ oneMoreTime:
             if (callKind == CallKind.CallVirt) {
                 if (IsThisReceiver(receiver) && actualMethodTargetedByTheCall.containingType.isSealed)
                     callKind = CallKind.Call;
+                else if (actualMethodTargetedByTheCall.isMetadataFinal && CanUseCallOnRefTypeReceiver(receiver))
+                    callKind = CallKind.Call;
             }
 
             var arguments = call.arguments;
@@ -2703,10 +2705,17 @@ oneMoreTime:
     }
 
     private void EmitCast(BoundCastExpression cast) {
-        if (IsReferenceType(cast.operand.type) && cast.type.specialType == SpecialType.Nullable)
-            return;
+        if (IsReferenceType(cast.operand.type)) {
+            if (cast.type.specialType == SpecialType.Nullable) {
+                return;
+            } else if (cast.type.specialType == SpecialType.String) {
+                _builder.EmitToString();
+                return;
+            }
+        }
 
-        var involvesRefTypes = cast.operand.type.IsVerifierReference() || cast.type.IsVerifierReference();
+        var involvesRefTypes = cast.operand.type.IsVerifierReference() ||
+            (cast.type.IsVerifierReference() && cast.type.specialType != SpecialType.String);
 
         switch (cast.conversion.kind) {
             case ConversionKind.Identity:

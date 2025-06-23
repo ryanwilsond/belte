@@ -207,9 +207,10 @@ internal sealed partial class LocalFunctionRewriter {
                              closure.capturedVariables.Overlaps(closures.Select(c => c.originalMethodSymbol)))) {
                             closures.Add(closure);
                             addedItem = true;
+                            // TODO Allowing structs would be good for perf, however isStruct is already sort of ignored
                             // This before check for CanTakeInRefParameters, but that should always be true
                             // isStruct &= true;
-                            isStruct = true;
+                            // isStruct = true;
                         }
                     });
                 } while (addedItem == true);

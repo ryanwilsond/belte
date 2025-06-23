@@ -210,6 +210,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
+    internal override void EmitToString() {
+        _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Object_ToString);
+    }
+
     internal override CodeGeneration.VariableDefinition GetLocal(DataContainerSymbol local) {
         return _locals[local];
     }

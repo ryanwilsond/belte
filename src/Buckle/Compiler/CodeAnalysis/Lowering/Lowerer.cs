@@ -5,7 +5,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -22,21 +21,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
         _expander = new Expander(container);
     }
 
-    internal static BoundBlockStatement Lower(
-        MethodSymbol method,
-        BoundStatement statement,
-        BelteDiagnosticQueue diagnostics) {
+    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
         var lowerer = new Lowerer(method);
 
-        // TODO Maybe separate Optimizer into Optimizer and DeadCodeRemover to prevent calling the Optimizer twice?
+        var rewrittenStatement = Optimizer.Optimize(statement);
 
-        var rewrittenStatement = Optimizer.Optimize(statement, false, diagnostics);
-        // We need to lower control of flow before expanding to ensure the condition expressions aren't "cached"
         rewrittenStatement = FlowLowerer.Lower(rewrittenStatement);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, rewrittenStatement);
-        rewrittenStatement = Optimizer.Optimize(rewrittenStatement, true, diagnostics);
+
+        rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
 
         return (BoundBlockStatement)rewrittenStatement;
     }

@@ -82,18 +82,13 @@ internal sealed partial class ControlFlowGraphBuilder {
             }
         }
 
-        void Scan() {
-            foreach (var block in blocks) {
-                if (block.incoming.Count == 0) {
-                    RemoveBlock(blocks, block);
-                    Scan();
-
-                    return;
-                }
+again:
+        foreach (var block in blocks) {
+            if (block.incoming.Count == 0) {
+                RemoveBlock(blocks, block);
+                goto again;
             }
         }
-
-        Scan();
 
         blocks.Insert(0, _start);
         blocks.Add(_end);

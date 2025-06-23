@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -119,7 +120,7 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
                     this,
                     paramType,
                     ordinal++,
-                    RefKind.Ref,
+                    paramType.type.IsVerifierReference() ? RefKind.None : RefKind.Ref,
                     GeneratedNames.MakeSynthedParameterName(ordinal, paramType)
                 ));
             }

@@ -348,11 +348,17 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var type in _linearNestedTypes)
             CreateMemberDefinitions(type);
 
-        foreach (var type in _topLevelTypes)
-            EmitNamedType(type);
+        foreach (var method in _methods)
+            EmitMethod(method.Value);
 
-        if (_program.entryPoint is not null)
-            _assemblyDefinition.EntryPoint = _methods[_program.entryPoint];
+        var entryPoint = _program.entryPoint;
+
+        if (entryPoint is not null) {
+            _assemblyDefinition.EntryPoint = _methods[entryPoint];
+
+            if (!entryPoint.returnsVoid)
+                _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+        }
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
@@ -489,16 +495,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return attributes;
     }
 
-    private void EmitNamedType(NamedTypeSymbol type) {
-        var typeDefinition = _types[type];
-
-        foreach (var method in typeDefinition.Methods)
-            EmitMethod(method);
-
-        foreach (var member in type.GetTypeMembers())
-            EmitNamedType(member);
-    }
-
     private void EmitMethod(MethodDefinition methodDefinition) {
         var (method, body) = _methodBodies[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
@@ -605,6 +601,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void ResolveMethods() {
         NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
+        NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
         NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
@@ -633,7 +630,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
             { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
             { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
-            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
             { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
             { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
             { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },

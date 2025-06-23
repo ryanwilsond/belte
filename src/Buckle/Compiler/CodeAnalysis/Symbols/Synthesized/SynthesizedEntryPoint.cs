@@ -46,6 +46,8 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     internal ImmutableArray<GlobalStatementSyntax> statements { get; }
 
+    internal override bool isMetadataFinal => false;
+
     // TODO Reference says members.First is what we want, but why?? Double check this
     internal SyntaxNode returnTypeSyntax => compilationUnit.members.Last(m => m.kind == SyntaxKind.GlobalStatement);
 

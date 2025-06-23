@@ -214,7 +214,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             body,
             state,
             _compilation.previousAnalyses,
-            _compilation.options.buildMode,
             currentDiagnostics
         );
 
@@ -228,24 +227,21 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BoundBlockStatement body,
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
-        BuildMode buildMode,
         BelteDiagnosticQueue currentDiagnostics) {
-        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
+        var loweredBody = Lowerer.Lower(method, body);
 
-        // ? C# handles closure a little different than we do so we just let the C# compiler handle that itself
-        if (buildMode != BuildMode.CSharpTranspile) {
-            // ? TODO Why do we have a substitutedMethodSymbol parameter here if it's never supplied?
-            loweredBody = LocalFunctionRewriter.Rewrite(
-                loweredBody,
-                state.type,
-                method,
-                methodOrdinal,
-                null,
-                state,
-                previousAnalyses,
-                currentDiagnostics
-            );
-        }
+        loweredBody = LocalFunctionRewriter.Rewrite(
+            loweredBody,
+            state.type,
+            method,
+            methodOrdinal,
+            null,
+            state,
+            previousAnalyses,
+            currentDiagnostics
+        );
+
+        loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
 
         return loweredBody;
     }

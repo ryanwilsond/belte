@@ -206,7 +206,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override bool isSealed => isMetadataFinal && !isAbstract && isOverride;
 
-    internal bool isMetadataFinal => HasFlag(MethodAttributes.Final);
+    internal override bool isMetadataFinal => HasFlag(MethodAttributes.Final);
 
     internal override int parameterCount {
         get {

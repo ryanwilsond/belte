@@ -123,6 +123,9 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual bool synthesizesLoweredBoundBody => false;
 
+    internal virtual bool isMetadataFinal
+        => isSealed || (IsMetadataVirtual() && !(isVirtual || isOverride || isAbstract));
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

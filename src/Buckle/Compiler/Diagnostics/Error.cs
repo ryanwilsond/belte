@@ -1776,6 +1776,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ArrayInitWrongLength, location, message);
     }
 
+    internal static BelteDiagnostic IncompatibleEntryPointReturn(TextLocation location, Symbol symbol) {
+        var message = $"entry point '{symbol}' must return void to maintain compatibility with .NET";
+        return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

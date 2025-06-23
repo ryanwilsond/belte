@@ -336,7 +336,7 @@ internal sealed partial class Executor : ModuleBuilder {
             var nestedBuilder = typeBuilder.DefineNestedType(
                 nestedType.name,
                 GetTypeAttributes(nestedType, true),
-                GetType(type.baseType)
+                GetType(nestedType.baseType)
             );
 
             CreateNestedTypes(nestedType, nestedBuilder);
@@ -385,11 +385,13 @@ internal sealed partial class Executor : ModuleBuilder {
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
         if (method.isAbstract)
-            attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
-        if (method.isVirtual)
+            attributes |= MethodAttributes.Abstract;
+        if (method.IsMetadataVirtual())
             attributes |= MethodAttributes.Virtual;
         if (method.isOverride)
-            attributes |= MethodAttributes.Virtual;
+            attributes |= MethodAttributes.ReuseSlot;
+        if (method.isMetadataFinal)
+            attributes |= MethodAttributes.Final;
 
         return attributes;
     }
