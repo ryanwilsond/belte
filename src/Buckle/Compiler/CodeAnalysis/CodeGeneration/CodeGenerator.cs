@@ -84,11 +84,11 @@ internal sealed partial class CodeGenerator {
     }
 
     internal static bool IsReferenceType(TypeSymbol type) {
-        return (type.isObjectType && !IsTrueNullable(type)) || IsReferenceType(type.specialType);
+        return (type.isObjectType && !type.IsStructType() && !IsTrueNullable(type)) || IsReferenceType(type.specialType);
     }
 
     internal static bool IsValueType(TypeSymbol type) {
-        return (type.isPrimitiveType || IsTrueNullable(type)) && IsValueType(type.specialType);
+        return (type.isPrimitiveType || type.IsStructType() || IsTrueNullable(type)) && IsValueType(type.specialType);
     }
 
     private static bool IsTrueNullable(TypeSymbol type) {
@@ -1305,8 +1305,11 @@ oneMoreTime:
                     EmitBox(parentCallReceiverType);
                 } else if (addressKind is null) {
                 } else {
-                    if (receiverUseKind != UseKind.UsedAsAddress)
+                    if (receiverUseKind != UseKind.UsedAsAddress) {
                         tempOpt = _builder.AllocateTemp(parentCallReceiverType, false);
+                        _builder.EmitLocalStore(tempOpt);
+                        _builder.EmitLocalAddress(tempOpt);
+                    }
 
                     EmitGenericReceiverCloneIfNecessary(call, callKind, ref tempOpt);
                 }
@@ -1460,6 +1463,7 @@ oneMoreTime:
                     // TODO Is EmitDefaultValue reachable?
                     // if ((object)default(T) == null)
                     // EmitDefaultValue(receiverType, true, receiver.Syntax);
+                    throw ExceptionUtilities.Unreachable();
                     EmitBox(receiverType);
                     whenNotNullLabel = new object();
                     _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
@@ -1506,12 +1510,10 @@ oneMoreTime:
         if (methodContainingType.IsNullableType()) {
             var originalMethod = method.originalDefinition;
 
-            // TODO Reachable?
-            // if ((object)originalMethod == this._module.Compilation.GetSpecialTypeMember(SpecialMember.System_Nullable_T_GetValueOrDefault) ||
-            //     (object)originalMethod == this._module.Compilation.GetSpecialTypeMember(SpecialMember.System_Nullable_T_get_Value) ||
-            //     (object)originalMethod == this._module.Compilation.GetSpecialTypeMember(SpecialMember.System_Nullable_T_get_HasValue)) {
-            //     return true;
-            // }
+            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)) {
+                return true;
+            }
         }
 
         return false;
@@ -2714,8 +2716,11 @@ oneMoreTime:
             }
         }
 
-        var involvesRefTypes = cast.operand.type.IsVerifierReference() ||
-            (cast.type.IsVerifierReference() && cast.type.specialType != SpecialType.String);
+        var isCastable = cast.operand.type.specialType == SpecialType.String && cast.type.IsPrimitiveType() ||
+            cast.type.specialType == SpecialType.String && cast.operand.type.IsPrimitiveType();
+
+        var involvesRefTypes = !isCastable && (cast.operand.type.IsVerifierReference() ||
+            (cast.type.IsVerifierReference() && cast.type.specialType != SpecialType.String));
 
         switch (cast.conversion.kind) {
             case ConversionKind.Identity:
@@ -2829,11 +2834,10 @@ oneMoreTime:
                 _builder.Emit(OpCode.Ldind_R8);
                 break;
             default:
-                if (type.IsVerifierReference()) {
+                if (type.IsVerifierReference())
                     _builder.Emit(OpCode.Ldind_Ref);
-                } else {
+                else
                     _builder.EmitWithSymbolToken(OpCode.Ldobj, type);
-                }
 
                 break;
         }

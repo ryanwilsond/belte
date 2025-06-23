@@ -65,7 +65,6 @@ public sealed class EvaluatorContext : IDisposable {
     }
 
     internal void AddOrUpdateSymbol(DataContainerSymbol symbol, EvaluatorObject value) {
-        // value.isPersistent = true;
         _symbols[symbol.name] = (symbol, value);
     }
 

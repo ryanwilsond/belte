@@ -212,6 +212,13 @@ public sealed partial class Compilation {
         using var context = new EvaluatorContext(options);
         var result = Evaluate(context, abort, verbose, logTime);
         context.WaitForCompletion();
+
+        if (verbose) {
+            Console.WriteLine(
+                $"Heap after completion: Capacity {result.heap.capacity}, " +
+                $"Allocated {result.heap.capacity - result.heap.usedCount}");
+        }
+
         return result;
     }
 
@@ -222,6 +229,13 @@ public sealed partial class Compilation {
         bool logTime = false) {
         EvaluationResult result = null;
         Evaluate(context, abort, ref result, verbose, logTime);
+
+        if (verbose) {
+            Console.WriteLine(
+                $"Heap: Capacity {result.heap.capacity}, " +
+                $"Allocated {result.heap.capacity - result.heap.usedCount}");
+        }
+
         return result;
     }
 
@@ -250,7 +264,7 @@ public sealed partial class Compilation {
         }
 
         var evaluator = new Evaluator(program, context, options.arguments);
-        var evalResult = evaluator.Evaluate(abort, out var hasValue);
+        var evalResult = evaluator.Evaluate(abort, out var hasValue, out var heap);
 
         Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
@@ -264,7 +278,8 @@ public sealed partial class Compilation {
                 diagnostics,
                 evaluator.exceptions,
                 evaluator.lastOutputWasPrint,
-                evaluator.containsIO
+                evaluator.containsIO,
+                heap
             );
         } else {
             rollingResult.Update(
@@ -273,7 +288,8 @@ public sealed partial class Compilation {
                 diagnostics,
                 evaluator.exceptions,
                 evaluator.lastOutputWasPrint,
-                evaluator.containsIO
+                evaluator.containsIO,
+                heap
             );
         }
     }

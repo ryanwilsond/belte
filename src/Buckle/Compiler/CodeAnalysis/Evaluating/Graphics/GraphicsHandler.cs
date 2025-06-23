@@ -17,6 +17,7 @@ internal partial class GraphicsHandler : Game {
     internal static int Height;
 
     private readonly GraphicsDeviceManager _graphics;
+    private readonly Evaluator _evaluator;
     private readonly FontManager _fontManager;
     private readonly ValueWrapper<bool> _abort;
     private readonly ConcurrentDictionary<int, Action> _updateActions = [];
@@ -30,8 +31,9 @@ internal partial class GraphicsHandler : Game {
 
     internal bool shouldRun;
 
-    internal GraphicsHandler(ValueWrapper<bool> abort, bool usePointClamp) {
+    internal GraphicsHandler(Evaluator evaluator, ValueWrapper<bool> abort, bool usePointClamp) {
         _graphics = new GraphicsDeviceManager(this);
+        _evaluator = evaluator;
         _fontManager = new FontManager();
         _abort = abort;
         _usePointClamp = usePointClamp;
@@ -174,11 +176,11 @@ internal partial class GraphicsHandler : Game {
         Rectangle? srcRect = null;
 
         if (src.members is not null) {
-            var (sx, sy, sw, sh) = Evaluator.ExtractRectangleComponents(src);
+            var (sx, sy, sw, sh) = _evaluator.ExtractRectangleComponents(src);
             srcRect = new Rectangle(sx, sy, sw, sh);
         }
 
-        var (dx, dy, dw, dh) = Evaluator.ExtractRectangleComponents(dst);
+        var (dx, dy, dw, dh) = _evaluator.ExtractRectangleComponents(dst);
         var dstRect = new Rectangle(dx, dy, dw, dh);
 
         var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -27,8 +28,9 @@ internal sealed class Evaluator {
 
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
-    private readonly Stack<Dictionary<Symbol, EvaluatorObject>> _locals;
+    private readonly Stack<StackFrame> _stack;
     private readonly Stack<EvaluatorObject> _enclosingTypes;
+    private readonly Heap<EvaluatorObject> _heap;
 
     private EvaluatorObject _programObject;
     private EvaluatorObject _lastValue;
@@ -46,9 +48,24 @@ internal sealed class Evaluator {
         _context = context;
         _program = program;
         _enclosingTypes = new Stack<EvaluatorObject>();
-        _locals = new Stack<Dictionary<Symbol, EvaluatorObject>>();
-        _locals.Push([]);
+        _stack = new Stack<StackFrame>();
         exceptions = [];
+
+        _heap = new Heap<EvaluatorObject>(this, 64);
+
+        foreach (var (_, key) in context.GetTrackedSymbolsAndObjects()) {
+            AssignHeapSlot(key);
+
+            if (key.value is EvaluatorObject[] children) {
+                foreach (var child in children)
+                    AssignHeapSlot(child);
+            }
+        }
+
+        void AssignHeapSlot(EvaluatorObject evaluatorObject) {
+            if (evaluatorObject.heapPointer.HasValue)
+                _heap[evaluatorObject.heapPointer.Value] = evaluatorObject.reference;
+        }
     }
 
     /// <summary>
@@ -86,11 +103,12 @@ internal sealed class Evaluator {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
-    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue) {
+    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue, out Heap<EvaluatorObject> heap) {
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is null) {
             hasValue = false;
+            heap = null;
             return null;
         }
 
@@ -100,7 +118,10 @@ internal sealed class Evaluator {
         if (programType.isStatic) {
             _programObject = EvaluatorObject.GetInstance([], entryPoint.containingType);
         } else {
+            _stack.Push(new StackFrame());
             _programObject = CreateObject(programType);
+            _stack.Peek().locals[programType] = _programObject;
+
             var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
@@ -119,14 +140,17 @@ internal sealed class Evaluator {
             _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
 
         hasValue = _hasValue;
+        heap = _heap;
         return hasValue ? Value(result, true) : null;
     }
 
     #region Internal Model
 
     private object Value(EvaluatorObject value, bool traceCollections = false) {
-        if (value.reference is not null)
-            return Value(value.reference, traceCollections);
+        if (value.heapPointer.HasValue)
+            return Value(_heap[value.heapPointer.Value], traceCollections);
+        if (value.referenceSymbol is not null)
+            return Value(Dereference(value), traceCollections);
         else if (value.value is EvaluatorObject e)
             return Value(e, traceCollections);
         else if (value.value is EvaluatorObject[] && traceCollections)
@@ -169,9 +193,25 @@ internal sealed class Evaluator {
             if (_context.TryGetSymbol(d, out var evaluatorObject))
                 return evaluatorObject;
         } else {
-            foreach (var frame in _locals) {
-                if (frame.TryGetValue(symbol, out var evaluatorObject))
+            foreach (var frame in _stack) {
+                if (frame.TryGetLocal(symbol, out var evaluatorObject))
                     return evaluatorObject;
+            }
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private void Assign(Symbol symbol, EvaluatorObject evaluatorObject) {
+        if (symbol is DataContainerSymbol d && d.isGlobal) {
+            _context.AddOrUpdateSymbol(d, evaluatorObject);
+            return;
+        } else {
+            foreach (var frame in _stack) {
+                if (frame.ContainsLocal(symbol)) {
+                    frame.AssignLocal(symbol, evaluatorObject);
+                    return;
+                }
             }
         }
 
@@ -180,41 +220,38 @@ internal sealed class Evaluator {
 
     private void Create(DataContainerSymbol symbol, EvaluatorObject value) {
         if (symbol.isGlobal) {
-            // _context.AddOrUpdateSymbol(symbol, CopyIfRef(value));
-            _context.AddOrUpdateSymbol(symbol, Copy(value));
+            _context.AddOrUpdateSymbol(symbol, CopyIfByValue(value));
         } else {
-            var locals = _locals.Peek();
+            var locals = _stack.Peek().locals;
             var set = false;
 
             foreach (var local in locals) {
                 if (local.Key.name == symbol.name) {
-                    // if (!locals[local.Key].isPersistent)
-                    //     locals[local.Key].Free();
-
                     locals.Remove(local.Key);
-                    // locals[symbol] = CopyIfRef(value);
-                    locals[symbol] = Copy(value);
+                    locals[symbol] = CopyIfByValue(value);
                     set = true;
                     break;
                 }
             }
 
             if (!set)
-                // locals[symbol] = CopyIfRef(value);
-                locals[symbol] = Copy(value);
+                locals[symbol] = CopyIfByValue(value);
         }
     }
 
-    private EvaluatorObject CopyIfRef(EvaluatorObject evaluatorObject) {
-        if (!evaluatorObject.isReference)
-            return evaluatorObject;
+    private EvaluatorObject CopyIfByValue(EvaluatorObject evaluatorObject) {
+        if (evaluatorObject.type is not null &&
+            !evaluatorObject.isExplicitReference &&
+            CodeGenerator.IsValueType(evaluatorObject.type)) {
+            return Copy(Dereference(evaluatorObject));
+        }
 
-        return Copy(evaluatorObject);
+        return evaluatorObject;
     }
 
     private EvaluatorObject Copy(EvaluatorObject evaluatorObject) {
         if (evaluatorObject.reference is not null && !evaluatorObject.isExplicitReference) {
-            return Copy(evaluatorObject.reference);
+            return Copy(Get(evaluatorObject.referenceSymbol));
         } else if (evaluatorObject.reference is not null) {
             return EvaluatorObject.GetInstance(
                 evaluatorObject.referenceSymbol,
@@ -234,7 +271,6 @@ internal sealed class Evaluator {
 
         foreach (var member in members) {
             var copy = Copy(member.Value);
-            // copy.isPersistent = true;
             newMembers.Add(member.Key, copy);
         }
 
@@ -243,89 +279,91 @@ internal sealed class Evaluator {
 
     private bool IsTakeable(BoundKind kind) {
         // TODO Consider expanding this to cover more nodes
-        return kind is BoundKind.ObjectCreationExpression or BoundKind.ArrayCreationExpression;
+        return kind is BoundKind.ObjectCreationExpression or
+                       BoundKind.ArrayCreationExpression or
+                       BoundKind.LiteralExpression;
     }
 
     private void Assign(EvaluatorObject left, EvaluatorObject right, BoundKind rightKind = BoundKind.NopStatement) {
-        right = Dereference(right, false);
-        left = Dereference(left, false);
+        var takeable = IsTakeable(rightKind);
 
-        var isTakeable = IsTakeable(rightKind);
+        if (left.referenceSymbol?.kind == SymbolKind.Field)
+            MarkEscapingObject(right);
 
-        if (right.isExplicitReference && isTakeable) {
-            left.reference = right;
-            left.isReference = true;
+        if (TryInPlaceCopy(left, right, takeable))
             return;
-        }
 
-        if (right.reference is not null && right.isExplicitReference) {
-            left.reference = right.reference;
-            left.referenceSymbol = right.referenceSymbol;
-            left.isReference = true;
-            return;
-        } else if (left.isExplicitReference) {
-            left = Dereference(left);
-        }
+        var symbol = left.referenceSymbol;
 
-        if (right.members is null)
-            left.members = null;
-
-        if (right.value is null && right.members != null) {
-            if (isTakeable)
-                left.members = right.members;
-            else
-                left.members = Copy(right.members);
+        if (symbol?.kind is SymbolKind.Local or SymbolKind.Parameter) {
+            Assign(symbol, takeable ? Dereference(right, false) : CopyIfByValue(right));
+        } else if (symbol?.kind == SymbolKind.Field) {
+            left = Dereference(left, false);
+            right = takeable ? Dereference(right, false) : CopyIfByValue(right);
+            right.parent = left.parent;
+            left.parent.members[symbol] = right;
         } else {
-            left.value = Value(right);
+            throw ExceptionUtilities.Unreachable();
         }
+    }
+
+    private bool TryInPlaceCopy(EvaluatorObject left, EvaluatorObject right, bool rightIsTakeable) {
+        var rightDeref = Dereference(right, false);
+
+        if (rightDeref.reference is not null && rightDeref.isExplicitReference) {
+            left = Dereference(left, false);
+            left.reference = rightDeref.reference;
+            left.referenceSymbol = rightDeref.referenceSymbol;
+            left.isReference = true;
+            left.parent = rightDeref.parent;
+            return true;
+        }
+
+        if (left.reference is null) {
+            ManualAssign(left, rightDeref);
+            return true;
+        }
+
+        var leftDeref = Dereference(left, false);
+
+        if (leftDeref.isExplicitReference) {
+            leftDeref = Dereference(leftDeref);
+            ManualAssign(leftDeref, rightDeref);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ManualAssign(EvaluatorObject left, EvaluatorObject right) {
+        if (right.value is null && right.members is not null)
+            throw ExceptionUtilities.Unreachable();
+        else
+            left.value = Value(right);
 
         left.type = right.type;
-        // if (!right.isReference) {
-        //     left = Dereference(left);
-
-        //     left.members = right.members;
-        //     left.type = right.type;
-        //     left.value = right.value;
-
-        //     return;
-        // }
-
-        // right = Dereference(right, false);
-        // left = Dereference(left, false);
-
-        // if (right.isExplicitReference) {
-        //     left.reference = right.reference;
-        //     left.referenceSymbol = right.referenceSymbol;
-        //     left.isReference = true;
-        //     return;
-        // } else if (left.isExplicitReference) {
-        //     left = Dereference(left);
-        // }
-
-        // left.type = right.type;
-
-        // if (right.members is null) {
-        //     left.members = null;
-        // } else {
-        //     left.members = Copy(right.members);
-        //     return;
-        // }
-
-        // left.value = right.value;
     }
 
     private EvaluatorObject Dereference(EvaluatorObject reference, bool dereferenceOnExplicit = true) {
-        while (reference.isReference) {
+        while (reference.isReference || reference.heapPointer.HasValue) {
             if (!dereferenceOnExplicit && reference.isExplicitReference)
                 break;
 
-            // Ref local/field, but it references itself
-            // This happens when a ref local/field is created in order to pass-by-ref, but it is assigned to by a
-            // creation expression
-            if (reference.reference is null)
-                return reference;
+            if (reference.heapPointer.HasValue)
+                return _heap[reference.heapPointer.Value];
 
-            reference = reference.reference;
+            if (reference.referenceSymbol is null) {
+                if (reference.reference is null)
+                    return reference;
+
+                reference = reference.reference;
+                continue;
+            }
+
+            if (reference.referenceSymbol.kind == SymbolKind.Field)
+                reference = reference.reference.parent.members[reference.referenceSymbol];
+            else
+                reference = Get(reference.referenceSymbol);
         }
 
         return reference;
@@ -334,6 +372,7 @@ internal sealed class Evaluator {
     private EvaluatorObject CreateObject(NamedTypeSymbol type) {
         var members = new Dictionary<Symbol, EvaluatorObject>();
         var current = type;
+        var newObject = EvaluatorObject.GetInstance(null, type);
 
         do {
             var typeMembers = current.GetMembers();
@@ -341,7 +380,7 @@ internal sealed class Evaluator {
             foreach (var member in typeMembers) {
                 if (member is FieldSymbol f) {
                     var value = EvaluatorObject.GetInstance(value: null, f.type);
-                    // value.isPersistent = true;
+                    value.parent = newObject;
 
                     if (f.refKind != RefKind.None) {
                         value.isReference = true;
@@ -355,17 +394,26 @@ internal sealed class Evaluator {
             current = current.baseType;
         } while (current is not null);
 
-        return EvaluatorObject.GetInstance(members, type);
+        newObject.members = members;
+
+        var pointer = EvaluatorObject.GetInstance();
+        pointer.heapPointer = _heap.Allocate(newObject);
+        pointer.type = type;
+        pointer.reference = newObject;
+
+        _stack.Peek().MarkAllocation(pointer.heapPointer.Value);
+
+        return pointer;
     }
 
     private void EnterClassScope(EvaluatorObject classObject) {
         _enclosingTypes.Push(classObject);
-        _locals.Push(classObject.members);
+        _stack.Push(new StackFrame(classObject.members));
     }
 
     private void ExitClassScope() {
         _enclosingTypes.Pop();
-        _locals.Pop();
+        PopAndFreeLocals();
     }
 
     private bool ObjectIsNull(EvaluatorObject evaluatorObject, TypeSymbol type) {
@@ -380,8 +428,8 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject NullAssertObject(BoundExpression expression, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(expression, abort);
+    private EvaluatorObject NullAssertObject(BoundExpression expression, ValueWrapper<bool> abort, bool asRef) {
+        var value = EvaluateExpression(expression, abort, asRef);
         var dereferenced = Dereference(value);
 
         if (dereferenced.members is null &&
@@ -451,7 +499,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = EvaluateExpression(cgs.condition, abort);
+                        var condition = EvaluateExpression(cgs.condition, abort, false);
                         var conditionValue = ConditionalValue(cgs.condition.syntax.location, condition);
 
                         if (conditionValue == cgs.jumpIfTrue)
@@ -464,18 +512,11 @@ internal sealed class Evaluator {
                         var returnStatement = (BoundReturnStatement)s;
 
                         if (returnStatement.expression is not null) {
-                            _lastValue = EvaluateExpression(returnStatement.expression, abort);
+                            _lastValue = EvaluateExpression(returnStatement.expression, abort, method.returnsByRef);
                             _hasValue = true;
 
-                            // while (_lastValue.isReference && !_lastValue.isPersistent) {
-                            //     var previous = _lastValue;
-                            //     _lastValue = _lastValue.reference;
-                            //     previous.Free();
-                            // }
-
                             if (method.refKind == RefKind.None)
-                                // _lastValue = CopyIfRef(_lastValue);
-                                _lastValue = Copy(Dereference(_lastValue));
+                                _lastValue = CopyIfByValue(_lastValue);
                         } else if (_lastValue is not null && _context.options.isScript) {
                             _hasValue = true;
                         } else {
@@ -510,12 +551,12 @@ internal sealed class Evaluator {
     }
 
     private void EvaluateExpressionStatement(BoundExpressionStatement statement, ValueWrapper<bool> abort) {
-        _lastValue = EvaluateExpression(statement.expression, abort);
+        _lastValue = EvaluateExpression(statement.expression, abort, false);
     }
 
     private void EvaluateLocalDeclarationStatement(BoundLocalDeclarationStatement statement, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(statement.declaration.initializer, abort);
         var local = statement.declaration.dataContainer;
+        var value = EvaluateExpression(statement.declaration.initializer, abort, local.isRef);
         _lastValue = null;
 
         if (local.isRef)
@@ -528,28 +569,28 @@ internal sealed class Evaluator {
 
     #region Expressions
 
-    private EvaluatorObject EvaluateExpression(BoundExpression expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateExpression(BoundExpression expression, ValueWrapper<bool> abort, bool asRef = false) {
         if (expression.constantValue is not null)
             return EvaluateConstant(expression.constantValue);
 
         return expression.kind switch {
             BoundKind.ThisExpression => EvaluateThisExpression(),
             BoundKind.BaseExpression => EvaluateBaseExpression(),
-            BoundKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort),
-            BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression),
-            BoundKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression),
-            BoundKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort),
-            BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)expression, abort),
-            BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)expression, abort),
-            BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)expression, abort),
-            BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort),
-            BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort),
-            BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort),
-            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)expression, abort),
+            BoundKind.CastExpression => EvaluateCastExpression((BoundCastExpression)expression, abort, asRef),
+            BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)expression, asRef),
+            BoundKind.ParameterExpression => EvaluateParameterExpression((BoundParameterExpression)expression, asRef),
+            BoundKind.FieldAccessExpression => EvaluateFieldAccessExpression((BoundFieldAccessExpression)expression, abort, asRef),
+            BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)expression, abort, asRef),
+            BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)expression, abort, asRef),
+            BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)expression, abort, asRef),
+            BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)expression, abort, asRef),
+            BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)expression, abort, asRef),
+            BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)expression, abort, asRef),
+            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)expression, abort, asRef),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)expression, abort),
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)expression, abort),
             BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)expression, abort),
-            BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort),
+            BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)expression, abort, asRef, out _),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)expression, abort),
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)expression, abort),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)expression, abort),
@@ -558,7 +599,6 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorObject EvaluateConstant(ConstantValue constantValue) {
-        // TODO is this clarity worth the performance loss?
         if (constantValue.specialType == SpecialType.None)
             return EvaluatorObject.GetInstance(constantValue.value, null);
 
@@ -578,7 +618,6 @@ internal sealed class Evaluator {
         var builder = new EvaluatorObject[node.items.Length];
 
         for (var i = 0; i < node.items.Length; i++)
-            // builder[i] = CopyIfRef(EvaluateExpression(node.items[i], abort));
             builder[i] = EvaluateExpression(node.items[i], abort);
 
         return EvaluatorObject.GetInstance(builder, node.type);
@@ -593,24 +632,26 @@ internal sealed class Evaluator {
         return EvaluatorObject.GetInstance();
     }
 
-    private EvaluatorObject EvaluateArrayAccessExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {
-        var receiver = EvaluateExpression(node.receiver, abort);
-        var index = EvaluateExpression(node.index, abort);
+    private EvaluatorObject EvaluateArrayAccessExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort, bool asRef, out int index) {
+        var receiver = EvaluateExpression(node.receiver, abort, asRef);
+        var indexExpr = EvaluateExpression(node.index, abort, asRef);
         var array = (EvaluatorObject[])Value(receiver);
-        var indexValue = Convert.ToInt32(Value(index));
+        index = Convert.ToInt32(Value(indexExpr));
 
         if (array is null)
             throw new BelteNullReferenceException(node.syntax.location);
 
-        if (indexValue >= array.Length)
+        if (index >= array.Length)
             throw new BelteIndexOutOfRangeException(node.syntax.location);
 
-        // return EvaluatorObject.GetInstance(
-        //     null,
-        //     array[indexValue],
-        //     node.type
-        // );
-        return array[indexValue];
+        var value = array[index];
+
+        if (!asRef)
+            return value;
+
+        var reference = EvaluatorObject.GetInstance(null, value, node.type);
+        reference.parent = receiver;
+        return reference;
     }
 
     private EvaluatorObject EvaluateArrayCreationExpression(
@@ -619,8 +660,8 @@ internal sealed class Evaluator {
         if (node.initializer is BoundInitializerList initList)
             return EvaluateInitializerList(initList, abort);
 
-        var array = EvaluatorObject.GetInstance();
         var arrayType = (ArrayTypeSymbol)node.type;
+        var array = EvaluatorObject.GetInstance(null, arrayType);
 
         // TODO There is probably a more efficient algorithm for this
         foreach (var size in node.sizes) {
@@ -631,15 +672,12 @@ internal sealed class Evaluator {
                 for (var i = 0; i < sizeValue; i++) {
                     // TODO This will use a default when default expression is added for primitives instead of null
                     members[i] = EvaluatorObject.GetInstance();
-                    // members[i].isPersistent = true;
                 }
 
                 element.value = members;
             }
         }
 
-        // TODO Can this be moved to the top of the method ('var array = new EvaluatorObject(value: null, arrayType)')
-        array.type = arrayType;
         return array;
 
         static List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
@@ -656,9 +694,7 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorObject EvaluateObjectCreationExpression(
-        BoundObjectCreationExpression node,
-        ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateObjectCreationExpression(BoundObjectCreationExpression node, ValueWrapper<bool> abort) {
         if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], abort);
 
@@ -707,20 +743,13 @@ internal sealed class Evaluator {
             var parameter = method.parameters[i];
             var value = arguments[i];
 
-            // TODO This seemingly rids the reference, no?
-            // while (parameter.refKind != RefKind.None && value.isReference)
-            //     value = Get(value.reference);
-
-            // locals.Add(parameter, Copy(value));
-            // Fix?:
             if (parameter.refKind == RefKind.None)
-                // value = CopyIfRef(value);
-                value = Copy(value);
+                value = CopyIfByValue(value);
 
             locals.Add(parameter, value);
         }
 
-        _locals.Push(locals);
+        _stack.Push(new StackFrame(locals));
     }
 
     private EvaluatorObject InvokeMethodWithResolvedReceiver(
@@ -781,10 +810,10 @@ internal sealed class Evaluator {
             // in case 'Method' uses 'this'
             // If what we get here is not a reference, it is a static accession and the needed scoped members have
             // already been pushed by 'EvaluateType'.
-            receiver = Dereference(receiver);
+            var newReceiver = Dereference(receiver);
 
-            if (receiver.members is not null) {
-                EnterClassScope(receiver);
+            if (newReceiver.members is not null) {
+                EnterClassScope(newReceiver);
                 enteredScope = true;
             }
         }
@@ -798,6 +827,7 @@ internal sealed class Evaluator {
         //     _locals.Pop();
         // }
 
+        MarkEscapingObject(result);
         PopAndFreeLocals();
 
         if (enteredScope)
@@ -806,14 +836,89 @@ internal sealed class Evaluator {
         return result;
     }
 
-    private void PopAndFreeLocals() {
-        // var frame =
-        _locals.Pop();
+    internal void CleanHeap() {
+        var roots = GetRootHeapPointers();
 
-        // foreach (var local in frame.Values) {
-        //     if (!local.isPersistent)
-        //         local.Free();
-        // }
+        foreach (var ptr in roots)
+            Mark(ptr);
+
+        Sweep();
+
+        void Sweep() {
+            for (var i = 0; i < _heap.capacity; i++) {
+                var obj = _heap[i];
+
+                if (obj is null)
+                    continue;
+
+                if (!obj.markedForCollection)
+                    _heap.Free(i);
+                else
+                    obj.markedForCollection = false;
+            }
+        }
+
+        void Mark(int ptr) {
+            var obj = _heap[ptr];
+
+            if (obj is null || obj.markedForCollection)
+                return;
+
+            obj.markedForCollection = true;
+
+            foreach (var field in obj.members.Values) {
+                if (field.heapPointer.HasValue)
+                    Mark(field.heapPointer.Value);
+            }
+        }
+
+        IEnumerable<int> GetRootHeapPointers() {
+            foreach (var frame in _stack) {
+                foreach (var local in frame.locals) {
+                    if (local.Value.heapPointer.HasValue)
+                        yield return local.Value.heapPointer.Value;
+                }
+            }
+
+            foreach (var global in _context.GetTrackedSymbolsAndObjects()) {
+                if (global.Value.heapPointer.HasValue)
+                    yield return global.Value.heapPointer.Value;
+            }
+        }
+    }
+
+    private void PopAndFreeLocals() {
+        var frame = _stack.Pop();
+
+        foreach (var heapIndex in frame.heapAllocations)
+            TryFreeHeapSlot(heapIndex);
+    }
+
+    private void TryFreeHeapSlot(int index) {
+        var value = _heap[index];
+
+        if (!value.escapes || value.refCount <= 0) {
+            if (value.members is not null) {
+                foreach (var (_, member) in value.members) {
+                    if (member.heapPointer.HasValue) {
+                        _heap[member.heapPointer.Value].refCount--;
+                        TryFreeHeapSlot(member.heapPointer.Value);
+                    }
+                }
+            }
+
+            _heap.Free(index);
+        }
+    }
+
+    private void MarkEscapingObject(EvaluatorObject evaluatorObject) {
+        if (evaluatorObject is null)
+            return;
+
+        if (evaluatorObject.heapPointer.HasValue) {
+            _heap[evaluatorObject.heapPointer.Value].escapes = true;
+            _heap[evaluatorObject.heapPointer.Value].refCount++;
+        }
     }
 
     private EvaluatorObject InvokeMethod(
@@ -843,33 +948,38 @@ internal sealed class Evaluator {
         );
     }
 
-    private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression) {
+    private EvaluatorObject EvaluateDataContainerExpression(BoundDataContainerExpression expression, bool asRef) {
+        var value = Get(expression.dataContainer);
+
+        if (!expression.dataContainer.isRef && !asRef)
+            return value;
+
         return EvaluatorObject.GetInstance(
             expression.dataContainer,
-            Get(expression.dataContainer),
+            value,
             expression.dataContainer.type
         );
     }
 
-    private EvaluatorObject EvaluateConditionalOperator(BoundConditionalOperator expression, ValueWrapper<bool> abort) {
-        var condition = EvaluateExpression(expression.condition, abort);
+    private EvaluatorObject EvaluateConditionalOperator(BoundConditionalOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        var condition = EvaluateExpression(expression.condition, abort, asRef);
         var conditionValue = Value(condition);
 
         if ((bool)conditionValue)
-            return EvaluateExpression(expression.trueExpression, abort);
+            return EvaluateExpression(expression.trueExpression, abort, expression.isRef || asRef);
         else
-            return EvaluateExpression(expression.falseExpression, abort);
+            return EvaluateExpression(expression.falseExpression, abort, expression.isRef || asRef);
     }
 
-    private EvaluatorObject EvaluateNullAssertOperator(BoundNullAssertOperator expression, ValueWrapper<bool> abort) {
+    private EvaluatorObject EvaluateNullAssertOperator(BoundNullAssertOperator expression, ValueWrapper<bool> abort, bool asRef) {
         if (!expression.throwIfNull)
-            return EvaluateExpression(expression.operand, abort);
+            return EvaluateExpression(expression.operand, abort, asRef);
 
-        return NullAssertObject(expression.operand, abort);
+        return NullAssertObject(expression.operand, abort, asRef);
     }
 
-    private EvaluatorObject EvaluateAsOperator(BoundAsOperator expression, ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression.left, abort);
+    private EvaluatorObject EvaluateAsOperator(BoundAsOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        var left = EvaluateExpression(expression.left, abort, asRef);
         var leftValue = Value(left);
         var dereferenced = Dereference(left);
 
@@ -882,8 +992,8 @@ internal sealed class Evaluator {
         return EvaluatorObject.GetInstance();
     }
 
-    private EvaluatorObject EvaluateIsOperator(BoundIsOperator expression, ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression.left, abort);
+    private EvaluatorObject EvaluateIsOperator(BoundIsOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        var left = EvaluateExpression(expression.left, abort, asRef);
         var right = expression.right;
         var leftValue = Value(left);
         var dereferenced = Dereference(left);
@@ -905,8 +1015,8 @@ internal sealed class Evaluator {
             return EvaluatorObject.GetInstance(isNot, expression.type);
     }
 
-    private EvaluatorObject EvaluateUnaryOperator(BoundUnaryOperator expression, ValueWrapper<bool> abort) {
-        var operand = EvaluateExpression(expression.operand, abort);
+    private EvaluatorObject EvaluateUnaryOperator(BoundUnaryOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        var operand = EvaluateExpression(expression.operand, abort, asRef);
         var operandValue = Value(operand);
         var opKind = expression.operatorKind.Operator();
 
@@ -939,8 +1049,8 @@ internal sealed class Evaluator {
         return EvaluatorObject.GetInstance(result, expression.type);
     }
 
-    private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression.left, abort);
+    private EvaluatorObject EvaluateBinaryOperator(BoundBinaryOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        var left = EvaluateExpression(expression.left, abort, asRef);
         var opKind = expression.operatorKind.OperatorWithConditional();
 
         if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
@@ -956,7 +1066,7 @@ internal sealed class Evaluator {
             if (leftValue is null || !(bool)leftValue)
                 return EvaluatorObject.GetInstance(false, expression.type);
 
-            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRight = EvaluateExpression(expression.right, abort, asRef);
             var shortCircuitRightValue = Value(shortCircuitRight);
 
             if (shortCircuitRightValue is null || !(bool)shortCircuitRightValue)
@@ -969,7 +1079,7 @@ internal sealed class Evaluator {
             if (leftValue != null && (bool)leftValue)
                 return EvaluatorObject.GetInstance(true, expression.type);
 
-            var shortCircuitRight = EvaluateExpression(expression.right, abort);
+            var shortCircuitRight = EvaluateExpression(expression.right, abort, asRef);
             var shortCircuitRightValue = Value(shortCircuitRight);
 
             if (shortCircuitRightValue != null && (bool)shortCircuitRightValue)
@@ -978,7 +1088,7 @@ internal sealed class Evaluator {
             return EvaluatorObject.GetInstance(false, expression.type);
         }
 
-        var right = EvaluateExpression(expression.right, abort);
+        var right = EvaluateExpression(expression.right, abort, asRef);
         var rightValue = Value(right);
 
         if (opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
@@ -1131,11 +1241,12 @@ internal sealed class Evaluator {
         return EvaluatorObject.GetInstance(result, expression.type);
     }
 
-    private EvaluatorObject EvaluateAssignmentOperator(
-        BoundAssignmentOperator expression,
-        ValueWrapper<bool> abort) {
-        var left = EvaluateExpression(expression.left, abort);
-        var right = EvaluateExpression(expression.right, abort);
+    private EvaluatorObject EvaluateAssignmentOperator(BoundAssignmentOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        if (expression.left.kind == BoundKind.ArrayAccessExpression)
+            return AssignIndex(expression, abort, asRef);
+
+        var left = EvaluateExpression(expression.left, abort, true);
+        var right = EvaluateExpression(expression.right, abort, expression.isRef || asRef);
 
         if (expression.isRef)
             right.isExplicitReference = true;
@@ -1144,28 +1255,69 @@ internal sealed class Evaluator {
         return right;
     }
 
-    private EvaluatorObject EvaluateParameterExpression(BoundParameterExpression expression) {
+    private EvaluatorObject AssignIndex(BoundAssignmentOperator expression, ValueWrapper<bool> abort, bool asRef) {
+        var left = EvaluateArrayAccessExpression(
+            (BoundArrayAccessExpression)expression.left,
+            abort,
+            true,
+            out var index
+        );
+
+        var right = EvaluateExpression(expression.right, abort, expression.isRef || asRef);
+
+        if (expression.isRef)
+            right.isExplicitReference = true;
+
+        var rightDeref = Dereference(right, false);
+        MarkEscapingObject(rightDeref);
+
+        if (rightDeref.reference is not null && rightDeref.isExplicitReference) {
+            left = Dereference(left, false);
+            left.reference = rightDeref.reference;
+            left.referenceSymbol = rightDeref.referenceSymbol;
+            left.isReference = true;
+            left.parent = rightDeref.parent;
+            return right;
+        }
+
+        var parent = Dereference(left.parent);
+
+        if (rightDeref.members is null) {
+            ((EvaluatorObject[])parent.value)[index].value = Value(rightDeref);
+            ((EvaluatorObject[])parent.value)[index].type = rightDeref.type;
+        } else {
+            ((EvaluatorObject[])parent.value)[index].reference = right.reference;
+            ((EvaluatorObject[])parent.value)[index].isReference = true;
+            ((EvaluatorObject[])parent.value)[index].referenceSymbol = right.referenceSymbol;
+            ((EvaluatorObject[])parent.value)[index].heapPointer = right.heapPointer;
+        }
+
+        return right;
+    }
+
+    private EvaluatorObject EvaluateParameterExpression(BoundParameterExpression expression, bool asRef) {
+        var value = Get(expression.parameter);
+
+        if (expression.parameter.refKind == RefKind.None && !asRef)
+            return value;
+
         return EvaluatorObject.GetInstance(
             expression.parameter,
-            Get(expression.parameter),
+            value,
             expression.parameter.type
         );
     }
 
-    private EvaluatorObject EvaluateFieldAccessExpression(
-        BoundFieldAccessExpression expression,
-        ValueWrapper<bool> abort) {
-        var operand = Dereference(EvaluateExpression(expression.receiver, abort));
+    private EvaluatorObject EvaluateFieldAccessExpression(BoundFieldAccessExpression expression, ValueWrapper<bool> abort, bool asRef) {
+        var field = expression.field;
+        var operand = EvaluateExpression(expression.receiver, abort, asRef);
+        operand = Dereference(operand);
 
         if (operand.members is null)
             throw new BelteNullReferenceException(expression.syntax.location);
 
-        // return EvaluatorObject.GetInstance(
-        //     expression.field,
-        //     operand.members[expression.field],
-        //     expression.field.type
-        // );
-        return operand.members[expression.field];
+        var value = operand.members[field];
+        return EvaluatorObject.GetInstance(field, value, field.type);
     }
 
     private EvaluatorObject EvaluateThisExpression() {
@@ -1176,8 +1328,8 @@ internal sealed class Evaluator {
         return _enclosingTypes.Peek();
     }
 
-    private EvaluatorObject EvaluateCastExpression(BoundCastExpression expression, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(expression.operand, abort);
+    private EvaluatorObject EvaluateCastExpression(BoundCastExpression expression, ValueWrapper<bool> abort, bool asRef) {
+        var value = EvaluateExpression(expression.operand, abort, asRef);
         return EvaluateCast(expression.syntax.location, value, expression.operand.type, expression.type);
     }
 
@@ -1239,7 +1391,7 @@ internal sealed class Evaluator {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         if (mapKey == "Nullable_get_Value") {
-            result = NullAssertObject(receiver, abort);
+            result = NullAssertObject(receiver, abort, false);
             return true;
         }
 
@@ -1475,26 +1627,27 @@ internal sealed class Evaluator {
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist", location);
 
                     var textType = CorLibrary.GetSpecialType(SpecialType.Text);
-                    var text = CreateObject(textType);
+                    var textPointer = CreateObject(textType);
+                    var text = Dereference(textPointer);
                     var textFields = textType.GetMembers().Where(f => f is FieldSymbol).ToArray();
 
                     var fontSize = Convert.ToSingle(Value(evaluatedArguments[3]));
 
-                    Assign(text.members[textFields[0]], evaluatedArguments[0]);
-                    Assign(text.members[textFields[1]], evaluatedArguments[1]);
-                    Assign(text.members[textFields[2]], evaluatedArguments[2]);
-                    Assign(text.members[textFields[3]], evaluatedArguments[3]);
-                    Assign(text.members[textFields[4]], evaluatedArguments[4]);
-                    Assign(text.members[textFields[5]], evaluatedArguments[5]);
-                    Assign(text.members[textFields[6]], evaluatedArguments[6]);
-                    Assign(text.members[textFields[7]], evaluatedArguments[7]);
+                    WrappedAssign(textFields[0], text.members[textFields[0]], evaluatedArguments[0]);
+                    WrappedAssign(textFields[1], text.members[textFields[1]], evaluatedArguments[1]);
+                    WrappedAssign(textFields[2], text.members[textFields[2]], evaluatedArguments[2]);
+                    WrappedAssign(textFields[3], text.members[textFields[3]], evaluatedArguments[3]);
+                    WrappedAssign(textFields[4], text.members[textFields[4]], evaluatedArguments[4]);
+                    WrappedAssign(textFields[5], text.members[textFields[5]], evaluatedArguments[5]);
+                    WrappedAssign(textFields[6], text.members[textFields[6]], evaluatedArguments[6]);
+                    WrappedAssign(textFields[7], text.members[textFields[7]], evaluatedArguments[7]);
 
                     text.members[HiddenTextData] = EvaluatorObject.GetInstance(
                         _context.graphicsHandler.LoadText(path, fontSize),
                         null
                     );
 
-                    result = text;
+                    result = textPointer;
                 }
 
                 break;
@@ -1615,13 +1768,15 @@ internal sealed class Evaluator {
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist", location);
 
                     var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
-                    var sound = CreateObject(soundType);
+                    var soundPointer = CreateObject(soundType);
+                    var sound = Dereference(soundPointer);
+
                     sound.members[HiddenSoundData] = EvaluatorObject.GetInstance(
                         _context.graphicsHandler.LoadSound(path),
                         null
                     );
 
-                    result = sound;
+                    result = soundPointer;
                 }
 
                 break;
@@ -1651,6 +1806,15 @@ internal sealed class Evaluator {
         }
 
         return true;
+
+        void WrappedAssign(Symbol symbol, EvaluatorObject left, EvaluatorObject right) {
+            var field = (FieldSymbol)symbol;
+
+            Assign(
+                EvaluatorObject.GetInstance(field, left, field.type),
+                right
+            );
+        }
 
         void DrawRect(bool includeAlpha, out object result) {
             result = null;
@@ -1707,27 +1871,28 @@ internal sealed class Evaluator {
             object g = null,
             object b = null) {
             var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
-            var texture = CreateObject(textureType);
+            var texturePointer = CreateObject(textureType);
+            var texture = Dereference(texturePointer);
             var textureFields = textureType.GetMembers().Where(f => f is FieldSymbol).ToArray();
             var texture2D = _context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b);
 
-            Assign(texture.members[textureFields[0]], EvaluatorObject.GetInstance(
+            WrappedAssign(textureFields[0], texture.members[textureFields[0]], EvaluatorObject.GetInstance(
                 Convert.ToInt64(texture2D.Width),
                 CorLibrary.GetSpecialType(SpecialType.Int)
             ));
 
-            Assign(texture.members[textureFields[1]], EvaluatorObject.GetInstance(
+            WrappedAssign(textureFields[1], texture.members[textureFields[1]], EvaluatorObject.GetInstance(
                 Convert.ToInt64(texture2D.Height),
                 CorLibrary.GetSpecialType(SpecialType.Int)
             ));
 
             texture.members[HiddenTextureData] = EvaluatorObject.GetInstance(texture2D, null);
 
-            return texture;
+            return texturePointer;
         }
     }
 
-    internal static (int x, int y, int w, int h) ExtractRectangleComponents(EvaluatorObject evaluatorObject) {
+    internal (int x, int y, int w, int h) ExtractRectangleComponents(EvaluatorObject evaluatorObject) {
         return (
             Convert.ToInt32(Slot(evaluatorObject, 0).value),
             Convert.ToInt32(Slot(evaluatorObject, 1).value),
@@ -1736,8 +1901,8 @@ internal sealed class Evaluator {
         );
     }
 
-    private static EvaluatorObject Slot(EvaluatorObject evaluatorObject, int slot) {
-        return evaluatorObject.members.Values.ElementAt(slot);
+    private EvaluatorObject Slot(EvaluatorObject evaluatorObject, int slot) {
+        return Dereference(evaluatorObject.members.Values.ElementAt(slot));
     }
 
     private void StartGraphics(string title, int width, int height, bool usePointClamp, ValueWrapper<bool> abort) {
@@ -1757,7 +1922,7 @@ internal sealed class Evaluator {
             while (_context.maintainThread) {
                 if (_context.createWindow) {
                     _context.createWindow = false;
-                    using var graphicsHandler = new GraphicsHandler(abort, usePointClamp);
+                    using var graphicsHandler = new GraphicsHandler(this, abort, usePointClamp);
                     _context.graphicsHandler = graphicsHandler;
                     graphicsHandler.Run();
                 } else {

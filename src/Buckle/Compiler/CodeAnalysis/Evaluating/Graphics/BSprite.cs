@@ -17,7 +17,7 @@ public sealed class BSprite {
         var height = scale?.y ?? texture.height;
 
         src = new BRect(0, 0, texture.width, texture.height);
-        dst = new BRect((long)(position.x - width / 2), (long)(position.y - width / 2), (long)width, (long)height);
+        dst = new BRect((long)(position.x - width / 2), (long)(position.y - height / 2), (long)width, (long)height);
     }
 
     public BSprite(BTexture texture, BRect src, BRect dst, long? rotation) {

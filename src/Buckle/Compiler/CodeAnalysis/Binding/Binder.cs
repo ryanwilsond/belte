@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Lowering;
@@ -443,8 +442,11 @@ internal partial class Binder {
         if (namespaceOrNonNullableType.isType) {
             var nonNullableType = namespaceOrNonNullableType.typeWithAnnotations;
 
-            if (nonNullableType.specialType == SpecialType.Void || nonNullableType.typeKind == TypeKind.TemplateParameter)
+            if (nonNullableType.specialType == SpecialType.Void ||
+                nonNullableType.typeKind == TypeKind.TemplateParameter ||
+                nonNullableType.type.IsStructType()) {
                 return nonNullableType;
+            }
 
             return nonNullableType.SetIsAnnotated();
         }
@@ -8631,23 +8633,34 @@ symIsHidden:;
                 if (!fieldSymbol.isConstExpr) {
                     var syntaxRef = initializer.syntax;
 
-                    switch (syntaxRef.node) {
-                        case EqualsValueClauseSyntax initializerNode:
-                            binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
-                            var parentBinder = binderFactory.GetBinder(initializerNode);
-                            parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
+                    if (syntaxRef.node is null) {
+                        var syntax = fieldSymbol.syntaxReference.node;
+                        var type = fieldSymbol.type;
 
-                            var boundInitializer = BindFieldInitializer(
-                                parentBinder,
-                                fieldSymbol,
-                                initializerNode,
-                                diagnostics
-                            );
+                        var defaultValue = fieldSymbol.isNullable || CodeGenerator.IsReferenceType(type)
+                            ? BoundFactory.Literal(syntax, null, type)
+                            : BoundFactory.Literal(syntax, LiteralUtilities.GetDefaultValue(type.specialType), type);
 
-                            boundInitializers.Add(boundInitializer);
-                            break;
-                        default:
-                            throw ExceptionUtilities.Unreachable();
+                        boundInitializers.Add(new BoundFieldEqualsValue(syntax, fieldSymbol, [], defaultValue));
+                    } else {
+                        switch (syntaxRef.node) {
+                            case EqualsValueClauseSyntax initializerNode:
+                                binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
+                                var parentBinder = binderFactory.GetBinder(initializerNode);
+                                parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
+
+                                var boundInitializer = BindFieldInitializer(
+                                    parentBinder,
+                                    fieldSymbol,
+                                    initializerNode,
+                                    diagnostics
+                                );
+
+                                boundInitializers.Add(boundInitializer);
+                                break;
+                            default:
+                                throw ExceptionUtilities.Unreachable();
+                        }
                     }
                 }
             }
@@ -8832,14 +8845,21 @@ symIsHidden:;
             else
                 return expression;
         } else {
-            conversion = CollapseConversion(conversion);
+            var collapsedConversion = CollapseConversion(conversion);
 
-            if (!conversion.exists ||
+            if (!collapsedConversion.exists ||
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
-                ? !conversion.isImplicit
-                : (conversion.isExplicit && ((flags & ConversionForAssignmentFlags.PredefinedOperator) == 0)))) {
-                if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0)
-                    GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
+                ? !collapsedConversion.isImplicit
+                : (collapsedConversion.isExplicit && ((flags & ConversionForAssignmentFlags.PredefinedOperator) == 0)))) {
+                if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0) {
+                    GenerateImplicitConversionError(
+                        diagnostics,
+                        expression.syntax,
+                        collapsedConversion,
+                        expression,
+                        targetType
+                    );
+                }
 
                 diagnostics = BelteDiagnosticQueue.Discarded;
             }

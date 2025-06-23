@@ -42,6 +42,39 @@ internal sealed class Expander : BoundTreeExpander {
         return base.ExpandLocalDeclarationStatement(statement);
     }
 
+    private protected override List<BoundStatement> ExpandFieldAccessExpression(
+        BoundFieldAccessExpression expression,
+        out BoundExpression replacement) {
+        var type = expression.receiver.type;
+
+        if (type.IsNullableType() && type.GetNullableUnderlyingType().IsStructType()) {
+            var syntax = expression.syntax;
+            var underlyingType = type.GetNullableUnderlyingType();
+
+            var statements = ExpandExpression(expression.receiver, out var newReceiver);
+
+            newReceiver = Lowerer.CreateNullableGetValueCall(syntax, newReceiver, underlyingType);
+            var tempLocal = GenerateTempLocal(type);
+
+            statements.AddRange(
+                new BoundLocalDeclarationStatement(syntax,
+                    new BoundDataContainerDeclaration(syntax, tempLocal, newReceiver)
+                )
+            );
+
+            replacement = new BoundFieldAccessExpression(syntax,
+                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                expression.field,
+                expression.constantValue,
+                expression.field.type
+            );
+
+            return statements;
+        }
+
+        return base.ExpandFieldAccessExpression(expression, out replacement);
+    }
+
     private protected override List<BoundStatement> ExpandCompoundAssignmentOperator(
         BoundCompoundAssignmentOperator expression,
         out BoundExpression replacement) {

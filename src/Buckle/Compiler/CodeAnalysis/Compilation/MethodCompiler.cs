@@ -359,8 +359,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                             BoundFactory.Statement(syntax, BoundFactory.Call(syntax, newEntryPoint)),
                             new BoundReturnStatement(syntax, RefKind.None, null),
                         ],
-                        body.locals,
-                        body.localFunctions
+                        [],
+                        []
                     );
                 }
             }

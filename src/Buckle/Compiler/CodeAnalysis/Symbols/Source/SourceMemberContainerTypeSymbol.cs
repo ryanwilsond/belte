@@ -1399,8 +1399,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             if (_lazyMembersAndInitializers is not null)
                 return;
 
-            // var reportMisplacedGlobalCode = !m.hasErrors;
-            var reportMisplacedGlobalCode = true;
+            var reportMisplacedGlobalCode = !m.containsDiagnostics;
 
             switch (m.kind) {
                 case SyntaxKind.FieldDeclaration: {
@@ -1423,13 +1422,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             diagnostics
                         );
 
-                        var refKind = fieldSymbol.refKind;
-
                         builder.nonTypeMembers.Add(fieldSymbol);
-
-                        if (declaration.initializer is not null)
-                            AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
+                        AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
                     }
+
                     break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
@@ -1544,9 +1540,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 }
             }
 
-            if (hasConstructor && hasParameterlessConstructor) {
+            if (hasConstructor && hasParameterlessConstructor)
                 break;
-            }
         }
 
         if (!hasConstructor && !isStatic)

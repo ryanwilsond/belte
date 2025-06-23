@@ -1,0 +1,1 @@
+int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;

@@ -9,4 +9,8 @@ public sealed class BVec2 {
         this.x = x;
         this.y = y;
     }
+
+    public BVec2 Copy() {
+        return new BVec2(x, y);
+    }
 }

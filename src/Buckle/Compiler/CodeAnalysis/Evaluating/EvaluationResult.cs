@@ -19,7 +19,8 @@ public sealed class EvaluationResult {
         BelteDiagnosticQueue diagnostics,
         List<Exception> exceptions,
         bool lastOutputWasPrint,
-        bool containsIO) {
+        bool containsIO,
+        Heap<EvaluatorObject> heap) {
         this.value = value;
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
@@ -27,6 +28,7 @@ public sealed class EvaluationResult {
         this.exceptions = exceptions is null ? [] : exceptions;
         this.lastOutputWasPrint = lastOutputWasPrint;
         this.containsIO = containsIO;
+        this.heap = heap;
     }
 
     /// <summary>
@@ -60,8 +62,10 @@ public sealed class EvaluationResult {
     /// </summary>
     public List<Exception> exceptions { get; }
 
+    internal Heap<EvaluatorObject> heap { get; private set; }
+
     internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
-        return new EvaluationResult(null, false, diagnostics, null, false, false);
+        return new EvaluationResult(null, false, diagnostics, null, false, false, null);
     }
 
     internal void Update(
@@ -70,7 +74,8 @@ public sealed class EvaluationResult {
         BelteDiagnosticQueue diagnostics,
         List<Exception> exceptions,
         bool lastOutputWasPrint,
-        bool containsIO) {
+        bool containsIO,
+        Heap<EvaluatorObject> heap) {
         if (hasValue) {
             this.value = value;
             this.hasValue = true;
@@ -80,5 +85,6 @@ public sealed class EvaluationResult {
         this.exceptions.AddRange(exceptions);
         this.lastOutputWasPrint = lastOutputWasPrint;
         this.containsIO |= containsIO;
+        this.heap = heap;
     }
 }

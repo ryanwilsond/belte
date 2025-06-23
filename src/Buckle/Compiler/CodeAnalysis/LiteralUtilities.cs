@@ -68,4 +68,14 @@ internal static class LiteralUtilities {
 
         return SpecialType.None;
     }
+
+    internal static object GetDefaultValue(SpecialType type) {
+        return type switch {
+            SpecialType.Int => 0L,
+            SpecialType.Decimal => 0D,
+            SpecialType.Bool => false,
+            SpecialType.Char => '\0',
+            _ => throw ExceptionUtilities.UnexpectedValue(type)
+        };
+    }
 }

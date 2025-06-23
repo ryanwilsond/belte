@@ -115,7 +115,7 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         if (_graphicsEnabled && _graphicsInitialized)
-            GraphicsHandler = new GraphicsHandler(false, false);
+            GraphicsHandler = new GraphicsHandler(null, false, false);
 
         var mainMethod = _programType.GetMethod(
             "Main",
@@ -318,9 +318,16 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateTypeBuilder(NamedTypeSymbol type) {
-        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetType(type.baseType));
+        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetBaseType(type));
         CreateNestedTypes(type, typeBuilder);
         _types.Add(type.originalDefinition, typeBuilder);
+    }
+
+    private Type GetBaseType(NamedTypeSymbol type) {
+        if (type.baseType is null)
+            return typeof(ValueType);
+
+        return GetType(type.baseType);
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder) {
@@ -336,7 +343,7 @@ internal sealed partial class Executor : ModuleBuilder {
             var nestedBuilder = typeBuilder.DefineNestedType(
                 nestedType.name,
                 GetTypeAttributes(nestedType, true),
-                GetType(nestedType.baseType)
+                GetBaseType(nestedType)
             );
 
             CreateNestedTypes(nestedType, nestedBuilder);
@@ -537,6 +544,11 @@ internal sealed partial class Executor : ModuleBuilder {
         return 0;
     }
 
+    public static long? DrawRect(BRect rect, long? r, long? g, long? b) {
+        GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, null);
+        return 0;
+    }
+
     public static void InitializeGraphics(string title, long width, long height, bool usePointClamp = false) {
         GraphicsHandler.Title = title;
         GraphicsHandler.Width = (int)width;
@@ -613,6 +625,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Pow_D?D?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(double?), typeof(double?)]) },
             { "Math_Pow_II", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long), typeof(long)]) },
             { "Math_Pow_I?I?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long?), typeof(long?)]) },
+            { "Math_Max_II", typeof(Math).GetMethod("Max", Flags, [typeof(long), typeof(long)]) },
+            { "Math_Min_II", typeof(Math).GetMethod("Min", Flags, [typeof(long), typeof(long)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_Sort_A?", typeof(Belte.Runtime.Utilities).GetMethod("Sort", Flags, [typeof(object[])]) },
@@ -629,9 +643,11 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", Flags, [typeof(string)]) },
             { "Graphics_DrawSprite_S?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite)]) },
             { "Graphics_DrawText_T?", typeof(Executor).GetMethod("DrawText", Flags, [typeof(BText)]) },
+            { "Graphics_DrawRect_R?I?I?I?", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long?), typeof(long?), typeof(long?)]) },
             { "Graphics_LoadSprite_SV?V?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
             { "Graphics_LoadText_S?SV?DD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
             { "Graphics_LockFramerate_I", typeof(Executor).GetMethod("LockFramerate", Flags, [typeof(long)]) },
+            { "Vec2_Copy", typeof(BVec2).GetMethod("Copy", InstFlags, Type.EmptyTypes) },
         };
     }
 
