@@ -1621,7 +1621,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             string emittedName = null;
 
             if (containingSymbol is not null)
-                emittedName = containingSymbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat);
+                emittedName = containingSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
 
             emittedName = MetadataHelpers.BuildQualifiedName(emittedName, metadataName);
 

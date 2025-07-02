@@ -45,7 +45,7 @@ internal static partial class MetadataHelpers {
             if (i > 0)
                 builder.Append(CommaDelimiter);
 
-            builder.Append(templates[i].underlyingType.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat));
+            builder.Append(templates[i].underlyingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat));
         }
 
         builder.Append(MangledNameRegionEndChar);

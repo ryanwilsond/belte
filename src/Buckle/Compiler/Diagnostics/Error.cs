@@ -576,7 +576,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic MemberIsInaccessible(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is inaccessible due to its protection level";
+        var message = $"'{symbol}' is inaccessible due to its protection level";
         return CreateError(DiagnosticCode.ERR_MemberIsInaccessible, location, message);
     }
 
@@ -597,13 +597,8 @@ internal static class Error {
 
     internal static BelteDiagnostic NoInstanceRequired(TextLocation location, string name, Symbol symbol) {
         var message = $"member '{name}' cannot be accessed with an instance reference; qualify it with the type name instead";
-        var suggestion = $"{symbol}.{name}";
+        var suggestion = $"{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}.{name}";
         return CreateError(DiagnosticCode.ERR_NoInstanceRequired, location, message, suggestion);
-    }
-
-    internal static BelteDiagnostic NoInstanceRequired(TextLocation location, Symbol symbol) {
-        var message = $"member '{symbol}' cannot be accessed with an instance reference; qualify it with the type name instead";
-        return CreateError(DiagnosticCode.ERR_NoInstanceRequired, location, message);
     }
 
     internal static BelteDiagnostic InstanceRequired(TextLocation location, Symbol symbol) {

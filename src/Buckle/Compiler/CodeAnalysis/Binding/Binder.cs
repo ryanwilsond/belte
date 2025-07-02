@@ -4262,7 +4262,7 @@ internal partial class Binder {
                     if (flags.Includes(BinderFlags.ObjectInitializerMember))
                         diagnostics.Push(Error.StaticMemberInObjectInitializer(node.location, symbol));
                     else
-                        diagnostics.Push(Error.NoInstanceRequired(node.location, symbol));
+                        diagnostics.Push(Error.NoInstanceRequired(node.location, symbol.name, symbol.containingSymbol));
                 } else {
                     return false;
                 }
@@ -4742,7 +4742,12 @@ internal partial class Binder {
         if (receiver is not null || memberSymbol is not MethodSymbol { methodKind: MethodKind.Constructor }) {
             if (!memberSymbol.RequiresInstanceReceiver()) {
                 if (!WasImplicitReceiver(receiver) && IsMemberAccessedThroughVariableOrValue(receiver)) {
-                    diagnostics.Push(Error.NoInstanceRequired(node.location, memberSymbol));
+                    diagnostics.Push(Error.NoInstanceRequired(
+                        node.location,
+                        memberSymbol.name,
+                        memberSymbol.containingSymbol
+                    ));
+
                     return true;
                 }
             } else if (IsMemberAccessedThroughType(receiver)) {
@@ -7785,7 +7790,7 @@ symIsHidden:;
             error = Error.InstanceRequired(symbol.location, symbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
         } else if ((options & LookupOptions.MustNotBeInstance) != 0 && IsInstance(symbol)) {
-            error = Error.NoInstanceRequired(symbol.location, symbol);
+            error = Error.NoInstanceRequired(symbol.location, symbol.name, symbol.containingSymbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
         } else if ((options & LookupOptions.MustNotBeNamespace) != 0 && symbol.kind == SymbolKind.Namespace) {
             error = diagnose ? Error.BadSKUnknown(symbol.location, symbol, symbol.kind.Localize()) : null;

@@ -27,6 +27,14 @@ public sealed class SymbolDisplayFormat {
     );
 
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+    );
+
+    public static readonly SymbolDisplayFormat FullyQualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.Everything,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,

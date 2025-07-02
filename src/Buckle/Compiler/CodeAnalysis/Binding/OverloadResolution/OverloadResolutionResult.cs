@@ -387,7 +387,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                 else
                     diagnostics.Push(Error.InstanceRequired(location, symbol));
             } else {
-                diagnostics.Push(Error.NoInstanceRequired(location, symbol));
+                diagnostics.Push(Error.NoInstanceRequired(location, symbol.name, symbol.containingSymbol));
             }
         }
 

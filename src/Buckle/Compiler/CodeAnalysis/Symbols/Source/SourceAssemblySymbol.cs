@@ -716,7 +716,9 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
                 foreach (var forwardedType in forwardedTypes) {
                     var originalDefinition = forwardedType.originalDefinition;
                     var fullEmittedName = MetadataHelpers.BuildQualifiedName(
-                        originalDefinition.containingSymbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat),
+                        originalDefinition.containingSymbol.ToDisplayString(
+                            SymbolDisplayFormat.FullyQualifiedNameFormat
+                        ),
                         originalDefinition.metadataName
                     );
 
