@@ -1781,6 +1781,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
     }
 
+    internal static BelteDiagnostic ImplicitlyTypedLocalAssignedBadValue(TextLocation location, TypeSymbol type) {
+        var message = $"Cannot assign {type} to an implicitly-typed local";
+        return CreateError(DiagnosticCode.ERR_ImplicitlyTypedLocalAssignedBadValue, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

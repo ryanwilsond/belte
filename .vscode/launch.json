@@ -14,7 +14,7 @@
                 // "--verbose",
                 // "temp.blt"
                 // "--type=graphics",
-                // "samples/Snake"
+                // "samples/Pong"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

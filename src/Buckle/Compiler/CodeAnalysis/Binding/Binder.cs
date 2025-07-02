@@ -3413,7 +3413,8 @@ internal partial class Binder {
         SimpleNameSyntax node,
         Symbol symbol,
         BelteDiagnosticQueue diagnostics) {
-        if (symbol.containingSymbol is SynthesizedEntryPoint &&
+        if (!compilation.options.isScript &&
+            symbol.containingSymbol is SynthesizedEntryPoint &&
             !containingType.Equals(symbol.containingSymbol.containingType)) {
             diagnostics.Push(Error.ProgramLocalReferencedOutsideOfTopLevelStatement(node.location, node));
             return true;
@@ -8184,8 +8185,7 @@ symIsHidden:;
                 declarationType = new TypeWithAnnotations(initializerType);
 
                 if (declarationType.IsVoidType()) {
-                    // Error(localDiagnostics, ErrorCode.ERR_ImplicitlyTypedVariableAssignedBadValue, declarator, declTypeOpt.Type);
-                    // TODO is this a reachable error?
+                    diagnostics.Push(Error.ImplicitlyTypedLocalAssignedBadValue(declaration.location, declarationType.type));
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {

@@ -139,7 +139,7 @@ class Program {
         var scaledVelocity = ballVelocity.Copy();
         scaledVelocity.x *= deltaTime;
         scaledVelocity.y *= deltaTime;
-        ball.SetPosition(ball.position.x + scaledVelocity.x, ball.position.y + scaledVelocity.y);
+        ball.SetPosition(ball.position.x + ballVelocity.x * deltaTime, ball.position.y + ballVelocity.y * deltaTime);
 
         Graphics.DrawSprite(ball);
         Graphics.DrawSprite(lPaddle);

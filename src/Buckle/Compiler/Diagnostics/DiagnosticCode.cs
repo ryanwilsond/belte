@@ -353,6 +353,7 @@ public enum DiagnosticCode : ushort {
     ERR_ArrayInitExpected = 342,
     ERR_ArrayInitWrongLength = 343,
     ERR_IncompatibleEntryPointReturn = 344,
+    ERR_ImplicitlyTypedLocalAssignedBadValue = 345,
 
     // Carving out >=9000 for unsupported errors
     UNS_GlobalReturnValue = 9000,

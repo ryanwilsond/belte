@@ -357,6 +357,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitUnaryOperator(expression);
     }
 
+    internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
+        var syntax = expression.syntax;
+
+        if (expression.index.type.IsNullableType()) {
+            return new BoundArrayAccessExpression(syntax,
+                expression.receiver,
+                RewriteNull(syntax, expression.index),
+                expression.constantValue,
+                expression.type
+            );
+        }
+
+        return base.VisitArrayAccessExpression(expression);
+    }
+
     internal override BoundNode VisitInitializerList(BoundInitializerList expression) {
         /*
 

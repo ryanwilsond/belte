@@ -1,21 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
-internal class Heap<T> where T : class {
+internal class Heap {
     private readonly Evaluator _evaluator;
     private readonly Stack<int> _freeIndices;
-    private T[] _data;
+    private EvaluatorObject[] _data;
 
     internal Heap(Evaluator evaluator, int initialCapacity = 16) {
         _evaluator = evaluator;
-        _data = new T[initialCapacity];
+        _data = new EvaluatorObject[initialCapacity];
         _freeIndices = new Stack<int>();
     }
 
-    internal T this[int index] {
+    internal EvaluatorObject this[int index] {
         get {
             EnsureCapacity(index + 1);
             return _data[index];
@@ -30,7 +31,7 @@ internal class Heap<T> where T : class {
 
     internal int usedCount => _data.Count(d => d is null);
 
-    internal int Allocate(T item) {
+    internal int Allocate(EvaluatorObject item) {
         if (capacity - _freeIndices.Count >= 2048)
             _evaluator.CleanHeap();
 

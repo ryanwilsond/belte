@@ -11,6 +11,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended.Text;
@@ -30,7 +31,7 @@ internal sealed class Evaluator {
     private readonly EvaluatorContext _context;
     private readonly Stack<StackFrame> _stack;
     private readonly Stack<EvaluatorObject> _enclosingTypes;
-    private readonly Heap<EvaluatorObject> _heap;
+    private readonly Heap _heap;
 
     private EvaluatorObject _programObject;
     private EvaluatorObject _lastValue;
@@ -51,7 +52,7 @@ internal sealed class Evaluator {
         _stack = new Stack<StackFrame>();
         exceptions = [];
 
-        _heap = new Heap<EvaluatorObject>(this, 64);
+        _heap = new Heap(this, 64);
 
         foreach (var (_, key) in context.GetTrackedSymbolsAndObjects()) {
             AssignHeapSlot(key);
@@ -103,7 +104,7 @@ internal sealed class Evaluator {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
-    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue, out Heap<EvaluatorObject> heap) {
+    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue, out Heap heap) {
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is null) {
@@ -286,9 +287,7 @@ internal sealed class Evaluator {
 
     private void Assign(EvaluatorObject left, EvaluatorObject right, BoundKind rightKind = BoundKind.NopStatement) {
         var takeable = IsTakeable(rightKind);
-
-        if (left.referenceSymbol?.kind == SymbolKind.Field)
-            MarkEscapingObject(right);
+        MarkReference(right);
 
         if (TryInPlaceCopy(left, right, takeable))
             return;
@@ -396,10 +395,14 @@ internal sealed class Evaluator {
 
         newObject.members = members;
 
+        return AllocateObjectAndGetPointer(newObject);
+    }
+
+    private EvaluatorObject AllocateObjectAndGetPointer(EvaluatorObject evaluatorObject) {
         var pointer = EvaluatorObject.GetInstance();
-        pointer.heapPointer = _heap.Allocate(newObject);
-        pointer.type = type;
-        pointer.reference = newObject;
+        pointer.heapPointer = _heap.Allocate(evaluatorObject);
+        pointer.type = evaluatorObject.type;
+        pointer.reference = evaluatorObject;
 
         _stack.Peek().MarkAllocation(pointer.heapPointer.Value);
 
@@ -661,24 +664,29 @@ internal sealed class Evaluator {
             return EvaluateInitializerList(initList, abort);
 
         var arrayType = (ArrayTypeSymbol)node.type;
+        var elementType = arrayType.elementType;
+
         var array = EvaluatorObject.GetInstance(null, arrayType);
 
-        // TODO There is probably a more efficient algorithm for this
         foreach (var size in node.sizes) {
             foreach (var element in IterateElements(array)) {
                 var sizeValue = (long)Value(EvaluateExpression(size, abort));
                 var members = new EvaluatorObject[sizeValue];
 
                 for (var i = 0; i < sizeValue; i++) {
-                    // TODO This will use a default when default expression is added for primitives instead of null
-                    members[i] = EvaluatorObject.GetInstance();
+                    members[i] = elementType.IsPrimitiveType()
+                        ? EvaluatorObject.GetInstance(
+                            LiteralUtilities.GetDefaultValue(arrayType.elementType.specialType),
+                            arrayType.elementType
+                        )
+                        : EvaluatorObject.GetInstance();
                 }
 
                 element.value = members;
             }
         }
 
-        return array;
+        return AllocateObjectAndGetPointer(array);
 
         static List<EvaluatorObject> IterateElements(EvaluatorObject evaluatorObject) {
             if (evaluatorObject.value is null) {
@@ -716,12 +724,14 @@ internal sealed class Evaluator {
             lastOutputWasPrint = printed;
             containsIO = io;
 
-            if (result is EvaluatorObject e)
+            if (result is EvaluatorObject e) {
+                MarkEscapingObject(e);
                 return e;
-            else if (!expression.method.returnsVoid)
+            } else if (!expression.method.returnsVoid) {
                 return EvaluatorObject.GetInstance(result, expression.method.returnType);
-            else
+            } else {
                 return null;
+            }
         }
 
         return InvokeMethod(
@@ -804,12 +814,7 @@ internal sealed class Evaluator {
         // var templateConstantDepth = _templateConstantDepth;
         var enteredScope = false;
 
-        // !
-        if (receiver is not null /*&& (receiver.isReference || expression is BoundObjectCreationExpression)*/) {
-            // On an expression such as 'myInstance.Method()', we need to enter the 'myInstance' class scope
-            // in case 'Method' uses 'this'
-            // If what we get here is not a reference, it is a static accession and the needed scoped members have
-            // already been pushed by 'EvaluateType'.
+        if (receiver is not null) {
             var newReceiver = Dereference(receiver);
 
             if (newReceiver.members is not null) {
@@ -837,12 +842,14 @@ internal sealed class Evaluator {
     }
 
     internal void CleanHeap() {
-        var roots = GetRootHeapPointers();
+        var roots = GetAllHeapPointers();
 
         foreach (var ptr in roots)
             Mark(ptr);
 
         Sweep();
+
+        roots.Free();
 
         void Sweep() {
             for (var i = 0; i < _heap.capacity; i++) {
@@ -865,30 +872,39 @@ internal sealed class Evaluator {
                 return;
 
             obj.markedForCollection = true;
-
-            foreach (var field in obj.members.Values) {
-                if (field.heapPointer.HasValue)
-                    Mark(field.heapPointer.Value);
-            }
         }
 
-        IEnumerable<int> GetRootHeapPointers() {
-            foreach (var frame in _stack) {
-                foreach (var local in frame.locals) {
-                    if (local.Value.heapPointer.HasValue)
-                        yield return local.Value.heapPointer.Value;
-                }
-            }
+        ArrayBuilder<int> GetAllHeapPointers() {
+            var builder = ArrayBuilder<int>.GetInstance();
 
-            foreach (var global in _context.GetTrackedSymbolsAndObjects()) {
-                if (global.Value.heapPointer.HasValue)
-                    yield return global.Value.heapPointer.Value;
+            foreach (var frame in _stack)
+                GetHeapPointers(builder, frame.locals.Values);
+
+            GetHeapPointers(builder, _context.GetTrackedSymbolsAndObjects().Values);
+
+            return builder;
+        }
+
+        void GetHeapPointers(ArrayBuilder<int> builder, IEnumerable<EvaluatorObject> evaluatorObjects) {
+            foreach (var evaluatorObject in evaluatorObjects) {
+                if (evaluatorObject.heapPointer.HasValue)
+                    builder.Add(evaluatorObject.heapPointer.Value);
+
+                if (evaluatorObject.members is not null)
+                    GetHeapPointers(builder, evaluatorObject.members.Values);
             }
         }
     }
 
     private void PopAndFreeLocals() {
         var frame = _stack.Pop();
+
+        foreach (var local in frame.locals) {
+            var pointer = local.Value?.heapPointer;
+
+            if (pointer.HasValue)
+                _heap[pointer.Value].refCount--;
+        }
 
         foreach (var heapIndex in frame.heapAllocations)
             TryFreeHeapSlot(heapIndex);
@@ -897,12 +913,13 @@ internal sealed class Evaluator {
     private void TryFreeHeapSlot(int index) {
         var value = _heap[index];
 
-        if (!value.escapes || value.refCount <= 0) {
+        if (!value.escapes && value.refCount <= 0) {
             if (value.members is not null) {
                 foreach (var (_, member) in value.members) {
                     if (member.heapPointer.HasValue) {
-                        _heap[member.heapPointer.Value].refCount--;
-                        TryFreeHeapSlot(member.heapPointer.Value);
+                        var pointer = member.heapPointer.Value;
+                        _heap[pointer].refCount--;
+                        TryFreeHeapSlot(pointer);
                     }
                 }
             }
@@ -915,10 +932,16 @@ internal sealed class Evaluator {
         if (evaluatorObject is null)
             return;
 
-        if (evaluatorObject.heapPointer.HasValue) {
+        if (evaluatorObject.heapPointer.HasValue)
             _heap[evaluatorObject.heapPointer.Value].escapes = true;
+    }
+
+    private void MarkReference(EvaluatorObject evaluatorObject) {
+        if (evaluatorObject is null)
+            return;
+
+        if (evaluatorObject.heapPointer.HasValue)
             _heap[evaluatorObject.heapPointer.Value].refCount++;
-        }
     }
 
     private EvaluatorObject InvokeMethod(
@@ -1264,12 +1287,12 @@ internal sealed class Evaluator {
         );
 
         var right = EvaluateExpression(expression.right, abort, expression.isRef || asRef);
+        MarkReference(right);
 
         if (expression.isRef)
             right.isExplicitReference = true;
 
         var rightDeref = Dereference(right, false);
-        MarkEscapingObject(rightDeref);
 
         if (rightDeref.reference is not null && rightDeref.isExplicitReference) {
             left = Dereference(left, false);
@@ -1311,12 +1334,12 @@ internal sealed class Evaluator {
     private EvaluatorObject EvaluateFieldAccessExpression(BoundFieldAccessExpression expression, ValueWrapper<bool> abort, bool asRef) {
         var field = expression.field;
         var operand = EvaluateExpression(expression.receiver, abort, asRef);
-        operand = Dereference(operand);
+        var deref = Dereference(operand);
 
-        if (operand.members is null)
+        if (deref.members is null)
             throw new BelteNullReferenceException(expression.syntax.location);
 
-        var value = operand.members[field];
+        var value = deref.members[field];
         return EvaluatorObject.GetInstance(field, value, field.type);
     }
 
@@ -1585,7 +1608,6 @@ internal sealed class Evaluator {
                         sprite,
                         abort
                     );
-
                     result = sprite;
                 }
 
