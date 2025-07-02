@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>annotations</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.PooledObjects" Version="3.9.0-5.21120.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.6" />
+    <PackageReference Include="Nerdbank.Streams" Version="2.12.87" />
+    <PackageReference Include="OmniSharp.Extensions.LanguageServer" Version="0.19.9" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Dependencies\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\..\..\src\Buckle\Compiler\Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

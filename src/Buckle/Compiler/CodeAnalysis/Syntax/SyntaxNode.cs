@@ -48,13 +48,13 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// <see cref="SyntaxTree" /> this <see cref="SyntaxNode" /> resides in.
     /// </summary>
-    internal abstract SyntaxTree syntaxTree { get; }
+    public abstract SyntaxTree syntaxTree { get; }
 
     /// <summary>
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
     /// (not including line break).
     /// </summary>
-    internal virtual TextSpan span {
+    public virtual TextSpan span {
         get {
             var start = position;
             var width = green.fullWidth;
@@ -73,12 +73,7 @@ public abstract partial class SyntaxNode {
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
     /// (including line break).
     /// </summary>
-    internal virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
-
-    /// <summary>
-    /// The underlying basic node information.
-    /// </summary>
-    internal GreenNode green { get; }
+    public virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
 
     /// <summary>
     /// The absolute position of this <see cref="SyntaxNode" /> in the <see cref="SourceText" /> it came from.
@@ -88,40 +83,45 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// The position of the very end of this <see cref="SyntaxNode" />.
     /// </summary>
-    internal int endPosition => position + green.fullWidth;
+    public int endPosition => position + green.fullWidth;
 
     /// <summary>
     /// The number of children.
     /// </summary>
-    internal int slotCount => green.slotCount;
+    public int slotCount => green.slotCount;
 
     /// <summary>
     /// The width of this <see cref="SyntaxNode" /> including all trivia.
     /// </summary>
-    internal int fullWidth => green.fullWidth;
+    public int fullWidth => green.fullWidth;
 
     /// <summary>
     /// The width of this <see cref="SyntaxNode" /> excluding all trivia.
     /// </summary>
-    internal int width => green.width;
+    public int width => green.width;
 
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
     /// </summary>
-    internal TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span, syntaxTree);
+    public TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span, syntaxTree);
 
     /// <summary>
     /// If any diagnostics have spans that overlap with this node.
     /// Aka this node produced any diagnostics.
     /// </summary>
-    internal bool containsDiagnostics => green.containsDiagnostics;
+    public bool containsDiagnostics => green.containsDiagnostics;
 
     /// <summary>
     /// If this node is a list.
     /// </summary>
-    internal bool isList => green.isList;
+    public bool isList => green.isList;
 
-    internal bool isFabricated => green.isFabricated;
+    public bool isFabricated => green.isFabricated;
+
+    /// <summary>
+    /// The underlying basic node information.
+    /// </summary>
+    internal GreenNode green { get; }
 
     public override string ToString() {
         return green.ToString();
