@@ -366,6 +366,22 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
     internal static bool IsOverloadableOperator(this SyntaxKind type) {
+        return IsOverloadableUnaryOperator(type) || IsOverloadableBinaryOperator(type);
+    }
+
+    internal static bool IsOverloadableUnaryOperator(this SyntaxKind type) {
+        return type switch {
+            SyntaxKind.PlusToken => true,
+            SyntaxKind.MinusToken => true,
+            SyntaxKind.PlusPlusToken => true,
+            SyntaxKind.MinusMinusToken => true,
+            SyntaxKind.ExclamationToken => true,
+            SyntaxKind.TildeToken => true,
+            _ => false,
+        };
+    }
+
+    internal static bool IsOverloadableBinaryOperator(this SyntaxKind type) {
         return type switch {
             SyntaxKind.AsteriskAsteriskToken => true,
             SyntaxKind.AsteriskToken => true,
@@ -379,10 +395,6 @@ public static class SyntaxFacts {
             SyntaxKind.AmpersandToken => true,
             SyntaxKind.CaretToken => true,
             SyntaxKind.PipeToken => true,
-            SyntaxKind.PlusPlusToken => true,
-            SyntaxKind.MinusMinusToken => true,
-            SyntaxKind.ExclamationToken => true,
-            SyntaxKind.TildeToken => true,
             SyntaxKind.OpenBracketToken => true,
             SyntaxKind.EqualsEqualsToken => true,
             SyntaxKind.ExclamationEqualsToken => true,

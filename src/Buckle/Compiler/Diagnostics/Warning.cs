@@ -14,22 +14,6 @@ namespace Buckle.Diagnostics;
 /// more accurately.
 /// </summary>
 internal static class Warning {
-    /// <summary>
-    /// Temporary error messages.
-    /// Once the compiler is finished, this class will be unnecessary.
-    /// </summary>
-    internal static class Unsupported {
-        internal static Diagnostic Assembling() {
-            var message = "assembling not supported (yet); skipping";
-            return CreateWarning(DiagnosticCode.UNS_Assembling, message);
-        }
-
-        internal static Diagnostic Linking() {
-            var message = "linking not supported (yet); skipping";
-            return CreateWarning(DiagnosticCode.UNS_Linking, message);
-        }
-    }
-
     internal static BelteDiagnostic AlwaysValue(TextLocation location, object value) {
         var valueString = value is null ? "null" : value.ToString();
 
@@ -41,9 +25,9 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_AlwaysValue, location, message);
     }
 
-    internal static BelteDiagnostic NullDeference(TextLocation location) {
-        var message = "deference of a possibly null value";
-        return CreateWarning(DiagnosticCode.WRN_NullDeference, location, message);
+    internal static BelteDiagnostic NullDereference(TextLocation location) {
+        var message = "dereference of a possibly null value";
+        return CreateWarning(DiagnosticCode.WRN_NullDereference, location, message);
     }
 
     internal static BelteDiagnostic UnreachableCode(SyntaxNode node) {
@@ -62,11 +46,6 @@ internal static class Warning {
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
-    }
-
-    internal static BelteDiagnostic MemberShadowsNothing(TextLocation location, string signature, string typeName) {
-        var message = $"the member '{typeName}.{signature}' does not hide a member; the 'new' keyword is unnecessary";
-        return CreateWarning(DiagnosticCode.WRN_MemberShadowsNothing, location, message);
     }
 
     internal static BelteDiagnostic ProtectedMemberInSealedType(TextLocation location, NamespaceOrTypeSymbol containingSymbol, Symbol member) {
@@ -179,8 +158,9 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInReturnTypeOnOverride, location, message);
     }
 
-    private static Diagnostic CreateWarning(DiagnosticCode code, string message) {
-        return new Diagnostic(WarningInfo(code), message);
+    internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
+        var message = $"local '{name}' shares a name with a type in this namespace";
+        return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

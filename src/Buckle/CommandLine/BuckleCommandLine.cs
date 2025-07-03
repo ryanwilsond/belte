@@ -21,14 +21,37 @@ public static partial class BuckleCommandLine {
     private const int FatalExitCode = 2;
     private const int RuntimeErrorExitCode = 3;
 
-    private static readonly DiagnosticInfo[] WarningLevel1 = {
-        new DiagnosticInfo(1, "BU"),
-        new DiagnosticInfo(26, "BU"),
-    };
+    private static readonly DiagnosticInfo[] WarningLevel1 = [
+        new DiagnosticInfo(0001, "BU"),
+        new DiagnosticInfo(0026, "BU"),
+        new DiagnosticInfo(0133, "BU"),
+        new DiagnosticInfo(0145, "BU"),
+        new DiagnosticInfo(0180, "BU"),
+        new DiagnosticInfo(0239, "BU"),
+        new DiagnosticInfo(0243, "BU"),
+        new DiagnosticInfo(0244, "BU"),
+        new DiagnosticInfo(0247, "BU"),
+        new DiagnosticInfo(0248, "BU"),
+        new DiagnosticInfo(0252, "BU"),
+        new DiagnosticInfo(0253, "BU"),
+        new DiagnosticInfo(0273, "BU"),
+        new DiagnosticInfo(0274, "BU"),
+        new DiagnosticInfo(0276, "BU"),
+        new DiagnosticInfo(0277, "BU"),
+        new DiagnosticInfo(0286, "BU"),
+        new DiagnosticInfo(0287, "BU"),
+        new DiagnosticInfo(0288, "BU"),
+        new DiagnosticInfo(0289, "BU"),
+        new DiagnosticInfo(0290, "BU"),
+    ];
 
-    private static readonly DiagnosticInfo[] WarningLevel2 = {
-        new DiagnosticInfo(2, "BU"),
-    };
+    private static readonly DiagnosticInfo[] WarningLevel2 = [
+        new DiagnosticInfo(0002, "BU"),
+        new DiagnosticInfo(0198, "BU"),
+        new DiagnosticInfo(0263, "BU"),
+        new DiagnosticInfo(0264, "BU"),
+        new DiagnosticInfo(0265, "BU"),
+    ];
 
     /// <summary>
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
@@ -273,9 +296,8 @@ public static partial class BuckleCommandLine {
             return;
         }
 
-        foreach (var file in compiler.state.tasks) {
+        foreach (var file in compiler.state.tasks)
             File.Delete(file.outputFilename);
-        }
     }
 
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
@@ -664,6 +686,8 @@ public static partial class BuckleCommandLine {
             state.time = true;
         }
 
+        ResolveOutputFileNames(ref state.tasks, state.finishStage, specifyOut ? state.outputFilename : null);
+
         return state;
     }
 
@@ -720,6 +744,32 @@ public static partial class BuckleCommandLine {
         }
 
         return infos;
+    }
+
+    private static void ResolveOutputFileNames(
+        ref FileState[] tasks,
+        CompilerStage finishStage,
+        string outputFilename) {
+        if (tasks.Length == 1 && outputFilename is not null) {
+            tasks[0].outputFilename = outputFilename;
+            return;
+        }
+
+        var ext = finishStage switch {
+            CompilerStage.Assembled => "o",
+            CompilerStage.Compiled => "s",
+            CompilerStage.Finished => "exe",
+            _ => null
+        };
+
+        for (var i = 0; i < tasks.Length; i++) {
+            var fileName = string.Join('.', tasks[i].inputFileName.Split('.').SkipLast(1));
+
+            if (ext is not null)
+                tasks[i].outputFilename = string.Join('.', fileName, ext);
+            else
+                tasks[i].outputFilename = fileName;
+        }
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {

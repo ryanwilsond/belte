@@ -93,12 +93,14 @@ internal sealed class LookupResult {
     }
 
     internal void SetFrom(LookupResult other) {
+        error = other.error;
         kind = other.kind;
         symbols.Clear();
         symbols.AddRange(other.symbols);
     }
 
     internal void SetFrom(SingleLookupResult other) {
+        error = other.error;
         kind = other.kind;
         symbols.Clear();
         symbols.Add(other.symbol);

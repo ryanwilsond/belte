@@ -50,6 +50,8 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
+        handle.state.warningLevel = 2;
+
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
@@ -338,9 +340,9 @@ public sealed partial class BelteRepl : Repl {
         var diagnostics = compilation.GetDiagnostics();
 
         if (state.showWarnings)
-            handle.diagnostics.Move(diagnostics);
+            handle.diagnostics.PushRange(diagnostics);
         else
-            handle.diagnostics.Move(diagnostics.Errors());
+            handle.diagnostics.PushRange(diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
@@ -355,23 +357,15 @@ public sealed partial class BelteRepl : Repl {
                 Console.ForegroundColor = state.colorTheme.@default;
                 return;
             }
-
-            if (state.showWarnings)
-                handle.diagnostics.Move(result.diagnostics);
-            else
-                handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
         var hasErrors = handle.diagnostics.AnyErrors();
 
         if (handle.diagnostics.Any()) {
-            if (_hasDiagnosticHandle) {
-                // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
-                // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+            if (_hasDiagnosticHandle)
                 _diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
-            } else {
+            else
                 handle.diagnostics.Clear();
-            }
         }
 
         if (!hasErrors) {

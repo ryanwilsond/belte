@@ -342,8 +342,10 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         var refParameter = parameter.refKind;
 
         if (!argument.HasExpressionType()) {
-            // TODO Do we need to inject "<null>" here in place of argument.type?
-            diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
+            if (argument.syntax.kind == SyntaxKind.OmittedArgument)
+                diagnostics.Push(Error.CannotImplyNull(sourceLocation, arg + 1, parameter.type));
+            else
+                diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
         } else if (refArg != refParameter &&
               !(refParameter == RefKind.RefConst && refArg is RefKind.None or RefKind.Ref)) {
             if (refParameter is RefKind.None or RefKind.RefConst)

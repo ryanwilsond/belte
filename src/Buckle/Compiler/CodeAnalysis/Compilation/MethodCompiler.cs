@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -216,6 +218,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _compilation.previousAnalyses,
             currentDiagnostics
         );
+
+        if (!ControlFlowGraph.AllPathsReturn(loweredBody))
+            currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);

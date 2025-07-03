@@ -406,7 +406,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             if (report) {
                 return AddDiagnostic(
                     AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind), unexpectedToken),
-                    Error.UnexpectedToken(unexpectedToken.kind, kind),
+                    GetUnexpectedTokenError(unexpectedToken.kind, kind),
                     unexpectedToken.GetLeadingTriviaWidth(),
                     unexpectedToken.width
                 );
@@ -443,7 +443,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             if (report) {
                 return AddDiagnostic(
                     AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind1), unexpectedToken),
-                    Error.UnexpectedToken(unexpectedToken.kind, kind1, kind2),
+                    GetUnexpectedTokensError(unexpectedToken.kind, kind1, kind2),
                     unexpectedToken.GetLeadingTriviaWidth(),
                     unexpectedToken.width
                 );
@@ -464,6 +464,18 @@ internal abstract partial class SyntaxParser : IDisposable {
         } else {
             return WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected));
         }
+    }
+
+    private static Diagnostic GetUnexpectedTokensError(SyntaxKind unexpected, SyntaxKind kind1, SyntaxKind kind2) {
+        return unexpected == SyntaxKind.EndOfFileToken
+            ? Error.ExpectedTokensAtEOF(kind1, kind2)
+            : Error.UnexpectedTokenExpectedOthers(unexpected, kind1, kind2);
+    }
+
+    private static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
+        return unexpected == SyntaxKind.EndOfFileToken
+            ? Error.ExpectedTokenAtEOF(expected)
+            : Error.UnexpectedTokenExpectedAnother(unexpected, expected);
     }
 
     private protected void MoveToNextToken() {

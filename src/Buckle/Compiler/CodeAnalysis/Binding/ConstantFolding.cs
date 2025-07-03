@@ -54,8 +54,10 @@ internal static class ConstantFolding {
         if (opKind is BinaryOperatorKind.NotEqual)
             return new ConstantValue(!Equals(leftValue, rightValue));
 
-        leftValue = LiteralUtilities.Cast(leftValue, type);
-        rightValue = LiteralUtilities.Cast(rightValue, type);
+        if (!LiteralUtilities.TryCast(leftValue, type, out leftValue) ||
+            !LiteralUtilities.TryCast(rightValue, type, out rightValue)) {
+            return null;
+        }
 
         switch (opKind) {
             case BinaryOperatorKind.Addition:
@@ -261,8 +263,11 @@ internal static class ConstantFolding {
             return null;
 
         var specialType = type.type.StrippedType().specialType;
-        var castedValue = LiteralUtilities.Cast(expression.constantValue.value, type);
-        return new ConstantValue(castedValue, specialType);
+
+        if (LiteralUtilities.TryCast(expression.constantValue.value, type, out var castedValue))
+            return new ConstantValue(castedValue, specialType);
+
+        return null;
     }
 
     /// <summary>

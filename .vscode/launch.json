@@ -9,12 +9,6 @@
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net9.0/CommandLine.dll",
             "args": [
                 "-r"
-                // "--execute",
-                // "--evaluate",
-                // "--verbose",
-                // "temp.blt"
-                // "--type=graphics",
-                // "samples/Pong"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

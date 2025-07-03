@@ -295,6 +295,12 @@ public sealed partial class Compilation {
     }
 
     public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
+        if (options.buildMode == BuildMode.Independent) {
+            var fatal = new BelteDiagnosticQueue();
+            fatal.Push(Fatal.Unsupported.IndependentCompilation());
+            return fatal;
+        }
+
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -308,8 +314,6 @@ public sealed partial class Compilation {
             ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
-        else if (options.buildMode == BuildMode.Independent)
-            diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
 
         if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
             Log(logTime, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
