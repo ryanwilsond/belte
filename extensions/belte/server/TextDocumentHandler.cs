@@ -67,20 +67,21 @@ internal sealed class TextDocumentHandler : TextDocumentSyncHandlerBase {
     public override async Task<Unit> Handle(DidChangeTextDocumentParams request, CancellationToken cancellationToken) {
         await Task.Yield();
 
-        _manager.UpdateDocument(request.TextDocument.Uri, TranslateChanges(request.ContentChanges));
+        _manager.UpdateDocument(request.TextDocument.Uri, TranslateChanges(request.ContentChanges, _manager.GetText(request.TextDocument.Uri)));
         ValidateAndSendDiagnostics(request.TextDocument.Uri);
 
         return Unit.Value;
     }
 
-    private TextChange[] TranslateChanges(Container<TextDocumentContentChangeEvent> changes) {
+    private TextChange[] TranslateChanges(Container<TextDocumentContentChangeEvent> changes, SourceText text) {
         var builder = ArrayBuilder<TextChange>.GetInstance();
 
         foreach (var change in changes) {
-            _logger.Log(LogLevel.Debug, $"Raw change: ({change.Range.Start.Character}, len {change.RangeLength}) -> '{change.Text}'");
+            var start = text.GetLine(change.Range.Start.Line).start + change.Range.Start.Character;
+            _logger.Log(LogLevel.Debug, $"Raw change: ({start}, len {change.RangeLength}) -> '{change.Text}'");
             builder.Add(
                 new TextChange(
-                    new TextSpan(change.Range.Start.Character, change.RangeLength),
+                    new TextSpan(start, change.RangeLength),
                     change.Text
                 )
             );
@@ -96,31 +97,33 @@ internal sealed class TextDocumentHandler : TextDocumentSyncHandlerBase {
             Diagnostics.DiagnosticSeverity.Warning => DiagnosticSeverity.Warning,
             Diagnostics.DiagnosticSeverity.Info => DiagnosticSeverity.Information,
             Diagnostics.DiagnosticSeverity.Debug => DiagnosticSeverity.Information,
+            _ => DiagnosticSeverity.Information,
         };
     }
 
     private void ValidateAndSendDiagnostics(DocumentUri uri) {
         var belteDiagnostics = _manager.compilation.GetDiagnostics();
-
-        if (!belteDiagnostics.Any())
-            return;
-
         var diagnostics = new List<Diagnostic>();
 
-        do {
+        while (belteDiagnostics.Count > 0) {
             var diagnostic = belteDiagnostics.Pop();
             var location = diagnostic.location;
 
+            if (location is null)
+                continue;
+
             diagnostics.Add(new Diagnostic {
-                Range = location is not null ? new Range(
+                Range = new Range(
                     new Position(location.startLine, location.startCharacter),
                     new Position(location.endline, location.endCharacter)
-                ) : null,
+                ),
                 Severity = TranslateSeverity(diagnostic.info.severity),
                 Message = diagnostic.message,
                 Source = "Buckle"
             });
-        } while (belteDiagnostics.Count > 0);
+        }
+
+        _logger.Log(LogLevel.Debug, $"Sending {diagnostics.Count} diagnostics");
 
         _server.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams {
             Uri = uri,

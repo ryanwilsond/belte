@@ -37,12 +37,15 @@ internal sealed class CompilationManager {
     internal void UpdateDocument(DocumentUri uri, TextChange[] textChanges) {
         lock (_lock) {
             var pair = _documents[uri];
+            var newTree = pair.Item2;
 
-            foreach (var change in textChanges)
+            foreach (var change in textChanges) {
                 _logger.Log(LogLevel.Debug, $"Translated change: '{pair.Item2.text.ToString(change.span)}' -> '{change.newText}'");
+                newTree = newTree.WithChanges(change);
+            }
 
-            var newTree = pair.Item2.WithChanges(textChanges);
             _documents[uri] = (pair.Item1, newTree);
+            _logger.Log(LogLevel.Debug, $"Full text: ```{newTree.text}");
             compilation = Compilation.Create(CompilationName, Options, compilation ?? _corLibrary, newTree);
         }
     }
@@ -54,5 +57,9 @@ internal sealed class CompilationManager {
 
     internal SyntaxTree GetTree(DocumentUri uri) {
         return _documents[uri].Item2;
+    }
+
+    internal SourceText GetText(DocumentUri uri) {
+        return _documents[uri].Item2.text;
     }
 }

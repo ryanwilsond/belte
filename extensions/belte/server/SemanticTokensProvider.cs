@@ -43,13 +43,17 @@ internal class SemanticTokensHandler : SemanticTokensHandlerBase {
         SemanticTokensBuilder builder,
         ITextDocumentIdentifierParams identifier,
         CancellationToken cancellationToken) {
+        await Task.Yield();
+
         var syntaxTree = _manager.GetTree(identifier.TextDocument.Uri);
 
-        await Task.Yield();
+        _logger.Log(LogLevel.Debug, "Beginning tokenize...");
+
         if (syntaxTree is null)
             return;
 
         TokenizeNode(syntaxTree.GetRoot());
+        _logger.Log(LogLevel.Debug, "Finished tokenize");
 
         void TokenizeNode(SyntaxNodeOrToken node) {
             if (node.isToken) {
@@ -153,8 +157,25 @@ internal class SemanticTokensHandler : SemanticTokensHandlerBase {
         return new SemanticTokensRegistrationOptions {
             DocumentSelector = TextDocumentSelector.ForLanguage("belte"),
             Legend = new SemanticTokensLegend {
+                // TokenTypes = new Container<SemanticTokenType>(
+                //     SemanticTokenType.Class,
+                //     SemanticTokenType.Comment,
+                //     SemanticTokenType.Function,
+                //     SemanticTokenType.Keyword,
+                //     SemanticTokenType.Method,
+                //     SemanticTokenType.Modifier,
+                //     SemanticTokenType.Namespace,
+                //     SemanticTokenType.Number,
+                //     SemanticTokenType.Operator,
+                //     SemanticTokenType.Parameter,
+                //     SemanticTokenType.String,
+                //     SemanticTokenType.Struct,
+                //     SemanticTokenType.Type,
+                //     SemanticTokenType.TypeParameter,
+                //     SemanticTokenType.Variable
+                // ),
+                TokenTypes = capability.TokenTypes,
                 TokenModifiers = capability.TokenModifiers,
-                TokenTypes = capability.TokenTypes
             },
             Full = new SemanticTokensCapabilityRequestFull {
                 Delta = true

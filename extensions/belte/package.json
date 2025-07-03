@@ -26,8 +26,7 @@
             {
                 "id": "belte",
                 "aliases": [
-                    "Belte",
-                    "belte"
+                    "Belte"
                 ],
                 "extensions": [
                     ".blt",
@@ -39,30 +38,7 @@
                     "dark": "./images/belte-icon128x.png"
                 }
             }
-        ],
-        "configuration": {
-            "type": "object",
-            "title": "Example configuration",
-            "properties": {
-                "languageServerExample.maxNumberOfProblems": {
-                    "scope": "resource",
-                    "type": "number",
-                    "default": 100,
-                    "description": "Controls the maximum number of problems produced by the server."
-                },
-                "languageServerExample.trace.server": {
-                    "scope": "window",
-                    "type": "string",
-                    "enum": [
-                        "off",
-                        "messages",
-                        "verbose"
-                    ],
-                    "default": "off",
-                    "description": "Traces the communication between VS Code and the language server."
-                }
-            }
-        }
+        ]
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

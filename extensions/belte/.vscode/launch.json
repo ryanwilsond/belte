@@ -13,10 +13,7 @@
                 "${workspaceRoot}/client/out/**/*.js"
             ],
             "autoAttachChildProcesses": true,
-            "preLaunchTask": {
-                "type": "npm",
-                "script": "watch"
-            }
+            "preLaunchTask": "npm: watch"
         },
         {
             "name": "Attach to BelteLspServer",
