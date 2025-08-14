@@ -109,6 +109,8 @@ public sealed partial class Compilation {
 
     internal NamespaceSymbol globalNamespaceInternal => assembly.globalNamespace;
 
+    internal SemanticModelProvider semanticModelProvider { get; }
+
     internal AliasSymbol globalNamespaceAlias {
         get {
             if (_lazyGlobalNamespaceAlias is null)
@@ -144,6 +146,24 @@ public sealed partial class Compilation {
 
             return _lazyPreviousAnalyses;
         }
+    }
+
+    public SemanticModel GetSemanticModel(SyntaxTree syntaxTree) {
+        ArgumentNullException.ThrowIfNull(syntaxTree);
+
+        if (!_syntax.state.rootNamespaces.ContainsKey(syntaxTree))
+            throw new ArgumentException($"Syntax tree {nameof(syntaxTree)} not found");
+
+        SemanticModel model = null;
+
+        if (semanticModelProvider is not null)
+            model = semanticModelProvider.GetSemanticModel(syntaxTree, this);
+
+        return model ?? CreateSemanticModel(syntaxTree);
+    }
+
+    internal SemanticModel CreateSemanticModel(SyntaxTree syntaxTree) {
+        return new SyntaxTreeSemanticModel(this, syntaxTree);
     }
 
     public ImmutableArray<ISymbol> GetSymbols(

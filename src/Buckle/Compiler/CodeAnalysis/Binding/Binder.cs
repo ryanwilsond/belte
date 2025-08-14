@@ -8289,8 +8289,10 @@ symIsHidden:;
 
         BoundExpression initializer;
         if (isImplicitlyTyped) {
-            if (localSymbol.declarationKind != DataContainerDeclarationKind.Variable)
+            if (localSymbol.declarationKind != DataContainerDeclarationKind.Variable &&
+                typeSyntax.kind != SyntaxKind.EmptyName) {
                 diagnostics.Push(Error.ConstantAndVariable(localSymbol.location));
+            }
 
             initializer = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration);
 
