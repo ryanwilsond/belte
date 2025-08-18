@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Buckle;
 using Buckle.Diagnostics;
@@ -73,6 +74,9 @@ public static partial class BuckleCommandLine {
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
 
+        if (dialogs.clearSubmissions)
+            ShowClearSubmissionsDialog();
+
         if (hasDialog) {
             diagnostics.Clear();
             diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
@@ -100,6 +104,9 @@ public static partial class BuckleCommandLine {
 
         if (err > 0)
             return err;
+
+        if (state.tasks.Length == 0 && dialogs.clearSubmissions)
+            return SuccessExitCode;
 
         if (!state.noOut)
             CleanOutputFiles(compiler);
@@ -147,6 +154,19 @@ public static partial class BuckleCommandLine {
             ShowErrorHelp(dialogs.error, out diagnostics);
 
         return diagnostics;
+    }
+
+    private static void ShowClearSubmissionsDialog() {
+        var submissionCount = BelteRepl.ClearSubmissions();
+
+        var previous = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write("Cleared ");
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write(submissionCount);
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine(" submissions");
+        Console.ForegroundColor = previous;
     }
 
     private static void ShowErrorHelp(string _, out DiagnosticQueue<Diagnostic> diagnostics) {
@@ -406,7 +426,8 @@ public static partial class BuckleCommandLine {
             help = false,
             machine = false,
             version = false,
-            error = null
+            clearSubmissions = false,
+            error = null,
         };
 
         multipleExplains = false;
@@ -476,6 +497,9 @@ public static partial class BuckleCommandLine {
                     break;
                 case "--version":
                     tempDialogs.version = true;
+                    break;
+                case "--clearsubmissions":
+                    tempDialogs.clearSubmissions = true;
                     break;
                 case "--noout":
                     state.noOut = true;
@@ -666,9 +690,6 @@ public static partial class BuckleCommandLine {
         if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
 
-        if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
-            diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
-
         if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
             if (specifyOut && specifyModule)
                 diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyOutAndModuleWithDll());
@@ -684,6 +705,14 @@ public static partial class BuckleCommandLine {
             state.severity = DiagnosticSeverity.All;
             state.warningLevel = 2;
             state.time = true;
+        }
+
+        if (state.tasks.Length == 0) {
+            if (state.buildMode == BuildMode.Repl || dialogs.clearSubmissions)
+                // We don't want to resolve output files in they aren't used, so early return
+                return state;
+
+            diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
         }
 
         ResolveOutputFileNames(ref state.tasks, state.finishStage, specifyOut ? state.outputFilename : null);

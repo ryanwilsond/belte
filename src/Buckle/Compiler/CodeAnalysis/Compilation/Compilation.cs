@@ -163,7 +163,8 @@ public sealed partial class Compilation {
     }
 
     internal SemanticModel CreateSemanticModel(SyntaxTree syntaxTree) {
-        return new SyntaxTreeSemanticModel(this, syntaxTree);
+        // return new SyntaxTreeSemanticModel(this, syntaxTree);
+        throw new NotImplementedException();
     }
 
     public ImmutableArray<ISymbol> GetSymbols(

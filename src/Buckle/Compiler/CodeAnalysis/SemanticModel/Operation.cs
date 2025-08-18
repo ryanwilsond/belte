@@ -1,4 +1,4 @@
-
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
@@ -8,7 +8,8 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis;
 
 internal abstract partial class Operation : IOperation {
-    protected static readonly IOperation Unset = new EmptyOperation(semanticModel: null, syntax: null, isImplicit: true);
+    // protected static readonly IOperation Unset = new EmptyOperation(semanticModel: null, syntax: null, isImplicit: true);
+    protected static readonly IOperation Unset = null;
     private readonly SemanticModel _owningSemanticModelOpt;
 
     private IOperation _parentDoNotAccessDirectly;
@@ -43,7 +44,7 @@ internal abstract partial class Operation : IOperation {
         }
     }
 
-    IEnumerable<IOperation> IOperation.children => childOperations;
+    // IEnumerable<IOperation> IOperation.children => childOperations;
 
     public IOperation.OperationList childOperations => new IOperation.OperationList(this);
 
@@ -55,19 +56,20 @@ internal abstract partial class Operation : IOperation {
 
     internal abstract (bool hasNext, int nextSlot, int nextIndex) MoveNextReversed(int previousSlot, int previousIndex);
 
-    SemanticModel IOperation.semanticModel => _owningSemanticModelOpt?.ContainingPublicModelOrSelf;
+    // SemanticModel IOperation.semanticModel => _owningSemanticModelOpt?.containingPublicModelOrSelf;
+    SemanticModel IOperation.semanticModel => throw new NotImplementedException();
 
     internal SemanticModel owningSemanticModel => _owningSemanticModelOpt;
 
-    public abstract void Accept(OperationVisitor visitor);
+    // public abstract void Accept(OperationVisitor visitor);
 
-    public abstract TResult Accept<TArgument, TResult>(OperationVisitor<TArgument, TResult> visitor, TArgument argument);
+    // public abstract TResult Accept<TArgument, TResult>(OperationVisitor<TArgument, TResult> visitor, TArgument argument);
 
     private protected void SetParentOperation(IOperation parent) {
         _parentDoNotAccessDirectly = parent;
     }
 
-    public static T SetParentOperation<T>(T operation, IOperation parent) where T : IOperation {\
+    public static T SetParentOperation<T>(T operation, IOperation parent) where T : IOperation {
         (operation as Operation)?.SetParentOperation(parent);
         return operation;
     }

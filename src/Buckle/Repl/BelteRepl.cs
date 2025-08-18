@@ -108,6 +108,20 @@ public sealed partial class BelteRepl : Repl {
         base.Dispose();
     }
 
+    /// <summary>
+    /// Clears the submissions directory (without evaluation).
+    /// </summary>
+    public static int ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (!Directory.Exists(path))
+            return 0;
+
+        var submissionCount = Directory.GetFiles(path).Length;
+        Directory.Delete(path, true);
+        return submissionCount;
+    }
+
     internal override void ResetState() {
         state.showTokens = false;
         state.showTree = false;
@@ -260,13 +274,6 @@ public sealed partial class BelteRepl : Repl {
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string);
         else
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string, (ConsoleColor)arg2);
-    }
-
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
     }
 
     private static string GetSubmissionsDirectory() {
@@ -676,7 +683,7 @@ public sealed partial class BelteRepl : Repl {
         var isAtTop = true;
 
         var compilation = state.previous ?? EmptyCompilation;
-        var topLevelSymbols = compilation.GetSymbols(true);
+        var topLevelSymbols = compilation.GetSymbols(includeExternal: true, includePreviousCompilations: true);
         var toplevelGlobals = state.context.GetTrackedSymbolsAndObjects();
         var currentSymbols = topLevelSymbols;
         var currentGlobals = toplevelGlobals;
@@ -929,7 +936,13 @@ public sealed partial class BelteRepl : Repl {
 
         // Then do a deeper search for non-global symbols
         var compilation = state.previous ?? EmptyCompilation;
-        var allSymbols = compilation.GetSymbols(includePreviousCompilations: true, includeSimpleProgramLocals: true);
+
+        var allSymbols = compilation.GetSymbols(
+            includePreviousCompilations: true,
+            includeSimpleProgramLocals: true,
+            includeExternal: true
+        );
+
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 

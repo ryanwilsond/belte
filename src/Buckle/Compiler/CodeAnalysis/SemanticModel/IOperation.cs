@@ -1,4 +1,3 @@
-
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
@@ -22,7 +21,7 @@ public partial interface IOperation {
 
     SemanticModel semanticModel { get; }
 
-    void Accept(OperationVisitor visitor);
+    // void Accept(OperationVisitor visitor);
 
-    TResult? Accept<TArgument, TResult>(OperationVisitor<TArgument, TResult> visitor, TArgument argument);
+    // TResult? Accept<TArgument, TResult>(OperationVisitor<TArgument, TResult> visitor, TArgument argument);
 }

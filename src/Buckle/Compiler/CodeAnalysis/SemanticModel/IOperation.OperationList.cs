@@ -13,15 +13,15 @@ public partial interface IOperation {
             _operation = operation;
         }
 
-        public int Count => _operation.ChildOperationsCount;
+        public int Count => _operation.childOperationsCount;
 
         public Enumerator GetEnumerator() => new Enumerator(_operation);
 
         public ImmutableArray<IOperation> ToImmutableArray() {
             return _operation switch {
-                { ChildOperationsCount: 0 } => [],
-                NoneOperation { Children: var children } => (ImmutableArray<IOperation>)children,
-                InvalidOperation { Children: var children } => (ImmutableArray<IOperation>)children,
+                { childOperationsCount: 0 } => [],
+                // NoneOperation { Children: var children } => (ImmutableArray<IOperation>)children,
+                // InvalidOperation { Children: var children } => (ImmutableArray<IOperation>)children,
                 _ => [.. this],
             };
         }
@@ -46,15 +46,15 @@ public partial interface IOperation {
             throw new InvalidOperationException();
         }
 
-        public Reversed Reverse() => new Reversed(_operation);
+        // public Reversed Reverse() => new Reversed(_operation);
 
-        public IOperation Last() {
-            var enumerator = Reverse().GetEnumerator();
+        // public IOperation Last() {
+        //     var enumerator = Reverse().GetEnumerator();
 
-            if (enumerator.MoveNext())
-                return enumerator.Current;
+        //     if (enumerator.MoveNext())
+        //         return enumerator.Current;
 
-            throw new InvalidOperationException();
-        }
+        //     throw new InvalidOperationException();
+        // }
     }
 }

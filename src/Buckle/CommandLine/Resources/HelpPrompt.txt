@@ -7,6 +7,8 @@ Options:
   --noout                     Disable any output the compiler would have produced.
 
   -r|--repl                   Invoke the Repl.
+  --clearsubmissions          Delete all Repl submissions (does not evaluate submissions on startup).
+
   -i                          Compile and run (default).
 
   --script                    Compile and run using the interpreter.

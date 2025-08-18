@@ -4777,12 +4777,14 @@ internal partial class Binder {
                 return true;
             }
 
-            if (receiver.expressionSymbol is DataContainerSymbol local && (local.isConst || local.isConstExpr)) {
+            var receiverSymbol = receiver?.expressionSymbol;
+
+            if (receiverSymbol is DataContainerSymbol local && (local.isConst || local.isConstExpr)) {
                 diagnostics.Push(Error.NonConstantCallOnConstant(node.location, methodSymbol));
                 return true;
             }
 
-            if (receiver.expressionSymbol is FieldSymbol field && (field.isConst || field.isConstExpr)) {
+            if (receiverSymbol is FieldSymbol field && (field.isConst || field.isConstExpr)) {
                 diagnostics.Push(Error.NonConstantCallOnConstant(node.location, methodSymbol));
                 return true;
             }
@@ -8781,6 +8783,8 @@ symIsHidden:;
                         var type = fieldSymbol.type;
 
                         var defaultValue = fieldSymbol.isNullable || CodeGenerator.IsReferenceType(type)
+                            // TODO What to do with generic T that could be a non-nullable primitive?
+                            || type.typeKind == TypeKind.TemplateParameter
                             ? BoundFactory.Literal(syntax, null, type)
                             : BoundFactory.Literal(syntax, LiteralUtilities.GetDefaultValue(type.specialType), type);
 
