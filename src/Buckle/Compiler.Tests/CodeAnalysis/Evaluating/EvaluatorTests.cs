@@ -376,7 +376,7 @@ public sealed class EvaluatorTests {
     // TODO
     // [InlineData("lowlevel { int[] Test<int[] a>() { return a; } return Test<{1, 2, 3}>()[1]; }", 2)]
         */
-    public void Evaluator_Computes_CorrectValues(string text, object expectedValue) {
+    public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue);
     }
 }

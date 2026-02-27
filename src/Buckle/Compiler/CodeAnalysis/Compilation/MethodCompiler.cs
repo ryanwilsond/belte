@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
@@ -243,7 +242,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             null,
             state,
             previousAnalyses,
-            currentDiagnostics
+            currentDiagnostics,
+            null // TODO When do we want to use this?
         );
 
         loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);

@@ -43,7 +43,7 @@ buckle samples/Pong --type=graphics
 > potentially slowing down build times
 
 To compile a sample, locate into the desired sample directory and run `dotnet build`. This will place the finished
-executable into `<sample directory>/bin/Debug/net9.0/<sample name>.exe`, which you can then run.
+executable into `<sample directory>/bin/Debug/net10.0/<sample name>.exe`, which you can then run.
 
 Alternatively, run `dotnet run` instead of the build command to automatically run the program after it is compiled.
 
@@ -52,7 +52,7 @@ E.g.
 ```bash
 cd samples/HelloWorld
 dotnet build
-./bin/Debug/net9.0/HelloWorld.exe
+./bin/Debug/net10.0/HelloWorld.exe
 ```
 
 or equivalently:

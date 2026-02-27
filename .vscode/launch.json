@@ -6,7 +6,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build compiler debug",
-            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net9.0/CommandLine.dll",
+            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
                 "-r"
             ],
@@ -19,7 +19,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build compiler debug",
-            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net9.0/CommandLine.dll",
+            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
                 "-r"
             ],
@@ -32,7 +32,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build syntax generator debug",
-            "program": "${workspaceFolder}/src/Buckle/SourceGenerators/SyntaxGenerator/bin/Debug/net9.0/SyntaxGenerator.dll",
+            "program": "${workspaceFolder}/src/Buckle/SourceGenerators/SyntaxGenerator/bin/Debug/net10.0/SyntaxGenerator.dll",
             "args": [
                 "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml",
                 "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Generated"
@@ -46,7 +46,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build boundtree generator debug",
-            "program": "${workspaceFolder}/src/Buckle/SourceGenerators/BoundTreeGenerator/bin/Debug/net9.0/BoundTreeGenerator.dll",
+            "program": "${workspaceFolder}/src/Buckle/SourceGenerators/BoundTreeGenerator/bin/Debug/net10.0/BoundTreeGenerator.dll",
             "args": [
                 "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Binding/BoundTree/BoundNodes.xml",
                 "${workspaceFolder}/src/Buckle/Compiler/CodeAnalysis/Generated"
@@ -60,7 +60,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build compiler release",
-            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Release/net9.0/CommandLine.dll",
+            "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Release/net10.0/CommandLine.dll",
             "args": [
                 "-r"
             ],
@@ -73,7 +73,7 @@
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build profiler debug",
-            "program": "${workspaceFolder}/src/Tools/Profiler/bin/Debug/net9.0/Profiler.dll",
+            "program": "${workspaceFolder}/src/Tools/Profiler/bin/Debug/net10.0/Profiler.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

@@ -3,10 +3,10 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 using OmniSharp.Extensions.LanguageServer.Protocol.Models;
 using OmniSharp.Extensions.LanguageServer.Server;
 using Serilog;
+using System.Text.Json.Nodes;
 
 namespace BelteLspServer;
 
@@ -64,12 +64,12 @@ internal static class Program {
                                 }
                             ).ConfigureAwait(false);
 
-                            var baseConfig = new JObject();
+                            var baseConfig = new JsonObject();
 
                             foreach (var config in languageServer.Configuration.AsEnumerable())
                                 baseConfig.Add(config.Key, config.Value);
 
-                            var scopedConfig = new JObject();
+                            var scopedConfig = new JsonObject();
 
                             foreach (var config in configuration.AsEnumerable())
                                 scopedConfig.Add(config.Key, config.Value);
