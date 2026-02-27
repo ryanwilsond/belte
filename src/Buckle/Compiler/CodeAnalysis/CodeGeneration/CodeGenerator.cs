@@ -1464,9 +1464,9 @@ oneMoreTime:
                     // if ((object)default(T) == null)
                     // EmitDefaultValue(receiverType, true, receiver.Syntax);
                     throw ExceptionUtilities.Unreachable();
-                    EmitBox(receiverType);
-                    whenNotNullLabel = new object();
-                    _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
+                    // EmitBox(receiverType);
+                    // whenNotNullLabel = new object();
+                    // _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
                 }
 
                 EmitLoadIndirect(receiverType);

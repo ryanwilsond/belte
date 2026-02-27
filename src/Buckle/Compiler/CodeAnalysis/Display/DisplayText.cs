@@ -590,19 +590,8 @@ public sealed class DisplayText {
     private static void DisplayDataContainerDeclaration(DisplayText text, BoundDataContainerDeclaration node) {
         var dataContainer = node.dataContainer;
 
-        if (dataContainer.isRef) {
-            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
-            text.Write(CreateSpace());
-        }
+        SymbolDisplay.AppendToDisplayText(text, dataContainer, SymbolDisplayFormat.BoundDisplayFormat);
 
-        SymbolDisplay.DisplayType(
-            text,
-            dataContainer.type,
-            SymbolDisplayFormat.BoundDisplayFormat
-        );
-
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(dataContainer.name));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());

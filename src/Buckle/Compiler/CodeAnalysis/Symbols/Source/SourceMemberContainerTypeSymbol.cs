@@ -193,6 +193,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         _state.NotePartComplete(CompletionParts.FinishBaseType);
                         diagnostics.Free();
                     }
+
                     break;
                 case CompletionParts.TemplateArguments:
                     _ = templateArguments;
@@ -221,6 +222,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         _state.NotePartComplete(CompletionParts.FinishMemberChecks);
                         diagnostics.Free();
                     }
+
                     break;
                 case CompletionParts.MembersCompletedChecksStarted:
                 case CompletionParts.MembersCompleted: {
@@ -239,6 +241,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             diagnostics.Free();
                         }
                     }
+
                     break;
                 case CompletionParts.None:
                     return;
@@ -1256,13 +1259,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 var key = (t.name, t.arity, t.syntaxReference.syntaxTree);
 
-                if (conflicts.TryGetValue(key, out var other)) {
-                    diagnostics.Push(
-                        Error.TypeAlreadyDeclared(t.syntaxReference.location, t.name, t.typeKind == TypeKind.Class)
-                    );
-                } else {
+                if (conflicts.TryGetValue(key, out var other))
+                    diagnostics.Push(Error.TypeAlreadyDeclared(t.syntaxReference.location, t.name));
+                else
                     conflicts.Add(key, t);
-                }
 
                 symbols.Add(t);
             }

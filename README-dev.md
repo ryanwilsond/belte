@@ -14,7 +14,7 @@ developers or for those who want to contribute.
 ## Tools Needed for Building
 
 - [GNU Make](https://gnuwin32.sourceforge.net/packages/make.htm)
-- [.NET SDK 9.0 and .NET Runtime 9.0](https://dotnet.microsoft.com/en-us/download/dotnet/9.0)
+- [.NET SDK 10.0 and .NET Runtime 10.0](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 Visual Studio Code is strongly recommended, but not required.
 

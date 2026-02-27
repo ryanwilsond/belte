@@ -21,6 +21,11 @@ public struct ShowDialogs {
     public bool version;
 
     /// <summary>
+    /// Display cleared submission information dialog.
+    /// </summary>
+    public bool clearSubmissions;
+
+    /// <summary>
     /// Display error help.
     /// </summary>
     public string error;

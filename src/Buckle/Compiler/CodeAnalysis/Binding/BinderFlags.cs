@@ -17,11 +17,12 @@ internal enum BinderFlags : uint {
     FieldInitializer = 1 << 6,
     ConstructorInitializer = 1 << 7,
     ObjectInitializerMember = 1 << 8,
+    ConstContext = 1 << 9,
 
-    InCatchBlock = 1 << 9,
-    InFinallyBlock = 1 << 10,
-    InTryBlockOfTryCatch = 1 << 11,
-    InNestedFinallyBlock = 1 << 12,
+    InCatchBlock = 1 << 10,
+    InFinallyBlock = 1 << 11,
+    InTryBlockOfTryCatch = 1 << 12,
+    InNestedFinallyBlock = 1 << 13,
 
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

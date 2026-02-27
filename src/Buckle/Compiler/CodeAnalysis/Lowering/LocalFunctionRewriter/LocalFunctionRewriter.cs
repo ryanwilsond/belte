@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -45,9 +46,11 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         MethodSymbol substitutedSourceMethod,
         TypeCompilationState compilationState,
         List<Analysis> previousAnalyses,
-        BelteDiagnosticQueue diagnostics)
+        BelteDiagnosticQueue diagnostics,
+        HashSet<DataContainerSymbol> assignLocals)
         : base(compilationState, diagnostics) {
         _analysis = analysis;
+        _assignLocals = assignLocals;
         _topLevelMethod = method;
         _currentMethodInternal = method;
         _currentTemplateParameters = method.templateParameters;
@@ -82,7 +85,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         MethodSymbol substitutedSourceMethod,
         TypeCompilationState state,
         List<Analysis> previousAnalyses,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        HashSet<DataContainerSymbol> assignLocals) {
         var analysis = Analysis.Analyze(loweredBody, method, methodOrdinal, state);
         var rewriter = new LocalFunctionRewriter(
             analysis,
@@ -92,7 +96,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             substitutedSourceMethod,
             state,
             previousAnalyses,
-            diagnostics
+            diagnostics,
+            assignLocals
         );
 
         rewriter.SynthesizeClosureEnvironments();
@@ -783,8 +788,12 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         _currentBodyTemplateMap = synthesizedMethod.templateMap;
 
         if (node.body is BoundBlockStatement block) {
-            var body = AddStatementsIfNeeded((BoundStatement)VisitBlockStatement(block));
+            var body = AddStatementsIfNeeded((BoundBlockStatement)VisitBlockStatement(block));
             body = Lowerer.Flatten(synthesizedMethod, body);
+
+            if (!ControlFlowGraph.AllPathsReturn(body))
+                _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));
+
             AddSynthesizedMethod(synthesizedMethod, (BoundBlockStatement)body);
         }
 
@@ -799,7 +808,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         return synthesizedMethod;
     }
 
-    private BoundStatement AddStatementsIfNeeded(BoundStatement body) {
+    private BoundBlockStatement AddStatementsIfNeeded(BoundBlockStatement body) {
         if (_addedLocals is not null) {
             _addedStatements.Add(body);
 

@@ -9,7 +9,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberFieldSymbol {
     private TypeAndRefKind _lazyTypeAndRefKind;
-    private int _lazyFieldTypeInferred;
 
     internal SourceMemberFieldSymbolFromDeclarator(
         NamedTypeSymbol containingType,
@@ -47,8 +46,9 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     }
 
     internal bool FieldTypeInferred(ConsList<FieldSymbol> fieldsBeingBound) {
+        // TODO Currently unnecessary method but helpful if we decide to allow implicitly typed fields
         GetFieldType(fieldsBeingBound);
-        return _lazyFieldTypeInferred != 0 || Volatile.Read(ref _lazyFieldTypeInferred) != 0;
+        return false;
     }
 
     private protected sealed override ConstantValue MakeConstantValue(
@@ -72,7 +72,8 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         return (FieldDeclarationSyntax)declaration.parent;
     }
 
-    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> fieldsBeingBound) {
+    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> _1) {
+        // TODO Use unused parameter to create recursive field errors
         if (_lazyTypeAndRefKind is not null)
             return _lazyTypeAndRefKind;
 
@@ -98,7 +99,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             var location = typeOnly is IdentifierNameSyntax
                 ? typeOnly.location
                 : ((FieldDeclarationSyntax)syntaxNode.parent).modifiers
-                    .Where(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword).Last().location;
+                    .Last(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword).location;
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());

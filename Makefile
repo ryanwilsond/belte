@@ -9,7 +9,7 @@ DIAGNOSTICS_DIR:=$(DEPENDENCY_DIR)/Diagnostics
 DEBUG_DIR:=bin/debug
 RELEASE_DIR:=bin/release
 
-NETVER:=net9.0
+NETVER:=net10.0
 SYSTEM:=win-x64
 SLN:=Belte.sln
 
@@ -24,10 +24,11 @@ SINGLE_FILE_FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExt
 FLAGS:=$(PUBLISH_FLAGS) $(SINGLE_FILE_FLAGS)
 
 ifeq ($(OS), Windows_NT)
-	RM:=powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue > \$null"
-	CP:=powershell -Command "Copy-Item -Recurse > \$null"
-	MV:=powershell -Command "Move-Item -Force > \$null"
-	MKDIR:= powershell -Command "New-Item -ItemType Directory -Force > \$null"
+#	TODO "> \$null" to void the output doesn't work on all machines
+	RM:=powershell -NoProfile -Command "Remove-Item -Recurse -Force -ErrorAction Ignore"
+	CP:=powershell -NoProfile -Command "Copy-Item -Recurse"
+	MV:=powershell -NoProfile -Command "Move-Item -Force"
+	MKDIR:= powershell -NoProfile -Command "New-Item -ItemType Directory -Force"
 else
 	RM:=rm -rf
 	CP:=cp
@@ -55,10 +56,10 @@ test:
 
 # Cleans the solution
 clean:
-	@dotnet clean $(SLN)
+	dotnet clean $(SLN)
+	@echo Hard cleaned the solution
 	@$(RM) bin
 	@$(RM) lib
-	@echo Hard cleaned the solution
 
 # Formats the solution
 format:

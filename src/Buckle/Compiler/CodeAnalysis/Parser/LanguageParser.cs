@@ -636,9 +636,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var type = ParseType(false);
         var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
         var operatorToken = EatToken();
-
-        if (!operatorToken.kind.IsOverloadableOperator())
-            operatorToken = AddDiagnostic(operatorToken, Error.ExpectedOverloadableOperator());
+        var opKind = operatorToken.kind;
 
         var rightOperatorToken = operatorToken.kind == SyntaxKind.OpenBracketToken
             ? Match(SyntaxKind.CloseBracketToken)
@@ -646,6 +644,51 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         var parameterList = ParseParameterList();
         var body = (BlockStatementSyntax)ParseBlockStatement();
+
+        switch (parameterList.parameters.Count) {
+            case 1:
+                if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableUnaryOperator(opKind)) {
+                    operatorToken = AddDiagnostic(
+                        operatorToken,
+                        Error.ExpectedOverloadableUnaryOperator()
+                    );
+                }
+
+                break;
+            case 2:
+                if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableBinaryOperator(opKind)) {
+                    operatorToken = AddDiagnostic(
+                        operatorToken,
+                        Error.ExpectedOverloadableBinaryOperator()
+                    );
+                }
+
+                break;
+            default:
+                if (operatorToken.isFabricated) {
+                    operatorToken = AddDiagnostic(
+                        operatorToken,
+                        Error.ExpectedOverloadableOperator()
+                    );
+                } else if (SyntaxFacts.IsOverloadableBinaryOperator(opKind)) {
+                    operatorToken = AddDiagnostic(
+                        operatorToken,
+                        Error.IncorrectBinaryOperatorArgs(SyntaxFacts.GetText(opKind))
+                    );
+                } else if (SyntaxFacts.IsOverloadableUnaryOperator(opKind)) {
+                    operatorToken = AddDiagnostic(
+                        operatorToken,
+                        Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind))
+                    );
+                } else {
+                    operatorToken = AddDiagnostic(
+                        operatorToken,
+                        Error.ExpectedOverloadableOperator()
+                    );
+                }
+
+                break;
+        }
 
         return SyntaxFactory.OperatorDeclaration(
             attributeLists,
@@ -1052,7 +1095,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private StatementSyntax ParseIfStatement() {
         var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var condition = ParseNonAssignmentExpression();
+        var condition = ParseExpression();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var then = ParseStatement();
 

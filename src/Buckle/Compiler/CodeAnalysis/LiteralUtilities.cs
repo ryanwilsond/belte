@@ -8,20 +8,29 @@ namespace Buckle.CodeAnalysis;
 /// Utilities helping casting values, and utilities related to the <see cref="Convert" /> class.
 /// </summary>
 internal static class LiteralUtilities {
-    /// <summary>
-    /// Casts a value to another type based on the given target type.
-    /// </summary>
-    /// <param name="value">What to cast.</param>
-    /// <param name="type">The target type of the value.</param>
-    /// <returns>The casted value, does not wrap conversion exceptions.</returns>
-    internal static object Cast(object value, TypeWithAnnotations targetType) {
-        if (value is null && !targetType.isNullable)
-            throw new NullReferenceException();
+    internal static bool TryCast(object value, TypeWithAnnotations targetType, out object result) {
+        if (value is null && !targetType.isNullable) {
+            result = null;
+            return false;
+        }
 
-        if (value is null)
-            return null;
+        if (value is null) {
+            result = null;
+            return true;
+        }
 
-        return Cast(value, targetType.type.StrippedType());
+        return TryCast(value, targetType.type.StrippedType(), out result);
+    }
+
+    internal static bool TryCast(object value, TypeSymbol targetType, out object result) {
+        try {
+            result = Cast(value, targetType);
+            return true;
+        } catch (FormatException) {
+            // TODO consider raising a diagnostic in this case
+            result = null;
+            return false;
+        }
     }
 
     internal static object Cast(object value, TypeSymbol targetType) {

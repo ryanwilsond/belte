@@ -50,6 +50,8 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
+        handle.state.warningLevel = 2;
+
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
@@ -104,6 +106,20 @@ public sealed partial class BelteRepl : Repl {
     public override void Dispose() {
         state.context.Dispose();
         base.Dispose();
+    }
+
+    /// <summary>
+    /// Clears the submissions directory (without evaluation).
+    /// </summary>
+    public static int ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (!Directory.Exists(path))
+            return 0;
+
+        var submissionCount = Directory.GetFiles(path).Length;
+        Directory.Delete(path, true);
+        return submissionCount;
     }
 
     internal override void ResetState() {
@@ -260,13 +276,6 @@ public sealed partial class BelteRepl : Repl {
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string, (ConsoleColor)arg2);
     }
 
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
-    }
-
     private static string GetSubmissionsDirectory() {
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var submissionsFolder = Path.Combine(localAppData, "Buckle", "Submissions");
@@ -338,9 +347,9 @@ public sealed partial class BelteRepl : Repl {
         var diagnostics = compilation.GetDiagnostics();
 
         if (state.showWarnings)
-            handle.diagnostics.Move(diagnostics);
+            handle.diagnostics.PushRange(diagnostics);
         else
-            handle.diagnostics.Move(diagnostics.Errors());
+            handle.diagnostics.PushRange(diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
@@ -355,23 +364,15 @@ public sealed partial class BelteRepl : Repl {
                 Console.ForegroundColor = state.colorTheme.@default;
                 return;
             }
-
-            if (state.showWarnings)
-                handle.diagnostics.Move(result.diagnostics);
-            else
-                handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
         var hasErrors = handle.diagnostics.AnyErrors();
 
         if (handle.diagnostics.Any()) {
-            if (_hasDiagnosticHandle) {
-                // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
-                // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+            if (_hasDiagnosticHandle)
                 _diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
-            } else {
+            else
                 handle.diagnostics.Clear();
-            }
         }
 
         if (!hasErrors) {
@@ -682,7 +683,7 @@ public sealed partial class BelteRepl : Repl {
         var isAtTop = true;
 
         var compilation = state.previous ?? EmptyCompilation;
-        var topLevelSymbols = compilation.GetSymbols(true);
+        var topLevelSymbols = compilation.GetSymbols(includeExternal: true, includePreviousCompilations: true);
         var toplevelGlobals = state.context.GetTrackedSymbolsAndObjects();
         var currentSymbols = topLevelSymbols;
         var currentGlobals = toplevelGlobals;
@@ -935,7 +936,13 @@ public sealed partial class BelteRepl : Repl {
 
         // Then do a deeper search for non-global symbols
         var compilation = state.previous ?? EmptyCompilation;
-        var allSymbols = compilation.GetSymbols(includePreviousCompilations: true, includeSimpleProgramLocals: true);
+
+        var allSymbols = compilation.GetSymbols(
+            includePreviousCompilations: true,
+            includeSimpleProgramLocals: true,
+            includeExternal: true
+        );
+
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 
