@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -9,15 +10,22 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal sealed class TypeCompilationState {
-    private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
-    private Dictionary<MethodSymbol, MethodSymbol> _wrappers;
+    internal readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
 
     internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods;
     internal ArrayBuilder<(NamedTypeSymbol, NamedTypeSymbol)> synthesizedTypes;
+    internal ArrayBuilder<(MethodSymbol, EvaluatorSlotManager)> methodLayouts;
 
-    internal TypeCompilationState(NamedTypeSymbol type, Compilation compilation) {
+    private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
+    private Dictionary<MethodSymbol, MethodSymbol> _wrappers;
+
+    internal TypeCompilationState(
+        NamedTypeSymbol type,
+        Compilation compilation,
+        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts) {
         this.type = type;
         this.compilation = compilation;
+        this.typeLayouts = typeLayouts;
     }
 
     internal Compilation compilation { get; }
@@ -27,6 +35,13 @@ internal sealed class TypeCompilationState {
     internal int nextWrapperMethodIndex => _wrappers is null ? 0 : _wrappers.Count;
 
     internal void Free() {
+        synthesizedMethods?.Free();
+        synthesizedMethods = null;
+        synthesizedTypes?.Free();
+        synthesizedTypes = null;
+        methodLayouts?.Free();
+        methodLayouts = null;
+
         _constructorInitializers = null;
     }
 
@@ -38,6 +53,11 @@ internal sealed class TypeCompilationState {
 
     internal MethodSymbol GetMethodWrapper(MethodSymbol method) {
         return _wrappers is not null && _wrappers.TryGetValue(method, out var wrapper) ? wrapper : null;
+    }
+
+    internal void AddMethodLayout(MethodSymbol symbol, EvaluatorSlotManager layout) {
+        methodLayouts ??= ArrayBuilder<(MethodSymbol, EvaluatorSlotManager)>.GetInstance();
+        methodLayouts.Add((symbol, layout));
     }
 
     internal void AddSynthesizedType(NamedTypeSymbol containingType, NamedTypeSymbol type) {

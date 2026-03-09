@@ -128,7 +128,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private void CompileNamedType(NamedTypeSymbol symbol) {
         _types.Add(symbol);
 
-        var state = new TypeCompilationState(symbol, _compilation);
+        var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
         var members = symbol.GetMembers();
         var processedInitializers = new Binder.ProcessedFieldInitializers();
 
@@ -175,6 +175,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (state.synthesizedMethods is not null) {
             foreach (var synthesizedMethod in state.synthesizedMethods)
                 _methodBodies.Add(synthesizedMethod.Item1, synthesizedMethod.Item2);
+        }
+
+        if (state.methodLayouts is not null) {
+            foreach (var methodLayout in state.methodLayouts)
+                _methodLayouts.Add(methodLayout.Item1, methodLayout.Item2);
         }
 
         state.Free();

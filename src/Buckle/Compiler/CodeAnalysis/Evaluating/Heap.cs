@@ -99,7 +99,7 @@ internal class Heap {
             index = _freedIndices.Pop();
         } else {
             index = _bumpPointer++;
-            EnsureCapacity(index + 1);
+            EnsureCapacity(_bumpPointer);
         }
 
         _data[index] = item;

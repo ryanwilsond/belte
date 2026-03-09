@@ -79,6 +79,22 @@ internal sealed partial class BoundProgram {
         return false;
     }
 
+    internal bool TryGetMethodLayoutIncludingParents(MethodSymbol method, out EvaluatorSlotManager layout) {
+        var current = this;
+
+        while (current is not null) {
+            if (current.methodLayouts.TryGetValue(method.originalDefinition, out var value)) {
+                layout = value;
+                return true;
+            }
+
+            current = current.previous;
+        }
+
+        layout = null;
+        return false;
+    }
+
     private bool MethodBodyLookupUsingOriginals(MethodSymbol method, out BoundBlockStatement body) {
         var current = this;
 

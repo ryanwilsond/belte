@@ -13,7 +13,7 @@ internal static partial class BoundFactory {
 
     internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
         if (type is not null)
-            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.specialType), type);
+            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.StrippedType().specialType), type);
 
         var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
         return new BoundLiteralExpression(

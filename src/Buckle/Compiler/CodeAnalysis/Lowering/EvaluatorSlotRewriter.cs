@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
@@ -47,6 +48,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
 
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
         var local = node.declaration.dataContainer;
+        var syntax = node.syntax;
 
         if (!local.isGlobal) {
             localSlotManager.DeclareLocal(
@@ -59,7 +61,14 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
             );
         }
 
-        return base.VisitLocalDeclarationStatement(node);
+        return Visit(new BoundExpressionStatement(syntax,
+            Assignment(node.syntax,
+                new BoundDataContainerExpression(syntax, local, null, local.type),
+                node.declaration.initializer,
+                local.isRef,
+                local.type
+            )
+        ));
     }
 
     internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {

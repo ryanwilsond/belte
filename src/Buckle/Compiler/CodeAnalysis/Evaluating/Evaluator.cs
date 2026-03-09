@@ -123,6 +123,10 @@ internal sealed class Evaluator {
         return EvaluatorValue.HeapPtr(index);
     }
 
+    private void IndirectStore(EvaluatorValue lhs, EvaluatorValue value) {
+        lhs.loc[lhs.ptr] = value;
+    }
+
     #region Statements
 
     private EvaluatorValue EvaluateStatement(
@@ -157,10 +161,6 @@ internal sealed class Evaluator {
                         break;
                     case BoundKind.ExpressionStatement:
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
-                        index++;
-                        break;
-                    case BoundKind.LocalDeclarationStatement:
-                        EvaluateLocalDeclarationStatement((BoundLocalDeclarationStatement)s, abort);
                         index++;
                         break;
                     case BoundKind.LabelStatement:
@@ -231,22 +231,6 @@ internal sealed class Evaluator {
         }
     }
 
-    private void EvaluateLocalDeclarationStatement(BoundLocalDeclarationStatement node, ValueWrapper<bool> abort) {
-        var local = node.declaration.dataContainer;
-        var value = EvaluateExpression(node.declaration.initializer, abort);
-
-        if (local.isGlobal) {
-            _context.AddOrUpdateGlobal(local, value);
-            return;
-        }
-
-        var frame = _stack.Peek();
-        var slot = frame.layout.GetLocal(local).slot;
-        frame.values[slot] = value;
-
-        _lastValue = EvaluatorValue.None;
-    }
-
     private void EvaluateExpressionStatement(BoundExpressionStatement node, ValueWrapper<bool> abort) {
         _lastValue = EvaluateExpression(node.expression, abort);
     }
@@ -304,7 +288,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression expression) {
-        return EvaluatorValue.Type(expression.type);
+        return EvaluatorValue.Type(expression.sourceType.type);
     }
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup methodGroup) {
@@ -321,14 +305,28 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateDataContainerExpression(BoundDataContainerExpression node) {
+        var global = node.dataContainer;
+        var isRefLocal = global.refKind != RefKind.None;
+
         if (!_context.TryGetGlobal(node.dataContainer, out var value))
             throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist");
+
+        if (isRefLocal)
+            return value.loc[value.ptr];
 
         return value;
     }
 
     private EvaluatorValue EvaluateStackSlotExpression(BoundStackSlotExpression node) {
-        return _stack.Peek().values[node.slot];
+        var local = node.symbol;
+        var isRefLocal = GetSymbolRefKind(local) != RefKind.None;
+
+        var value = _stack.Peek().values[node.slot];
+
+        if (isRefLocal)
+            return value.loc[value.ptr];
+
+        return value;
     }
 
     private EvaluatorValue EvaluateFieldSlotExpression(BoundFieldSlotExpression node, ValueWrapper<bool> abort) {
@@ -673,11 +671,83 @@ internal sealed class Evaluator {
 
         var lhs = EvaluateAssignmentPreamble(node, abort, out var lhsUsesStack);
         var value = EvaluateAssignmentValue(node, abort);
-        var temp = EvaluateAssignmentDup(node, value, lhsUsesStack);
+        // var temp = EvaluateAssignmentDup(node, value, lhsUsesStack);
 
-        lhs.loc[lhs.ptr] = value;
+        EvaluateStore(node, lhs, value);
 
-        return EvaluateAssignmentPostfix(node, temp, value, useKind);
+        return EvaluateAssignmentPostfix(node, EvaluatorValue.None, value, useKind);
+    }
+
+    private void EvaluateStore(BoundAssignmentOperator node, EvaluatorValue lhs, EvaluatorValue value) {
+        var expression = node.left;
+
+        switch (expression.kind) {
+            case BoundKind.FieldSlotExpression:
+                var field = ((BoundFieldSlotExpression)expression).field;
+
+                if (field.refKind != RefKind.None && !node.isRef)
+                    IndirectStore(lhs, value);
+                else
+                    // TODO Is this correct? Or is it really a double indirect store above
+                    IndirectStore(lhs, value);
+
+                break;
+            case BoundKind.DataContainerExpression:
+                var local = (BoundDataContainerExpression)expression;
+
+                if (local.dataContainer.refKind != RefKind.None && !node.isRef) {
+                    IndirectStore(lhs, value);
+                } else {
+                    // TODO Is this correct? Or is it really a double indirect store above
+                    IndirectStore(lhs, value);
+                }
+
+                break;
+            case BoundKind.StackSlotExpression:
+                var symbol = ((BoundStackSlotExpression)expression).symbol;
+
+                if (GetSymbolRefKind(symbol) != RefKind.None && !node.isRef) {
+                    IndirectStore(lhs, value);
+                } else {
+                    IndirectStore(lhs, value);
+                    // TODO Is this correct? Or is it really a double indirect store above
+                }
+
+                break;
+            case BoundKind.ArrayAccessExpression:
+                var array = ((BoundArrayAccessExpression)expression).receiver;
+                var arrayType = (ArrayTypeSymbol)array.type.StrippedType();
+                EvaluateArrayElementStore(arrayType, lhs, value);
+                break;
+            case BoundKind.ThisExpression:
+                // TODO Double check this
+                lhs.ptr = value.ptr;
+                break;
+            case BoundKind.ConditionalOperator:
+                IndirectStore(lhs, value);
+                break;
+            case BoundKind.CallExpression:
+                IndirectStore(lhs, value);
+                break;
+            case BoundKind.AssignmentOperator:
+                var nested = (BoundAssignmentOperator)expression;
+
+                if (!nested.isRef)
+                    goto default;
+
+                IndirectStore(lhs, value);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.kind);
+        }
+    }
+
+    private void EvaluateArrayElementStore(ArrayTypeSymbol arrayType, EvaluatorValue lhs, EvaluatorValue value) {
+        throw ExceptionUtilities.Unreachable();
+        // if (arrayType.isSZArray)
+        //     EmitVectorElementStore(arrayType);
+        // else
+        //     EmitArrayElementStoreInternal(arrayType);
     }
 
     private EvaluatorValue EvaluateGlobalAssignment(
@@ -688,7 +758,12 @@ internal sealed class Evaluator {
         var value = EvaluateAssignmentValue(node, abort);
         var temp = EvaluateAssignmentDup(node, value, true);
 
-        _context.AddOrUpdateGlobal(global, value);
+        if (global.refKind != RefKind.None && !node.isRef) {
+            _context.TryGetGlobal(global, out var indirect);
+            IndirectStore(indirect, value);
+        } else {
+            _context.AddOrUpdateGlobal(global, value);
+        }
 
         return EvaluateAssignmentPostfix(node, temp, value, useKind);
     }
@@ -754,11 +829,8 @@ internal sealed class Evaluator {
                 break;
             case BoundKind.StackSlotExpression: {
                     var left = (BoundStackSlotExpression)assignmentTarget;
-
-                    if (GetSymbolRefKind(left.symbol) != RefKind.None && !node.isRef) {
-                        expr = EvaluatorValue.Ref(_stack.Peek().values, left.slot);
-                        lhsUsesStack = true;
-                    }
+                    expr = EvaluatorValue.Ref(_stack.Peek().values, left.slot);
+                    lhsUsesStack = true;
                 }
 
                 break;
@@ -1051,6 +1123,8 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateAddress(BoundExpression node, AddressKind addressKind, ValueWrapper<bool> abort) {
         switch (node.kind) {
+            case BoundKind.DataContainerExpression:
+                return EvaluateGlobalAddress((BoundDataContainerExpression)node);
             case BoundKind.StackSlotExpression:
                 return EvaluateStackAddress((BoundStackSlotExpression)node, addressKind, abort);
             case BoundKind.FieldSlotExpression:
@@ -1156,6 +1230,10 @@ internal sealed class Evaluator {
             return EvaluateExpression(receiver, abort);
 
         return EvaluateAddress(receiver, addressKind, abort);
+    }
+
+    private EvaluatorValue EvaluateGlobalAddress(BoundDataContainerExpression node) {
+        return EvaluatorValue.Ref(_context.globalSlots, _context.GetSlotOfGlobal(node.dataContainer));
     }
 
     private EvaluatorValue EvaluateStackAddress(
@@ -1327,9 +1405,12 @@ internal sealed class Evaluator {
         EvaluatorValue thisParameter,
         EvaluatorValue[] arguments,
         ValueWrapper<bool> abort) {
-        _program.TryGetMethodBodyIncludingParents(method, out var body);
+        if (!_program.TryGetMethodBodyIncludingParents(method, out var body))
+            throw new BelteInternalException($"Failed to get method body ({method})");
 
-        var layout = _program.methodLayouts[method];
+        if (!_program.TryGetMethodLayoutIncludingParents(method, out var layout))
+            throw new BelteInternalException($"Failed to get method layout ({method})");
+
         var frame = new StackFrame(layout);
 
         if (!thisParameter.Equals(EvaluatorValue.None))

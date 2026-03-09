@@ -794,6 +794,17 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             if (!ControlFlowGraph.AllPathsReturn(body))
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));
 
+            if (_compilationState.compilation.options.buildMode.Evaluating()) {
+                body = EvaluatorSlotRewriter.Rewrite(
+                    synthesizedMethod,
+                    body,
+                    _compilationState.typeLayouts,
+                    out var slotManager
+                );
+
+                _compilationState.AddMethodLayout(synthesizedMethod, slotManager);
+            }
+
             AddSynthesizedMethod(synthesizedMethod, (BoundBlockStatement)body);
         }
 
