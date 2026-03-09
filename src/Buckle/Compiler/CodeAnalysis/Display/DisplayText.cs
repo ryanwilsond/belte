@@ -183,6 +183,12 @@ public sealed class DisplayText {
             case BoundKind.DataContainerExpression:
                 DisplayDataContainerExpression(text, (BoundDataContainerExpression)node);
                 break;
+            case BoundKind.StackSlotExpression:
+                DisplayStackSlotExpression(text, (BoundStackSlotExpression)node);
+                break;
+            case BoundKind.FieldSlotExpression:
+                DisplayFieldSlotExpression(text, (BoundFieldSlotExpression)node);
+                break;
             case BoundKind.AssignmentOperator:
                 DisplayAssignmentOperator(text, (BoundAssignmentOperator)node);
                 break;
@@ -880,6 +886,14 @@ public sealed class DisplayText {
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
         text.Write(CreateIdentifier(node.dataContainer.name));
+    }
+
+    private static void DisplayStackSlotExpression(DisplayText text, BoundStackSlotExpression node) {
+        text.Write(CreateIdentifier(node.symbol.name));
+    }
+
+    private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
+        text.Write(CreateIdentifier(node.field.name));
     }
 
     private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {

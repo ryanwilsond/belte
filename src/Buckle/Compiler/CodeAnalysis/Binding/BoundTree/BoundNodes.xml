@@ -134,10 +134,21 @@
     <Field Name="dataContainer" Type="DataContainerSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundStackSlotExpression" Base="BoundExpression">
+    <Field Name="original" Type="BoundExpression"/>
+    <Field Name="symbol" Type="Symbol"/>
+    <Field Name="slot" Type="int"/>
+  </Node>
   <Node Name="BoundFieldAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="field" Type="FieldSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundFieldSlotExpression" Base="BoundExpression">
+    <Field Name="original" Type="BoundExpression"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="field" Type="FieldSymbol"/>
+    <Field Name="slot" Type="int"/>
   </Node>
   <Node Name="BoundInitializerDictionary" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;(BoundExpression, BoundExpression)&gt;"/>

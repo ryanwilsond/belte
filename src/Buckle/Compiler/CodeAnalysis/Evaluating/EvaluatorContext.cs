@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Shared;
 
@@ -9,18 +11,22 @@ namespace Buckle.CodeAnalysis.Evaluating;
 
 public sealed class EvaluatorContext : IDisposable {
     internal readonly CompilationOptions options;
+    internal readonly Heap heap;
 
     internal Thread graphicsThread;
     internal GraphicsHandler graphicsHandler;
     internal ValueWrapper<bool> maintainThread = false;
     internal ValueWrapper<bool> createWindow = true;
 
-    private Dictionary<string, (DataContainerSymbol, EvaluatorObject)> _symbols;
+    private Dictionary<string, (DataContainerSymbol, EvaluatorValue)> _globals;
 
     public EvaluatorContext(CompilationOptions options) {
-        _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
+        _globals = new Dictionary<string, (DataContainerSymbol, EvaluatorValue)>(32);
+        heap = new Heap();
         this.options = options;
     }
+
+    internal ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts { get; set; }
 
     public void Dispose() {
         maintainThread = false;
@@ -41,12 +47,8 @@ public sealed class EvaluatorContext : IDisposable {
         graphicsThread?.Join();
     }
 
-    public IEnumerable<IDataContainerSymbol> GetTrackedSymbols() {
-        return _symbols.Values.Select(pair => pair.Item1);
-    }
-
-    public Dictionary<ISymbol, EvaluatorObject> GetTrackedSymbolsAndObjects() {
-        return _symbols.Values.ToDictionary(pair => (ISymbol)pair.Item1, pair => pair.Item2);
+    public Dictionary<ISymbol, EvaluatorValue> GetTrackedGlobalObjects() {
+        return _globals.Values.ToDictionary(pair => (ISymbol)pair.Item1, pair => pair.Item2);
     }
 
     public void Reset() {
@@ -55,20 +57,11 @@ public sealed class EvaluatorContext : IDisposable {
             graphicsHandler.Exit();
         }
 
-        _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
-    }
-
-    internal bool TryGetSymbol(DataContainerSymbol symbol, out EvaluatorObject value) {
-        var succeeded = _symbols.TryGetValue(symbol.name, out var pair);
-        value = pair.Item2;
-        return succeeded;
-    }
-
-    internal void AddOrUpdateSymbol(DataContainerSymbol symbol, EvaluatorObject value) {
-        _symbols[symbol.name] = (symbol, value);
+        _globals = new Dictionary<string, (DataContainerSymbol, EvaluatorValue)>(32);
+        heap.FreeAll();
     }
 
     public override string ToString() {
-        return $"EvaluatorContext [ Tracking {_symbols.Count} symbols ]";
+        return $"EvaluatorContext [ Tracking {_globals.Count} symbols ]";
     }
 }

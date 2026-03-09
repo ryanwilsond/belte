@@ -97,6 +97,10 @@ internal abstract class AssemblySymbol : Symbol {
         return new MissingMetadataTypeSymbol.TopLevel(modules[0], ref emittedName, null);
     }
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitAssembly(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

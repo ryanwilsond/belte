@@ -76,6 +76,10 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
         return scope;
     }
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitNamespace(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

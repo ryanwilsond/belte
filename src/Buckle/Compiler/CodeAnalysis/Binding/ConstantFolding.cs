@@ -264,6 +264,10 @@ internal static class ConstantFolding {
 
         var specialType = type.type.StrippedType().specialType;
 
+        // Preserve "actual" type
+        if (specialType == SpecialType.Any)
+            return expression.constantValue;
+
         if (LiteralUtilities.TryCast(expression.constantValue.value, type, out var castedValue))
             return new ConstantValue(castedValue, specialType);
 

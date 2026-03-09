@@ -120,6 +120,8 @@ internal abstract class Symbol : ISymbol {
 
     internal abstract TextLocation location { get; }
 
+    internal abstract void Accept(SymbolVisitor visitor);
+
     internal abstract TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a);
 
     internal virtual void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {

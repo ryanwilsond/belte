@@ -19,8 +19,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly Dictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
+    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly Predicate<Symbol> _filter;
 
     private MethodSymbol _entryPoint;
@@ -31,6 +33,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
+        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
@@ -41,6 +44,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         _methodBodies = methodBodiesBeingBuilt;
+        _methodLayouts = [];
+        _typeLayouts = typeLayouts;
         _synthesizedNestedTypes = [];
     }
 
@@ -52,6 +57,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
 
         var globalNamespace = compilation.globalNamespaceInternal;
+
+        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
+
+        if (compilation.options.buildMode.Evaluating())
+            typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
+        else
+            typeLayouts = [];
+
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
         var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
         var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
@@ -65,6 +78,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             diagnostics,
             entryPoint,
             updatePoint,
+            typeLayouts,
             filter,
             !transpiling
         );
@@ -88,7 +102,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         return new BoundProgram(
             _compilation,
             _methodBodies.ToImmutableDictionary(),
+            _methodLayouts.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
+            _typeLayouts.ToImmutableDictionary(),
             _synthesizedNestedTypes,
             _entryPoint,
             _updatePoint,
@@ -220,6 +236,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (!ControlFlowGraph.AllPathsReturn(loweredBody))
             currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
+
+        if (_compilation.options.buildMode.Evaluating()) {
+            loweredBody = EvaluatorSlotRewriter.Rewrite(method, loweredBody, _typeLayouts, out var slotManager);
+            _methodLayouts.Add(method, slotManager);
+        }
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);

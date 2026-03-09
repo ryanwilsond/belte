@@ -64,6 +64,10 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal abstract TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound);
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitField(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

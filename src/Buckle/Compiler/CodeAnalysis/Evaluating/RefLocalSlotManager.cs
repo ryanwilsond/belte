@@ -43,7 +43,7 @@ internal sealed class RefLocalSlotManager : LocalSlotManager {
         return (RefVariableDefinition)GetLocal(symbol);
     }
 
-    private VariableDefinition DeclareLocalImpl(
+    private RefVariableDefinition DeclareLocalImpl(
         LocalBuilder localBuilder,
         TypeSymbol type,
         DataContainerSymbol symbol,

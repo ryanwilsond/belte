@@ -2,9 +2,9 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.CodeGeneration;
 
-internal abstract class VariableDefinition {
+internal class VariableDefinition {
     internal VariableDefinition(
-        DataContainerSymbol symbol,
+        Symbol symbol,
         string name,
         TypeSymbol type,
         int slot,
@@ -18,7 +18,7 @@ internal abstract class VariableDefinition {
         this.constraints = constraints;
     }
 
-    internal DataContainerSymbol symbol { get; }
+    internal Symbol symbol { get; }
 
     internal string name { get; }
 

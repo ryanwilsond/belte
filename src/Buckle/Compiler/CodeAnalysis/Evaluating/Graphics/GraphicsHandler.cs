@@ -175,28 +175,29 @@ internal partial class GraphicsHandler : Game {
         object alpha) {
         Rectangle? srcRect = null;
 
-        if (src.members is not null) {
-            var (sx, sy, sw, sh) = _evaluator.ExtractRectangleComponents(src);
-            srcRect = new Rectangle(sx, sy, sw, sh);
-        }
+        // TODO
+        // if (src.members is not null) {
+        //     var (sx, sy, sw, sh) = _evaluator.ExtractRectangleComponents(src);
+        //     srcRect = new Rectangle(sx, sy, sw, sh);
+        // }
 
-        var (dx, dy, dw, dh) = _evaluator.ExtractRectangleComponents(dst);
-        var dstRect = new Rectangle(dx, dy, dw, dh);
+        // var (dx, dy, dw, dh) = _evaluator.ExtractRectangleComponents(dst);
+        // var dstRect = new Rectangle(dx, dy, dw, dh);
 
-        var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
-        var flipB = flip is not null && Convert.ToBoolean(flip);
-        var alphaF = alpha is null ? 1 : Convert.ToSingle(alpha);
+        // var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
+        // var flipB = flip is not null && Convert.ToBoolean(flip);
+        // var alphaF = alpha is null ? 1 : Convert.ToSingle(alpha);
 
-        _spriteBatch.Draw(
-            texture,
-            dstRect,
-            srcRect,
-            Color.White * alphaF,
-            rotF,
-            Vector2.Zero,
-            flipB ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
-            0f
-        );
+        // _spriteBatch.Draw(
+        //     texture,
+        //     dstRect,
+        //     srcRect,
+        //     Color.White * alphaF,
+        //     rotF,
+        //     Vector2.Zero,
+        //     flipB ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+        //     0f
+        // );
     }
 
     internal void DrawText(

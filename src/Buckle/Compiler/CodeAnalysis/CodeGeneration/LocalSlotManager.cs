@@ -6,16 +6,16 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.CodeGeneration;
 
 internal abstract partial class LocalSlotManager {
-    private Dictionary<DataContainerSymbol, VariableDefinition> _localSymbolMap;
+    private Dictionary<Symbol, VariableDefinition> _localSymbolMap;
     private KeyedStack<LocalSignature, VariableDefinition> _freeSlotsStack;
     private protected ArrayBuilder<VariableDefinition> _lazyAllLocals;
 
-    private protected Dictionary<DataContainerSymbol, VariableDefinition> _localMap {
+    private protected Dictionary<Symbol, VariableDefinition> _localMap {
         get {
             var map = _localSymbolMap;
 
             if (map is null) {
-                map = new Dictionary<DataContainerSymbol, VariableDefinition>(ReferenceEqualityComparer.Instance);
+                map = new Dictionary<Symbol, VariableDefinition>(ReferenceEqualityComparer.Instance);
                 _localSymbolMap = map;
             }
 
@@ -36,11 +36,11 @@ internal abstract partial class LocalSlotManager {
         }
     }
 
-    internal VariableDefinition GetLocal(DataContainerSymbol symbol) {
+    internal VariableDefinition GetLocal(Symbol symbol) {
         return _localMap[symbol];
     }
 
-    internal void FreeLocal(DataContainerSymbol symbol) {
+    internal void FreeLocal(Symbol symbol) {
         var slot = GetLocal(symbol);
         _localMap.Remove(symbol);
         FreeSlot(slot);

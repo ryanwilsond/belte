@@ -110,6 +110,10 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     internal sealed override bool isRefLikeType => false;
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitArrayType(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

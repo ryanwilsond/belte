@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -11,14 +12,18 @@ internal sealed partial class BoundProgram {
     internal BoundProgram(
         Compilation compilation,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
+        ImmutableDictionary<MethodSymbol, EvaluatorSlotManager> methodLayouts,
         ImmutableArray<NamedTypeSymbol> types,
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
         BoundProgram previous = null) {
         this.compilation = compilation;
         this.methodBodies = methodBodies;
+        this.methodLayouts = methodLayouts;
         this.types = types;
+        this.typeLayouts = typeLayouts;
         this.nestedTypes = nestedTypes;
         this.entryPoint = entryPoint;
         this.updatePoint = updatePoint;
@@ -29,7 +34,11 @@ internal sealed partial class BoundProgram {
 
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
+    internal ImmutableDictionary<MethodSymbol, EvaluatorSlotManager> methodLayouts { get; }
+
     internal ImmutableArray<NamedTypeSymbol> types { get; }
+
+    internal ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts { get; }
 
     internal MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes { get; }
 

@@ -32,7 +32,7 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    public override bool returnsVoid => true;
+    public override bool returnsVoid => returnType.IsVoidType();
 
     internal override TypeWithAnnotations returnTypeWithAnnotations => new TypeWithAnnotations(_returnType);
 

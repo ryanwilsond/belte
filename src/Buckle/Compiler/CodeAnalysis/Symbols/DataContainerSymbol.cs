@@ -78,6 +78,10 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal abstract SynthesizedLocalKind synthesizedKind { get; }
 
+    internal sealed override void Accept(SymbolVisitor visitor) {
+        visitor.VisitDataContainer(this);
+    }
+
     internal sealed override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

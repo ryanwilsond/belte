@@ -62,6 +62,10 @@ internal abstract class AliasSymbol : Symbol {
 
     internal sealed override Symbol containingSymbol { get; }
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitAlias(this);
+    }
+
     internal override TResult Accept<TArg, TResult>(SymbolVisitor<TArg, TResult> visitor, TArg a) {
         return visitor.VisitAlias(this, a);
     }

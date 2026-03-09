@@ -519,48 +519,8 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
-    private object EvaluatorObjectToNativeObject(EvaluatorObject evaluatorObject) {
-        if (evaluatorObject.isReference)
-            return evaluatorObject.publicReference;
-
-        var value = evaluatorObject.value;
-
-        if (value is EvaluatorObject e)
-            return EvaluatorObjectToNativeObject(e);
-        else if (value is EvaluatorObject[])
-            return CollectionValue(value as EvaluatorObject[]);
-
-        var members = evaluatorObject.publicMembers;
-
-        if (value is null && members is not null)
-            return DictionaryValue(members, evaluatorObject.publicType);
-
-        return value;
-    }
-
-    private Dictionary<object, object> DictionaryValue(Dictionary<ISymbol, EvaluatorObject> value, ITypeSymbol type) {
-        var dictionary = new Dictionary<object, object>();
-
-        foreach (var pair in value) {
-            if (pair.Key is IFieldSymbol) {
-                var name = pair.Key.containingSymbol.Equals(type)
-                    ? pair.Key.name
-                    : $"{pair.Key.containingSymbol.name}.{pair.Key.name}";
-
-                dictionary.Add(name, EvaluatorObjectToNativeObject(pair.Value));
-            }
-        }
-
-        return dictionary;
-    }
-
-    private object[] CollectionValue(EvaluatorObject[] value) {
-        var builder = new object[value.Length];
-
-        for (var i = 0; i < value.Length; i++)
-            builder[i] = EvaluatorObjectToNativeObject(value[i]);
-
-        return builder;
+    private object EvaluatorValueToNativeObject(EvaluatorValue evaluatorValue) {
+        return EvaluatorValue.Format(evaluatorValue, state.context);
     }
 
     [MetaCommand("showTree", "Toggle display of the parse tree")]
@@ -684,11 +644,11 @@ public sealed partial class BelteRepl : Repl {
 
         var compilation = state.previous ?? EmptyCompilation;
         var topLevelSymbols = compilation.GetSymbols(includeExternal: true, includePreviousCompilations: true);
-        var toplevelGlobals = state.context.GetTrackedSymbolsAndObjects();
+        var toplevelGlobals = state.context.GetTrackedGlobalObjects();
         var currentSymbols = topLevelSymbols;
         var currentGlobals = toplevelGlobals;
-        EvaluatorObject currentGlobal = null;
-        Stack<(ISymbol, EvaluatorObject)> globalChain = [];
+        var currentGlobal = EvaluatorValue.None;
+        Stack<(ISymbol, EvaluatorValue)> globalChain = [];
 
         while (true) {
             if (UpdatePage(select))
@@ -730,7 +690,7 @@ public sealed partial class BelteRepl : Repl {
                 SymbolDisplay.AppendToDisplayText(displayText, currentSymbol, SymbolDisplayFormat.BoundDisplayFormat);
                 displayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(displayText);
-                var localValue = EvaluatorObjectToNativeObject(currentGlobal);
+                var localValue = EvaluatorValueToNativeObject(currentGlobal);
                 RenderResult(localValue);
                 writer.WriteLine();
             }
@@ -759,7 +719,7 @@ public sealed partial class BelteRepl : Repl {
                             currentGlobal = both.Item2;
                         } else {
                             currentSymbol = null;
-                            currentGlobal = null;
+                            currentGlobal = EvaluatorValue.None;
                             currentSymbols = topLevelSymbols;
                             currentGlobals = toplevelGlobals;
                             isAtTop = true;
@@ -800,7 +760,7 @@ public sealed partial class BelteRepl : Repl {
                             _ => [],
                         };
                     } else {
-                        currentGlobals = currentGlobal.publicMembers ?? [];
+                        currentGlobals = EvaluatorValue.GetFieldsFromPtr(currentGlobal, state.context);
                     }
                 }
 
@@ -917,8 +877,8 @@ public sealed partial class BelteRepl : Repl {
             signature = signature.Substring(7);
 
         // Prefer tracked symbols first
-        foreach (var symbolAndObject in state.context.GetTrackedSymbolsAndObjects()) {
-            var local = symbolAndObject.Key;
+        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects()) {
+            var local = symbolAndValue.Key;
 
             if (local.name == signature) {
                 var localDisplayText = new DisplayText();
@@ -926,7 +886,7 @@ public sealed partial class BelteRepl : Repl {
                 localDisplayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(localDisplayText);
 
-                var localValue = EvaluatorObjectToNativeObject(symbolAndObject.Value);
+                var localValue = EvaluatorValueToNativeObject(symbolAndValue.Value);
                 RenderResult(localValue);
                 writer.WriteLine();
 

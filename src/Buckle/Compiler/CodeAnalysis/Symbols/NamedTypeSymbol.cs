@@ -72,6 +72,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal bool knownToHaveNoDeclaredBaseCycles => _hasNoBaseCycles;
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitNamedType(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

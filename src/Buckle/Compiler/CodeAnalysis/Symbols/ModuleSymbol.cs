@@ -114,6 +114,10 @@ internal abstract class ModuleSymbol : Symbol {
 
     internal abstract ModuleMetadata GetMetadata();
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitModule(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument argument) {
         return visitor.VisitModule(this, argument);
     }

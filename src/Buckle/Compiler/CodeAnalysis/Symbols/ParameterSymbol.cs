@@ -59,6 +59,10 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     private protected sealed override Symbol _originalSymbolDefinition => originalDefinition;
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitParameter(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

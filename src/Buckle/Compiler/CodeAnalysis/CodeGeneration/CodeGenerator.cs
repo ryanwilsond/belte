@@ -232,7 +232,7 @@ internal sealed partial class CodeGenerator {
         return null;
     }
 
-    private static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
+    internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
         var methodRefKind = call.method.refKind;
         return methodRefKind == RefKind.Ref ||
                (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
@@ -1532,17 +1532,17 @@ oneMoreTime:
                     _builder.MarkLabel(whenNotNullLabel);
             }
         }
+    }
 
-        static bool ReceiverIsInstanceCall(BoundCallExpression call, out BoundCallExpression nested) {
-            if (call.receiver is
-                BoundCallExpression { method: { requiresInstanceReceiver: true } method } receiver) {
-                nested = receiver;
-                return true;
-            }
-
-            nested = null;
-            return false;
+    internal static bool ReceiverIsInstanceCall(BoundCallExpression call, out BoundCallExpression nested) {
+        if (call.receiver is
+            BoundCallExpression { method: { requiresInstanceReceiver: true } method } receiver) {
+            nested = receiver;
+            return true;
         }
+
+        nested = null;
+        return false;
     }
 
     private static bool ReceiverIsKnownToReferToTempIfReferenceType(BoundExpression receiver) {

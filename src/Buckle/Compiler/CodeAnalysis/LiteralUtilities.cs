@@ -24,7 +24,7 @@ internal static class LiteralUtilities {
 
     internal static bool TryCast(object value, TypeSymbol targetType, out object result) {
         try {
-            result = Cast(value, targetType);
+            result = Cast(value, targetType.specialType);
             return true;
         } catch (FormatException) {
             // TODO consider raising a diagnostic in this case
@@ -33,9 +33,7 @@ internal static class LiteralUtilities {
         }
     }
 
-    internal static object Cast(object value, TypeSymbol targetType) {
-        var specialType = targetType.specialType;
-
+    internal static object Cast(object value, SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Bool:
                 return Convert.ToBoolean(value);

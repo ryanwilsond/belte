@@ -237,7 +237,7 @@ public sealed partial class Compilation {
         if (verbose) {
             Console.WriteLine(
                 $"Heap after completion: Capacity {result.heap.capacity}, " +
-                $"Allocated {result.heap.capacity - result.heap.usedCount}");
+                $"Allocated {result.heap.usedCount}");
         }
 
         return result;
@@ -254,7 +254,7 @@ public sealed partial class Compilation {
         if (verbose) {
             Console.WriteLine(
                 $"Heap: Capacity {result.heap.capacity}, " +
-                $"Allocated {result.heap.capacity - result.heap.usedCount}");
+                $"Allocated {result.heap.usedCount}");
         }
 
         return result;
@@ -285,7 +285,7 @@ public sealed partial class Compilation {
         }
 
         var evaluator = new Evaluator(program, context, options.arguments);
-        var evalResult = evaluator.Evaluate(abort, out var hasValue, out var heap);
+        var evalResult = evaluator.Evaluate(abort, out var hasValue);
 
         Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
@@ -300,7 +300,7 @@ public sealed partial class Compilation {
                 evaluator.exceptions,
                 evaluator.lastOutputWasPrint,
                 evaluator.containsIO,
-                heap
+                context.heap
             );
         } else {
             rollingResult.Update(
@@ -310,7 +310,7 @@ public sealed partial class Compilation {
                 evaluator.exceptions,
                 evaluator.lastOutputWasPrint,
                 evaluator.containsIO,
-                heap
+                context.heap
             );
         }
     }
