@@ -9,7 +9,6 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 internal sealed class RefILBuilder : ILBuilder {
-    private readonly Dictionary<DataContainerSymbol, RefVariableDefinition> _locals;
     private readonly ILGenerator _iLGenerator;
     private readonly Executor _module;
     private readonly MethodSymbol _method;
@@ -22,10 +21,14 @@ internal sealed class RefILBuilder : ILBuilder {
         _method = method;
         _iLGenerator = iLGenerator;
         _module = module;
-        _locals = [];
         _labelCounts = [];
         _log = log;
+        _localSlotManager = new RefLocalSlotManager();
     }
+
+    private RefLocalSlotManager _localSlotManager { get; }
+
+    internal override LocalSlotManager localSlotManager => _localSlotManager;
 
     internal override void Finish() { }
 
@@ -100,7 +103,7 @@ internal sealed class RefILBuilder : ILBuilder {
         if (local.isRef)
             EmitLocalLoad(local);
         else
-            Emit(OpCodes.Ldloca, _locals[local].localBuilder);
+            Emit(OpCodes.Ldloca, _localSlotManager.GetRefLocal(local).localBuilder);
     }
 
     internal override void EmitLocalAddress(VariableDefinition local) {
@@ -113,7 +116,7 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitLocalStore(DataContainerSymbol local) {
-        EmitLocalStore(_locals[local]);
+        EmitLocalStore(_localSlotManager.GetLocal(local));
     }
 
     internal override void EmitLocalStore(VariableDefinition local) {
@@ -126,7 +129,7 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitLocalLoad(DataContainerSymbol local) {
-        Emit(OpCodes.Ldloc, _locals[local].localBuilder);
+        Emit(OpCodes.Ldloc, _localSlotManager.GetRefLocal(local).localBuilder);
     }
 
     internal override void EmitLocalLoad(VariableDefinition local) {
@@ -229,16 +232,21 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override VariableDefinition GetLocal(DataContainerSymbol local) {
-        return _locals[local];
+        return _localSlotManager.GetLocal(local);
     }
 
-    internal override void DeclareLocal(DataContainerSymbol local) {
-        var typeBuilder = _module.GetType(local.type, local.isRef);
+    internal override VariableDefinition DeclareLocal(
+        TypeSymbol type,
+        DataContainerSymbol symbol,
+        string name,
+        SynthesizedLocalKind kind,
+        LocalSlotConstraints constraints,
+        bool isSlotReusable) {
+        var typeBuilder = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
         LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
-        var mapLocal = new RefVariableDefinition(localBuilder, local.isRef);
 
-        _locals.Add(local, mapLocal);
+        return _localSlotManager.DeclareLocal(localBuilder, type, symbol, name, kind, constraints, isSlotReusable);
     }
 
     internal override ParameterDefinition GetParameter(ParameterSymbol parameter) {
@@ -278,11 +286,14 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(cOpCode, ((RefLabelInfo)labelInfo).label);
     }
 
-    internal override VariableDefinition AllocateTemp(TypeSymbol type, bool isRef) {
-        var typeBuilder = _module.GetType(type, isRef);
+    internal override VariableDefinition AllocateSlot(
+        TypeSymbol type,
+        LocalSlotConstraints constraints) {
+        var typeBuilder = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
         LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
-        return new RefVariableDefinition(localBuilder, isRef);
+
+        return _localSlotManager.AllocateSlot(localBuilder, type, constraints);
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode) {

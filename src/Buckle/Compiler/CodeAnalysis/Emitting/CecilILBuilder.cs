@@ -10,7 +10,6 @@ namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed class CecilILBuilder : ILBuilder {
     private readonly List<(int instructionIndex, object target)> _unhandledGotos;
-    private readonly Dictionary<DataContainerSymbol, CecilVariableDefinition> _locals;
     private readonly ILProcessor _iLProcessor;
     private readonly ILEmitter _module;
     private readonly MethodSymbol _method;
@@ -23,10 +22,14 @@ internal sealed class CecilILBuilder : ILBuilder {
         definition.Body.InitLocals = true;
         _iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
-        _locals = [];
+        _localSlotManager = new CecilLocalSlotManager();
     }
 
     private int _count => _iLProcessor.Body.Instructions.Count;
+
+    private CecilLocalSlotManager _localSlotManager { get; }
+
+    internal override LocalSlotManager localSlotManager => _localSlotManager;
 
     internal override void Finish() {
         foreach (var (instructionIndex, target) in _unhandledGotos) {
@@ -94,7 +97,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         if (local.isRef)
             EmitLocalLoad(local);
         else
-            _iLProcessor.Emit(OpCodes.Ldloca, _locals[local].variableDefinition);
+            _iLProcessor.Emit(OpCodes.Ldloca, _localSlotManager.GetCecilLocal(local).variableDefinition);
     }
 
     internal override void EmitLocalAddress(CodeGeneration.VariableDefinition local) {
@@ -112,7 +115,7 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitLocalStore(DataContainerSymbol local) {
-        EmitLocalStore(_locals[local]);
+        EmitLocalStore(_localSlotManager.GetLocal(local));
     }
 
     internal override void EmitLocalStore(CodeGeneration.VariableDefinition local) {
@@ -121,7 +124,7 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitLocalLoad(DataContainerSymbol local) {
-        _iLProcessor.Emit(OpCodes.Ldloc, _locals[local].variableDefinition);
+        _iLProcessor.Emit(OpCodes.Ldloc, _localSlotManager.GetCecilLocal(local).variableDefinition);
     }
 
     internal override void EmitLocalLoad(CodeGeneration.VariableDefinition local) {
@@ -215,10 +218,11 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override CodeGeneration.VariableDefinition GetLocal(DataContainerSymbol local) {
-        return _locals[local];
+        return _localSlotManager.GetLocal(local);
     }
 
     internal override CodeGeneration.ParameterDefinition GetParameter(ParameterSymbol parameter) {
+        // TODO ? Cecil adjusts for this parameter behind the scenes?
         // var slot = parameter.ordinal;
 
         // if (!_method.isStatic)
@@ -227,20 +231,35 @@ internal sealed class CecilILBuilder : ILBuilder {
         return new CecilParameterDefinition(_definition.Parameters[parameter.ordinal]);
     }
 
-    internal override void DeclareLocal(DataContainerSymbol local) {
-        var typeReference = _module.GetType(local.type, local.isRef);
+    internal override CodeGeneration.VariableDefinition DeclareLocal(
+        TypeSymbol type,
+        DataContainerSymbol symbol,
+        string name,
+        SynthesizedLocalKind kind,
+        LocalSlotConstraints constraints,
+        bool isSlotReusable) {
+        var typeReference = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
-        var mapLocal = new CecilVariableDefinition(variableDefinition, local.isRef);
-
-        _locals.Add(local, mapLocal);
         _iLProcessor.Body.Variables.Add(variableDefinition);
+
+        return _localSlotManager.DeclareLocal(
+            variableDefinition,
+            type,
+            symbol,
+            name,
+            kind,
+            constraints,
+            isSlotReusable
+        );
     }
 
-    internal override CodeGeneration.VariableDefinition AllocateTemp(TypeSymbol type, bool isRef) {
+    internal override CodeGeneration.VariableDefinition AllocateSlot(
+        TypeSymbol type,
+        LocalSlotConstraints constraints) {
         var typeReference = _module.GetType(type);
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
         _iLProcessor.Body.Variables.Add(variableDefinition);
-        return new CecilVariableDefinition(variableDefinition, isRef);
+        return _localSlotManager.AllocateSlot(variableDefinition, type, constraints);
     }
 
     internal override void MarkLabel(object label) {

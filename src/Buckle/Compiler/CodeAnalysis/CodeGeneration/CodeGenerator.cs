@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -38,6 +39,8 @@ internal sealed partial class CodeGenerator {
     private readonly ILBuilder _builder;
     private readonly HashSet<DataContainerSymbol> _stackLocals = [];
     private readonly List<(int instructionIndex, LabelSymbol target)> _unhandledGotos = [];
+    private readonly SyntaxNode _methodBodySyntax;
+    private readonly ILEmitStyle _ilEmitStyle;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
     private VariableDefinition _returnTemp;
@@ -52,12 +55,49 @@ internal sealed partial class CodeGenerator {
         _method = method;
         _body = methodBody;
         _builder = iLBuilder;
+        // TODO Make this dynamic when debugging is added
+        // ? This is only here for better compat with Evaluator which uses debug-only slot information
+        _ilEmitStyle = ILEmitStyle.Release;
+
+        var sourceMethod = method as SourceMemberMethodSymbol;
+        _methodBodySyntax = sourceMethod.body ?? sourceMethod.syntaxNode;
     }
 
     private VariableDefinition _lazyReturnTemp {
         get {
-            _returnTemp ??= _builder.AllocateTemp(_method.returnType, _method.refKind != RefKind.None);
-            return _returnTemp;
+            var result = _returnTemp;
+
+            if (result is null) {
+                var slotConstraints = _method.refKind == RefKind.None
+                    ? LocalSlotConstraints.None
+                    : LocalSlotConstraints.ByRef;
+
+                var bodySyntax = _methodBodySyntax;
+
+                if (_ilEmitStyle == ILEmitStyle.Debug && bodySyntax is not null) {
+                    var localSymbol = new SynthesizedDataContainerSymbol(
+                        _method,
+                        _method.returnTypeWithAnnotations,
+                        SynthesizedLocalKind.EmitterTemp,
+                        bodySyntax
+                    );
+
+                    result = _builder.DeclareLocal(
+                        localSymbol.type,
+                        localSymbol,
+                        null,
+                        localSymbol.synthesizedKind,
+                        slotConstraints,
+                        false
+                    );
+                } else {
+                    result = AllocateTemp(_method.returnType, slotConstraints);
+                }
+
+                _returnTemp = result;
+            }
+
+            return result;
         }
     }
 
@@ -89,6 +129,12 @@ internal sealed partial class CodeGenerator {
 
     internal static bool IsValueType(TypeSymbol type) {
         return (type.isPrimitiveType || type.IsStructType() || IsTrueNullable(type)) && IsValueType(type.specialType);
+    }
+
+    private VariableDefinition AllocateTemp(
+        TypeSymbol type,
+        LocalSlotConstraints slotConstraints = LocalSlotConstraints.None) {
+        return _builder.AllocateSlot(type, slotConstraints);
     }
 
     private static bool IsTrueNullable(TypeSymbol type) {
@@ -372,7 +418,7 @@ internal sealed partial class CodeGenerator {
 
     private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
         EmitExpression(expression, true);
-        var value = _builder.AllocateTemp(expression.type, false);
+        var value = AllocateTemp(expression.type);
         _builder.EmitLocalStore(value);
         _builder.EmitLocalAddress(value);
         return value;
@@ -380,7 +426,7 @@ internal sealed partial class CodeGenerator {
 
     private void EmitInitObj(TypeSymbol type, bool used) {
         if (used) {
-            var temp = _builder.AllocateTemp(type, false);
+            var temp = AllocateTemp(type);
             _builder.EmitLocalAddress(temp);
             _builder.EmitWithSymbolToken(OpCode.Initobj, type);
             _builder.EmitLocalLoad(temp);
@@ -814,7 +860,15 @@ oneMoreTime:
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
         var declaration = statement.declaration;
         var local = declaration.dataContainer;
-        _builder.DeclareLocal(local);
+
+        _builder.DeclareLocal(
+            local.type,
+            local,
+            local.name,
+            local.synthesizedKind,
+            local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+            false
+        );
 
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
@@ -1306,7 +1360,7 @@ oneMoreTime:
                 } else if (addressKind is null) {
                 } else {
                     if (receiverUseKind != UseKind.UsedAsAddress) {
-                        tempOpt = _builder.AllocateTemp(parentCallReceiverType, false);
+                        tempOpt = AllocateTemp(parentCallReceiverType);
                         _builder.EmitLocalStore(tempOpt);
                         _builder.EmitLocalAddress(tempOpt);
                     }
@@ -1470,7 +1524,7 @@ oneMoreTime:
                 }
 
                 EmitLoadIndirect(receiverType);
-                temp = _builder.AllocateTemp(receiverType, false);
+                temp = AllocateTemp(receiverType);
                 _builder.EmitLocalStore(temp);
                 _builder.EmitLocalAddress(temp);
 
@@ -2361,7 +2415,11 @@ oneMoreTime:
             _builder.Emit(OpCode.Dup);
 
             if (lhsUsesStack) {
-                temp = _builder.AllocateTemp(assignmentOperator.left.type, assignmentOperator.isRef);
+                temp = AllocateTemp(
+                    assignmentOperator.left.type,
+                    assignmentOperator.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+                );
+
                 _builder.EmitLocalStore(temp);
             }
         }
@@ -2798,7 +2856,7 @@ oneMoreTime:
     }
 
     private void EmitStaticCast(TypeSymbol to) {
-        var temp = _builder.AllocateTemp(to, false);
+        var temp = AllocateTemp(to);
         _builder.EmitLocalStore(temp);
         _builder.EmitLocalLoad(temp);
         _builder.FreeTemp(temp);

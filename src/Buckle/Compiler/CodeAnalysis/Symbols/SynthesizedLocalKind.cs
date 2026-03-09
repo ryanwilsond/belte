@@ -5,4 +5,5 @@ internal enum SynthesizedLocalKind : byte {
     LambdaDisplayClass,
     UserDefined,
     ExpanderTemp,
+    EmitterTemp,
 }

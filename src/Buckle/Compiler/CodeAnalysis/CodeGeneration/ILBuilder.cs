@@ -6,6 +6,8 @@ namespace Buckle.CodeAnalysis.CodeGeneration;
 internal abstract class ILBuilder {
     private protected readonly Dictionary<object, LabelInfo> _labels = [];
 
+    internal abstract LocalSlotManager localSlotManager { get; }
+
     internal abstract void Finish();
 
     internal abstract void MarkLabel(object label);
@@ -80,11 +82,17 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitToString();
 
-    internal abstract VariableDefinition AllocateTemp(TypeSymbol type, bool isRef);
+    internal abstract VariableDefinition AllocateSlot(TypeSymbol type, LocalSlotConstraints constraints);
 
     internal abstract VariableDefinition GetLocal(DataContainerSymbol local);
 
-    internal abstract void DeclareLocal(DataContainerSymbol local);
+    internal abstract VariableDefinition DeclareLocal(
+        TypeSymbol type,
+        DataContainerSymbol symbol,
+        string name,
+        SynthesizedLocalKind kind,
+        LocalSlotConstraints constraints,
+        bool isSlotReusable);
 
     internal abstract ParameterDefinition GetParameter(ParameterSymbol parameter);
 }

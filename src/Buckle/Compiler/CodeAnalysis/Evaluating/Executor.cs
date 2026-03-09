@@ -286,9 +286,6 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CompleteSpecialTypes() {
-        if (!_graphicsEnabled)
-            return;
-
         foreach (var type in new[] { SpecialType.Rect, SpecialType.Text, SpecialType.Sprite,
                               SpecialType.Vec2, SpecialType.Texture }) {
             var typeSymbol = CorLibrary.GetSpecialType(type);

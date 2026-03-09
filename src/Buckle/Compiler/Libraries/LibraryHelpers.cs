@@ -83,7 +83,7 @@ public static class LibraryHelpers {
         AddTypesToBuilder(StandardLibrary.GetTypes());
 
         // TODO Consider separating OutputKind from ProjectType
-        // if (options.outputKind == OutputKind.GraphicsApplication)
+        if (options.outputKind == OutputKind.GraphicsApplication)
             AddTypesToBuilder(GraphicsLibrary.GetTypes());
 
         void AddTypesToBuilder(IEnumerable<NamedTypeSymbol> types) {
