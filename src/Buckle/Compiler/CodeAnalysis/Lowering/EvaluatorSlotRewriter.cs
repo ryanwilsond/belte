@@ -38,11 +38,18 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
 
         for (var i = 0; i < method.parameterCount; i++) {
             var parameter = method.parameters[i];
-            var constraints = (method.parameterRefKinds[i] != RefKind.None)
+            var constraints = (!method.parameterRefKinds.IsDefault && method.parameterRefKinds[i] != RefKind.None)
                 ? LocalSlotConstraints.ByRef
                 : LocalSlotConstraints.None;
 
-            localSlotManager.AllocateSlot(parameter.type, constraints);
+            localSlotManager.DeclareLocal(
+                parameter.type,
+                parameter,
+                parameter.name,
+                SynthesizedLocalKind.UserDefined,
+                constraints,
+                false
+            );
         }
     }
 
@@ -89,9 +96,9 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
-        var receiver = node.receiver;
+        var receiver = (BoundExpression)Visit(node.receiver);
         var field = node.field;
-        var layout = _typeLayouts[receiver.type as NamedTypeSymbol];
+        var layout = _typeLayouts[(NamedTypeSymbol)receiver.type.StrippedType()];
         var slot = layout.GetLocal(field).slot;
         return new BoundFieldSlotExpression(node.syntax, node, receiver, field, slot, node.type);
     }

@@ -17,6 +17,12 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
         return typeVisitor._typeLayouts;
     }
 
+    internal static Dictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(NamedTypeSymbol type) {
+        var typeVisitor = new EvaluatorTypeLayoutVisitor();
+        typeVisitor.Visit(type);
+        return typeVisitor._typeLayouts;
+    }
+
     internal override void VisitNamespace(NamespaceSymbol symbol) {
         foreach (var member in symbol.GetMembersUnordered())
             member.Accept(this);

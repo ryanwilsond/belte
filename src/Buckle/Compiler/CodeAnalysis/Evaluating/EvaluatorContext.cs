@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
-using Buckle.CodeAnalysis.Lowering;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Shared;
 
@@ -29,7 +28,7 @@ public sealed class EvaluatorContext : IDisposable {
         this.options = options;
     }
 
-    internal ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts { get; set; }
+    internal BoundProgram program { get; set; }
 
     public void Dispose() {
         maintainThread = false;

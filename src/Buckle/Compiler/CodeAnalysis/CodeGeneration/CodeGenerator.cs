@@ -60,7 +60,7 @@ internal sealed partial class CodeGenerator {
         _ilEmitStyle = ILEmitStyle.Release;
 
         var sourceMethod = method as SourceMemberMethodSymbol;
-        _methodBodySyntax = sourceMethod.body ?? sourceMethod.syntaxNode;
+        _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
     }
 
     private VariableDefinition _lazyReturnTemp {

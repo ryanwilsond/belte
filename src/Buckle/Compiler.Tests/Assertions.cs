@@ -13,8 +13,10 @@ namespace Buckle.Tests;
 /// All assertions used by Buckle tests.
 /// </summary>
 internal static class Assertions {
-    private static CompilationOptions DefaultOptions
-        => new CompilationOptions(BuildMode.Independent, OutputKind.ConsoleApplication, [], true, false);
+    private static CompilationOptions DefaultEvalOptions
+        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, [], true, false);
+    private static CompilationOptions DefaultExecOptions
+        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, [], true, false);
 
     private readonly static Compilation BaseCompilation;
 
@@ -31,14 +33,22 @@ internal static class Assertions {
     /// <param name="expectedValue">Expected result.</param>
     internal static void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(
+
+        var evalCompilation = Compilation.CreateScript(
             "Tests",
-            DefaultOptions,
+            DefaultEvalOptions,
             syntaxTree,
             BaseCompilation
         );
 
-        var evalResult = compilation.Evaluate(false);
+        var execCompilation = Compilation.CreateScript(
+            "Tests",
+            DefaultExecOptions,
+            syntaxTree,
+            BaseCompilation
+        );
+
+        var evalResult = evalCompilation.Evaluate(false);
 
         if (evalResult.value is double && Convert.ToDouble(expectedValue).CompareTo(evalResult.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
@@ -48,7 +58,7 @@ internal static class Assertions {
         Assert.Empty(evalResult.diagnostics.Errors().ToArray());
         Assert.Equal(expectedValue, evalResult.value);
 
-        var execDiags = compilation.Execute(false, false, out var execResult);
+        var execDiags = execCompilation.Execute(false, false, out var execResult);
 
         Assert.Empty(execDiags.Errors().ToArray());
         Assert.Equal(expectedValue, execResult);
@@ -64,7 +74,7 @@ internal static class Assertions {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
             "Tests",
-            DefaultOptions,
+            DefaultEvalOptions,
             syntaxTree,
             BaseCompilation
         );
@@ -104,7 +114,7 @@ internal static class Assertions {
         } else {
             var compilation = Compilation.CreateScript(
                 "Tests",
-                DefaultOptions,
+                DefaultEvalOptions,
                 syntaxTree,
                 BaseCompilation
             );

@@ -58,6 +58,9 @@ public struct EvaluatorValue {
     }
 
     internal static EvaluatorValue Literal(object value, SpecialType specialType) {
+        if (value is null)
+            return Null;
+
         return specialType switch {
             SpecialType.Int => new EvaluatorValue() { kind = ValueKind.Int64, int64 = (long)value },
             SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Double, @double = (double)value },
@@ -75,7 +78,9 @@ public struct EvaluatorValue {
             return [];
 
         var dictionary = new Dictionary<ISymbol, EvaluatorValue>();
-        var layout = context.typeLayouts[(NamedTypeSymbol)heapObject.type];
+
+        if (!context.program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
+            throw ExceptionUtilities.UnexpectedValue(heapObject.type);
 
         foreach (var local in layout.LocalsInOrder())
             dictionary.Add(local.symbol, heapObject.fields[local.slot]);
@@ -95,6 +100,8 @@ public struct EvaluatorValue {
                 return value.@double;
             case ValueKind.String:
                 return value.@string;
+            case ValueKind.Type:
+                return value.type;
             case ValueKind.Ref:
                 return Format(value.loc[value.ptr], context);
             case ValueKind.HeapPtr: {
@@ -121,7 +128,9 @@ public struct EvaluatorValue {
         }
 
         var dictionary = new Dictionary<object, object>();
-        var layout = context.typeLayouts[(NamedTypeSymbol)type];
+
+        if (!context.program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)type, out var layout))
+            throw ExceptionUtilities.UnexpectedValue(type);
 
         foreach (var local in layout.LocalsInOrder()) {
             var name = local.symbol.containingType.Equals(type)
