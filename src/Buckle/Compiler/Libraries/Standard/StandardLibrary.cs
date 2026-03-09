@@ -455,7 +455,7 @@ internal static class StandardLibrary {
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "LowLevel_Length_A?", new Func<object, object, object, object>((a, b, c)
-                => { return a is not EvaluatorObject[] array ? null : array.LongLength; }) },
+                => { return a is not EvaluatorValue[] array ? null : array.LongLength; }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)

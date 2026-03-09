@@ -8,6 +8,11 @@ public sealed class HeapObject {
         fields = new EvaluatorValue[slotCount];
     }
 
+    internal HeapObject(TypeSymbol type, EvaluatorValue[] fields) {
+        this.type = type;
+        this.fields = fields;
+    }
+
     internal TypeSymbol type { get; }
 
     internal bool markedForCollection { get; set; }

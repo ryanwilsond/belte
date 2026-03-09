@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 
@@ -30,17 +30,31 @@ public struct EvaluatorValue {
     public string @string;
 
     [FieldOffset(16)]
+    public ITypeSymbol type;
+
+    [FieldOffset(16)]
+    internal BoundMethodGroup methodGroup;
+
+    [FieldOffset(16)]
     public HeapObject @struct;
 
     [FieldOffset(16)]
-    public IEnumerable<EvaluatorValue> loc;
+    public EvaluatorValue[] loc;
 
     internal static EvaluatorValue HeapPtr(int index) {
         return new EvaluatorValue() { kind = ValueKind.HeapPtr, ptr = index };
     }
 
-    internal static EvaluatorValue Ref(IEnumerable<EvaluatorValue> loc, int ptr) {
+    internal static EvaluatorValue Ref(EvaluatorValue[] loc, int ptr) {
         return new EvaluatorValue() { kind = ValueKind.Ref, ptr = ptr, loc = loc };
+    }
+
+    internal static EvaluatorValue Type(ITypeSymbol type) {
+        return new EvaluatorValue() { kind = ValueKind.Type, type = type };
+    }
+
+    internal static EvaluatorValue MethodGroup(BoundMethodGroup methodGroup) {
+        return new EvaluatorValue() { kind = ValueKind.MethodGroup, methodGroup = methodGroup };
     }
 
     internal static EvaluatorValue Literal(object value, SpecialType specialType) {
@@ -82,7 +96,7 @@ public struct EvaluatorValue {
             case ValueKind.String:
                 return value.@string;
             case ValueKind.Ref:
-                return Format(value.loc.ElementAt(value.ptr), context);
+                return Format(value.loc[value.ptr], context);
             case ValueKind.HeapPtr: {
                     var heapObject = context.heap[value.ptr];
                     return FormatObject(heapObject.type, heapObject.fields, context);

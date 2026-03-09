@@ -2191,7 +2191,7 @@ oneMoreTime:
         }
     }
 
-    private static bool OperatorHasSideEffects(BinaryOperatorKind kind) {
+    internal static bool OperatorHasSideEffects(BinaryOperatorKind kind) {
         switch (kind.Operator()) {
             case BinaryOperatorKind.Division:
             case BinaryOperatorKind.Modulo:
@@ -2201,7 +2201,7 @@ oneMoreTime:
         }
     }
 
-    private static bool IsConditional(BinaryOperatorKind opKind) {
+    internal static bool IsConditional(BinaryOperatorKind opKind) {
         switch (opKind.OperatorWithConditional()) {
             case BinaryOperatorKind.ConditionalAnd:
             case BinaryOperatorKind.ConditionalOr:
@@ -2585,7 +2585,7 @@ oneMoreTime:
         return true;
     }
 
-    private static bool TargetIsNotOnHeap(BoundExpression left) {
+    internal static bool TargetIsNotOnHeap(BoundExpression left) {
         switch (left.kind) {
             case BoundKind.ParameterExpression:
                 return ((BoundParameterExpression)left).parameter.refKind == RefKind.None;
@@ -2702,7 +2702,7 @@ oneMoreTime:
         return false;
     }
 
-    private static bool FieldLoadMustUseRef(BoundExpression expr) {
+    internal static bool FieldLoadMustUseRef(BoundExpression expr) {
         var type = expr.type;
 
         if (type.IsTemplateParameter())

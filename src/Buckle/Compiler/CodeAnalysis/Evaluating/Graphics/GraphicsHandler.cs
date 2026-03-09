@@ -168,8 +168,8 @@ internal partial class GraphicsHandler : Game {
 
     internal void Draw(
         Texture2D texture,
-        EvaluatorObject src,
-        EvaluatorObject dst,
+        EvaluatorValue src,
+        EvaluatorValue dst,
         object rotation,
         object flip,
         object alpha) {

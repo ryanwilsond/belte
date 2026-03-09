@@ -61,6 +61,16 @@ public sealed class EvaluatorContext : IDisposable {
         heap.FreeAll();
     }
 
+    internal bool TryGetGlobal(DataContainerSymbol symbol, out EvaluatorValue value) {
+        var succeeded = _globals.TryGetValue(symbol.name, out var pair);
+        value = pair.Item2;
+        return succeeded;
+    }
+
+    internal void AddOrUpdateGlobal(DataContainerSymbol symbol, EvaluatorValue value) {
+        _globals[symbol.name] = (symbol, value);
+    }
+
     public override string ToString() {
         return $"EvaluatorContext [ Tracking {_globals.Count} symbols ]";
     }

@@ -48,22 +48,29 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
         var local = node.declaration.dataContainer;
 
-        localSlotManager.DeclareLocal(
-            local.type,
-            local,
-            local.name,
-            local.synthesizedKind,
-            local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
-            false
-        );
+        if (!local.isGlobal) {
+            localSlotManager.DeclareLocal(
+                local.type,
+                local,
+                local.name,
+                local.synthesizedKind,
+                local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+                false
+            );
+        }
 
         return base.VisitLocalDeclarationStatement(node);
     }
 
     internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
         var local = node.dataContainer;
-        var slot = localSlotManager.GetLocal(local).slot;
-        return new BoundStackSlotExpression(node.syntax, node, local, slot, node.type);
+
+        if (!local.isGlobal) {
+            var slot = localSlotManager.GetLocal(local).slot;
+            return new BoundStackSlotExpression(node.syntax, node, local, slot, node.type);
+        }
+
+        return node;
     }
 
     internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
