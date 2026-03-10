@@ -42,7 +42,7 @@ public static class LibraryHelpers {
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries() {
+    public static Compilation LoadLibraries(BuildMode buildMode = BuildMode.None) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -71,7 +71,8 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var corLibrary = Compilation.Create("CorLibrary", LibraryOptions, syntaxTrees.ToArray());
+        var options = new CompilationOptions(buildMode, LibraryOptions.outputKind);
+        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
         corLibrary.GetDiagnostics();
 
         return corLibrary;

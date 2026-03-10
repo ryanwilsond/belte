@@ -305,7 +305,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private BelteDiagnosticQueue LoadLibraries() {
-        var compilation = LibraryHelpers.LoadLibraries();
+        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl);
         state.baseCompilation = compilation;
         return compilation.GetDiagnostics();
     }

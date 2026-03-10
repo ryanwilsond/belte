@@ -8,8 +8,11 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
-                "-r",
-                "--clearsubmissions"
+                // "-r",
+                // "--clearsubmissions"
+                "samples/Snake",
+                "--type=graphics",
+                "--evaluate"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

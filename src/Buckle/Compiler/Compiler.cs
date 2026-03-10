@@ -68,15 +68,15 @@ public sealed class Compiler {
     /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
         lock (state) lock (me) {
-                diagnostics.Clear();
+            diagnostics.Clear();
 
-                if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
-                    InternalInterpreter();
-                else
-                    InternalCompiler();
+            if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+                InternalInterpreter();
+            else
+                InternalCompiler();
 
-                return CalculateExitCode(diagnostics);
-            }
+            return CalculateExitCode(diagnostics);
+        }
     }
 
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
@@ -97,7 +97,7 @@ public sealed class Compiler {
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
         if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
-            var corLibrary = LibraryHelpers.LoadLibraries();
+            var corLibrary = LibraryHelpers.LoadLibraries(_options.buildMode);
             var corLibraryDiagnostics = corLibrary.GetDiagnostics();
             Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
             Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);

@@ -12,6 +12,9 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Graphics;
+using MonoGame.Extended.Text;
 using Shared;
 using static Buckle.CodeAnalysis.Binding.Binder;
 
@@ -602,7 +605,7 @@ internal sealed class Evaluator {
         if (!node.throwIfNull)
             return EvaluateExpression(node.operand, abort);
 
-        return NullAssertValue(node, abort);
+        return NullAssertValue(node.operand, abort);
     }
 
     private EvaluatorValue NullAssertValue(BoundExpression node, ValueWrapper<bool> abort) {
@@ -1581,8 +1584,355 @@ internal sealed class Evaluator {
         result = null;
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
+        if (mapKey == "Graphics_Initialize_SIIB") {
+            var valueArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+
+            StartGraphics(
+                valueArguments[0].@string,
+                (int)valueArguments[1].int64,
+                (int)valueArguments[2].int64,
+                valueArguments[3].@bool,
+                abort
+            );
+
+            return true;
+        }
+
+        if (_context.graphicsThread is null)
+            throw new BelteEvaluatorException("All Graphics calls must come after Graphics.Initialize", location);
+
+        while (_context.graphicsHandler?.GraphicsDevice is null)
+            Thread.SpinWait(1);
+
+        switch (mapKey) {
+            case "Graphics_LoadTexture_S": {
+                    var path = GetFilePath(EvaluateExpression(arguments[0], abort).@string, location)
+                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+
+                    result = LoadTexture(path);
+                }
+
+                break;
+            case "Graphics_LoadTexture_SIII": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var path = GetFilePath(evaluatedArguments[0].@string, location)
+                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+
+                    var r = evaluatedArguments[1].int64;
+                    var g = evaluatedArguments[2].int64;
+                    var b = evaluatedArguments[3].int64;
+
+                    result = LoadTexture(path, true, r, g, b);
+                }
+
+                break;
+            case "Graphics_LoadSprite_SV?V?I?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var path = GetFilePath(evaluatedArguments[0].@string, location)
+                        ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist", location);
+
+                    var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+                    var sprite = CreateObject(spriteType);
+
+                    InvokeInstanceMethod(
+                        spriteType.constructors[0],
+                        sprite,
+                        [
+                            LoadTexture(path),
+                            evaluatedArguments[1],
+                            evaluatedArguments[2],
+                            evaluatedArguments[3]
+                        ],
+                        abort
+                    );
+
+                    result = sprite;
+                }
+
+                break;
+            case "Graphics_DrawSprite_S?": {
+                    var argument = EvaluateExpression(arguments[0], abort);
+
+                    if (argument.kind == ValueKind.Null)
+                        return true;
+
+                    DrawSprite(argument, EvaluatorValue.None, out result);
+                }
+
+                break;
+            case "Graphics_DrawSprite_S?V?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var spritePtr = evaluatedArguments[0];
+
+                    if (spritePtr.kind == ValueKind.Null)
+                        return true;
+
+                    DrawSprite(spritePtr, evaluatedArguments[1], out result);
+                }
+
+                break;
+            case "Graphics_StopDraw_I?": {
+                    var argument = EvaluateExpression(arguments[0], abort);
+
+                    if (argument.kind == ValueKind.Null)
+                        return true;
+
+                    _context.graphicsHandler.RemoveAction((int)argument.int64);
+                }
+
+                break;
+            case "Graphics_LoadText_S?SV?DD?I?I?I?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var path = GetFilePath(evaluatedArguments[1].@string, location)
+                        ?? throw new BelteEvaluatorException("Cannot load text: path does not exist", location);
+
+                    var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+                    var textPtr = CreateObject(textType);
+                    var text = H(textPtr);
+
+                    var fontSize = (float)evaluatedArguments[3].@double;
+
+                    text[1] = evaluatedArguments[0];
+                    text[2] = evaluatedArguments[1];
+                    text[3] = evaluatedArguments[2];
+                    text[4] = evaluatedArguments[3];
+                    text[5] = evaluatedArguments[4];
+                    text[6] = evaluatedArguments[5];
+                    text[7] = evaluatedArguments[6];
+                    text[8] = evaluatedArguments[7];
+
+                    text[0].data = _context.graphicsHandler.LoadText(path, fontSize);
+
+                    result = textPtr;
+                }
+
+                break;
+            case "Graphics_DrawText_T?": {
+                    var argument = EvaluateExpression(arguments[0], abort);
+
+                    if (argument.kind == ValueKind.Null)
+                        return true;
+
+                    var fields = H(argument);
+
+                    var text = fields[1].@string;
+                    var posXf = H(fields[3])[0];
+                    double? posX = posXf.kind == ValueKind.Null ? null : posXf.@double;
+                    var posYf = H(fields[3])[1];
+                    double? posY = posYf.kind == ValueKind.Null ? null : posYf.@double;
+                    long? r = fields[6].kind == ValueKind.Null ? null : fields[6].int64;
+                    long? g = fields[7].kind == ValueKind.Null ? null : fields[7].int64;
+                    long? b = fields[8].kind == ValueKind.Null ? null : fields[8].int64;
+
+                    if (fields[0].data is not DynamicSpriteFont spriteFont)
+                        throw new BelteEvaluatorException("Cannot draw text: invalid text object", location);
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler.AddAction(
+                            () => { _context.graphicsHandler.DrawText(spriteFont, text, posX, posY, r, g, b); }
+                        );
+                    } else {
+                        _context.graphicsHandler.DrawText(spriteFont, text, posX, posY, r, g, b);
+                    }
+                }
+
+                break;
+            case "Graphics_GetKey_S": {
+                    var argument = EvaluateExpression(arguments[0], abort).@string;
+                    result = _context.graphicsHandler.GetKey(argument);
+                }
+
+                break;
+            case "Graphics_GetMouseButton_S": {
+                    var argument = EvaluateExpression(arguments[0], abort).@string;
+                    result = _context.graphicsHandler.GetMouseButton(argument);
+                }
+
+                break;
+            case "Graphics_GetScroll": {
+                    result = (long)_context.graphicsHandler.GetScroll();
+                }
+
+                break;
+            case "Graphics_GetMousePosition": {
+                    var (x, y) = _context.graphicsHandler.GetMousePosition();
+                    var vecType = CorLibrary.GetSpecialType(SpecialType.Vec2);
+                    var vec = CreateObject(vecType);
+
+                    InvokeInstanceMethod(
+                        vecType.constructors[0],
+                        vec,
+                        [
+                            EvaluatorValue.Literal(Convert.ToDouble(x), SpecialType.Decimal),
+                            EvaluatorValue.Literal(Convert.ToDouble(y), SpecialType.Decimal)
+                        ],
+                        abort
+                    );
+
+                    result = vec;
+                }
+
+                break;
+            case "Graphics_DrawRect_R?I?I?I?":
+                DrawRect(false, out result);
+                break;
+            case "Graphics_DrawRect_R?I?I?I?I?":
+                DrawRect(true, out result);
+                break;
+            case "Graphics_Fill_III": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+
+                    var r = evaluatedArguments[0].int64;
+                    var g = evaluatedArguments[1].int64;
+                    var b = evaluatedArguments[2].int64;
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler.AddAction(
+                            () => { _context.graphicsHandler.Fill(r, g, b); }
+                        );
+                    } else {
+                        _context.graphicsHandler.Fill(r, g, b);
+                    }
+                }
+
+                break;
+            case "Graphics_Draw_T?R?R?I?B?D?": {
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var texturePtr = evaluatedArguments[0];
+
+                    if (H(texturePtr)[0].data is not Texture2D texture2D)
+                        throw new BelteEvaluatorException("Cannot draw: null texture", location);
+
+                    var srcRect = evaluatedArguments[1];
+                    var dstRect = evaluatedArguments[2];
+                    var rotation = evaluatedArguments[3].int64;
+                    var flip = evaluatedArguments[4].@bool;
+                    var alpha = evaluatedArguments[5].@double;
+
+                    if (_context.options.isScript) {
+                        result = _context.graphicsHandler.AddAction(
+                            () => {
+                                _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
+                            }
+                        );
+                    } else {
+                        _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
+                        result = null;
+                    }
+                }
+
+                break;
+            case "Graphics_LoadSound_S": {
+                    var path = GetFilePath(EvaluateExpression(arguments[0], abort).@string, location)
+                        ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist", location);
+
+                    var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
+                    var soundPtr = CreateObject(soundType);
+                    var sound = H(soundPtr);
+
+                    sound[0].data = _context.graphicsHandler.LoadSound(path);
+
+                    result = soundPtr;
+                }
+
+                break;
+            case "Graphics_PlaySound_S": {
+                    var argument = EvaluateExpression(arguments[0], abort);
+                    var fields = H(argument);
+                    var volume = fields[1].@double;
+                    var loop = fields[2].@bool;
+                    var soundInstance = fields[0].data;
+                    _context.graphicsHandler.PlaySound((SoundEffect)soundInstance, volume, loop);
+                }
+
+                break;
+            case "Graphics_SetCursorVisibility_B": {
+                    var argument = EvaluateExpression(arguments[0], abort).@bool;
+                    _context.graphicsHandler.SetCursorVisibility(argument);
+                }
+
+                break;
+            case "Graphics_LockFramerate_I": {
+                    var argument = EvaluateExpression(arguments[0], abort).int64;
+                    _context.graphicsHandler.LockFramerate((int)argument);
+                }
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(mapKey);
+        }
+
         return true;
+
+        void DrawRect(bool includeAlpha, out object result) {
+            result = null;
+            var fields = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+            var rectPtr = fields[0];
+
+            if (rectPtr.kind == ValueKind.Null)
+                return;
+
+            var (x, y, w, h) = ExtRect(rectPtr);
+            long? r = fields[1].kind == ValueKind.Null ? null : fields[1].int64;
+            long? g = fields[2].kind == ValueKind.Null ? null : fields[2].int64;
+            long? b = fields[3].kind == ValueKind.Null ? null : fields[3].int64;
+            long? a = includeAlpha ? (fields[4].kind == ValueKind.Null ? null : fields[4].int64) : 255;
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler.AddAction(
+                    () => { _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b, a); }
+                );
+            } else {
+                _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b, a);
+            }
+        }
+
+        EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
+            var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
+            var texturePointer = CreateObject(textureType);
+            var texture = _context.heap[texturePointer.ptr];
+            var texture2D = _context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b);
+
+            texture.fields[0].data = texture2D;
+            texture.fields[1].int64 = texture2D.Width;
+            texture.fields[2].int64 = texture2D.Height;
+
+            return texturePointer;
+        }
+
+        void DrawSprite(EvaluatorValue sprite, EvaluatorValue offsetVec, out object result) {
+            var fields = H(sprite);
+            var (sx, sy, sw, sh) = ExtRect(fields[2]);
+            var (dx, dy, dw, dh) = ExtRect(fields[3]);
+            long? rotation = fields[1].kind == ValueKind.Null ? null : fields[1].int64;
+
+            if (H(fields[4])[0].data is not Texture2D texture)
+                throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture", location);
+
+            if (!offsetVec.Equals(EvaluatorValue.None)) {
+                dx -= (int)H(offsetVec)[0].int64;
+                dy -= (int)H(offsetVec)[1].int64;
+            }
+
+            if (_context.options.isScript) {
+                result = _context.graphicsHandler.AddAction(
+                    () => {
+                        _context.graphicsHandler.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
+                    }
+                );
+            } else {
+                _context.graphicsHandler.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
+                result = null;
+            }
+        }
     }
+
+    internal (int x, int y, int w, int h) ExtRect(EvaluatorValue rect) {
+        var fields = H(rect);
+        return ((int)fields[0].int64, (int)fields[1].int64, (int)fields[2].int64, (int)fields[3].int64);
+    }
+
+    private EvaluatorValue[] H(EvaluatorValue ptr) => _context.heap[ptr.ptr].fields;
 
     private void StartGraphics(string title, int width, int height, bool usePointClamp, ValueWrapper<bool> abort) {
         _context.maintainThread = true;

@@ -69,7 +69,7 @@ internal partial class GraphicsHandler : Game {
         IsMouseVisible = visible;
     }
 
-    internal Texture2D LoadTexture(string path, bool useColorKey, object r, object g, object b) {
+    internal Texture2D LoadTexture(string path, bool useColorKey, long r, long g, long b) {
         using var stream = File.OpenRead(path);
         var texture = Texture2D.FromStream(GraphicsDevice, stream);
 
@@ -79,7 +79,7 @@ internal partial class GraphicsHandler : Game {
         var data = new Color[texture.Width * texture.Height];
         texture.GetData(data);
 
-        var colorKey = GetColor(r, g, b);
+        var colorKey = new Color(r, g, b);
 
         for (var i = 0; i < data.Length; i++) {
             if (data[i] == colorKey)
@@ -149,10 +149,10 @@ internal partial class GraphicsHandler : Game {
         Texture2D texture,
         int sx, int sy, int sw, int sh,
         int dx, int dy, int dw, int dh,
-        object rotation) {
+        long? rotation) {
         var sourceRectangle = new Rectangle(sx, sy, sw, sh);
         var destinationRectangle = new Rectangle(dx, dy, dw, dh);
-        var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
+        var rotF = (float)rotation;
 
         _spriteBatch.Draw(
             texture,
@@ -170,79 +170,51 @@ internal partial class GraphicsHandler : Game {
         Texture2D texture,
         EvaluatorValue src,
         EvaluatorValue dst,
-        object rotation,
-        object flip,
-        object alpha) {
+        long rotation,
+        bool flip,
+        double alpha) {
         Rectangle? srcRect = null;
 
-        // TODO
-        // if (src.members is not null) {
-        //     var (sx, sy, sw, sh) = _evaluator.ExtractRectangleComponents(src);
-        //     srcRect = new Rectangle(sx, sy, sw, sh);
-        // }
+        if (src.kind != ValueKind.Null) {
+            var (sx, sy, sw, sh) = _evaluator.ExtRect(src);
+            srcRect = new Rectangle(sx, sy, sw, sh);
+        }
 
-        // var (dx, dy, dw, dh) = _evaluator.ExtractRectangleComponents(dst);
-        // var dstRect = new Rectangle(dx, dy, dw, dh);
+        var (dx, dy, dw, dh) = _evaluator.ExtRect(dst);
+        var dstRect = new Rectangle(dx, dy, dw, dh);
 
-        // var rotF = rotation is null ? 0 : Convert.ToSingle(rotation);
-        // var flipB = flip is not null && Convert.ToBoolean(flip);
-        // var alphaF = alpha is null ? 1 : Convert.ToSingle(alpha);
-
-        // _spriteBatch.Draw(
-        //     texture,
-        //     dstRect,
-        //     srcRect,
-        //     Color.White * alphaF,
-        //     rotF,
-        //     Vector2.Zero,
-        //     flipB ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
-        //     0f
-        // );
+        _spriteBatch.Draw(
+            texture,
+            dstRect,
+            srcRect,
+            Color.White * (float)alpha,
+            (float)rotation,
+            Vector2.Zero,
+            flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+            0f
+        );
     }
 
-    internal void DrawText(
-        DynamicSpriteFont font,
-        string text,
-        object posX,
-        object posY,
-        object r,
-        object g,
-        object b) {
-        var posXi = posX is null ? 0 : Convert.ToInt32(posX);
-        var posYi = posY is null ? 0 : Convert.ToInt32(posY);
-
-        var color = GetColor(r, g, b);
+    internal void DrawText(DynamicSpriteFont font, string text, double? posX, double? posY, long? r, long? g, long? b) {
+        var color = new Color(r ?? 255, g ?? 255, b ?? 255);
         var spacing = new Vector2(2, 2);
         var size = font.MeasureString(text, Vector2.Zero, Vector2.One, spacing);
-        var location = new Vector2(posXi - size.X / 2, posYi - size.Y / 2);
+        var location = new Vector2((float)(posX ?? 0) - size.X / 2, (float)(posY ?? 0) - size.Y / 2);
 
         _spriteBatch.DrawString(font, text, location, spacing, color);
     }
 
-    internal void DrawRect(int x, int y, int w, int h, object r, object g, object b, object a) {
-        var color = GetColor(r, g, b, a);
+    internal void DrawRect(int x, int y, int w, int h, long? r, long? g, long? b, long? a) {
+        var color = new Color(r ?? 255, g ?? 255, b ?? 255, a ?? 255);
         var rectangle = new Rectangle(x, y, w, h);
         var pixel = new Texture2D(GraphicsDevice, 1, 1);
         pixel.SetData([color]);
         _spriteBatch.Draw(pixel, rectangle, color);
     }
 
-    internal void Fill(object r, object g, object b) {
-        var color = GetColor(r, g, b);
-        GraphicsDevice.Clear(color);
-    }
-
     public void Fill(long r, long g, long b) {
         var color = new Color(r, g, b);
         GraphicsDevice.Clear(color);
-    }
-
-    private Color GetColor(object r, object g, object b, object a = null) {
-        var ri = r is null ? 255 : Convert.ToInt32(r);
-        var gi = g is null ? 255 : Convert.ToInt32(g);
-        var bi = b is null ? 255 : Convert.ToInt32(b);
-        var ai = a is null ? 255 : Convert.ToInt32(a);
-        return new Color(ri, gi, bi, ai);
     }
 
     protected override void Initialize() {

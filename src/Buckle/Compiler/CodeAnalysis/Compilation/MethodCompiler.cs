@@ -65,6 +65,13 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         else
             typeLayouts = [];
 
+        var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
+
+        if (previousLayouts is not null) {
+            foreach (var layout in previousLayouts)
+                typeLayouts.TryAdd(layout.Key, layout.Value);
+        }
+
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
         var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
         var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Buckle.CodeAnalysis.Binding;
@@ -41,6 +42,9 @@ public struct EvaluatorValue {
     [FieldOffset(16)]
     public EvaluatorValue[] loc;
 
+    [FieldOffset(16)]
+    internal object data;
+
     internal static EvaluatorValue HeapPtr(int index) {
         return new EvaluatorValue() { kind = ValueKind.HeapPtr, ptr = index };
     }
@@ -62,10 +66,10 @@ public struct EvaluatorValue {
             return Null;
 
         return specialType switch {
-            SpecialType.Int => new EvaluatorValue() { kind = ValueKind.Int64, int64 = (long)value },
-            SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Double, @double = (double)value },
-            SpecialType.Bool => new EvaluatorValue() { kind = ValueKind.Bool, @bool = (bool)value },
-            SpecialType.String => new EvaluatorValue() { kind = ValueKind.String, @string = (string)value },
+            SpecialType.Int => new EvaluatorValue() { kind = ValueKind.Int64, int64 = Convert.ToInt64(value) },
+            SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Double, @double = Convert.ToDouble(value) },
+            SpecialType.Bool => new EvaluatorValue() { kind = ValueKind.Bool, @bool = Convert.ToBoolean(value) },
+            SpecialType.String => new EvaluatorValue() { kind = ValueKind.String, @string = Convert.ToString(value) },
             SpecialType.None => Null,
             _ => throw ExceptionUtilities.UnexpectedValue(specialType),
         };
