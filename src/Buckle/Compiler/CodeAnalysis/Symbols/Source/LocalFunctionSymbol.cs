@@ -24,8 +24,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         : base(new SyntaxReference(syntax)) {
         this.containingSymbol = containingSymbol;
         _declarationDiagnostics = new BelteDiagnosticQueue();
-        _modifiers = DeclarationModifiers.Private |
-            ModifierHelpers.CreateModifiers(syntax.modifiers, _declarationDiagnostics, out _);
+        _modifiers = MakeModifiers(syntax.modifiers, _declarationDiagnostics);
 
         scopeBinder = binder;
         location = syntax.identifier.location;
@@ -205,6 +204,33 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
     internal override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         thisParameter = null;
         return true;
+    }
+
+    private DeclarationModifiers MakeModifiers(SyntaxTokenList modifiers, BelteDiagnosticQueue diagnostics) {
+        var allowedModifiers = DeclarationModifiers.Const |
+                               DeclarationModifiers.ConstExpr |
+                               DeclarationModifiers.LowLevel;
+
+        var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
+            modifiers,
+            DeclarationModifiers.None,
+            allowedModifiers,
+            location,
+            diagnostics,
+            out var hasErrors
+        );
+
+        if (hasErrors)
+            return result;
+
+        var isConst = (result & DeclarationModifiers.Const) != 0;
+        var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
+
+        // TODO Any other error checking needed here?
+        if (isConst && isConstExpr)
+            diagnostics.Push(Error.ConflictingModifiers(location, "const", "constexpr"));
+
+        return result;
     }
 
     private void ComputeParameters() {

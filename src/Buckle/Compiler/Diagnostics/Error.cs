@@ -1161,12 +1161,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ConstructorAlreadyExists(TextLocation location, Symbol type) {
-        var message = $"type '{type}' already defines a constructor with the same parameter types";
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' already defines a constructor with the same parameter types";
         return CreateError(DiagnosticCode.ERR_ConstructorAlreadyExists, location, message);
     }
 
     internal static BelteDiagnostic MemberAlreadyExists(TextLocation location, Symbol type, string name) {
-        var message = $"type '{type}' already defines a member called '{name}' with the same parameter types";
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' already defines a member called '{name}' with the same parameter types";
         return CreateError(DiagnosticCode.ERR_MemberAlreadyExists, location, message);
     }
 
@@ -1196,7 +1196,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic VirtualInSealedType(TextLocation location, Symbol symbol, TypeSymbol type) {
-        var message = $"'{symbol}' is a new virtual member in sealed type '{type}'";
+        var message = $"'{symbol}' is a new virtual member in sealed type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_VirtualInSealedType, location, message);
     }
 
@@ -1344,7 +1344,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ProtectedInStruct(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}': new protected member declared in struct";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': protected member declared in struct";
         return CreateError(DiagnosticCode.ERR_ProtectedInStruct, location, message);
     }
 

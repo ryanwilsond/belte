@@ -91,6 +91,8 @@ public static class SymbolDisplay {
 
             if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+        } else if (type.specialType == SpecialType.Void) {
+            text.Write(CreateIdentifier("void"));
         } else if (type is NamedTypeSymbol namedType) {
             if (namedType.specialType == SpecialType.Nullable &&
                 (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {

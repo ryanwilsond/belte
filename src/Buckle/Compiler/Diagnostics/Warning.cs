@@ -80,17 +80,17 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic EqualsWithoutGetHashCode(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'";
         return CreateWarning(DiagnosticCode.WRN_EqualsWithoutGetHashCode, location, message);
     }
 
     internal static BelteDiagnostic EqualityOpWithoutEquals(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}' defines operator == or operator != but does not override 'Object.Equals(Object)'";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' defines operator == or operator != but does not override 'Object.Equals(Object)'";
         return CreateWarning(DiagnosticCode.WRN_EqualityOpWithoutEquals, location, message);
     }
 
     internal static BelteDiagnostic EqualityOpWithoutGetHashCode(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}' defines operator == or operator != but does not override 'Object.GetHashCode()'";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' defines operator == or operator != but does not override 'Object.GetHashCode()'";
         return CreateWarning(DiagnosticCode.WRN_EqualityOpWithoutGetHashCode, location, message);
     }
 

@@ -1294,7 +1294,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0110_OperatorInStaticClass() {
         var text = @"
             static class A {
-                public static A operator[+](A a, A b) { return a; }
+                public static int operator[+](int a, int b) { return a; }
             }
         ";
 
@@ -2363,5 +2363,638 @@ public sealed class DiagnosticTests {
     // ! Error_BU0246_DuplicateTemplateParameter
     // ! Warning_BU0247_TemplateParameterSameAsOuterMethod
     // ! Warning_BU0248_TemplateParameterSameAsOuter
-    // ! Error_BU0249_RefDefaultValue
+
+    [Fact]
+    public void Reports_Error_BU0249_RefDefaultValue() {
+        var text = @"
+            void F([ref] int a = 3) { }
+        ";
+
+        var diagnostics = @"
+            a ref parameter cannot have a default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0250_NoCastForDefaultParameter() {
+        var text = @"
+            void F(bool [a] = ""Test"") { }
+        ";
+
+        var diagnostics = @"
+            a value of type 'string!' cannot be used as a default parameter because there are no casts to type 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0251_NotNullRefDefaultParameter
+
+    [Fact]
+    public void Reports_Warning_BU0252_DefaultValueNoEffect() {
+        var text = @"
+            class A {
+                public static A operator+(A a, int [b] = 3) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            the default value specified for parameter 'b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Warning_BU0253_RefConstParameterDefaultValue
+    // ! Error_BU0254_InvalidRefParameter
+    // ! Error_BU0255_RefConstWrongOrder
+
+    [Fact]
+    public void Reports_Error_BU0256_ParameterIsStatic() {
+        var text = @"
+            static class A { }
+            void F([A] a) { }
+        ";
+
+        var diagnostics = @"
+            'A': static types cannot be used as parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0257_CircularConstantValue() {
+        var text = @"
+            constexpr int a = [[a]];
+        ";
+
+        var diagnostics = @"
+            the evaluation of the constant value for 'a' involves a circular definition
+            expected a compile-time constant value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0258_DuplicateNameInClass() {
+        var text = @"
+            class A {
+                int a;
+                int [a];
+            }
+        ";
+
+        var diagnostics = @"
+            the type 'A' already contains a definition for 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0259_OverloadRefKind
+
+    [Fact]
+    public void Reports_Error_BU0260_ConstructorAlreadyExists() {
+        var text = @"
+            class A {
+                constructor() {}
+                [constructor]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            type 'A' already defines a constructor with the same parameter types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0261_MemberAlreadyExists() {
+        var text = @"
+            class A {
+                void F() {}
+                void [F]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            type 'A' already defines a member called 'F' with the same parameter types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0262_ProtectedInStatic() {
+        var text = @"
+            static class A {
+                protected static void [F]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()': static classes cannot contain protected members
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0263_EqualsWithoutGetHashCode() {
+        var text = @"
+            class [A] {
+                public override bool! Equals(Object o) { return true; }
+            }
+        ";
+
+        var diagnostics = @"
+            'A' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0264_EqualityOpWithoutEquals() {
+        var text = @"
+            class [[A]] {
+                public static bool operator==(A a, A b) { return true; }
+                public static bool operator!=(A a, A b) { return false; }
+            }
+        ";
+
+        var diagnostics = @"
+            'A' defines operator == or operator != but does not override 'Object.Equals(Object)'
+            'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0265_EqualityOpWithoutGetHashCode() {
+        var text = @"
+            class [[A]] {
+                public static bool operator==(A a, A b) { return true; }
+                public static bool operator!=(A a, A b) { return false; }
+            }
+        ";
+
+        var diagnostics = @"
+            'A' defines operator == or operator != but does not override 'Object.Equals(Object)'
+            'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0266_SealedNonOverride() {
+        var text = @"
+            class A {
+                sealed void [F]();
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()' cannot be sealed because it is not an override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0267_AbstractAndSealed() {
+        var text = @"
+            class A {
+                public sealed abstract void [F]();
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()' cannot be both abstract and sealed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0268_AbstractAndVirtual() {
+        var text = @"
+            class A {
+                public virtual abstract void [F]();
+            }
+        ";
+
+        var diagnostics = @"
+            the abstract method 'A.F()' cannot be marked virtual
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0269_StaticAndConst() {
+        var text = @"
+            class A {
+                public static const void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            the static member 'A.F()' cannot be marked 'const'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0270_VirtualInSealedType() {
+        var text = @"
+            sealed class A {
+                public virtual void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()' is a new virtual member in sealed type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0271_InstanceMemberInStatic() {
+        var text = @"
+            static class A {
+                void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()': cannot declare instance members in a static class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0272_ProtectedInSealed() {
+        var text = @"
+            sealed class A {
+                protected void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F': new protected member declared in sealed type; no different than private
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0273_NewRequired() {
+        var text = @"
+            class A {
+                public void F() { }
+            }
+            class B extends A {
+                public void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()' hides inherited member 'A.F()'; use the new keyword if hiding was intended
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0274_NewNotRequired() {
+        var text = @"
+            class A {
+                new void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            the member 'A.F()' does not hide an accessible member; the new keyword is not required
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Error_BU0275_HidingAbstractMember
+
+    [Fact]
+    public void Reports_Warning_BU0276_NewOrOverrideExpected() {
+        var text = @"
+            class A {
+                public virtual void F() { }
+            }
+            class B extends A {
+                public void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()' hides inherited member 'A.F()'; to make the current member override that implementation, add the override keyword; otherwise add the new keyword
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Error_BU0277_HidingDifferentRefness
+    // ! Error_BU0278_CantOverrideNonMethod
+
+    [Fact]
+    public void Reports_Error_BU279_OverrideNotExpected() {
+        var text = @"
+            class A {
+                public override void [F]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()': no suitable method found to override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0280_AmbiguousOverride
+
+    [Fact]
+    public void Reports_Error_BU281_CantOverrideNonVirtual() {
+        var text = @"
+            class A {
+                public void F() {}
+            }
+            class B extends A {
+                public override void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()': cannot override inherited member 'A.F()' because it is not marked virtual, abstract, or override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU282_CantOverrideSealed() {
+        var text = @"
+            class A {
+                public virtual void F() {}
+            }
+            class B extends A {
+                public sealed override void F() { }
+            }
+            class C extends B {
+                public override void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'C.F()': cannot override inherited member 'B.F()' because it is sealed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU283_CantChangeAccessOnOverride() {
+        var text = @"
+            class A {
+                public virtual void F() {}
+            }
+            class B extends A {
+                protected override void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()': cannot change access modifiers when overriding 'public' inherited member 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0284_CantChangeRefReturnOnOverride
+
+    [Fact]
+    public void Reports_Error_BU285_CantChangeReturnTypeOnOverride() {
+        var text = @"
+            class A {
+                public virtual void F() {}
+            }
+            class B extends A {
+                public override int [F]() { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()': return type must be 'void' to match overridden member 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Warning_BU0286_OverridingDifferentRefness
+    // ! Warning_BU0287_TopLevelNullabilityMismatchInParameterTypeOnOverride
+    // ! Warning_BU0288_NullabilityMismatchInParameterTypeOnOverride
+    // ! Warning_BU0289_TopLevelNullabilityMismatchInReturnTypeOnOverride
+    // ! Warning_BU0290_NullabilityMismatchInReturnTypeOnOverride
+    // ! Fatal_BU0291_LibraryErrors
+
+    [Fact]
+    public void Reports_Error_BU292_OperatorCantReturnVoid() {
+        var text = @"
+            class A {
+                public static void [operator]+(A a, A b) { }
+            }
+        ";
+
+        var diagnostics = @"
+            user-defined operators cannot return void
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU293_BadUnaryOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]+(int a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the parameter of a unary operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0294_BadAbstractUnaryOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU295_BadShiftOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]<<(int a, int b) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the first operand of an overloaded shift operator must have the same type as the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0296_BadAbstractShiftOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU297_BadBinaryOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]+(int a, int b) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            one of the parameters of a binary operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0298_BadAbstractBinaryOperatorSignature
+    // ! Error_BU0299_BadAbstractEqualityOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU300_BadIncrementOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]++(int a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the parameter type for ++ or -- operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0301_BadAbstractIncrementOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU302_BadIncrementReturnType() {
+        var text = @"
+            class A {
+                public static int [operator]++(A a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the return type for ++ or -- operator must match the parameter type or be derived from the parameter type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0303_BadAbstractIncrementReturnType
+
+    [Fact]
+    public void Reports_Error_BU304_BadIndexCount() {
+        var text = @"
+            var a = new int\[\] {1, 2, 3};
+            [a\[2,3\]];
+        ";
+
+        var diagnostics = @"
+            wrong number of indices inside []; expected 1
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0305_MultipleUpdates
+    // ! Error_BU0306_SeparateMainAndUpdate
+
+    [Fact]
+    public void Reports_Error_BU307_FieldsCannotBeImplicitlyTyped() {
+        var text = @"
+            class A {
+                [var] a = 3;
+            }
+        ";
+
+        var diagnostics = @"
+            fields cannot be implicitly typed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU308_NonIntArraySize() {
+        var text = @"
+            var a = new int[\[true\]];
+        ";
+
+        var diagnostics = @"
+            array sizes must be of type 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0309_BadArity
+
+    [Fact]
+    public void Reports_Error_BU310_ProtectedInStruct() {
+        var text = @"
+            struct A {
+                protected [int f];
+            }
+        ";
+
+        var diagnostics = @"
+            'A': protected member declared in struct
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0311_EscapeCall
+    // ! Error_BU0312_EscapeCall2
+    // ! Error_BU0313_EscapeLocal
+    // ! Error_BU0314_RefAssignReturnOnly
+    // ! Error_BU0315_RefAssignNarrower
+    // ! Error_BU0316_RefAssignValEscapeWider
+
+    [Fact]
+    public void Reports_Error_BU317_MissingArraySize() {
+        var text = @"
+            var a = new int[\[\]];
+        ";
+
+        var diagnostics = @"
+            array creation must have array size or array initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
