@@ -632,7 +632,7 @@ internal static class Error {
     }
 
     internal static Diagnostic InvalidExpressionTerm(SyntaxKind kind) {
-        var message = $"invalid expression term {kind}";
+        var message = $"invalid expression term {DiagnosticText(kind, false)}";
         return CreateError(DiagnosticCode.ERR_InvalidExpressionTerm, message);
     }
 
@@ -667,17 +667,17 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CircularBase(TextLocation location, Symbol type1, Symbol type2) {
-        var message = $"circular base dependency involving '{type1}' and '{type2}'";
+        var message = $"circular base dependency involving '{type1.name}' and '{type2.name}'";
         return CreateError(DiagnosticCode.ERR_CircularBase, location, message);
     }
 
     internal static BelteDiagnostic InconsistentAccessibilityClass(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
-        var message = $"inconsistent accessibility: class '{type1}' is less accessible than class '{type2}'";
+        var message = $"inconsistent accessibility: class '{type1.name}' is less accessible than class '{type2.name}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityClass, location, message);
     }
 
-    internal static BelteDiagnostic StaticDeriveFromNotObject(TextLocation location, TypeSymbol type) {
-        var message = $"cannot derive from type '{type}'; static classes must derive from Object";
+    internal static BelteDiagnostic StaticDeriveFromNotObject(TextLocation location, TypeSymbol type, TypeSymbol baseType) {
+        var message = $"static class '{type.name}' cannot derive from type '{baseType.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'; static classes must derive from Object";
         return CreateError(DiagnosticCode.ERR_StaticDeriveFromNotObject, location, message);
     }
 
@@ -717,7 +717,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ArrayOfStaticType(TextLocation location, TypeSymbol type) {
-        var message = $"array elements cannot be of static type {type}";
+        var message = $"array elements cannot be of static type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_ArrayOfStaticType, location, message);
     }
 
@@ -732,12 +732,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotUseThisInStaticMethod(TextLocation location) {
-        var message = "cannot use the 'this' keyword in a static method";
+        var message = "cannot use 'this' in a static method";
         return CreateError(DiagnosticCode.ERR_CannotUseThisInStaticMethod, location, message);
     }
 
     internal static BelteDiagnostic CannotUseBaseInStaticMethod(TextLocation location) {
-        var message = "cannot use the 'base' keyword in a static method";
+        var message = "cannot use 'base' in a static method";
         return CreateError(DiagnosticCode.ERR_CannotUseBaseInStaticMethod, location, message);
     }
 
@@ -1205,11 +1205,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InstanceMemberInStatic, location, message);
     }
 
-    internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}': sealed classes cannot contain protected members";
-        return CreateError(DiagnosticCode.ERR_ProtectedInSealed, location, message);
-    }
-
     internal static BelteDiagnostic HidingAbstractMember(TextLocation location, Symbol symbol, Symbol hiddenMember) {
         var message = $"'{symbol}' hides inherited abstract member '{hiddenMember}'";
         return CreateError(DiagnosticCode.ERR_HidingAbstractMember, location, message);
@@ -1536,6 +1531,11 @@ internal static class Error {
     internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {
         var message = $"cannot use a non-nullable annotation on a struct type";
         return CreateError(DiagnosticCode.ERR_CannotAnnotateStruct, location, message);
+    }
+
+    internal static BelteDiagnostic MissingArraySize(TextLocation location) {
+        var message = $"array creation must have array size or array initializer";
+        return CreateError(DiagnosticCode.ERR_MissingArraySize, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -652,8 +652,8 @@ internal partial class Binder {
         var type = BindType(node.elementType, diagnostics, basesBeingResolved);
         var rank = node.rankSpecifiers.Count;
 
-        if (type.isStatic)
-            diagnostics.Push(Error.ArrayOfStaticType(node.elementType.location, type.type));
+        if (type.nullableUnderlyingTypeOrSelf.isStatic)
+            diagnostics.Push(Error.ArrayOfStaticType(node.elementType.location, type.nullableUnderlyingTypeOrSelf));
 
         for (var i = 0; i < rank; i++) {
             var rankSpecifier = node.rankSpecifiers[i];
@@ -1503,33 +1503,34 @@ internal partial class Binder {
                     return expression;
 
                 break;
-            case BoundKind.DataContainerExpression: {
-                    var symbol = ((BoundDataContainerExpression)expression).dataContainer;
+                // TODO Need to be able to check the refness while being aware of the lhs
+                // case BoundKind.DataContainerExpression: {
+                //         var symbol = ((BoundDataContainerExpression)expression).dataContainer;
 
-                    if (kind == BindValueKind.RefConst && !symbol.isConst)
-                        diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+                //         if (kind == BindValueKind.RefConst && !symbol.isConst)
+                //             diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
 
-                    if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
-                        diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
-                }
+                //         if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
+                //             diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
+                //     }
 
-                break;
-            case BoundKind.ParameterExpression:
-                if (kind == BindValueKind.RefConst)
-                    diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+                //     break;
+                // case BoundKind.ParameterExpression:
+                //     if (kind == BindValueKind.RefConst)
+                //         diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
 
-                break;
-            case BoundKind.FieldAccessExpression: {
-                    var symbol = ((BoundFieldAccessExpression)expression).field;
+                //     break;
+                // case BoundKind.FieldAccessExpression: {
+                //         var symbol = ((BoundFieldAccessExpression)expression).field;
 
-                    if (kind == BindValueKind.RefConst && !symbol.isConst)
-                        diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+                //         if (kind == BindValueKind.RefConst && !symbol.isConst)
+                //             diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
 
-                    if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
-                        diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
-                }
+                //         if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
+                //             diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
+                //     }
 
-                break;
+                //     break;
         }
 
         var hasResolutionErrors = false;
@@ -2671,7 +2672,7 @@ internal partial class Binder {
         if (operand.hasErrors || targetType.IsErrorType())
             return;
 
-        if (targetType.isStatic) {
+        if (targetType.StrippedType().isStatic) {
             diagnostics.Push(Error.CannotConvertToStatic(syntax.location, targetType));
             return;
         }
@@ -2700,11 +2701,11 @@ internal partial class Binder {
         ExpressionSyntax creationSyntax,
         InitializerListExpressionSyntax initSyntax,
         ArrayTypeSymbol type,
-        ImmutableArray<BoundExpression> sizes) {
+        ImmutableArray<BoundExpression> sizes,
+        bool hasErrors = false) {
         var rank = type.rank;
         var numSizes = sizes.Length;
         var knownSizes = new long?[Math.Max(rank, numSizes)];
-        var hasErrors = false;
 
         for (var i = 0; i < numSizes; ++i) {
             var size = sizes[i];
@@ -2891,6 +2892,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var type = (ArrayTypeSymbol)BindArrayType(node.type, diagnostics, true, null).type;
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
+        var hasErrors = false;
 
         for (var i = 0; i < type.rank; i++) {
             var rankSpecifier = node.type.rankSpecifiers[i];
@@ -2903,12 +2905,22 @@ internal partial class Binder {
                     diagnostics.Push(Error.NonIntArraySize(rankSpecifier.location));
 
                 sizes.Add(boundSize);
+            } else if (node.initializer is null && i == 0) {
+                diagnostics.Push(Error.MissingArraySize(rankSpecifier.location));
+                hasErrors = true;
             }
         }
 
         return node.initializer is null
-            ? new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type)
-            : BindArrayCreationWithInitializer(diagnostics, node, node.initializer, type, sizes.ToImmutable());
+            ? new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type, hasErrors)
+            : BindArrayCreationWithInitializer(
+                diagnostics,
+                node,
+                node.initializer,
+                type,
+                sizes.ToImmutable(),
+                hasErrors
+            );
     }
 
     private protected BoundExpression BindObjectCreationExpression(
@@ -3460,6 +3472,9 @@ internal partial class Binder {
                         isError
                     );
                 }
+
+                if (symbol is DataContainerSymbol d && d.isGlobal && containingMember is not SynthesizedEntryPoint)
+                    ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(node, symbol, diagnostics);
             }
 
             members.Free();
@@ -4300,6 +4315,8 @@ internal partial class Binder {
             // TODO warning?
         }
 
+        IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics);
+
         var fieldType = fieldSymbol.GetFieldType(fieldsBeingBound).type;
 
         return new BoundFieldAccessExpression(
@@ -4797,6 +4814,8 @@ internal partial class Binder {
         MethodSymbol methodSymbol,
         SyntaxNode node,
         BelteDiagnosticQueue diagnostics) {
+        IsBadBaseAccess(node, receiver, methodSymbol, diagnostics);
+
         if (MemberGroupFinalValidationAccessibilityChecks(receiver, methodSymbol, node, diagnostics))
             return true;
 
@@ -7355,7 +7374,7 @@ internal partial class Binder {
         } else {
             LookupMembersInType(
                 result,
-                (TypeSymbol)namespaceOrType,
+                ((TypeSymbol)namespaceOrType).StrippedType(),
                 name,
                 arity,
                 basesBeingResolved,
@@ -8443,13 +8462,25 @@ symIsHidden:;
         }
 
         var value = BindValue(initializer, diagnostics, valueKind);
-        var expression = BindToNaturalType(value, diagnostics);
+        var expression = value.kind == BoundKind.MethodGroup
+            ? BindToInferredDelegateType(value, diagnostics)
+            : BindToNaturalType(value, diagnostics);
 
-        if (!expression.hasErrors && !expression.HasExpressionType()) {
-            // TODO Reachable error?
-        }
+        if (!expression.hasErrors && !expression.HasExpressionType() && !compilation.options.isScript)
+            diagnostics.Push(Error.ImplicitlyTypedLocalAssignedBadValue(errorSyntax.location, expression.type));
 
         return expression;
+    }
+
+    private BoundExpression BindToInferredDelegateType(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
+        if (compilation.options.isScript)
+            return BindToNaturalType(expression, diagnostics);
+
+        diagnostics.Push(
+            Error.MethodGroupCannotBeUsedAsValue(expression.syntax.location, (BoundMethodGroup)expression)
+        );
+
+        return GenerateConversionForAssignment(CreateErrorType(), expression, diagnostics);
     }
 
     private BoundExpression BindArrayDimension(
@@ -9023,7 +9054,7 @@ symIsHidden:;
             else
                 return expression;
         } else {
-            var collapsedConversion = CollapseConversion(conversion);
+            var collapsedConversion = Conversion.CollapseConversion(conversion);
 
             if (!collapsedConversion.exists ||
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
@@ -9044,22 +9075,6 @@ symIsHidden:;
         }
 
         return CreateConversion(expression.syntax, expression, conversion, false, targetType, diagnostics);
-    }
-
-    private Conversion CollapseConversion(Conversion conversion) {
-        var current = conversion;
-
-        while (true) {
-            if (current.isExplicit)
-                break;
-
-            if (current.underlyingConversions != default)
-                current = current.underlyingConversions[0];
-            else
-                break;
-        }
-
-        return current;
     }
 
     private protected void GenerateImplicitConversionError(
@@ -9201,7 +9216,8 @@ symIsHidden:;
             source = BindToNaturalType(source, diagnostics);
 
             if (!isCast &&
-                (source.IsLiteralNull() || source.type.Equals(destination, TypeCompareKind.IgnoreNullability))) {
+                (source.IsLiteralNull() ||
+                (source.type is not null && source.type.Equals(destination, TypeCompareKind.IgnoreNullability)))) {
                 return source;
             }
         }

@@ -101,9 +101,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
         var flags = new Flags(
             methodKind,
-            // TODO See todo in fields, we currently use ref modifier on outer symbol instead of on type
-            // syntax.returnType.GetRefKind(),
-            ((declarationModifiers & DeclarationModifiers.Ref) != 0) ? RefKind.Ref : RefKind.None,
+            syntax.returnType.GetRefKind(),
             declarationModifiers,
             false,
             false,
@@ -243,7 +241,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         else if (!_hasAnyBody && !isAbstract)
             diagnostics.Push(Error.NonAbstractMustHaveBody(location, this));
         else if (containingType.isSealed && declaredAccessibility.HasProtected() && !isOverride)
-            diagnostics.Push(Error.ProtectedInSealed(location, this));
+            diagnostics.Push(Warning.ProtectedInSealed(location, this));
         else if (containingType.isStatic && !isStatic)
             diagnostics.Push(Error.InstanceMemberInStatic(location, this));
     }

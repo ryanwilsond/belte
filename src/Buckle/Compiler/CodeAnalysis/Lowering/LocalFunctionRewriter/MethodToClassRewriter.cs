@@ -124,7 +124,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
     //     return node.Update(newLocals, declarations, expression, body, node.AwaitOpt, node.PatternDisposeInfoOpt);
     // }
     internal sealed override TypeSymbol VisitType(TypeSymbol type) {
-        return _templateMap.SubstituteType(type).type.type;
+        return _templateMap.SubstituteType(type)?.type?.type;
     }
 
 

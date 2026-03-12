@@ -153,7 +153,7 @@ public enum DiagnosticCode : ushort {
     ERR_TypeDoesNotImplementAbstract = 142,
     ERR_OperatorNeedsMatch = 143,
     ERR_InvalidExpressionTerm = 144,
-    WRN_ProtectedMemberInSealedType = 145,
+    // ! 145
     ERR_MultipleAccessibilities = 146,
     ERR_CircularConstraint = 147,
     ERR_TemplateObjectBaseWithPrimitiveBase = 148,
@@ -280,7 +280,7 @@ public enum DiagnosticCode : ushort {
     ERR_StaticAndConst = 269,
     ERR_VirtualInSealedType = 270,
     ERR_InstanceMemberInStatic = 271,
-    ERR_ProtectedInSealed = 272,
+    WRN_ProtectedInSealed = 272,
     WRN_NewRequired = 273,
     WRN_NewNotRequired = 274,
     ERR_HidingAbstractMember = 275,
@@ -325,6 +325,7 @@ public enum DiagnosticCode : ushort {
     ERR_RefAssignReturnOnly = 314,
     ERR_RefAssignNarrower = 315,
     ERR_RefAssignValEscapeWider = 316,
+    ERR_MissingArraySize = 317,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

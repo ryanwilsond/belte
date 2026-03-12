@@ -1,6 +1,7 @@
 using System;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Shared.Tests;
@@ -156,7 +157,9 @@ internal static class Assertions {
             Assert.Equal(expectedMessage, actualMessage);
 
             var expectedSpan = annotatedText.spans[i];
-            var actualSpan = diagnostic.location.span;
+            var actualSpan = diagnostic.location?.span
+                ?? TextSpan.FromBounds(annotatedText.text.Length, annotatedText.text.Length);
+
             writer.WriteLine($"start: {expectedSpan.start}, {actualSpan.start}");
             Assert.Equal(expectedSpan.start, actualSpan.start);
             writer.WriteLine($"end: {expectedSpan.end}, {actualSpan.end}");

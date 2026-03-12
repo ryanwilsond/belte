@@ -53,6 +53,7 @@ internal sealed class BinaryOperatorOverloadResolutionResult {
                         continue;
 
                     bestCount = 1;
+                    bestScore = resultScore;
                     best = result;
                 }
             }

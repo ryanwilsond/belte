@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 
@@ -115,6 +116,9 @@ public struct EvaluatorValue {
             case ValueKind.Struct: {
                     var heapObject = value.@struct;
                     return FormatObject(heapObject.type, heapObject.fields, context);
+                }
+            case ValueKind.MethodGroup: {
+                    return DisplayText.DisplayNode(value.methodGroup).ToString();
                 }
             default:
                 throw ExceptionUtilities.UnexpectedValue(value.kind);

@@ -28,7 +28,7 @@ internal static class AccessCheck {
         TextLocation errorLocation) {
         return containingType.typeKind == TypeKind.Struct
             ? Error.ProtectedInStruct(errorLocation, containingType)
-            : Error.ProtectedInSealed(errorLocation, containingType);
+            : Warning.ProtectedInSealed(errorLocation, containingType);
     }
 
     private static bool IsSymbolAccessibleCore(

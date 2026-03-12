@@ -319,7 +319,7 @@ internal abstract class Symbol : ISymbol {
     }
 
     internal bool IsNoMoreVisibleThan(TypeSymbol type) {
-        return type.IsAtLeastAsVisibleAs(this);
+        return type.StrippedType().IsAtLeastAsVisibleAs(this);
     }
 
     internal Symbol GetLeastOverriddenMember(NamedTypeSymbol accessingTypeOpt) {

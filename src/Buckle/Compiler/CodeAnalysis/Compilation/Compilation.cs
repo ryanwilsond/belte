@@ -176,12 +176,12 @@ public sealed partial class Compilation {
 
         // TODO Cache this lookup?
         // TODO Eventually flesh out this function to support more options (filtering, sorting, etc.)
-        var builder = ArrayBuilder<ISymbol>.GetInstance();
+        var builder = new HashSet<ISymbol>();
         var current = this;
 
         while (current is not null) {
             if (includeExternal) {
-                builder.AddRange(current.globalNamespace.GetMembers());
+                builder.AddAll(current.globalNamespace.GetMembers());
             } else {
                 foreach (var member in current.globalNamespace.GetMembers()) {
                     if (member is not SynthesizedFinishedNamedTypeSymbol)
@@ -196,15 +196,15 @@ public sealed partial class Compilation {
                         .TryGetBodyBinder(null, true)
                         .GetBinder(compilationUnit);
 
-                    builder.AddRange(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
-                    builder.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
+                    builder.AddAll(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
+                    builder.AddAll(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
                 }
             }
 
             current = current.previous;
         }
 
-        return builder.ToImmutableAndFree();
+        return builder.ToImmutableArray();
     }
 
     public static Compilation Create(string assemblyName, CompilationOptions options, params SyntaxTree[] syntaxTrees) {
@@ -742,7 +742,7 @@ public sealed partial class Compilation {
         if (includeMethods)
             builder.PushRange(methodDiagnostics);
 
-        return builder;
+        return BelteDiagnosticQueue.CleanDiagnostics(builder);
     }
 
     private void EnsureBoundProgramAndMethodDiagnostics() {

@@ -101,7 +101,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
 
     private void CheckModifiers(TextLocation location, BelteDiagnosticQueue diagnostics) {
         if (containingType.isSealed && declaredAccessibility == Accessibility.Protected && !isOverride)
-            diagnostics.Push(Warning.ProtectedMemberInSealedType(location, containingType, this));
+            diagnostics.Push(Warning.ProtectedInSealed(location, this));
         else if (containingType.isStatic)
             diagnostics.Push(Error.ConstructorInStaticClass(location));
     }

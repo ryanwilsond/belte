@@ -1627,8 +1627,13 @@ internal sealed partial class OverloadResolution {
         if (Conversions.HasIdentityConversion(type1, type2))
             return BetterResult.Neither;
 
-        var type1ToType2 = conversions.ClassifyImplicitConversionFromType(type1, type2).isImplicit;
-        var type2ToType1 = conversions.ClassifyImplicitConversionFromType(type2, type1).isImplicit;
+        var type1ToType2 = Conversion.CollapseConversion(
+            conversions.ClassifyImplicitConversionFromType(type1, type2)
+        ).isImplicit;
+
+        var type2ToType1 = Conversion.CollapseConversion(
+            conversions.ClassifyImplicitConversionFromType(type2, type1)
+        ).isImplicit;
 
         if (type1ToType2) {
             if (type2ToType1) {

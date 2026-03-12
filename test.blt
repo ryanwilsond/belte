@@ -1,0 +1,6 @@
+int a = 3;
+int b = a + 7;
+
+class A {
+    int f = a;
+}

@@ -90,7 +90,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         var containingType = this.containingType;
 
         if (containingType?.isSealed == true && declaredAccessibility.HasFlag(Accessibility.Protected))
-            diagnostics.Push(Warning.ProtectedMemberInSealedType(location, containingSymbol, this));
+            diagnostics.Push(Warning.ProtectedInSealed(location, this));
 
         _state.NotePartComplete(CompletionParts.TemplateArguments);
     }
@@ -1295,7 +1295,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case TypeKind.Class:
             case TypeKind.Struct:
                 if (member.name == name)
-                    diagnostics.Push(Error.MemberNameSameAsType(member.syntaxReference.location, name));
+                    diagnostics.Push(Error.MemberNameSameAsType(member.location, name));
 
                 break;
         }

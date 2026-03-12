@@ -198,24 +198,24 @@ done:
         if (!IsNoMoreVisibleThan(underlyingReturnType)) {
             if (methodKind == MethodKind.Operator) {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityOperatorReturn(syntaxReference.location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType, this)
                 );
             } else {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityReturn(syntaxReference.location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityReturn(location, underlyingReturnType, this)
                 );
             }
         }
 
         foreach (var parameter in parameters) {
-            if (!parameter.typeWithAnnotations.IsAtLeastAsVisibleAs(this)) {
+            if (!parameter.typeWithAnnotations.nullableUnderlyingTypeOrSelf.IsAtLeastAsVisibleAs(this)) {
                 if (methodKind == MethodKind.Operator) {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityOperatorParameter(syntaxReference.location, parameter.type, this)
+                        Error.InconsistentAccessibilityOperatorParameter(location, parameter.type, this)
                     );
                 } else {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityParameter(syntaxReference.location, parameter.type, this)
+                        Error.InconsistentAccessibilityParameter(location, parameter.type, this)
                     );
                 }
             }

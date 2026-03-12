@@ -46,7 +46,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     public static BelteDiagnosticQueue CleanDiagnostics(BelteDiagnosticQueue diagnostics) {
         // TODO This needs to be tested with duplicate diagnostics at the end of the input before being used
         var cleanedDiagnostics = new BelteDiagnosticQueue();
-        var specialDiagnostics = new BelteDiagnosticQueue();
+        var specialDiagnostics = GetInstance();
 
         var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
 
@@ -65,7 +65,8 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
             cleanedDiagnostics.Push(diagnostic);
         }
 
-        cleanedDiagnostics.Move(specialDiagnostics);
+        cleanedDiagnostics.PushRange(specialDiagnostics);
+        specialDiagnostics.Free();
 
         return cleanedDiagnostics;
     }

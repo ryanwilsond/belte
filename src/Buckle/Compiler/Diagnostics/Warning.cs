@@ -1,6 +1,5 @@
-using System.Linq;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Diagnostics;
 
@@ -35,11 +34,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
     }
 
-    internal static BelteDiagnostic ProtectedMemberInSealedType(TextLocation location, NamespaceOrTypeSymbol containingSymbol, Symbol member) {
-        var message = $"'{containingSymbol}.{member}': new protected member declared in sealed type; no different than private";
-        return CreateWarning(DiagnosticCode.WRN_ProtectedMemberInSealedType, location, message);
-    }
-
     internal static BelteDiagnostic NeverGivenType(TextLocation location, TypeSymbol type) {
         var message = $"the given expression is never of the provided type ('{type.ToNullOrString()}')";
         return CreateWarning(DiagnosticCode.WRN_NeverGivenType, location, message);
@@ -51,7 +45,7 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic IncorrectBooleanAssignment(TextLocation location) {
-        var message = "assignment in conditional expression is always constant; did you mean to use == instead of = ?";
+        var message = "assignment in conditional expression is always constant; did you mean to use '==' instead of '=' ?";
         return CreateWarning(DiagnosticCode.WRN_IncorrectBooleanAssignment, location, message);
     }
 
@@ -148,6 +142,11 @@ internal static class Warning {
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
         var message = $"local '{name}' shares a name with a type in this namespace";
         return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
+    }
+
+    internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': new protected member declared in sealed type; no different than private";
+        return CreateWarning(DiagnosticCode.WRN_ProtectedInSealed, location, message);
     }
 
     // TODO Implement this warning

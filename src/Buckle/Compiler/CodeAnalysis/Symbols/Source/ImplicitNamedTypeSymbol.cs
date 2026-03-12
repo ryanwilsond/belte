@@ -16,6 +16,11 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
 
     private protected override void CheckBase(BelteDiagnosticQueue diagnostics) { }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        _state.NotePartComplete(CompletionParts.Attributes);
+        return [];
+    }
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
     }

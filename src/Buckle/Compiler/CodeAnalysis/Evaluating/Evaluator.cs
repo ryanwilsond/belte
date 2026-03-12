@@ -728,10 +728,8 @@ internal sealed class Evaluator {
                 IndirectStore(lhs, value);
                 break;
             case BoundKind.ThisExpression:
-                // TODO Double check this
-                // lhs.ptr = value.ptr;
-                // break;
-                throw ExceptionUtilities.Unreachable();
+                lhs.ptr = value.ptr;
+                break;
             case BoundKind.ConditionalOperator:
                 IndirectStore(lhs, value);
                 break;
