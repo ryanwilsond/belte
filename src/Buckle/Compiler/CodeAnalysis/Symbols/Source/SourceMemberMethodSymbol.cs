@@ -109,6 +109,12 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
+                case CompletionParts.ReturnTypeAttributes:
+                    GetReturnTypeAttributes();
+                    break;
                 case CompletionParts.Type:
                     _ = returnType;
                     _state.NotePartComplete(CompletionParts.Type);
@@ -141,6 +147,11 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
 
 done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
+    }
+
+    private protected sealed override void NoteAttributesComplete(bool forReturnType) {
+        var part = forReturnType ? CompletionParts.ReturnTypeAttributes : CompletionParts.Attributes;
+        _state.NotePartComplete(part);
     }
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {

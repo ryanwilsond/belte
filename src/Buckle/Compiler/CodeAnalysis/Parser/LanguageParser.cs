@@ -39,11 +39,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
     /// </summary>
     /// <returns>The parsed file.</returns>
     internal CompilationUnitSyntax ParseCompilationUnit() {
-        var attributeLists = ParseAttributeLists();
+        // TODO How do we distinguish compilation attributes from attributes of the first member?
+        // var attributeLists = ParseAttributeLists();
         var usings = ParseUsings();
         var members = ParseMembers(true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
-        return SyntaxFactory.CompilationUnit(attributeLists, usings, members, endOfFile);
+        return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), usings, members, endOfFile);
     }
 
     private new ResetPoint GetResetPoint() {
@@ -354,45 +355,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.ClassKeyword:
                 return ParseClassDeclaration(attributeLists, modifiers);
             default:
-                if (allowGlobalStatements) {
-                    if (attributeLists.Any()) {
-                        var builder = new SyntaxListBuilder<AttributeListSyntax>(attributeLists.Count);
-
-                        for (var i = 0; i < attributeLists.Count; i++) {
-                            if (i == 0)
-                                builder.Add(AddDiagnostic(attributeLists[i], Error.InvalidAttributes()));
-                            else
-                                builder.Add(attributeLists[i]);
-                        }
-
-                        attributeLists = builder.ToList();
-                    }
-
-                    if (modifiers.Any()) {
-                        var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
-
-                        foreach (var modifier in modifiers) {
-                            if (currentToken.kind == SyntaxKind.OpenBraceToken
-                                ? modifier.kind is SyntaxKind.LowlevelKeyword
-                                : modifier.kind is SyntaxKind.ConstKeyword or
-                                                   SyntaxKind.ConstexprKeyword or
-                                                   SyntaxKind.RefKeyword) {
-                                builder.Add(modifier);
-                                continue;
-                            }
-
-                            builder.Add(
-                                AddDiagnostic(modifier, Error.InvalidModifier(SyntaxFacts.GetText(modifier.kind)))
-                            );
-                        }
-
-                        modifiers = builder.ToList();
-                    }
-
+                if (allowGlobalStatements)
                     return ParseGlobalStatement(attributeLists, modifiers);
-                } else {
+                else
                     return ParseFieldDeclaration(attributeLists, modifiers);
-                }
         }
     }
 
@@ -600,7 +566,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private MemberDeclarationSyntax ParseMethodDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
-        var type = ParseType(false);
+        var type = ParseType();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
@@ -707,7 +673,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers) {
         attributeLists ??= ParseAttributeLists();
         modifiers ??= ParseModifiers();
-        var type = ParseType(false);
+        var type = ParseType();
         var identifier = Match(SyntaxKind.IdentifierToken);
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
@@ -755,7 +721,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         while (true) {
             var modifier = GetModifier(currentToken);
 
-            if (modifier == DeclarationModifiers.None)
+            if (modifier is DeclarationModifiers.None or DeclarationModifiers.Ref or DeclarationModifiers.ConstRef)
                 break;
 
             modifiers.Add(EatToken());
@@ -828,6 +794,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ParameterSyntax ParseParameter() {
+        var attributes = ParseAttributeLists();
         var modifiers = ParseParameterModifiers();
         var type = ParseType(false);
         var identifier = Match(SyntaxKind.IdentifierToken);
@@ -835,7 +802,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             ? ParseEqualsValueClause(false)
             : null;
 
-        return SyntaxFactory.Parameter(modifiers, type, identifier, defaultValue);
+        return SyntaxFactory.Parameter(attributes, modifiers, type, identifier, defaultValue);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {
@@ -869,17 +836,45 @@ internal sealed partial class LanguageParser : SyntaxParser {
             out var consumedModifiers
         );
 
-        if (consumedAttributeLists)
+        if (consumedAttributeLists) {
             attributeLists = null;
-        if (consumedModifiers)
+        } else {
+            if (attributeLists.Any()) {
+                var builder = new SyntaxListBuilder<AttributeListSyntax>(attributeLists.Count);
+
+                for (var i = 0; i < attributeLists.Count; i++) {
+                    if (i == 0)
+                        builder.Add(AddDiagnostic(attributeLists[i], Error.InvalidAttributes()));
+                    else
+                        builder.Add(attributeLists[i]);
+                }
+
+                attributeLists = builder.ToList();
+            }
+        }
+
+        if (consumedModifiers) {
             modifiers = null;
+        } else {
+            if (modifiers.Any()) {
+                var builder = new SyntaxListBuilder<SyntaxToken>(modifiers.Count);
+
+                foreach (var modifier in modifiers) {
+                    builder.Add(
+                        AddDiagnostic(modifier, Error.InvalidModifier(SyntaxFacts.GetText(modifier.kind)))
+                    );
+                }
+
+                modifiers = builder.ToList();
+            }
+        }
 
         return SyntaxFactory.GlobalStatement(attributeLists, modifiers, statement);
     }
 
     private VariableDeclarationSyntax ParseVariableDeclaration() {
         var inStruct = (_context & ParserContext.InStructDefinition) != 0;
-        var type = ParseType(allowRef: !inStruct);
+        var type = ParseType();
         var identifier = Match(SyntaxKind.IdentifierToken);
         var initializer = currentToken.kind == SyntaxKind.EqualsToken
             ? ParseEqualsValueClause(inStruct)
@@ -1801,16 +1796,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private TypeSyntax ParseType(bool allowRef = true, bool allowArraySize = false) {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
-            var refKeyword = EatToken();
+            if (allowRef) {
+                var refKeyword = EatToken();
 
-            if (!allowRef)
-                refKeyword = AddDiagnostic(refKeyword, Error.CannotUseRef());
+                return SyntaxFactory.ReferenceType(
+                    refKeyword,
+                    currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
+                    ParseTypeCore(allowArraySize)
+                );
+            } else {
+                var unexpected = EatToken(stallDiagnostics: true);
 
-            return SyntaxFactory.ReferenceType(
-                refKeyword,
-                currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                ParseTypeCore(allowArraySize)
-            );
+                return AddDiagnostic(
+                    WithFutureDiagnostics(AddLeadingSkippedSyntax(ParseTypeCore(allowArraySize), unexpected)),
+                    Error.CannotUseRef(),
+                    unexpected.GetLeadingTriviaWidth(),
+                    unexpected.width
+                );
+            }
         }
 
         return ParseTypeCore(allowArraySize);

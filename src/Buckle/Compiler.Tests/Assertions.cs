@@ -14,9 +14,9 @@ namespace Buckle.Tests;
 /// </summary>
 internal static class Assertions {
     private static CompilationOptions DefaultEvalOptions
-        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, [], true, false);
+        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, [], enableOutput: false);
     private static CompilationOptions DefaultExecOptions
-        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, [], true, false);
+        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, [], enableOutput: false);
 
     private readonly static Compilation BaseCompilation;
 
@@ -101,8 +101,13 @@ internal static class Assertions {
     /// <param name="diagnosticText">Diagnostic message(s).</param>
     /// <param name="writer">Writer to write debug into to if the assertion fails.</param>
     /// <param name="assertWarnings">If to assert against warnings as well as errors.</param>
+    /// <param name="script">If the compilation should be in script mode.</param>
     internal static void AssertDiagnostics(
-        string text, string diagnosticText, ITestOutputHelper writer, bool assertWarnings = false) {
+        string text,
+        string diagnosticText,
+        ITestOutputHelper writer,
+        bool assertWarnings = false,
+        bool script = true) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
@@ -112,12 +117,14 @@ internal static class Assertions {
         if (treeDiagnostics.AnyErrors()) {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
-            var compilation = Compilation.CreateScript(
-                "Tests",
-                DefaultEvalOptions,
-                syntaxTree,
-                BaseCompilation
-            );
+            var compilation = script
+                ? Compilation.CreateScript(
+                    "Tests",
+                    DefaultEvalOptions,
+                    syntaxTree,
+                    BaseCompilation
+                )
+                : Compilation.Create("Tests", DefaultEvalOptions, syntaxTree);
 
             var result = compilation.Evaluate(false);
             tempDiagnostics = result.diagnostics;

@@ -40,6 +40,8 @@ internal sealed partial class SingleTypeDeclaration : SingleNamespaceOrTypeDecla
 
     internal StrongBox<ImmutableSegmentedHashSet<string>> memberNames { get; }
 
+    internal bool hasAnyAttributes => (_flags & TypeDeclarationFlags.HasAnyAttributes) != 0;
+
     internal bool hasBaseDeclarations => (_flags & TypeDeclarationFlags.HasBaseDeclarations) != 0;
 
     internal bool hasAnyNonTypeMembers => (_flags & TypeDeclarationFlags.HasAnyNonTypeMembers) != 0;
@@ -49,6 +51,8 @@ internal sealed partial class SingleTypeDeclaration : SingleNamespaceOrTypeDecla
     internal bool isSimpleProgram => (_flags & TypeDeclarationFlags.IsSimpleProgram) != 0;
 
     internal bool hasRequiredMembers => (_flags & TypeDeclarationFlags.HasRequiredMembers) != 0;
+
+    internal bool anyMemberHasAttributes => (_flags & TypeDeclarationFlags.AnyMemberHasAttributes) != 0;
 
     internal TypeDeclarationIdentity identity => new TypeDeclarationIdentity(this);
 

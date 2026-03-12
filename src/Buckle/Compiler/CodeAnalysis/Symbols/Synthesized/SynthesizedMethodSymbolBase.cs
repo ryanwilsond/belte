@@ -91,6 +91,14 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
 
     private protected virtual ImmutableArray<NamedTypeSymbol> _extraSynthesizedRefParameters => default;
 
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return inheritsBaseMethodAttributes ? baseMethod.GetAttributes() : [];
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return inheritsBaseMethodAttributes ? baseMethod.GetReturnTypeAttributes() : [];
+    }
+
     private ImmutableArray<ParameterSymbol> MakeParameters() {
         var ordinal = 0;
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance();

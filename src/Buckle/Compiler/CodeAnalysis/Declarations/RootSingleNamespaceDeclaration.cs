@@ -15,7 +15,7 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
         bool hasAssemblyAttributes,
         ImmutableArray<BelteDiagnostic> diagnostics)
         : base(
-            "global",
+            "<global>",
             treeNode,
             nameLocation: treeNode.location,
             children: children,

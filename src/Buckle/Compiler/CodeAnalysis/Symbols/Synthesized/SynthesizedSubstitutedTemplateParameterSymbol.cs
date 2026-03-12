@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -12,4 +13,11 @@ internal sealed class SynthesizedSubstitutedTemplateParameterSymbol : Substitute
 
     internal override TemplateParameterKind templateParameterKind
         => containingSymbol is MethodSymbol ? TemplateParameterKind.Method : TemplateParameterKind.Type;
+
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        if (containingSymbol is SynthesizedMethodSymbolBase { inheritsBaseMethodAttributes: true })
+            return underlyingTemplateParameter.GetAttributes();
+
+        return [];
+    }
 }

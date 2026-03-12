@@ -17,7 +17,7 @@ public enum DiagnosticCode : ushort {
     ERR_UnexpectedToken = 6,
     ERR_CannotConvertImplicitly = 7,
     ERR_InvalidUnaryOperatorUse = 8,
-    ERR_NamedBeforeUnnamed = 9,
+    // ! 9
     ERR_NamedArgumentTwice = 10,
     ERR_InvalidBinaryOperatorUse = 11,
     ERR_GlobalStatementsInMultipleFiles = 12,
@@ -38,7 +38,7 @@ public enum DiagnosticCode : ushort {
     ERR_UnterminatedString = 27,
     ERR_NoAliasHere = 28,
     ERR_BadUsingType = 29,
-    ERR_TypeAlreadyDeclared = 30,
+    // ! 30
     ERR_DuplicateUsing = 31,
     ERR_CannotCallNonMethod = 32,
     ERR_InvalidExpressionStatement = 33,
@@ -61,7 +61,7 @@ public enum DiagnosticCode : ushort {
     ERR_InitializeByValueWithByReference = 50,
     ERR_UnexpectedTokenExpectedAnother = 51,
     ERR_ExpectedTokenAtEOF = 52,
-    ERR_ImpliedReference = 53,
+    WRN_ImpliedReference = 53,
     ERR_ReferenceToConstant = 54,
     ERR_VoidVariable = 55,
     ERR_ExpectedToken = 56,

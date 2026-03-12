@@ -161,7 +161,6 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
         => GetWellKnownAttributeDataStringField(data => data.assemblyKeyContainerAttributeSetting,
             WellKnownAttributeData.StringMissingValue, QuickAttributes.AssemblyKeyName);
 
-
     internal override bool HasComplete(CompletionParts part) {
         return _state.HasComplete(part);
     }
@@ -210,6 +209,10 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
 
             _state.SpinWaitComplete(incompletePart);
         }
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return GetSourceAttributesBag().attributes;
     }
 
     private void ReportDiagnosticsForAddedModules() {

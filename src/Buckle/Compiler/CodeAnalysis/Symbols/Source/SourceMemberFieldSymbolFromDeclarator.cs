@@ -51,6 +51,13 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         return false;
     }
 
+    private protected override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        if (((SourceMemberContainerTypeSymbol)containingType).anyMemberHasAttributes)
+            return OneOrMany.Create(GetFieldDeclaration(syntaxNode).attributeLists);
+
+        return OneOrMany<SyntaxList<AttributeListSyntax>>.Empty;
+    }
+
     private protected sealed override ConstantValue MakeConstantValue(
         HashSet<SourceFieldSymbolWithSyntaxReference> dependencies,
         BelteDiagnosticQueue diagnostics) {
@@ -88,10 +95,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         var binder = binderFactory.GetBinder(typeSyntax);
         binder = binder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
 
-        var typeOnly = typeSyntax.SkipRef(out _);
-        var refKind = ((_modifiers & DeclarationModifiers.Ref) != 0) ? RefKind.Ref : RefKind.None;
-        // TODO Consider using ref attached to type instead of modifiers like so:
-        // var typeOnly = typeSyntax.SkipRef(out var refKind);
+        var typeOnly = typeSyntax.SkipRef(out var refKind);
 
         type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped);
 

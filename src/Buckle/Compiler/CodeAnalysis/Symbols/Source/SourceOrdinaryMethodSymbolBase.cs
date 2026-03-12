@@ -16,4 +16,6 @@ internal abstract class SourceOrdinaryMethodSymbolBase : SourceOrdinaryMethodOrU
     public override string name { get; }
 
     public abstract override ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
+
+    internal abstract override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations();
 }

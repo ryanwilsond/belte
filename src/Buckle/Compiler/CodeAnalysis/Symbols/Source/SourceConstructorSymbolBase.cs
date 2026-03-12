@@ -88,6 +88,10 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
     }
 
+    internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetReturnTypeAttributeDeclarations() {
+        return OneOrMany.Create(default(SyntaxList<AttributeListSyntax>));
+    }
+
     internal sealed override int CalculateLocalSyntaxOffset(int position, SyntaxTree tree) {
         TextSpan span;
 

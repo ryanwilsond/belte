@@ -1843,10 +1843,10 @@ oneMoreTime:
     }
 
     private void EmitNullAssertOperator(BoundNullAssertOperator expression, bool used) {
-        if (!expression.throwIfNull) {
-            EmitExpression(expression.operand, used);
-            return;
-        }
+        // if (!expression.throwIfNull) {
+        //     EmitExpression(expression.operand, used);
+        //     return;
+        // }
 
         EnsureGlobalsClassIsBuilt();
 

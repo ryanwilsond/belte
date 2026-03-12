@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Reflection;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -136,6 +136,10 @@ internal abstract class Symbol : ISymbol {
     }
 
     internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
+
+    internal virtual ImmutableArray<AttributeData> GetAttributes() {
+        return [];
+    }
 
     internal TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var methodOrType = this;
@@ -281,6 +285,15 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal RefKind GetRefKind() {
+        return this switch {
+            ParameterSymbol p => p.refKind,
+            DataContainerSymbol d => d.refKind,
+            FieldSymbol f => f.refKind,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind)
+        };
+    }
+
     internal bool IsOperator() {
         return this is MethodSymbol m && m.IsOperator();
     }
@@ -321,14 +334,30 @@ internal abstract class Symbol : ISymbol {
 
     internal bool LoadAndValidateAttributes(
         OneOrMany<SyntaxList<AttributeListSyntax>> attributesSyntaxLists,
-        ref CustomAttributesBag<AttributeData> lazyCustomAttributesBag,
+        ref CustomAttributesBag<AttributeData> lazyAttributesBag,
         AttributeLocation symbolPart = AttributeLocation.None,
         bool earlyDecodingOnly = false,
-        Binder? binderOpt = null,
+        Binder binderOpt = null,
         Func<AttributeSyntax, bool> attributeMatchesOpt = null,
         Action<AttributeSyntax> beforeAttributePartBound = null,
-        Action<AttributeSyntax> afterAttributePartBound = null) {
-        // TODO
+        Action<AttributeSyntax> afterAttributePartBound = null,
+        BelteDiagnosticQueue diagnostics = null) {
+        // TODO Finish when adding attributes for real
+        var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+        if (symbolPart == AttributeLocation.None) {
+            if (attributesSyntaxLists.Any() && (attributesSyntaxLists[0]?.Any() ?? false))
+                currentDiagnostics.Push(Error.InvalidAttributes(attributesSyntaxLists[0][0].location));
+        }
+
+        if (diagnostics is null)
+            AddDeclarationDiagnostics(currentDiagnostics);
+        else
+            diagnostics.PushRange(currentDiagnostics);
+
+        currentDiagnostics.Free();
+
+        lazyAttributesBag = CustomAttributesBag<AttributeData>.Empty;
         return true;
     }
 

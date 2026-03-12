@@ -85,6 +85,7 @@
   </Node>
   <Node Name="ParameterSyntax" Base="SyntaxNode">
     <Kind Name="Parameter"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="identifier" Type="SyntaxToken">

@@ -34,8 +34,6 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
             DeclarationModifiers.Const |
             DeclarationModifiers.ConstExpr |
             DeclarationModifiers.New |
-            DeclarationModifiers.Static |
-            DeclarationModifiers.Ref |
             DeclarationModifiers.LowLevel;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
@@ -59,6 +57,9 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
                 case CompletionParts.Type:
                     GetFieldType(ConsList<FieldSymbol>.Empty);
                     break;

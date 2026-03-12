@@ -124,16 +124,7 @@ internal class LocalScopeBinder : Binder {
                         FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
                     }, (localScopeBinder: this, locals, localDeclarationBinder));
 
-                    DataContainerDeclarationKind kind;
-
-                    if (decl.isConst)
-                        kind = DataContainerDeclarationKind.Constant;
-                    else if (decl.isConstExpr)
-                        kind = DataContainerDeclarationKind.ConstantExpression;
-                    else
-                        kind = DataContainerDeclarationKind.Variable;
-
-                    var localSymbol = MakeLocal(decl.declaration, kind, decl.modifiers, localDeclarationBinder);
+                    var localSymbol = MakeLocal(decl.declaration, decl.modifiers, localDeclarationBinder);
                     locals.Add(localSymbol);
 
                     ExpressionVariableFinder.FindExpressionVariables(
@@ -217,7 +208,6 @@ internal class LocalScopeBinder : Binder {
 
     private protected SourceDataContainerSymbol MakeLocal(
         VariableDeclarationSyntax declaration,
-        DataContainerDeclarationKind kind,
         SyntaxTokenList modifiers,
         Binder initializerBinder = null) {
         return SourceDataContainerSymbol.MakeLocal(
@@ -226,7 +216,6 @@ internal class LocalScopeBinder : Binder {
             allowRefKind: true,
             declaration.type,
             declaration.identifier,
-            kind,
             declaration.initializer,
             modifiers,
             initializerBinder

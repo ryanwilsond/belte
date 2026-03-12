@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -38,5 +39,9 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
 
     internal override void EnsureConstraintsAreResolved() {
         underlyingTemplateParameter.EnsureConstraintsAreResolved();
+    }
+
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return underlyingTemplateParameter.GetAttributes();
     }
 }

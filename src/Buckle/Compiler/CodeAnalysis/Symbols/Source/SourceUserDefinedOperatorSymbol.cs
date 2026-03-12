@@ -43,6 +43,10 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
         );
     }
 
+    internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(GetSyntax().attributeLists);
+    }
+
     internal OperatorDeclarationSyntax GetSyntax() {
         return (OperatorDeclarationSyntax)syntaxReference.node;
     }

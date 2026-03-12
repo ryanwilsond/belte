@@ -23,4 +23,11 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
     internal override bool hasDefaultArgumentSyntax => false;
 
     internal override bool hasUnscopedRefAttribute => false;
+
+    internal override SyntaxList<AttributeListSyntax> attributeDeclarationList => default;
+
+    internal override CustomAttributesBag<AttributeData> GetAttributesBag() {
+        _state.NotePartComplete(CompletionParts.Attributes);
+        return CustomAttributesBag<AttributeData>.Empty;
+    }
 }

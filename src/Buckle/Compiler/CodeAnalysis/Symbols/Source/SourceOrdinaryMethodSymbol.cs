@@ -41,6 +41,17 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private bool _hasAnyBody => _flags.hasAnyBody;
 
+    private SyntaxList<AttributeListSyntax> _attributeDeclarationSyntaxList {
+        get {
+            if (containingType is SourceMemberContainerTypeSymbol sourceContainer &&
+                sourceContainer.anyMemberHasAttributes) {
+                return GetSyntax().attributeLists;
+            }
+
+            return default;
+        }
+    }
+
     internal static SourceOrdinaryMethodSymbol CreateMethodSymbol(
         NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
@@ -56,6 +67,10 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {
         return TryGetBodyBinderFromSyntax(binderFactory, ignoreAccessibility);
+    }
+
+    internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(_attributeDeclarationSyntaxList);
     }
 
     internal MethodDeclarationSyntax GetSyntax() {
@@ -213,7 +228,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Error.ConflictingOverrideModifiers(location, this));
         else if (isSealed && !isOverride && !isAbstract)
             diagnostics.Push(Error.SealedNonOverride(location, this));
-        else if (returnType.isStatic)
+        else if (returnType.StrippedType().isStatic)
             diagnostics.Push(Error.CannotReturnStatic(location, returnType));
         else if (isAbstract && isSealed)
             diagnostics.Push(Error.AbstractAndSealed(location, this));

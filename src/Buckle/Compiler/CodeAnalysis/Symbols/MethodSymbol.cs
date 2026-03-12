@@ -126,6 +126,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal virtual bool isMetadataFinal
         => isSealed || (IsMetadataVirtual() && !(isVirtual || isOverride || isAbstract));
 
+    internal virtual ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return [];
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitMethod(this);
     }

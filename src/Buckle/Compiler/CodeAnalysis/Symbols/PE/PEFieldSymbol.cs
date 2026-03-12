@@ -117,6 +117,26 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
         }
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        // TODO
+        // if (_lazyCustomAttributes.IsDefault)
+        // {
+        //     var containingPEModuleSymbol = (PEModuleSymbol)this.ContainingModule;
+
+        //     var attributes = containingPEModuleSymbol.GetCustomAttributesForToken(
+        //         _handle,
+        //         out _,
+        //         FilterOutDecimalConstantAttribute() ? AttributeDescription.DecimalConstantAttribute : default,
+        //         out CustomAttributeHandle required,
+        //         AttributeDescription.RequiredMemberAttribute);
+
+        //     ImmutableInterlocked.InterlockedInitialize(ref _lazyCustomAttributes, attributes);
+        //     _packedFlags.SetHasRequiredMemberAttribute(!required.IsNil);
+        // }
+        // return _lazyCustomAttributes;
+        return [];
+    }
+
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
         EnsureSignatureIsLoaded();
         return _lazyType;

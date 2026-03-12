@@ -107,6 +107,24 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override TypeOrConstant defaultValue => null;
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        // TODO
+        // if (_lazyCustomAttributes.IsDefault) {
+        //     var containingPEModuleSymbol = (PEModuleSymbol)this.ContainingModule;
+
+        //     var loadedCustomAttributes = containingPEModuleSymbol.GetCustomAttributesForToken(
+        //         Handle,
+        //         out _,
+        //         // Filter out [IsUnmanagedAttribute]
+        //         HasUnmanagedTypeConstraint ? AttributeDescription.IsUnmanagedAttribute : default);
+
+        //     ImmutableInterlocked.InterlockedInitialize(ref _lazyCustomAttributes, loadedCustomAttributes);
+        // }
+
+        // return _lazyCustomAttributes;
+        return [];
+    }
+
     private ImmutableArray<TypeWithAnnotations> GetDeclaredConstraintTypes(
         ConsList<PETemplateParameterSymbol> inProgress) {
         if (_lazyDeclaredConstraintTypes.IsDefault) {

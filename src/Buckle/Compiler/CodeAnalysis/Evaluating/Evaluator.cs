@@ -330,7 +330,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateStackSlotExpression(BoundStackSlotExpression node) {
         var local = node.symbol;
-        var isRefLocal = GetSymbolRefKind(local) != RefKind.None;
+        var isRefLocal = local.GetRefKind() != RefKind.None;
 
         var value = _stack.Peek().values[node.slot];
 
@@ -715,7 +715,7 @@ internal sealed class Evaluator {
             case BoundKind.StackSlotExpression:
                 var symbol = ((BoundStackSlotExpression)expression).symbol;
 
-                if (GetSymbolRefKind(symbol) != RefKind.None && !node.isRef) {
+                if (symbol.GetRefKind() != RefKind.None && !node.isRef) {
                     IndirectStore(lhs, value);
                     // TODO Is this correct? Or is it really a double indirect store above
                     throw ExceptionUtilities.Unreachable();
@@ -729,10 +729,9 @@ internal sealed class Evaluator {
                 break;
             case BoundKind.ThisExpression:
                 // TODO Double check this
-
+                // lhs.ptr = value.ptr;
+                // break;
                 throw ExceptionUtilities.Unreachable();
-                lhs.ptr = value.ptr;
-                break;
             case BoundKind.ConditionalOperator:
                 IndirectStore(lhs, value);
                 break;
@@ -1214,15 +1213,6 @@ internal sealed class Evaluator {
             return EvaluateAddressOfTempClone(node, abort);
 
         return EvaluatorValue.Ref(_stack.Peek().values, node.slot);
-    }
-
-    private RefKind GetSymbolRefKind(Symbol symbol) {
-        return symbol switch {
-            ParameterSymbol p => p.refKind,
-            DataContainerSymbol d => d.refKind,
-            FieldSymbol f => f.refKind,
-            _ => throw ExceptionUtilities.UnexpectedValue(symbol.kind)
-        };
     }
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {

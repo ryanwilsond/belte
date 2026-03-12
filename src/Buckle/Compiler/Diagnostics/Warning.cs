@@ -30,19 +30,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_NullDereference, location, message);
     }
 
-    internal static BelteDiagnostic UnreachableCode(SyntaxNode node) {
-        if (node.kind == SyntaxKind.BlockStatement) {
-            var firstStatement = ((BlockStatementSyntax)node).statements.FirstOrDefault();
-            // Report just for non empty blocks.
-            if (firstStatement is not null)
-                return UnreachableCode(firstStatement);
-
-            return null;
-        }
-
-        return UnreachableCode(node.location);
-    }
-
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
@@ -161,6 +148,12 @@ internal static class Warning {
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
         var message = $"local '{name}' shares a name with a type in this namespace";
         return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
+    }
+
+    // TODO Implement this warning
+    internal static BelteDiagnostic ImpliedReference(TextLocation location) {
+        var message = $"implicit types infer reference types making the 'ref' keyword not necessary in this context";
+        return CreateWarning(DiagnosticCode.WRN_ImpliedReference, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

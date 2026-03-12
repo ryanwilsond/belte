@@ -153,7 +153,13 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         return _lazyTypeParameterConstraintKinds;
     }
 
+    internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(syntax.attributeLists);
+    }
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
+    private protected override void NoteAttributesComplete(bool forReturnType) { }
 
     internal void GetDeclarationDiagnostics(BelteDiagnosticQueue addTo) {
         foreach (var templateParameter in _templateParameters)
@@ -166,6 +172,9 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
         ComputeReturnType();
 
+        GetAttributes();
+        GetReturnTypeAttributes();
+
         addTo.PushRange(_declarationDiagnostics);
     }
 
@@ -177,6 +186,9 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
         var returnTypeSyntax = syntax.returnType;
         var returnType = withTemplateParametersBinder.BindType(returnTypeSyntax.SkipRef(out _), diagnostics);
+
+        if (returnType.nullableUnderlyingTypeOrSelf.isStatic)
+            diagnostics.Push(Error.CannotReturnStatic(location, returnType.nullableUnderlyingTypeOrSelf));
 
         lock (_declarationDiagnostics) {
             if (_lazyReturnType is not null) {

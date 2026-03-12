@@ -1,4 +1,6 @@
 
+using Buckle.CodeAnalysis.Display;
+
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class TypeSymbolExtensions {
@@ -39,10 +41,10 @@ internal static class TypeSymbolExtensions {
         return false;
     }
 
-    internal static string ToNullOrString(this TypeSymbol? type) {
+    internal static string ToNullOrString(this TypeSymbol? type, SymbolDisplayFormat format = null) {
         if (type is null)
             return "<null>";
 
-        return type.ToString();
+        return type.ToDisplayString(format);
     }
 }

@@ -1637,12 +1637,12 @@ internal sealed partial class OverloadResolution {
                     return BetterResult.Neither;
                 else if (conv1.isBoxing)
                     return BetterResult.Right;
-                else
+                else if (conv2.isBoxing)
                     return BetterResult.Left;
+            } else {
+                okToDowngradeToNeither = false;
+                return BetterResult.Left;
             }
-
-            okToDowngradeToNeither = false;
-            return BetterResult.Left;
         } else if (type2ToType1) {
             okToDowngradeToNeither = false;
             return BetterResult.Right;

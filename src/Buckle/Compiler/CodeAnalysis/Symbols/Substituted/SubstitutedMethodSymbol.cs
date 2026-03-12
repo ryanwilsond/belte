@@ -107,6 +107,14 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
 
     internal override MethodSymbol constructedFrom { get; }
 
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return originalDefinition.GetAttributes();
+    }
+
+    internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return originalDefinition.GetReturnTypeAttributes();
+    }
+
     internal sealed override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         if (!originalDefinition.TryGetThisParameter(out var originalThisParameter)) {
             thisParameter = null;

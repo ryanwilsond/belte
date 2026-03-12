@@ -44,6 +44,10 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         return (ConstructorDeclarationSyntax)syntaxReference.node;
     }
 
+    internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(((ConstructorDeclarationSyntax)syntaxNode).attributeLists);
+    }
+
     internal override ExecutableCodeBinder TryGetBodyBinder(
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {

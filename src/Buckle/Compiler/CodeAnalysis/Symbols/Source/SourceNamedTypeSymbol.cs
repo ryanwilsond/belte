@@ -11,6 +11,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
+    private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private NamedTypeSymbol _lazyDeclaredBase;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private TemplateParameterInfo _lazyTemplateParameterInfo;
@@ -99,6 +100,26 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         }
 
         return _lazyDeclaredBase;
+    }
+
+    private CustomAttributesBag<AttributeData> GetAttributesBag() {
+        var bag = _lazyAttributesBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        if (LoadAndValidateAttributes(OneOrMany.Create(GetAttributeDeclarations()), ref _lazyAttributesBag))
+            _state.NotePartComplete(CompletionParts.Attributes);
+
+        return _lazyAttributesBag;
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return GetAttributesBag().attributes;
+    }
+
+    internal ImmutableArray<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return _declaration.GetAttributeDeclarations();
     }
 
     internal ImmutableArray<TypeWithAnnotations> GetTypeParameterConstraintTypes(

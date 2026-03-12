@@ -263,6 +263,11 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         }
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        // TODO
+        return [];
+    }
+
     private UncommonProperties GetUncommonProperties() {
         var result = _lazyUncommonProperties;
 

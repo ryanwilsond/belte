@@ -52,7 +52,6 @@ internal sealed class ExpressionFieldFinder : ExpressionVariableFinder<Symbol> {
             nodeBinder: null,
             typeSyntax: node.type,
             identifierToken: identifier,
-            declarationKind: DataContainerDeclarationKind.Variable,
             modifiers: modifiers,
             nodeToBind: nodeToBind
         );

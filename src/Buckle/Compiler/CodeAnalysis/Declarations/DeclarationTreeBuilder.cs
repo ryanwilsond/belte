@@ -212,7 +212,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     }
 
     private SingleTypeDeclaration VisitTypeDeclaration(TypeDeclarationSyntax node, DeclarationKind kind) {
-        var declFlags = SingleTypeDeclaration.TypeDeclarationFlags.None;
+        var declFlags = node.attributeLists.Any()
+            ? SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes
+            : SingleTypeDeclaration.TypeDeclarationFlags.None;
 
         if (node is ClassDeclarationSyntax cds && cds.baseType is not null)
             declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
@@ -266,23 +268,27 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         bool skipGlobalStatements = false) {
         var anyNonTypeMembers = false;
         var anyRequiredMembers = false;
+        var anyMemberHasAttributes = false;
 
         foreach (var member in members) {
             if (!anyNonTypeMembers && HasAnyNonTypeMemberNames(member, skipGlobalStatements))
                 anyNonTypeMembers = true;
 
-            if (anyNonTypeMembers && anyRequiredMembers) {
+            if (!anyMemberHasAttributes && CheckMemberForAttributes(member))
+                anyMemberHasAttributes = true;
+
+            if (anyNonTypeMembers && anyRequiredMembers && anyMemberHasAttributes)
                 break;
-            }
         }
 
-        if (anyNonTypeMembers) {
+        if (anyNonTypeMembers)
             declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasAnyNonTypeMembers;
-        }
 
-        if (anyRequiredMembers) {
+        if (anyRequiredMembers)
             declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasRequiredMembers;
-        }
+
+        if (anyMemberHasAttributes)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.AnyMemberHasAttributes;
 
         return GetOrComputeMemberNames(
             parent,
@@ -332,6 +338,24 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
             return memberNames;
         }
+    }
+
+    private static bool CheckMemberForAttributes(CoreInternalSyntax.BelteSyntaxNode member) {
+        switch (member.kind) {
+            case SyntaxKind.CompilationUnit:
+                return ((CoreInternalSyntax.CompilationUnitSyntax)member).attributeLists.Any();
+            case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.StructDeclaration:
+                return ((CoreInternalSyntax.TypeDeclarationSyntax)member).attributeLists.Any();
+            case SyntaxKind.FieldDeclaration:
+                return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();
+            case SyntaxKind.MethodDeclaration:
+            case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.ConstructorDeclaration:
+                return ((CoreInternalSyntax.BaseMethodDeclarationSyntax)member).attributeLists.Any();
+        }
+
+        return false;
     }
 
     private static void AddNonTypeMemberNames(CoreInternalSyntax.BelteSyntaxNode member, HashSet<string> set) {

@@ -6,6 +6,9 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceMethodSymbol : MethodSymbol {
+    private CustomAttributesBag<AttributeData> _lazyAttributesBag;
+    private CustomAttributesBag<AttributeData> _lazyReturnTypeAttributesBag;
+
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
     }
@@ -34,6 +37,26 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
     // internal sealed override bool hasUnscopedRefAttribute => GetDecodedWellKnownAttributeData()?.hasUnscopedRefAttribute == true;
     internal sealed override bool hasUnscopedRefAttribute => false;
 
+    private protected virtual AttributeLocation _attributeLocationForLoadAndValidateAttributes
+        => AttributeLocation.None;
+
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return GetAttributesBag().attributes;
+    }
+
+    internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return GetReturnTypeAttributesBag().attributes;
+    }
+
+    private CustomAttributesBag<AttributeData> GetReturnTypeAttributesBag() {
+        var bag = _lazyReturnTypeAttributesBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        return GetAttributesBag(ref _lazyReturnTypeAttributesBag, forReturnType: true);
+    }
+
     internal static void ReportErrorIfHasConstraints(
         TemplateConstraintClauseListSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
@@ -45,6 +68,44 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
             // EDIT: It *would* be legal to do something like `where { 3 == 3; }` and that would require no templates
         }
     }
+
+    private CustomAttributesBag<AttributeData> GetAttributesBag() {
+        var bag = _lazyAttributesBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        return GetAttributesBag(ref _lazyAttributesBag, forReturnType: false);
+    }
+
+    internal virtual OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(default(SyntaxList<AttributeListSyntax>));
+    }
+
+    private CustomAttributesBag<AttributeData> GetAttributesBag(
+        ref CustomAttributesBag<AttributeData> lazyAttributesBag,
+        bool forReturnType) {
+        var (declarations, symbolPart) = forReturnType
+            ? (GetReturnTypeAttributeDeclarations(), AttributeLocation.Return)
+            : (GetAttributeDeclarations(), _attributeLocationForLoadAndValidateAttributes);
+
+        if (LoadAndValidateAttributes(
+            declarations,
+            ref lazyAttributesBag,
+            symbolPart,
+            binderOpt: outerBinder
+        )) {
+            NoteAttributesComplete(forReturnType);
+        }
+
+        return lazyAttributesBag;
+    }
+
+    internal virtual OneOrMany<SyntaxList<AttributeListSyntax>> GetReturnTypeAttributeDeclarations() {
+        return GetAttributeDeclarations();
+    }
+
+    private protected abstract void NoteAttributesComplete(bool forReturnType);
 
     private protected BelteSyntaxNode GetInMethodSyntaxNode() {
         return syntaxNode switch {

@@ -39,6 +39,21 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
         return primaryModule.GetAssembliesForForwardedType(ref emittedName);
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        // TODO
+        // if (_lazyCustomAttributes.IsDefault) {
+        //     if (this.MightContainExtensionMethods) {
+        //         this.PrimaryModule.LoadCustomAttributesFilterExtensions(_assembly.Handle,
+        //             ref _lazyCustomAttributes);
+        //     } else {
+        //         this.PrimaryModule.LoadCustomAttributes(_assembly.Handle,
+        //             ref _lazyCustomAttributes);
+        //     }
+        // }
+        // return _lazyCustomAttributes;
+        return [];
+    }
+
     internal override IEnumerable<NamedTypeSymbol> GetAllTopLevelForwardedTypes() {
         return primaryModule.GetForwardedTypes();
     }

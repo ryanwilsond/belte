@@ -90,7 +90,7 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
 
     internal override ImmutableArray<TextLocation> locations => metadataLocation.Cast<MetadataLocation, TextLocation>();
 
-    internal ImmutableArray<AttributeData> GetAttributes() {
+    internal override ImmutableArray<AttributeData> GetAttributes() {
         if (_lazyCustomAttributes.IsDefault)
             LoadCustomAttributes(Token, ref _lazyCustomAttributes);
 

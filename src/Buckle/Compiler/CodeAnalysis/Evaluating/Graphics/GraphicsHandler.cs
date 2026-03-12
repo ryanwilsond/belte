@@ -196,7 +196,7 @@ internal partial class GraphicsHandler : Game {
     }
 
     internal void DrawText(DynamicSpriteFont font, string text, double? posX, double? posY, long? r, long? g, long? b) {
-        var color = new Color(r ?? 255, g ?? 255, b ?? 255);
+        var color = new Color((int)(r ?? 255), (int)(g ?? 255), (int)(b ?? 255));
         var spacing = new Vector2(2, 2);
         var size = font.MeasureString(text, Vector2.Zero, Vector2.One, spacing);
         var location = new Vector2((float)(posX ?? 0) - size.X / 2, (float)(posY ?? 0) - size.Y / 2);
@@ -205,7 +205,7 @@ internal partial class GraphicsHandler : Game {
     }
 
     internal void DrawRect(int x, int y, int w, int h, long? r, long? g, long? b, long? a) {
-        var color = new Color(r ?? 255, g ?? 255, b ?? 255, a ?? 255);
+        var color = new Color((int)(r ?? 255), (int)(g ?? 255), (int)(b ?? 255), (int)(a ?? 255));
         var rectangle = new Rectangle(x, y, w, h);
         var pixel = new Texture2D(GraphicsDevice, 1, 1);
         pixel.SetData([color]);

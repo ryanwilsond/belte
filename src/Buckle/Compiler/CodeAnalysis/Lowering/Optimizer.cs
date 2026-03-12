@@ -24,14 +24,16 @@ internal sealed class Optimizer : BoundTreeRewriter {
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
         var builder = block.statements.ToBuilder();
+        var seenScopes = new HashSet<SyntaxNode>();
 
-        for (var i = builder.Count - 1; i >= 0; i--) {
+        for (var i = 0; i < builder.Count; i++) {
             var statement = builder[i];
 
             if (!reachableStatements.Contains(statement)) {
                 var statementToRemove = statement;
                 PotentiallyReportDeadCode(statementToRemove.syntax);
                 builder.RemoveAt(i);
+                i--;
             }
         }
 
@@ -40,8 +42,9 @@ internal sealed class Optimizer : BoundTreeRewriter {
         void PotentiallyReportDeadCode(SyntaxNode syntax) {
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
                 return;
-            else
-                diagnostics.Push(Warning.UnreachableCode(syntax));
+
+            if (seenScopes.Add(syntax.parent))
+                diagnostics.Push(Warning.UnreachableCode(syntax.location));
         }
     }
 

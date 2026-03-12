@@ -1503,6 +1503,33 @@ internal partial class Binder {
                     return expression;
 
                 break;
+            case BoundKind.DataContainerExpression: {
+                    var symbol = ((BoundDataContainerExpression)expression).dataContainer;
+
+                    if (kind == BindValueKind.RefConst && !symbol.isConst)
+                        diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+
+                    if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
+                        diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
+                }
+
+                break;
+            case BoundKind.ParameterExpression:
+                if (kind == BindValueKind.RefConst)
+                    diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+
+                break;
+            case BoundKind.FieldAccessExpression: {
+                    var symbol = ((BoundFieldAccessExpression)expression).field;
+
+                    if (kind == BindValueKind.RefConst && !symbol.isConst)
+                        diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+
+                    if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
+                        diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
+                }
+
+                break;
         }
 
         var hasResolutionErrors = false;
@@ -2888,7 +2915,7 @@ internal partial class Binder {
         ObjectCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var typeWithAnnotations = BindType(node.type, diagnostics);
-        var type = typeWithAnnotations.type.StrippedType();
+        var type = typeWithAnnotations.nullableUnderlyingTypeOrSelf;
         var originalType = type;
 
         if (!typeWithAnnotations.isNullable && type.IsClassType())
@@ -2911,20 +2938,18 @@ internal partial class Binder {
                 );
             case TypeKind.TemplateParameter:
                 return BindTemplateParameterCreationExpression(node, (TemplateParameterSymbol)type, diagnostics);
-            case TypeKind.Array:
-                type = new ExtendedErrorTypeSymbol(
-                    type,
-                    LookupResultKind.NotCreatable,
-                    Error.InvalidObjectCreation(node.type.location)
-                );
+            case TypeKind.Array: {
+                    var error = Error.InvalidObjectCreation(node.type.location);
+                    diagnostics.Push(error);
+                    type = new ExtendedErrorTypeSymbol(type, LookupResultKind.NotCreatable, error);
+                }
 
                 goto case TypeKind.Class;
-            case TypeKind.Primitive:
-                type = new ExtendedErrorTypeSymbol(
-                    type,
-                    LookupResultKind.NotCreatable,
-                    Error.CannotConstructPrimitive(node.type.location)
-                );
+            case TypeKind.Primitive: {
+                    var error = Error.CannotConstructPrimitive(node.type.location);
+                    diagnostics.Push(error);
+                    type = new ExtendedErrorTypeSymbol(type, LookupResultKind.NotCreatable, error);
+                }
 
                 goto case TypeKind.Class;
             default:
@@ -3156,6 +3181,9 @@ internal partial class Binder {
         if (type.IsErrorType())
             type = type.GetNonErrorGuess() as NamedTypeSymbol ?? type;
 
+        if (type.IsNullableType())
+            type = type.StrippedType() as NamedTypeSymbol ?? type;
+
         allInstanceConstructors = type.constructors;
         return FilterInaccessibleConstructors(allInstanceConstructors, allowProtectedConstructorsOfBaseType);
     }
@@ -3262,7 +3290,7 @@ internal partial class Binder {
 
         LookupResultKind resultKind;
 
-        if (type.isAbstract)
+        if (type.isAbstract || type.isPrimitiveType)
             resultKind = LookupResultKind.NotCreatable;
         else if (memberResolutionResult.isValid && !IsConstructorAccessible(memberResolutionResult.member))
             resultKind = LookupResultKind.Inaccessible;
@@ -4007,7 +4035,7 @@ internal partial class Binder {
             if (boundLeft.type is null)
                 diagnostics.Push(Error.NoSuchMember(name.location, boundLeft, plainName));
             else
-                diagnostics.Push(Error.NoSuchMember(name.location, boundLeft.type, plainName));
+                diagnostics.Push(Error.NoSuchMember(name.location, boundLeft.type.StrippedType(), plainName));
         }
     }
 
@@ -4457,7 +4485,6 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
         BoundExpression result;
-
         if (boundExpression.kind == BoundKind.MethodGroup) {
             result = BindMethodGroupInvocation(
                 node,
@@ -4469,7 +4496,7 @@ internal partial class Binder {
             );
         } else {
             if (!boundExpression.hasErrors)
-                diagnostics.Push(Error.CannotCallNonMethod(expression.location, methodName));
+                diagnostics.Push(Error.CannotCallNonMethod(expression.location));
 
             result = CreateErrorCall(node, boundExpression, LookupResultKind.NotInvocable, analyzedArguments);
         }
@@ -4578,7 +4605,9 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
         var resolution = ResolveMethodGroup(methodGroup, analyzedArguments);
-        diagnostics.PushRange(resolution.diagnostics);
+
+        if (!methodGroup.hasErrors)
+            diagnostics.PushRange(resolution.diagnostics);
 
         BoundExpression result;
         if (resolution.hasAnyErrors) {
@@ -5418,7 +5447,6 @@ internal partial class Binder {
 
             result.AddName(identifier);
         } else if (hasNames) {
-            diagnostics.Push(Error.NamedBeforeUnnamed(argumentSyntax.location));
             result.names.Add(null);
         }
 
@@ -5486,11 +5514,8 @@ internal partial class Binder {
         if (!HasThis(true, out var inStaticContext)) {
             if (inStaticContext)
                 diagnostics.Push(Error.CannotUseThisInStaticMethod(node.location));
-            // TODO Just having this here doesn't seem right, but..
-            // else
-            //     diagnostics.Push(Error.CannotUseThis(node.location));
             else
-                hasErrors = false;
+                diagnostics.Push(Error.CannotUseThis(node.location));
         } else {
             hasErrors = IsRefOrOutThisParameterCaptured(node.keyword, diagnostics);
         }
@@ -5505,11 +5530,10 @@ internal partial class Binder {
         if (!HasThis(true, out var inStaticContext)) {
             if (inStaticContext)
                 diagnostics.Push(Error.CannotUseBaseInStaticMethod(node.location));
-            // TODO again, this seems wrong
-            // else
-            //     diagnostics.Push(Error.CannotUseBase(node.location));
+            else
+                diagnostics.Push(Error.CannotUseBase(node.location));
 
-            // hasErrors = true;
+            hasErrors = true;
         } else if (baseType is null) {
             diagnostics.Push(Error.NoBaseClass(node.location, containingType));
             hasErrors = true;
@@ -5540,7 +5564,7 @@ internal partial class Binder {
         if (inFieldInitializer)
             return false;
 
-        return !isExplicit;
+        return true;
     }
 
     private bool IsRefOrOutThisParameterCaptured(SyntaxNodeOrToken thisOrBaseToken, BelteDiagnosticQueue diagnostics) {
@@ -6166,6 +6190,9 @@ internal partial class Binder {
                 node.location,
                 diagnostics
             );
+
+            if (ConstantValue.IsNull(resultConstant))
+                diagnostics.Push(Warning.AlwaysValue(node.location, null));
         } else {
             resultLeft = BindToNaturalType(resultLeft, diagnostics, false);
             resultRight = BindToNaturalType(resultRight, diagnostics, false);
@@ -8216,8 +8243,12 @@ symIsHidden:;
         bool includeBoundType,
         SyntaxTokenList modifiers,
         BelteSyntaxNode associatedSyntaxNode = null) {
+        var dataContainer = LocateDeclaredVariableSymbol(declaration, typeSyntax, modifiers);
+
+        dataContainer.GetDeclarationDiagnostics(diagnostics);
+
         return BindVariableDeclaration(
-            LocateDeclaredVariableSymbol(declaration, typeSyntax, modifiers),
+            dataContainer,
             kind,
             isImplicitlyTyped,
             declaration,
@@ -8237,7 +8268,6 @@ symIsHidden:;
             declaration.identifier,
             typeSyntax,
             declaration.initializer,
-            DataContainerDeclarationKind.Variable,
             modifiers
         );
     }
@@ -8246,7 +8276,6 @@ symIsHidden:;
         SyntaxToken identifier,
         TypeSyntax typeSyntax,
         EqualsValueClauseSyntax equalsValue,
-        DataContainerDeclarationKind kind,
         SyntaxTokenList modifiers) {
         var localSymbol = LookupLocal(identifier) ?? SourceDataContainerSymbol.MakeLocal(
             containingMember,
@@ -8254,7 +8283,6 @@ symIsHidden:;
             false,
             typeSyntax,
             identifier,
-            kind,
             equalsValue,
             modifiers
         );
@@ -8336,7 +8364,7 @@ symIsHidden:;
             }
         } else {
             if (equalsClauseSyntax is null) {
-                if (declarationType.IsNullableType()) {
+                if (declarationType.IsNullableType() || declarationType.IsVoidType()) {
                     initializer = new BoundLiteralExpression(
                         declaration,
                         new ConstantValue(null),
@@ -8514,8 +8542,11 @@ symIsHidden:;
         var declType = BindTypeOrImplicitType(typeSyntax.SkipRef(out _), diagnostics, out isImplicitlyTyped);
 
         if (!isImplicitlyTyped) {
-            if (declType.isStatic)
+            if (declType.nullableUnderlyingTypeOrSelf.isStatic)
                 diagnostics.Push(Error.StaticDataContainer(declarationNode.location));
+
+            if (declType.IsVoidType())
+                diagnostics.Push(Error.VoidVariable(typeSyntax.location));
         }
 
         return declType;

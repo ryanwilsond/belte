@@ -266,6 +266,10 @@ internal partial class PEParameterSymbol : ParameterSymbol {
         return parameter;
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return [];
+    }
+
     internal ConstantValue? ImportConstantValue(bool ignoreAttributes = false) {
         ConstantValue? value = null;
 

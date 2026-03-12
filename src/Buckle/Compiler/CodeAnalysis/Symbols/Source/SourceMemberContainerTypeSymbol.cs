@@ -59,6 +59,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private MembersAndInitializers _lazyMembersAndInitializers;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
+    private ThreeState _lazyAnyMemberHasAttributes;
 
     private bool _fieldDefinitionsNoted;
 
@@ -128,6 +129,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
 
+    internal bool anyMemberHasAttributes {
+        get {
+            if (!_lazyAnyMemberHasAttributes.HasValue()) {
+                bool anyMemberHasAttributes = _declaration.anyMemberHasAttributes;
+                _lazyAnyMemberHasAttributes = anyMemberHasAttributes.ToThreeState();
+            }
+
+            return _lazyAnyMemberHasAttributes.Value();
+        }
+    }
+
     internal ImmutableArray<ImmutableArray<FieldInitializer>> initializers
         => GetMembersAndInitializers().fieldInitializers;
 
@@ -184,6 +196,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
                 case CompletionParts.StartBaseType:
                 case CompletionParts.FinishBaseType:
                     if (_state.NotePartComplete(CompletionParts.StartBaseType)) {
@@ -1260,7 +1275,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 var key = (t.name, t.arity, t.syntaxReference.syntaxTree);
 
                 if (conflicts.TryGetValue(key, out var other))
-                    diagnostics.Push(Error.TypeAlreadyDeclared(t.syntaxReference.location, t.name));
+                    diagnostics.Push(Error.DuplicateNameInClass(t.syntaxReference.location, this, t.name));
                 else
                     conflicts.Add(key, t);
 
@@ -1597,6 +1612,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
         var modifiers = _declaration.declarations[0].modifiers;
+        var partCount = _declaration.declarations.Length;
 
         modifiers = ModifierHelpers.CheckModifiers(
             true,
@@ -1612,6 +1628,35 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         if ((modifiers & DeclarationModifiers.AccessibilityMask) == 0)
             modifiers |= defaultAccess;
+
+        switch (containingSymbol.kind) {
+            case SymbolKind.Namespace:
+                for (var i = 1; i < partCount; i++) {
+                    diagnostics.Push(Error.DuplicateNameInNamespace(
+                        _declaration.declarations[i].nameLocation,
+                        name,
+                        containingNamespace
+                    ));
+
+                    hasErrors = true;
+                }
+
+                break;
+            case SymbolKind.NamedType:
+                for (var i = 1; i < partCount; i++) {
+                    if (containingType.locations.Length == 1) {
+                        diagnostics.Push(Error.DuplicateNameInClass(
+                            _declaration.declarations[i].nameLocation,
+                            containingSymbol,
+                            name
+                        ));
+                    }
+
+                    hasErrors = true;
+                }
+
+                break;
+        }
 
         return modifiers;
     }

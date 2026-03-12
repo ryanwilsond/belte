@@ -238,6 +238,15 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        // TODO
+        return [];
+    }
+
+    internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return signature.returnParam.GetAttributes();
+    }
+
     internal override byte? GetNullableContextValue() {
         if (!_packedFlags.TryGetNullableContext(out var value)) {
             value = _containingType.containingPEModule.module.HasNullableContextAttribute(_handle, out var arg)

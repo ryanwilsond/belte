@@ -21,7 +21,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '??' is not defined for operands of types '<null>' and 'int!'
+            binary operator '??' is not defined for operands of types '<null>' and 'int'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -34,7 +34,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '||' is not defined for operands of types '<null>' and 'bool!'
+            binary operator '||' is not defined for operands of types '<null>' and 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

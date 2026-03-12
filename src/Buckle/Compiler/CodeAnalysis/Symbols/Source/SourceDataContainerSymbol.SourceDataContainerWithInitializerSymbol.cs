@@ -19,9 +19,14 @@ internal partial class SourceDataContainerSymbol {
             SyntaxToken identifierToken,
             EqualsValueClauseSyntax initializer,
             Binder initializerBinder,
-            DataContainerDeclarationKind declarationKind,
             SyntaxTokenList modifiers)
-            : base(containingSymbol, scopeBinder, true, typeSyntax, identifierToken, declarationKind, modifiers) {
+            : base(
+                containingSymbol,
+                scopeBinder,
+                true,
+                typeSyntax,
+                identifierToken,
+                modifiers) {
             _initializer = initializer;
             _initializerBinder = initializerBinder;
         }
@@ -78,7 +83,7 @@ internal partial class SourceDataContainerSymbol {
 
                 Interlocked.CompareExchange(
                     ref _lazyConstantValue,
-                    new ConstantValue(value.value, type.specialType, diagnostics.ToArrayAndFree()),
+                    new ConstantValue(value?.value, type.StrippedType().specialType, diagnostics.ToArrayAndFree()),
                     null
                 );
             }

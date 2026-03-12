@@ -80,6 +80,10 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
         }
     }
 
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return originalDefinition.GetAttributes();
+    }
+
     internal sealed override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return isUnboundTemplateType
             ? null
