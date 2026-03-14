@@ -141,8 +141,12 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Call, Executor.MethodInfoCache.Type_GetTypeFromHandle);
     }
 
-    internal override void EmitNullAssert(TypeSymbol type) {
-        EmitWithSymbolToken(OpCodes.Call, _module.GetNullAssert(type));
+    internal override void EmitNullAssertObject(TypeSymbol type) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetNullAssertObject(type));
+    }
+
+    internal override void EmitNullAssertValue(TypeSymbol type) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetNullAssertValue(type));
     }
 
     internal override void EmitNullValue(TypeSymbol type) {

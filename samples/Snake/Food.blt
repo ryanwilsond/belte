@@ -1,8 +1,8 @@
 
 class Food {
     public Sprite sprite;
-    public decimal x;
-    public decimal y;
+    public int x;
+    public int y;
 
     public constructor() {
         sprite = Graphics.LoadSprite(

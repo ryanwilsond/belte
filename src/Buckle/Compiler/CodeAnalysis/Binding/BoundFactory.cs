@@ -178,7 +178,7 @@ internal static partial class BoundFactory {
             syntax,
             left,
             right,
-            BinaryOperatorKind.BoolConditionalAnd,
+            BinaryOperatorKind.BoolAnd,
             null,
             null,
             CorLibrary.GetSpecialType(SpecialType.Bool)

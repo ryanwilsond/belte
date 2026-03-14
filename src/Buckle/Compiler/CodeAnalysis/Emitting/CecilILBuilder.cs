@@ -136,8 +136,12 @@ internal sealed class CecilILBuilder : ILBuilder {
         _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Type_GetTypeFromHandle);
     }
 
-    internal override void EmitNullAssert(TypeSymbol type) {
-        _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssert(type));
+    internal override void EmitNullAssertObject(TypeSymbol type) {
+        _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertObject(type));
+    }
+
+    internal override void EmitNullAssertValue(TypeSymbol type) {
+        _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertValue(type));
     }
 
     internal override void EmitNullValue(TypeSymbol type) {

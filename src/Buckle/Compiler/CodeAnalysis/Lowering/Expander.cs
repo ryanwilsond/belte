@@ -18,6 +18,7 @@ internal sealed class Expander : BoundTreeExpander {
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
     private int _conditionalDepth = 0;
+    private int _accessDepth = 0;
 
     internal Expander(MethodSymbol container) {
         _container = container;
@@ -46,9 +47,12 @@ internal sealed class Expander : BoundTreeExpander {
         BoundFieldAccessExpression expression,
         out BoundExpression replacement) {
         var type = expression.receiver.type;
+        var syntax = expression.syntax;
+
+        var savedAccessDepth = _accessDepth;
+        _accessDepth++;
 
         if (type.IsNullableType() && type.GetNullableUnderlyingType().IsStructType()) {
-            var syntax = expression.syntax;
             var underlyingType = type.GetNullableUnderlyingType();
 
             var statements = ExpandExpression(expression.receiver, out var newReceiver);
@@ -69,9 +73,35 @@ internal sealed class Expander : BoundTreeExpander {
                 expression.field.type
             );
 
+            _accessDepth = savedAccessDepth;
             return statements;
         }
 
+        if (_conditionalDepth > 0 && _accessDepth <= 1) {
+            var statements = ExpandExpression(expression.receiver, out var newReceiver);
+            var tempLocal = GenerateTempLocal(expression.type);
+
+            statements.Add(
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                    syntax,
+                    tempLocal,
+                    new BoundFieldAccessExpression(
+                        syntax,
+                        newReceiver,
+                        expression.field,
+                        expression.constantValue,
+                        expression.type
+                    )
+                ))
+            );
+
+            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+
+            _accessDepth = savedAccessDepth;
+            return statements;
+        }
+
+        _accessDepth--;
         return base.ExpandFieldAccessExpression(expression, out replacement);
     }
 
@@ -218,12 +248,12 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         _operatorDepth++;
         var savedConditionalDepth = _conditionalDepth;
+        var syntax = expression.syntax;
 
         if (expression.left.type.IsNullableType() || expression.right.type.IsNullableType())
             _conditionalDepth++;
 
         if (_conditionalDepth > 1) {
-            var syntax = expression.syntax;
             var statements = ExpandExpression(expression.left, out var newLeft);
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
 

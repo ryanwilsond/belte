@@ -220,21 +220,36 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(Call(syntax, expression.method, expression.left, expression.right));
 
         if (op.IsLifted()) {
-            if (expression.left.type.IsNullableType() &&
-                expression.right.type.IsNullableType() &&
-                expression.left.constantValue is null &&
-                expression.right.constantValue is null) {
+            var left = expression.left;
+            var right = expression.right;
+
+            if (left is BoundCastExpression lCast &&
+                lCast.conversion.kind == ConversionKind.ImplicitNullable &&
+                lCast.conversion.underlyingConversions[0].kind == ConversionKind.Identity) {
+                left = lCast.operand;
+            }
+
+            if (right is BoundCastExpression rCast &&
+                rCast.conversion.kind == ConversionKind.ImplicitNullable &&
+                rCast.conversion.underlyingConversions[0].kind == ConversionKind.Identity) {
+                right = rCast.operand;
+            }
+
+            if (left.type.IsNullableType() &&
+                right.type.IsNullableType() &&
+                left.constantValue is null &&
+                right.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
                         @if: And(syntax,
-                            HasValue(syntax, expression.left),
-                            HasValue(syntax, expression.right)
+                            HasValue(syntax, left),
+                            HasValue(syntax, right)
                         ),
                         @then: CreateNullable(syntax,
                             Binary(syntax,
-                                Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
+                                Value(syntax, left, left.type.GetNullableUnderlyingType()),
                                 op,
-                                Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
+                                Value(syntax, right, right.type.GetNullableUnderlyingType()),
                                 expression.type.StrippedType()
                                 ),
                             expression.type
@@ -245,15 +260,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 );
             }
 
-            if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
+            if (left.type.IsNullableType() && left.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
-                        @if: HasValue(syntax, expression.left),
+                        @if: HasValue(syntax, left),
                         @then: CreateNullable(syntax,
                             Binary(syntax,
-                                Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
+                                Value(syntax, left, left.type.GetNullableUnderlyingType()),
                                 op,
-                                DeNull(expression.right),
+                                DeNull(right),
                                 expression.type.StrippedType()
                             ),
                             expression.type
@@ -264,15 +279,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 );
             }
 
-            if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
+            if (right.type.IsNullableType() && right.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
-                        @if: HasValue(syntax, expression.right),
+                        @if: HasValue(syntax, right),
                         @then: CreateNullable(syntax,
                             Binary(syntax,
-                                DeNull(expression.left),
+                                DeNull(left),
                                 op,
-                                Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
+                                Value(syntax, right, right.type.GetNullableUnderlyingType()),
                                 expression.type.StrippedType()
                             ),
                             expression.type
@@ -361,12 +376,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
 
         if (expression.index.type.IsNullableType()) {
-            return new BoundArrayAccessExpression(syntax,
+            return Visit(new BoundArrayAccessExpression(syntax,
                 expression.receiver,
                 RewriteNull(syntax, expression.index),
                 expression.constantValue,
                 expression.type
-            );
+            ));
         }
 
         return base.VisitArrayAccessExpression(expression);
@@ -670,35 +685,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var method = expression.method;
-        // var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
 
         if (method.name == "Value" && !expression.arguments[0].type.IsNullableType())
             return Visit(expression.arguments[0]);
         else if (method.name == "HasValue" && !expression.arguments[0].type.IsNullableType())
             return Literal(syntax, true, expression.type);
-
-        /*
-        var parametersChanged = false;
-
-        foreach (var oldParameter in method.parameters) {
-            var name = oldParameter.name.StartsWith("$")
-                ? oldParameter.name.Substring(1)
-                : oldParameter.name;
-
-            if (name == oldParameter.name) {
-                parameters.Add(oldParameter);
-                continue;
-            }
-
-            TODO Check if we even need this
-            var parameter = new ParameterSymbol(
-                name, oldParameter.type, oldParameter.ordinal, oldParameter.defaultValue
-            );
-
-            parametersChanged = true;
-            parameters.Add(parameter);
-        }
-        */
 
         ArrayBuilder<BoundExpression> builder = null;
 
@@ -717,10 +708,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             builder?.Add(newArgument);
         }
-
-        // var newMethod = parametersChanged
-        //     ? method.UpdateParameters(parameters.ToImmutableAndFree())
-        //     : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 

@@ -1850,9 +1850,13 @@ oneMoreTime:
 
         EnsureGlobalsClassIsBuilt();
 
-        EmitExpression(expression.operand, true);
+        var operand = expression.operand;
+        EmitExpression(operand, true);
 
-        _builder.EmitNullAssert(expression.type);
+        if (operand.type.IsVerifierValue())
+            _builder.EmitNullAssertValue(expression.type);
+        else
+            _builder.EmitNullAssertObject(expression.type);
 
         EmitPopIfUnused(used);
     }

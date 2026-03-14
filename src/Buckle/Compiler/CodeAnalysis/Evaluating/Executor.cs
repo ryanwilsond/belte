@@ -89,11 +89,18 @@ internal sealed partial class Executor : ModuleBuilder {
         _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
-    public static T AssertNull<T>(T value) {
+    public static T AssertObjectNull<T>(T value) where T : class {
         if (value is null)
             throw new NullReferenceException();
 
         return value;
+    }
+
+    public static T AssertValueNull<T>(T? value) where T : struct {
+        if (!value.HasValue)
+            throw new NullReferenceException();
+
+        return value.Value;
     }
 
     internal object Execute(bool verbose, bool logTime) {
@@ -227,8 +234,14 @@ internal sealed partial class Executor : ModuleBuilder {
         randomField = typeof(Executor).GetField("Random", BindingFlags.Public | BindingFlags.Static);
     }
 
-    internal MethodInfo GetNullAssert(TypeSymbol type) {
-        var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
+    internal MethodInfo GetNullAssertObject(TypeSymbol type) {
+        var assertNull = typeof(Executor).GetMethod("AssertObjectNull", BindingFlags.Public | BindingFlags.Static);
+        var closedMethod = assertNull.MakeGenericMethod(GetType(type));
+        return closedMethod;
+    }
+
+    internal MethodInfo GetNullAssertValue(TypeSymbol type) {
+        var assertNull = typeof(Executor).GetMethod("AssertValueNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
         return closedMethod;
     }

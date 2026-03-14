@@ -256,6 +256,16 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { bool[] a = null; return a?[3]; }", null)]
     [InlineData("lowlevel { int[] a = {1, 2, null}; return a[0]; }", 1)]
     [InlineData("lowlevel { int[] a = {1, 2, null}; return a[2]; }", null)]
+    [InlineData(@"
+        class A {
+            public decimal f = 1;
+        }
+        var c = new A[2];
+        c[0] = new A();
+        int i = 0;
+        var f = c[i].f;
+        return f;
+        ", 1)]
     // Member access expressions
     [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 3; return myVar.num + 1;", 4)]
     [InlineData("class A { public int num; } class B { public A a; } B myVar = new B(); myVar.a = new A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]

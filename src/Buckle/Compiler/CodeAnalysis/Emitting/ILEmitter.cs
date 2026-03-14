@@ -36,7 +36,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     // <Globals> class members
     private TypeDefinition _globalsClass;
-    private MethodDefinition _nullAssertMethod;
+    private MethodDefinition _nullAssertObjectMethod;
+    private MethodDefinition _nullAssertValueMethod;
 
     internal FieldDefinition randomField;
 
@@ -255,9 +256,16 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
     }
 
-    internal MethodReference GetNullAssert(TypeSymbol genericType) {
+    internal MethodReference GetNullAssertObject(TypeSymbol genericType) {
         // var methodRef = _assemblyDefinition.MainModule.ImportReference(_nullAssertMethod);
-        var genericMethod = new GenericInstanceMethod(_nullAssertMethod);
+        var genericMethod = new GenericInstanceMethod(_nullAssertObjectMethod);
+        genericMethod.GenericArguments.Add(GetType(genericType));
+        return genericMethod;
+    }
+
+    internal MethodReference GetNullAssertValue(TypeSymbol genericType) {
+        // var methodRef = _assemblyDefinition.MainModule.ImportReference(_nullAssertMethod);
+        var genericMethod = new GenericInstanceMethod(_nullAssertValueMethod);
         genericMethod.GenericArguments.Add(GetType(genericType));
         return genericMethod;
     }
@@ -297,41 +305,117 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _globalsClass.Methods.Insert(0, cctor);
 
-        _nullAssertMethod = new MethodDefinition(
-            "<AssertNotNull>",
-            MethodAttributes.Static | MethodAttributes.Public,
-            _specialTypes[SpecialType.Void]
-        );
+        // AssertObjectNotNull and AssertValueNotNull
+        {
+            _nullAssertObjectMethod = new MethodDefinition(
+                "<AssertObjectNotNull>",
+                MethodAttributes.Static | MethodAttributes.Public,
+                _specialTypes[SpecialType.Void]
+            );
 
-        var nullAssertT = new GenericParameter("T", _nullAssertMethod);
-        _nullAssertMethod.GenericParameters.Add(nullAssertT);
-        _nullAssertMethod.ReturnType = nullAssertT;
-        _nullAssertMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("o", ParameterAttributes.None, nullAssertT));
+            var nullAssertObjectT = new GenericParameter("T", _nullAssertObjectMethod) {
+                Attributes = GenericParameterAttributes.ReferenceTypeConstraint
+            };
 
-        _nullAssertMethod.Body.InitLocals = true;
-        var nullAssertILProcessor = _nullAssertMethod.Body.GetILProcessor();
+            _nullAssertObjectMethod.GenericParameters.Add(nullAssertObjectT);
+            _nullAssertObjectMethod.ReturnType = nullAssertObjectT;
+            _nullAssertObjectMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("o", ParameterAttributes.None, nullAssertObjectT));
 
-        /*
+            _nullAssertObjectMethod.Body.InitLocals = true;
+            var nullAssertObjectILProcessor = _nullAssertObjectMethod.Body.GetILProcessor();
 
-        public static T AssertNotNull<T>(T o) {
-            if (o is null)
-                throw new NullReferenceException();
+            /*
 
-            return o;
+            public static T AssertObjectNotNull<T>(T o) where T : class {
+                if (o is null)
+                    throw new NullReferenceException();
+
+                return o;
+            }
+
+            */
+            nullAssertObjectILProcessor.Emit(OpCodes.Ldarg_0);
+            nullAssertObjectILProcessor.Emit(OpCodes.Box, nullAssertObjectT);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ldnull);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ceq);
+            nullAssertObjectILProcessor.Emit(OpCodes.Brfalse_S, Instruction.Create(OpCodes.Nop));
+            nullAssertObjectILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
+            nullAssertObjectILProcessor.Emit(OpCodes.Throw);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ldarg_0);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ret);
+
+            nullAssertObjectILProcessor.Body.Instructions[4].Operand = nullAssertObjectILProcessor.Body.Instructions[7];
+
+            _globalsClass.Methods.Add(_nullAssertObjectMethod);
+
+            _nullAssertValueMethod = new MethodDefinition(
+                "<AssertValueNotNull>",
+                MethodAttributes.Static | MethodAttributes.Public,
+                _specialTypes[SpecialType.Void]
+            );
+
+            var nullAssertValueT = new GenericParameter("T", _nullAssertValueMethod) {
+                Attributes = GenericParameterAttributes.NotNullableValueTypeConstraint
+            };
+
+            _nullAssertValueMethod.GenericParameters.Add(nullAssertValueT);
+            _nullAssertValueMethod.ReturnType = nullAssertValueT;
+            _nullAssertValueMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("v", ParameterAttributes.None, nullAssertValueT));
+
+            _nullAssertValueMethod.Body.InitLocals = true;
+            var nullAssertValueILProcessor = _nullAssertValueMethod.Body.GetILProcessor();
+
+            /*
+
+            public static T AssertValueNotNull<T>(T? v) where T : struct {
+                if (!v.HasValue)
+                    throw new NullReferenceException();
+
+                return v.Value;
+            }
+
+            */
+            var hvTypeReference = new GenericInstanceType(NetTypeReference.Nullable);
+            hvTypeReference.GenericArguments.Add(nullAssertValueT);
+
+            var getHasValueDef = NetMethodReference.Nullable_HasValue;
+            var getHasValueRef = _assemblyDefinition.MainModule.ImportReference(getHasValueDef);
+            var genericGetHasValue = new MethodReference(getHasValueRef.Name, getHasValueRef.ReturnType, hvTypeReference) {
+                HasThis = getHasValueRef.HasThis,
+                ExplicitThis = getHasValueRef.ExplicitThis,
+                CallingConvention = getHasValueRef.CallingConvention,
+            };
+
+            var nullHasValue = _assemblyDefinition.MainModule.ImportReference(genericGetHasValue);
+
+            var gvTypeReference = new GenericInstanceType(NetTypeReference.Nullable);
+            gvTypeReference.GenericArguments.Add(nullAssertValueT);
+
+            var getValueDef = NetMethodReference.Nullable_HasValue;
+            var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+            var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, gvTypeReference) {
+                HasThis = getValueRef.HasThis,
+                ExplicitThis = getValueRef.ExplicitThis,
+                CallingConvention = getValueRef.CallingConvention,
+            };
+
+            var nullGetValue = _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+
+            nullAssertValueILProcessor.Emit(OpCodes.Ldarga_S, 0);
+            nullAssertValueILProcessor.Emit(OpCodes.Call, nullHasValue);
+            nullAssertValueILProcessor.Emit(OpCodes.Ldc_I4_0);
+            nullAssertValueILProcessor.Emit(OpCodes.Ceq);
+            nullAssertValueILProcessor.Emit(OpCodes.Brfalse_S, Instruction.Create(OpCodes.Nop));
+            nullAssertValueILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
+            nullAssertValueILProcessor.Emit(OpCodes.Throw);
+            nullAssertValueILProcessor.Emit(OpCodes.Ldarga_S, 0);
+            nullAssertValueILProcessor.Emit(OpCodes.Call, nullGetValue);
+            nullAssertValueILProcessor.Emit(OpCodes.Ret);
+
+            nullAssertValueILProcessor.Body.Instructions[4].Operand = nullAssertValueILProcessor.Body.Instructions[7];
+
+            _globalsClass.Methods.Add(_nullAssertValueMethod);
         }
-
-        */
-        nullAssertILProcessor.Emit(OpCodes.Ldarg_0);
-        nullAssertILProcessor.Emit(OpCodes.Box, nullAssertT);
-        nullAssertILProcessor.Emit(OpCodes.Brtrue_S, Instruction.Create(OpCodes.Nop));
-        nullAssertILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
-        nullAssertILProcessor.Emit(OpCodes.Throw);
-        nullAssertILProcessor.Emit(OpCodes.Ldarg_0);
-        nullAssertILProcessor.Emit(OpCodes.Ret);
-
-        nullAssertILProcessor.Body.Instructions[2].Operand = nullAssertILProcessor.Body.Instructions[5];
-
-        _globalsClass.Methods.Add(_nullAssertMethod);
 
         _assemblyDefinition.MainModule.Types.Add(_globalsClass);
     }
