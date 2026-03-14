@@ -58,10 +58,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         var tfm = attr.FrameworkName.Split('=')[1].Substring(1);
         var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
+        var thisDll = typeof(Belte.Runtime.Console).Assembly.Location;
+
+        if (string.IsNullOrEmpty(thisDll))
+            thisDll = AppContext.BaseDirectory;
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(runtimeDll),
-            AssemblyDefinition.ReadAssembly(typeof(Belte.Runtime.Console).Assembly.Location)
+            AssemblyDefinition.ReadAssembly(thisDll)
         ];
 
         foreach (var reference in references) {
@@ -238,6 +242,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         };
 
         return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+    }
+
+    internal MethodReference GetSort(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var sortRef = new GenericInstanceMethod(NetMethodReference.Array_Sort);
+        sortRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReference(sortRef);
     }
 
     internal MethodReference GetNullableHasValue(TypeSymbol genericType) {
@@ -707,6 +720,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
+        NetMethodReference.Array_Sort = ResolveMethod("System.Array", "Sort`1", ["T"]);
     }
 
     private void GenerateSTLMap() {

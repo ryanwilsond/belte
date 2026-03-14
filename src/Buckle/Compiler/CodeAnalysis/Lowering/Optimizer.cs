@@ -31,7 +31,7 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
             if (!reachableStatements.Contains(statement)) {
                 var statementToRemove = statement;
-                PotentiallyReportDeadCode(statementToRemove.syntax);
+                PotentiallyReportDeadCode(statementToRemove);
                 builder.RemoveAt(i);
                 i--;
             }
@@ -39,8 +39,14 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
 
-        void PotentiallyReportDeadCode(SyntaxNode syntax) {
+        void PotentiallyReportDeadCode(BoundNode node) {
+            var syntax = node.syntax;
+
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
+                return;
+
+            // TODO Eventually replace this with a proper FlowAnalysisPass on BoundNode.WasCompilerGenerated
+            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
                 return;
 
             if (seenScopes.Add(syntax.parent))

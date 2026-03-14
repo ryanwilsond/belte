@@ -2,12 +2,15 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+
+    private int _lateTempCount;
 
     internal readonly EvaluatorSlotManager localSlotManager;
 
@@ -28,6 +31,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         var rewrittenBlock = (BoundBlockStatement)rewriter.Visit(statement);
 
         slotManager = rewriter.localSlotManager;
+        slotManager.lateTempCount = rewriter._lateTempCount;
         return rewrittenBlock;
     }
 
@@ -101,5 +105,24 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         var layout = _typeLayouts[(NamedTypeSymbol)receiver.type.StrippedType()];
         var slot = layout.GetLocal(field).slot;
         return new BoundFieldSlotExpression(node.syntax, node, receiver, field, slot, node.type);
+    }
+
+    internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
+        _lateTempCount++;
+        return base.VisitObjectCreationExpression(node);
+    }
+
+    internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression node) {
+        _lateTempCount++;
+        return base.VisitArrayCreationExpression(node);
+    }
+
+    internal override BoundNode VisitCallExpression(BoundCallExpression node) {
+        var method = node.method;
+
+        if (method.containingType.Equals(GraphicsLibrary.Graphics) && GraphicsLibrary.MethodProducesTemp(method))
+            _lateTempCount++;
+
+        return base.VisitCallExpression(node);
     }
 }

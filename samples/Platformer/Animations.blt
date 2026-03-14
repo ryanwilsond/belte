@@ -5,23 +5,18 @@ class Animations {
     public Animation playerJump;
     public Animation playerSlide;
     public Animation playerWallSlide;
-    public Animation leaf;
-    public Animation particle;
-    public Animation enemyIdle;
-    public Animation enemyRun;
 
     private Animation[] playerAnimations;
+    private Textures textures;
 
     public constructor(Textures textures) {
+        this.textures = textures;
+
         playerIdle = new Animation(textures.PlayerIdleTextures(), 6);
         playerRun = new Animation(textures.PlayerRunTextures(), 4);
-        enemyIdle = new Animation(textures.EnemyIdleTextures(), 6);
-        enemyRun = new Animation(textures.EnemyRunTextures(), 4);
         playerJump = new Animation(textures.PlayerJumpTextures());
         playerSlide = new Animation(textures.PlayerSlideTextures());
         playerWallSlide = new Animation(textures.PlayerWallSlideTextures());
-        leaf = new Animation(textures.LeafTextures(), 20, false);
-        particle = new Animation(textures.ParticleTextures(), 8, false);
 
         playerAnimations = new Animation[] { playerIdle, playerRun, playerJump, playerSlide, playerWallSlide };
     }
@@ -32,8 +27,15 @@ class Animations {
 
     public Animation GetEnemyAction(int index) {
         if (index == 0)
-            return enemyIdle;
+            return new Animation(textures.EnemyIdleTextures(), 6);
 
-        return enemyRun;
+        return new Animation(textures.EnemyRunTextures(), 4);
+    }
+
+    public Animation GetParticleAnimation(string! kind) {
+        if (kind == "leaf")
+            return new Animation(textures.LeafTextures(), 20, false);
+        else
+            return new Animation(textures.ParticleTextures(), 8, false);
     }
 }

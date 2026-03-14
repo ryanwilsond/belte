@@ -72,7 +72,7 @@ internal class Heap {
 
             while (markStack.Count > 0) {
                 var p = markStack.Pop();
-                var obj = this[p];
+                var obj = _data[p];
 
                 if (obj is null || obj.markedForCollection)
                     continue;

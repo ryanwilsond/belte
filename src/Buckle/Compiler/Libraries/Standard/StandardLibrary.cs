@@ -262,6 +262,10 @@ internal static class StandardLibrary {
             StaticMethod("Pow", SpecialType.Int, [("x", SpecialType.Int), ("y", SpecialType.Int)]),
             StaticMethod("Round", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
             StaticMethod("Round", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
+            StaticMethod("Sign", SpecialType.Int, [("value", SpecialType.Decimal)]),
+            StaticMethod("Sign", SpecialType.Int, true, [("value", SpecialType.Decimal, true)]),
+            StaticMethod("Sign", SpecialType.Int, [("value", SpecialType.Int)]),
+            StaticMethod("Sign", SpecialType.Int, true, [("value", SpecialType.Int, true)]),
             StaticMethod("Sin", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
             StaticMethod("Sin", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Sinh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
@@ -429,6 +433,14 @@ internal static class StandardLibrary {
                 => { return a is null ? null : System.Math.Round(Convert.ToDouble(a)); }) },
             { "Math_Round_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Round(Convert.ToDouble(a)); }) },
+            { "Math_Sign_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sign(Convert.ToDouble(a)); }) },
+            { "Math_Sign_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sign(Convert.ToDouble(a)); }) },
+            { "Math_Sign_I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sign(Convert.ToInt64(a)); }) },
+            { "Math_Sign_I", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sign(Convert.ToInt64(a)); }) },
             { "Math_Sin_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Sin(Convert.ToDouble(a)); }) },
             { "Math_Sin_D", new Func<object, object, object, object>((a, b, c)

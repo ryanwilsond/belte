@@ -13,11 +13,9 @@ class Player extends PhysicsEntity {
     bool resolved51;
     bool resolved50;
 
-    public decimal! airTime;
     public decimal! dashing;
 
     public constructor(Program game, Vec2 position) : base(game, position, 0) {
-        airTime = 0;
         jumps = Settings.MaxJumps;
         wallSlide = false;
         dashing = 0;
@@ -33,19 +31,16 @@ class Player extends PhysicsEntity {
             velocity.y = 0;
 
         base.Update(deltaTime, tileMap, movement);
-        airTime += deltaTime;
         particleTimer += deltaTime;
 
         if (box.y > tileMap.lowestY + Settings.TileSize * 10)
             game.dead++;
 
-        if (collisions[DownCollide]) {
-            airTime = 0;
+        if (grounded)
             jumps = Settings.MaxJumps;
-        }
 
         wallSlide = false;
-        if ((collisions[LeftCollide] || collisions[RightCollide]) && airTime > 0.064) {
+        if ((collisions[LeftCollide] || collisions[RightCollide]) && !grounded) {
             wallSlide = true;
 
             if (game.wallSlideResetsJumps)
@@ -62,7 +57,7 @@ class Player extends PhysicsEntity {
         }
 
         if (!wallSlide) {
-            if (airTime > 0.064)
+            if (!grounded)
                 SetAction(JumpAction);
             else if (movement.x != 0)
                 SetAction(RunAction);
@@ -82,7 +77,7 @@ class Player extends PhysicsEntity {
                 game.particles[game.particleCount++] = new Particle(
                     new Vec2(box.x + (box.w / 2), box.y + (box.h / 2)),
                     new Vec2(Math.Abs(dashing) / dashing * Random.Random() * 12 * 60, 0),
-                    game.animations.particle,
+                    game.animations.GetParticleAnimation("particle"),
                     "particle",
                     Random.RandInt(1)
                 );
@@ -100,7 +95,7 @@ class Player extends PhysicsEntity {
                 game.particles[game.particleCount++] = new Particle(
                     new Vec2(box.x + box.w / 2, box.y + (box.h / 2)),
                     new Vec2(Math.Cos(angle) * speed, Math.Sin(angle) * speed),
-                    game.animations.particle,
+                    game.animations.GetParticleAnimation("particle"),
                     "particle",
                     Random.RandInt(1)
                 );
@@ -138,20 +133,20 @@ class Player extends PhysicsEntity {
             if (flip && lastMovement.x < 0) {
                 velocity.x = 3.5 * 3;
                 velocity.y = -2.5 * 5;
-                airTime = 5 * 0.016;
+                grounded = false;
                 jumps = Math.Max(0, jumps - 1);
                 return true;
             } else if (!flip && lastMovement.x > 0) {
                 velocity.x = -3.5 * 3;
                 velocity.y = -2.5 * 5;
-                airTime = 5 * 0.016;
+                grounded = false;
                 jumps = Math.Max(0, jumps - 1);
                 return true;
             }
         } else if (jumps > 0) {
             velocity.y = -Settings.JumpSpeed;
             jumps--;
-            airTime = 5 * 0.016;
+            grounded = false;
             return true;
         }
 

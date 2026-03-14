@@ -46,12 +46,15 @@ public static partial class BuckleCommandLine {
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
-        new DiagnosticInfo(0002, "BU"),
         new DiagnosticInfo(0053, "BU"),
         new DiagnosticInfo(0198, "BU"),
         new DiagnosticInfo(0263, "BU"),
         new DiagnosticInfo(0264, "BU"),
         new DiagnosticInfo(0265, "BU"),
+    ];
+
+    private static readonly DiagnosticInfo[] WarningLevel3 = [
+        new DiagnosticInfo(0002, "BU"),
     ];
 
     /// <summary>
@@ -245,6 +248,8 @@ public static partial class BuckleCommandLine {
         else if (state.warningLevel == 1)
             return !WarningInWarningList(WarningLevel1, info);
         else if (state.warningLevel == 2)
+            return !(WarningInWarningList(WarningLevel2, info) || WarningInWarningList(WarningLevel1, info));
+        else if (state.warningLevel == 3)
             return false;
 
         throw new UnreachableException();

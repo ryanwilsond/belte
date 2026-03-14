@@ -268,6 +268,20 @@ internal sealed partial class Executor : ModuleBuilder {
         return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
+    internal MethodInfo GetSort(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var sort = typeof(Array).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .First(m =>
+                m.Name == "Sort" &&
+                m.IsGenericMethodDefinition &&
+                m.GetGenericArguments().Length == 1 &&
+                m.GetParameters().Length == 1 &&
+                m.GetParameters()[0].ParameterType.IsArray);
+
+        var closedMethod = sort.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
     private void EmitInternal() {
         GenerateSTLMap();
         CompleteSpecialTypes();
@@ -560,7 +574,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         if (offset is not null) {
             dstX -= (int)offset.x;
-            dstY -= (int)offset.x;
+            dstY -= (int)offset.y;
         }
 
         GraphicsHandler.DrawSprite(
@@ -660,7 +674,7 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     public static BTexture LoadTexture(string path, long r, long g, long b) {
-        var mTexture = GraphicsHandler.LoadTexture(path, false, r, g, b);
+        var mTexture = GraphicsHandler.LoadTexture(path, true, r, g, b);
         return new BTexture(mTexture);
     }
 
@@ -736,12 +750,35 @@ internal sealed partial class Executor : ModuleBuilder {
             { "File_ReadText_S", typeof(File).GetMethod("ReadAllText", Flags, [typeof(string)]) },
             { "File_WriteText_SS", typeof(File).GetMethod("WriteAllText", Flags, [typeof(string), typeof(string)]) },
             { "Math_Clamp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
+            { "Math_Clamp_DDD", typeof(Math).GetMethod("Clamp", Flags, [typeof(double), typeof(double), typeof(double)]) },
+            { "Math_Clamp_I?I?I?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Math_Clamp_III", typeof(Math).GetMethod("Clamp", Flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Math_Lerp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
             { "Math_Lerp_DDD", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double), typeof(double), typeof(double)]) },
             { "Math_Cos_D", typeof(Math).GetMethod("Cos", Flags, [typeof(double)]) },
             { "Math_Cos_D?", typeof(Belte.Runtime.Math).GetMethod("Cos", Flags, [typeof(double?)]) },
+            { "Math_Cosh_D", typeof(Math).GetMethod("Cosh", Flags, [typeof(double)]) },
+            { "Math_Cosh_D?", typeof(Belte.Runtime.Math).GetMethod("Cosh", Flags, [typeof(double?)]) },
+            { "Math_Acos_D", typeof(Math).GetMethod("Acos", Flags, [typeof(double)]) },
+            { "Math_Acos_D?", typeof(Belte.Runtime.Math).GetMethod("Acos", Flags, [typeof(double?)]) },
+            { "Math_Acosh_D", typeof(Math).GetMethod("Acosh", Flags, [typeof(double)]) },
+            { "Math_Acosh_D?", typeof(Belte.Runtime.Math).GetMethod("Acosh", Flags, [typeof(double?)]) },
             { "Math_Sin_D", typeof(Math).GetMethod("Sin", Flags, [typeof(double)]) },
             { "Math_Sin_D?", typeof(Belte.Runtime.Math).GetMethod("Sin", Flags, [typeof(double?)]) },
+            { "Math_Sinh_D", typeof(Math).GetMethod("Sinh", Flags, [typeof(double)]) },
+            { "Math_Sinh_D?", typeof(Belte.Runtime.Math).GetMethod("Sinh", Flags, [typeof(double?)]) },
+            { "Math_Asin_D", typeof(Math).GetMethod("Asin", Flags, [typeof(double)]) },
+            { "Math_Asin_D?", typeof(Belte.Runtime.Math).GetMethod("Asin", Flags, [typeof(double?)]) },
+            { "Math_Asinh_D", typeof(Math).GetMethod("Asinh", Flags, [typeof(double)]) },
+            { "Math_Asinh_D?", typeof(Belte.Runtime.Math).GetMethod("Asinh", Flags, [typeof(double?)]) },
+            { "Math_Tan_D", typeof(Math).GetMethod("Tan", Flags, [typeof(double)]) },
+            { "Math_Tan_D?", typeof(Belte.Runtime.Math).GetMethod("Tan", Flags, [typeof(double?)]) },
+            { "Math_Tanh_D", typeof(Math).GetMethod("Tanh", Flags, [typeof(double)]) },
+            { "Math_Tanh_D?", typeof(Belte.Runtime.Math).GetMethod("Tanh", Flags, [typeof(double?)]) },
+            { "Math_Atan_D", typeof(Math).GetMethod("Atan", Flags, [typeof(double)]) },
+            { "Math_Atan_D?", typeof(Belte.Runtime.Math).GetMethod("Atan", Flags, [typeof(double?)]) },
+            { "Math_Atanh_D", typeof(Math).GetMethod("Atanh", Flags, [typeof(double)]) },
+            { "Math_Atanh_D?", typeof(Belte.Runtime.Math).GetMethod("Atanh", Flags, [typeof(double?)]) },
             { "Math_Pow_DD", typeof(Math).GetMethod("Pow", Flags, [typeof(double), typeof(double)]) },
             { "Math_Pow_D?D?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(double?), typeof(double?)]) },
             { "Math_Pow_II", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long), typeof(long)]) },
@@ -754,14 +791,30 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Min_DD", typeof(Math).GetMethod("Min", Flags, [typeof(double), typeof(double)]) },
             { "Math_Min_I?I?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(long?), typeof(long?)]) },
             { "Math_Min_II", typeof(Math).GetMethod("Min", Flags, [typeof(long), typeof(long)]) },
-            { "Math_Abs_D", typeof(Math).GetMethod("Abs", Flags, [typeof(double)]) },
             { "Math_Abs_D?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(double?)]) },
-            { "Math_Round_D?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(double?)]) },
+            { "Math_Abs_D", typeof(Math).GetMethod("Abs", Flags, [typeof(double)]) },
+            { "Math_Abs_I?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(long?)]) },
+            { "Math_Abs_I", typeof(Math).GetMethod("Abs", Flags, [typeof(long)]) },
+            { "Math_Round_D?", typeof(Belte.Runtime.Math).GetMethod("Round", Flags, [typeof(double?)]) },
             { "Math_Round_D", typeof(Math).GetMethod("Round", Flags, [typeof(double)]) },
             { "Math_Floor_D?", typeof(Belte.Runtime.Math).GetMethod("Floor", Flags, [typeof(double?)]) },
             { "Math_Floor_D", typeof(Math).GetMethod("Floor", Flags, [typeof(double)]) },
             { "Math_Ceiling_D?", typeof(Belte.Runtime.Math).GetMethod("Ceiling", Flags, [typeof(double?)]) },
             { "Math_Ceiling_D", typeof(Math).GetMethod("Ceiling", Flags, [typeof(double)]) },
+            { "Math_Sign_D?", typeof(Belte.Runtime.Math).GetMethod("Sign", Flags, [typeof(double?)]) },
+            { "Math_Sign_D", typeof(Math).GetMethod("Sign", Flags, [typeof(double)]) },
+            { "Math_Sign_I?", typeof(Belte.Runtime.Math).GetMethod("Sign", Flags, [typeof(long?)]) },
+            { "Math_Sign_I", typeof(Math).GetMethod("Sign", Flags, [typeof(long)]) },
+            { "Math_Exp_D?", typeof(Belte.Runtime.Math).GetMethod("Exp", Flags, [typeof(double?)]) },
+            { "Math_Exp_D", typeof(Math).GetMethod("Exp", Flags, [typeof(double)]) },
+            { "Math_Log_D?D?", typeof(Belte.Runtime.Math).GetMethod("Log", Flags, [typeof(double?), typeof(double?)]) },
+            { "Math_Log_DD", typeof(Math).GetMethod("Log", Flags, [typeof(double), typeof(double)]) },
+            { "Math_Log_D?", typeof(Belte.Runtime.Math).GetMethod("Log", Flags, [typeof(double?)]) },
+            { "Math_Log_D", typeof(Math).GetMethod("Log", Flags, [typeof(double)]) },
+            { "Math_Sqrt_D?", typeof(Belte.Runtime.Math).GetMethod("Sqrt", Flags, [typeof(double?)]) },
+            { "Math_Sqrt_D", typeof(Math).GetMethod("Sqrt", Flags, [typeof(double)]) },
+            { "Math_Truncate_D?", typeof(Belte.Runtime.Math).GetMethod("Truncate", Flags, [typeof(double?)]) },
+            { "Math_Truncate_D", typeof(Math).GetMethod("Truncate", Flags, [typeof(double)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_Sort_A?", typeof(Belte.Runtime.Utilities).GetMethod("Sort", Flags, [typeof(object[])]) },

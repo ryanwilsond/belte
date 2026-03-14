@@ -1187,10 +1187,22 @@ oneMoreTime:
         var receiver = expression.receiver;
         var arguments = expression.arguments;
 
-        if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType) &&
-            method.name == "ThrowNullConditionException") {
-            _builder.EmitThrowNullCondition();
-            return;
+        if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
+            switch (method.name) {
+                case "ThrowNullConditionException":
+                    _builder.EmitThrowNullCondition();
+                    return;
+                case "Sort":
+                    var argument = ((BoundCastExpression)arguments[0]).operand;
+                    var refKind = GetArgumentRefKind(arguments, method.parameters, expression.argumentRefKinds, 0);
+                    EmitArgument(argument, refKind);
+
+                    _builder.EmitSort(((ArrayTypeSymbol)argument.type.StrippedType()).elementType);
+
+                    EmitCallCleanup(method, useKind);
+
+                    return;
+            }
         }
 
         if (method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {

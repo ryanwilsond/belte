@@ -153,6 +153,10 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Call, _module.GetNullableValue(type));
     }
 
+    internal override void EmitSort(TypeSymbol elementType) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetSort(elementType));
+    }
+
     internal override void EmitStringConcat2() {
         EmitWithSymbolToken(OpCodes.Call, Executor.MethodInfoCache.String_Concat_SS);
     }

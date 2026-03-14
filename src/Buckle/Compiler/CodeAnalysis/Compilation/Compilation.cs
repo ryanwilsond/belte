@@ -234,7 +234,7 @@ public sealed partial class Compilation {
         var result = Evaluate(context, abort, verbose, logTime);
         context.WaitForCompletion();
 
-        if (verbose) {
+        if (verbose && result.heap is not null) {
             Console.WriteLine(
                 $"Heap after completion: Capacity {result.heap.capacity}, " +
                 $"Allocated {result.heap.usedCount}");
@@ -251,7 +251,7 @@ public sealed partial class Compilation {
         EvaluationResult result = null;
         Evaluate(context, abort, ref result, verbose, logTime);
 
-        if (verbose) {
+        if (verbose && result.heap is not null) {
             Console.WriteLine(
                 $"Heap: Capacity {result.heap.capacity}, " +
                 $"Allocated {result.heap.usedCount}");

@@ -148,6 +148,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         _iLProcessor.Emit(OpCodes.Call, _module.GetNullableValue(type));
     }
 
+    internal override void EmitSort(TypeSymbol elementType) {
+        _iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
+    }
+
     internal override void EmitStringConcat2() {
         _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Concat_SS);
     }

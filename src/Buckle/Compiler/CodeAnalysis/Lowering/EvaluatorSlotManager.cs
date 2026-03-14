@@ -9,6 +9,8 @@ internal sealed class EvaluatorSlotManager : LocalSlotManager {
         this.symbol = symbol;
     }
 
+    internal int lateTempCount { get; set; }
+
     internal Symbol symbol { get; }
 
     internal VariableDefinition DeclareLocal(

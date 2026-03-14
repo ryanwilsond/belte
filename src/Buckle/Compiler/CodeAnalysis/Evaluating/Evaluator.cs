@@ -252,6 +252,9 @@ internal sealed class Evaluator {
     #region Expressions
 
     private EvaluatorValue EvaluateExpression(BoundExpression node, ValueWrapper<bool> abort) {
+        if (abort)
+            throw new BelteThreadException();
+
         if (node.constantValue is not null)
             return EvaluatorValue.Literal(node.constantValue.value, node.constantValue.specialType);
 
@@ -510,13 +513,18 @@ internal sealed class Evaluator {
             return EvaluateExpression(node.arguments[0], abort);
 
         var type = (NamedTypeSymbol)node.type;
-        var value = CreateObject(type);
+        var ptr = CreateObject(type);
+
+        var temp = AllocateTemp(type);
+        _stack.Peek().values[temp.slot] = ptr;
 
         var method = node.constructor;
         var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
-        InvokeInstanceMethod(method, value, evaluatedArguments, abort);
+        InvokeInstanceMethod(method, ptr, evaluatedArguments, abort);
 
-        return value;
+        _stack.Peek().layout.FreeSlot(temp);
+
+        return ptr;
     }
 
     private EvaluatorValue EvaluateArrayAccessExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {
@@ -537,13 +545,19 @@ internal sealed class Evaluator {
         BoundArrayCreationExpression node,
         ValueWrapper<bool> abort) {
         var sizes = node.sizes.Select(s => (int)EvaluateExpression(s, abort).int64);
-        var array = CreateArray((ArrayTypeSymbol)node.type.StrippedType(), sizes.ToArray(), 0);
+        var heapObject = CreateArray((ArrayTypeSymbol)node.type.StrippedType(), sizes.ToArray(), 0);
+        var index = _context.heap.Allocate(heapObject, _stack, _context);
+        var ptr = EvaluatorValue.HeapPtr(index);
+
+        var temp = AllocateTemp(node.type);
+        _stack.Peek().values[temp.slot] = ptr;
 
         if (node.initializer is BoundInitializerList initList)
-            EvaluateInitializerList(array, initList, abort);
+            EvaluateInitializerList(heapObject, initList, abort);
 
-        var index = _context.heap.Allocate(array, _stack, _context);
-        return EvaluatorValue.HeapPtr(index);
+        _stack.Peek().layout.FreeSlot(temp);
+
+        return ptr;
     }
 
     private void EvaluateInitializerList(
@@ -790,6 +804,7 @@ internal sealed class Evaluator {
                     else
                         expr = EvaluateReceiverRef(left.receiver, AddressKind.Writeable, abort);
 
+                    var tmp = _context.heap[expr.ptr];
                     expr = EvaluatorValue.Ref(_context.heap[expr.ptr].fields, left.slot);
                 }
 
@@ -1215,19 +1230,25 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(node, abort);
-        var temp = AllocateTemp(node.type);
-        var frame = _stack.Peek();
-        frame.values[temp.slot] = value;
-        return EvaluatorValue.Ref(frame.values, temp.slot);
+        // TODO Reachable? If not stack frame size can be computed ahead of time
+        throw ExceptionUtilities.Unreachable();
+        // var value = EvaluateExpression(node, abort);
+        // var temp = AllocateTemp(node.type);
+        // var frame = _stack.Peek();
+        // frame.values[temp.slot] = value;
+        // return EvaluatorValue.Ref(frame.values, temp.slot);
     }
 
     private VariableDefinition AllocateTemp(
         TypeSymbol type,
         LocalSlotConstraints slotConstraints = LocalSlotConstraints.None) {
         var frame = _stack.Peek();
-        frame.Resize();
-        return frame.layout.AllocateSlot(type, slotConstraints);
+        var temp = frame.layout.AllocateSlot(type, slotConstraints);
+
+        if (frame.values.Length < frame.layout.LocalsInOrder().Length)
+            throw ExceptionUtilities.Unreachable();
+
+        return temp;
     }
 
     #endregion
@@ -1627,6 +1648,9 @@ internal sealed class Evaluator {
                     var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
                     var sprite = CreateObject(spriteType);
 
+                    var temp = AllocateTemp(spriteType);
+                    _stack.Peek().values[temp.slot] = sprite;
+
                     InvokeInstanceMethod(
                         spriteType.constructors[0],
                         sprite,
@@ -1638,6 +1662,8 @@ internal sealed class Evaluator {
                         ],
                         abort
                     );
+
+                    _stack.Peek().layout.FreeSlot(temp);
 
                     result = sprite;
                 }
@@ -1752,6 +1778,9 @@ internal sealed class Evaluator {
                     var vecType = CorLibrary.GetSpecialType(SpecialType.Vec2);
                     var vec = CreateObject(vecType);
 
+                    var temp = AllocateTemp(vecType);
+                    _stack.Peek().values[temp.slot] = vec;
+
                     InvokeInstanceMethod(
                         vecType.constructors[0],
                         vec,
@@ -1761,6 +1790,8 @@ internal sealed class Evaluator {
                         ],
                         abort
                     );
+
+                    _stack.Peek().layout.FreeSlot(temp);
 
                     result = vec;
                 }
@@ -1930,8 +1961,8 @@ internal sealed class Evaluator {
                 throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture", location);
 
             if (!offsetVec.Equals(EvaluatorValue.None)) {
-                dx -= (int)H(offsetVec)[0].int64;
-                dy -= (int)H(offsetVec)[1].int64;
+                dx -= (int)H(offsetVec)[0].@double;
+                dy -= (int)H(offsetVec)[1].@double;
             }
 
             if (_context.options.isScript) {

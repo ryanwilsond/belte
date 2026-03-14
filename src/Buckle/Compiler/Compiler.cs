@@ -140,8 +140,10 @@ public sealed class Compiler {
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
             var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
-            if (state.noOut) {
-                diagnostics.PushRange(compilation.GetParseDiagnostics());
+            var parseDiagnostics = compilation.GetParseDiagnostics();
+
+            if (state.noOut || parseDiagnostics.AnyErrors()) {
+                diagnostics.PushRange(parseDiagnostics);
                 return;
             }
 
@@ -175,7 +177,9 @@ public sealed class Compiler {
 
             var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree, corLibrary);
 
-            if (state.noOut) {
+            var parseDiagnostics = compilation.GetParseDiagnostics();
+
+            if (state.noOut || parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(compilation.GetParseDiagnostics());
                 return;
             }
@@ -206,8 +210,12 @@ public sealed class Compiler {
         var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
-        if (state.noOut)
+        var parseDiagnostics = compilation.GetParseDiagnostics();
+
+        if (state.noOut || parseDiagnostics.AnyErrors()) {
+            diagnostics.PushRange(parseDiagnostics);
             return;
+        }
 
         LogParseTime(timer, libTime, syntaxTrees.Length);
 

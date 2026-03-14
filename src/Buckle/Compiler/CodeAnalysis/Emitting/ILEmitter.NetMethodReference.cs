@@ -29,5 +29,6 @@ internal sealed partial class ILEmitter {
         internal static MethodReference NullConditionException_ctor;
         internal static MethodReference Math_Pow_Nullable;
         internal static MethodReference Math_Pow;
+        internal static MethodReference Array_Sort;
     }
 }

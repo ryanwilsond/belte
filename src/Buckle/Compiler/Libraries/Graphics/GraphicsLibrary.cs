@@ -17,6 +17,10 @@ internal static class GraphicsLibrary {
         }
     }
 
+    internal static bool MethodProducesTemp(MethodSymbol method) {
+        return method.name == "GetMousePosition" || method.name == "LoadSprite";
+    }
+
     internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes() {
         yield return Graphics;
     }
