@@ -3,7 +3,7 @@ class Clouds {
     int! count;
     Cloud[] clouds;
 
-    public constructor(ref Texture[]! textures, int! count = 16) {
+    public constructor(Texture[]! textures, int! count = 16) {
         this.count = count;
         clouds = new Cloud[count];
         var depths = new decimal[count];

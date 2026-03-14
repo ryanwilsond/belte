@@ -7,7 +7,7 @@ class Tile {
     public string! kind;
     public bool onGrid;
 
-    public constructor(int! x, int! y, ref Texture texture, string! key, int! tileSize, bool onGrid = true) {
+    public constructor(int! x, int! y, Texture texture, string! key, int! tileSize, bool onGrid = true) {
         this.x = x;
         this.y = y;
         this.key = key;

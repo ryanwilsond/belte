@@ -509,7 +509,8 @@ internal sealed class Evaluator {
         if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], abort);
 
-        var value = CreateObject((NamedTypeSymbol)node.type);
+        var type = (NamedTypeSymbol)node.type;
+        var value = CreateObject(type);
 
         var method = node.constructor;
         var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
@@ -583,7 +584,7 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue GetDefaultValue(TypeSymbol type) {
-        return type.IsPrimitiveType()
+        return (!type.IsNullableType() && type.IsVerifierValue())
             ? EvaluatorValue.Literal(LiteralUtilities.GetDefaultValue(type.specialType), type.specialType)
             : EvaluatorValue.Null;
     }
@@ -885,23 +886,6 @@ internal sealed class Evaluator {
         var op = operatorKind.Operator();
         var left = EvaluateExpression(node.left, abort);
 
-        if (left.kind == ValueKind.Null)
-            return left;
-
-        if (op == BinaryOperatorKind.ConditionalAnd) {
-            if (!left.@bool)
-                return left;
-
-            return EvaluateExpression(node.right, abort);
-        }
-
-        if (op == BinaryOperatorKind.ConditionalOr) {
-            if (left.@bool)
-                return left;
-
-            return EvaluateExpression(node.right, abort);
-        }
-
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
             if (node.right.IsLiteralNull()) {
                 return EvaluatorValue.Literal(
@@ -909,6 +893,23 @@ internal sealed class Evaluator {
                     SpecialType.Bool
                 );
             }
+        }
+
+        if (left.kind == ValueKind.Null)
+            return left;
+
+        if (operatorKind == BinaryOperatorKind.BoolConditionalAnd) {
+            if (!left.@bool)
+                return left;
+
+            return EvaluateExpression(node.right, abort);
+        }
+
+        if (operatorKind == BinaryOperatorKind.BoolConditionalOr) {
+            if (left.@bool)
+                return left;
+
+            return EvaluateExpression(node.right, abort);
         }
 
         var right = EvaluateExpression(node.right, abort);
@@ -1251,6 +1252,10 @@ internal sealed class Evaluator {
 
             if (result is EvaluatorValue e) {
                 return e;
+            } else if (result is EvaluatorValue[] a) {
+                var array = new HeapObject((ArrayTypeSymbol)node.type.StrippedType(), a);
+                var index = _context.heap.Allocate(array, _stack, _context);
+                return EvaluatorValue.HeapPtr(index);
             } else if (!node.method.returnsVoid) {
                 return EvaluatorValue.Literal(result, node.method.returnType.StrippedType().specialType);
             } else {
@@ -1455,7 +1460,7 @@ internal sealed class Evaluator {
                 case "Random_RandInt_I?":
                     _lazyRandom ??= new Random();
                     var max = (int)EvaluateExpression(arguments[0], abort).int64;
-                    result = Convert.ToInt64(_lazyRandom.Next(max));
+                    result = _lazyRandom.NextInt64(max);
                     return true;
                 case "LowLevel_ThrowNullConditionException":
                     throw new BelteNullConditionException(location);
@@ -1793,18 +1798,43 @@ internal sealed class Evaluator {
 
                     var srcRect = evaluatedArguments[1];
                     var dstRect = evaluatedArguments[2];
-                    var rotation = evaluatedArguments[3].int64;
-                    var flip = evaluatedArguments[4].@bool;
-                    var alpha = evaluatedArguments[5].@double;
+                    long? rotation = (evaluatedArguments[3].kind == ValueKind.Null) ? null : evaluatedArguments[3].int64;
+                    bool? flip = (evaluatedArguments[4].kind == ValueKind.Null) ? null : evaluatedArguments[4].@bool;
+                    double? alpha = (evaluatedArguments[5].kind == ValueKind.Null) ? null : evaluatedArguments[5].@double;
+
+                    Microsoft.Xna.Framework.Rectangle? src = null;
+
+                    if (srcRect.kind != ValueKind.Null) {
+                        var (sx, sy, sw, sh) = ExtRect(srcRect);
+                        src = new Microsoft.Xna.Framework.Rectangle(sx, sy, sw, sh);
+                    }
+
+                    var (dx, dy, dw, dh) = ExtRect(dstRect);
+                    var dst = new Microsoft.Xna.Framework.Rectangle(dx, dy, dw, dh);
 
                     if (_context.options.isScript) {
                         result = _context.graphicsHandler.AddAction(
                             () => {
-                                _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
+                                _context.graphicsHandler.Draw(
+                                    texture2D,
+                                    src,
+                                    dst,
+                                    rotation,
+                                    flip,
+                                    alpha
+                                );
                             }
                         );
                     } else {
-                        _context.graphicsHandler.Draw(texture2D, srcRect, dstRect, rotation, flip, alpha);
+                        _context.graphicsHandler.Draw(
+                            texture2D,
+                            src,
+                            dst,
+                            rotation,
+                            flip,
+                            alpha
+                        );
+
                         result = null;
                     }
                 }
@@ -1827,8 +1857,8 @@ internal sealed class Evaluator {
             case "Graphics_PlaySound_S": {
                     var argument = EvaluateExpression(arguments[0], abort);
                     var fields = H(argument);
-                    var volume = fields[1].@double;
-                    var loop = fields[2].@bool;
+                    double? volume = fields[1].kind == ValueKind.Null ? null : fields[1].@double;
+                    bool? loop = fields[2].kind == ValueKind.Null ? null : fields[2].@bool;
                     var soundInstance = fields[0].data;
                     _context.graphicsHandler.PlaySound((SoundEffect)soundInstance, volume, loop);
                 }
@@ -1883,7 +1913,9 @@ internal sealed class Evaluator {
 
             texture.fields[0].data = texture2D;
             texture.fields[1].int64 = texture2D.Width;
+            texture.fields[1].kind = ValueKind.Int64;
             texture.fields[2].int64 = texture2D.Height;
+            texture.fields[2].kind = ValueKind.Int64;
 
             return texturePointer;
         }
@@ -1915,7 +1947,7 @@ internal sealed class Evaluator {
         }
     }
 
-    internal (int x, int y, int w, int h) ExtRect(EvaluatorValue rect) {
+    private (int x, int y, int w, int h) ExtRect(EvaluatorValue rect) {
         var fields = H(rect);
         return ((int)fields[0].int64, (int)fields[1].int64, (int)fields[2].int64, (int)fields[3].int64);
     }

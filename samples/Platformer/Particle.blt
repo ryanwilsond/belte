@@ -3,11 +3,11 @@ class Particle {
     Vec2 velocity;
     bool kill;
 
-    public ref Animation animation;
+    public Animation animation;
     public Vec2 position;
     public string! kind;
 
-    public constructor(Vec2 position, Vec2 velocity, ref Animation animation, string! kind, int frame = 0) {
+    public constructor(Vec2 position, Vec2 velocity, Animation animation, string! kind, int frame = 0) {
         this.position = position;
         this.velocity = velocity;
         this.animation = animation;

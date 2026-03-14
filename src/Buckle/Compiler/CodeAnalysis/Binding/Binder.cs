@@ -650,21 +650,23 @@ internal partial class Binder {
         bool permitDimensions,
         ConsList<TypeSymbol> basesBeingResolved) {
         var type = BindType(node.elementType, diagnostics, basesBeingResolved);
-        var rank = node.rankSpecifiers.Count;
+        var jaggedRank = node.rankSpecifiers.Count;
 
         if (type.nullableUnderlyingTypeOrSelf.isStatic)
             diagnostics.Push(Error.ArrayOfStaticType(node.elementType.location, type.nullableUnderlyingTypeOrSelf));
 
-        for (var i = 0; i < rank; i++) {
+        for (var i = 0; i < jaggedRank; i++) {
             var rankSpecifier = node.rankSpecifiers[i];
             var dimension = rankSpecifier.size;
 
             if (!permitDimensions && dimension is not null)
                 diagnostics.Push(Error.ArraySizeInDeclaration(rankSpecifier.size.location));
+
+            var array = ArrayTypeSymbol.CreateArray(type, 1);
+            type = new TypeWithAnnotations(array);
         }
 
-        var array = ArrayTypeSymbol.CreateArray(type, rank);
-        return new TypeWithAnnotations(array);
+        return type;
     }
 
     private protected NamespaceOrTypeOrAliasSymbolWithAnnotations BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
@@ -1327,54 +1329,45 @@ internal partial class Binder {
         if (node.kind != SyntaxKind.InitializerListExpression)
             return BindValue(node, diagnostics, valueKind);
 
-        var result = BindValue(node, diagnostics, valueKind);
+        BoundExpression result;
 
-        // if (destinationType.StrippedType().kind == SymbolKind.ArrayType) {
-        //     result = BindArrayCreationWithInitializer(
-        //         diagnostics,
-        //         null,
-        //         (InitializerListExpressionSyntax)node,
-        //         (ArrayTypeSymbol)destinationType.StrippedType(),
-        //         []
-        //     );
-        // } else {
-        //     result = BindUnexpectedArrayInitializer(
-        //         (InitializerListExpressionSyntax)node,
-        //         diagnostics,
-        //         Error.ArrayInitToNonArrayType(node.location)
-        //     );
-        // }
-
-        if (destinationType.StrippedType().kind != SymbolKind.ArrayType)
+        if (destinationType.StrippedType().kind == SymbolKind.ArrayType) {
+            result = BindArrayCreationWithInitializer(
+                diagnostics,
+                null,
+                (InitializerListExpressionSyntax)node,
+                (ArrayTypeSymbol)destinationType.StrippedType(),
+                []
+            );
+        } else {
             diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
+            result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics);
+        }
 
         return CheckValue(result, valueKind, diagnostics);
     }
 
     private BoundExpression BindUnexpectedArrayInitializer(
         InitializerListExpressionSyntax node,
-        BelteDiagnosticQueue diagnostics,
-        BelteDiagnostic error) {
-        var tryArrayCreation = BindArrayCreationWithInitializer(
+        BelteDiagnosticQueue diagnostics) {
+        var result = BindArrayInitializerList(
             diagnostics,
-            null,
             node,
-            CreateArrayTypeSymbol(CorLibrary.GetSpecialType(SpecialType.Any)),
-            [BoundFactory.Literal(node, 1, CorLibrary.GetSpecialType(SpecialType.Int))]
+            CreateArrayTypeSymbol(CorLibrary.GetNullableType(SpecialType.Any)),
+            new long?[1],
+            1,
+            false
         );
-
-        BoundExpression result = tryArrayCreation;
 
         if (!result.hasErrors) {
             result = new BoundInitializerList(
                 node,
-                tryArrayCreation.initializer.items,
-                tryArrayCreation.initializer.type,
+                result.items,
+                result.type,
                 hasErrors: true
             );
         }
 
-        diagnostics.Push(error);
         return result;
     }
 
@@ -2243,39 +2236,63 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         bool called,
         bool indexed) {
-        return node.kind switch {
-            SyntaxKind.LiteralExpression => BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics),
-            SyntaxKind.ThisExpression => BindThisExpression((ThisExpressionSyntax)node, diagnostics),
-            SyntaxKind.BaseExpression => BindBaseExpression((BaseExpressionSyntax)node, diagnostics),
-            SyntaxKind.CallExpression => BindCallExpression((CallExpressionSyntax)node, diagnostics),
-            SyntaxKind.QualifiedName => BindQualifiedName((QualifiedNameSyntax)node, diagnostics),
-            SyntaxKind.ReferenceType => BindReferenceType((ReferenceTypeSyntax)node, diagnostics),
-            SyntaxKind.NonNullableType => ErrorExpression(node), // TODO Confirm this is not reachable without err
-            SyntaxKind.ParenthesizedExpression => BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics),
-            SyntaxKind.MemberAccessExpression => BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics),
-            SyntaxKind.IdentifierName or SyntaxKind.TemplateName => BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics),
-            SyntaxKind.BinaryExpression => BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics),
-            SyntaxKind.UnaryExpression => BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics),
-            SyntaxKind.PrefixExpression => BindIncrementOperator(node, ((PrefixExpressionSyntax)node).operand, ((PrefixExpressionSyntax)node).operatorToken, diagnostics),
-            SyntaxKind.PostfixExpression => BindIncrementOrNullAssertOperator((PostfixExpressionSyntax)node, diagnostics),
-            SyntaxKind.TernaryExpression => BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics),
-            SyntaxKind.AssignmentExpression => BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics),
-            SyntaxKind.ObjectCreationExpression => BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics),
-            SyntaxKind.ArrayCreationExpression => BindArrayCreationExpression((ArrayCreationExpressionSyntax)node, diagnostics),
-            SyntaxKind.NameOfExpression => BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics),
-            SyntaxKind.CastExpression => BindCastExpression((CastExpressionSyntax)node, diagnostics),
-            SyntaxKind.InitializerListExpression => BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics),
-            SyntaxKind.ReferenceExpression => BindReferenceExpression((ReferenceExpressionSyntax)node, diagnostics),
-            SyntaxKind.IndexExpression => BindIndexExpression((IndexExpressionSyntax)node, diagnostics),
-            SyntaxKind.TypeOfExpression => BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics),
-            /*
+        switch (node.kind) {
+            case SyntaxKind.LiteralExpression:
+                return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ThisExpression:
+                return BindThisExpression((ThisExpressionSyntax)node, diagnostics);
+            case SyntaxKind.BaseExpression:
+                return BindBaseExpression((BaseExpressionSyntax)node, diagnostics);
+            case SyntaxKind.CallExpression:
+                return BindCallExpression((CallExpressionSyntax)node, diagnostics);
+            case SyntaxKind.QualifiedName:
+                return BindQualifiedName((QualifiedNameSyntax)node, diagnostics);
+            case SyntaxKind.ReferenceType:
+                return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
+            case SyntaxKind.NonNullableType:
+                // TODO Confirm this is not reachable without er
+                return ErrorExpression(node);
+            case SyntaxKind.ParenthesizedExpression:
+                return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
+            case SyntaxKind.MemberAccessExpression:
+                return BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics);
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+                return BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics);
+            case SyntaxKind.BinaryExpression:
+                return BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics);
+            case SyntaxKind.UnaryExpression:
+                return BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics);
+            case SyntaxKind.PrefixExpression:
+                return BindIncrementOperator(node, ((PrefixExpressionSyntax)node).operand, ((PrefixExpressionSyntax)node).operatorToken, diagnostics);
+            case SyntaxKind.PostfixExpression:
+                return BindIncrementOrNullAssertOperator((PostfixExpressionSyntax)node, diagnostics);
+            case SyntaxKind.TernaryExpression:
+                return BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics);
+            case SyntaxKind.AssignmentExpression:
+                return BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ObjectCreationExpression:
+                return BindObjectCreationExpression((ObjectCreationExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ArrayCreationExpression:
+                return BindArrayCreationExpression((ArrayCreationExpressionSyntax)node, diagnostics);
+            case SyntaxKind.NameOfExpression:
+                return BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics);
+            case SyntaxKind.CastExpression:
+                return BindCastExpression((CastExpressionSyntax)node, diagnostics);
+            case SyntaxKind.InitializerListExpression:
+                diagnostics.Push(Error.UnexpectedArrayInit(node.location));
+                return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ReferenceExpression:
+                return BindReferenceExpression((ReferenceExpressionSyntax)node, diagnostics);
+            case SyntaxKind.IndexExpression:
+                return BindIndexExpression((IndexExpressionSyntax)node, diagnostics);
+            case SyntaxKind.TypeOfExpression:
+                return BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics);
             case SyntaxKind.InitializerDictionaryExpression:
-                return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)expression);
             case SyntaxKind.ThrowExpression:
-                return BindThrowExpression((ThrowExpressionSyntax)expression);
-            */
-            _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
-        };
+            default:
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
+        }
     }
 
     private BoundErrorExpression ErrorExpression(SyntaxNode syntax, BoundExpression expression) {
@@ -5975,7 +5992,7 @@ internal partial class Binder {
                 kind | BinaryOperatorKind.Bool,
                 null,
                 constantValue,
-                left.type
+                left.type.StrippedType()
             );
         }
 
@@ -6153,7 +6170,11 @@ internal partial class Binder {
 
         if (isEquality && (leftNull || rightNull)) {
             var type = CorLibrary.GetNullableType(SpecialType.Bool);
-            return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.Bool), type);
+            return new BoundLiteralExpression(
+                node,
+                new ConstantValue((leftNull == rightNull) == (kind == BinaryOperatorKind.Equal), SpecialType.Bool),
+                type
+            );
         }
 
         var foundOperator = BindSimpleBinaryOperatorParts(
@@ -8459,6 +8480,12 @@ symIsHidden:;
         if (initializer is null) {
             diagnostics.Push(Error.NoInitOnImplicit(errorSyntax.location));
             return null;
+        }
+
+        if (initializer.kind == SyntaxKind.InitializerListExpression) {
+            diagnostics.Push(Error.ImplicitAssignedInitializerList(errorSyntax.location));
+            var result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)initializer, diagnostics);
+            return CheckValue(result, valueKind, diagnostics);
         }
 
         var value = BindValue(initializer, diagnostics, valueKind);

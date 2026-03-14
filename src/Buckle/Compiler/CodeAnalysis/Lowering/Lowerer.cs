@@ -189,6 +189,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <method>(<left>, <right>)
 
+        ----> <op> is && or ||
+
+        ((<left> ?? false) <op> (<right> ?? false))
+
         ----> <left> is nullable and <right> is nullable
 
         ((HasValue(<left>) && HasValue(<right>)) ? new Nullable( Value(<left>) <op> Value(<right>) ) : null)
@@ -204,6 +208,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var op = expression.operatorKind;
+        var type = expression.type;
 
         if (op.Operator() == BinaryOperatorKind.Power) {
             return Visit(
@@ -219,7 +224,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.method is not null)
             return Visit(Call(syntax, expression.method, expression.left, expression.right));
 
-        if (op.IsLifted()) {
+        if (op.IsLifted() || op.IsConditional()) {
             var left = expression.left;
             var right = expression.right;
 
@@ -235,8 +240,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 right = rCast.operand;
             }
 
-            if (left.type.IsNullableType() &&
-                right.type.IsNullableType() &&
+            var leftIsNullable = left.type.IsNullableType();
+            var rightIsNullable = right.type.IsNullableType();
+
+            if (op.IsConditional() && (leftIsNullable || rightIsNullable)) {
+                var coalescedLeft = leftIsNullable
+                    ? new BoundNullCoalescingOperator(syntax, left, Literal(syntax, false, type), null, type)
+                    : left;
+
+                var coalescedRight = rightIsNullable
+                    ? new BoundNullCoalescingOperator(syntax, right, Literal(syntax, false, type), null, type)
+                    : right;
+
+                return VisitBinaryOperator(Binary(syntax, coalescedLeft, op, coalescedRight, type));
+            }
+
+            if (leftIsNullable &&
+                rightIsNullable &&
                 left.constantValue is null &&
                 right.constantValue is null) {
                 return VisitConditionalOperator(
@@ -250,17 +270,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
                                 Value(syntax, left, left.type.GetNullableUnderlyingType()),
                                 op,
                                 Value(syntax, right, right.type.GetNullableUnderlyingType()),
-                                expression.type.StrippedType()
+                                type.StrippedType()
                                 ),
-                            expression.type
+                            type
                         ),
-                        @else: Literal(syntax, null, expression.type),
-                        expression.type
+                        @else: Literal(syntax, null, type),
+                        type
                     )
                 );
             }
 
-            if (left.type.IsNullableType() && left.constantValue is null) {
+            if (leftIsNullable && left.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
                         @if: HasValue(syntax, left),
@@ -269,17 +289,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
                                 Value(syntax, left, left.type.GetNullableUnderlyingType()),
                                 op,
                                 DeNull(right),
-                                expression.type.StrippedType()
+                                type.StrippedType()
                             ),
-                            expression.type
+                            type
                         ),
-                        @else: Literal(syntax, null, expression.type),
-                        expression.type
+                        @else: Literal(syntax, null, type),
+                        type
                     )
                 );
             }
 
-            if (right.type.IsNullableType() && right.constantValue is null) {
+            if (rightIsNullable && right.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
                         @if: HasValue(syntax, right),
@@ -288,12 +308,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
                                 DeNull(left),
                                 op,
                                 Value(syntax, right, right.type.GetNullableUnderlyingType()),
-                                expression.type.StrippedType()
+                                type.StrippedType()
                             ),
-                            expression.type
+                            type
                         ),
-                        @else: Literal(syntax, null, expression.type),
-                        expression.type
+                        @else: Literal(syntax, null, type),
+                        type
                     )
                 );
             }

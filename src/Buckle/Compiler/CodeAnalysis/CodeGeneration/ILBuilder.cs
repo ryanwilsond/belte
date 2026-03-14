@@ -64,7 +64,9 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitConvertCall(SpecialType from, SpecialType to);
 
-    internal abstract void EmitRandomNext();
+    internal abstract void EmitRandomNextInt64();
+
+    internal abstract void EmitRandomNextDouble();
 
     internal abstract void EmitNullValue(TypeSymbol generic);
 

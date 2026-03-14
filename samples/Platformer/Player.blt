@@ -16,7 +16,7 @@ class Player extends PhysicsEntity {
     public decimal! airTime;
     public decimal! dashing;
 
-    public constructor(ref Program game, Vec2 position) : base(ref game, position, 0) {
+    public constructor(Program game, Vec2 position) : base(game, position, 0) {
         airTime = 0;
         jumps = Settings.MaxJumps;
         wallSlide = false;
@@ -28,11 +28,11 @@ class Player extends PhysicsEntity {
         resolved50 = false;
     }
 
-    public override bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+    public override bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
         if (Math.Abs(dashing) >= 50)
             velocity.y = 0;
 
-        base.Update(deltaTime, ref tileMap, movement);
+        base.Update(deltaTime, tileMap, movement);
         airTime += deltaTime;
         particleTimer += deltaTime;
 

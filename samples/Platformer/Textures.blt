@@ -1,24 +1,24 @@
 
 class Textures {
-    private ref string[]! keys;
+    private string[]! keys;
 
-    public ref Texture[]! grass;
-    public ref Texture[]! stone;
-    public ref Texture[]! cloud;
-    public ref Texture[]! decor;
-    public ref Texture[]! largeDecor;
-    public ref Texture[]! spawners;
+    public Texture[]! grass;
+    public Texture[]! stone;
+    public Texture[]! cloud;
+    public Texture[]! decor;
+    public Texture[]! largeDecor;
+    public Texture[]! spawners;
 
-    public ref Texture gun;
-    public ref Texture projectile;
+    public Texture gun;
+    public Texture projectile;
 
-    public ref Texture[][] everything;
+    public Texture[][] everything;
 
     public constructor() {
         gun = Graphics.LoadTexture("data/images/gun.png", 0, 0, 0);
         projectile = Graphics.LoadTexture("data/images/projectile.png", 0, 0, 0);
 
-        grass = {
+        grass = new Texture[]! {
             Graphics.LoadTexture("data/images/tiles/grass/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/grass/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/grass/2.png", 0, 0, 0),
@@ -30,7 +30,7 @@ class Textures {
             Graphics.LoadTexture("data/images/tiles/grass/8.png", 0, 0, 0)
         };
 
-        stone = {
+        stone = new Texture[]! {
             Graphics.LoadTexture("data/images/tiles/stone/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/stone/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/stone/2.png", 0, 0, 0),
@@ -42,58 +42,58 @@ class Textures {
             Graphics.LoadTexture("data/images/tiles/stone/8.png", 0, 0, 0)
         };
 
-        cloud = {
+        cloud = new Texture[]! {
             Graphics.LoadTexture("data/images/clouds/cloud_1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/clouds/cloud_2.png", 0, 0, 0)
         };
 
-        decor = {
+        decor = new Texture[]! {
             Graphics.LoadTexture("data/images/tiles/decor/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/decor/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/decor/2.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/decor/3.png", 0, 0, 0)
         };
 
-        largeDecor = {
+        largeDecor = new Texture[]! {
             Graphics.LoadTexture("data/images/tiles/large_decor/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/large_decor/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/large_decor/2.png", 0, 0, 0)
         };
 
-        spawners = {
+        spawners = new Texture[]! {
             Graphics.LoadTexture("data/images/tiles/spawners/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/tiles/spawners/1.png", 0, 0, 0)
         };
 
-        everything = { decor, grass, largeDecor, stone, spawners };
-        keys = { "decor", "grass", "largeDecor", "stone", "spawners" };
+        everything = new Texture[][] { decor, grass, largeDecor, stone, spawners };
+        keys = new string[]! { "decor", "grass", "largeDecor", "stone", "spawners" };
     }
 
-    public ref Texture GetTexture(int tileGroup, int tileVariant) {
-        return ref everything[tileGroup][tileVariant];
+    public Texture GetTexture(int tileGroup, int tileVariant) {
+        return everything[tileGroup][tileVariant];
     }
 
-    public ref Texture GetTextureStr(string key, int tileVariant) {
+    public Texture GetTextureStr(string key, int tileVariant) {
         if (key == "decor")
-            return ref decor[tileVariant];
+            return decor[tileVariant];
         if (key == "grass")
-            return ref grass[tileVariant];
+            return grass[tileVariant];
         if (key == "largeDecor")
-            return ref largeDecor[tileVariant];
+            return largeDecor[tileVariant];
         if (key == "stone")
-            return ref stone[tileVariant];
+            return stone[tileVariant];
         if (key == "spawners")
-            return ref spawners[tileVariant];
+            return spawners[tileVariant];
 
         return null;
     }
 
     public string! GetTextureKey(int tileGroup, int tileVariant) {
-        return keys[tileGroup] + ";" + ((string!)tileVariant);
+        return ((string!)keys[tileGroup]) + ";" + ((string!)tileVariant);
     }
 
     public Texture[] PlayerIdleTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/player/idle/00.png"),
             Graphics.LoadTexture("data/images/entities/player/idle/01.png"),
             Graphics.LoadTexture("data/images/entities/player/idle/02.png"),
@@ -120,7 +120,7 @@ class Textures {
     }
 
     public Texture[] PlayerRunTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/player/run/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/entities/player/run/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/entities/player/run/2.png", 0, 0, 0),
@@ -133,25 +133,25 @@ class Textures {
     }
 
     public Texture[] PlayerSlideTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/player/slide/0.png", 0, 0, 0),
         };
     }
 
     public Texture[] PlayerJumpTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/player/jump/0.png", 0, 0, 0),
         };
     }
 
     public Texture[] PlayerWallSlideTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/player/wall_slide/0.png", 0, 0, 0),
         };
     }
 
     public Texture[] LeafTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/particles/leaf/00.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/particles/leaf/01.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/particles/leaf/02.png", 0, 0, 0),
@@ -174,7 +174,7 @@ class Textures {
     }
 
     public Texture[] ParticleTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/particles/particle/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/particles/particle/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/particles/particle/2.png", 0, 0, 0),
@@ -183,7 +183,7 @@ class Textures {
     }
 
     public Texture[] EnemyIdleTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/enemy/idle/00.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/entities/enemy/idle/01.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/entities/enemy/idle/02.png", 0, 0, 0),
@@ -204,7 +204,7 @@ class Textures {
     }
 
     public Texture[] EnemyRunTextures() {
-        return {
+        return new Texture[] {
             Graphics.LoadTexture("data/images/entities/enemy/run/0.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/entities/enemy/run/1.png", 0, 0, 0),
             Graphics.LoadTexture("data/images/entities/enemy/run/2.png", 0, 0, 0),

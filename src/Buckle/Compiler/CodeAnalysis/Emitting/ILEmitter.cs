@@ -699,7 +699,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
         NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
         NetMethodReference.Random_ctor = ResolveMethod("System.Random", ".ctor", []);
-        NetMethodReference.Random_Next_I = ResolveMethod("System.Random", "Next", ["System.Int32"]);
+        NetMethodReference.Random_NextInt64_I = ResolveMethod("System.Random", "NextInt64", ["System.Int64"]);
+        NetMethodReference.Random_NextDouble_D = ResolveMethod("System.Random", "NextDouble", ["System.Double"]);
         NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
         NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);

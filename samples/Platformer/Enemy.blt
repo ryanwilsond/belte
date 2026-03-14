@@ -2,11 +2,11 @@
 class Enemy extends PhysicsEntity {
     int! walking;
 
-    public constructor(ref Program game, Vec2 position) : base(ref game, position, 1) {
+    public constructor(Program game, Vec2 position) : base(game, position, 1) {
         walking = 0;
     }
 
-    public override bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+    public override bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
         if (walking > 0) {
             var nearTiles = tileMap.GetSortedNearTiles(box.x, box.y);
             var target = nearTiles[flip ? 6 : 8];
@@ -29,7 +29,7 @@ class Enemy extends PhysicsEntity {
                     if (flip && distance.x < 0) {
                         Graphics.PlaySound(game.sfx[3]!);
                         var projPos = new Vec2(box.x + box.w / 2 - 7 * 4, box.y + box.h / 2);
-                        game.projectiles[game.projectileCount++] = new Projectile(ref game, -1.5 * 240, projPos);
+                        game.projectiles[game.projectileCount++] = new Projectile(game, -1.5 * 240, projPos);
 
                         for (int! i = 0; i < 4; i++)
                             game.sparks[game.sparkCount++] = new Spark(projPos, Random.Random() - 0.5 + Math.PI, 2 * 6 + Random.Random() * 6);
@@ -38,7 +38,7 @@ class Enemy extends PhysicsEntity {
                     if (!flip && distance.x > 0) {
                         Graphics.PlaySound(game.sfx[3]!);
                         var projPos = new Vec2(box.x + box.w / 2 + 7 * 4, box.y + box.h / 2);
-                        game.projectiles[game.projectileCount++] = new Projectile(ref game, 1.5 * 240, projPos);
+                        game.projectiles[game.projectileCount++] = new Projectile(game, 1.5 * 240, projPos);
 
                         for (int! i = 0; i < 4; i++)
                             game.sparks[game.sparkCount++] = new Spark(projPos, Random.Random() - 0.5, 2 * 6 + Random.Random() * 6);
@@ -49,7 +49,7 @@ class Enemy extends PhysicsEntity {
             walking = Random.RandInt(90) + 30;
         }
 
-        base.Update(deltaTime, ref tileMap, movement);
+        base.Update(deltaTime, tileMap, movement);
 
         if (movement.x != 0)
             SetAction(1);

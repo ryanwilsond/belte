@@ -1037,7 +1037,7 @@ oneMoreTime:
                     break;
             }
         } else {
-            EmitArrayElementLoadInternal((ArrayTypeSymbol)expression.index.type);
+            EmitArrayElementLoadInternal((ArrayTypeSymbol)expression.type);
         }
 
         EmitPopIfUnused(used);
@@ -1232,9 +1232,15 @@ oneMoreTime:
                     var refKind = GetArgumentRefKind(arguments, method.parameters, argumentRefKinds, 0);
                     EmitArgument(argument, refKind);
 
-                    _builder.Emit(OpCode.Conv_I4);
-                    _builder.EmitRandomNext();
-                    _builder.Emit(OpCode.Conv_I8);
+                    _builder.EmitRandomNextInt64();
+
+                    EmitCallCleanup(method, useKind);
+                }
+
+                return;
+            case "Random": {
+                    _builder.EmitLdsfldRandom();
+                    _builder.EmitRandomNextDouble();
 
                     EmitCallCleanup(method, useKind);
                 }
@@ -1982,7 +1988,8 @@ oneMoreTime:
             return;
         }
 
-        if (operatorKind == UnaryOperatorKind.BoolLogicalNegation) {
+        if (operatorKind.Operator() == UnaryOperatorKind.LogicalNegation &&
+            operatorKind.OperandTypes() == UnaryOperatorKind.Bool) {
             EmitCondExpr(expression.operand, sense: false);
             return;
         }

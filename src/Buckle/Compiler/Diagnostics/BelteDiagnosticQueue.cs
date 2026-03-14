@@ -12,8 +12,8 @@ namespace Buckle.Diagnostics;
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
-public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
-    internal static readonly BelteDiagnosticQueue Discarded = new BelteDiagnosticQueue(pool: null);
+public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+    internal static readonly BelteDiagnosticQueue Discarded = new DiscardedDiagnosticQueue();
 
     private static readonly ObjectPool<BelteDiagnosticQueue> Pool
         = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
@@ -83,12 +83,24 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return AnyAbove(DiagnosticSeverity.Error);
     }
 
-    public DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
+    public virtual DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
         return base.Push(new BelteDiagnostic(diagnostic));
     }
 
-    public new DiagnosticInfo Push(BelteDiagnostic diagnostic) {
+    public new virtual DiagnosticInfo Push(BelteDiagnostic diagnostic) {
         return base.Push(diagnostic);
+    }
+
+    public new virtual void PushRange(IEnumerable<BelteDiagnostic> diagnostics) {
+        base.PushRange(diagnostics);
+    }
+
+    public virtual void PushRange(BelteDiagnosticQueue diagnostics) {
+        base.PushRange(diagnostics);
+    }
+
+    public virtual void Move(BelteDiagnosticQueue diagnostics) {
+        base.Move(diagnostics);
     }
 
     internal static BelteDiagnosticQueue GetInstance() {
@@ -109,7 +121,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return diagnostics;
     }
 
-    internal void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
+    internal virtual void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
         PushRange(diagnostics);
         diagnostics.Free();
     }
@@ -136,7 +148,6 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
             }
         }
     }
-
 
     private string GetDebuggerDisplay() {
         return "Count = " + (_diagnostics?.Count ?? 0);

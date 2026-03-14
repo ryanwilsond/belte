@@ -132,6 +132,12 @@ public sealed class EvaluatorTests {
     [InlineData("return 5 >= 4;", true)]
     [InlineData("return null is null;", true)]
     [InlineData("return 3 is null;", false)]
+    [InlineData("return null == null;", true)]
+    [InlineData("return 3 == null;", false)]
+    [InlineData("bool a = true; bool b = null; return a || b;", true)]
+    [InlineData("bool a = true; bool b = null; return a && b;", false)]
+    [InlineData("bool a = null; bool b = null; return a || b;", false)]
+    [InlineData("bool a = null; bool b = null; return a && b;", false)]
     [InlineData("return (null + 3) is null;", true)]
     [InlineData("return (null > 3) is null;", true)]
     [InlineData("return 3 is any;", true)]
@@ -256,6 +262,7 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { bool[] a = null; return a?[3]; }", null)]
     [InlineData("lowlevel { int[] a = {1, 2, null}; return a[0]; }", 1)]
     [InlineData("lowlevel { int[] a = {1, 2, null}; return a[2]; }", null)]
+    [InlineData("lowlevel { int[][] a = { new int[] { 1 } }; return a[0][0]; }", 1)]
     [InlineData(@"
         class A {
             public decimal f = 1;

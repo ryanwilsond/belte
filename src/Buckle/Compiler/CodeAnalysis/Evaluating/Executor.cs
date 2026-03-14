@@ -44,6 +44,7 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Vec2, typeof(BVec2) },
         { SpecialType.Texture, typeof(BTexture) },
         { SpecialType.Text, typeof(BText) },
+        { SpecialType.Sound, typeof(BSound) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
@@ -271,8 +272,18 @@ internal sealed partial class Executor : ModuleBuilder {
         GenerateSTLMap();
         CompleteSpecialTypes();
 
-        foreach (var type in _topLevelTypes)
-            CreateTypeBuilder(type);
+        foreach (var type in _topLevelTypes) {
+            var baseStack = new Stack<NamedTypeSymbol>();
+            var current = type;
+
+            while (current is not null) {
+                baseStack.Push(current);
+                current = current.baseType;
+            }
+
+            while (baseStack.Count != 0)
+                CreateTypeBuilder(baseStack.Pop());
+        }
 
         foreach (var type in _topLevelTypes)
             CreateMemberDefinitions(type);
@@ -300,7 +311,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private void CompleteSpecialTypes() {
         foreach (var type in new[] { SpecialType.Rect, SpecialType.Text, SpecialType.Sprite,
-                              SpecialType.Vec2, SpecialType.Texture }) {
+                                     SpecialType.Vec2, SpecialType.Texture, SpecialType.Sound }) {
             var typeSymbol = CorLibrary.GetSpecialType(type);
             var native = _specialTypes[type];
 
@@ -328,6 +339,9 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateTypeBuilder(NamedTypeSymbol type) {
+        if (_types.ContainsKey(type.originalDefinition))
+            return;
+
         var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetBaseType(type));
         CreateNestedTypes(type, typeBuilder);
         _types.Add(type.originalDefinition, typeBuilder);
@@ -540,6 +554,31 @@ internal sealed partial class Executor : ModuleBuilder {
         return 0;
     }
 
+    public static long? DrawSprite(BSprite sprite, BVec2 offset) {
+        var dstX = (int)sprite.dst.x;
+        var dstY = (int)sprite.dst.y;
+
+        if (offset is not null) {
+            dstX -= (int)offset.x;
+            dstY -= (int)offset.x;
+        }
+
+        GraphicsHandler.DrawSprite(
+            sprite.texture.mTexture,
+            (int)sprite.src.x,
+            (int)sprite.src.y,
+            (int)sprite.src.w,
+            (int)sprite.src.h,
+            dstX,
+            dstY,
+            (int)sprite.dst.w,
+            (int)sprite.dst.h,
+            sprite.rotation
+        );
+
+        return 0;
+    }
+
     public static long? DrawText(BText text) {
         GraphicsHandler.DrawText(
             text.mFont,
@@ -556,6 +595,36 @@ internal sealed partial class Executor : ModuleBuilder {
 
     public static long? DrawRect(BRect rect, long? r, long? g, long? b) {
         GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, null);
+        return 0;
+    }
+
+    public static long? DrawRect(BRect rect, long? r, long? g, long? b, long? a) {
+        GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, a);
+        return 0;
+    }
+
+    public static long? Draw(
+        BTexture texture,
+        BRect srcRect,
+        BRect dstRect,
+        long? rotation,
+        bool? flip,
+        double? alpha) {
+        Microsoft.Xna.Framework.Rectangle? src = srcRect is null
+            ? null
+            : new Microsoft.Xna.Framework.Rectangle((int)srcRect.x, (int)srcRect.y, (int)srcRect.w, (int)srcRect.h);
+
+        var dst = new Microsoft.Xna.Framework.Rectangle((int)dstRect.x, (int)dstRect.y, (int)dstRect.w, (int)dstRect.h);
+
+        GraphicsHandler.Draw(
+            texture.mTexture,
+            src,
+            dst,
+            rotation,
+            flip,
+            alpha
+        );
+
         return 0;
     }
 
@@ -585,6 +654,42 @@ internal sealed partial class Executor : ModuleBuilder {
         return new BText(text, path, position, fontSize, angle, r, g, b, mText);
     }
 
+    public static BTexture LoadTexture(string path) {
+        var mTexture = GraphicsHandler.LoadTexture(path, false, 255, 255, 255);
+        return new BTexture(mTexture);
+    }
+
+    public static BTexture LoadTexture(string path, long r, long g, long b) {
+        var mTexture = GraphicsHandler.LoadTexture(path, false, r, g, b);
+        return new BTexture(mTexture);
+    }
+
+    public static bool GetMouseButton(string button) {
+        return GraphicsHandler.GetMouseButton(button);
+    }
+
+    public static BVec2 GetMousePosition() {
+        var (x, y) = GraphicsHandler.GetMousePosition();
+        return new BVec2(x, y);
+    }
+
+    public static long GetScroll() {
+        return GraphicsHandler.GetScroll();
+    }
+
+    public static BSound LoadSound(string path) {
+        var mSound = GraphicsHandler.LoadSound(path);
+        return new BSound(null, null, mSound);
+    }
+
+    public static void PlaySound(BSound sound) {
+        GraphicsHandler.PlaySound(sound.mSound, sound.volume, sound.loop);
+    }
+
+    public static void SetCursorVisibility(bool visible) {
+        GraphicsHandler.SetCursorVisibility(visible);
+    }
+
     public static void LockFramerate(long fps) {
         GraphicsHandler.LockFramerate((int)fps);
     }
@@ -595,6 +700,10 @@ internal sealed partial class Executor : ModuleBuilder {
 
     public static string Char(long ascii) {
         return ((char)ascii).ToString();
+    }
+
+    public static string[] Split(string text, string separator) {
+        return text.Split(separator);
     }
 
     private void GenerateSTLMap() {
@@ -624,19 +733,35 @@ internal sealed partial class Executor : ModuleBuilder {
             { "File_Copy_SS", typeof(File).GetMethod("Copy", Flags, [typeof(string), typeof(string)]) },
             { "File_Delete_S", typeof(File).GetMethod("Delete", Flags, [typeof(string)]) },
             { "File_Exists_S", typeof(File).GetMethod("Exists", Flags, [typeof(string)]) },
-            { "File_ReadText_SS", typeof(File).GetMethod("ReadAllText", Flags, [typeof(string), typeof(string)]) },
+            { "File_ReadText_S", typeof(File).GetMethod("ReadAllText", Flags, [typeof(string)]) },
             { "File_WriteText_SS", typeof(File).GetMethod("WriteAllText", Flags, [typeof(string), typeof(string)]) },
             { "Math_Clamp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
             { "Math_Lerp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
             { "Math_Lerp_DDD", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double), typeof(double), typeof(double)]) },
+            { "Math_Cos_D", typeof(Math).GetMethod("Cos", Flags, [typeof(double)]) },
             { "Math_Cos_D?", typeof(Belte.Runtime.Math).GetMethod("Cos", Flags, [typeof(double?)]) },
+            { "Math_Sin_D", typeof(Math).GetMethod("Sin", Flags, [typeof(double)]) },
             { "Math_Sin_D?", typeof(Belte.Runtime.Math).GetMethod("Sin", Flags, [typeof(double?)]) },
             { "Math_Pow_DD", typeof(Math).GetMethod("Pow", Flags, [typeof(double), typeof(double)]) },
             { "Math_Pow_D?D?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(double?), typeof(double?)]) },
             { "Math_Pow_II", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long), typeof(long)]) },
             { "Math_Pow_I?I?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long?), typeof(long?)]) },
+            { "Math_Max_D?D?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(double?), typeof(double?)]) },
+            { "Math_Max_DD", typeof(Math).GetMethod("Max", Flags, [typeof(double), typeof(double)]) },
+            { "Math_Max_I?I?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(long?), typeof(long?)]) },
             { "Math_Max_II", typeof(Math).GetMethod("Max", Flags, [typeof(long), typeof(long)]) },
+            { "Math_Min_D?D?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(double?), typeof(double?)]) },
+            { "Math_Min_DD", typeof(Math).GetMethod("Min", Flags, [typeof(double), typeof(double)]) },
+            { "Math_Min_I?I?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(long?), typeof(long?)]) },
             { "Math_Min_II", typeof(Math).GetMethod("Min", Flags, [typeof(long), typeof(long)]) },
+            { "Math_Abs_D", typeof(Math).GetMethod("Abs", Flags, [typeof(double)]) },
+            { "Math_Abs_D?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(double?)]) },
+            { "Math_Round_D?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(double?)]) },
+            { "Math_Round_D", typeof(Math).GetMethod("Round", Flags, [typeof(double)]) },
+            { "Math_Floor_D?", typeof(Belte.Runtime.Math).GetMethod("Floor", Flags, [typeof(double?)]) },
+            { "Math_Floor_D", typeof(Math).GetMethod("Floor", Flags, [typeof(double)]) },
+            { "Math_Ceiling_D?", typeof(Belte.Runtime.Math).GetMethod("Ceiling", Flags, [typeof(double?)]) },
+            { "Math_Ceiling_D", typeof(Math).GetMethod("Ceiling", Flags, [typeof(double)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_Sort_A?", typeof(Belte.Runtime.Utilities).GetMethod("Sort", Flags, [typeof(object[])]) },
@@ -646,6 +771,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Executor).GetMethod("Ascii", Flags, [typeof(string)]) },
             { "String_Char_I", typeof(Executor).GetMethod("Char", Flags, [typeof(long)]) },
+            { "String_Split_SS", typeof(Executor).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
             { "Object_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
@@ -657,6 +783,17 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Graphics_LoadSprite_SV?V?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
             { "Graphics_LoadText_S?SV?DD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
             { "Graphics_LockFramerate_I", typeof(Executor).GetMethod("LockFramerate", Flags, [typeof(long)]) },
+            { "Graphics_DrawSprite_S?V?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite), typeof(BVec2)]) },
+            { "Graphics_LoadTexture_S", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string)]) },
+            { "Graphics_LoadTexture_SIII", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string), typeof(long), typeof(long), typeof(long)]) },
+            { "Graphics_Draw_T?R?R?I?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
+            { "Graphics_DrawRect_R?I?I?I?I?", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long?), typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Graphics_GetMouseButton_S", typeof(Executor).GetMethod("GetMouseButton", Flags, [typeof(string)]) },
+            { "Graphics_GetMousePosition", typeof(Executor).GetMethod("GetMousePosition", Flags, Type.EmptyTypes) },
+            { "Graphics_GetScroll", typeof(Executor).GetMethod("GetScroll", Flags, Type.EmptyTypes) },
+            { "Graphics_LoadSound_S", typeof(Executor).GetMethod("LoadSound", Flags, [typeof(string)]) },
+            { "Graphics_PlaySound_S", typeof(Executor).GetMethod("PlaySound", Flags, [typeof(BSound)]) },
+            { "Graphics_SetCursorVisibility_B", typeof(Executor).GetMethod("SetCursorVisibility", Flags, [typeof(bool)]) },
             { "Vec2_Copy", typeof(BVec2).GetMethod("Copy", InstFlags, Type.EmptyTypes) },
         };
     }

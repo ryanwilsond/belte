@@ -125,7 +125,7 @@ internal static class Assertions {
                     syntaxTree,
                     BaseCompilation
                 )
-                : Compilation.Create("Tests", DefaultEvalOptions, syntaxTree);
+                : Compilation.Create("Tests", DefaultEvalOptions, BaseCompilation, syntaxTree);
 
             var result = compilation.Evaluate(false);
             tempDiagnostics = result.diagnostics;

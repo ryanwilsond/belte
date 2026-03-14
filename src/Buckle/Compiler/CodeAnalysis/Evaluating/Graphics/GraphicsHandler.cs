@@ -97,9 +97,9 @@ internal partial class GraphicsHandler : Game {
         return SoundEffect.FromStream(fileStream);
     }
 
-    internal void PlaySound(SoundEffect soundEffect, object volume, object loop) {
-        var volumeF = volume is null ? 1 : Convert.ToSingle(volume);
-        var loopB = loop is null ? false : Convert.ToBoolean(loop);
+    internal void PlaySound(SoundEffect soundEffect, double? volume, bool? loop) {
+        var volumeF = (float)(volume ?? 1);
+        var loopB = loop ?? false;
 
         if (loopB) {
             var instance = soundEffect.CreateInstance();
@@ -168,29 +168,19 @@ internal partial class GraphicsHandler : Game {
 
     internal void Draw(
         Texture2D texture,
-        EvaluatorValue src,
-        EvaluatorValue dst,
-        long rotation,
-        bool flip,
-        double alpha) {
-        Rectangle? srcRect = null;
-
-        if (src.kind != ValueKind.Null) {
-            var (sx, sy, sw, sh) = _evaluator.ExtRect(src);
-            srcRect = new Rectangle(sx, sy, sw, sh);
-        }
-
-        var (dx, dy, dw, dh) = _evaluator.ExtRect(dst);
-        var dstRect = new Rectangle(dx, dy, dw, dh);
-
+        Rectangle? srcRect,
+        Rectangle dstRect,
+        long? rotation,
+        bool? flip,
+        double? alpha) {
         _spriteBatch.Draw(
             texture,
             dstRect,
             srcRect,
-            Color.White * (float)alpha,
-            (float)rotation,
+            Color.White * (float)(alpha ?? 1),
+            rotation ?? 0,
             Vector2.Zero,
-            flip ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
+            (flip ?? false) ? SpriteEffects.FlipHorizontally : SpriteEffects.None,
             0f
         );
     }

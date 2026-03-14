@@ -7,19 +7,19 @@ class PhysicsEntity {
 
     protected bool flip;
     protected Vec2 lastMovement;
-    protected ref Program game;
+    protected Program game;
     protected bool[] collisions;
 
     Vec2 animOffset;
     int action = 10;
-    ref Animation animation;
+    Animation animation;
     int kind;
 
     public Vec2 pos;
     public Rect box;
     public Vec2 velocity;
 
-    public constructor(ref Program game, Vec2 position, int kind) {
+    public constructor(Program game, Vec2 position, int kind) {
         this.game = game;
         pos = position;
         this.kind = kind;
@@ -35,8 +35,8 @@ class PhysicsEntity {
         lastMovement = new Vec2(0, 0);
     }
 
-    public virtual bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
-        collisions = { false, false, false, false };
+    public virtual bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+        collisions = new bool[] { false, false, false, false };
         var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
 
         pos.x += frameMovement.x * 60 * deltaTime;

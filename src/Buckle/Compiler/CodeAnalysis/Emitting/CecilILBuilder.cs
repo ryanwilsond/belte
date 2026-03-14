@@ -188,8 +188,12 @@ internal sealed class CecilILBuilder : ILBuilder {
         _iLProcessor.Emit(OpCodes.Newobj, _module.GetNullableCtor(generic));
     }
 
-    internal override void EmitRandomNext() {
-        _iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_Next_I);
+    internal override void EmitRandomNextInt64() {
+        _iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_NextInt64_I);
+    }
+
+    internal override void EmitRandomNextDouble() {
+        _iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_NextDouble_D);
     }
 
     internal override void EmitLdsfldRandom() {

@@ -195,13 +195,24 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Newobj, _module.GetNullableCtor(generic));
     }
 
-    internal override void EmitRandomNext() {
+    internal override void EmitRandomNextInt64() {
         EmitWithSymbolToken(
             OpCodes.Callvirt,
             typeof(Random).GetMethod(
-                "Next",
+                "NextInt64",
                 System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
-                [typeof(int)]
+                [typeof(long)]
+            )
+        );
+    }
+
+    internal override void EmitRandomNextDouble() {
+        EmitWithSymbolToken(
+            OpCodes.Callvirt,
+            typeof(Random).GetMethod(
+                "NextDouble",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance,
+                Type.EmptyTypes
             )
         );
     }

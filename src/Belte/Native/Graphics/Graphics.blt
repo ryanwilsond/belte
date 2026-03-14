@@ -32,6 +32,8 @@ public static class Graphics {
 
     public static bool! GetMouseButton(string! button);
 
+    public static Vec2! GetMousePosition();
+
     public static int! GetScroll();
 
     public static Sound LoadSound(string! path);

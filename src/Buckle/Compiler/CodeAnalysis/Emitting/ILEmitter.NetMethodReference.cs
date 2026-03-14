@@ -19,7 +19,8 @@ internal sealed partial class ILEmitter {
         internal static MethodReference Convert_ToString_I;
         internal static MethodReference Convert_ToString_D;
         internal static MethodReference Random_ctor;
-        internal static MethodReference Random_Next_I;
+        internal static MethodReference Random_NextInt64_I;
+        internal static MethodReference Random_NextDouble_D;
         internal static MethodReference Nullable_ctor;
         internal static MethodReference Nullable_Value;
         internal static MethodReference Nullable_HasValue;
