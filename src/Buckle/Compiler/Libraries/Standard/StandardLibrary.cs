@@ -191,6 +191,7 @@ internal static class StandardLibrary {
                 ConstExprField("Yellow", SpecialType.Int, 14L),
                 ConstExprField("White", SpecialType.Int, 15L)
             ]),
+            StaticMethod("Clear", SpecialType.Void),
             StaticMethod("GetWidth", SpecialType.Int),
             StaticMethod("GetHeight", SpecialType.Int),
             StaticMethod("Input", SpecialType.String),
@@ -205,6 +206,7 @@ internal static class StandardLibrary {
             StaticMethod("SetForegroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
             StaticMethod("SetBackgroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
             StaticMethod("SetCursorPosition", SpecialType.Void, [("left", SpecialType.Int, true), ("top", SpecialType.Int, true)]),
+            StaticMethod("SetCursorVisibility", SpecialType.Void, [("visible", SpecialType.Bool)]),
         ]);
     }
 
@@ -283,6 +285,8 @@ internal static class StandardLibrary {
 
     private static Dictionary<string, Func<object, object, object, object>> GenerateEvaluatorMap() {
         return new Dictionary<string, Func<object, object, object, object>>() {
+            { "Console_Clear", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.Clear(); return null; }) },
             { "Console_GetWidth", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
             { "Console_GetHeight", new Func<object, object, object, object>((a, b, c)
@@ -311,6 +315,8 @@ internal static class StandardLibrary {
                 => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
             { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition(a is null ? System.Console.CursorLeft : Convert.ToInt32(a), b is null ? System.Console.CursorTop : Convert.ToInt32(b)); } return null; }) },
+            { "Console_SetCursorVisibility_B", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.CursorVisible = Convert.ToBoolean(a); return null;}) },
             { "Directory_Create_S", new Func<object, object, object, object>((a, b, c)
                 => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
             { "Directory_Delete_S", new Func<object, object, object, object>((a, b, c)

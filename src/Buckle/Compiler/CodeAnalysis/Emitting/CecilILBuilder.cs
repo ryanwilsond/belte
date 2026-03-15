@@ -10,22 +10,22 @@ namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed class CecilILBuilder : ILBuilder {
     private readonly List<(int instructionIndex, object target)> _unhandledGotos;
-    private readonly ILProcessor _iLProcessor;
     private readonly ILEmitter _module;
     private readonly MethodSymbol _method;
     private readonly MethodDefinition _definition;
+    internal readonly ILProcessor iLProcessor;
 
     internal CecilILBuilder(MethodSymbol method, ILEmitter module, MethodDefinition definition) {
         _method = method;
         _module = module;
         _definition = definition;
         definition.Body.InitLocals = true;
-        _iLProcessor = definition.Body.GetILProcessor();
+        iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
         _localSlotManager = new CecilLocalSlotManager();
     }
 
-    private int _count => _iLProcessor.Body.Instructions.Count;
+    private int _count => iLProcessor.Body.Instructions.Count;
 
     private CecilLocalSlotManager _localSlotManager { get; }
 
@@ -35,8 +35,8 @@ internal sealed class CecilILBuilder : ILBuilder {
         foreach (var (instructionIndex, target) in _unhandledGotos) {
             var targetLabel = target;
             var targetInstructionIndex = ((CecilLabelInfo)_labels[targetLabel]).targetInstructionIndex;
-            var targetInstruction = _iLProcessor.Body.Instructions[targetInstructionIndex];
-            var instructionFix = _iLProcessor.Body.Instructions[instructionIndex];
+            var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
+            var instructionFix = iLProcessor.Body.Instructions[instructionIndex];
             instructionFix.Operand = targetInstruction;
         }
     }
@@ -48,56 +48,56 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode) {
-        _iLProcessor.Emit(ConvertToCil(opCode));
+        iLProcessor.Emit(ConvertToCil(opCode));
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode, sbyte value) {
-        _iLProcessor.Emit(ConvertToCil(opCode), value);
+        iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode, int value) {
-        _iLProcessor.Emit(ConvertToCil(opCode), value);
+        iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode, long value) {
-        _iLProcessor.Emit(ConvertToCil(opCode), value);
+        iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode, double value) {
-        _iLProcessor.Emit(ConvertToCil(opCode), value);
+        iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode, string value) {
-        _iLProcessor.Emit(ConvertToCil(opCode), value);
+        iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
     internal override void EmitLoadArgument(int slot) {
         slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
-        _iLProcessor.Emit(OpCodes.Ldarg, _definition.Parameters[slot]);
+        iLProcessor.Emit(OpCodes.Ldarg, _definition.Parameters[slot]);
     }
 
     internal override void EmitLoadArgumentAddr(int slot) {
         slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
-        _iLProcessor.Emit(OpCodes.Ldarga, _definition.Parameters[slot]);
+        iLProcessor.Emit(OpCodes.Ldarga, _definition.Parameters[slot]);
     }
 
     internal override void EmitWithSymbolToken(CodeGeneration.OpCode opCode, TypeSymbol type) {
-        _iLProcessor.Emit(ConvertToCil(opCode), _module.GetType(type));
+        iLProcessor.Emit(ConvertToCil(opCode), _module.GetType(type));
     }
 
     internal override void EmitWithSymbolToken(CodeGeneration.OpCode opCode, FieldSymbol field) {
-        _iLProcessor.Emit(ConvertToCil(opCode), _module.GetField(field));
+        iLProcessor.Emit(ConvertToCil(opCode), _module.GetField(field));
     }
 
     internal override void EmitWithSymbolToken(CodeGeneration.OpCode opCode, MethodSymbol method) {
-        _iLProcessor.Emit(ConvertToCil(opCode), _module.GetMethod(method));
+        iLProcessor.Emit(ConvertToCil(opCode), _module.GetMethod(method));
     }
 
     internal override void EmitLocalAddress(DataContainerSymbol local) {
         if (local.isRef)
             EmitLocalLoad(local);
         else
-            _iLProcessor.Emit(OpCodes.Ldloca, _localSlotManager.GetCecilLocal(local).variableDefinition);
+            iLProcessor.Emit(OpCodes.Ldloca, _localSlotManager.GetCecilLocal(local).variableDefinition);
     }
 
     internal override void EmitLocalAddress(CodeGeneration.VariableDefinition local) {
@@ -105,13 +105,13 @@ internal sealed class CecilILBuilder : ILBuilder {
             EmitLocalLoad(local);
         } else {
             var cLocal = ((CecilVariableDefinition)local).variableDefinition;
-            _iLProcessor.Emit(OpCodes.Ldloca, cLocal);
+            iLProcessor.Emit(OpCodes.Ldloca, cLocal);
         }
     }
 
     internal override void EmitStoreArgument(int slot) {
         slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
-        _iLProcessor.Emit(OpCodes.Starg, _definition.Parameters[slot]);
+        iLProcessor.Emit(OpCodes.Starg, _definition.Parameters[slot]);
     }
 
     internal override void EmitLocalStore(DataContainerSymbol local) {
@@ -120,68 +120,68 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override void EmitLocalStore(CodeGeneration.VariableDefinition local) {
         var cLocal = ((CecilVariableDefinition)local).variableDefinition;
-        _iLProcessor.Emit(OpCodes.Stloc, cLocal);
+        iLProcessor.Emit(OpCodes.Stloc, cLocal);
     }
 
     internal override void EmitLocalLoad(DataContainerSymbol local) {
-        _iLProcessor.Emit(OpCodes.Ldloc, _localSlotManager.GetCecilLocal(local).variableDefinition);
+        iLProcessor.Emit(OpCodes.Ldloc, _localSlotManager.GetCecilLocal(local).variableDefinition);
     }
 
     internal override void EmitLocalLoad(CodeGeneration.VariableDefinition local) {
         var cLocal = ((CecilVariableDefinition)local).variableDefinition;
-        _iLProcessor.Emit(OpCodes.Ldloc, cLocal);
+        iLProcessor.Emit(OpCodes.Ldloc, cLocal);
     }
 
     internal override void EmitGetTypeFromHandle(TypeSymbol _) {
-        _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Type_GetTypeFromHandle);
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Type_GetTypeFromHandle);
     }
 
     internal override void EmitNullAssertObject(TypeSymbol type) {
-        _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertObject(type));
+        iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertObject(type));
     }
 
     internal override void EmitNullAssertValue(TypeSymbol type) {
-        _iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertValue(type));
+        iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertValue(type));
     }
 
     internal override void EmitNullValue(TypeSymbol type) {
-        _iLProcessor.Emit(OpCodes.Call, _module.GetNullableValue(type));
+        iLProcessor.Emit(OpCodes.Call, _module.GetNullableValue(type));
     }
 
     internal override void EmitSort(TypeSymbol elementType) {
-        _iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
+        iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
     }
 
     internal override void EmitStringConcat2() {
-        _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Concat_SS);
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Concat_SS);
     }
 
     internal override void EmitStringEquality() {
-        _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Equality_SS);
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Equality_SS);
     }
 
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToBoolean_S);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToBoolean_S);
                 break;
             case (SpecialType.String, SpecialType.Int):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_S);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_S);
                 break;
             case (SpecialType.Decimal, SpecialType.Int):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_D);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_D);
                 break;
             case (SpecialType.String, SpecialType.Decimal):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_S);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_S);
                 break;
             case (SpecialType.Int, SpecialType.Decimal):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_I);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_I);
                 break;
             case (SpecialType.Int, SpecialType.String):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I);
                 break;
             case (SpecialType.Decimal, SpecialType.String):
-                _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_D);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_D);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue((from, to));
@@ -189,24 +189,24 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitNewobjNullable(TypeSymbol generic) {
-        _iLProcessor.Emit(OpCodes.Newobj, _module.GetNullableCtor(generic));
+        iLProcessor.Emit(OpCodes.Newobj, _module.GetNullableCtor(generic));
     }
 
     internal override void EmitRandomNextInt64() {
-        _iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_NextInt64_I);
+        iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_NextInt64_I);
     }
 
     internal override void EmitRandomNextDouble() {
-        _iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_NextDouble_D);
+        iLProcessor.Emit(OpCodes.Callvirt, ILEmitter.NetMethodReference.Random_NextDouble);
     }
 
     internal override void EmitLdsfldRandom() {
-        _iLProcessor.Emit(OpCodes.Ldsfld, _module.randomField);
+        iLProcessor.Emit(OpCodes.Ldsfld, _module.randomField);
     }
 
     internal override void EmitThrowNullCondition() {
-        _iLProcessor.Emit(OpCodes.Newobj, ILEmitter.NetMethodReference.NullConditionException_ctor);
-        _iLProcessor.Emit(OpCodes.Throw);
+        iLProcessor.Emit(OpCodes.Newobj, ILEmitter.NetMethodReference.NullConditionException_ctor);
+        iLProcessor.Emit(OpCodes.Throw);
     }
 
     internal override void EmitArrayAddress(ArrayTypeSymbol type) {
@@ -226,7 +226,7 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitToString() {
-        _iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Object_ToString);
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Object_ToString);
     }
 
     internal override CodeGeneration.VariableDefinition GetLocal(DataContainerSymbol local) {
@@ -252,7 +252,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         bool isSlotReusable) {
         var typeReference = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
-        _iLProcessor.Body.Variables.Add(variableDefinition);
+        iLProcessor.Body.Variables.Add(variableDefinition);
 
         return _localSlotManager.DeclareLocal(
             variableDefinition,
@@ -270,8 +270,16 @@ internal sealed class CecilILBuilder : ILBuilder {
         LocalSlotConstraints constraints) {
         var typeReference = _module.GetType(type);
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
-        _iLProcessor.Body.Variables.Add(variableDefinition);
+        iLProcessor.Body.Variables.Add(variableDefinition);
         return _localSlotManager.AllocateSlot(variableDefinition, type, constraints);
+    }
+
+    internal CodeGeneration.VariableDefinition AllocateSlot(
+        TypeReference type,
+        LocalSlotConstraints constraints) {
+        var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(type);
+        iLProcessor.Body.Variables.Add(variableDefinition);
+        return _localSlotManager.AllocateSlot(variableDefinition, null, constraints);
     }
 
     internal override void MarkLabel(object label) {
@@ -285,18 +293,20 @@ internal sealed class CecilILBuilder : ILBuilder {
         // var cRevOpCode = ConvertToCil(revOpCode);
         var cOpCode = ConvertToCil(opCode);
         _unhandledGotos.Add((_count, label));
-        _iLProcessor.Emit(cOpCode, Instruction.Create(OpCodes.Nop));
+        iLProcessor.Emit(cOpCode, Instruction.Create(OpCodes.Nop));
     }
 
     private static Mono.Cecil.Cil.OpCode ConvertToCil(CodeGeneration.OpCode opCode) {
         return opCode switch {
             CodeGeneration.OpCode.Nop => OpCodes.Nop,
             CodeGeneration.OpCode.Br => OpCodes.Br,
+            CodeGeneration.OpCode.Br_S => OpCodes.Br_S,
             CodeGeneration.OpCode.Clt => OpCodes.Clt,
             CodeGeneration.OpCode.Clt_Un => OpCodes.Clt_Un,
             CodeGeneration.OpCode.Cgt => OpCodes.Cgt,
             CodeGeneration.OpCode.Cgt_Un => OpCodes.Cgt_Un,
             CodeGeneration.OpCode.Blt => OpCodes.Blt,
+            CodeGeneration.OpCode.Blt_S => OpCodes.Blt_S,
             CodeGeneration.OpCode.Bge => OpCodes.Bge,
             CodeGeneration.OpCode.Blt_Un => OpCodes.Blt_Un,
             CodeGeneration.OpCode.Bge_Un => OpCodes.Bge_Un,
@@ -307,8 +317,11 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Readonly => OpCodes.Readonly,
             CodeGeneration.OpCode.Isinst => OpCodes.Isinst,
             CodeGeneration.OpCode.Brtrue => OpCodes.Brtrue,
+            CodeGeneration.OpCode.Brtrue_S => OpCodes.Brtrue_S,
             CodeGeneration.OpCode.Brfalse => OpCodes.Brfalse,
+            CodeGeneration.OpCode.Brfalse_S => OpCodes.Brfalse_S,
             CodeGeneration.OpCode.Ldelema => OpCodes.Ldelema,
+            CodeGeneration.OpCode.Leave_S => OpCodes.Leave_S,
             CodeGeneration.OpCode.Ldc_I4 => OpCodes.Ldc_I4,
             CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
             CodeGeneration.OpCode.Ldsflda => OpCodes.Ldsflda,

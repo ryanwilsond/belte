@@ -189,6 +189,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var hasBrackets = false;
         var bracketsBeenClosed = true;
 
+        if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
+            finalOffset++;
+
         while (Peek(finalOffset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.CloseBracketToken) {
             hasBrackets = true;
 
@@ -1834,10 +1837,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         while (IsMakingProgress(ref lastTokenPosition)) {
             switch (currentToken.kind) {
-                case SyntaxKind.ExclamationToken:
+                case SyntaxKind.ExclamationToken when CanBeNonNullable():
                     var exclamationToken = EatToken();
                     type = SyntaxFactory.NonNullableType(type, exclamationToken);
-                    goto done;
+                    continue;
+
+                    bool CanBeNonNullable() {
+                        if (type.kind == SyntaxKind.NonNullableType)
+                            return false;
+
+                        return true;
+                    }
                 case SyntaxKind.OpenBracketToken:
                     var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
 
@@ -1850,7 +1860,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
             }
         }
 
-done:
         return type;
     }
 

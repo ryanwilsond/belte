@@ -26,6 +26,9 @@ public struct EvaluatorValue {
     public bool @bool;
 
     [FieldOffset(8)]
+    public char @char;
+
+    [FieldOffset(8)]
     public int ptr;
 
     [FieldOffset(16)]
@@ -71,6 +74,7 @@ public struct EvaluatorValue {
             SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Double, @double = Convert.ToDouble(value) },
             SpecialType.Bool => new EvaluatorValue() { kind = ValueKind.Bool, @bool = Convert.ToBoolean(value) },
             SpecialType.String => new EvaluatorValue() { kind = ValueKind.String, @string = Convert.ToString(value) },
+            SpecialType.Char => new EvaluatorValue() { kind = ValueKind.Char, @char = Convert.ToChar(value) },
             SpecialType.None => Null,
             _ => throw ExceptionUtilities.UnexpectedValue(specialType),
         };
@@ -101,6 +105,8 @@ public struct EvaluatorValue {
                 return value.int64;
             case ValueKind.Bool:
                 return value.@bool;
+            case ValueKind.Char:
+                return value.@char;
             case ValueKind.Double:
                 return value.@double;
             case ValueKind.String:

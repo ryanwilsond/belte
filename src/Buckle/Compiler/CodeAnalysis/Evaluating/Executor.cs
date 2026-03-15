@@ -708,23 +708,12 @@ internal sealed partial class Executor : ModuleBuilder {
         GraphicsHandler.LockFramerate((int)fps);
     }
 
-    public static long? Ascii(string chr) {
-        return char.TryParse(chr, out var result) ? result : null;
-    }
-
-    public static string Char(long ascii) {
-        return ((char)ascii).ToString();
-    }
-
-    public static string[] Split(string text, string separator) {
-        return text.Split(separator);
-    }
-
     private void GenerateSTLMap() {
         const BindingFlags Flags = BindingFlags.Public | BindingFlags.Static;
         const BindingFlags InstFlags = BindingFlags.Public | BindingFlags.Instance;
 
         _stlMap = new Dictionary<string, MethodInfo>() {
+            { "Console_Clear", typeof(Console).GetMethod("Clear", Flags, Type.EmptyTypes) },
             { "Console_GetWidth", typeof(Belte.Runtime.Console).GetMethod("GetWidth", Flags, Type.EmptyTypes) },
             { "Console_GetHeight", typeof(Belte.Runtime.Console).GetMethod("GetHeight", Flags, Type.EmptyTypes) },
             { "Console_Print_S?", typeof(Console).GetMethod("Write", Flags, [typeof(string)]) },
@@ -739,6 +728,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Console_SetForegroundColor_I", typeof(Belte.Runtime.Console).GetMethod("SetForegroundColor", Flags, [typeof(long)]) },
             { "Console_SetBackgroundColor_I", typeof(Belte.Runtime.Console).GetMethod("SetBackgroundColor", Flags, [typeof(long)]) },
             { "Console_SetCursorPosition_I?I?", typeof(Belte.Runtime.Console).GetMethod("SetCursorPosition", Flags, [typeof(long?), typeof(long?)]) },
+            { "Console_SetCursorVisibility_B", typeof(Belte.Runtime.Console).GetMethod("SetCursorVisibility", Flags, [typeof(bool)]) },
             { "Directory_Create_S", typeof(Directory).GetMethod("CreateDirectory", Flags, [typeof(string)]) },
             { "Directory_Delete_S", typeof(Directory).GetMethod("Delete", Flags, [typeof(string)]) },
             { "Directory_Exists_S", typeof(Directory).GetMethod("Exists", Flags, [typeof(string)]) },
@@ -822,9 +812,9 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
-            { "String_Ascii_S", typeof(Executor).GetMethod("Ascii", Flags, [typeof(string)]) },
-            { "String_Char_I", typeof(Executor).GetMethod("Char", Flags, [typeof(long)]) },
-            { "String_Split_SS", typeof(Executor).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
+            { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },
+            { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
+            { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
             { "Object_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },

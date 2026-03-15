@@ -706,50 +706,37 @@ internal sealed class Evaluator {
             case BoundKind.FieldSlotExpression:
                 var field = ((BoundFieldSlotExpression)expression).field;
 
-                if (field.refKind != RefKind.None && !node.isRef) {
+                if (field.refKind != RefKind.None && !node.isRef)
+                    IndirectStore(lhs.loc[lhs.ptr], value);
+                else
                     IndirectStore(lhs, value);
-                    // TODO Is this correct? Or is it really a double indirect store above
-                    throw ExceptionUtilities.Unreachable();
-                } else {
-                    IndirectStore(lhs, value);
-                }
 
                 break;
             case BoundKind.DataContainerExpression:
                 var local = (BoundDataContainerExpression)expression;
 
-                if (local.dataContainer.refKind != RefKind.None && !node.isRef) {
+                if (local.dataContainer.refKind != RefKind.None && !node.isRef)
+                    IndirectStore(lhs.loc[lhs.ptr], value);
+                else
                     IndirectStore(lhs, value);
-                    // TODO Is this correct? Or is it really a double indirect store above
-                    throw ExceptionUtilities.Unreachable();
-                } else {
-                    IndirectStore(lhs, value);
-                }
 
                 break;
             case BoundKind.StackSlotExpression:
                 var symbol = ((BoundStackSlotExpression)expression).symbol;
 
-                if (symbol.GetRefKind() != RefKind.None && !node.isRef) {
+                if (symbol.GetRefKind() != RefKind.None && !node.isRef)
+                    IndirectStore(lhs.loc[lhs.ptr], value);
+                else
                     IndirectStore(lhs, value);
-                    // TODO Is this correct? Or is it really a double indirect store above
-                    throw ExceptionUtilities.Unreachable();
-                } else {
-                    IndirectStore(lhs, value);
-                }
 
                 break;
             case BoundKind.ArrayAccessExpression:
+            case BoundKind.CallExpression:
+            case BoundKind.ConditionalOperator:
                 IndirectStore(lhs, value);
                 break;
             case BoundKind.ThisExpression:
                 lhs.ptr = value.ptr;
-                break;
-            case BoundKind.ConditionalOperator:
-                IndirectStore(lhs, value);
-                break;
-            case BoundKind.CallExpression:
-                IndirectStore(lhs, value);
                 break;
             case BoundKind.AssignmentOperator:
                 var nested = (BoundAssignmentOperator)expression;

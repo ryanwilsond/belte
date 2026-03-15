@@ -6,6 +6,7 @@ public enum ValueKind : byte {
     Int64,
     Bool,
     Double,
+    Char,
     String,
     Type,
     HeapPtr,

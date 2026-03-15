@@ -70,10 +70,10 @@ public static class Math {
     public static decimal Round(decimal value);
     public static decimal! Round(decimal! value);
 
-    public static int Sin(decimal value);
-    public static int! Sin(decimal! value);
-    public static int Sin(int value);
-    public static int! Sin(int! value);
+    public static int Sign(decimal value);
+    public static int! Sign(decimal! value);
+    public static int Sign(int value);
+    public static int! Sign(int! value);
 
     public static decimal Sin(decimal d);
     public static decimal! Sin(decimal! d);

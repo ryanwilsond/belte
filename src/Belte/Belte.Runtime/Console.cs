@@ -21,4 +21,8 @@ public static class Console {
     public static void SetCursorPosition(long? x, long? y) {
         System.Console.SetCursorPosition((int?)x ?? System.Console.CursorLeft, (int?)y ?? System.Console.CursorTop);
     }
+
+    public static void SetCursorVisibility(bool visible) {
+        System.Console.CursorVisible = visible;
+    }
 }

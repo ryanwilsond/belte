@@ -28,4 +28,16 @@ public static class Utilities {
     public static void TimeSleep(long ms) {
         Thread.Sleep((int)ms);
     }
+
+    public static long? Ascii(string chr) {
+        return char.TryParse(chr, out var result) ? result : null;
+    }
+
+    public static string Char(long ascii) {
+        return ((char)ascii).ToString();
+    }
+
+    public static string[] Split(string text, string separator) {
+        return text.Split(separator);
+    }
 }

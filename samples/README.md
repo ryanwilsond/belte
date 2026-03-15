@@ -1,7 +1,7 @@
 # Belte Code Samples
 
 - [Samples List](#samples-list)
-- [Running a Sample Using the Evaluator](#running-a-sample-using-the-evaluator)
+- [Running a Sample Using the Executor or Evaluator](#running-a-sample-using-the-executor-or-evaluator)
 - [Compiling a Sample](#compiling-a-sample)
 
 ## Samples List
@@ -15,9 +15,11 @@ this is a convention, and not required.)
 | [samples/Echo](Echo/Program.blt) | `buckle samples/Echo -- arg1 arg2` | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | `buckle samples/GuessingGame` | Random number guessing game. |
 | [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | 2D pong game. |
+| [samples/Donut](Donut/Program.blt) | `buckle samples/Donut` | ASCII spinning donut. |
 | [samples/Snake](Snake/Program.blt) | `buckle samples/Snake --type=graphics` | Snake game. |
+| [samples/Platformer](Platformer/Program.blt) | `cd samples/Platformer && buckle . --type=graphics` | Platformer game. |
 
-## Running a Sample Using the Evaluator
+## Running a Sample Using the Executor or Evaluator
 
 To run a sample directly using the Buckle compiler, run `buckle <Path/to/sample>`.
 
@@ -36,6 +38,11 @@ E.g.
 ```bash
 buckle samples/Pong --type=graphics
 ```
+
+If something goes wrong, the Evaluator provides much better debug information, at the cost of much worse performance
+(which is why the Executor is the default end point). To use the Evaluator, add the `--evaluate` flag.
+
+> Note: The Platformer game uses relative pathing to resolve assets, which is why you must change into that directory
 
 ## Compiling a Sample
 

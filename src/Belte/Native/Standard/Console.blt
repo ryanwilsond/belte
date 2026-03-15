@@ -23,6 +23,8 @@ public static class Console {
 
     public static void SetCursorPosition(int left, int top);
 
+    public static void SetCursorVisibility(bool! visible);
+
     public static class Color {
         public constexpr! Black = 0;
         public constexpr! DarkBlue = 1;

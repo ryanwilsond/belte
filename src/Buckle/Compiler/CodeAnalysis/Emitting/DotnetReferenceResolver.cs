@@ -7,14 +7,38 @@ using System.Linq;
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal static class DotnetReferenceResolver {
-    internal static string ResolveReferenceAssemblyPath(string tfm) {
+    internal static string ResolveReferenceRuntimeAssemblyPath(string tfm) {
+        var runtimeVersions = GetInstalledRuntimeVersions();
+
+        if (runtimeVersions.Count == 0)
+            return null;
+
+        var matchingVersion = runtimeVersions
+            .Where(v => v.StartsWith($"Microsoft.NETCore.App {tfm}."))
+            .OrderByDescending(v => v)
+            .FirstOrDefault()
+            .Substring(22);
+
+        if (matchingVersion is null)
+            return null;
+
+        var dotnetRoot = GetDotnetRoot();
+
+        if (dotnetRoot is null)
+            return null;
+
+        var refPath = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref", matchingVersion, "ref", $"net{tfm}");
+        return Directory.Exists(refPath) ? refPath : null;
+    }
+
+    internal static string ResolveReferenceStandardAssemblyPath(string tfm) {
         var sdkVersions = GetInstalledSdkVersions();
 
         if (sdkVersions.Count == 0)
             return null;
 
         var matchingVersion = sdkVersions
-            .Where(v => v.StartsWith(tfm + "."))
+            .Where(v => v.StartsWith($"{tfm}."))
             .OrderByDescending(v => v)
             .FirstOrDefault();
 
@@ -26,25 +50,75 @@ internal static class DotnetReferenceResolver {
         if (dotnetRoot is null)
             return null;
 
-        // var refPath = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref", matchingVersion, "ref", tfm);
-        var refPath = Path.Combine(dotnetRoot, "sdk", matchingVersion, "ref");
+        var refPath = Path.Combine(dotnetRoot, "packs", "NETStandard.Library.Ref", "2.1.0", "ref", "netstandard2.1");
+        return Directory.Exists(refPath) ? refPath : null;
+    }
+
+    internal static string ResolveReferenceCoreLibAssemblyPath(string tfm) {
+        var runtimeVersions = GetInstalledRuntimeVersions();
+
+        if (runtimeVersions.Count == 0)
+            return null;
+
+        var matchingVersion = runtimeVersions
+            .Where(v => v.StartsWith($"Microsoft.NETCore.App {tfm}."))
+            .OrderByDescending(v => v)
+            .FirstOrDefault()
+            .Substring(22);
+
+        if (matchingVersion is null)
+            return null;
+
+        var dotnetRoot = GetDotnetRoot();
+
+        if (dotnetRoot is null)
+            return null;
+
+        var refPath = Path.Combine(dotnetRoot, "shared", "Microsoft.NETCore.App", matchingVersion);
         return Directory.Exists(refPath) ? refPath : null;
     }
 
     internal static string ResolveSystemRuntimeDll(string tfm) {
-        var refPath = ResolveReferenceAssemblyPath(tfm);
+        var refPath = ResolveReferenceRuntimeAssemblyPath(tfm);
 
         if (refPath is null)
             return null;
 
-        // var dllPath = Path.Combine(refPath, "System.Runtime.dll");
+        var dllPath = Path.Combine(refPath, "System.Runtime.dll");
+        return File.Exists(dllPath) ? dllPath : null;
+    }
+
+    internal static string ResolveNetStandardDll(string tfm) {
+        var refPath = ResolveReferenceStandardAssemblyPath(tfm);
+
+        if (refPath is null)
+            return null;
+
         var dllPath = Path.Combine(refPath, "netstandard.dll");
         return File.Exists(dllPath) ? dllPath : null;
     }
 
+    internal static string ResolvePrivateCoreLibDll(string tfm) {
+        var refPath = ResolveReferenceCoreLibAssemblyPath(tfm);
+
+        if (refPath is null)
+            return null;
+
+        var dllPath = Path.Combine(refPath, "System.Private.CoreLib.dll");
+        return File.Exists(dllPath) ? dllPath : null;
+    }
+
     private static List<string> GetInstalledSdkVersions() {
+        return GetInstalledVersionsCore("--list-sdks");
+    }
+
+    private static List<string> GetInstalledRuntimeVersions() {
+        return GetInstalledVersionsCore("--list-runtimes");
+    }
+
+    private static List<string> GetInstalledVersionsCore(string filterCommand) {
         try {
-            var psi = new ProcessStartInfo("dotnet", "--list-sdks") {
+            var psi = new ProcessStartInfo("dotnet", filterCommand) {
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
