@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dependencies\MonoGame.Extended.Text\MonoGame.Extended.Text.csproj" />
+  </ItemGroup>
+
+</Project>

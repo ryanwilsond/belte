@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -11,23 +12,46 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Optimizes BoundExpressions and BoundStatements.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriter {
-    private readonly BelteDiagnosticQueue _diagnostics;
+    private Optimizer() { }
 
-    private Optimizer(BelteDiagnosticQueue diagnostics) {
-        _diagnostics = diagnostics;
+    internal static BoundStatement Optimize(BoundStatement statement) {
+        var optimizer = new Optimizer();
+        return (BoundStatement)optimizer.Visit(statement);
     }
 
-    internal static BoundStatement Optimize(
-        BoundStatement statement,
-        bool removeDeadCode,
-        BelteDiagnosticQueue diagnostics) {
-        var optimizer = new Optimizer(diagnostics);
-        var optimizedStatement = optimizer.Visit(statement);
+    internal static BoundBlockStatement RemoveDeadCode(BoundBlockStatement block, BelteDiagnosticQueue diagnostics) {
+        var controlFlow = ControlFlowGraph.Create(block);
+        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
-        if (statement is BoundBlockStatement && removeDeadCode)
-            return optimizer.RemoveDeadCode(optimizedStatement as BoundBlockStatement);
-        else
-            return (BoundStatement)optimizedStatement;
+        var builder = block.statements.ToBuilder();
+        var seenScopes = new HashSet<SyntaxNode>();
+
+        for (var i = 0; i < builder.Count; i++) {
+            var statement = builder[i];
+
+            if (!reachableStatements.Contains(statement)) {
+                var statementToRemove = statement;
+                PotentiallyReportDeadCode(statementToRemove);
+                builder.RemoveAt(i);
+                i--;
+            }
+        }
+
+        return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
+
+        void PotentiallyReportDeadCode(BoundNode node) {
+            var syntax = node.syntax;
+
+            if (syntax.kind == SyntaxKind.LocalFunctionStatement)
+                return;
+
+            // TODO Eventually replace this with a proper FlowAnalysisPass on BoundNode.WasCompilerGenerated
+            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
+                return;
+
+            if (seenScopes.Add(syntax.parent))
+                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+        }
     }
 
     internal override BoundNode VisitConditionalGotoStatement(BoundConditionalGotoStatement statement) {
@@ -44,8 +68,13 @@ internal sealed class Optimizer : BoundTreeRewriter {
         ;
 
         */
-        if (ConstantValue.IsNotNull(statement.condition.constantValue)) {
-            var condition = (bool)statement.condition.constantValue.value;
+        var constantValue = statement.condition.constantValue;
+
+        if (statement.condition is BoundObjectCreationExpression { type.specialType: Symbols.SpecialType.Nullable } o)
+            constantValue = o.arguments[0].constantValue;
+
+        if (ConstantValue.IsNotNull(constantValue)) {
+            var condition = (bool)constantValue.value;
             condition = statement.jumpIfTrue ? condition : !condition;
 
             if (condition)
@@ -152,21 +181,5 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         var index = (int)expression.index.constantValue.value;
         return Visit(i.items[index]);
-    }
-
-    private BoundBlockStatement RemoveDeadCode(BoundBlockStatement block) {
-        var controlFlow = ControlFlowGraph.Create(block);
-        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
-
-        var builder = block.statements.ToBuilder();
-        for (var i = builder.Count - 1; i >= 0; i--) {
-            if (!reachableStatements.Contains(builder[i])) {
-                var statementToRemove = builder[i];
-                _diagnostics.Push(Warning.UnreachableCode(statementToRemove.syntax));
-                builder.RemoveAt(i);
-            }
-        }
-
-        return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
     }
 }

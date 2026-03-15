@@ -55,7 +55,7 @@ internal static class ConstantValueHelpers {
                 if (constantValue is not null)
                     value = constantValue;
                 else
-                    diagnostics.Push(Error.NotConstantExpression(initValueNode.location));
+                    diagnostics.Push(Error.ConstantExpected(initValueNode.location));
             }
         }
 

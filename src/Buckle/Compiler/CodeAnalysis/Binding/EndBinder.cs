@@ -32,6 +32,8 @@ internal sealed class EndBinder : Binder {
 
     internal override bool isInMethodBody => false;
 
+    internal override QuickAttributeChecker quickAttributeChecker => QuickAttributeChecker.Predefined;
+
     private protected override SyntaxNode _enclosingNameofArgument => null;
 
     private protected override bool _inExecutableBinder => false;

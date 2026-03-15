@@ -21,14 +21,41 @@ public static partial class BuckleCommandLine {
     private const int FatalExitCode = 2;
     private const int RuntimeErrorExitCode = 3;
 
-    private static readonly DiagnosticInfo[] WarningLevel1 = {
-        new DiagnosticInfo(1, "BU"),
-        new DiagnosticInfo(26, "BU"),
-    };
+    private static readonly DiagnosticInfo[] WarningLevel1 = [
+        new DiagnosticInfo(0001, "BU"),
+        new DiagnosticInfo(0026, "BU"),
+        new DiagnosticInfo(0133, "BU"),
+        new DiagnosticInfo(0180, "BU"),
+        new DiagnosticInfo(0239, "BU"),
+        new DiagnosticInfo(0243, "BU"),
+        new DiagnosticInfo(0244, "BU"),
+        new DiagnosticInfo(0247, "BU"),
+        new DiagnosticInfo(0248, "BU"),
+        new DiagnosticInfo(0252, "BU"),
+        new DiagnosticInfo(0253, "BU"),
+        new DiagnosticInfo(0272, "BU"),
+        new DiagnosticInfo(0273, "BU"),
+        new DiagnosticInfo(0274, "BU"),
+        new DiagnosticInfo(0276, "BU"),
+        new DiagnosticInfo(0277, "BU"),
+        new DiagnosticInfo(0286, "BU"),
+        new DiagnosticInfo(0287, "BU"),
+        new DiagnosticInfo(0288, "BU"),
+        new DiagnosticInfo(0289, "BU"),
+        new DiagnosticInfo(0290, "BU"),
+    ];
 
-    private static readonly DiagnosticInfo[] WarningLevel2 = {
-        new DiagnosticInfo(2, "BU"),
-    };
+    private static readonly DiagnosticInfo[] WarningLevel2 = [
+        new DiagnosticInfo(0053, "BU"),
+        new DiagnosticInfo(0198, "BU"),
+        new DiagnosticInfo(0263, "BU"),
+        new DiagnosticInfo(0264, "BU"),
+        new DiagnosticInfo(0265, "BU"),
+    ];
+
+    private static readonly DiagnosticInfo[] WarningLevel3 = [
+        new DiagnosticInfo(0002, "BU"),
+    ];
 
     /// <summary>
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.
@@ -49,6 +76,9 @@ public static partial class BuckleCommandLine {
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
+
+        if (dialogs.clearSubmissions)
+            ShowClearSubmissionsDialog();
 
         if (hasDialog) {
             diagnostics.Clear();
@@ -78,6 +108,9 @@ public static partial class BuckleCommandLine {
         if (err > 0)
             return err;
 
+        if (state.tasks.Length == 0 && dialogs.clearSubmissions)
+            return SuccessExitCode;
+
         if (!state.noOut)
             CleanOutputFiles(compiler);
 
@@ -89,7 +122,7 @@ public static partial class BuckleCommandLine {
             return err;
 
         if (state.verboseMode && !state.noOut)
-            LogTasks(state.tasks);
+            LogCompilerState(state);
 
         compiler.Compile();
 
@@ -126,92 +159,23 @@ public static partial class BuckleCommandLine {
         return diagnostics;
     }
 
-    private static void ShowErrorHelp(string error, out DiagnosticQueue<Diagnostic> diagnostics) {
+    private static void ShowClearSubmissionsDialog() {
+        var submissionCount = BelteRepl.ClearSubmissions();
+
+        var previous = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write("Cleared ");
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.Write(submissionCount);
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine(" submissions");
+        Console.ForegroundColor = previous;
+    }
+
+    private static void ShowErrorHelp(string _, out DiagnosticQueue<Diagnostic> diagnostics) {
         diagnostics = new DiagnosticQueue<Diagnostic>();
         diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
         return;
-
-        string prefix;
-
-        if (error.Length < 3 || (char.IsDigit(error[0]) && char.IsDigit(error[1]))) {
-            prefix = "BU";
-            error = prefix + error;
-        } else {
-            prefix = error.Substring(0, 2);
-        }
-
-        diagnostics = new DiagnosticQueue<Diagnostic>();
-        var errorCode = 0;
-
-        try {
-            errorCode = Convert.ToInt32(error.Substring(2));
-        } catch (Exception e) when (e is FormatException || e is OverflowException) {
-            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-            return;
-        }
-
-        string allDescriptions = null;
-
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
-            var foundDescriptions = assembly.GetManifestResourceNames()
-                .Where(r => r.EndsWith($"Resources.ErrorDescriptions{prefix}.txt"));
-
-            if (foundDescriptions.Any()) {
-                using var stream = assembly.GetManifestResourceStream(foundDescriptions.First());
-                using var reader = new StreamReader(stream);
-                allDescriptions = reader.ReadToEnd();
-                break;
-            }
-        }
-
-        if (allDescriptions is null) {
-            diagnostics.Push(Belte.Diagnostics.Error.InvalidErrorCode(error));
-            return;
-        }
-
-        var messages = new Dictionary<int, string>();
-
-        foreach (var message in allDescriptions.Split($"${prefix}")) {
-            try {
-                var code = message.Substring(0, 4);
-                messages[Convert.ToInt32(code)] = message.Substring(4);
-            } catch (ArgumentOutOfRangeException) { }
-        }
-
-        if (!messages.ContainsKey(errorCode)) {
-            diagnostics.Push(Belte.Diagnostics.Error.UnusedErrorCode(error));
-            return;
-        }
-
-        var foundMessage = messages[errorCode].Substring(2);
-
-        if (foundMessage.EndsWith(Environment.NewLine))
-            foundMessage = foundMessage.Substring(0, foundMessage.Length - 1);
-
-        var lines = foundMessage.Split(Environment.NewLine);
-        var count = 0;
-
-        while (count < lines.Length) {
-            // First -1 is required, second -1 is because we are printing -- More --
-            // -2 is to account for the next terminal input line
-            if (count > Console.WindowHeight - 1 - 1 - 2) {
-                var key = ' ';
-
-                do {
-                    Console.Write("-- More --");
-                    key = Console.ReadKey().KeyChar;
-                    var currentLineCursor = Console.CursorTop;
-                    Console.SetCursorPosition(0, Console.CursorTop);
-                    // * Does not need -1 in some terminals
-                    // Unfortunately the program cant tell what terminal is being used
-                    Console.Write(new string(' ', Console.WindowWidth - 1));
-                    Console.SetCursorPosition(0, currentLineCursor);
-                } while (key != '\n' && key != '\r');
-            }
-
-            var line = lines[count++];
-            Console.WriteLine(line);
-        }
     }
 
     private static void ShowHelpDialog() {
@@ -243,61 +207,36 @@ public static partial class BuckleCommandLine {
         where Type : Diagnostic {
         var previous = Console.ForegroundColor;
 
-        void ResetColor() {
-            if (textColor is not null)
-                Console.ForegroundColor = textColor.Value;
-            else
-                Console.ResetColor();
-        }
+        if (textColor is not null)
+            Console.ForegroundColor = textColor.Value;
+        else
+            Console.ResetColor();
 
-        var severity = diagnostic.info.severity;
-        ResetColor();
+        var info = diagnostic.info;
 
-        var ignoreDiagnostic = (int)state.severity > (int)severity;
-        ignoreDiagnostic |= CheckWarningLevel(diagnostic.info, state);
-        ignoreDiagnostic &= !WarningIncluded(diagnostic.info, state);
-        ignoreDiagnostic |= WarningExcluded(diagnostic.info, state);
+        var ignoreDiagnostic = CheckDiagnosticSeverity(info, state);
+        ignoreDiagnostic |= CheckWarningLevel(info, state);
+        ignoreDiagnostic &= !WarningIncluded(info, state);
+        ignoreDiagnostic |= WarningExcluded(info, state);
 
-        if (ignoreDiagnostic) {
-        } else if (diagnostic.info.module != "BU" || (diagnostic is BelteDiagnostic bd && bd.location is null)) {
-            Console.Write($"{me}: ");
-
-            switch (severity) {
-                case DiagnosticSeverity.Debug:
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.Write("debug");
-                    break;
-                case DiagnosticSeverity.Info:
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.Write("info");
-                    break;
-                case DiagnosticSeverity.Warning:
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.Write("warning");
-                    break;
-                case DiagnosticSeverity.Error:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("error");
-                    break;
-                case DiagnosticSeverity.Fatal:
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Write("fatal");
-                    break;
+        if (!ignoreDiagnostic) {
+            if (info.module != "BU") {
+                Console.Write($"{me}: ");
+                DiagnosticFormatter.PrettyPrint(diagnostic, textColor);
+            } else {
+                DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
             }
-
-            Console.Write(
-                $"{(diagnostic.info.code is null && diagnostic.info.module is null ? "" : $" {diagnostic.info}")}: "
-            );
-
-            ResetColor();
-            Console.WriteLine(diagnostic.message);
-        } else {
-            DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
         }
 
         Console.ForegroundColor = previous;
+        return info.severity;
+    }
 
-        return severity;
+    private static bool CheckDiagnosticSeverity(DiagnosticInfo info, CompilerState state) {
+        if (state.time && info.severity == DiagnosticSeverity.Debug)
+            return false;
+
+        return (int)state.severity > (int)info.severity;
     }
 
     private static bool CheckWarningLevel(DiagnosticInfo info, CompilerState state) {
@@ -309,6 +248,8 @@ public static partial class BuckleCommandLine {
         else if (state.warningLevel == 1)
             return !WarningInWarningList(WarningLevel1, info);
         else if (state.warningLevel == 2)
+            return !(WarningInWarningList(WarningLevel2, info) || WarningInWarningList(WarningLevel1, info));
+        else if (state.warningLevel == 3)
             return false;
 
         throw new UnreachableException();
@@ -380,9 +321,8 @@ public static partial class BuckleCommandLine {
             return;
         }
 
-        foreach (var file in compiler.state.tasks) {
+        foreach (var file in compiler.state.tasks)
             File.Delete(file.outputFilename);
-        }
     }
 
     private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
@@ -437,14 +377,31 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static void LogTasks(FileState[] tasks) {
-        Console.WriteLine($"File Tasks ({tasks.Length}):");
+    private static void LogCompilerState(CompilerState state) {
+        Console.WriteLine();
+        Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.severity)}");
+        Console.WriteLine($"Warning reporting level: {state.warningLevel}");
+        Console.WriteLine($"Included warnings: {string.Join(", ", state.includeWarnings.AsEnumerable())}");
+        Console.WriteLine($"Excluded warnings: {string.Join(", ", state.excludeWarnings.AsEnumerable())}");
+        Console.WriteLine();
+        Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
+        Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
+        Console.WriteLine();
+        Console.WriteLine(".NET Information:");
+        Console.WriteLine($"    Module name: {state.moduleName}");
+        Console.WriteLine($"    References: {string.Join(", ", state.references.Select(r => $"\"{r}\""))}");
+        Console.WriteLine();
+
+        LogTasks(state);
+    }
+
+    private static void LogTasks(CompilerState state) {
+        var tasks = state.tasks;
+        Console.WriteLine($"File Tasks ({tasks.Length}) -> \"{state.outputFilename}\": {Enum.GetName(state.finishStage)}");
 
         foreach (var task in tasks) {
             Console.Write("    ");
-            Console.WriteLine(
-                $"{task.inputFileName}{(task.outputFilename is null ? "" : $" -> {task.outputFilename}")}: {task.stage}"
-            );
+            Console.WriteLine($"\"{task.inputFileName}\"{(task.outputFilename is null ? "" : $" -> \"{task.outputFilename}\"")}: {task.stage}");
         }
 
         Console.WriteLine();
@@ -467,13 +424,15 @@ public static partial class BuckleCommandLine {
         var specifyStage = false;
         var specifyOut = false;
         var specifyModule = false;
+        var specifyBuildMode = false;
         var specifyWarningLevel = false;
 
         var tempDialogs = new ShowDialogs {
             help = false,
             machine = false,
             version = false,
-            error = null
+            clearSubmissions = false,
+            error = null,
         };
 
         multipleExplains = false;
@@ -481,12 +440,13 @@ public static partial class BuckleCommandLine {
         state.buildMode = BuildMode.AutoRun;
         state.finishStage = CompilerStage.Finished;
         state.outputFilename = "a.exe";
-        state.moduleName = "defaultModuleName";
+        state.moduleName = "a";
         state.noOut = false;
         state.warningLevel = 1;
         state.severity = DiagnosticSeverity.Warning;
-        state.projectType = OutputKind.Console;
+        state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
+        state.time = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -500,29 +460,37 @@ public static partial class BuckleCommandLine {
                     break;
                 case "-r":
                 case "--repl":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Repl;
                     break;
                 case "-n":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Independent;
                     break;
                 case "-i":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.AutoRun;
                     break;
                 case "--script":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Interpret;
                     break;
                 case "--evaluate":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Evaluate;
                     break;
                 case "--execute":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Execute;
                     break;
                 case "-t":
                 case "--transpile":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.CSharpTranspile;
                     break;
                 case "-d":
                 case "--dotnet":
+                    specifyBuildMode = true;
                     state.buildMode = BuildMode.Dotnet;
                     break;
                 case "-h":
@@ -535,11 +503,17 @@ public static partial class BuckleCommandLine {
                 case "--version":
                     tempDialogs.version = true;
                     break;
+                case "--clearsubmissions":
+                    tempDialogs.clearSubmissions = true;
+                    break;
                 case "--noout":
                     state.noOut = true;
                     break;
                 case "--verbose":
                     state.verboseMode = true;
+                    break;
+                case "--time":
+                    state.time = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -648,9 +622,11 @@ public static partial class BuckleCommandLine {
                 var type = arg.Substring(7).ToLower();
 
                 if (type == "console")
-                    state.projectType = OutputKind.Console;
+                    state.projectType = OutputKind.ConsoleApplication;
                 else if (type == "graphics")
-                    state.projectType = OutputKind.Graphics;
+                    state.projectType = OutputKind.GraphicsApplication;
+                else if (type == "dll")
+                    state.projectType = OutputKind.DynamicallyLinkedLibrary;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
             } else if (arg == "--") {
@@ -674,6 +650,17 @@ public static partial class BuckleCommandLine {
         state.arguments = arguments;
         state.includeWarnings = includeWarnings.ToArray();
         state.excludeWarnings = excludeWarnings.ToArray();
+
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+            if (!specifyBuildMode)
+                state.buildMode = BuildMode.Dotnet;
+
+            if (state.buildMode != BuildMode.Dotnet)
+                diagnostics.Push(Belte.Diagnostics.Fatal.DLLWithWrongBuildMode());
+
+            if (!specifyOut)
+                state.outputFilename = "a.dll";
+        }
 
         if (!specifyWarningLevel &&
             state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
@@ -708,13 +695,32 @@ public static partial class BuckleCommandLine {
         if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
 
-        if (state.tasks.Length == 0 && !(state.buildMode == BuildMode.Repl))
-            diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+            if (specifyOut && specifyModule)
+                diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyOutAndModuleWithDll());
+            else if (!specifyOut)
+                state.outputFilename = state.moduleName + ".dll";
+            else if (!specifyModule)
+                state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
+        }
 
         state.outputFilename = state.outputFilename.Trim();
 
-        if (state.verboseMode)
+        if (state.verboseMode) {
             state.severity = DiagnosticSeverity.All;
+            state.warningLevel = 2;
+            state.time = true;
+        }
+
+        if (state.tasks.Length == 0) {
+            if (state.buildMode == BuildMode.Repl || dialogs.clearSubmissions)
+                // We don't want to resolve output files in they aren't used, so early return
+                return state;
+
+            diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
+        }
+
+        ResolveOutputFileNames(ref state.tasks, state.finishStage, specifyOut ? state.outputFilename : null);
 
         return state;
     }
@@ -772,6 +778,32 @@ public static partial class BuckleCommandLine {
         }
 
         return infos;
+    }
+
+    private static void ResolveOutputFileNames(
+        ref FileState[] tasks,
+        CompilerStage finishStage,
+        string outputFilename) {
+        if (tasks.Length == 1 && outputFilename is not null) {
+            tasks[0].outputFilename = outputFilename;
+            return;
+        }
+
+        var ext = finishStage switch {
+            CompilerStage.Assembled => "o",
+            CompilerStage.Compiled => "s",
+            CompilerStage.Finished => "exe",
+            _ => null
+        };
+
+        for (var i = 0; i < tasks.Length; i++) {
+            var fileName = string.Join('.', tasks[i].inputFileName.Split('.').SkipLast(1));
+
+            if (ext is not null)
+                tasks[i].outputFilename = string.Join('.', fileName, ext);
+            else
+                tasks[i].outputFilename = fileName;
+        }
     }
 
     private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {

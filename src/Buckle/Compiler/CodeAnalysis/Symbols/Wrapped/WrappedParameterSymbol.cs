@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -34,4 +35,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal override bool isImplicitlyDeclared => underlyingParameter.isImplicitlyDeclared;
 
     internal sealed override bool hasUnscopedRefAttribute => underlyingParameter.hasUnscopedRefAttribute;
+
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return underlyingParameter.GetAttributes();
+    }
 }

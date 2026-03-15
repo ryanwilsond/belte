@@ -26,7 +26,7 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, OutputKind.Graphics, [], true, false);
+        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true, false);
     // TODO Any benefit to generating numbered assembly names so they are unique?
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
@@ -50,6 +50,8 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
+        handle.state.warningLevel = 2;
+
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
@@ -104,6 +106,20 @@ public sealed partial class BelteRepl : Repl {
     public override void Dispose() {
         state.context.Dispose();
         base.Dispose();
+    }
+
+    /// <summary>
+    /// Clears the submissions directory (without evaluation).
+    /// </summary>
+    public static int ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (!Directory.Exists(path))
+            return 0;
+
+        var submissionCount = Directory.GetFiles(path).Length;
+        Directory.Delete(path, true);
+        return submissionCount;
     }
 
     internal override void ResetState() {
@@ -231,12 +247,7 @@ public sealed partial class BelteRepl : Repl {
             return true;
 
         var lines = text.Split(Environment.NewLine);
-        lines.Reverse();
-
-        var twoBlankLines = lines
-            .TakeWhile(s => string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s))
-            .Take(2)
-            .Count() == 2;
+        var twoBlankLines = lines.TakeLast(2).All(string.IsNullOrWhiteSpace);
 
         if (twoBlankLines)
             return true;
@@ -263,13 +274,6 @@ public sealed partial class BelteRepl : Repl {
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string);
         else
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string, (ConsoleColor)arg2);
-    }
-
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
     }
 
     private static string GetSubmissionsDirectory() {
@@ -301,9 +305,8 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private BelteDiagnosticQueue LoadLibraries() {
-        var compilation = LibraryHelpers.LoadLibraries(DefaultOptions);
+        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl);
         state.baseCompilation = compilation;
-        // compilation.Evaluate(_abortEvaluation);
         return compilation.GetDiagnostics();
     }
 
@@ -344,9 +347,9 @@ public sealed partial class BelteRepl : Repl {
         var diagnostics = compilation.GetDiagnostics();
 
         if (state.showWarnings)
-            handle.diagnostics.Move(diagnostics);
+            handle.diagnostics.PushRange(diagnostics);
         else
-            handle.diagnostics.Move(diagnostics.Errors());
+            handle.diagnostics.PushRange(diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
@@ -361,23 +364,15 @@ public sealed partial class BelteRepl : Repl {
                 Console.ForegroundColor = state.colorTheme.@default;
                 return;
             }
-
-            if (state.showWarnings)
-                handle.diagnostics.Move(result.diagnostics);
-            else
-                handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
         var hasErrors = handle.diagnostics.AnyErrors();
 
         if (handle.diagnostics.Any()) {
-            if (_hasDiagnosticHandle) {
-                // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
-                // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+            if (_hasDiagnosticHandle)
                 _diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
-            } else {
+            else
                 handle.diagnostics.Clear();
-            }
         }
 
         if (!hasErrors) {
@@ -524,48 +519,8 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
-    private object EvaluatorObjectToNativeObject(EvaluatorObject evaluatorObject) {
-        if (evaluatorObject.isReference)
-            return evaluatorObject.publicReference;
-
-        var value = evaluatorObject.value;
-
-        if (value is EvaluatorObject e)
-            return EvaluatorObjectToNativeObject(e);
-        else if (value is EvaluatorObject[])
-            return CollectionValue(value as EvaluatorObject[]);
-
-        var members = evaluatorObject.publicMembers;
-
-        if (value is null && members is not null)
-            return DictionaryValue(members, evaluatorObject.publicType);
-
-        return value;
-    }
-
-    private Dictionary<object, object> DictionaryValue(Dictionary<ISymbol, EvaluatorObject> value, ITypeSymbol type) {
-        var dictionary = new Dictionary<object, object>();
-
-        foreach (var pair in value) {
-            if (pair.Key is IFieldSymbol) {
-                var name = pair.Key.containingSymbol.Equals(type)
-                    ? pair.Key.name
-                    : $"{pair.Key.containingSymbol.name}.{pair.Key.name}";
-
-                dictionary.Add(name, EvaluatorObjectToNativeObject(pair.Value));
-            }
-        }
-
-        return dictionary;
-    }
-
-    private object[] CollectionValue(EvaluatorObject[] value) {
-        var builder = new object[value.Length];
-
-        for (var i = 0; i < value.Length; i++)
-            builder[i] = EvaluatorObjectToNativeObject(value[i]);
-
-        return builder;
+    private object EvaluatorValueToNativeObject(EvaluatorValue evaluatorValue) {
+        return EvaluatorValue.Format(evaluatorValue, state.context);
     }
 
     [MetaCommand("showTree", "Toggle display of the parse tree")]
@@ -652,13 +607,27 @@ public sealed partial class BelteRepl : Repl {
         if (mode == "global" || mode == "all") {
             writer.WriteLine("Global Symbols:");
 
-            foreach (var symbol in state.context.GetTrackedSymbols()) {
-                displayText.Write(CreateIndent());
-                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
-                displayText.WriteLine();
-            }
+            if (state.previous is not null) {
+                var seenLocals = new HashSet<string>();
+                var seenMethods = new HashSet<string>();
 
-            WriteDisplayText(displayText);
+                var globals = state.previous.GetSymbols(
+                    includePreviousCompilations: true,
+                    includeSimpleProgramLocals: true
+                ).Where(
+                    s => (s.kind == SymbolKind.Local && seenLocals.Add(s.name)) ||
+                    (s is IMethodSymbol m &&
+                        m.methodKind == MethodKind.LocalFunction &&
+                        seenMethods.Add(s.name)));
+
+                foreach (var symbol in globals) {
+                    displayText.Write(CreateIndent());
+                    SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
+                    displayText.WriteLine();
+                }
+
+                WriteDisplayText(displayText);
+            }
         }
     }
 
@@ -674,12 +643,12 @@ public sealed partial class BelteRepl : Repl {
         var isAtTop = true;
 
         var compilation = state.previous ?? EmptyCompilation;
-        var topLevelSymbols = compilation.GetSymbols(true);
-        var toplevelGlobals = state.context.GetTrackedSymbolsAndObjects();
+        var topLevelSymbols = compilation.GetSymbols(includeExternal: true, includePreviousCompilations: true);
+        var toplevelGlobals = state.context.GetTrackedGlobalObjects();
         var currentSymbols = topLevelSymbols;
         var currentGlobals = toplevelGlobals;
-        EvaluatorObject currentGlobal = null;
-        Stack<(ISymbol, EvaluatorObject)> globalChain = [];
+        var currentGlobal = EvaluatorValue.None;
+        Stack<(ISymbol, EvaluatorValue)> globalChain = [];
 
         while (true) {
             if (UpdatePage(select))
@@ -721,7 +690,7 @@ public sealed partial class BelteRepl : Repl {
                 SymbolDisplay.AppendToDisplayText(displayText, currentSymbol, SymbolDisplayFormat.BoundDisplayFormat);
                 displayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(displayText);
-                var localValue = EvaluatorObjectToNativeObject(currentGlobal);
+                var localValue = EvaluatorValueToNativeObject(currentGlobal);
                 RenderResult(localValue);
                 writer.WriteLine();
             }
@@ -750,7 +719,7 @@ public sealed partial class BelteRepl : Repl {
                             currentGlobal = both.Item2;
                         } else {
                             currentSymbol = null;
-                            currentGlobal = null;
+                            currentGlobal = EvaluatorValue.None;
                             currentSymbols = topLevelSymbols;
                             currentGlobals = toplevelGlobals;
                             isAtTop = true;
@@ -791,7 +760,7 @@ public sealed partial class BelteRepl : Repl {
                             _ => [],
                         };
                     } else {
-                        currentGlobals = currentGlobal.publicMembers ?? [];
+                        currentGlobals = EvaluatorValue.GetFieldsFromPtr(currentGlobal, state.context);
                     }
                 }
 
@@ -902,9 +871,14 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
 
+        if (signature.StartsWith("global::"))
+            signature = signature.Substring(8);
+        else if (signature.StartsWith("global."))
+            signature = signature.Substring(7);
+
         // Prefer tracked symbols first
-        foreach (var symbolAndObject in state.context.GetTrackedSymbolsAndObjects()) {
-            var local = symbolAndObject.Key;
+        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects()) {
+            var local = symbolAndValue.Key;
 
             if (local.name == signature) {
                 var localDisplayText = new DisplayText();
@@ -912,7 +886,7 @@ public sealed partial class BelteRepl : Repl {
                 localDisplayText.Write(CreatePunctuation(" = "));
                 WriteDisplayText(localDisplayText);
 
-                var localValue = EvaluatorObjectToNativeObject(symbolAndObject.Value);
+                var localValue = EvaluatorValueToNativeObject(symbolAndValue.Value);
                 RenderResult(localValue);
                 writer.WriteLine();
 
@@ -922,7 +896,13 @@ public sealed partial class BelteRepl : Repl {
 
         // Then do a deeper search for non-global symbols
         var compilation = state.previous ?? EmptyCompilation;
-        var allSymbols = compilation.GetSymbols(true);
+
+        var allSymbols = compilation.GetSymbols(
+            includePreviousCompilations: true,
+            includeSimpleProgramLocals: true,
+            includeExternal: true
+        );
+
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 

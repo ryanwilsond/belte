@@ -2,16 +2,16 @@
 class TileMap {
     private int! tileSize;
     private int! tileCount;
-    private ref Tile[] offGridTiles;
+    private Tile[] offGridTiles;
     private int! offGridCount;
-    private ref Textures textures;
+    private Textures textures;
 
-    public ref Tile[] tiles;
+    public Tile[] tiles;
     public decimal! lowestY;
 
-    public constructor(ref Textures textures, int! tileSize = 64) {
+    public constructor(Textures textures, int! tileSize = 64) {
         this.tileSize = tileSize;
-        this.textures = ref textures;
+        this.textures = textures;
         tileCount = 0;
         offGridCount = 0;
         lowestY = 0;
@@ -152,7 +152,7 @@ class TileMap {
         }
     }
 
-    public void AddGridTile(int! x, int! y, ref Texture texture, string! key) {
+    public void AddGridTile(int! x, int! y, Texture texture, string! key) {
         for (int! i = 0; i < tileCount; i++) {
             var tile = tiles[i];
 
@@ -165,7 +165,7 @@ class TileMap {
         tiles[tileCount++] = new Tile(x, y, texture, key, tileSize);
     }
 
-    public void AddOffGridTile(int! x, int! y, ref Texture texture, string! key) {
+    public void AddOffGridTile(int! x, int! y, Texture texture, string! key) {
         offGridTiles[offGridCount++] = new Tile(x, y, texture, key, tileSize, false);
     }
 
@@ -239,7 +239,7 @@ class TileMap {
         return sorted;
     }
 
-    public ref Tile[] GetSortedNearTiles(int! x, int! y) {
+    public Tile[] GetSortedNearTiles(int! x, int! y) {
         var gx = Math.Round(x / (decimal)tileSize);
         var gy = Math.Round(y / (decimal)tileSize);
         var unsorted = GetNearTiles(x, y);
@@ -255,12 +255,12 @@ class TileMap {
             var dy = tile.y - gy;
 
             if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
-                var index = (dy + 1) * 3 + (dx + 1);
+                var index = (int)((dy + 1) * 3 + (dx + 1));
                 sorted[index] = tile;
             }
         }
 
-        return ref sorted;
+        return sorted;
     }
 
     public void Render(Vec2 offset) {
@@ -279,7 +279,7 @@ class TileMap {
         }
     }
 
-    private bool TileOffScreen(ref Tile tile, Vec2 offset) {
+    private bool TileOffScreen(Tile tile, Vec2 offset) {
         if ((tile.sprite.dst.x + tile.sprite.dst.w - offset.x < 0) ||
             (tile.sprite.dst.x - offset.x > Settings.WindowWidth) ||
             (tile.sprite.dst.y + tile.sprite.dst.h - offset.y < 0) ||
@@ -290,7 +290,7 @@ class TileMap {
         return false;
     }
 
-    private bool PointInsideTile(int! x, int! y, ref Tile tile) {
+    private bool PointInsideTile(int! x, int! y, Tile tile) {
         var collidingX = x > tile.x && x < tile.x + tile.sprite.dst.w;
         var collidingY = y > tile.y && y < tile.y + tile.sprite.dst.h;
         return collidingX && collidingY;

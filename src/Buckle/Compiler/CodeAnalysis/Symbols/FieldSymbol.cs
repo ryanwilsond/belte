@@ -56,9 +56,17 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal sealed override bool isVirtual => false;
 
+    internal virtual bool isCapturedFrame => false;
+
+    internal bool isMetadataConstant => isConstExpr;
+
     internal abstract ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress);
 
     internal abstract TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound);
+
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitField(this);
+    }
 
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,

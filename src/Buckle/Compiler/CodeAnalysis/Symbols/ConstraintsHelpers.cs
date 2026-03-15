@@ -11,7 +11,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal static partial class ConstraintsHelpers {
     internal static TypeParameterBounds ResolveBounds(
-        this SourceTemplateParameterSymbolBase templateParameter,
+        this TemplateParameterSymbol templateParameter,
         ConsList<TemplateParameterSymbol> inProgress,
         ImmutableArray<TypeWithAnnotations> constraintTypes,
         bool inherited,

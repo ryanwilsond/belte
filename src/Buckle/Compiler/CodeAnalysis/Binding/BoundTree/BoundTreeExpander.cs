@@ -42,7 +42,7 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandErrorStatement(BoundErrorStatement statement) {
-        // Even though there is protential for expanding the childBoundNodes, it will be an error anyways so why bother
+        // Even though there is potential for expanding the childBoundNodes, it will be an error anyways so why bother
         return [statement];
     }
 
@@ -51,7 +51,6 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandLocalFunctionStatement(BoundLocalFunctionStatement statement) {
-        // ExpandBlockStatement always returns a single block statement
         var newBody = (BoundBlockStatement)ExpandBlockStatement(statement.body)[0];
         return [new BoundLocalFunctionStatement(statement.syntax, statement.symbol, newBody)];
     }
@@ -62,7 +61,12 @@ internal abstract class BoundTreeExpander {
         foreach (var childStatement in statement.statements)
             statements.AddRange(ExpandStatement(childStatement));
 
-        return [Block(statement.syntax, statements.ToArray())];
+        return [new BoundBlockStatement(
+            statement.syntax,
+            statements.ToImmutableArray(),
+            statement.locals,
+            statement.localFunctions
+        )];
     }
 
     private protected virtual List<BoundStatement> ExpandLocalDeclarationStatement(
@@ -227,6 +231,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.CallExpression => ExpandCallExpression((BoundCallExpression)expression, out replacement),
             BoundKind.CastExpression => ExpandCastExpression((BoundCastExpression)expression, out replacement),
             BoundKind.ArrayAccessExpression => ExpandArrayAccessExpression((BoundArrayAccessExpression)expression, out replacement),
+            BoundKind.IndexerAccessExpression => ExpandIndexerAccessExpression((BoundIndexerAccessExpression)expression, out replacement),
             BoundKind.CompoundAssignmentOperator => ExpandCompoundAssignmentOperator((BoundCompoundAssignmentOperator)expression, out replacement),
             BoundKind.ReferenceExpression => ExpandReferenceExpression((BoundReferenceExpression)expression, out replacement),
             BoundKind.TypeOfExpression => ExpandTypeOfExpression((BoundTypeOfExpression)expression, out replacement),
@@ -590,6 +595,21 @@ internal abstract class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandIndexerAccessExpression(
+        BoundIndexerAccessExpression expression,
+        out BoundExpression replacement) {
+        var statements = ExpandExpression(expression.receiver, out var newOperand);
+        statements.AddRange(ExpandExpression(expression.index, out var newIndex));
+
+        if (statements.Count != 0) {
+            replacement = expression.Update(newOperand, newIndex, expression.constantValue, expression.type);
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandCompoundAssignmentOperator(
         BoundCompoundAssignmentOperator expression,
         out BoundExpression replacement) {
@@ -682,7 +702,7 @@ internal abstract class BoundTreeExpander {
         }
 
         var statements = ExpandExpression(expression.initializer, out var newInitializer);
-        replacement = expression.Update(expression.sizes, newInitializer, expression.type);
+        replacement = expression.Update(expression.sizes, (BoundInitializerList)newInitializer, expression.type);
         return statements;
     }
 

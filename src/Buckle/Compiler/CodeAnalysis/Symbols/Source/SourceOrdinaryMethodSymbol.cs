@@ -41,6 +41,17 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private bool _hasAnyBody => _flags.hasAnyBody;
 
+    private SyntaxList<AttributeListSyntax> _attributeDeclarationSyntaxList {
+        get {
+            if (containingType is SourceMemberContainerTypeSymbol sourceContainer &&
+                sourceContainer.anyMemberHasAttributes) {
+                return GetSyntax().attributeLists;
+            }
+
+            return default;
+        }
+    }
+
     internal static SourceOrdinaryMethodSymbol CreateMethodSymbol(
         NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
@@ -56,6 +67,10 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {
         return TryGetBodyBinderFromSyntax(binderFactory, ignoreAccessibility);
+    }
+
+    internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(_attributeDeclarationSyntaxList);
     }
 
     internal MethodDeclarationSyntax GetSyntax() {
@@ -86,9 +101,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
         var flags = new Flags(
             methodKind,
-            // TODO See todo in fields, we currently use ref modifier on outer symbol instead of on type
-            // syntax.returnType.GetRefKind(),
-            ((declarationModifiers & DeclarationModifiers.Ref) != 0) ? RefKind.Ref : RefKind.None,
+            syntax.returnType.GetRefKind(),
             declarationModifiers,
             false,
             false,
@@ -213,7 +226,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Error.ConflictingOverrideModifiers(location, this));
         else if (isSealed && !isOverride && !isAbstract)
             diagnostics.Push(Error.SealedNonOverride(location, this));
-        else if (returnType.isStatic)
+        else if (returnType.StrippedType().isStatic)
             diagnostics.Push(Error.CannotReturnStatic(location, returnType));
         else if (isAbstract && isSealed)
             diagnostics.Push(Error.AbstractAndSealed(location, this));
@@ -228,7 +241,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         else if (!_hasAnyBody && !isAbstract)
             diagnostics.Push(Error.NonAbstractMustHaveBody(location, this));
         else if (containingType.isSealed && declaredAccessibility.HasProtected() && !isOverride)
-            diagnostics.Push(Error.ProtectedInSealed(location, this));
+            diagnostics.Push(Warning.ProtectedInSealed(location, this));
         else if (containingType.isStatic && !isStatic)
             diagnostics.Push(Error.InstanceMemberInStatic(location, this));
     }

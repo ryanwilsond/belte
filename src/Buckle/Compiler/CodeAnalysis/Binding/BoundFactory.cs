@@ -11,9 +11,9 @@ internal static partial class BoundFactory {
         return new BoundNopStatement(null);
     }
 
-    internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type = null) {
+    internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
         if (type is not null)
-            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.specialType), type);
+            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.StrippedType().specialType), type);
 
         var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
         return new BoundLiteralExpression(
@@ -119,12 +119,13 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Increment(SyntaxNode syntax, BoundExpression operand) {
+        var isInt = operand.type.StrippedType().specialType == SpecialType.Int;
         var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Addition, operand.type, operand.type);
         var opSignature = new BinaryOperatorSignature(opKind, operand.type, operand.type, operand.type);
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            Literal(syntax, 1L, operand.type),
+            isInt ? Literal(syntax, 1L, operand.type) : Literal(syntax, 1D, operand.type),
             opSignature,
             null,
             null,
@@ -137,12 +138,13 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Decrement(SyntaxNode syntax, BoundExpression operand) {
+        var isInt = operand.type.StrippedType().specialType == SpecialType.Int;
         var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.type, operand.type);
         var opSignature = new BinaryOperatorSignature(opKind, operand.type, operand.type, operand.type);
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            Literal(syntax, 1L, operand.type),
+            isInt ? Literal(syntax, 1L, operand.type) : Literal(syntax, 1D, operand.type),
             opSignature,
             null,
             null,
@@ -176,7 +178,7 @@ internal static partial class BoundFactory {
             syntax,
             left,
             right,
-            BinaryOperatorKind.BoolConditionalAnd,
+            BinaryOperatorKind.BoolAnd,
             null,
             null,
             CorLibrary.GetSpecialType(SpecialType.Bool)

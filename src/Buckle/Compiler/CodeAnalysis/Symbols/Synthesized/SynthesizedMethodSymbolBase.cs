@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -8,7 +9,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
-    private protected readonly MethodSymbol _baseMethod;
+    internal readonly MethodSymbol baseMethod;
 
     private readonly string _name;
     private ImmutableArray<TemplateParameterSymbol> _templateParameters;
@@ -34,7 +35,7 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
                 hasThisInitializer: false)
             )
         ) {
-        _baseMethod = baseMethod;
+        this.baseMethod = baseMethod;
         _name = name;
         this.location = location;
     }
@@ -77,18 +78,26 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
 
     internal virtual bool inheritsBaseMethodAttributes => false;
 
-    internal sealed override bool hasSpecialName => inheritsBaseMethodAttributes && _baseMethod.hasSpecialName;
+    internal sealed override bool hasSpecialName => inheritsBaseMethodAttributes && baseMethod.hasSpecialName;
 
     internal sealed override TypeWithAnnotations returnTypeWithAnnotations
-        => templateMap.SubstituteType(_baseMethod.originalDefinition.returnTypeWithAnnotations).type;
+        => templateMap.SubstituteType(baseMethod.originalDefinition.returnTypeWithAnnotations).type;
 
     internal sealed override bool isImplicitlyDeclared => true;
 
     internal TemplateMap templateMap { get; private set; }
 
-    private protected virtual ImmutableArray<ParameterSymbol> _baseMethodParameters => _baseMethod.parameters;
+    private protected virtual ImmutableArray<ParameterSymbol> _baseMethodParameters => baseMethod.parameters;
 
     private protected virtual ImmutableArray<NamedTypeSymbol> _extraSynthesizedRefParameters => default;
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return inheritsBaseMethodAttributes ? baseMethod.GetAttributes() : [];
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return inheritsBaseMethodAttributes ? baseMethod.GetReturnTypeAttributes() : [];
+    }
 
     private ImmutableArray<ParameterSymbol> MakeParameters() {
         var ordinal = 0;
@@ -113,11 +122,14 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
 
         if (!extraSynthed.IsDefaultOrEmpty) {
             foreach (var extra in extraSynthed) {
+                var paramType = templateMap.SubstituteType(extra).type;
+
                 builder.Add(SynthesizedParameterSymbol.Create(
                     this,
-                    templateMap.SubstituteType(extra).type,
+                    paramType,
                     ordinal++,
-                    RefKind.Ref
+                    paramType.type.IsVerifierReference() ? RefKind.None : RefKind.Ref,
+                    GeneratedNames.MakeSynthedParameterName(ordinal, paramType)
                 ));
             }
         }

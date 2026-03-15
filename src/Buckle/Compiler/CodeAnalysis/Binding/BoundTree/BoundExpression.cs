@@ -1,6 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.PooledObjects;
-using SharpFont.MultipleMasters;
 
 namespace Buckle.CodeAnalysis.Binding;
 

@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -156,7 +157,7 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
             while (<condition>) {
                 <body>
             continue:
-                <step>;
+                <step>
             }
         }
 
@@ -164,10 +165,20 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
         var syntax = statement.syntax;
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
-        // var condition = statement.condition.kind == BoundKind.EmptyExpression
-        //     ? Literal(syntax, true)
-        //     : statement.condition;
-        var condition = statement.condition;
+        var condition = statement.condition ?? Literal(syntax, true, CorLibrary.GetSpecialType(SpecialType.Bool));
+
+        BoundStatement whileBlock;
+
+        if (statement.step is null) {
+            whileBlock = statement.body;
+        } else {
+            whileBlock = Block(
+                syntax,
+                statement.body,
+                Label(syntax, continueLabel),
+                statement.step
+            );
+        }
 
         return Visit(
             Block(syntax,
@@ -176,11 +187,7 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
                 While(syntax,
                     statement.innerLocals,
                     condition,
-                    Block(syntax,
-                        statement.body,
-                        Label(syntax, continueLabel),
-                        Statement(syntax, statement.step)
-                    ),
+                    whileBlock,
                     breakLabel,
                     GenerateLabel()
                 )

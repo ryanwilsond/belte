@@ -25,7 +25,9 @@ internal struct SymbolCompletionState {
     }
 
     internal bool NotePartComplete(CompletionParts part) {
+#pragma warning disable 0420
         return ThreadSafeFlagOperations.Set(ref _completeParts, (int)part);
+#pragma warning restore 0420
     }
 
     internal static bool HasAtMostOneBitSet(int bits) {

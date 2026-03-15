@@ -125,7 +125,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         var supportedRequiredParameterMissingConflicts = false;
         MemberResolutionResult<TMember> firstSupported = default;
-        MemberResolutionResult<TMember> firstUnsupported = default;
+        // MemberResolutionResult<TMember> firstUnsupported = default;
 
         var supportedInPriorityOrder = new MemberResolutionResult<TMember>[7];
         const int DuplicateNamedArgumentPriority = 0;
@@ -134,7 +134,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         const int NoCorrespondingNamedParameterPriority = 3;
         const int NoCorrespondingParameterPriority = 4;
         const int BadNonTrailingNamedArgumentPriority = 5;
-        const int WrongCallingConventionPriority = 6;
+        // const int WrongCallingConventionPriority = 6;
 
         foreach (var result in resultsBuilder) {
             switch (result.result.kind) {
@@ -342,8 +342,10 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         var refParameter = parameter.refKind;
 
         if (!argument.HasExpressionType()) {
-            // TODO Do we need to inject "<null>" here in place of argument.type?
-            diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
+            if (argument.syntax.kind == SyntaxKind.OmittedArgument)
+                diagnostics.Push(Error.CannotImplyNull(sourceLocation, arg + 1, parameter.type));
+            else
+                diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
         } else if (refArg != refParameter &&
               !(refParameter == RefKind.RefConst && refArg is RefKind.None or RefKind.Ref)) {
             if (refParameter is RefKind.None or RefKind.RefConst)
@@ -387,7 +389,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                 else
                     diagnostics.Push(Error.InstanceRequired(location, symbol));
             } else {
-                diagnostics.Push(Error.NoInstanceRequired(location, symbol));
+                diagnostics.Push(Error.NoInstanceRequired(location, symbol.name, symbol.containingSymbol));
             }
         }
 

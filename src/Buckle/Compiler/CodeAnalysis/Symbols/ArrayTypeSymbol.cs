@@ -30,10 +30,11 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         ImmutableArray<int> sizes,
         ImmutableArray<int> lowerBounds,
         NamedTypeSymbol array) {
-        if (sizes.IsDefaultOrEmpty && lowerBounds.IsDefault)
-            return new MDArrayNoSizesOrBounds(elementType, rank, array);
+        throw ExceptionUtilities.Unreachable();
+        // if (sizes.IsDefaultOrEmpty && lowerBounds.IsDefault)
+        //     return new MDArrayNoSizesOrBounds(elementType, rank, array);
 
-        return new MDArrayWithSizesAndBounds(elementType, rank, sizes, lowerBounds, array);
+        // return new MDArrayWithSizesAndBounds(elementType, rank, sizes, lowerBounds, array);
     }
 
     internal static ArrayTypeSymbol CreateMDArray(
@@ -109,6 +110,10 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
     internal override bool isSealed => false;
 
     internal sealed override bool isRefLikeType => false;
+
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitArrayType(this);
+    }
 
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,

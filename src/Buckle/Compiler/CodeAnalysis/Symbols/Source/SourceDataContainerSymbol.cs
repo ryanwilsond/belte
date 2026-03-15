@@ -1,4 +1,4 @@
-using System.Linq;
+using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -10,8 +10,10 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceDataContainerSymbol : DataContainerSymbol {
     private readonly TypeSyntax _typeSyntax;
+    private readonly BelteDiagnosticQueue _declarationDiagnostics;
 
     private TypeWithAnnotations _type;
+    private CustomAttributesBag<AttributeData> _lazyAttributeBag;
 
     private SourceDataContainerSymbol(
         Symbol containingSymbol,
@@ -19,25 +21,22 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         bool allowRefKind,
         TypeSyntax typeSyntax,
         SyntaxToken identifierToken,
-        DataContainerDeclarationKind declarationKind,
         SyntaxTokenList modifiers) {
         this.containingSymbol = containingSymbol;
         this.scopeBinder = scopeBinder;
-        this.declarationKind = declarationKind;
         this.identifierToken = identifierToken;
         _typeSyntax = typeSyntax;
+        _declarationDiagnostics = new BelteDiagnosticQueue();
 
         if (allowRefKind) {
-            // TODO see todo in field/method
-            // typeSyntax.SkipRef(out var refKind);
-            // this.refKind = refKind;
-            if (modifiers is null)
-                refKind = RefKind.None;
-            else
-                refKind = modifiers.Any(m => m.kind == SyntaxKind.RefKeyword) ? RefKind.Ref : RefKind.None;
+            typeSyntax.SkipRef(out var refKind);
+            this.refKind = refKind;
         }
 
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
+
+        declarationKind = MakeModifiers(modifiers, _declarationDiagnostics);
+        GetAttributes();
     }
 
     public override string name => identifierToken.text;
@@ -75,6 +74,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         }
     }
 
+    internal override SynthesizedLocalKind synthesizedKind => SynthesizedLocalKind.UserDefined;
+
     internal bool isImplicitlyTyped {
         get {
             if (_typeSyntax is null)
@@ -102,7 +103,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         bool allowRefKind,
         TypeSyntax typeSyntax,
         SyntaxToken identifierToken,
-        DataContainerDeclarationKind declarationKind,
         EqualsValueClauseSyntax initializer,
         SyntaxTokenList modifiers,
         Binder initializerBinder = null,
@@ -116,7 +116,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 nodeBinder,
                 typeSyntax,
                 identifierToken,
-                declarationKind,
                 modifiers,
                 nodeToBind,
                 forbiddenZone
@@ -129,11 +128,33 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
             allowRefKind,
             typeSyntax,
             identifierToken,
-            declarationKind,
             initializer,
             modifiers,
             initializerBinder ?? scopeBinder
         );
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return GetAttributesBag().attributes;
+    }
+
+    private CustomAttributesBag<AttributeData> GetAttributesBag() {
+        var bag = _lazyAttributeBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        LoadAndValidateAttributes(
+            GetAttributeDeclarations(),
+            ref _lazyAttributeBag,
+            diagnostics: _declarationDiagnostics
+        );
+
+        return _lazyAttributeBag;
+    }
+
+    private OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(((LocalDeclarationStatementSyntax)GetDeclarationSyntax().parent).attributeLists);
     }
 
     internal sealed override SyntaxNode GetDeclarationSyntax() {
@@ -151,6 +172,10 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         return BelteDiagnosticQueue.Discarded;
     }
 
+    internal void GetDeclarationDiagnostics(BelteDiagnosticQueue addTo) {
+        addTo.PushRange(_declarationDiagnostics);
+    }
+
     internal void SetTypeWithAnnotations(TypeWithAnnotations newType) {
         if (_type is null)
             Interlocked.CompareExchange(ref _type, newType, null);
@@ -166,7 +191,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         bool allowRefKind,
         TypeSyntax typeSyntax,
         SyntaxToken identifierToken,
-        DataContainerDeclarationKind declarationKind,
         EqualsValueClauseSyntax initializer,
         SyntaxTokenList modifiers,
         Binder initializerBinder) {
@@ -177,7 +201,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 allowRefKind,
                 typeSyntax,
                 identifierToken,
-                declarationKind,
                 modifiers
               )
             : new SourceDataContainerWithInitializerSymbol(
@@ -187,7 +210,6 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
                 identifierToken,
                 initializer,
                 initializerBinder,
-                declarationKind,
                 modifiers
               );
     }
@@ -221,6 +243,37 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         return declarationType;
     }
 
+    private DataContainerDeclarationKind MakeModifiers(SyntaxTokenList modifiers, BelteDiagnosticQueue diagnostics) {
+        var allowedModifiers = DeclarationModifiers.Const | DeclarationModifiers.ConstExpr;
+
+        var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
+            modifiers,
+            DeclarationModifiers.None,
+            allowedModifiers,
+            location,
+            diagnostics,
+            out var hasErrors
+        );
+
+        var isConst = (result & DeclarationModifiers.Const) != 0;
+        var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
+        var declarationKind = isConstExpr
+            ? DataContainerDeclarationKind.ConstantExpression
+            : (isConst
+                ? DataContainerDeclarationKind.Constant
+                : DataContainerDeclarationKind.Variable);
+
+        if (hasErrors)
+            return declarationKind;
+
+        if (refKind != RefKind.None && isConstExpr)
+            diagnostics.Push(Error.CannotBeRefAndConstexpr(location));
+        else if (isConst && isConstExpr)
+            diagnostics.Push(Error.ConflictingModifiers(location, "const", "constexpr"));
+
+        return declarationKind;
+    }
+
     internal sealed override bool Equals(Symbol obj, TypeCompareKind compareKind) {
         if ((object)obj == this)
             return true;
@@ -232,60 +285,5 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
     public sealed override int GetHashCode() {
         return Hash.Combine(identifierToken.GetHashCode(), containingSymbol.GetHashCode());
-    }
-
-    private sealed class LocalSymbolWithEnclosingContext : SourceDataContainerSymbol {
-        private readonly Binder _nodeBinder;
-        private readonly SyntaxNode _nodeToBind;
-
-        internal LocalSymbolWithEnclosingContext(
-            Symbol containingSymbol,
-            Binder scopeBinder,
-            Binder nodeBinder,
-            TypeSyntax typeSyntax,
-            SyntaxToken identifierToken,
-            DataContainerDeclarationKind declarationKind,
-            SyntaxTokenList modifiers,
-            SyntaxNode nodeToBind,
-            SyntaxNode forbiddenZone)
-            : base(
-                containingSymbol,
-                scopeBinder,
-                allowRefKind: false,
-                typeSyntax,
-                identifierToken,
-                declarationKind,
-                modifiers
-            ) {
-            _nodeBinder = nodeBinder;
-            _nodeToBind = nodeToBind;
-            this.forbiddenZone = forbiddenZone;
-        }
-
-        internal override SyntaxNode forbiddenZone { get; }
-
-        internal override BelteDiagnostic forbiddenDiagnostic => null;
-
-        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
-            switch (_nodeToBind.kind) {
-                case SyntaxKind.ArgumentList:
-                    switch (_nodeToBind.parent) {
-                        case ConstructorInitializerSyntax ctorInitializer:
-                            _nodeBinder.BindConstructorInitializer(ctorInitializer, diagnostics);
-                            break;
-                        default:
-                            throw ExceptionUtilities.UnexpectedValue(_nodeToBind.parent);
-                    }
-                    break;
-                default:
-                    _nodeBinder.BindExpression((ExpressionSyntax)_nodeToBind, diagnostics);
-                    break;
-            }
-
-            if (_type is null)
-                SetTypeWithAnnotations(new TypeWithAnnotations(_nodeBinder.CreateErrorType("var")));
-
-            return _type;
-        }
     }
 }

@@ -12,6 +12,8 @@ internal abstract class SourceParameterSymbolBase : ParameterSymbol {
 
     internal sealed override Symbol containingSymbol { get; }
 
+    internal sealed override AssemblySymbol containingAssembly => containingSymbol.containingAssembly;
+
     internal sealed override bool Equals(Symbol obj, TypeCompareKind compareKind) {
         if ((object)obj == this)
             return true;

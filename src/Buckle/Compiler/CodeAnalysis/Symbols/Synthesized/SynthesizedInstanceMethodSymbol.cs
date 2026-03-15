@@ -1,4 +1,6 @@
 using System.Threading;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -11,5 +13,9 @@ internal abstract class SynthesizedInstanceMethodSymbol : MethodSymbol {
 
         thisParameter = _lazyThisParameter;
         return true;
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

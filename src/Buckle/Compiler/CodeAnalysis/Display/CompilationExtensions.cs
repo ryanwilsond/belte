@@ -28,6 +28,17 @@ public static class CompilationExtensions {
             EmitTree(compilation, type, text);
         }
 
+        foreach (var type in program.nestedTypes) {
+            foreach (var nestedType in type.Value) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    text.WriteLine();
+
+                EmitTree(compilation, nestedType, text);
+            }
+        }
+
         foreach (var pair in program.methodBodies) {
             if (isFirst)
                 isFirst = false;
@@ -61,7 +72,7 @@ public static class CompilationExtensions {
         if (symbol is MethodSymbol method) {
             SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.BoundDisplayFormat);
 
-            if (program.TryGetMethodBodyIncludingParents(method, out var body)) {
+            if (program.TryGetMethodBodyIncludingParents(method, out var body, useOriginalDefinitions: true)) {
                 text.Write(CreateSpace());
                 DisplayText.DisplayNode(text, body);
             } else {

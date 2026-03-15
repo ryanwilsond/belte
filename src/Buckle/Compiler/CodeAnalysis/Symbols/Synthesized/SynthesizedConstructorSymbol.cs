@@ -6,7 +6,7 @@ using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
+internal class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
     internal SynthesizedConstructorSymbol(NamedTypeSymbol containingType) {
         this.containingType = containingType;
     }
@@ -67,9 +67,16 @@ internal sealed class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSy
 
     internal override bool hasUnscopedRefAttribute => false;
 
+    internal override bool isMetadataFinal => false;
+
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCtor;
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
+    internal sealed override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
+        return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree);
+    }
 }

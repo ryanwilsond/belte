@@ -8,6 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol {
     private readonly bool _hasDefaultValue;
+    private CustomAttributesBag<AttributeData> _lazyAttributesBag;
 
     private protected ConstantValue _lazyDefaultSyntaxValue;
 
@@ -43,6 +44,13 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
     private Binder _withTemplateParametersBinder
         => (containingSymbol as SourceMethodSymbol).withTemplateParametersBinder;
 
+    internal sealed override SyntaxList<AttributeListSyntax> attributeDeclarationList {
+        get {
+            var syntax = (ParameterSyntax)syntaxReference.node;
+            return (syntax is not null) ? syntax.attributeLists : default;
+        }
+    }
+
     internal override ConstantValue explicitDefaultConstantValue {
         get {
             if (_state.NotePartComplete(CompletionParts.StartDefaultSyntaxValue)) {
@@ -72,6 +80,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
     }
 
     internal override void ForceComplete(TextLocation locationOpt) {
+        GetAttributes();
         _ = explicitDefaultConstantValue;
         _state.SpinWaitComplete(CompletionParts.ComplexParameterSymbolAll);
     }
@@ -133,6 +142,24 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         }
 
         return convertedExpression.constantValue;
+    }
+
+    internal sealed override CustomAttributesBag<AttributeData> GetAttributesBag() {
+        var bag = _lazyAttributesBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        var attributeSyntax = GetAttributeDeclarations();
+
+        if (LoadAndValidateAttributes(attributeSyntax, ref _lazyAttributesBag, binderOpt: _withTemplateParametersBinder))
+            _state.NotePartComplete(CompletionParts.Attributes);
+
+        return _lazyAttributesBag;
+    }
+
+    internal virtual OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(attributeDeclarationList);
     }
 
     private Binder GetDefaultParameterValueBinder(SyntaxNode syntax) {

@@ -65,7 +65,6 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
             nodeBinder: _enclosingBinder,
             typeSyntax: node.type,
             identifierToken: identifier,
-            declarationKind: DataContainerDeclarationKind.Variable,
             modifiers: modifiers,
             nodeToBind: nodeToBind
         );

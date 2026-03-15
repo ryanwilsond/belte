@@ -16,10 +16,20 @@ namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
     internal static readonly CompilationOptions LibraryOptions
-        = new CompilationOptions(BuildMode.None, OutputKind.Library);
+        = new CompilationOptions(BuildMode.None, OutputKind.DynamicallyLinkedLibrary);
 
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
+    private static SpecialOrKnownType.Boxed _lazyCharArray;
+
+    internal static SpecialOrKnownType CharArray {
+        get {
+            if (_lazyCharArray is null)
+                Interlocked.CompareExchange(ref _lazyCharArray, GenerateArray(SpecialType.Char), null);
+
+            return _lazyCharArray.type;
+        }
+    }
 
     internal static SpecialOrKnownType StringList {
         get {
@@ -42,7 +52,7 @@ public static class LibraryHelpers {
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries(CompilationOptions options) {
+    public static Compilation LoadLibraries(BuildMode buildMode = BuildMode.None) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -71,7 +81,8 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var corLibrary = Compilation.Create("CorLibrary", LibraryOptions, syntaxTrees.ToArray());
+        var options = new CompilationOptions(buildMode, LibraryOptions.outputKind);
+        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
         corLibrary.GetDiagnostics();
 
         return corLibrary;
@@ -82,7 +93,8 @@ public static class LibraryHelpers {
         CompilationOptions options) {
         AddTypesToBuilder(StandardLibrary.GetTypes());
 
-        if (options.outputKind == OutputKind.Graphics)
+        // TODO Consider separating OutputKind from ProjectType
+        if (options.outputKind == OutputKind.GraphicsApplication)
             AddTypesToBuilder(GraphicsLibrary.GetTypes());
 
         void AddTypesToBuilder(IEnumerable<NamedTypeSymbol> types) {
@@ -121,7 +133,7 @@ public static class LibraryHelpers {
 
         static char GetNameCharacter(TypeSymbol type) {
             if (type.typeKind == TypeKind.Array)
-                return 'A';
+                return '[';
 
             return char.ToUpper(type.name.First());
         }
@@ -385,7 +397,7 @@ public static class LibraryHelpers {
 
     private static SpecialOrKnownType.Boxed GenerateArray(SpecialType elementType) {
         return new SpecialOrKnownType.Boxed(
-            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetNullableType(elementType)))
+            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetSpecialType(elementType)))
         );
     }
 }

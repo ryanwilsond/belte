@@ -76,4 +76,9 @@ public class CompilerState {
     /// compilation process.
     /// </summary>
     public bool verboseMode;
+
+    /// <summary>
+    /// Whether or not the compiler will log timing data about each stage of compilation.
+    /// </summary>
+    public bool time;
 }

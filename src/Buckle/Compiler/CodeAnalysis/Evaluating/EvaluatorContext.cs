@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Shared;
 
@@ -9,18 +10,25 @@ namespace Buckle.CodeAnalysis.Evaluating;
 
 public sealed class EvaluatorContext : IDisposable {
     internal readonly CompilationOptions options;
+    internal readonly Heap heap;
 
     internal Thread graphicsThread;
     internal GraphicsHandler graphicsHandler;
     internal ValueWrapper<bool> maintainThread = false;
     internal ValueWrapper<bool> createWindow = true;
+    internal EvaluatorValue[] globalSlots;
 
-    private Dictionary<string, (DataContainerSymbol, EvaluatorObject)> _symbols;
+    private Dictionary<string, (DataContainerSymbol, int)> _globals;
+    private int _bumpPointer;
 
     public EvaluatorContext(CompilationOptions options) {
-        _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
+        _globals = new Dictionary<string, (DataContainerSymbol, int)>(32);
+        globalSlots = new EvaluatorValue[32];
+        heap = new Heap();
         this.options = options;
     }
+
+    internal BoundProgram program { get; set; }
 
     public void Dispose() {
         maintainThread = false;
@@ -41,12 +49,8 @@ public sealed class EvaluatorContext : IDisposable {
         graphicsThread?.Join();
     }
 
-    public IEnumerable<IDataContainerSymbol> GetTrackedSymbols() {
-        return _symbols.Values.Select(pair => pair.Item1);
-    }
-
-    public Dictionary<ISymbol, EvaluatorObject> GetTrackedSymbolsAndObjects() {
-        return _symbols.Values.ToDictionary(pair => (ISymbol)pair.Item1, pair => pair.Item2);
+    public Dictionary<ISymbol, EvaluatorValue> GetTrackedGlobalObjects() {
+        return _globals.Values.ToDictionary(pair => (ISymbol)pair.Item1, pair => globalSlots[pair.Item2]);
     }
 
     public void Reset() {
@@ -55,21 +59,42 @@ public sealed class EvaluatorContext : IDisposable {
             graphicsHandler.Exit();
         }
 
-        _symbols = new Dictionary<string, (DataContainerSymbol, EvaluatorObject)>(32);
+        _globals = new Dictionary<string, (DataContainerSymbol, int)>(32);
+        globalSlots = new EvaluatorValue[32];
+        heap.FreeAll();
     }
 
-    internal bool TryGetSymbol(DataContainerSymbol symbol, out EvaluatorObject value) {
-        var succeeded = _symbols.TryGetValue(symbol.name, out var pair);
-        value = pair.Item2;
+    internal bool TryGetGlobal(DataContainerSymbol symbol, out EvaluatorValue value) {
+        var succeeded = _globals.TryGetValue(symbol.name, out var pair);
+        value = globalSlots[pair.Item2];
         return succeeded;
     }
 
-    internal void AddOrUpdateSymbol(DataContainerSymbol symbol, EvaluatorObject value) {
-        // value.isPersistent = true;
-        _symbols[symbol.name] = (symbol, value);
+    internal int GetSlotOfGlobal(DataContainerSymbol symbol) {
+        return _globals[symbol.name].Item2;
+    }
+
+    internal void AddOrUpdateGlobal(DataContainerSymbol symbol, EvaluatorValue value) {
+        if (_globals.TryGetValue(symbol.name, out var pair)) {
+            globalSlots[pair.Item2] = value;
+            _globals[symbol.name] = (symbol, pair.Item2);
+        } else {
+            var index = _bumpPointer++;
+            EnsureCapacity(_bumpPointer);
+            globalSlots[index] = value;
+            _globals.Add(symbol.name, (symbol, index));
+        }
+    }
+
+    private void EnsureCapacity(int required) {
+        if (required <= globalSlots.Length)
+            return;
+
+        var newCapacity = Math.Max(required, globalSlots.Length * 2);
+        Array.Resize(ref globalSlots, newCapacity);
     }
 
     public override string ToString() {
-        return $"EvaluatorContext [ Tracking {_symbols.Count} symbols ]";
+        return $"EvaluatorContext [ Tracking {_globals.Count} symbols ]";
     }
 }

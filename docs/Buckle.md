@@ -8,9 +8,7 @@ Currently there are no releases of Belte, so to use the compiler you will have t
 
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
-<!--
 - [Building with .NET](#building-with-net)
--->
 
 ## Options Summary
 
@@ -49,6 +47,7 @@ Specifies the project type.
 |-|-|
 | `console` (Default) | An application that interfaces purely with the console. |
 | `graphics` | An application that creates a window. |
+| `dll` | Builds into a dynamically linked library. |
 
 <!--
 ### *-n*
@@ -68,6 +67,7 @@ Stop compilation after assembling, resulting in an byte code. File output option
 outputted compiled file will be an object file (ending in *.o* by default).
 
 This option is only used in junction with the *-n* option.
+-->
 
 ### *--script*
 
@@ -102,7 +102,6 @@ the program is run immediately. However, unlike the *-i* option, the method of r
 The code is compiled down to IL code, and then into an executable. This executable is wrapped and ran immediately. The
 runtime performance is the same as traditional compilation, though there will be a pause before the program executes.
 This pause is the longest of the three methods of running the program.
--->
 
 ### *-t*, *--transpile*
 
@@ -115,7 +114,6 @@ Specifies the output path or filename. This option is only valid when using the 
 all compilation phases are completed. You cannot specify this option in junction with *-p*, *-s*, and *-c* when multiple
 files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
-
 
 ### *--severity=\<severity>* (Default *warning*)
 
@@ -134,7 +132,7 @@ is greater than or equal to the given severity level. The default is *warning*.
 ### *--warnlevel=\<warning-level>* (Default *1*)
 
 Warnings are grouped into levels based on how "ignorable" they are. If *0* is passed as the
-warning level, warnings are suppressed even if the [severity level](#severityseverity-default-warning) indicates they
+warning level, warnings are suppressed even if the [severity level](#--severityseverity-default-warning) indicates they
 should be logged/displayed. Warnings are logged/displayed if their warning level is less than or equal to the passed
 warning level. The default level is *1*.
 
@@ -147,8 +145,8 @@ list of which can be found [here](./DiagnosticCodes.md).
 
 ### *--winclude=<*[BU|RE|CL]*\<code>,...>*
 
-Specifically avoids suppressing specific warnings, even if the [severity level](#severityseverity-default-warning) or
-[warning level](#warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited. Warnings
+Specifically avoids suppressing specific warnings, even if the [severity level](#--severityseverity-default-warning) or
+[warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited. Warnings
 should be specified using their codes, a list of which can be found [here](./DiagnosticCodes.md).
 
 ### *--version*
@@ -186,12 +184,11 @@ BU module.
 | RE | Repl; diagnostics produced that are unique to the Repl. |
 | CL | Command Line; diagnostics produced that are unique to the command-line interface. |
 
-<!--
 ### *-d*, *--dotnet*
 
 Compile with .NET integration. All language features are enabled with this option. The output will be a .NET DLL that
 can be used in a .NET project. For more information on using this option, read the
-[Building with Dotnet](#building-with-dotnet) section.
+[Building with Dotnet](#building-with-net) section.
 
 Because this specifies an endpoint, the *-p*, *-s*, *-c*, *-i*, *--script*, *--evaluate*, *--execute*, *-t*, and
 *--transpile* options are not valid in junction with this option.
@@ -207,17 +204,21 @@ and should not need to be used. This option is only valid in junction with the *
 Adds a reference when .NET integration is enabled. This reference is a path to a DLL that will be added to the program
 and can then be referenced from within the program. This option is only valid in junction with the *-d* or *--dotnet*
 options.
--->
+
+### *--time*
+
+Displays how much time each stage of compilation took.
 
 ### *--verbose*
 
 Displays additional information about the compilation process, such as file targets, compilation time, compiler version,
 etc. The user of the compiler does **not** need to know this information to properly use the compiler. This option is
-typically used for compiler development purposes.
+typically used for debugging.
 
 The *--noout* option overrides *--verbose*, meaning that no information will be logged if both options are used. The
 *--verbose* option will automatically set the diagnostic reporting [severity level](#severityseverity-default-warning)
-to *all*.
+to *all*, the [warning level](#--warnlevelwarning-level-default-1) to max, and will also display
+[timing information](#--time).
 
 ## Running Programs
 
@@ -244,7 +245,6 @@ buckle Program.blt
 Hello, world!
 ```
 
-<!--
 ## Building with .NET
 
 A `Directory.Build.props` file with the following contents is necessary to tell dotnet how to find Belte source files:
@@ -266,10 +266,7 @@ You will also need a `Directory.Build.targets` file to tell dotnet how to invoke
 
   <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
     <ItemGroup>
-      <ReferencePath Remove="@(ReferencePath)"
-        Condition="'%(FileName)' != 'System.Runtime' AND
-        '%(FileName)' != 'System.Console' AND
-        '%(FileName)' != 'System.Runtime.Extensions'" />
+      <ReferencePath Remove="@(ReferencePath)" />
     </ItemGroup>
 
     <PropertyGroup>
@@ -277,8 +274,7 @@ You will also need a `Directory.Build.targets` file to tell dotnet how to invoke
       <BuckleCompilerArgs>$(BuckleCompilerArgs) -o &quot;@(IntermediateAssembly)&quot;</BuckleCompilerArgs>
       <BuckleCompilerArgs>$(BuckleCompilerArgs) @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
     </PropertyGroup>
-    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\Belte\Belte.csproj&quot; -- -d $(BuckleCompilerArgs)"
-      WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\CommandLine\CommandLine.csproj&quot; -- -d $(BuckleCompilerArgs)" WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
 </Project>
@@ -295,4 +291,3 @@ Then you can use a debugger to build and run the project, or run the project via
 ```bash
 dotnet run --project path/to/MyProject.msproj
 ```
--->

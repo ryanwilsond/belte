@@ -102,11 +102,27 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         return !(left == right);
     }
 
+    internal static Conversion CollapseConversion(Conversion conversion) {
+        var current = conversion;
+
+        while (true) {
+            if (current.isExplicit)
+                break;
+
+            if (current.underlyingConversions != default)
+                current = current.underlyingConversions[0];
+            else
+                break;
+        }
+
+        return current;
+    }
+
     /// <summary>
     /// Classify what type of <see cref="Conversion" /> is required to go from one type to the other.
     /// </summary>
     internal static Conversion Classify(TypeSymbol source, TypeSymbol target) {
-        if (source.IsErrorType() || target.IsErrorType())
+        if (target.IsErrorType() || source.IsErrorType())
             return Identity;
 
         // Handle nullable conversions
@@ -150,6 +166,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         // Finally we have some simple (to be expanded later) Object conversions
         if (source.Equals(target))
             return Identity;
+
+        if (target.isStatic)
+            return None;
 
         if (source is NamedTypeSymbol s && target is NamedTypeSymbol t) {
             if (IsBaseClass(s, t))

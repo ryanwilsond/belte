@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
 
@@ -73,6 +75,53 @@ internal sealed class TypeWithAnnotations {
             return new TypeOrConstant(newType);
 
         return new TypeOrConstant(newType.type, isNullable || newType.isNullable);
+    }
+
+    internal bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeWithAnnotations result) {
+        result = this;
+
+        var oldTypeSymbol = type;
+        byte transformFlag;
+
+        if (CodeGenerator.IsValueType(oldTypeSymbol))
+            transformFlag = NullableContextExtensions.ObliviousAttributeValue;
+        else if (transforms.IsDefault)
+            transformFlag = defaultTransformFlag;
+        else if (position < transforms.Length)
+            transformFlag = transforms[position++];
+        else
+            return false;
+
+        // TODO This could be more complex
+        // if (!oldTypeSymbol.ApplyNullableTransforms(
+        //     defaultTransformFlag,
+        //     transforms,
+        //     ref position,
+        //     out var newTypeSymbol)) {
+        //     return false;
+        // }
+        var newTypeSymbol = new TypeWithAnnotations(oldTypeSymbol, true).SetIsAnnotated().type;
+
+        if ((object)oldTypeSymbol != newTypeSymbol)
+            result = new TypeWithAnnotations(newTypeSymbol, result.isNullable);
+
+        switch (transformFlag) {
+            case NullableContextExtensions.AnnotatedAttributeValue:
+                result = result.isNullable ? result : result.SetIsAnnotated();
+                break;
+            case NullableContextExtensions.NotAnnotatedAttributeValue:
+                result = new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+                break;
+            default:
+                result = this;
+                return false;
+        }
+
+        return true;
     }
 
     public string ToDisplayString(SymbolDisplayFormat format = null) {

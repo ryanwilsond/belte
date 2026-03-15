@@ -7,20 +7,21 @@ class PhysicsEntity {
 
     protected bool flip;
     protected Vec2 lastMovement;
-    protected ref Program game;
+    protected Program game;
     protected bool[] collisions;
+    protected bool! grounded;
 
     Vec2 animOffset;
     int action = 10;
-    ref Animation animation;
+    Animation animation;
     int kind;
 
     public Vec2 pos;
     public Rect box;
     public Vec2 velocity;
 
-    public constructor(ref Program game, Vec2 position, int kind) {
-        this.game = ref game;
+    public constructor(Program game, Vec2 position, int kind) {
+        this.game = game;
         pos = position;
         this.kind = kind;
 
@@ -35,8 +36,9 @@ class PhysicsEntity {
         lastMovement = new Vec2(0, 0);
     }
 
-    public virtual bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
-        collisions = { false, false, false, false };
+    public virtual bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+        collisions = new bool[] { false, false, false, false };
+        grounded = false;
         var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
 
         pos.x += frameMovement.x * 60 * deltaTime;
@@ -50,7 +52,7 @@ class PhysicsEntity {
             if (tile is null)
                 break;
 
-            if (Colliding(box, tile.sprite.dst)) {
+            if (Colliding(new Rect(box.x, box.y, box.w + 1, box.h), tile.sprite.dst)) {
                 if (frameMovement.x > 0) {
                     box.x = tile.sprite.dst.x - box.w;
                     collisions[RightCollide] = true;
@@ -80,6 +82,7 @@ class PhysicsEntity {
                 if (frameMovement.y > 0) {
                     box.y = tile.sprite.dst.y - box.h;
                     collisions[DownCollide] = true;
+                    grounded = true;
                 }
 
                 if (frameMovement.y < 0) {
@@ -88,6 +91,8 @@ class PhysicsEntity {
                 }
 
                 pos.y = box.y;
+            } else if (Colliding(new Rect(box.x, box.y + 1, box.w, box.h), tile.sprite.dst)) {
+                grounded = true;
             }
         }
 
@@ -98,10 +103,10 @@ class PhysicsEntity {
 
         lastMovement = movement;
 
-        velocity.y = Math.Min(Settings.TerminalVelocity, velocity.y + Settings.Gravity * deltaTime);
-
-        if (collisions[UpCollide] || collisions[DownCollide])
+        if (collisions[UpCollide] || grounded)
             velocity.y = 0;
+        else
+            velocity.y = Math.Min(Settings.TerminalVelocity, velocity.y + Settings.Gravity * deltaTime);
 
         animation.Update(deltaTime);
 

@@ -1,19 +1,30 @@
 using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed class BoundProgram {
+internal sealed partial class BoundProgram {
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _lazyOriginalDefinitions;
+
     internal BoundProgram(
         Compilation compilation,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies,
+        ImmutableDictionary<MethodSymbol, EvaluatorSlotManager> methodLayouts,
         ImmutableArray<NamedTypeSymbol> types,
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
         BoundProgram previous = null) {
         this.compilation = compilation;
         this.methodBodies = methodBodies;
+        this.methodLayouts = methodLayouts;
         this.types = types;
+        this.typeLayouts = typeLayouts;
+        this.nestedTypes = nestedTypes;
         this.entryPoint = entryPoint;
         this.updatePoint = updatePoint;
         this.previous = previous;
@@ -23,7 +34,13 @@ internal sealed class BoundProgram {
 
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies { get; }
 
+    internal ImmutableDictionary<MethodSymbol, EvaluatorSlotManager> methodLayouts { get; }
+
     internal ImmutableArray<NamedTypeSymbol> types { get; }
+
+    internal ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts { get; }
+
+    internal MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes { get; }
 
     internal MethodSymbol entryPoint { get; }
 
@@ -31,7 +48,22 @@ internal sealed class BoundProgram {
 
     internal BoundProgram previous { get; }
 
-    internal bool TryGetMethodBodyIncludingParents(MethodSymbol method, out BoundBlockStatement body) {
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _originalDefinitions {
+        get {
+            if (_lazyOriginalDefinitions is null)
+                Interlocked.CompareExchange(ref _lazyOriginalDefinitions, CreateOriginalDefinitions(), null);
+
+            return _lazyOriginalDefinitions;
+        }
+    }
+
+    internal bool TryGetMethodBodyIncludingParents(
+        MethodSymbol method,
+        out BoundBlockStatement body,
+        bool useOriginalDefinitions = false) {
+        if (useOriginalDefinitions)
+            return MethodBodyLookupUsingOriginals(method, out body);
+
         var current = this;
 
         while (current is not null) {
@@ -45,5 +77,62 @@ internal sealed class BoundProgram {
 
         body = null;
         return false;
+    }
+
+    internal bool TryGetMethodLayoutIncludingParents(MethodSymbol method, out EvaluatorSlotManager layout) {
+        var current = this;
+
+        while (current is not null) {
+            if (current.methodLayouts.TryGetValue(method.originalDefinition, out var value)) {
+                layout = value;
+                return true;
+            }
+
+            current = current.previous;
+        }
+
+        layout = null;
+        return false;
+    }
+
+    internal bool TryGetTypeLayoutIncludingParents(NamedTypeSymbol type, out EvaluatorSlotManager layout) {
+        var current = this;
+
+        while (current is not null) {
+            if (current.typeLayouts.TryGetValue(type.originalDefinition, out var value)) {
+                layout = value;
+                return true;
+            }
+
+            current = current.previous;
+        }
+
+        layout = null;
+        return false;
+    }
+
+    private bool MethodBodyLookupUsingOriginals(MethodSymbol method, out BoundBlockStatement body) {
+        var current = this;
+
+        while (current is not null) {
+            if (current._originalDefinitions.TryGetValue(GetOriginalDefinition(method), out var value)) {
+                body = value;
+                return true;
+            }
+
+            current = current.previous;
+        }
+
+        body = null;
+        return false;
+    }
+
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement> CreateOriginalDefinitions() {
+        return methodBodies.ToDictionary(pair => GetOriginalDefinition(pair.Key), pair => pair.Value)
+            .ToImmutableDictionary();
+    }
+
+    private static MethodSymbol GetOriginalDefinition(MethodSymbol method) {
+        return method is SynthesizedMethodSymbolBase b ? b.baseMethod.originalDefinition : method.originalDefinition;
     }
 }

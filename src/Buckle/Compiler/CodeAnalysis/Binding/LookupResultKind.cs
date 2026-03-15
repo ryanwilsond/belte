@@ -3,7 +3,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal enum LookupResultKind : byte {
     Empty,
-    NotAType,
+    NotATypeOrNamespace,
     WrongTemplate,
     NotCreatable,
     Inaccessible,

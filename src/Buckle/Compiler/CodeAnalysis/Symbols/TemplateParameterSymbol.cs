@@ -105,6 +105,10 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return [];
     }
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitTemplateParameter(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

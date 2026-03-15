@@ -27,5 +27,9 @@ internal abstract class SourceFieldSymbol : FieldSymbolWithModifiers {
             diagnostics.Push(AccessCheck.GetProtectedMemberInSealedTypeError(containingType, errorLocation));
         else if (containingType.isStatic && !isStatic)
             diagnostics.Push(Error.InstanceMemberInStatic(errorLocation, this));
+        else if (refKind != RefKind.None && isConstExpr)
+            diagnostics.Push(Error.CannotBeRefAndConstexpr(location));
+        else if (isConst && isConstExpr)
+            diagnostics.Push(Error.ConflictingModifiers(location, "const", "constexpr"));
     }
 }

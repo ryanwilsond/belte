@@ -39,7 +39,7 @@ internal sealed class LookupResult {
     }
 
     internal static SingleLookupResult NotTypeOrNamespace(Symbol symbol, BelteDiagnostic error) {
-        return new SingleLookupResult(LookupResultKind.NotAType, symbol, error);
+        return new SingleLookupResult(LookupResultKind.NotATypeOrNamespace, symbol, error);
     }
 
     internal static SingleLookupResult NotTypeOrNamespace(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
@@ -47,7 +47,7 @@ internal sealed class LookupResult {
             ? Error.BadSKKnown(unwrappedSymbol, unwrappedSymbol.kind.Localize(), MessageID.IDS_SK_TYPE.Localize())
             : null;
 
-        return new SingleLookupResult(LookupResultKind.NotAType, symbol, error);
+        return new SingleLookupResult(LookupResultKind.NotATypeOrNamespace, symbol, error);
     }
 
     internal static SingleLookupResult StaticInstanceMismatch(Symbol symbol, BelteDiagnostic error) {
@@ -93,12 +93,14 @@ internal sealed class LookupResult {
     }
 
     internal void SetFrom(LookupResult other) {
+        error = other.error;
         kind = other.kind;
         symbols.Clear();
         symbols.AddRange(other.symbols);
     }
 
     internal void SetFrom(SingleLookupResult other) {
+        error = other.error;
         kind = other.kind;
         symbols.Clear();
         symbols.Add(other.symbol);

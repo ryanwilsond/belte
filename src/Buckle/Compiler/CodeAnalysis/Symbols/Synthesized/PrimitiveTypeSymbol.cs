@@ -64,19 +64,19 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {
-        throw new InvalidOperationException();
+        return [];
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {
-        throw new InvalidOperationException();
+        return [];
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() {
-        throw new InvalidOperationException();
+        return [];
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
-        throw new InvalidOperationException();
+        return [];
     }
 
     private ImmutableArray<TemplateParameterSymbol> ConstructTemplateParameters() {

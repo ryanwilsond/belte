@@ -167,7 +167,7 @@ internal static class ParameterHelpers {
         var parameterIndex = ordinal;
         var isDefault = syntax is ParameterSyntax { defaultValue: { } };
 
-        if (typeWithAnnotations.isStatic) {
+        if (typeWithAnnotations.nullableUnderlyingTypeOrSelf.isStatic) {
             diagnostics.Push(Error.ParameterIsStatic(syntax.type.location, typeWithAnnotations.type));
         } else if (firstDefault != -1 && parameterIndex > firstDefault && !isDefault) {
             var location = syntax.identifier.GetNextToken(includeZeroWidth: true).location;

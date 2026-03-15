@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -13,6 +14,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private SymbolCompletionState _state;
     private TypeWithAnnotations _lazyUnderlyingType;
     private TypeOrConstant _lazyDefaultValue;
+    private CustomAttributesBag<AttributeData> _lazyAttributesBag;
 
     private protected SourceTemplateParameterSymbolBase(
         string name,
@@ -63,6 +65,9 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
     internal sealed override TextLocation location { get; }
 
+    internal ImmutableArray<SyntaxList<AttributeListSyntax>> mergedAttributeDeclarationSyntaxLists
+        => [((ParameterSyntax)syntaxReference.node).attributeLists];
+
     private protected abstract ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters { get; }
 
     private Binder _withTemplateParametersBinder
@@ -96,6 +101,9 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
                 case CompletionParts.TemplateParameterConstraints:
                     _ = constraintTypes;
                     break;
@@ -111,6 +119,26 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
             _state.SpinWaitComplete(incompletePart);
         }
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return GetAttributesBag().attributes;
+    }
+
+    internal virtual CustomAttributesBag<AttributeData> GetAttributesBag() {
+        var bag = _lazyAttributesBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        if (LoadAndValidateAttributes(
+            OneOrMany.Create(mergedAttributeDeclarationSyntaxLists),
+            ref _lazyAttributesBag,
+            binderOpt: (containingSymbol as LocalFunctionSymbol)?.withTemplateParametersBinder)) {
+            _state.NotePartComplete(CompletionParts.Attributes);
+        }
+
+        return _lazyAttributesBag;
     }
 
     private protected abstract TypeParameterBounds ResolveBounds(

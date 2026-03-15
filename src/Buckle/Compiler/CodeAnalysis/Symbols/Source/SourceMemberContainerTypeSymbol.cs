@@ -49,7 +49,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 ? Warning.TopLevelNullabilityMismatchInParameterTypeOnOverride(location, overridingParameter)
                 : Warning.NullabilityMismatchInParameterTypeOnOverride(location, overridingParameter));
 
-
     private readonly DeclarationModifiers _modifiers;
     private protected SymbolCompletionState _state;
     private protected readonly MergedTypeDeclaration _declaration;
@@ -60,6 +59,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private MembersAndInitializers _lazyMembersAndInitializers;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
+    private ThreeState _lazyAnyMemberHasAttributes;
 
     private bool _fieldDefinitionsNoted;
 
@@ -90,7 +90,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         var containingType = this.containingType;
 
         if (containingType?.isSealed == true && declaredAccessibility.HasFlag(Accessibility.Protected))
-            diagnostics.Push(Warning.ProtectedMemberInSealedType(location, containingSymbol, this));
+            diagnostics.Push(Warning.ProtectedInSealed(location, this));
 
         _state.NotePartComplete(CompletionParts.TemplateArguments);
     }
@@ -128,6 +128,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
     internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
+
+    internal bool anyMemberHasAttributes {
+        get {
+            if (!_lazyAnyMemberHasAttributes.HasValue()) {
+                bool anyMemberHasAttributes = _declaration.anyMemberHasAttributes;
+                _lazyAnyMemberHasAttributes = anyMemberHasAttributes.ToThreeState();
+            }
+
+            return _lazyAnyMemberHasAttributes.Value();
+        }
+    }
 
     internal ImmutableArray<ImmutableArray<FieldInitializer>> initializers
         => GetMembersAndInitializers().fieldInitializers;
@@ -185,6 +196,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
                 case CompletionParts.StartBaseType:
                 case CompletionParts.FinishBaseType:
                     if (_state.NotePartComplete(CompletionParts.StartBaseType)) {
@@ -194,6 +208,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         _state.NotePartComplete(CompletionParts.FinishBaseType);
                         diagnostics.Free();
                     }
+
                     break;
                 case CompletionParts.TemplateArguments:
                     _ = templateArguments;
@@ -222,6 +237,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         _state.NotePartComplete(CompletionParts.FinishMemberChecks);
                         diagnostics.Free();
                     }
+
                     break;
                 case CompletionParts.MembersCompletedChecksStarted:
                 case CompletionParts.MembersCompleted: {
@@ -240,6 +256,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             diagnostics.Free();
                         }
                     }
+
                     break;
                 case CompletionParts.None:
                     return;
@@ -1257,13 +1274,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 var key = (t.name, t.arity, t.syntaxReference.syntaxTree);
 
-                if (conflicts.TryGetValue(key, out var other)) {
-                    diagnostics.Push(
-                        Error.TypeAlreadyDeclared(t.syntaxReference.location, t.name, t.typeKind == TypeKind.Class)
-                    );
-                } else {
+                if (conflicts.TryGetValue(key, out var other))
+                    diagnostics.Push(Error.DuplicateNameInClass(t.syntaxReference.location, this, t.name));
+                else
                     conflicts.Add(key, t);
-                }
 
                 symbols.Add(t);
             }
@@ -1281,7 +1295,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case TypeKind.Class:
             case TypeKind.Struct:
                 if (member.name == name)
-                    diagnostics.Push(Error.MemberNameSameAsType(member.syntaxReference.location, name));
+                    diagnostics.Push(Error.MemberNameSameAsType(member.location, name));
 
                 break;
         }
@@ -1400,14 +1414,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             if (_lazyMembersAndInitializers is not null)
                 return;
 
-            // var reportMisplacedGlobalCode = !m.hasErrors;
-            var reportMisplacedGlobalCode = true;
+            var reportMisplacedGlobalCode = !m.containsDiagnostics;
 
             switch (m.kind) {
                 case SyntaxKind.FieldDeclaration: {
                         var fieldSyntax = (FieldDeclarationSyntax)m;
 
                         var modifiers = SourceMemberFieldSymbol.MakeModifiers(
+                            this,
                             fieldSyntax.declaration.identifier,
                             fieldSyntax.modifiers,
                             diagnostics,
@@ -1423,13 +1437,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             diagnostics
                         );
 
-                        var refKind = fieldSymbol.refKind;
-
                         builder.nonTypeMembers.Add(fieldSymbol);
-
-                        if (declaration.initializer is not null)
-                            AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
+                        AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
                     }
+
                     break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
@@ -1544,9 +1555,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 }
             }
 
-            if (hasConstructor && hasParameterlessConstructor) {
+            if (hasConstructor && hasParameterlessConstructor)
                 break;
-            }
         }
 
         if (!hasConstructor && !isStatic)
@@ -1602,6 +1612,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
         var modifiers = _declaration.declarations[0].modifiers;
+        var partCount = _declaration.declarations.Length;
 
         modifiers = ModifierHelpers.CheckModifiers(
             true,
@@ -1618,6 +1629,35 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if ((modifiers & DeclarationModifiers.AccessibilityMask) == 0)
             modifiers |= defaultAccess;
 
+        switch (containingSymbol.kind) {
+            case SymbolKind.Namespace:
+                for (var i = 1; i < partCount; i++) {
+                    diagnostics.Push(Error.DuplicateNameInNamespace(
+                        _declaration.declarations[i].nameLocation,
+                        name,
+                        containingNamespace
+                    ));
+
+                    hasErrors = true;
+                }
+
+                break;
+            case SymbolKind.NamedType:
+                for (var i = 1; i < partCount; i++) {
+                    if (containingType.locations.Length == 1) {
+                        diagnostics.Push(Error.DuplicateNameInClass(
+                            _declaration.declarations[i].nameLocation,
+                            containingSymbol,
+                            name
+                        ));
+                    }
+
+                    hasErrors = true;
+                }
+
+                break;
+        }
+
         return modifiers;
     }
 
@@ -1626,7 +1666,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             string emittedName = null;
 
             if (containingSymbol is not null)
-                emittedName = containingSymbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat);
+                emittedName = containingSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
 
             emittedName = MetadataHelpers.BuildQualifiedName(emittedName, metadataName);
 
@@ -1681,6 +1721,130 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 membersByName.Add(name, typesAsSymbols);
         }
     }
+
+    internal bool TryCalculateSyntaxOffsetOfPositionInInitializer(
+        int position,
+        SyntaxTree tree,
+        int ctorInitializerLength,
+        out int syntaxOffset) {
+        var membersAndInitializers = GetMembersAndInitializers();
+        var allInitializers = membersAndInitializers.fieldInitializers;
+
+        if (!FindInitializer(allInitializers, position, tree, out var initializer, out var precedingLength)) {
+            syntaxOffset = 0;
+            return false;
+        }
+
+        var initializersLength = GetInitializersLength(allInitializers);
+        var distanceFromInitializerStart = position - initializer.syntax.span.start;
+
+        var distanceFromCtorBody =
+            initializersLength + ctorInitializerLength -
+            (precedingLength + distanceFromInitializerStart);
+
+        syntaxOffset = -distanceFromCtorBody;
+        return true;
+
+        static bool FindInitializer(
+            ImmutableArray<ImmutableArray<FieldInitializer>> initializers,
+            int position,
+            SyntaxTree tree,
+            out FieldInitializer found,
+            out int precedingLength) {
+            precedingLength = 0;
+
+            foreach (var group in initializers) {
+                if (!group.IsEmpty &&
+                    group[0].syntax.syntaxTree == tree &&
+                    position < group.Last().syntax.span.end) {
+                    var initializerIndex = IndexOfInitializerContainingPosition(group, position);
+
+                    if (initializerIndex < 0)
+                        break;
+
+                    precedingLength += GetPrecedingInitializersLength(group, initializerIndex);
+                    found = group[initializerIndex];
+                    return true;
+                }
+
+                precedingLength += GetGroupLength(group);
+            }
+
+            found = default;
+            return false;
+        }
+
+        static int GetGroupLength(ImmutableArray<FieldInitializer> initializers) {
+            var length = 0;
+
+            foreach (var initializer in initializers)
+                length += GetInitializerLength(initializer);
+
+            return length;
+        }
+
+        static int GetPrecedingInitializersLength(ImmutableArray<FieldInitializer> initializers, int index) {
+            var length = 0;
+
+            for (var i = 0; i < index; i++)
+                length += GetInitializerLength(initializers[i]);
+
+            return length;
+        }
+
+        static int GetInitializersLength(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
+            var length = 0;
+
+            foreach (var group in initializers)
+                length += GetGroupLength(group);
+
+            return length;
+        }
+
+        static int GetInitializerLength(FieldInitializer initializer) {
+            if (initializer.field is null || !initializer.field.isMetadataConstant)
+                return initializer.syntax.span.length;
+
+            return 0;
+        }
+    }
+
+    private static int IndexOfInitializerContainingPosition(
+        ImmutableArray<FieldInitializer> initializers,
+        int position) {
+        var index = initializers.BinarySearch(
+            position,
+            (initializer, pos) => initializer.syntax.span.start.CompareTo(pos)
+        );
+
+        if (index >= 0)
+            return index;
+
+        var precedingInitializerIndex = ~index - 1;
+
+        if (precedingInitializerIndex >= 0 && initializers[precedingInitializerIndex].syntax.span.Contains(position))
+            return precedingInitializerIndex;
+
+        return -1;
+    }
+
+    internal int CalculateSyntaxOffsetInSynthesizedConstructor(int position, SyntaxTree tree) {
+        if (TryCalculateSyntaxOffsetOfPositionInInitializer(
+            position,
+            tree,
+            0,
+            out var syntaxOffset)) {
+            return syntaxOffset;
+        }
+
+        if (_declaration.declarations.Length >= 1 &&
+            position == _declaration.declarations[0].location.span.start) {
+            return 0;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasFlag(DeclarationModifiers flag) => (_modifiers & flag) != 0;

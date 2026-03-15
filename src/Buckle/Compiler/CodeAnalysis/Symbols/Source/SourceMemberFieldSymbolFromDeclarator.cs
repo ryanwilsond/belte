@@ -9,7 +9,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberFieldSymbol {
     private TypeAndRefKind _lazyTypeAndRefKind;
-    private int _lazyFieldTypeInferred;
 
     internal SourceMemberFieldSymbolFromDeclarator(
         NamedTypeSymbol containingType,
@@ -47,15 +46,26 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     }
 
     internal bool FieldTypeInferred(ConsList<FieldSymbol> fieldsBeingBound) {
+        // TODO Currently unnecessary method but helpful if we decide to allow implicitly typed fields
         GetFieldType(fieldsBeingBound);
-        return _lazyFieldTypeInferred != 0 || Volatile.Read(ref _lazyFieldTypeInferred) != 0;
+        return false;
+    }
+
+    private protected override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        if (((SourceMemberContainerTypeSymbol)containingType).anyMemberHasAttributes)
+            return OneOrMany.Create(GetFieldDeclaration(syntaxNode).attributeLists);
+
+        return OneOrMany<SyntaxList<AttributeListSyntax>>.Empty;
     }
 
     private protected sealed override ConstantValue MakeConstantValue(
         HashSet<SourceFieldSymbolWithSyntaxReference> dependencies,
         BelteDiagnosticQueue diagnostics) {
-        if (!isConstExpr || _variableDeclaration.initializer is null)
+        if (!isConstExpr)
             return null;
+
+        if (_variableDeclaration.initializer is null)
+            return new ConstantValue(null, type.specialType);
 
         return ConstantValueHelpers.EvaluateFieldConstant(
             this,
@@ -69,7 +79,8 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         return (FieldDeclarationSyntax)declaration.parent;
     }
 
-    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> fieldsBeingBound) {
+    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> _1) {
+        // TODO Use unused parameter to create recursive field errors
         if (_lazyTypeAndRefKind is not null)
             return _lazyTypeAndRefKind;
 
@@ -84,10 +95,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         var binder = binderFactory.GetBinder(typeSyntax);
         binder = binder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
 
-        var typeOnly = typeSyntax.SkipRef(out _);
-        var refKind = ((_modifiers & DeclarationModifiers.Ref) != 0) ? RefKind.Ref : RefKind.None;
-        // TODO Consider using ref attached to type instead of modifiers like so:
-        // var typeOnly = typeSyntax.SkipRef(out var refKind);
+        var typeOnly = typeSyntax.SkipRef(out var refKind);
 
         type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped);
 
@@ -95,7 +103,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             var location = typeOnly is IdentifierNameSyntax
                 ? typeOnly.location
                 : ((FieldDeclarationSyntax)syntaxNode.parent).modifiers
-                    .Where(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword).Last().location;
+                    .Last(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword).location;
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());

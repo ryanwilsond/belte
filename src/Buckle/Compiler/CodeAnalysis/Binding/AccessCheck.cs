@@ -28,7 +28,7 @@ internal static class AccessCheck {
         TextLocation errorLocation) {
         return containingType.typeKind == TypeKind.Struct
             ? Error.ProtectedInStruct(errorLocation, containingType)
-            : Error.ProtectedInSealed(errorLocation, containingType);
+            : Warning.ProtectedInSealed(errorLocation, containingType);
     }
 
     private static bool IsSymbolAccessibleCore(
@@ -204,5 +204,37 @@ internal static class AccessCheck {
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaredAccessibility);
         }
+    }
+
+    internal static bool IsEffectivelyPublicOrInternal(Symbol symbol, out bool isInternal) {
+        switch (symbol.kind) {
+            case SymbolKind.NamedType:
+            case SymbolKind.Field:
+            case SymbolKind.Method:
+                break;
+            case SymbolKind.TemplateParameter:
+                symbol = symbol.containingSymbol;
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+        }
+
+        isInternal = false;
+
+        do {
+            switch (symbol.declaredAccessibility) {
+                case Accessibility.Public:
+                case Accessibility.Protected:
+                    break;
+                case Accessibility.Private:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(symbol.declaredAccessibility);
+            }
+
+            symbol = symbol.containingType;
+        } while (symbol is not null);
+
+        return true;
     }
 }

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -15,11 +17,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly MethodSymbol _entryPoint;
     private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly Dictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
+    private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
+    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly Predicate<Symbol> _filter;
+
+    private MethodSymbol _entryPoint;
 
     private MethodCompiler(
         Compilation compilation,
@@ -27,6 +33,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
+        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
@@ -37,17 +44,37 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         _methodBodies = methodBodiesBeingBuilt;
+        _methodLayouts = [];
+        _typeLayouts = typeLayouts;
+        _synthesizedNestedTypes = [];
     }
 
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
-        Predicate<Symbol> filter,
-        bool emitting) {
+        Predicate<Symbol> filter) {
+        var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+        var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
+
         var globalNamespace = compilation.globalNamespaceInternal;
+
+        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
+
+        if (compilation.options.buildMode.Evaluating())
+            typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
+        else
+            typeLayouts = [];
+
+        var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
+
+        if (previousLayouts is not null) {
+            foreach (var layout in previousLayouts)
+                typeLayouts.TryAdd(layout.Key, layout.Value);
+        }
+
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
-        var entryPoint = GetEntryPoint(compilation, diagnostics);
-        var updatePoint = GetUpdatePoint(compilation, entryPoint, diagnostics);
+        var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
+        var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
         if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
             diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
@@ -58,8 +85,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             diagnostics,
             entryPoint,
             updatePoint,
+            typeLayouts,
             filter,
-            emitting
+            !transpiling
         );
 
         methodCompiler.CompileNamespace(globalNamespace);
@@ -81,7 +109,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         return new BoundProgram(
             _compilation,
             _methodBodies.ToImmutableDictionary(),
+            _methodLayouts.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
+            _typeLayouts.ToImmutableDictionary(),
+            _synthesizedNestedTypes,
             _entryPoint,
             _updatePoint,
             _compilation.previous?.boundProgram
@@ -104,7 +135,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private void CompileNamedType(NamedTypeSymbol symbol) {
         _types.Add(symbol);
 
-        var state = new TypeCompilationState(symbol, _compilation);
+        var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
         var members = symbol.GetMembers();
         var processedInitializers = new Binder.ProcessedFieldInitializers();
 
@@ -141,9 +172,21 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             }
         }
 
+        if (state.synthesizedTypes is not null) {
+            foreach (var synthesizedType in state.synthesizedTypes) {
+                _types.Add(synthesizedType.Item2);
+                _synthesizedNestedTypes.Add(synthesizedType.Item1, synthesizedType.Item2);
+            }
+        }
+
         if (state.synthesizedMethods is not null) {
             foreach (var synthesizedMethod in state.synthesizedMethods)
                 _methodBodies.Add(synthesizedMethod.Item1, synthesizedMethod.Item2);
+        }
+
+        if (state.methodLayouts is not null) {
+            foreach (var methodLayout in state.methodLayouts)
+                _methodLayouts.Add(methodLayout.Item1, methodLayout.Item2);
         }
 
         state.Free();
@@ -184,7 +227,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             state,
             currentDiagnostics,
             includeInitializers,
-            analyzedInitializers
+            analyzedInitializers,
+            ref _entryPoint
         );
 
         if (body is null || !_emitting || currentDiagnostics.AnyErrors()) {
@@ -199,9 +243,16 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             body,
             state,
             _compilation.previousAnalyses,
-            _compilation.options.buildMode,
             currentDiagnostics
         );
+
+        if (!ControlFlowGraph.AllPathsReturn(loweredBody))
+            currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
+
+        if (_compilation.options.buildMode.Evaluating()) {
+            loweredBody = EvaluatorSlotRewriter.Rewrite(method, loweredBody, _typeLayouts, out var slotManager);
+            _methodLayouts.Add(method, slotManager);
+        }
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         _methodBodies.Add(method, loweredBody);
@@ -213,26 +264,40 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BoundBlockStatement body,
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
-        BuildMode buildMode,
         BelteDiagnosticQueue currentDiagnostics) {
-        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
+        var loweredBody = Lowerer.Lower(method, body);
 
-        // ? C# handles closure a little different than we do so we just let the C# compiler handle that itself
-        if (buildMode != BuildMode.CSharpTranspile) {
-            // ? TODO Why do we have a substitutedMethodSymbol parameter here if it's never supplied?
-            loweredBody = LocalFunctionRewriter.Rewrite(
-                loweredBody,
-                state.type,
-                method,
-                methodOrdinal,
-                null,
-                state,
-                previousAnalyses,
-                currentDiagnostics
-            );
-        }
+        loweredBody = LocalFunctionRewriter.Rewrite(
+            loweredBody,
+            state.type,
+            method,
+            methodOrdinal,
+            null,
+            state,
+            previousAnalyses,
+            currentDiagnostics,
+            null // TODO When do we want to use this?
+        );
+
+        loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
 
         return loweredBody;
+    }
+
+    internal static BoundBlockStatement BindSynthesizedMethodBody(
+        MethodSymbol method,
+        TypeCompilationState compilationState,
+        BelteDiagnosticQueue diagnostics) {
+        MethodSymbol _ = null;
+
+        return BindMethodBody(
+            method,
+            compilationState,
+            diagnostics,
+            includeInitializers: false,
+            initializersBody: null,
+            entryPoint: ref _
+        );
     }
 
     private static BoundBlockStatement BindMethodBody(
@@ -240,7 +305,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         TypeCompilationState state,
         BelteDiagnosticQueue diagnostics,
         bool includeInitializers,
-        BoundBlockStatement initializersBody) {
+        BoundBlockStatement initializersBody,
+        ref MethodSymbol entryPoint) {
         BoundBlockStatement body = null;
         var syntax = method.GetNonNullSyntaxNode();
         initializersBody ??= new BoundBlockStatement(syntax, [], [], []);
@@ -302,10 +368,51 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (constructorInitializer is not null)
             builder.Add(constructorInitializer);
 
+        if (method == entryPoint && method is SynthesizedEntryPoint synth && body.localFunctions.Length > 0) {
+            var candidateLocals = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var local in body.localFunctions) {
+                if (Compilation.HasEntryPointSignature(local))
+                    candidateLocals.Add(local);
+            }
+
+            if (candidateLocals.Count > 0) {
+                var bodyHasLogic = body.statements.Any(t => t.kind != BoundKind.LocalFunctionStatement);
+
+                if (bodyHasLogic)
+                    candidateLocals.Add(synth);
+
+                var newEntryPoint = Compilation.SelectEntryPoint(
+                    bodyHasLogic ? synth : null,
+                    candidateLocals.ToImmutableAndFree(),
+                    diagnostics,
+                    false
+                );
+
+                if (newEntryPoint is not null && !bodyHasLogic) {
+                    body = new BoundBlockStatement(
+                        syntax,
+                        [
+                            ..body.statements,
+                            BoundFactory.Statement(syntax, BoundFactory.Call(syntax, newEntryPoint)),
+                            new BoundReturnStatement(syntax, RefKind.None, null),
+                        ],
+                        [],
+                        []
+                    );
+                }
+            }
+        }
+
         if (body is not null)
             builder.Add(body);
 
-        return new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), [], []);
+        return new BoundBlockStatement(
+            syntax,
+            builder.ToImmutableAndFree(),
+            body?.locals ?? [],
+            body?.localFunctions ?? []
+        );
     }
 
     private static BoundStatement BindImplicitConstructorInitializerIfAny(

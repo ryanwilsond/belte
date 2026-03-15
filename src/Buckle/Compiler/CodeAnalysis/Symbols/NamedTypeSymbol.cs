@@ -72,6 +72,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal bool knownToHaveNoDeclaredBaseCycles => _hasNoBaseCycles;
 
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitNamedType(this);
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
@@ -156,6 +160,15 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
     internal void GetAllTypeParameters(ArrayBuilder<TemplateParameterSymbol> result) {
         containingType?.GetAllTypeParameters(result);
         result.AddRange(templateParameters);
+    }
+
+    internal ImmutableArray<TemplateParameterSymbol> GetAllTypeParameters() {
+        if (containingType is null)
+            return templateParameters;
+
+        var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+        GetAllTypeParameters(builder);
+        return builder.ToImmutableAndFree();
     }
 
     internal static readonly Func<TypeOrConstant, bool> TypeOrConstantIsNullFunction = type

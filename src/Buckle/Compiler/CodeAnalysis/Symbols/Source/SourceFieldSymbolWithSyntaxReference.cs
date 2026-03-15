@@ -91,9 +91,7 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
         if (startsCycle)
-            // TODO Add this error once confirmed this actually happens
-            // diagnostics.Add(ErrorCode.ERR_CircConstValue, syntaxReference.location, this);
-            ;
+            diagnostics.Push(Error.CircularConstantValue(syntaxReference.location, this));
 
         var value = MakeConstantValue(builder, diagnostics);
         SetLazyConstantValue(

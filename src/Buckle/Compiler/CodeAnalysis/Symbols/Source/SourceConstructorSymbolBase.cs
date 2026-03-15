@@ -1,8 +1,10 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -85,4 +87,51 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
 
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
     }
+
+    internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetReturnTypeAttributeDeclarations() {
+        return OneOrMany.Create(default(SyntaxList<AttributeListSyntax>));
+    }
+
+    internal sealed override int CalculateLocalSyntaxOffset(int position, SyntaxTree tree) {
+        TextSpan span;
+
+        var ctorSyntax = (SyntaxNode)syntaxReference.node;
+
+        if (tree == ctorSyntax.syntaxTree) {
+            if (IsWithinBody(position, out var offset))
+                return offset;
+
+            if (position == ctorSyntax.span.start)
+                return -1;
+        }
+
+        int ctorInitializerLength;
+        var ctorInitializer = GetInitializer();
+
+        if (tree == ctorInitializer?.syntaxTree) {
+            span = ctorInitializer.span;
+            ctorInitializerLength = span.length;
+
+            if (span.Contains(position))
+                return -ctorInitializerLength + (position - span.start);
+        } else {
+            ctorInitializerLength = 0;
+        }
+
+        var containingType = (SourceNamedTypeSymbol)this.containingType;
+
+        if (containingType.TryCalculateSyntaxOffsetOfPositionInInitializer(
+            position,
+            tree,
+            ctorInitializerLength,
+            out var syntaxOffset)) {
+            return syntaxOffset;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected abstract SyntaxNode GetInitializer();
+
+    private protected abstract bool IsWithinBody(int position, out int offset);
 }

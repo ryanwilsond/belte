@@ -343,6 +343,10 @@ public sealed class LexerTests {
             return true;
         if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.PeriodToken)
             return true;
+        if (t1Kind == SyntaxKind.ColonToken && t2Kind == SyntaxKind.ColonToken)
+            return true;
+        if (t1Kind == SyntaxKind.ColonToken && t2Kind == SyntaxKind.ColonColonToken)
+            return true;
 
         return false;
     }

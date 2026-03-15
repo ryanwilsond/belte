@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -36,12 +37,16 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
     }
 
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
-        var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
+        var locals = new HashSet<DataContainerSymbol>();
+        var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
 
         foreach (var statement in _entryPoint.compilationUnit.members) {
             if (statement is GlobalStatementSyntax topLevelStatement)
-                BuildLocals(this, topLevelStatement.statement, locals);
+                BuildLocals(this, topLevelStatement.statement, localsBuilder);
         }
+
+        locals.AddAll(localsBuilder);
+        localsBuilder.Free();
 
         for (var compilation = _entryPoint.declaringCompilation.previous;
             compilation is not null;
@@ -54,19 +59,23 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 .TryGetBodyBinder(null, flags.Includes(BinderFlags.IgnoreAccessibility))
                 .GetBinder(compilationUnit);
 
-            locals.AddRange(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
+            locals.AddAll(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
         }
 
-        return locals.ToImmutableAndFree();
+        return locals.ToImmutableArray();
     }
 
     private protected override ImmutableArray<LocalFunctionSymbol> BuildLocalFunctions() {
-        var locals = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
+        var locals = new HashSet<LocalFunctionSymbol>();
+        var localsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
 
         foreach (var statement in _entryPoint.compilationUnit.members) {
             if (statement is GlobalStatementSyntax topLevelStatement)
-                BuildLocalFunctions(topLevelStatement.statement, ref locals);
+                BuildLocalFunctions(topLevelStatement.statement, ref localsBuilder);
         }
+
+        locals.AddAll(localsBuilder);
+        localsBuilder.Free();
 
         for (var compilation = _entryPoint.declaringCompilation.previous;
             compilation is not null;
@@ -79,10 +88,10 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 .TryGetBodyBinder(null, flags.Includes(BinderFlags.IgnoreAccessibility))
                 .GetBinder(compilationUnit);
 
-            locals.AddRange(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
+            locals.AddAll(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
         }
 
-        return locals.ToImmutableAndFree();
+        return locals.ToImmutableArray();
     }
 
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {

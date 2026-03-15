@@ -54,8 +54,10 @@ internal static class ConstantFolding {
         if (opKind is BinaryOperatorKind.NotEqual)
             return new ConstantValue(!Equals(leftValue, rightValue));
 
-        leftValue = LiteralUtilities.Cast(leftValue, type);
-        rightValue = LiteralUtilities.Cast(rightValue, type);
+        if (!LiteralUtilities.TryCast(leftValue, type, out leftValue) ||
+            !LiteralUtilities.TryCast(rightValue, type, out rightValue)) {
+            return null;
+        }
 
         switch (opKind) {
             case BinaryOperatorKind.Addition:
@@ -89,7 +91,7 @@ internal static class ConstantFolding {
                 if (specialType == SpecialType.Int)
                     return new ConstantValue((long)Math.Pow((long)leftValue, (long)rightValue), specialType);
                 else
-                    return new ConstantValue((double)Math.Pow((double)leftValue, (double)rightValue), specialType);
+                    return new ConstantValue(Math.Pow((double)leftValue, (double)rightValue), specialType);
             case BinaryOperatorKind.ConditionalAnd:
                 return new ConstantValue((bool)leftValue && (bool)rightValue, specialType);
             case BinaryOperatorKind.ConditionalOr:
@@ -261,8 +263,15 @@ internal static class ConstantFolding {
             return null;
 
         var specialType = type.type.StrippedType().specialType;
-        var castedValue = LiteralUtilities.Cast(expression.constantValue.value, type);
-        return new ConstantValue(castedValue, specialType);
+
+        // Preserve "actual" type
+        if (specialType == SpecialType.Any)
+            return expression.constantValue;
+
+        if (LiteralUtilities.TryCast(expression.constantValue.value, type, out var castedValue))
+            return new ConstantValue(castedValue, specialType);
+
+        return null;
     }
 
     /// <summary>
@@ -290,11 +299,17 @@ internal static class ConstantFolding {
     /// <param name="index">The index.</param>
     /// <returns>The constant item at the index, if constant.</returns>
     internal static ConstantValue FoldIndex(BoundExpression expression, BoundExpression index, TypeSymbol type) {
-        if (expression.constantValue is null || index.constantValue is null)
+        var expressionConstant = expression.constantValue;
+        var indexConstant = index.constantValue;
+
+        if (expressionConstant is null || indexConstant is null)
             return null;
 
-        var array = (ImmutableArray<ConstantValue>)expression.constantValue.value;
-        var item = array[Convert.ToInt32(index.constantValue.value)];
+        if (type.specialType == SpecialType.Char && indexConstant is not null)
+            return new ConstantValue(((string)expressionConstant.value)[Convert.ToInt32(indexConstant.value)], type.specialType);
+
+        var array = (ImmutableArray<ConstantValue>)expressionConstant.value;
+        var item = array[Convert.ToInt32(indexConstant.value)];
         var specialType = type.specialType;
 
         return new ConstantValue(item.value, specialType);

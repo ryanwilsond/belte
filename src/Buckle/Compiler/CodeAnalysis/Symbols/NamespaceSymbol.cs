@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -27,6 +29,10 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
 
     internal abstract NamespaceExtent extent { get; }
 
+    internal abstract override ImmutableArray<SyntaxReference> declaringSyntaxReferences { get; }
+
+    internal abstract override ImmutableArray<TextLocation> locations { get; }
+
     internal NamedTypeSymbol implicitType {
         get {
             var types = GetTypeMembers(TypeSymbol.ImplicitTypeName);
@@ -38,10 +44,41 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
         }
     }
 
+    internal virtual ImmutableArray<NamespaceSymbol> constituentNamespaces => [this];
+
     internal abstract ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name);
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name)
         => GetMembers(name.AsMemory());
+
+    internal NamespaceSymbol GetNestedNamespace(string name)
+        => GetNestedNamespace(name.AsMemory());
+
+    internal virtual NamespaceSymbol GetNestedNamespace(ReadOnlyMemory<char> name) {
+        foreach (var sym in GetMembers(name)) {
+            if (sym.kind == SymbolKind.Namespace)
+                return (NamespaceSymbol)sym;
+        }
+
+        return null;
+    }
+
+    internal NamespaceSymbol LookupNestedNamespace(ImmutableArray<ReadOnlyMemory<char>> names) {
+        var scope = this;
+
+        foreach (var name in names) {
+            scope = scope.GetNestedNamespace(name);
+
+            if (scope is null)
+                return null;
+        }
+
+        return scope;
+    }
+
+    internal override void Accept(SymbolVisitor visitor) {
+        visitor.VisitNamespace(this);
+    }
 
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,

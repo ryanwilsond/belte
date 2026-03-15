@@ -109,6 +109,12 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
+                case CompletionParts.ReturnTypeAttributes:
+                    GetReturnTypeAttributes();
+                    break;
                 case CompletionParts.Type:
                     _ = returnType;
                     _state.NotePartComplete(CompletionParts.Type);
@@ -141,6 +147,15 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
 
 done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
+    }
+
+    private protected sealed override void NoteAttributesComplete(bool forReturnType) {
+        var part = forReturnType ? CompletionParts.ReturnTypeAttributes : CompletionParts.Attributes;
+        _state.NotePartComplete(part);
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        return localPosition - body.span.start;
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) {
@@ -183,24 +198,24 @@ done:
         if (!IsNoMoreVisibleThan(underlyingReturnType)) {
             if (methodKind == MethodKind.Operator) {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityOperatorReturn(syntaxReference.location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType, this)
                 );
             } else {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityReturn(syntaxReference.location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityReturn(location, underlyingReturnType, this)
                 );
             }
         }
 
         foreach (var parameter in parameters) {
-            if (!parameter.typeWithAnnotations.IsAtLeastAsVisibleAs(this)) {
+            if (!parameter.typeWithAnnotations.nullableUnderlyingTypeOrSelf.IsAtLeastAsVisibleAs(this)) {
                 if (methodKind == MethodKind.Operator) {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityOperatorParameter(syntaxReference.location, parameter.type, this)
+                        Error.InconsistentAccessibilityOperatorParameter(location, parameter.type, this)
                     );
                 } else {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityParameter(syntaxReference.location, parameter.type, this)
+                        Error.InconsistentAccessibilityParameter(location, parameter.type, this)
                     );
                 }
             }

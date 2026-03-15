@@ -1,14 +1,14 @@
 
 class Projectile {
-    ref Program game;
+    Program game;
     Sprite sprite;
 
     public Vec2 position;
     public decimal! speed;
     public decimal! timer;
 
-    public constructor(ref Program game, decimal! speed, Vec2 position) {
-        this.game = ref game;
+    public constructor(Program game, decimal! speed, Vec2 position) {
+        this.game = game;
         this.speed = speed;
         this.position = position;
         var texture = game.textures.projectile;

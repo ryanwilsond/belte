@@ -5,6 +5,7 @@ using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -26,6 +27,17 @@ internal sealed class MergedTypeDeclaration : MergedNamespaceOrTypeDeclaration {
     internal override DeclarationKind kind => declarations[0].kind;
 
     internal int arity => declarations[0].arity;
+
+    internal bool anyMemberHasAttributes {
+        get {
+            foreach (var decl in declarations) {
+                if (decl.anyMemberHasAttributes)
+                    return true;
+            }
+
+            return false;
+        }
+    }
 
     internal LexicalSortKey GetLexicalSortKey(Compilation compilation) {
         var sortKey = new LexicalSortKey(
@@ -104,6 +116,26 @@ internal sealed class MergedTypeDeclaration : MergedNamespaceOrTypeDeclaration {
         }
 
         return children.ToImmutableAndFree();
+    }
+
+    internal ImmutableArray<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        var attributeSyntaxListBuilder = ArrayBuilder<SyntaxList<AttributeListSyntax>>.GetInstance();
+
+        foreach (var decl in declarations) {
+            if (!decl.hasAnyAttributes)
+                continue;
+
+            var syntaxRef = decl.syntaxReference;
+            var typeDecl = syntaxRef.node;
+            var attributesSyntaxList = typeDecl.kind switch {
+                SyntaxKind.ClassDeclaration or SyntaxKind.StructDeclaration => ((TypeDeclarationSyntax)typeDecl).attributeLists,
+                _ => throw ExceptionUtilities.UnexpectedValue(typeDecl.kind),
+            };
+
+            attributeSyntaxListBuilder.Add(attributesSyntaxList);
+        }
+
+        return attributeSyntaxListBuilder.ToImmutableAndFree();
     }
 
     private protected override ImmutableArray<Declaration> GetDeclarationChildren() {

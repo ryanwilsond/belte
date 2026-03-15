@@ -25,6 +25,8 @@ internal static class SymbolKindExtensions {
             SymbolKind.Method => MessageID.IDS_SK_METHOD.Localize(),
             SymbolKind.NamedType => MessageID.IDS_SK_TYPE.Localize(),
             SymbolKind.ArrayType => MessageID.IDS_SK_ARRAY.Localize(),
+            SymbolKind.Namespace => MessageID.IDS_SK_NAMESPACE.Localize(),
+            SymbolKind.Alias => MessageID.IDS_SK_ALIAS.Localize(),
             SymbolKind.Label => MessageID.IDS_SK_LABEL.Localize(),
             SymbolKind.Local or SymbolKind.Parameter => MessageID.IDS_SK_VARIABLE.Localize(),
             SymbolKind.TemplateParameter => MessageID.IDS_SK_TEMPVAR.Localize(),

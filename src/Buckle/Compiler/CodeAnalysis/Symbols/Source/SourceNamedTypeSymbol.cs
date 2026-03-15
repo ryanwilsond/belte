@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -12,6 +11,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
+    private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private NamedTypeSymbol _lazyDeclaredBase;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private TemplateParameterInfo _lazyTemplateParameterInfo;
@@ -102,6 +102,26 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         return _lazyDeclaredBase;
     }
 
+    private CustomAttributesBag<AttributeData> GetAttributesBag() {
+        var bag = _lazyAttributesBag;
+
+        if (bag is not null && bag.isSealed)
+            return bag;
+
+        if (LoadAndValidateAttributes(OneOrMany.Create(GetAttributeDeclarations()), ref _lazyAttributesBag))
+            _state.NotePartComplete(CompletionParts.Attributes);
+
+        return _lazyAttributesBag;
+    }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return GetAttributesBag().attributes;
+    }
+
+    internal ImmutableArray<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return _declaration.GetAttributeDeclarations();
+    }
+
     internal ImmutableArray<TypeWithAnnotations> GetTypeParameterConstraintTypes(
         int ordinal,
         BelteDiagnosticQueue diagnostics) {
@@ -148,31 +168,6 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         return null;
     }
 
-    private static bool TypeDependsOn(NamedTypeSymbol depends, NamedTypeSymbol on) {
-        var hashSet = PooledHashSet<Symbol>.GetInstance();
-        TypeDependsClosure(depends, depends.declaringCompilation, hashSet);
-        var result = hashSet.Contains(on);
-        hashSet.Free();
-        return result;
-    }
-
-    private static void TypeDependsClosure(
-        NamedTypeSymbol type,
-        Compilation currentCompilation,
-        HashSet<Symbol> partialClosure) {
-        if (type is null)
-            return;
-
-        type = type.originalDefinition;
-
-        if (partialClosure.Add(type)) {
-            TypeDependsClosure(type.GetDeclaredBaseType(null), currentCompilation, partialClosure);
-
-            if (currentCompilation is not null && type.IsFromCompilation(currentCompilation))
-                TypeDependsClosure(type.containingType, currentCompilation, partialClosure);
-        }
-    }
-
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
         var typeKind = this.typeKind;
         var declaredBase = GetDeclaredBaseType(basesBeingResolved: null);
@@ -193,12 +188,11 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
             }
         }
 
-        if (TypeDependsOn(declaredBase, this)) {
-            return new ExtendedErrorTypeSymbol(
-                declaredBase,
-                LookupResultKind.NotReferencable,
-                Error.CircularBase(syntaxReference.location, declaredBase, this)
-            );
+        if (typeKind == TypeKind.Class && BaseTypeAnalysis.TypeDependsOn(declaredBase, this)) {
+            var error = Error.CircularBase(location, declaredBase, this);
+            diagnostics.Push(error);
+
+            return new ExtendedErrorTypeSymbol(declaredBase, LookupResultKind.NotReferencable, error);
         }
 
         _hasNoBaseCycles = true;
@@ -256,7 +250,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                 localBase = (NamedTypeSymbol)baseType;
 
                 if (isStatic && localBase.specialType != SpecialType.Object) {
-                    var error = Error.StaticDeriveFromNotObject(location, localBase);
+                    var error = Error.StaticDeriveFromNotObject(location, this, localBase);
+                    diagnostics.Push(error);
                     localBase = new ExtendedErrorTypeSymbol(localBase, LookupResultKind.NotReferencable, error);
                 }
             }

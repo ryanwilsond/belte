@@ -19,7 +19,8 @@ public sealed class EvaluationResult {
         BelteDiagnosticQueue diagnostics,
         List<Exception> exceptions,
         bool lastOutputWasPrint,
-        bool containsIO) {
+        bool containsIO,
+        Heap heap) {
         this.value = value;
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
@@ -27,15 +28,7 @@ public sealed class EvaluationResult {
         this.exceptions = exceptions is null ? [] : exceptions;
         this.lastOutputWasPrint = lastOutputWasPrint;
         this.containsIO = containsIO;
-    }
-
-    /// <summary>
-    /// Creates an empty <see cref="EvaluationResult" />.
-    /// </summary>
-    internal EvaluationResult() : this(null, false, null, null, false, false) { }
-
-    internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
-        return new EvaluationResult(null, false, diagnostics, null, false, false);
+        this.heap = heap;
     }
 
     /// <summary>
@@ -46,26 +39,52 @@ public sealed class EvaluationResult {
     /// <summary>
     /// Value resulting from evaluation.
     /// </summary>
-    public object value { get; }
+    public object value { get; private set; }
 
     /// <summary>
     /// Flag to distinguish the lack of value from the value of null.
     /// </summary>
-    public bool hasValue { get; }
+    public bool hasValue { get; private set; }
 
     /// <summary>
     /// If the last output to the terminal was a `Print`, and not a `PrintLine`, meaning the caller might want to write
     /// an extra line to prevent formatting problems.
     /// </summary>
-    public bool lastOutputWasPrint { get; }
+    public bool lastOutputWasPrint { get; private set; }
 
     /// <summary>
     /// If the submission contains File/Directory IO.
     /// </summary>
-    public bool containsIO { get; }
+    public bool containsIO { get; private set; }
 
     /// <summary>
     /// All exceptions thrown while evaluating.
     /// </summary>
     public List<Exception> exceptions { get; }
+
+    internal Heap heap { get; private set; }
+
+    internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
+        return new EvaluationResult(null, false, diagnostics, null, false, false, null);
+    }
+
+    internal void Update(
+        object value,
+        bool hasValue,
+        BelteDiagnosticQueue diagnostics,
+        List<Exception> exceptions,
+        bool lastOutputWasPrint,
+        bool containsIO,
+        Heap heap) {
+        if (hasValue) {
+            this.value = value;
+            this.hasValue = true;
+        }
+
+        this.diagnostics.PushRange(diagnostics);
+        this.exceptions.AddRange(exceptions);
+        this.lastOutputWasPrint = lastOutputWasPrint;
+        this.containsIO |= containsIO;
+        this.heap = heap;
+    }
 }

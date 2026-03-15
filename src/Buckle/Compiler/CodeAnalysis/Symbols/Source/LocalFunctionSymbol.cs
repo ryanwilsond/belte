@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -23,8 +24,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         : base(new SyntaxReference(syntax)) {
         this.containingSymbol = containingSymbol;
         _declarationDiagnostics = new BelteDiagnosticQueue();
-        _modifiers = DeclarationModifiers.Private |
-            ModifierHelpers.CreateModifiers(syntax.modifiers, _declarationDiagnostics, out _);
+        _modifiers = MakeModifiers(syntax.modifiers, _declarationDiagnostics);
 
         scopeBinder = binder;
         location = syntax.identifier.location;
@@ -152,7 +152,13 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         return _lazyTypeParameterConstraintKinds;
     }
 
+    internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(syntax.attributeLists);
+    }
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
+    private protected override void NoteAttributesComplete(bool forReturnType) { }
 
     internal void GetDeclarationDiagnostics(BelteDiagnosticQueue addTo) {
         foreach (var templateParameter in _templateParameters)
@@ -165,6 +171,9 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
         ComputeReturnType();
 
+        GetAttributes();
+        GetReturnTypeAttributes();
+
         addTo.PushRange(_declarationDiagnostics);
     }
 
@@ -176,6 +185,9 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
         var returnTypeSyntax = syntax.returnType;
         var returnType = withTemplateParametersBinder.BindType(returnTypeSyntax.SkipRef(out _), diagnostics);
+
+        if (returnType.nullableUnderlyingTypeOrSelf.isStatic)
+            diagnostics.Push(Error.CannotReturnStatic(location, returnType.nullableUnderlyingTypeOrSelf));
 
         lock (_declarationDiagnostics) {
             if (_lazyReturnType is not null) {
@@ -192,6 +204,33 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
     internal override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         thisParameter = null;
         return true;
+    }
+
+    private DeclarationModifiers MakeModifiers(SyntaxTokenList modifiers, BelteDiagnosticQueue diagnostics) {
+        var allowedModifiers = DeclarationModifiers.Const |
+                               DeclarationModifiers.ConstExpr |
+                               DeclarationModifiers.LowLevel;
+
+        var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
+            modifiers,
+            DeclarationModifiers.None,
+            allowedModifiers,
+            location,
+            diagnostics,
+            out var hasErrors
+        );
+
+        if (hasErrors)
+            return result;
+
+        var isConst = (result & DeclarationModifiers.Const) != 0;
+        var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
+
+        // TODO Any other error checking needed here?
+        if (isConst && isConstExpr)
+            diagnostics.Push(Error.ConflictingModifiers(location, "const", "constexpr"));
+
+        return result;
     }
 
     private void ComputeParameters() {
@@ -268,5 +307,9 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         }
 
         return result.ToImmutableAndFree();
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

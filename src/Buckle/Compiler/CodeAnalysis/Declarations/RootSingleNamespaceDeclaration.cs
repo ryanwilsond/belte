@@ -12,9 +12,10 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
         SyntaxReference treeNode,
         ImmutableArray<SingleNamespaceOrTypeDeclaration> children,
         // ImmutableArray<ReferenceDirective> referenceDirectives,
+        bool hasAssemblyAttributes,
         ImmutableArray<BelteDiagnostic> diagnostics)
         : base(
-            "global",
+            "<global>",
             treeNode,
             nameLocation: treeNode.location,
             children: children,
@@ -23,6 +24,7 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
         this.hasGlobalUsings = hasGlobalUsings;
         this.hasUsings = hasUsings;
         this.hasExternAliases = hasExternAliases;
+        this.hasAssemblyAttributes = hasAssemblyAttributes;
     }
 
     // internal ImmutableArray<ReferenceDirective> referenceDirectives { get; }
@@ -32,4 +34,6 @@ internal sealed class RootSingleNamespaceDeclaration : SingleNamespaceDeclaratio
     internal override bool hasUsings { get; }
 
     internal override bool hasExternAliases { get; }
+
+    internal override bool hasAssemblyAttributes { get; }
 }

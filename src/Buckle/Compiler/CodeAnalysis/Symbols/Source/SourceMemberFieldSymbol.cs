@@ -24,6 +24,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
     private protected abstract SyntaxTokenList _modifiersTokenList { get; }
 
     internal static DeclarationModifiers MakeModifiers(
+        NamedTypeSymbol containingSymbol,
         SyntaxToken firstIdentifier,
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
@@ -33,13 +34,11 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
             DeclarationModifiers.Const |
             DeclarationModifiers.ConstExpr |
             DeclarationModifiers.New |
-            DeclarationModifiers.Static |
-            DeclarationModifiers.Ref |
             DeclarationModifiers.LowLevel;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
-            DeclarationModifiers.Private,
+            containingSymbol.typeKind == TypeKind.Class ? DeclarationModifiers.Private : DeclarationModifiers.Public,
             allowedModifiers,
             firstIdentifier.location,
             diagnostics,
@@ -58,6 +57,9 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
             var incompletePart = _state.nextIncompletePart;
 
             switch (incompletePart) {
+                case CompletionParts.Attributes:
+                    GetAttributes();
+                    break;
                 case CompletionParts.Type:
                     GetFieldType(ConsList<FieldSymbol>.Empty);
                     break;

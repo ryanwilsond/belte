@@ -64,9 +64,14 @@
     <Field Name="index" Type="BoundExpression"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundIndexerAccessExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="index" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
-    <Field Name="initializer" Type="BoundExpression?"/>
+    <Field Name="initializer" Type="BoundInitializerList?"/>
   </Node>
   <Node Name="BoundAsOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
@@ -107,13 +112,13 @@
   <Node Name="BoundCompoundAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
-    <Field Name="op" Type="BinaryOperatorSignature"/>
+    <Field Name="op" Type="BinaryOperatorSignature" Null="NotApplicable"/>
     <Field Name="leftPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="leftConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="finalPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="finalConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
-    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
+    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
   <Node Name="BoundNullCoalescingAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
@@ -134,10 +139,21 @@
     <Field Name="dataContainer" Type="DataContainerSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundStackSlotExpression" Base="BoundExpression">
+    <Field Name="original" Type="BoundExpression"/>
+    <Field Name="symbol" Type="Symbol"/>
+    <Field Name="slot" Type="int"/>
+  </Node>
   <Node Name="BoundFieldAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="field" Type="FieldSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundFieldSlotExpression" Base="BoundExpression">
+    <Field Name="original" Type="BoundExpression"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="field" Type="FieldSymbol"/>
+    <Field Name="slot" Type="int"/>
   </Node>
   <Node Name="BoundInitializerDictionary" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;(BoundExpression, BoundExpression)&gt;"/>
@@ -215,7 +231,7 @@
     <Field Name="resultPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
     <Field Name="resultConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
-    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
+    <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">
@@ -249,8 +265,8 @@
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="initializer" Type="BoundStatement"/>
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
-    <Field Name="condition" Type="BoundExpression"/>
-    <Field Name="step" Type="BoundExpression"/>
+    <Field Name="condition" Type="BoundExpression?"/>
+    <Field Name="step" Type="BoundStatement?"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">

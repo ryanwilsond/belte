@@ -1,5 +1,0 @@
-
-public class Texture {
-    public const int! width;
-    public const int! height;
-}

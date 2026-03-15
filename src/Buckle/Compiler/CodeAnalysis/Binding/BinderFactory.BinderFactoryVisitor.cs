@@ -193,8 +193,11 @@ internal sealed partial class BinderFactory {
                 }
 
                 if (usage == NodeUsage.MethodBody) {
-                    method = method ?? GetMethodSymbol(node, resultBinder);
+                    method ??= GetMethodSymbol(node, resultBinder);
                     resultBinder = new InMethodBinder(method, resultBinder);
+
+                    if (method.isEffectivelyConst)
+                        resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
                 }
 
                 _binderCache.TryAdd(key, resultBinder);

@@ -10,13 +10,13 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Basic syntax facts references by the <see cref="InternalSyntax.LanguageParser" /> and the
 /// <see cref="InternalSyntax.Lexer" />.
 /// </summary>
-internal static class SyntaxFacts {
+public static class SyntaxFacts {
     /// <summary>
     /// Gets binary operator precedence of a <see cref="SyntaxKind" />.
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
-    internal static int GetBinaryPrecedence(this SyntaxKind type) {
+    public static int GetBinaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.AsteriskAsteriskToken:
                 return 14;
@@ -64,7 +64,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a primary operator.</returns>
-    internal static int GetPrimaryPrecedence(this SyntaxKind type) {
+    public static int GetPrimaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.TypeOfKeyword:
             case SyntaxKind.NameOfKeyword:
@@ -88,7 +88,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a unary operator.</returns>
-    internal static int GetUnaryPrecedence(this SyntaxKind type) {
+    public static int GetUnaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.PlusPlusToken:
             case SyntaxKind.MinusMinusToken:
@@ -107,7 +107,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a ternary operator.</returns>
-    internal static int GetTernaryPrecedence(this SyntaxKind type) {
+    public static int GetTernaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.QuestionToken:
                 return 2;
@@ -182,6 +182,9 @@ internal static class SyntaxFacts {
             "throw" => SyntaxKind.ThrowKeyword,
             "primitive" => SyntaxKind.PrimitiveKeyword,
             "notnull" => SyntaxKind.NotnullKeyword,
+            "using" => SyntaxKind.UsingKeyword,
+            "namespace" => SyntaxKind.NamespaceKeyword,
+            "global" => SyntaxKind.GlobalKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -221,6 +224,7 @@ internal static class SyntaxFacts {
             SyntaxKind.CloseBracketToken => "]",
             SyntaxKind.SemicolonToken => ";",
             SyntaxKind.ColonToken => ":",
+            SyntaxKind.ColonColonToken => "::",
             SyntaxKind.QuestionToken => "?",
             SyntaxKind.EqualsEqualsToken => "==",
             SyntaxKind.ExclamationEqualsToken => "!=",
@@ -289,6 +293,9 @@ internal static class SyntaxFacts {
             SyntaxKind.ThrowKeyword => "throw",
             SyntaxKind.PrimitiveKeyword => "primitive",
             SyntaxKind.NotnullKeyword => "notnull",
+            SyntaxKind.UsingKeyword => "using",
+            SyntaxKind.NamespaceKeyword => "namespace",
+            SyntaxKind.GlobalKeyword => "global",
             _ => null,
         };
     }
@@ -359,6 +366,22 @@ internal static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
     internal static bool IsOverloadableOperator(this SyntaxKind type) {
+        return IsOverloadableUnaryOperator(type) || IsOverloadableBinaryOperator(type);
+    }
+
+    internal static bool IsOverloadableUnaryOperator(this SyntaxKind type) {
+        return type switch {
+            SyntaxKind.PlusToken => true,
+            SyntaxKind.MinusToken => true,
+            SyntaxKind.PlusPlusToken => true,
+            SyntaxKind.MinusMinusToken => true,
+            SyntaxKind.ExclamationToken => true,
+            SyntaxKind.TildeToken => true,
+            _ => false,
+        };
+    }
+
+    internal static bool IsOverloadableBinaryOperator(this SyntaxKind type) {
         return type switch {
             SyntaxKind.AsteriskAsteriskToken => true,
             SyntaxKind.AsteriskToken => true,
@@ -372,10 +395,6 @@ internal static class SyntaxFacts {
             SyntaxKind.AmpersandToken => true,
             SyntaxKind.CaretToken => true,
             SyntaxKind.PipeToken => true,
-            SyntaxKind.PlusPlusToken => true,
-            SyntaxKind.MinusMinusToken => true,
-            SyntaxKind.ExclamationToken => true,
-            SyntaxKind.TildeToken => true,
             SyntaxKind.OpenBracketToken => true,
             SyntaxKind.EqualsEqualsToken => true,
             SyntaxKind.ExclamationEqualsToken => true,
@@ -530,7 +549,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
-    internal static bool IsKeyword(this SyntaxKind type) {
+    public static bool IsKeyword(this SyntaxKind type) {
         return type.ToString().EndsWith("Keyword");
     }
 
@@ -539,7 +558,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a token.</returns>
-    internal static bool IsToken(this SyntaxKind type) {
+    public static bool IsToken(this SyntaxKind type) {
         return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("Token"));
     }
 
@@ -548,7 +567,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is trivia.</returns>
-    internal static bool IsTrivia(this SyntaxKind type) {
+    public static bool IsTrivia(this SyntaxKind type) {
         return type.ToString().EndsWith("Trivia");
     }
 
@@ -557,7 +576,7 @@ internal static class SyntaxFacts {
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a comment.</returns>
-    internal static bool IsComment(this SyntaxKind type) {
+    public static bool IsComment(this SyntaxKind type) {
         return type == SyntaxKind.SingleLineCommentTrivia || type == SyntaxKind.MultiLineCommentTrivia;
     }
 

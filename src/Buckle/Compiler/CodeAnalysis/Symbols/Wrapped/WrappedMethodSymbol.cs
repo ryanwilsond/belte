@@ -54,6 +54,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal sealed override bool hasUnscopedRefAttribute => underlyingMethod.hasUnscopedRefAttribute;
 
+    internal override bool isMetadataFinal => underlyingMethod.isMetadataFinal;
+
     internal override bool IsMetadataVirtual(bool forceComplete = false)
         => underlyingMethod.IsMetadataVirtual(forceComplete);
 }

@@ -6,6 +6,12 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Syntax;
 
 public abstract partial class SyntaxNode {
+    internal IEnumerable<SyntaxNode> DescendantNodes(
+        Func<SyntaxNode, bool> descendIntoChildren = null,
+        bool descendIntoTrivia = false) {
+        return DescendantNodesImpl(fullSpan, descendIntoChildren, descendIntoTrivia, includeSelf: false);
+    }
+
     internal IEnumerable<SyntaxNode> DescendantNodesAndSelf(
         Func<SyntaxNode, bool> descendIntoChildren = null,
         bool descendIntoTrivia = false) {

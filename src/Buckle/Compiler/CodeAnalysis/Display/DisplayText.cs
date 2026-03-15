@@ -159,6 +159,9 @@ public sealed class DisplayText {
             case BoundKind.ArrayAccessExpression:
                 DisplayArrayAccessExpression(text, (BoundArrayAccessExpression)node);
                 break;
+            case BoundKind.IndexerAccessExpression:
+                DisplayIndexerAccessExpression(text, (BoundIndexerAccessExpression)node);
+                break;
             case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
@@ -182,6 +185,12 @@ public sealed class DisplayText {
                 break;
             case BoundKind.DataContainerExpression:
                 DisplayDataContainerExpression(text, (BoundDataContainerExpression)node);
+                break;
+            case BoundKind.StackSlotExpression:
+                DisplayStackSlotExpression(text, (BoundStackSlotExpression)node);
+                break;
+            case BoundKind.FieldSlotExpression:
+                DisplayFieldSlotExpression(text, (BoundFieldSlotExpression)node);
                 break;
             case BoundKind.AssignmentOperator:
                 DisplayAssignmentOperator(text, (BoundAssignmentOperator)node);
@@ -590,17 +599,17 @@ public sealed class DisplayText {
     private static void DisplayDataContainerDeclaration(DisplayText text, BoundDataContainerDeclaration node) {
         var dataContainer = node.dataContainer;
 
-        SymbolDisplay.DisplayType(
-            text,
-            dataContainer.type,
-            SymbolDisplayFormat.BoundDisplayFormat
-        );
+        SymbolDisplay.AppendToDisplayText(text, dataContainer, SymbolDisplayFormat.BoundDisplayFormat);
 
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(dataContainer.name));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
         text.Write(CreateSpace());
+
+        if (dataContainer.isRef) {
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateSpace());
+        }
+
         DisplayNode(text, node.initializer);
         text.WriteLine();
     }
@@ -625,6 +634,13 @@ public sealed class DisplayText {
         bool conditional = false) {
         DisplayNode(text, node.receiver);
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionOpenBracketToken : SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.index);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayIndexerAccessExpression(DisplayText text, BoundIndexerAccessExpression node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
@@ -655,7 +671,12 @@ public sealed class DisplayText {
     private static void DisplayArrayCreationExpression(DisplayText text, BoundArrayCreationExpression node) {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.DisplayType(text, node.type);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.BoundDisplayFormat);
+
+        if (node.initializer is not null) {
+            text.Write(CreateSpace());
+            DisplayNode(text, node.initializer);
+        }
     }
 
     private static void DisplayThisExpression(DisplayText text) {
@@ -875,6 +896,14 @@ public sealed class DisplayText {
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
         text.Write(CreateIdentifier(node.dataContainer.name));
+    }
+
+    private static void DisplayStackSlotExpression(DisplayText text, BoundStackSlotExpression node) {
+        text.Write(CreateIdentifier(node.symbol.name));
+    }
+
+    private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
+        text.Write(CreateIdentifier(node.field.name));
     }
 
     private static void DisplayParameterExpression(DisplayText text, BoundParameterExpression node) {

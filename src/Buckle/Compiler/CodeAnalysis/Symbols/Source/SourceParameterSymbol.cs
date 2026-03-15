@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -38,6 +39,8 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
     internal abstract bool hasDefaultArgumentSyntax { get; }
 
+    internal abstract SyntaxList<AttributeListSyntax> attributeDeclarationList { get; }
+
     internal static SourceParameterSymbol Create(
         Symbol owner,
         TypeWithAnnotations parameterType,
@@ -73,6 +76,12 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
     internal override void ForceComplete(TextLocation location) {
         _state.DefaultForceComplete();
     }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return GetAttributesBag().attributes;
+    }
+
+    internal abstract CustomAttributesBag<AttributeData> GetAttributesBag();
 
     private protected ScopedKind CalculateEffectiveScopeIgnoringAttributes() {
         // TODO

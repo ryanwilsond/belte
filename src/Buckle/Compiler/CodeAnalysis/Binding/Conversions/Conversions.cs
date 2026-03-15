@@ -147,12 +147,12 @@ internal sealed class Conversions {
 
         var conversion = FastClassifyConversion(sourceExpression.type, target);
 
-        if (conversion.exists && conversion.isImplicit)
+        if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
         conversion = Conversion.Classify(sourceExpression.type, target);
 
-        if (conversion.isImplicit)
+        if (Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
         return Conversion.None;

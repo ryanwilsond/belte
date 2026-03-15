@@ -11,8 +11,8 @@ class Spark {
     }
 
     public bool! Update(decimal! deltaTime) {
-        position.x += Math.Cos(angle) * speed;
-        position.y += Math.Sin(angle) * speed;
+        position.x += Math.Cos(angle) * speed * 60 * deltaTime;
+        position.y += Math.Sin(angle) * speed * 60 * deltaTime;
 
         speed = Math.Max(0, speed - 24 * deltaTime);
 

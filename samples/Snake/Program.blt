@@ -5,6 +5,7 @@
     This program uses the built-in graphics library to make a simple snake game.
 
 */
+
 class Program {
     string! direction;
     string! pendingDirection;
@@ -117,8 +118,10 @@ class Program {
         direction = pendingDirection;
         var backSegment = snake.coords[snake.bodySize - 1];
 
-        for (int i = snake.bodySize - 1; i > 0; i--)
-            snake.coords[i] = snake.coords[i - 1];
+        for (int i = snake.bodySize - 1; i > 0; i--) {
+            snake.coords[i].x = snake.coords[i - 1].x;
+            snake.coords[i].y = snake.coords[i - 1].y;
+        }
 
         if (direction == "up")
             snake.coords[0].y -= 1;

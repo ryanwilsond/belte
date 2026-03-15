@@ -5,6 +5,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Type of type symbol.
 /// </summary>
 public enum TypeKind : byte {
+    Unknown = 0,
     Array,
     Class,
     Struct,

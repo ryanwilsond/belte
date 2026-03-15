@@ -2,11 +2,11 @@
 class Enemy extends PhysicsEntity {
     int! walking;
 
-    public constructor(ref Program game, Vec2 position) : base(ref game, position, 1) {
+    public constructor(Program game, Vec2 position) : base(game, position, 1) {
         walking = 0;
     }
 
-    public override bool! Update(decimal! deltaTime, ref TileMap tileMap, Vec2 movement) {
+    public override bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
         if (walking > 0) {
             var nearTiles = tileMap.GetSortedNearTiles(box.x, box.y);
             var target = nearTiles[flip ? 6 : 8];
@@ -17,10 +17,10 @@ class Enemy extends PhysicsEntity {
                 if (collisions[LeftCollide] || collisions[RightCollide])
                     flip = !flip;
                 else
-                    movement.x += flip ? -2 : 2;
+                    movement.x += flip ? -(2) : (2);
             }
 
-            walking = Math.Max(0, walking - 1);
+            walking = (int!)Math.Max(0, walking - 0.5 * deltaTime);
 
             if (walking == 0) {
                 var distance = new Vec2(game.player.pos.x - pos.x, game.player.pos.y - pos.y);
@@ -29,27 +29,27 @@ class Enemy extends PhysicsEntity {
                     if (flip && distance.x < 0) {
                         Graphics.PlaySound(game.sfx[3]!);
                         var projPos = new Vec2(box.x + box.w / 2 - 7 * 4, box.y + box.h / 2);
-                        game.projectiles[game.projectileCount++] = new Projectile(ref game, -1.5 * 240, projPos);
+                        game.projectiles[game.projectileCount++] = new Projectile(game, -1.5 * 300, projPos);
 
                         for (int! i = 0; i < 4; i++)
-                            game.sparks[game.sparkCount++] = new Spark(projPos, Random.Random() - 0.5 + Math.PI, 2 * 6 + Random.Random() * 6);
+                            game.sparks[game.sparkCount++] = new Spark(projPos.Copy(), Random.Random() - 0.5 + Math.PI, 2 * 6 + Random.Random() * 6);
                     }
 
                     if (!flip && distance.x > 0) {
                         Graphics.PlaySound(game.sfx[3]!);
                         var projPos = new Vec2(box.x + box.w / 2 + 7 * 4, box.y + box.h / 2);
-                        game.projectiles[game.projectileCount++] = new Projectile(ref game, 1.5 * 240, projPos);
+                        game.projectiles[game.projectileCount++] = new Projectile(game, 1.5 * 300, projPos);
 
                         for (int! i = 0; i < 4; i++)
-                            game.sparks[game.sparkCount++] = new Spark(projPos, Random.Random() - 0.5, 2 * 6 + Random.Random() * 6);
+                            game.sparks[game.sparkCount++] = new Spark(projPos.Copy(), Random.Random() - 0.5, 2 * 6 + Random.Random() * 6);
                     }
                 }
             }
-        } else if (Random.Random() < 0.5 * deltaTime) {
-            walking = Random.RandInt(90) + 30;
+        } else if (Random.Random() * 2 < deltaTime) {
+            walking = (Random.RandInt(90) + 30) * 10;
         }
 
-        base.Update(deltaTime, ref tileMap, movement);
+        base.Update(deltaTime, tileMap, movement);
 
         if (movement.x != 0)
             SetAction(1);
@@ -67,22 +67,22 @@ class Enemy extends PhysicsEntity {
                     var speed = Random.Random() * 10 * 60;
 
                     game.particles[game.particleCount++] = new Particle(
-                        projPos,
+                        projPos.Copy(),
                         new Vec2(Math.Cos(angle + Math.PI) * speed * 0.5, Math.Sin(angle + Math.PI) * speed * 0.5),
-                        game.animations.particle,
+                        game.animations.GetParticleAnimation("particle"),
                         "particle",
                         Random.RandInt(1)
                     );
 
                     game.sparks[game.sparkCount++] = new Spark(
-                        projPos,
+                        projPos.Copy(),
                         angle,
                         2 * 6 + Random.Random() * 6
                     );
                 }
 
-                game.sparks[game.sparkCount++] = new Spark(projPos, 0, 5 * 6 + Random.Random() * 6);
-                game.sparks[game.sparkCount++] = new Spark(projPos, Math.PI, 5 * 6 + Random.Random() * 6);
+                game.sparks[game.sparkCount++] = new Spark(projPos.Copy(), 0, 5 * 6 + Random.Random() * 6);
+                game.sparks[game.sparkCount++] = new Spark(projPos.Copy(), Math.PI, 5 * 6 + Random.Random() * 6);
 
                 return true;
             }

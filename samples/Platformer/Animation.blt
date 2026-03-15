@@ -1,7 +1,7 @@
 
 class Animation {
     int length;
-    ref Texture[] textures;
+    Texture[] textures;
     decimal duration;
     bool loop;
     decimal timer;
@@ -9,7 +9,7 @@ class Animation {
     public int frame;
     public bool done;
 
-    public constructor(ref Texture[] textures, int duration = 5, bool loop = true) {
+    public constructor(Texture[] textures, int duration = 5, bool loop = true) {
         length = LowLevel.Length(textures);
         this.textures = textures;
         this.duration = duration / 60.0;
@@ -39,7 +39,7 @@ class Animation {
         }
     }
 
-    public ref Texture GetTexture() {
-        return ref textures[frame];
+    public Texture GetTexture() {
+        return textures[frame];
     }
 }

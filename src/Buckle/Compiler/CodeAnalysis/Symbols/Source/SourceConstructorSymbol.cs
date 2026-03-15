@@ -14,20 +14,18 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
             containingType,
             syntax,
             MakeModifiersAndFlags(
-                containingType,
                 syntax,
                 syntax.constructorInitializer?.thisOrBaseKeyword?.kind == SyntaxKind.ThisKeyword,
                 diagnostics,
                 out var hasErrors
             )
         ) {
-        var hasAnyBody = _flags.hasAnyBody;
         location = syntax.constructorKeyword.location;
 
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
 
         if (!hasErrors)
-            CheckModifiers(hasAnyBody, location, diagnostics);
+            CheckModifiers(location, diagnostics);
     }
 
     internal override TextLocation location { get; }
@@ -46,6 +44,10 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         return (ConstructorDeclarationSyntax)syntaxReference.node;
     }
 
+    internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        return OneOrMany.Create(((ConstructorDeclarationSyntax)syntaxNode).attributeLists);
+    }
+
     internal override ExecutableCodeBinder TryGetBodyBinder(
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {
@@ -57,20 +59,13 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
-        NamedTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
         bool hasThisInitializer,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var hasAnyBody = syntax.body is not null;
 
-        var declarationModifiers = MakeModifiers(
-            containingType,
-            syntax,
-            hasAnyBody,
-            diagnostics,
-            out modifierErrors
-        );
+        var declarationModifiers = MakeModifiers(syntax, diagnostics, out modifierErrors);
 
         var flags = new Flags(
             MethodKind.Constructor,
@@ -86,9 +81,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
     }
 
     private static DeclarationModifiers MakeModifiers(
-        NamedTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
-        bool hasBody,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var defaultAccess = DeclarationModifiers.Private;
@@ -106,13 +99,26 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         return mods;
     }
 
-    private void CheckModifiers(bool hasBody, TextLocation location, BelteDiagnosticQueue diagnostics) {
-        if (!hasBody) ;
-        // TODO Does this ever happen? Or does the Parser catch this
-        // diagnostics.Add(ErrorCode.ERR_ConcreteMissingBody, location, this);
-        else if (containingType.isSealed && declaredAccessibility == Accessibility.Protected && !isOverride)
-            diagnostics.Push(Warning.ProtectedMemberInSealedType(location, containingType, this));
+    private void CheckModifiers(TextLocation location, BelteDiagnosticQueue diagnostics) {
+        if (containingType.isSealed && declaredAccessibility == Accessibility.Protected && !isOverride)
+            diagnostics.Push(Warning.ProtectedInSealed(location, this));
         else if (containingType.isStatic)
             diagnostics.Push(Error.ConstructorInStaticClass(location));
+    }
+
+    private protected override SyntaxNode GetInitializer() {
+        return GetSyntax().constructorInitializer;
+    }
+
+    private protected override bool IsWithinBody(int position, out int offset) {
+        var ctorSyntax = GetSyntax();
+
+        if (ctorSyntax.body.span.Contains(position)) {
+            offset = position - ctorSyntax.body.span.start;
+            return true;
+        }
+
+        offset = -1;
+        return false;
     }
 }

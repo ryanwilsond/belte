@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using static Buckle.Libraries.LibraryHelpers;
 
@@ -17,6 +16,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
+
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
         get {
@@ -110,6 +110,10 @@ internal static class StandardLibrary {
         yield return String;
     }
 
+    internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
+        return (MethodSymbol)Math.GetMembers("Pow")[(isLifted ? 0 : 1) + (isInt ? 2 : 0)];
+    }
+
     private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
         return StaticClass("Random", [
             StaticMethod("RandInt", SpecialType.Int, [("max", SpecialType.Int, true)]),
@@ -120,6 +124,8 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateString() {
         return StaticClass("String", [
             StaticMethod("Split", StringArray, [("text", SpecialType.String), ("separator", SpecialType.String)]),
+            StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
+            StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
         ]);
     }
 
@@ -136,6 +142,7 @@ internal static class StandardLibrary {
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
             StaticMethod("Length", SpecialType.Int, true, [("array", SpecialType.Any, true)]),
             StaticMethod("Sort", SpecialType.Void, [("array", SpecialType.Any, true)]),
+            StaticMethod("ThrowNullConditionException", SpecialType.Void),
         ]);
     }
 
@@ -185,6 +192,7 @@ internal static class StandardLibrary {
                 ConstExprField("Yellow", SpecialType.Int, 14L),
                 ConstExprField("White", SpecialType.Int, 15L)
             ]),
+            StaticMethod("Clear", SpecialType.Void),
             StaticMethod("GetWidth", SpecialType.Int),
             StaticMethod("GetHeight", SpecialType.Int),
             StaticMethod("Input", SpecialType.String),
@@ -192,13 +200,16 @@ internal static class StandardLibrary {
             StaticMethod("PrintLine", SpecialType.Void, [("message", SpecialType.String, true)]),
             StaticMethod("PrintLine", SpecialType.Void, [("value", SpecialType.Any, true)]),
             StaticMethod("PrintLine", SpecialType.Void, [("object", SpecialType.Object, true)]),
+            StaticMethod("PrintLine", SpecialType.Void, [("chars", CharArray, true)]),
             StaticMethod("Print", SpecialType.Void, [("message", SpecialType.String, true)]),
             StaticMethod("Print", SpecialType.Void, [("value", SpecialType.Any, true)]),
             StaticMethod("Print", SpecialType.Void, [("object", SpecialType.Object, true)]),
+            StaticMethod("Print", SpecialType.Void, [("chars", CharArray, true)]),
             StaticMethod("ResetColor", SpecialType.Void),
             StaticMethod("SetForegroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
             StaticMethod("SetBackgroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
             StaticMethod("SetCursorPosition", SpecialType.Void, [("left", SpecialType.Int, true), ("top", SpecialType.Int, true)]),
+            StaticMethod("SetCursorVisibility", SpecialType.Void, [("visible", SpecialType.Bool)]),
         ]);
     }
 
@@ -252,8 +263,14 @@ internal static class StandardLibrary {
             StaticMethod("Min", SpecialType.Int, [("val1", SpecialType.Int), ("val2", SpecialType.Int)]),
             StaticMethod("Pow", SpecialType.Decimal, true, [("x", SpecialType.Decimal, true), ("y", SpecialType.Decimal, true)]),
             StaticMethod("Pow", SpecialType.Decimal, [("x", SpecialType.Decimal), ("y", SpecialType.Decimal)]),
+            StaticMethod("Pow", SpecialType.Int, true, [("x", SpecialType.Int, true), ("y", SpecialType.Int, true)]),
+            StaticMethod("Pow", SpecialType.Int, [("x", SpecialType.Int), ("y", SpecialType.Int)]),
             StaticMethod("Round", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
             StaticMethod("Round", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
+            StaticMethod("Sign", SpecialType.Int, [("value", SpecialType.Decimal)]),
+            StaticMethod("Sign", SpecialType.Int, true, [("value", SpecialType.Decimal, true)]),
+            StaticMethod("Sign", SpecialType.Int, [("value", SpecialType.Int)]),
+            StaticMethod("Sign", SpecialType.Int, true, [("value", SpecialType.Int, true)]),
             StaticMethod("Sin", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
             StaticMethod("Sin", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Sinh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
@@ -271,6 +288,8 @@ internal static class StandardLibrary {
 
     private static Dictionary<string, Func<object, object, object, object>> GenerateEvaluatorMap() {
         return new Dictionary<string, Func<object, object, object, object>>() {
+            { "Console_Clear", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.Clear(); return null; }) },
             { "Console_GetWidth", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) return System.Console.WindowWidth; return null; }) },
             { "Console_GetHeight", new Func<object, object, object, object>((a, b, c)
@@ -285,12 +304,16 @@ internal static class StandardLibrary {
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
             { "Console_PrintLine_O?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
+            { "Console_PrintLine_[?", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(Array.ConvertAll((object[])a, i => (char)i)); return null; }) },
             { "Console_Print_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
             { "Console_Print_A?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
             { "Console_Print_O?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
+            { "Console_Print_[?", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.Write(Array.ConvertAll((object[])a, i => (char)i)); return null; }) },
             { "Console_ResetColor", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
             { "Console_SetForegroundColor_I", new Func<object, object, object, object>((a, b, c)
@@ -298,7 +321,9 @@ internal static class StandardLibrary {
             { "Console_SetBackgroundColor_I", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
             { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition((int?)a ?? System.Console.CursorLeft, (int?)b ?? System.Console.CursorTop); } return null; }) },
+                => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition(a is null ? System.Console.CursorLeft : Convert.ToInt32(a), b is null ? System.Console.CursorTop : Convert.ToInt32(b)); } return null; }) },
+            { "Console_SetCursorVisibility_B", new Func<object, object, object, object>((a, b, c)
+                => { if (!System.Console.IsOutputRedirected) System.Console.CursorVisible = Convert.ToBoolean(a); return null;}) },
             { "Directory_Create_S", new Func<object, object, object, object>((a, b, c)
                 => { System.IO.Directory.CreateDirectory((string)a); return null; }) },
             { "Directory_Delete_S", new Func<object, object, object, object>((a, b, c)
@@ -413,10 +438,22 @@ internal static class StandardLibrary {
                 => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Pow_DD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Pow_I?I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : Convert.ToInt64(System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b))); }) },
+            { "Math_Pow_II", new Func<object, object, object, object>((a, b, c)
+                => { return Convert.ToInt64(System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b))); }) },
             { "Math_Round_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Round(Convert.ToDouble(a)); }) },
             { "Math_Round_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Round(Convert.ToDouble(a)); }) },
+            { "Math_Sign_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sign(Convert.ToDouble(a)); }) },
+            { "Math_Sign_D", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sign(Convert.ToDouble(a)); }) },
+            { "Math_Sign_I?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : System.Math.Sign(Convert.ToInt64(a)); }) },
+            { "Math_Sign_I", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Sign(Convert.ToInt64(a)); }) },
             { "Math_Sin_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Sin(Convert.ToDouble(a)); }) },
             { "Math_Sin_D", new Func<object, object, object, object>((a, b, c)
@@ -442,11 +479,15 @@ internal static class StandardLibrary {
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "LowLevel_Length_A?", new Func<object, object, object, object>((a, b, c)
-                => { return a is not EvaluatorObject[] array ? null : Convert.ToInt64(array.Length); }) },
+                => { return a is not object[] array ? null : array.LongLength; }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
-                => { Thread.Sleep(Convert.ToInt32(a)); return null; }) }
+                => { Thread.Sleep(Convert.ToInt32(a)); return null; }) },
+            { "String_Ascii_S", new Func<object, object, object, object>((a, b, c)
+                => { return char.TryParse((string)a, out var result) ? (long)result : null; }) },
+            { "String_Char_I", new Func<object, object, object, object>((a, b, c)
+                => { return Convert.ToChar(a); }) },
         };
     }
 }

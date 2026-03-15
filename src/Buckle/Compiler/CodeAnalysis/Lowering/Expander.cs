@@ -12,12 +12,13 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Expander : BoundTreeExpander {
     private readonly List<string> _localNames = [];
-    private readonly MethodSymbol _container;
+    private MethodSymbol _container;
 
     private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
     private int _conditionalDepth = 0;
+    private int _accessDepth = 0;
 
     internal Expander(MethodSymbol container) {
         _container = container;
@@ -27,10 +28,81 @@ internal sealed class Expander : BoundTreeExpander {
         return Simplify(statement.syntax, ExpandStatement(statement));
     }
 
+    private protected override List<BoundStatement> ExpandLocalFunctionStatement(
+        BoundLocalFunctionStatement statement) {
+        var oldContainer = _container;
+        _container = statement.symbol;
+        var newStatements = base.ExpandLocalFunctionStatement(statement);
+        _container = oldContainer;
+        return newStatements;
+    }
+
     private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
         _localNames.Add(statement.declaration.dataContainer.name);
         return base.ExpandLocalDeclarationStatement(statement);
+    }
+
+    private protected override List<BoundStatement> ExpandFieldAccessExpression(
+        BoundFieldAccessExpression expression,
+        out BoundExpression replacement) {
+        var type = expression.receiver.type;
+        var syntax = expression.syntax;
+
+        var savedAccessDepth = _accessDepth;
+        _accessDepth++;
+
+        if (type.IsNullableType() && type.GetNullableUnderlyingType().IsStructType()) {
+            var underlyingType = type.GetNullableUnderlyingType();
+
+            var statements = ExpandExpression(expression.receiver, out var newReceiver);
+
+            newReceiver = Lowerer.CreateNullableGetValueCall(syntax, newReceiver, underlyingType);
+            var tempLocal = GenerateTempLocal(type);
+
+            statements.AddRange(
+                new BoundLocalDeclarationStatement(syntax,
+                    new BoundDataContainerDeclaration(syntax, tempLocal, newReceiver)
+                )
+            );
+
+            replacement = new BoundFieldAccessExpression(syntax,
+                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                expression.field,
+                expression.constantValue,
+                expression.field.type
+            );
+
+            _accessDepth = savedAccessDepth;
+            return statements;
+        }
+
+        if (_conditionalDepth > 0 && _accessDepth <= 1) {
+            var statements = ExpandExpression(expression.receiver, out var newReceiver);
+            var tempLocal = GenerateTempLocal(expression.type);
+
+            statements.Add(
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                    syntax,
+                    tempLocal,
+                    new BoundFieldAccessExpression(
+                        syntax,
+                        newReceiver,
+                        expression.field,
+                        expression.constantValue,
+                        expression.type
+                    )
+                ))
+            );
+
+            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+
+            _accessDepth = savedAccessDepth;
+            return statements;
+        }
+
+        _accessDepth--;
+        return base.ExpandFieldAccessExpression(expression, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandCompoundAssignmentOperator(
@@ -176,12 +248,12 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         _operatorDepth++;
         var savedConditionalDepth = _conditionalDepth;
+        var syntax = expression.syntax;
 
         if (expression.left.type.IsNullableType() || expression.right.type.IsNullableType())
             _conditionalDepth++;
 
         if (_conditionalDepth > 1) {
-            var syntax = expression.syntax;
             var statements = ExpandExpression(expression.left, out var newLeft);
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
@@ -424,6 +496,11 @@ internal sealed class Expander : BoundTreeExpander {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new SynthesizedDataContainerSymbol(_container, new TypeWithAnnotations(type), name);
+        return new SynthesizedDataContainerSymbol(
+            _container,
+            new TypeWithAnnotations(type),
+            SynthesizedLocalKind.ExpanderTemp,
+            name
+        );
     }
 }

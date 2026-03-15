@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.Emitting;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -21,21 +21,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
         _expander = new Expander(container);
     }
 
-    internal static BoundBlockStatement Lower(
-        MethodSymbol method,
-        BoundStatement statement,
-        BelteDiagnosticQueue diagnostics) {
+    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
         var lowerer = new Lowerer(method);
 
-        // TODO Maybe separate Optimizer into Optimizer and DeadCodeRemover to prevent calling the Optimizer twice?
+        var rewrittenStatement = Optimizer.Optimize(statement);
 
-        var rewrittenStatement = Optimizer.Optimize(statement, false, diagnostics);
-        // We need to lower control of flow before expanding to ensure the condition expressions aren't "cached"
         rewrittenStatement = FlowLowerer.Lower(rewrittenStatement);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, rewrittenStatement);
-        rewrittenStatement = Optimizer.Optimize(rewrittenStatement, true, diagnostics);
+
+        rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
 
         return (BoundBlockStatement)rewrittenStatement;
     }
@@ -50,40 +46,138 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.Visit(node);
     }
 
-    private bool ShouldBeTreatedAsNullable(TypeSymbol type) {
-        return type.IsNullableType() && ILEmitter.CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
+    internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
+        /*
+
+        <left> = <right>
+
+        ----> <left> is nullable and <right> is not nullable
+
+        <left> = new Nullable(<right>)
+
+        */
+        if (expression.left.type.IsNullableType() &&
+            !expression.right.type.IsNullableType() &&
+            CodeGenerator.IsValueType(expression.right.type)) {
+            var syntax = expression.syntax;
+
+            return VisitAssignmentOperator(
+                Assignment(
+                    syntax,
+                    expression.left,
+                    CreateNullable(syntax, expression.right, expression.left.type),
+                    expression.isRef,
+                    expression.type
+                )
+            );
+        }
+
+        return base.VisitAssignmentOperator(expression);
     }
 
-    private BoundExpression CreateNullable(
-        Syntax.SyntaxNode syntax,
-        BoundExpression expression,
-        TypeSymbol nullableType) {
-        if (!ShouldBeTreatedAsNullable(nullableType))
-            return expression;
+    internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
+        /*
 
-        return new BoundObjectCreationExpression(
-            syntax,
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
-                .Construct([new TypeOrConstant(nullableType.GetNullableUnderlyingType())]),
-            [expression],
-            default,
-            default,
-            default,
-            false,
-            nullableType
-        );
+        <type> <localSymbol> = <initializer>
+
+        ----> <localSymbol> is nullable and <initializer> is not nullable
+
+        <type> <localSymbol> = new Nullable(<initializer>);
+
+        */
+        var declaration = statement.declaration;
+
+        if (declaration.dataContainer.type.IsNullableType() &&
+            !declaration.initializer.type.IsNullableType() &&
+            CodeGenerator.IsValueType(declaration.initializer.type)) {
+            var syntax = statement.syntax;
+            return VisitLocalDeclarationStatement(new BoundLocalDeclarationStatement(syntax,
+                new BoundDataContainerDeclaration(syntax,
+                    declaration.dataContainer,
+                    CreateNullable(
+                        syntax,
+                        declaration.initializer,
+                        CorLibrary.GetOrCreateNullableType(declaration.initializer.type)
+                    )
+                )
+            ));
+        }
+
+        return base.VisitLocalDeclarationStatement(statement);
     }
 
-    private BoundNode VisitConstant(BoundExpression expression) {
-        // TODO Handle initializer list constants
-        var syntax = expression.syntax;
-        var type = expression.type;
-        var literal = new BoundLiteralExpression(syntax, expression.constantValue, type?.StrippedType());
+    internal override BoundNode VisitConditionalOperator(BoundConditionalOperator expression) {
+        /*
 
-        if (expression.constantValue.value is null)
-            return literal;
+        <condition> ? <trueExpr> : <falseExpr>
 
-        return CreateNullable(syntax, literal, type);
+        ----> <condition> is nullable
+
+        goto <label> if <condition>.get_Value()
+
+        */
+        var condition = (BoundExpression)Visit(expression.condition);
+
+        if (condition.constantValue is null && condition.type.IsNullableType()) {
+            var syntax = expression.syntax;
+
+            return VisitConditionalOperator(
+                new BoundConditionalOperator(
+                    syntax,
+                    RewriteNull(syntax, condition),
+                    expression.isRef,
+                    expression.trueExpression,
+                    expression.falseExpression,
+                    null,
+                    expression.type
+                )
+            );
+        }
+
+        return base.VisitConditionalOperator(expression);
+    }
+
+    internal override BoundNode VisitConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+        /*
+
+        goto <label> if <condition>
+
+        ----> <condition> is conditional operator 'C' and C.falseExpr is <null>
+
+        goto <label> if (<C.condition> ? <C.trueExpr>! : LowLevel.ThrowNullConditionException())
+
+        ----> <condition> is nullable
+
+        goto <label> if <condition>.get_Value()
+
+        */
+        var condition = (BoundExpression)Visit(statement.condition);
+
+        if (condition.constantValue is null &&
+            condition.type.IsNullableType()) {
+            var syntax = statement.syntax;
+
+            if (condition is BoundConditionalOperator conditional) {
+                condition = Conditional(
+                    syntax,
+                    conditional.condition,
+                    RewriteNull(syntax, conditional.trueExpression),
+                    RewriteNull(syntax, conditional.falseExpression),
+                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                );
+            }
+
+            return VisitConditionalGotoStatement(
+                new BoundConditionalGotoStatement(
+                    syntax,
+                    statement.label,
+                    RewriteNull(syntax, condition),
+                    statement.jumpIfTrue
+                )
+            );
+        }
+
+        return base.VisitConditionalGotoStatement(statement);
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
@@ -95,76 +189,131 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <method>(<left>, <right>)
 
+        ----> <op> is && or ||
+
+        ((<left> ?? false) <op> (<right> ?? false))
+
         ----> <left> is nullable and <right> is nullable
 
-        ((HasValue(<left>) && HasValue(<right>)) ? Value(<left>) <op> Value(<right>) : null)
+        ((HasValue(<left>) && HasValue(<right>)) ? new Nullable( Value(<left>) <op> Value(<right>) ) : null)
 
         ----> <left> is nullable
 
-        (HasValue(<left>) ? Value(<left>) <op> <right> : null)
+        (HasValue(<left>) ? new Nullable( Value(<left>) <op> <right> ) : null)
 
         ----> <right> is nullable
 
-        (<right> isnt null ? <left> <op> Value(<right>) : null)
+        (<right> isnt null ? new Nullable( <left> <op> Value(<right>) ) : null)
 
         */
         var syntax = expression.syntax;
         var op = expression.operatorKind;
+        var type = expression.type;
+
+        if (op.Operator() == BinaryOperatorKind.Power) {
+            return Visit(
+                Call(
+                    syntax,
+                    StandardLibrary.GetPowerMethod(op.IsLifted(), op.OperandTypes() == BinaryOperatorKind.Int),
+                    expression.left,
+                    expression.right
+                )
+            );
+        }
 
         if (expression.method is not null)
             return Visit(Call(syntax, expression.method, expression.left, expression.right));
 
-        if (op.IsLifted()) {
-            if (expression.left.type.IsNullableType() &&
-                expression.right.type.IsNullableType() &&
-                expression.left.constantValue is null &&
-                expression.right.constantValue is null) {
+        if (op.IsLifted() || op.IsConditional()) {
+            var left = expression.left;
+            var right = expression.right;
+
+            if (left is BoundCastExpression lCast &&
+                lCast.conversion.kind == ConversionKind.ImplicitNullable &&
+                lCast.conversion.underlyingConversions[0].kind == ConversionKind.Identity) {
+                left = lCast.operand;
+            }
+
+            if (right is BoundCastExpression rCast &&
+                rCast.conversion.kind == ConversionKind.ImplicitNullable &&
+                rCast.conversion.underlyingConversions[0].kind == ConversionKind.Identity) {
+                right = rCast.operand;
+            }
+
+            var leftIsNullable = left.type.IsNullableType();
+            var rightIsNullable = right.type.IsNullableType();
+
+            if (op.IsConditional() && (leftIsNullable || rightIsNullable)) {
+                var coalescedLeft = leftIsNullable
+                    ? new BoundNullCoalescingOperator(syntax, left, Literal(syntax, false, type), null, type)
+                    : left;
+
+                var coalescedRight = rightIsNullable
+                    ? new BoundNullCoalescingOperator(syntax, right, Literal(syntax, false, type), null, type)
+                    : right;
+
+                return VisitBinaryOperator(Binary(syntax, coalescedLeft, op, coalescedRight, type));
+            }
+
+            if (leftIsNullable &&
+                rightIsNullable &&
+                left.constantValue is null &&
+                right.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
                         @if: And(syntax,
-                            HasValue(syntax, expression.left),
-                            HasValue(syntax, expression.right)
+                            HasValue(syntax, left),
+                            HasValue(syntax, right)
                         ),
-                        @then: Binary(syntax,
-                            Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
-                            op,
-                            Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
-                            expression.type
+                        @then: CreateNullable(syntax,
+                            Binary(syntax,
+                                Value(syntax, left, left.type.GetNullableUnderlyingType()),
+                                op,
+                                Value(syntax, right, right.type.GetNullableUnderlyingType()),
+                                type.StrippedType()
+                                ),
+                            type
                         ),
-                        @else: Literal(syntax, null, expression.type),
-                        expression.type
+                        @else: Literal(syntax, null, type),
+                        type
                     )
                 );
             }
 
-            if (expression.left.type.IsNullableType() && expression.left.constantValue is null) {
+            if (leftIsNullable && left.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
-                        @if: HasValue(syntax, expression.left),
-                        @then: Binary(syntax,
-                            Value(syntax, expression.left, expression.left.type.GetNullableUnderlyingType()),
-                            op,
-                            expression.right,
-                            expression.type
+                        @if: HasValue(syntax, left),
+                        @then: CreateNullable(syntax,
+                            Binary(syntax,
+                                Value(syntax, left, left.type.GetNullableUnderlyingType()),
+                                op,
+                                DeNull(right),
+                                type.StrippedType()
+                            ),
+                            type
                         ),
-                        @else: Literal(syntax, null, expression.type),
-                        expression.type
+                        @else: Literal(syntax, null, type),
+                        type
                     )
                 );
             }
 
-            if (expression.right.type.IsNullableType() && expression.right.constantValue is null) {
+            if (rightIsNullable && right.constantValue is null) {
                 return VisitConditionalOperator(
                     Conditional(syntax,
-                        @if: HasValue(syntax, expression.right),
-                        @then: Binary(syntax,
-                            expression.left,
-                            op,
-                            Value(syntax, expression.right, expression.right.type.GetNullableUnderlyingType()),
-                            expression.type
+                        @if: HasValue(syntax, right),
+                        @then: CreateNullable(syntax,
+                            Binary(syntax,
+                                DeNull(left),
+                                op,
+                                Value(syntax, right, right.type.GetNullableUnderlyingType()),
+                                type.StrippedType()
+                            ),
+                            type
                         ),
-                        @else: Literal(syntax, null, expression.type),
-                        expression.type
+                        @else: Literal(syntax, null, type),
+                        type
                     )
                 );
             }
@@ -188,7 +337,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return VisitConditionalOperator(
             Conditional(syntax,
                 @if: HasValue(syntax, expression.left),
-                @then: Value(syntax, expression.left, expression.left.type),
+                @then: Value(syntax, expression.left, expression.left.type.StrippedType()),
                 @else: expression.right,
                 expression.type
             )
@@ -210,7 +359,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <operand> is nullable
 
-        (HasValue(<operand>) ? <op> Value(<operand>) : null)
+        (HasValue(<operand>) ? new Nullable( <op> Value(<operand>) ) : null)
 
         */
         var syntax = expression.syntax;
@@ -222,14 +371,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (op == UnaryOperatorKind.UnaryPlus)
             return Visit(expression.operand);
 
-        // TODO Is there any case where an operator is lifted but not nullable or vice versa?
         if (op.IsLifted() && expression.operand.type.IsNullableType()) {
             return VisitConditionalOperator(
                 Conditional(syntax,
                     @if: HasValue(syntax, expression.operand),
-                    @then: Unary(syntax,
-                        op,
-                        Value(syntax, expression.operand, expression.operand.type.GetNullableUnderlyingType()),
+                    @then: CreateNullable(syntax,
+                        Unary(syntax,
+                            op,
+                            Value(syntax, expression.operand, expression.operand.type.GetNullableUnderlyingType()),
+                            expression.type.StrippedType()
+                        ),
                         expression.type
                     ),
                     @else: Literal(syntax, null, expression.type),
@@ -239,6 +390,93 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.VisitUnaryOperator(expression);
+    }
+
+    internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
+        var syntax = expression.syntax;
+
+        if (expression.index.type.IsNullableType()) {
+            return Visit(new BoundArrayAccessExpression(syntax,
+                expression.receiver,
+                RewriteNull(syntax, expression.index),
+                expression.constantValue,
+                expression.type
+            ));
+        }
+
+        return base.VisitArrayAccessExpression(expression);
+    }
+
+    internal override BoundNode VisitInitializerList(BoundInitializerList expression) {
+        /*
+
+        <list>
+
+        ---->
+
+        new Array() <list>
+
+        */
+        var syntax = expression.syntax;
+        var sizeType = CorLibrary.GetSpecialType(SpecialType.Int);
+
+        return VisitArrayCreationExpression(
+            new BoundArrayCreationExpression(
+                syntax,
+                [Literal(syntax, (long)expression.items.Length, sizeType)],
+                VisitNonIsolatedList(expression),
+                expression.type
+            )
+        );
+    }
+
+    private BoundInitializerList VisitNonIsolatedList(BoundInitializerList expression) {
+        var syntax = expression.syntax;
+        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+        ArrayBuilder<BoundExpression>? newList = null;
+
+        for (var i = 0; i < expression.items.Length; i++) {
+            var item = expression.items[i];
+            var visited = VisitListItem(item);
+
+            if (newList is null && item != visited) {
+                newList = ArrayBuilder<BoundExpression>.GetInstance();
+
+                if (i > 0)
+                    newList.AddRange(expression.items, i);
+            }
+
+            if (newList is not null && visited is not null)
+                newList.Add((BoundExpression)visited);
+        }
+
+        if (newList is not null)
+            return new BoundInitializerList(syntax, newList.ToImmutableAndFree(), expression.type);
+
+        return expression;
+
+        BoundNode VisitListItem(BoundExpression item) {
+            if (ShouldBeTreatedAsNullable(arrayType.elementType) &&
+                !item.type.IsNullableType()) {
+                if (item.constantValue is null)
+                    return Visit(CreateNullable(syntax, item, arrayType.elementType));
+                else
+                    return VisitConstant(Literal(syntax, item.constantValue.value, arrayType.elementType));
+            }
+
+            return Visit(item);
+        }
+    }
+
+    internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression expression) {
+        var sizes = VisitList(expression.sizes);
+
+        var initializer = expression.initializer is null
+            ? null
+            : VisitNonIsolatedList(expression.initializer);
+
+        var type = VisitType(expression.type);
+        return expression.Update(sizes, initializer, type);
     }
 
     internal override BoundNode VisitIncrementOperator(BoundIncrementOperator expression) {
@@ -317,12 +555,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
             }
 
             var binaryOp = expression.isNot ? BinaryOperatorKind.NotEqual : BinaryOperatorKind.Equal;
+            var right = Literal(expression.right.syntax, null, expression.left.type);
 
             binaryOp |= expression.left.type.specialType == SpecialType.String
                 ? BinaryOperatorKind.String
                 : BinaryOperatorKind.Object;
 
-            return Visit(Binary(syntax, expression.left, binaryOp, expression.right, expression.type));
+            return Visit(Binary(syntax, expression.left, binaryOp, right, expression.type));
         }
 
         return base.VisitIsOperator(expression);
@@ -345,7 +584,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal static BoundExpression CreateNullableGetValueCall(
-        Syntax.SyntaxNode syntax,
+        SyntaxNode syntax,
         BoundExpression operand,
         TypeSymbol genericType) {
         return InstanceCall(
@@ -383,7 +622,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = expression.type;
         var operandType = operand.type;
 
-        if (operandType?.Equals(type) ?? false)
+        if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
             return Visit(operand);
 
         if (expression.conversion.underlyingConversions == default)
@@ -466,35 +705,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var method = expression.method;
-        // var parameters = ArrayBuilder<ParameterSymbol>.GetInstance();
 
         if (method.name == "Value" && !expression.arguments[0].type.IsNullableType())
             return Visit(expression.arguments[0]);
         else if (method.name == "HasValue" && !expression.arguments[0].type.IsNullableType())
             return Literal(syntax, true, expression.type);
-
-        /*
-        var parametersChanged = false;
-
-        foreach (var oldParameter in method.parameters) {
-            var name = oldParameter.name.StartsWith("$")
-                ? oldParameter.name.Substring(1)
-                : oldParameter.name;
-
-            if (name == oldParameter.name) {
-                parameters.Add(oldParameter);
-                continue;
-            }
-
-            TODO Check if we even need this
-            var parameter = new ParameterSymbol(
-                name, oldParameter.type, oldParameter.ordinal, oldParameter.defaultValue
-            );
-
-            parametersChanged = true;
-            parameters.Add(parameter);
-        }
-        */
 
         ArrayBuilder<BoundExpression> builder = null;
 
@@ -513,10 +728,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             builder?.Add(newArgument);
         }
-
-        // var newMethod = parametersChanged
-        //     ? method.UpdateParameters(parameters.ToImmutableAndFree())
-        //     : method;
 
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
@@ -549,10 +760,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return VisitAssignmentOperator(
             Assignment(syntax,
                 expression.left,
-                Binary(syntax,
+                new BoundBinaryOperator(
+                    syntax,
                     expression.left,
-                    expression.op.kind,
                     expression.right,
+                    expression.op.kind,
+                    expression.op.method,
+                    ConstantFolding.FoldBinary(expression.left, expression.right, expression.op.kind, expression.type),
                     expression.type
                 ),
                 false,
@@ -628,5 +842,85 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private static bool CanFallThrough(BoundStatement boundStatement) {
         return boundStatement.kind != BoundKind.ReturnStatement &&
             boundStatement.kind != BoundKind.GotoStatement;
+    }
+
+    private bool ShouldBeTreatedAsNullable(TypeSymbol type) {
+        return type.IsNullableType() && CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
+    }
+
+    private BoundExpression CreateNullable(
+        SyntaxNode syntax,
+        BoundExpression expression,
+        TypeSymbol nullableType) {
+        if (!ShouldBeTreatedAsNullable(nullableType))
+            return expression;
+
+        if (expression is BoundObjectCreationExpression creation &&
+            creation.type.specialType == SpecialType.Nullable) {
+            return expression;
+        }
+
+        return new BoundObjectCreationExpression(
+            syntax,
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
+                .Construct([new TypeOrConstant(nullableType.GetNullableUnderlyingType())]),
+            [expression],
+            default,
+            default,
+            default,
+            false,
+            nullableType
+        );
+    }
+
+    private BoundNode VisitConstant(BoundExpression expression) {
+        var syntax = expression.syntax;
+        var type = expression.type;
+
+        if (expression.constantValue.value is null)
+            type = CorLibrary.GetOrCreateNullableType(type);
+
+        return new BoundLiteralExpression(
+            syntax,
+            expression.constantValue,
+            ShouldBeTreatedAsNullable(type) ? type : type.StrippedType()
+        );
+    }
+
+    private static BoundExpression RewriteNull(SyntaxNode syntax, BoundExpression expression) {
+        if (ConstantValue.IsNull(expression.constantValue)) {
+            return Call(
+                syntax,
+                (MethodSymbol)StandardLibrary.LowLevel.GetMembers("ThrowNullConditionException")[0],
+                []
+            );
+        }
+
+        if (expression is BoundObjectCreationExpression creation &&
+            creation.type.specialType == SpecialType.Nullable) {
+            return RewriteNull(syntax, creation.arguments[0]);
+        }
+
+        if (expression is BoundBinaryOperator binary && binary.operatorKind.IsConditional()) {
+            return Binary(
+                syntax,
+                RewriteNull(syntax, binary.left),
+                binary.operatorKind,
+                RewriteNull(syntax, binary.right),
+                binary.type.StrippedType()
+            );
+        }
+
+        if (expression.type.IsNullableType())
+            return Value(syntax, expression, expression.type.GetNullableUnderlyingType());
+
+        return expression;
+    }
+
+    private BoundExpression DeNull(BoundExpression expression) {
+        if (expression.constantValue is null)
+            return expression;
+
+        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.type.StrippedType());
     }
 }

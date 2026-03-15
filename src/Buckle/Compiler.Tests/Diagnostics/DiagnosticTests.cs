@@ -14,7 +14,6 @@ public sealed class DiagnosticTests {
         _writer = writer;
     }
 
-    /*
     [Fact]
     public void Reports_Warning_BU0001_AlwaysValue() {
         var text = @"
@@ -29,32 +28,34 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_BU0002_NullDeference() {
+    public void Reports_Warning_BU0002_NullDereference() {
         var text = @"
             class A {
                 public int num;
             }
 
             void MyFunc(A a) {
-                a[.]num = 3;
+                [a.num] = 3;
             }
         ";
 
         var diagnostics = @"
-            deference of a possibly null value
+            dereference of a possibly null value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
+    // ! Error_BU0003_InvalidReference
+
     [Fact]
     public void Reports_Error_BU0004_InvalidType() {
         var text = @"
-            int x = [99999999999999999];
+            int x = [99999999999999999999];
         ";
 
         var diagnostics = @"
-            '99999999999999999' is not a valid 'int'
+            '99999999999999999999' is not a valid 'int'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -93,7 +94,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'string' implicitly; an explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int!' to 'string' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -102,7 +103,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0008_InvalidUnaryOperatorUse() {
         var text = @"
-            [-]false;
+            [-false];
         ";
 
         var diagnostics = @"
@@ -113,13 +114,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0009_NamedBeforeUnnamed() {
+    public void Reports_Error_BU0009_UnexpectedArrayInit() {
         var text = @"
-            Console.Print([x]: 1, 3);
+            int\[\]\[\] a = { [{ 1 }] };
         ";
 
         var diagnostics = @"
-            all named arguments must come after any unnamed arguments
+            initializer lists can only be used in a data container or field initializer; try using a new expression instead
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -128,7 +129,8 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0010_NamedArgumentTwice() {
         var text = @"
-            Console.Print(x: 1, [x]: 3);
+            void F(int x) { }
+            F(x: 1, [x]: 3);
         ";
 
         var diagnostics = @"
@@ -141,41 +143,47 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0011_InvalidBinaryOperatorUse() {
         var text = @"
-            false [+] 3;
+            [false + 3];
         ";
 
         var diagnostics = @"
-            binary operator '+' is not defined for types 'bool' and 'int'
+            binary operator '+' is not defined for operands of types 'bool' and 'int'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0013_ParameterAlreadyDeclared() {
-        var text = @"
-            void myFunc(int x, [int x]) { }
-        ";
-
-        var diagnostics = @"
-            cannot reuse parameter name 'x'; parameter names must be unique
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0012_GlobalStatementInMultipleFiles
+    // ! Error_BU0013_NoNamespacePrivate
+    // ! Error_BU0014_UnexpectedAliasName
 
     [Fact]
-    public void Reports_Error_BU0015_NoSuchParameter() {
+    public void Reports_Error_BU0015_BadArgumentName() {
         var text = @"
             void Test(string a) { }
             Test([msg]: ""test"");
         ";
 
         var diagnostics = @"
-            method 'Test' does not have a parameter named 'msg'
+            the best overload for 'Test' does not have a parameter named 'msg'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0016_MainAndGlobals() {
+        var text = @"
+            int a = 3;
+
+            void [Main]() { }
+        ";
+
+        var diagnostics = @"
+            declaring a main method and using global statements creates ambiguous entry point
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
     }
 
     [Fact]
@@ -191,20 +199,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0018_MethodAlreadyDeclared() {
-        var text = @"
-            void myFunc() { }
-
-            void [myFunc]() { }
-        ";
-
-        var diagnostics = @"
-            redeclaration of method 'myFunc()'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0018_ColonColonWithTypeAlias
 
     [Fact]
     public void Reports_Error_BU0019_NotAllPathsReturn() {
@@ -230,39 +225,27 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'A' to 'bool'
+            cannot convert from type 'A!' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0021_VariableAlreadyDeclared() {
+    public void Reports_Error_BU0021_DuplicateNameInNamespace() {
         var text = @"
-            var x = 5;
-            var [x] = 7;
+            class C { }
+            class [C] { }
         ";
 
         var diagnostics = @"
-            variable 'x' is already declared in this scope
+            the namespace '<global>' already contains a definition for 'C'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0022_ConstantAssignment() {
-        var text = @"
-            const int x = 5;
-            x [=] 4;
-        ";
-
-        var diagnostics = @"
-            'x' cannot be assigned to as it is a constant
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0022_DuplicateAlias
 
     [Fact]
     public void Reports_Error_BU0023_AmbiguousElse() {
@@ -281,18 +264,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0024_NoValue() {
-        var text = @"
-            int x = [Console.PrintLine()];
-        ";
-
-        var diagnostics = @"
-            expression must have a value
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0024_DuplicateWithGlobalUsing
 
     [Fact]
     public void Reports_Error_BU0025_CannotApplyIndexing() {
@@ -338,61 +310,23 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // ! Error_BU0028_NoAliasHere
+    // ! Error_BU0029_BadUsingType
+
     [Fact]
-    public void Reports_Error_BU0028_UndefinedMethod() {
+    public void Reports_Error_BU0030_ImplicitAssignedInitializerList() {
         var text = @"
-            string x = [myFunc]();
+            [var a = {1, 2, 3}];
         ";
 
         var diagnostics = @"
-            undefined method 'myFunc'
+            cannot initialize an implicitly-typed data container with an initializer list
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0029_IncorrectArgumentCount() {
-        var text = @"
-            void myFunc() { }
-            myFunc([3]);
-        ";
-
-        var diagnostics = @"
-            method 'myFunc' expects 0 arguments, got 1
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0030_TypeAlreadyDeclared() {
-        var text = @"
-            class A { }
-
-            class [A] { }
-        ";
-
-        var diagnostics = @"
-            class 'A' has already been declared in this scope
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    // TODO Cannot test invalid attributes until any attributes exist
-    // [Fact]
-    // public void Reports_Error_BU0031_DuplicateAttribute() {
-    //     var text = @"
-    //         \[NotNull\]\[[NotNull]\]int a = 3;
-    //     ";
-
-    //     var diagnostics = @"
-    //         attribute 'NotNull' has already been applied
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    // ! Error_BU0031_DuplicateUsing
 
     [Fact]
     public void Reports_Error_BU0032_CannotCallNonMethod() {
@@ -402,7 +336,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            called object 'x' is not a method
+            called object is not a method
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -417,37 +351,28 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            only assignment and call expressions can be used as a statement
+            only assignment, call, throw, and increment expressions can be used as a statement
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
     }
 
-    [Fact]
-    public void Reports_Error_BU0034_UnknownType() {
-        var text = @"
-            [MyType] x;
-        ";
-
-        var diagnostics = @"
-            unknown type 'MyType'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0034_BadUsingNamespace
 
     [Fact]
     public void Reports_Error_BU0035_InvalidBreakOrContinue() {
         var text = @"
-            [break];
+            [break;]
         ";
 
         var diagnostics = @"
-            break statements can only be used within a loop
+            break and continue statements can only be used within a loop
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // ! Error_BU0035_BadUsingStaticType
 
     [Fact]
     public void Reports_Error_BU0037_UnexpectedReturnValue() {
@@ -480,15 +405,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0039_NotAVariable() {
+    public void Reports_Error_BU0039_ArrayInitToNonArrayType() {
         var text = @"
-            void myFunc() { }
-
-            int x = [myFunc] + 3;
+            int a = [{ 1, 2, 3 }];
         ";
 
         var diagnostics = @"
-            method 'myFunc' cannot be used as a variable
+            can only use array initializer expressions to assign to array types; try using a new expression instead
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -497,11 +420,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0040_NoInitOnImplicit() {
         var text = @"
-            var [x];
+            [var x];
         ";
 
         var diagnostics = @"
-            implicitly-typed variable must have initializer
+            implicitly-typed locals must have initializer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -523,58 +446,34 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0042_NullAssignOnImplicit() {
         var text = @"
-            var x = [null];
+            [var x = null];
         ";
 
         var diagnostics = @"
-            cannot initialize an implicitly-typed variable with 'null'
+            cannot assign <null> to an implicitly-typed data container
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // ! Error_BU0043_ArrayInitExpected
+
     [Fact]
-    public void Reports_Error_BU0043_EmptyInitializerListOnImplicit() {
+    public void Reports_Error_BU0044_ArrayInitWrongLength() {
         var text = @"
             lowlevel {
-                var x = [{}];
+                int\[\] x = new int\[4\] [{1, 2, 3}];
             }
         ";
 
         var diagnostics = @"
-            cannot initialize an implicitly-typed variable with an empty initializer list
+            an array initializer of length '4' is expected
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0044_ImpliedDimensions() {
-        var text = @"
-            lowlevel {
-                var[\[\]] x = {1, 2, 3};
-            }
-        ";
-
-        var diagnostics = @"
-            collection dimensions on implicit types are inferred making them not necessary in this context
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0045_CannotUseImplicit() {
-        var text = @"
-            [var] myFunc() { }
-        ";
-
-        var diagnostics = @"
-            cannot use implicit-typing in this context
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0045_IncompatibleEntryPointReturn
 
     [Fact]
     public void Reports_Error_BU0046_NoCatchOrFinally() {
@@ -590,15 +489,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0047_MemberMustBeStatic() {
+    public void Reports_Error_BU0047_ImplicitlyTypedLocalAssignedBadValue() {
         var text = @"
-            static class A {
-                void [Test]() { }
-            }
+            [var x = null];
         ";
 
         var diagnostics = @"
-            cannot declare instance members in a static class
+            cannot assign <null> to an implicitly-typed data container
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -620,86 +517,61 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0049_ReferenceWrongInitialization() {
+    public void Reports_Error_BU0049_InitializeByReferenceWithByValue() {
         var text = @"
             int x = 3;
-            ref int y [=] x;
+            [ref int y = x];
         ";
 
         var diagnostics = @"
-            a by-reference variable must be initialized with a reference
+            a by-reference data container must be initialized with a reference
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0050_WrongInitializationReference() {
+    public void Reports_Error_BU0050_InitializeByValueWithByReference() {
         var text = @"
             int x = 3;
-            int y [=] ref x;
+            [int y = ref x];
         ";
 
         var diagnostics = @"
-            cannot initialize a by-value variable with a reference
+            cannot initialize a by-value data container with a reference
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0051_UnknownAttribute() {
+    public void Reports_Error_BU0051_UnexpectedTokenExpectedAnother() {
         var text = @"
-            \[[MyAttrib]\]class A { }
+            namespace [{] { }
         ";
 
         var diagnostics = @"
-            unknown attribute 'MyAttrib'
+            unexpected token '{', expected identifier
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0052_NullAssignNotNull() {
+    public void Reports_Error_BU0052_ExpectedTokenAtEOF() {
         var text = @"
-            int! x = [null];
+            namespace A {[]
         ";
 
         var diagnostics = @"
-            cannot assign 'null' to a non-nullable variable
+            expected '}' at end of input
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0053_ImpliedReference() {
-        var text = @"
-            var x = 3;
-            [ref] var y = ref x;
-        ";
-
-        var diagnostics = @"
-            implicit types infer reference types making the 'ref' keyword not necessary in this context
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0054_ReferenceToConstant() {
-        var text = @"
-            const int x = 3;
-            ref int y [=] ref x;
-        ";
-
-        var diagnostics = @"
-            cannot assign a reference to a constant to a by-reference variable expecting a reference to a variable
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Warning_BU0053_ImpliedReference
+    // ! Error_BU0054_ReferenceToConstant
 
     [Fact]
     public void Reports_Error_BU0055_VoidVariable() {
@@ -732,15 +604,17 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0057_NoMethodOverload() {
         var text = @"
-            void myFunc(int a) { }
+            class A {
+                public static void F(int a) { }
 
-            void myFunc(string a) { }
+                public static void F(string a) { }
+            }
 
-            [myFunc](false);
+            A.[F](3, false);
         ";
 
         var diagnostics = @"
-            no overload for method 'myFunc' matches parameter list
+            no overload for method 'F' takes 2 arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -749,41 +623,51 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0058_AmbiguousMethodOverload() {
         var text = @"
-            void myFunc(int a) { }
+            class A {
+                public static void myFunc(int a) { }
 
-            void myFunc(string a) { }
+                public static void myFunc(string a) { }
+            }
 
-            [myFunc](null);
+            A.[myFunc](null);
         ";
 
         var diagnostics = @"
-            call is ambiguous between 'myFunc(int)' and 'myFunc(string)'
+            call is ambiguous between 'A.myFunc(int)' and 'A.myFunc(string)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0059_CannotIncrement() {
+    public void Reports_Error_BU0059_UnexpectedTokenExpectedOthers() {
         var text = @"
-            [1]++;
+            class A {
+                public constructor() : [if]() { }
+            }
         ";
 
         var diagnostics = @"
-            the operand of an increment or decrement operator must be a variable, field, or indexer
+            unexpected token 'if', expected 'this' or 'base'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0060_InvalidTernaryOperatorUse() {
+    public void Reports_Error_BU0060_ExpectedTokensAtEOF() {
         var text = @"
-            3 [?] 4 : 6;
+            class A {
+                public constructor() :[[[[[[]]]]]]
         ";
 
         var diagnostics = @"
-            ternary operator '?:' is not defined for types 'int', 'int', and 'int'
+            expected 'this' or 'base' at end of input
+            expected '(' at end of input
+            expected ')' at end of input
+            expected '{' at end of input
+            expected '}' at end of input
+            expected '}' at end of input
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -808,72 +692,72 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0062_CannotAssign() {
+    public void Reports_Error_BU0062_AssignableLValueExpected() {
         var text = @"
             [3] = 45;
         ";
 
         var diagnostics = @"
-            left side of assignment operation must be a variable, field, or indexer
+            left side of assignment operation must be a variable, parameter, field, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0063_CannotOverloadNested() {
+    public void Reports_Error_BU0063_AnnotationsDisallowedInObjectCreation() {
         var text = @"
-            void myFunc() {
-                void myFunc2(int a) { }
+            class A { }
+            var a = [new A!()];
+        ";
 
-                void [myFunc2](string a) { }
+        var diagnostics = @"
+            cannot use a non-nullable annotation in object creation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0064_ConstantToNonConstantReference
+    // [Fact]
+    // public void Reports_Error_BU0064_ConstantToNonConstantReference() {
+    //     var text = @"
+    //         int x = 3;
+    //         ref const int y = ref [x];
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot assign a reference to a data container to a by-reference data container expecting a reference to a constant
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0065_CannotAnnotateStruct() {
+        var text = @"
+            struct A { }
+            [[A!] a];
+        ";
+
+        var diagnostics = @"
+            cannot use a non-nullable annotation on a struct type
+            non-nullable locals and class fields must have an initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0066_IncorrectUnaryOperatorArgs() {
+        var text = @"
+            class A {
+                public static A operator[~](A a, A b, A c) { return a; }
             }
         ";
 
         var diagnostics = @"
-            cannot overload nested functions; nested function 'myFunc2' has already been defined
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0064_ConstantToNonConstantReference() {
-        var text = @"
-            int x = 3;
-            ref const int y [=] ref x;
-        ";
-
-        var diagnostics = @"
-            cannot assign a reference to a variable to a by-reference variable expecting a reference to a constant
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0065_InvalidPrefixUse() {
-        var text = @"
-            bool a = false;
-            [++]a;
-        ";
-
-        var diagnostics = @"
-            prefix operator '++' is not defined for type 'bool'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0066_InvalidPostfixUse() {
-        var text = @"
-            bool a = false;
-            a[++];
-        ";
-
-        var diagnostics = @"
-            postfix operator '++' is not defined for type 'bool'
+            overloaded unary operator '~' takes 1 parameter
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -882,7 +766,8 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0067_ParameterAlreadySpecified() {
         var text = @"
-            Console.Print(x: 2, [x]: 2);
+            void M(int x) { }
+            M(x: 2, [x]: 2);
         ";
 
         var diagnostics = @"
@@ -899,7 +784,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            default values for parameters must be compile-time constants
+            default parameter value for 'a' must be a compile-time constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -908,7 +793,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0069_DefaultBeforeNoDefault() {
         var text = @"
-            void MyFunc([int a = 3], int b) { }
+            void MyFunc(int a = 3, int b[)] { }
         ";
 
         var diagnostics = @"
@@ -921,18 +806,18 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0070_ConstantAndVariable() {
         var text = @"
-            const [var] x = 3;
+            const var [x] = 3;
         ";
 
         var diagnostics = @"
-            cannot mark a type as both constant and variable
+            cannot mark a data container as both constant and variable
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0071_VariableUsingTypeName() {
+    public void Reports_Warning_BU0071_LocalUsingTypeName() {
         var text = @"
             class A { }
 
@@ -940,10 +825,10 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            variable name 'A' is not valid as it is the name of a type in this namespace
+            local 'A' shares a name with a type in this namespace
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -955,20 +840,22 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot implicitly pass null in a non-nullable context
+            argument 2: cannot implicitly pass 'null' to a parameter of non-nullable type 'int!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0073_CannotConvertNull() {
+    public void Reports_Error_BU0073_ExpectedOverloadableUnaryOperator() {
         var text = @"
-            [(int!)null];
+            class A {
+                public static A operator[*](A a) { return a; }
+            }
         ";
 
         var diagnostics = @"
-            cannot convert 'null' to 'int!' because it is a non-nullable type
+            expected overloadable unary operator
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -987,24 +874,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // TODO See BU0091 todo
-    // [Fact]
-    // public void Reports_Error_BU0075_CannotUseRef() {
-    //     var text = @"
-    //         class MyClass {
-    //             [ref] int myField;
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0075_CannotUseRef() {
+        var text = @"
+            var a = typeof([ref] int);
+        ";
 
-    //     var diagnostics = @"
-    //         cannot use a reference type in this context
-    //     ";
+        var diagnostics = @"
+            cannot use a reference type in this context
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
-    public void Reports_Error_BU0076_CannotUseRef() {
+    public void Reports_Error_BU0076_DivideByZero() {
         var text = @"
             int myInt = [5 / 0];
         ";
@@ -1017,36 +901,21 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0077_NameUsedInEnclosingScope() {
+    public void Reports_Error_BU0077_ExpectedOverloadableBinaryOperator() {
         var text = @"
-            void MyFunc() {
-                for (int [i] = 0; i < 10; i++) ;
-
-                int i = 5;
+            class A {
+                public static A operator[~](A a, A b) { return a; }
             }
         ";
 
         var diagnostics = @"
-            a local named 'i' cannot be declared in this scope because that name is used in an enclosing scope to define a local or parameter
+            expected overloadable arithmetic, equality, or comparison operator
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0078_NullInitializerListOnImplicit() {
-        var text = @"
-            lowlevel {
-                var myArray = [{ null, null }];
-            }
-        ";
-
-        var diagnostics = @"
-            cannot initialize an implicitly-typed variable with an initializer list only containing 'null'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0078_RefReturnScopedParameter2
 
     [Fact]
     public void Reports_Error_BU0079_UnrecognizedEscapeSequence() {
@@ -1078,54 +947,24 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0081_CannotConstructPrimitive() {
         var text = @"
-            var myInt = [new int()];
+            var myInt = new [int]();
         ";
 
         var diagnostics = @"
-            type 'int' is a primitive; primitives cannot be created with constructors
+            invalid object creation; cannot construct primitive
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0082_NoTemplateOverload() {
-        var text = @"
-            class MyClass<int T> { }
-
-            class MyClass<bool T> { }
-
-            var myClass = new [MyClass]<false, false>();
-        ";
-
-        var diagnostics = @"
-            no overload for template 'MyClass' matches template argument list
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0083_AmbiguousTemplateOverload() {
-        var text = @"
-            class MyClass<int T> { }
-
-            class MyClass<bool T> { }
-
-            var myClass = new [MyClass]<null>();
-        ";
-
-        var diagnostics = @"
-            template is ambiguous between 'MyClass<int>' and 'MyClass<bool>'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0082_NoTemplateOverload
+    // ! Error_BU0083_AmbiguousTemplateOverload
 
     [Fact]
     public void Reports_Error_BU0084_CannotUseStruct() {
         var text = @"
-            [struct] MyStruct { }
+            struct MyStruct { }
+            var a = new [MyStruct]();
         ";
 
         var diagnostics = @"
@@ -1135,19 +974,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0085_CannotUseThis() {
-        var text = @"
-            int myInt = 3;
-            [this].myInt = 5;
-        ";
-
-        var diagnostics = @"
-            cannot use 'this' outside of a class
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0085_CannotUseThis
 
     [Fact]
     public void Reports_Error_BU0086_MemberIsInaccessible() {
@@ -1155,30 +982,28 @@ public sealed class DiagnosticTests {
             class A {
                 private static void M() { }
             }
-            A.[M]();
+            [A.M]();
         ";
 
         var diagnostics = @"
             'A.M()' is inaccessible due to its protection level
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
     }
 
     [Fact]
-    public void Reports_Error_BU0087_NoConstructorOverload() {
+    public void Reports_Error_BU0087_WrongConstructorArgumentCount() {
         var text = @"
             class MyClass {
                 public constructor(int a) { }
-
-                public constructor(string a) { }
             }
 
-            MyClass myClass = new [MyClass](true);
+            MyClass myClass = new [MyClass](3, true);
         ";
 
         var diagnostics = @"
-            type 'MyClass' does not contain a constructor that matches the parameter list
+            type 'MyClass' does not contain a constructor that takes 2 arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1188,7 +1013,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0088_InvalidModifier() {
         var text = @"
             class MyClass {
-                [static] int a;
+                static int [a];
             }
         ";
 
@@ -1200,7 +1025,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0089_InvalidInstanceReference() {
+    public void Reports_Error_BU0089_NoInstanceRequired() {
         var text = @"
             class MyClass {
                 public static void MyMethod() { }
@@ -1218,7 +1043,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0090_InvalidStaticReference() {
+    public void Reports_Error_BU0090_InstanceRequired() {
         var text = @"
             class MyClass {
                 public void MyMethod() { }
@@ -1228,27 +1053,46 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            an object reference is required for non-static member 'MyMethod'
+            an object reference is required for non-static member 'MyClass.MyMethod()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // TODO Add a flag to mark 'text' as low-level to allow struct syntax: the only way to produce this diagnostic
-    // [Fact]
-    // public void Reports_Error_Unsupported_BU0091_CannotInitializeInStructs() {
-    //     var text = @"
-    //         struct A {
-    //             int num [=] 3;
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0091_CannotInitializeInStructs() {
+        var text = @"
+            struct A {
+                int num [=] 3;
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         cannot initialize fields in structure definitions
-    //     ";
+        var diagnostics = @"
+            cannot initialize fields in structure definitions
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0092_MultipleMains() {
+        var text = @"
+            class P1 {
+                public static void [Main]() { }
+            }
+
+            class P2 {
+                public static void Main() { }
+            }
+
+        ";
+
+        var diagnostics = @"
+            cannot have multiple 'Main' entry points
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0093_InvalidAttributes() {
@@ -1263,47 +1107,9 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0094_TemplateNotExpected() {
-        var text = @"
-            class A {}
-            var a = new A[<3>]();
-        ";
-
-        var diagnostics = @"
-            item 'A' does not expect any template arguments
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0095_TemplateMustBeConstant() {
-        var text = @"
-            class A<int a> {}
-            var b = 3;
-            var a = new A<[b]>();
-        ";
-
-        var diagnostics = @"
-            template argument must be a compile-time constant
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0096_CannotReferenceNonField() {
-        var text = @"
-            var a = ref [3];
-        ";
-
-        var diagnostics = @"
-            cannot reference non-field or non-variable item
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0094_TemplateNotExpected
+    // ! Error_BU0095_TemplateMustBeConstant
+    // ! Error_BU0096_RefReturnOnlyParameter2
 
     [Fact]
     public void Reports_Error_BU0097_CannotUseType() {
@@ -1335,27 +1141,28 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0099_StaticVariable() {
+    public void Reports_Error_BU0099_StaticDataContainer() {
         var text = @"
             static class A { }
-            [A] a;
+            [A a];
         ";
 
         var diagnostics = @"
-            cannot declare a field or local with a static type
+            cannot declare a field or data container with a static type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0100_CannotConstructStatic() {
+    public void Reports_Error_BU0100_CannotCreateStatic() {
         var text = @"
             static class A { }
-            var a = [new A()];
+            [var] a = [new A()];
         ";
 
         var diagnostics = @"
+            cannot initialize an implicitly-typed data container with the static type 'A!'
             cannot create an instance of the static class 'A'
         ";
 
@@ -1365,13 +1172,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0101_ConflictingModifiers() {
         var text = @"
-            class A {
-                static [const] int B() {}
-            }
+            abstract sealed class [A] { }
         ";
 
         var diagnostics = @"
-            cannot mark member as both static and constant
+            cannot mark symbol as both abstract and static
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1383,7 +1188,7 @@ public sealed class DiagnosticTests {
             class A {
                 int a = 3;
                 const void B() {
-                    a[++];
+                    [a]++;
                 }
             }
         ";
@@ -1404,13 +1209,13 @@ public sealed class DiagnosticTests {
                     a++;
                 }
                 const void C() {
-                    [B()];
+                    [B]();
                 }
             }
         ";
 
         var diagnostics = @"
-            cannot call non-constant method 'B()' in a method marked as constant
+            cannot call non-constant method 'A.B()' in a method marked as constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1426,11 +1231,11 @@ public sealed class DiagnosticTests {
                 }
             }
             const a = new A();
-            [a.B()];
+            [a.B]();
         ";
 
         var diagnostics = @"
-            cannot call non-constant method 'B()' on constant
+            cannot call non-constant method 'A.B()' on constant
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1440,25 +1245,26 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0105_CannotBeRefAndConstexpr() {
         var text = @"
             int x = 3;
-            constexpr [ref] int y = ref x;
+            constexpr ref int [y] = [ref x];
         ";
 
         var diagnostics = @"
             reference type cannot be marked as a constant expression because references are not compile-time constants
+            expected a compile-time constant value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0106_NotConstantExpression() {
+    public void Reports_Error_BU0106_ConstantExpected() {
         var text = @"
             int Test() { return 3; }
             constexpr int y = [Test()];
         ";
 
         var diagnostics = @"
-            expression is not a compile-time constant
+            expected a compile-time constant value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1468,18 +1274,18 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0107_CannotReturnStatic() {
         var text = @"
             static class A {}
-            [A] Test() { return A; }
+            A [Test]() { return null; }
         ";
 
         var diagnostics = @"
-            static types cannot be used as return types
+            'A': static types cannot be used as return types
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0108_IncorrectOperatorParameterCount() {
+    public void Reports_Error_BU0108_IncorrectBinaryOperatorArgs() {
         var text = @"
             class A {
                 public static A operator[+](A a, A b, A c) { return a; }
@@ -1487,7 +1293,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            overloaded operator '+' takes 2 parameters
+            overloaded binary operator '+' takes 2 parameters
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1509,10 +1315,10 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0110_StaticOperator() {
+    public void Reports_Error_BU0110_OperatorInStaticClass() {
         var text = @"
             static class A {
-                public static A operator[+](A a, A b) { return a; }
+                public static int operator[+](int a, int b) { return a; }
             }
         ";
 
@@ -1523,63 +1329,10 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0111_OperatorAtLeastOneClassParameter() {
-        var text = @"
-            class A {
-                public static int operator[+](int a, int b) { return a; }
-            }
-        ";
-
-        var diagnostics = @"
-            at least one of the parameters of an operator must be the containing type
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0112_OperatorMustReturnClass() {
-        var text = @"
-            class A {
-                public static int operator[++](A a) { return 3; }
-            }
-        ";
-
-        var diagnostics = @"
-            the return type for the '++' or '--' operator must be the containing type
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0113_IndexOperatorFirstParameter() {
-        var text = @"
-            class A {
-                public static int operator[\[\]](int a, A b) { return 3; }
-            }
-        ";
-
-        var diagnostics = @"
-            the first parameter for the '[]' operator must be the containing type
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0114_ArrayOutsideOfLowLevelContext() {
-        var text = @"
-            [int\[\]] a;
-        ";
-
-        var diagnostics = @"
-            cannot use arrays outside of low-level contexts
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0111_RefReturnParameter2
+    // ! Error_BU0112_RefReturnScopedParameter
+    // ! Error_BU0113_RefReturnOnlyParameter
+    // ! Error_BU0114_ArrayOutsideOfLowLevelContext
 
     [Fact]
     public void Reports_Error_BU0115_EmptyCharacterLiteral() {
@@ -1610,7 +1363,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0117_NoInitOnNonNullable() {
         var text = @"
-            int! [a];
+            [int! a];
         ";
 
         var diagnostics = @"
@@ -1629,44 +1382,30 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            virtual or abstract methods cannot be private
+            'A.M()': virtual or abstract methods cannot be private
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // ! Error_BU0119_RefReturnParameter
+
     [Fact]
-    public void Reports_Error_BU0119_NoSuitableOverrideTarget() {
+    public void Reports_Error_BU0119_RefReturnParameter() {
         var text = @"
-            class A {
-                public override void [M]() {}
+            ref int M(int a) {
+                return ref [a];
             }
         ";
 
         var diagnostics = @"
-            no suitable method found to override
+            cannot return a parameter by reference 'a' because it is not a ref parameter
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0120_OverrideCannotChangeAccessibility() {
-        var text = @"
-            class A {
-                public virtual void M() {}
-            }
-            class B extends A {
-                private override void [M]() {}
-            }
-        ";
-
-        var diagnostics = @"
-            cannot change access modifier of inherited member from 'public' to 'private'; cannot change access modifiers when overriding inherited members
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0120_EscapeOther
 
     [Fact]
     public void Reports_Error_BU0121_CannotDerivePrimitive() {
@@ -1681,152 +1420,16 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0122_UnknownTemplate() {
-        var text = @"
-            class A where { [T] extends Object; } { }
-        ";
-
-        var diagnostics = @"
-            type 'A' has no such template parameter 'T'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0123_CannotExtendCheckNonType() {
-        var text = @"
-            class A<int T> where { [T extends Object;] } { }
-        ";
-
-        var diagnostics = @"
-            template 'T' is not a type; cannot extension check a non-type
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0124_ConstraintIsNotConstant() {
-        var text = @"
-            class A<int T> where { [Hex(T) == ""3"" ? true : false;] } { }
-        ";
-
-        var diagnostics = @"
-            template constraint is not a compile-time constant
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0125_StructTakesNoArguments() {
-        var text = @"
-            lowlevel struct A {}
-            var a = new A([3]);
-        ";
-
-        var diagnostics = @"
-            struct constructors take no arguments
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0126_ExtendConstraintFailed() {
-        var text = @"
-            class A<type T> where { T extends Object; } { }
-            var myA = new A[<int>]();
-        ";
-
-        var diagnostics = @"
-            template constraint 1 fails ('T extends Object'); 'T' must be or inherit from 'Object'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0127_ConstraintWasNull() {
-        var text = @"
-            class A<int a, int b> where { a < b; } { }
-            var myA = new A[<, >]();
-        ";
-
-        var diagnostics = @"
-            template constraint 1 fails ('(a < b)'); constraint results in null
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0128_ConstraintFailed() {
-        var text = @"
-            class A<int a, int b> where { a < b; } { }
-            var myA = new A[<3, 2>]();
-        ";
-
-        var diagnostics = @"
-            template constraint 1 fails ('(a < b)')
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0129_CannotOverride() {
-        var text = @"
-            class A {
-                public void M() { }
-            }
-            class B extends A {
-                public override void [M]() { }
-            }
-        ";
-
-        var diagnostics = @"
-            cannot override inherited method 'M()' because it is not marked virtual or override
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0130_CannotUseGlobalInClass() {
-        var text = @"
-            A m = new A();
-            class A {
-                A a = [m];
-            }
-        ";
-
-        var diagnostics = @"
-            cannot use global 'm' in a class definition
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Warning_BU0131_MemberShadowsParent() {
-        var text = @"
-            class A {
-                public void M() {}
-            }
-            class B extends A {
-                public void [M]() {}
-            }
-        ";
-
-        var diagnostics = @"
-            'B.M()' hides inherited member 'A.M()'; use the 'new' keyword if hiding was intended
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
+    // ! Error_BU0122_UnknownTemplate
+    // ! Error_BU0123_CannotExtendCheckNonType
+    // ! Error_BU0124_ConstraintIsNotConstant
+    // ! Error_BU0125_RefReturnNonreturnableLocal2
+    // ! Error_BU0126_ExtendConstraintFailed
+    // ! Error_BU0127_ConstraintWasNull
+    // ! Error_BU0128_ConstraintFailed
+    // ! Error_BU0129_RefReturnNonreturnableLocal
+    // ! Error_BU0130_RefReturnLocal2
+    // ! Error_BU0131_RefReturnLocal
 
     [Fact]
     public void Reports_Error_BU0132_ConflictingOverrideModifiers() {
@@ -1835,31 +1438,18 @@ public sealed class DiagnosticTests {
                 public virtual void M() {}
             }
             class B extends A {
-                public virtual [override] void M() {}
+                public virtual override void [M]() {}
             }
         ";
 
         var diagnostics = @"
-            a member marked as override cannot be marked as new, abstract, or virtual
+            'B.M()': a member marked as override cannot be marked as new or virtual
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Warning_BU0133_MemberShadowsNothing() {
-        var text = @"
-            class A {
-                public new void [M]() {}
-            }
-        ";
-
-        var diagnostics = @"
-            the member 'A.M()' does not hide a member; the 'new' keyword is unnecessary
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
+    // ! Error_BU0133_MismatchedRefEscapeInTernary
 
     [Fact]
     public void Reports_Error_BU0134_CannotDeriveSealed() {
@@ -1879,7 +1469,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0135_CannotDeriveStatic() {
         var text = @"
             static class A { }
-            class B extends [A] { }
+            class [B] extends A { }
         ";
 
         var diagnostics = @"
@@ -1889,36 +1479,11 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0136_ExpectedType() {
-        var text = @"
-            class A {}
-            var a = new A() as [3];
-        ";
-
-        var diagnostics = @"
-            expected type
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0136_CallArgMixing
+    // ! Error_BU0137_CannotUseBase
 
     [Fact]
-    public void Reports_Error_BU0137_CannotUseBase() {
-        var text = @"
-            int myInt = 3;
-            [base].myInt = 5;
-        ";
-
-        var diagnostics = @"
-            cannot use 'base' outside of a class
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Reports_Error_BU0138_CannotConstructAbstract() {
+    public void Reports_Error_BU0138_CannotCreateAbstract() {
         var text = @"
             abstract class A { }
             var a = [new A()];
@@ -1940,7 +1505,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'M()' must declare a body because it is not marked abstract
+            'A.M()' must declare a body because it is not marked abstract
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1955,14 +1520,14 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'M()' cannot declare a body because it is marked abstract
+            'A.M()' cannot declare a body because it is marked abstract
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0141_AbstractMemberInNonAbstractType() {
+    public void Reports_Error_BU0141_AbstractInNonAbstractType() {
         var text = @"
             class A {
                 public abstract void [M]();
@@ -1970,7 +1535,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'M()' cannot be marked abstract because it is not contained by an abstract type
+            'A.M()' is abstract but it is contained in non-abstract type 'A'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1986,27 +1551,1462 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'B' must implement inherited abstract member 'A.M()'
+            'B' does not implement inherited abstract member 'A.M()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0143_MissingOperatorPair() {
+    public void Reports_Error_BU0143_OperatorNeedsMatch() {
         var text = @"
             class A {
-                public static bool operator[==](A x, A y) {
+                public static bool [operator]==(A x, A y) {
                     return true;
                 }
             }
         ";
 
         var diagnostics = @"
-            operator '==' requires a matching operator '!=' to also be defined
+            the operator A.op_Equality(A, A) requires a matching operator '!=' to also be defined
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
-    */
+
+    [Fact]
+    public void Reports_Error_BU0144_InvalidExpressionTerm() {
+        var text = @"
+            + [ref x];
+        ";
+
+        var diagnostics = @"
+            invalid expression term 'ref'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0145
+
+    [Fact]
+    public void Reports_Error_BU0146_MultipleAccessibilities() {
+        var text = @"
+            public private class [A] {}
+        ";
+
+        var diagnostics = @"
+            cannot apply multiple accessibility modifiers
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0147_CircularConstraint
+    // ! Error_BU0148_TemplateObjectBaseWithPrimitiveBase
+    // ! Error_BU0149_TemplateBaseConstraintConflict
+    // ! Error_BU0150_TemplateBaseBothObjectAndPrimitive
+
+    [Fact]
+    public void Reports_Error_BU0151_MemberNameSameAsType() {
+        var text = @"
+            class A {
+                class [A] { }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot declare a member with the same name as the enclosing type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0152_CircularBase() {
+        var text = @"
+            class [A] extends A { }
+        ";
+
+        var diagnostics = @"
+            circular base dependency involving 'A' and 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0153_InconsistentAccessibilityClass() {
+        var text = @"
+            private class A { }
+            public class [B] extends A { }
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: class 'A' is less accessible than class 'B'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0154_StaticDeriveFromNotObject() {
+        var text = @"
+            class A { }
+            static class B extends [A] { }
+        ";
+
+        var diagnostics = @"
+            static class 'B' cannot derive from type 'A'; static classes must derive from Object
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0155_CannotDeriveTemplate
+
+    [Fact]
+    public void Reports_Error_BU0156_InconsistentAccessibilityField() {
+        var text = @"
+            class A {
+                private class B { }
+                public [B f];
+            }
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: type 'A.B' is less accessible than field 'A.f'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0157_InconsistentAccessibilityOperatorReturn() {
+        var text = @"
+            class A {
+                private class B { }
+                public static B [operator]+(A a, A b) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: return type 'A.B' is less accessible than operator 'A.op_Addition(A, A)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0158_InconsistentAccessibilityReturn() {
+        var text = @"
+            class A {
+                private class B { }
+                public static B [F]() { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: return type 'A.B' is less accessible than method 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0159_InconsistentAccessibilityOperatorParameter() {
+        var text = @"
+            class A {
+                private class B { }
+                public static A [operator]+(B b, A a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: parameter type 'A.B' is less accessible than operator 'A.op_Addition(A.B, A)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0160_InconsistentAccessibilityParameter() {
+        var text = @"
+            class A {
+                private class B { }
+                public static void [F](B b) { }
+            }
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: parameter type 'A.B' is less accessible than method 'A.F(A.B)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0161_NoSuitableEntryPoint() {
+        var text = @"[]";
+
+        var diagnostics = @"
+            no suitable entry point found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0162_ArrayOfStaticType() {
+        var text = @"
+            static class A { }
+            var a = new [A]\[\] {};
+        ";
+
+        var diagnostics = @"
+            array elements cannot be of static type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0163_LocalUsedBeforeDeclarationAndHidesField() {
+        var text = @"
+            class A {
+                int a;
+                void F() {
+                    int b = [a] + 3;
+                    int a = 7;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use local 'a' before it is declared; 'a' hides the field 'A.a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0164_LocalUsedBeforeDeclaration() {
+        var text = @"
+            class A {
+                void F() {
+                    int b = [a] + 3;
+                    int a = 7;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use local 'a' before it is declared
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0165_CannotUseThisInStaticMethod() {
+        var text = @"
+            class A {
+                static A F() {
+                    return [this];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use 'this' in a static method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0166_CannotUseBaseInStaticMethod() {
+        var text = @"
+            class A {
+                static Object F() {
+                    return [base];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use 'base' in a static method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0167_AmbiguousReference
+    // ! Error_BU0168_AmbiguousMember
+    // ! Error_BU0169_InvalidProtectedAccess
+
+    [Fact]
+    public void Reports_Error_BU0170_CannotInitializeVarWithStaticClass() {
+        var text = @"
+            static class A { }
+            [var] a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot initialize an implicitly-typed data container with the static type 'A!'
+            cannot create an instance of the static class 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0171_MustNotHaveRefReturn() {
+        var text = @"
+            class A {
+                int f;
+                int F() {
+                    [return] ref f;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot return by-reference in a method without a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0172_MustHaveRefReturn() {
+        var text = @"
+            class A {
+                int f;
+                ref int F() {
+                    [return] f;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0173_NoImplicitConversion
+
+    [Fact]
+    public void Reports_Error_BU0174_MethodGroupCannotBeUsedAsValue() {
+        var text = @"
+            int F() { }
+            var a = [F];
+        ";
+
+        var diagnostics = @"
+            method group '[ F() 1 ]' cannot be used as a value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0175_LocalShadowsParameter() {
+        var text = @"
+            void F(int a) {
+                int [a] = 3;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot declare a local with the name 'a' because that name is already used by a parameter in an enclosing scope
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0176_ParameterOrLocalShadowsTemplateParameter
+
+    [Fact]
+    public void Reports_Error_BU0177_LocalAlreadyDeclared() {
+        var text = @"
+            void F() {
+                int a = 3;
+                int [a] = 6;
+            }
+        ";
+
+        var diagnostics = @"
+            a local or local function with the name 'a' has already been declared in this scope
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0178_CannotConvertArgument() {
+        var text = @"
+            void F(int a) { }
+            F([true]);
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot convert from type 'bool!' to 'int'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0179_CannotConvertImplicitlyNullable() {
+        var text = @"
+            int a = 3;
+            int! b = [a];
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'int' to 'int!' implicitly; an explicit conversion exists (are you missing a cast?)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0180_NeverGivenType() {
+        var text = @"
+            bool b = [3 is Object];
+        ";
+
+        var diagnostics = @"
+            the given expression is never of the provided type ('Object')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0181_AmbiguousBinaryOperator() {
+        var text = @"
+            class A {
+                public static A operator+(A a, B b) { return a; }
+            }
+            class B {
+                public static B operator+(A a, B b) { return b; }
+            }
+            var a = new A();
+            var b = new B();
+            var c = [a + b];
+        ";
+
+        var diagnostics = @"
+            binary operator '+' is ambiguous for operands with types 'A' and 'B'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0182_ProgramLocalReferencedOutsideOfTopLevelStatement() {
+        var text = @"
+            int a = 3;
+            class A {
+                int f = [a];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot reference synthesized program local 'a' outside of top level statements
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0183_ValueCannotBeNull() {
+        var text = @"
+            int! a = [null];
+        ";
+
+        var diagnostics = @"
+            cannot convert null to 'int!' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0184_InvalidObjectCreation
+    // ! Error_BU0185_AmbiguousUnaryOperator
+    // ! Error_BU0186_RefConditionalNeedsTwoRefs
+
+    [Fact]
+    public void Reports_Error_BU0187_NullAssertAlwaysThrows() {
+        var text = @"
+            [null!];
+        ";
+
+        var diagnostics = @"
+            cannot perform a 'not null' assertion on an expression with constant value 'null'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0188_NullAssertOnNonNullableType() {
+        var text = @"
+            [3!];
+        ";
+
+        var diagnostics = @"
+            cannot perform a 'not null' assertion on an expression with type 'int!' as it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0189_CannotConvertToStatic() {
+        var text = @"
+            static class A { }
+            Object a;
+            [(A)a];
+        ";
+
+        var diagnostics = @"
+            cannot cast to static type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0190_ArraySizeInDeclaration
+    // ! Error_BU0191_ListNoTargetType
+
+    [Fact]
+    public void Reports_Error_BU0192_InstanceRequiredInFieldInitializer() {
+        var text = @"
+            class A {
+                int a = [F]();
+                int F() { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            a field initializer cannot reference non-static member 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0193_ArgumentExtraRef
+    // ! Error_BU0194_ArgumentWrongRef
+
+    [Fact]
+    public void Reports_Error_BU0195_NoCorrespondingArgument() {
+        var text = @"
+            void F(int a, int b) { }
+            [F](a: 3);
+        ";
+
+        var diagnostics = @"
+            there is no argument given that corresponds to the required parameter 'b' of 'F(int, int)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0196_BadNonTrailingNamedArgument() {
+        var text = @"
+            void F(int a, int b) { }
+            F([b]: 3, 3);
+        ";
+
+        var diagnostics = @"
+            named argument 'b' is used out-of-position but is followed by an unnamed argument
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0197_NamedArgumentUsedInPositional() {
+        var text = @"
+            void F(int a, int b) { }
+            F(3, [a]: 5);
+        ";
+
+        var diagnostics = @"
+            named argument 'a' specifies a parameter for which a positional argument has already been given
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0198_PossibleMistakenEmptyStatement() {
+        var text = @"
+            if (true) [;]
+        ";
+
+        var diagnostics = @"
+            possible mistaken empty statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0199_BadEmbeddedStatement() {
+        var text = @"
+            if (true) [int a = 3;]
+        ";
+
+        var diagnostics = @"
+            embedded statement cannot be a declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0200_IncrementableLValueExpected() {
+        var text = @"
+            void F() {}
+            [F()]++;
+        ";
+
+        var diagnostics = @"
+            left side of increment or decrement operation must be a variable, parameter, field, or indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0201_RefLocalOrParameterExpected
+    // ! Error_BU0202_RefLValueExpected
+
+    [Fact]
+    public void Reports_Error_BU0203_RefReturnLValueExpected() {
+        var text = @"
+            int F() { return 3; }
+            ref int G() { return ref [F()]; }
+        ";
+
+        var diagnostics = @"
+            an expression cannot be used in this context because it may not be passed or returned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0204_InternalError
+    // ! Error_BU0205_BadSKKnown
+
+    [Fact]
+    public void Reports_Error_BU0206_NonInvocableMemberCalled() {
+        var text = @"
+            class A {
+                constexpr int f;
+            }
+            [A.f]();
+        ";
+
+        var diagnostics = @"
+            non-invocable member 'A.f' cannot be used like a method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0207_BadSKUnknown
+    // ! Error_BU0208_RefConstLocal
+    // ! Error_BU0209_RefReturnThis
+    // TODO Do we want this following case to be an error:
+    // ! Error_BU0210_ConstantAssignmentThis
+    // ! Error_BU0211_ReturnNotLValue
+    // ! Error_BU0212_RefConstNotField
+    // ! Error_BU0213_RefReturnConstNotField
+    // ! Error_BU0214_ConstantAssignmentNotField
+    // ! Error_BU0215_RefReturnConstNotField2
+    // ! Error_BU0216_RefConstNotField2
+    // ! Error_BU0217_ConstantAssignmentNotField2
+
+    [Fact]
+    public void Reports_Error_BU0218_RefReturnConstant() {
+        var text = @"
+            class A {
+                const int x = 3;
+                ref int F() {
+                    return ref [x];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            a constant field cannot be returned by writable reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0219_RefConstant() {
+        var text = @"
+            class A {
+                const int x = 3;
+                void F() {
+                    G(ref [x]);
+                }
+                void G(ref int a) { }
+            }
+        ";
+
+        var diagnostics = @"
+            a constant field cannot be used as a ref value (except in a constructor)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0220_AssignmentConstantField() {
+        var text = @"
+            class A {
+                const int x = 3;
+                void F() {
+                    [x] = 7;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            a constant field cannot be assigned to (except in a constructor)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0221_RefReturnConstantStatic
+    // ! Error_BU0222_RefConstantStatic
+    // ! Error_BU0223_AssignmentConstantStatic
+    // ! Error_BU0224_RefReturnConstant2
+    // ! Error_BU0225_RefConstant2
+    // ! Error_BU0226_AssignmentConstantField2
+    // ! Error_BU0227_RefReturnConstantStatic2
+    // ! Error_BU0228_RefConstantStatic2
+    // ! Error_BU0229_AssignmentConstantStatic2
+    // ! Error_BU0230_RefConstantLocalCause
+    // ! Error_BU0231_AssignmentConstantLocalCause
+    // ! Error_BU0232_PossibleBadNegativeCast
+    // ! Error_BU0233_RefReturnMustHaveIdentityConversion
+    // ! Error_BU0234_RefAssignmentMustHaveIdentityConversion
+    // ! Error_BU0235_LocalSameNameAsTemplate
+
+    [Fact]
+    public void Reports_Error_BU0236_DuplicateParameterName() {
+        var text = @"
+            void F(int a, int [a]) {}
+        ";
+
+        var diagnostics = @"
+            the parameter name 'a' is a duplicate
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0237_RecursiveConstructorCall() {
+        var text = @"
+            class A { constructor() : [this]() {} }
+        ";
+
+        var diagnostics = @"
+            constructor 'A..ctor()' cannot call itself
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0238_NewTemplateWithArguments
+
+    [Fact]
+    public void Reports_Warning_BU0239_IncorrectBooleanAssignment() {
+        var text = @"
+            var a = true;
+            if ([a = false]) { }
+        ";
+
+        var diagnostics = @"
+            assignment in conditional expression is always constant; did you mean to use '==' instead of '=' ?
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Error_BU0240_LookupInTemplateVariable
+
+    [Fact]
+    public void Reports_Error_BU0241_AbstractBaseCall() {
+        var text = @"
+            abstract class A { public abstract void F(); }
+            class B extends A {
+                public override void F() { }
+                void G() {
+                    [base.F]();
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call abstract base member 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0242_StaticMemberInObjectInitializer
+    // ! Warning_BU0243_RefConstNotVariable
+    // ! Warning_BU0244_ArgExpectedRef
+    // ! Error_BU0245_RefConditionalDifferentTypes
+    // ! Error_BU0246_DuplicateTemplateParameter
+    // ! Warning_BU0247_TemplateParameterSameAsOuterMethod
+    // ! Warning_BU0248_TemplateParameterSameAsOuter
+
+    [Fact]
+    public void Reports_Error_BU0249_RefDefaultValue() {
+        var text = @"
+            void F([ref] int a = 3) { }
+        ";
+
+        var diagnostics = @"
+            a ref parameter cannot have a default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0250_NoCastForDefaultParameter() {
+        var text = @"
+            void F(bool [a] = ""Test"") { }
+        ";
+
+        var diagnostics = @"
+            a value of type 'string!' cannot be used as a default parameter because there are no casts to type 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0251_NotNullRefDefaultParameter
+
+    [Fact]
+    public void Reports_Warning_BU0252_DefaultValueNoEffect() {
+        var text = @"
+            class A {
+                public static A operator+(A a, int [b] = 3) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            the default value specified for parameter 'b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Warning_BU0253_RefConstParameterDefaultValue
+    // ! Error_BU0254_InvalidRefParameter
+    // ! Error_BU0255_RefConstWrongOrder
+
+    [Fact]
+    public void Reports_Error_BU0256_ParameterIsStatic() {
+        var text = @"
+            static class A { }
+            void F([A] a) { }
+        ";
+
+        var diagnostics = @"
+            'A': static types cannot be used as parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0257_CircularConstantValue() {
+        var text = @"
+            constexpr int a = [[a]];
+        ";
+
+        var diagnostics = @"
+            the evaluation of the constant value for 'a' involves a circular definition
+            expected a compile-time constant value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0258_DuplicateNameInClass() {
+        var text = @"
+            class A {
+                int a;
+                int [a];
+            }
+        ";
+
+        var diagnostics = @"
+            the type 'A' already contains a definition for 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0259_OverloadRefKind
+
+    [Fact]
+    public void Reports_Error_BU0260_ConstructorAlreadyExists() {
+        var text = @"
+            class A {
+                constructor() {}
+                [constructor]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            type 'A' already defines a constructor with the same parameter types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0261_MemberAlreadyExists() {
+        var text = @"
+            class A {
+                void F() {}
+                void [F]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            type 'A' already defines a member called 'F' with the same parameter types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0262_ProtectedInStatic() {
+        var text = @"
+            static class A {
+                protected static void [F]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()': static classes cannot contain protected members
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0263_EqualsWithoutGetHashCode() {
+        var text = @"
+            class [A] {
+                public override bool! Equals(Object o) { return true; }
+            }
+        ";
+
+        var diagnostics = @"
+            'A' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0264_EqualityOpWithoutEquals() {
+        var text = @"
+            class [[A]] {
+                public static bool operator==(A a, A b) { return true; }
+                public static bool operator!=(A a, A b) { return false; }
+            }
+        ";
+
+        var diagnostics = @"
+            'A' defines operator == or operator != but does not override 'Object.Equals(Object)'
+            'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0265_EqualityOpWithoutGetHashCode() {
+        var text = @"
+            class [[A]] {
+                public static bool operator==(A a, A b) { return true; }
+                public static bool operator!=(A a, A b) { return false; }
+            }
+        ";
+
+        var diagnostics = @"
+            'A' defines operator == or operator != but does not override 'Object.Equals(Object)'
+            'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0266_SealedNonOverride() {
+        var text = @"
+            class A {
+                sealed void [F]();
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()' cannot be sealed because it is not an override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0267_AbstractAndSealed() {
+        var text = @"
+            class A {
+                public sealed abstract void [F]();
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()' cannot be both abstract and sealed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0268_AbstractAndVirtual() {
+        var text = @"
+            class A {
+                public virtual abstract void [F]();
+            }
+        ";
+
+        var diagnostics = @"
+            the abstract method 'A.F()' cannot be marked virtual
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0269_StaticAndConst() {
+        var text = @"
+            class A {
+                public static const void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            the static member 'A.F()' cannot be marked 'const'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0270_VirtualInSealedType() {
+        var text = @"
+            sealed class A {
+                public virtual void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()' is a new virtual member in sealed type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0271_InstanceMemberInStatic() {
+        var text = @"
+            static class A {
+                void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()': cannot declare instance members in a static class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0272_ProtectedInSealed() {
+        var text = @"
+            sealed class A {
+                protected void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F': new protected member declared in sealed type; no different than private
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0273_NewRequired() {
+        var text = @"
+            class A {
+                public void F() { }
+            }
+            class B extends A {
+                public void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()' hides inherited member 'A.F()'; use the new keyword if hiding was intended
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0274_NewNotRequired() {
+        var text = @"
+            class A {
+                new void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            the member 'A.F()' does not hide an accessible member; the new keyword is not required
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Error_BU0275_HidingAbstractMember
+
+    [Fact]
+    public void Reports_Warning_BU0276_NewOrOverrideExpected() {
+        var text = @"
+            class A {
+                public virtual void F() { }
+            }
+            class B extends A {
+                public void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()' hides inherited member 'A.F()'; to make the current member override that implementation, add the override keyword; otherwise add the new keyword
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Error_BU0277_HidingDifferentRefness
+    // ! Error_BU0278_CantOverrideNonMethod
+
+    [Fact]
+    public void Reports_Error_BU279_OverrideNotExpected() {
+        var text = @"
+            class A {
+                public override void [F]() {}
+            }
+        ";
+
+        var diagnostics = @"
+            'A.F()': no suitable method found to override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0280_AmbiguousOverride
+
+    [Fact]
+    public void Reports_Error_BU281_CantOverrideNonVirtual() {
+        var text = @"
+            class A {
+                public void F() {}
+            }
+            class B extends A {
+                public override void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()': cannot override inherited member 'A.F()' because it is not marked virtual, abstract, or override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU282_CantOverrideSealed() {
+        var text = @"
+            class A {
+                public virtual void F() {}
+            }
+            class B extends A {
+                public sealed override void F() { }
+            }
+            class C extends B {
+                public override void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'C.F()': cannot override inherited member 'B.F()' because it is sealed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU283_CantChangeAccessOnOverride() {
+        var text = @"
+            class A {
+                public virtual void F() {}
+            }
+            class B extends A {
+                protected override void [F]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()': cannot change access modifiers when overriding 'public' inherited member 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0284_CantChangeRefReturnOnOverride
+
+    [Fact]
+    public void Reports_Error_BU285_CantChangeReturnTypeOnOverride() {
+        var text = @"
+            class A {
+                public virtual void F() {}
+            }
+            class B extends A {
+                public override int [F]() { return 3; }
+            }
+        ";
+
+        var diagnostics = @"
+            'B.F()': return type must be 'void' to match overridden member 'A.F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Warning_BU0286_OverridingDifferentRefness
+    // ! Warning_BU0287_TopLevelNullabilityMismatchInParameterTypeOnOverride
+    // ! Warning_BU0288_NullabilityMismatchInParameterTypeOnOverride
+    // ! Warning_BU0289_TopLevelNullabilityMismatchInReturnTypeOnOverride
+    // ! Warning_BU0290_NullabilityMismatchInReturnTypeOnOverride
+    // ! Fatal_BU0291_LibraryErrors
+
+    [Fact]
+    public void Reports_Error_BU292_OperatorCantReturnVoid() {
+        var text = @"
+            class A {
+                public static void [operator]+(A a, A b) { }
+            }
+        ";
+
+        var diagnostics = @"
+            user-defined operators cannot return void
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU293_BadUnaryOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]+(int a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the parameter of a unary operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0294_BadAbstractUnaryOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU295_BadShiftOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]<<(int a, int b) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the first operand of an overloaded shift operator must have the same type as the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0296_BadAbstractShiftOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU297_BadBinaryOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]+(int a, int b) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            one of the parameters of a binary operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0298_BadAbstractBinaryOperatorSignature
+    // ! Error_BU0299_BadAbstractEqualityOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU300_BadIncrementOperatorSignature() {
+        var text = @"
+            class A {
+                public static A [operator]++(int a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the parameter type for ++ or -- operator must be the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0301_BadAbstractIncrementOperatorSignature
+
+    [Fact]
+    public void Reports_Error_BU302_BadIncrementReturnType() {
+        var text = @"
+            class A {
+                public static int [operator]++(A a) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            the return type for ++ or -- operator must match the parameter type or be derived from the parameter type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0303_BadAbstractIncrementReturnType
+
+    [Fact]
+    public void Reports_Error_BU304_BadIndexCount() {
+        var text = @"
+            var a = new int\[\] {1, 2, 3};
+            [a\[2,3\]];
+        ";
+
+        var diagnostics = @"
+            wrong number of indices inside []; expected 1
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0305_MultipleUpdates
+    // ! Error_BU0306_SeparateMainAndUpdate
+
+    [Fact]
+    public void Reports_Error_BU307_FieldsCannotBeImplicitlyTyped() {
+        var text = @"
+            class A {
+                [var] a = 3;
+            }
+        ";
+
+        var diagnostics = @"
+            fields cannot be implicitly typed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU308_NonIntArraySize() {
+        var text = @"
+            var a = new int[\[true\]];
+        ";
+
+        var diagnostics = @"
+            array sizes must be of type 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0309_BadArity
+
+    [Fact]
+    public void Reports_Error_BU310_ProtectedInStruct() {
+        var text = @"
+            struct A {
+                protected [int f];
+            }
+        ";
+
+        var diagnostics = @"
+            'A': protected member declared in struct
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0311_EscapeCall
+    // ! Error_BU0312_EscapeCall2
+    // ! Error_BU0313_EscapeLocal
+    // ! Error_BU0314_RefAssignReturnOnly
+    // ! Error_BU0315_RefAssignNarrower
+    // ! Error_BU0316_RefAssignValEscapeWider
+
+    [Fact]
+    public void Reports_Error_BU317_MissingArraySize() {
+        var text = @"
+            var a = new int[\[\]];
+        ";
+
+        var diagnostics = @"
+            array creation must have array size or array initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -8,8 +8,11 @@
 [Oo]ld/
 [Oo]bj/
 [Bb]in/
+[Ll]ib/
 [Gg]enerated/
 
 *.dot
 *.g.cs
+*.g.blt
 *.Generated.cs
+*.log

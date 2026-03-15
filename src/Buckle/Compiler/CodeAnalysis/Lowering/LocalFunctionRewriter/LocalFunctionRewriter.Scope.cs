@@ -9,7 +9,7 @@ internal sealed partial class LocalFunctionRewriter {
         internal readonly Scope parent;
         internal readonly ArrayBuilder<Scope> nestedScopes = ArrayBuilder<Scope>.GetInstance();
         internal readonly ArrayBuilder<NestedFunction> nestedFunctions = ArrayBuilder<NestedFunction>.GetInstance();
-        internal readonly SetWithInsertionOrder<Symbol> declaredLocals = new SetWithInsertionOrder<Symbol>();
+        internal readonly SetWithInsertionOrder<Symbol> declaredLocals = [];
         internal readonly BoundNode boundNode;
         internal readonly NestedFunction containingFunction;
 

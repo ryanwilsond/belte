@@ -3,11 +3,11 @@ class Program {
     bool previousSpace;
     bool previousRC;
     Vec2 scroll;
-    ref Sprite background;
-    ref Clouds clouds;
-    ref Rect[] leafSpawners;
+    Sprite background;
+    Clouds clouds;
+    Rect[] leafSpawners;
     int leafSpawnerCount;
-    ref Enemy[] enemies;
+    Enemy[] enemies;
     int enemyCount;
     int! level;
     decimal! transition;
@@ -18,16 +18,16 @@ class Program {
     public Sound[] sfx;
     public int! screenShake;
     public int dead;
-    public ref Player player;
-    public ref TileMap tileMap;
-    public ref Particle[] particles;
+    public Player player;
+    public TileMap tileMap;
+    public Particle[] particles;
     public int particleCount;
-    public ref Projectile[] projectiles;
+    public Projectile[] projectiles;
     public int projectileCount;
-    public ref Spark[] sparks;
+    public Spark[] sparks;
     public int sparkCount;
-    public ref Animations animations;
-    public ref Textures textures;
+    public Animations animations;
+    public Textures textures;
 
     public void Main() {
         Graphics.Initialize("Platformer", Settings.WindowWidth, Settings.WindowHeight, true);
@@ -41,11 +41,11 @@ class Program {
         );
 
         textures = new Textures();
-        clouds = new Clouds(ref textures.cloud);
-        tileMap = new TileMap(ref textures, Settings.TileSize);
-        animations = new Animations(ref textures);
+        clouds = new Clouds(textures.cloud);
+        tileMap = new TileMap(textures, Settings.TileSize);
+        animations = new Animations(textures);
 
-        sfx = {
+        sfx = new Sound[] {
             Graphics.LoadSound("data/sfx/jump.wav"),
             Graphics.LoadSound("data/sfx/dash.wav"),
             Graphics.LoadSound("data/sfx/hit.wav"),
@@ -66,7 +66,7 @@ class Program {
         Graphics.PlaySound(music);
         Graphics.PlaySound(sfx[4]!);
 
-        player = new Player(ref this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
+        player = new Player(this, new Vec2(15 * Settings.TileSize, 8 * Settings.TileSize));
 
         scroll = new Vec2(0, 0);
 
@@ -76,7 +76,7 @@ class Program {
         screenShake = 0;
 
         mapCount = 4;
-        maps = {
+        maps = new string[]! {
             "data/maps/0.txt",
             "data/maps/1.txt",
             "data/maps/2.txt",
@@ -106,8 +106,6 @@ class Program {
         var foundPlayerSpawner = tileMap.Extract("spawners;0", false)[0];
         var foundEnemySpawners = tileMap.Extract("spawners;1", false);
 
-        player.airTime = 0;
-
         if (foundPlayerSpawner isnt null) {
             if (foundPlayerSpawner.onGrid)
                 player.pos = new Vec2(foundPlayerSpawner.x * Settings.TileSize + 4, foundPlayerSpawner.y * Settings.TileSize - 4);
@@ -125,9 +123,9 @@ class Program {
                 break;
 
             if (spawner.onGrid)
-                enemies[enemyCount++] = new Enemy(ref this, new Vec2(spawner.x * Settings.TileSize + 4, spawner.y * Settings.TileSize - 4));
+                enemies[enemyCount++] = new Enemy(this, new Vec2(spawner.x * Settings.TileSize + 4, spawner.y * Settings.TileSize - 4));
             else
-                enemies[enemyCount++] = new Enemy(ref this, new Vec2(spawner.x + 4, spawner.y - 4));
+                enemies[enemyCount++] = new Enemy(this, new Vec2(spawner.x + 4, spawner.y - 4));
         }
 
         projectiles = new Projectile[10];
@@ -164,18 +162,29 @@ class Program {
         if (dead > 0) {
             dead++;
 
-            if (dead >= 60 * 0.016)
+            if (dead >= 60 * deltaTime)
                 transition = Math.Min(transition + 1, 30);
 
-            if (dead > 2400 * 0.016)
+            if (dead > 2400 * deltaTime)
                 LoadLevel(level);
         }
 
         var movement = new Vec2(0, 0);
 
         // pseudo-Lerp camera to player position
-        scroll.x += (player.pos.x + player.box.w / 2 - scroll.x - Settings.WindowWidth / 2) / (Settings.CameraTrackingSpeed * deltaTime);
-        scroll.y += (player.pos.y + player.box.h / 2 - scroll.y - Settings.WindowHeight / 2) / (Settings.CameraTrackingSpeed * deltaTime);
+        var diffX = (player.pos.x + player.box.w / 2 - Settings.WindowWidth / 2) - scroll.x;
+        var diffY = (player.pos.y + player.box.h / 2 - Settings.WindowHeight / 2) - scroll.y;
+
+        var stepX = diffX * deltaTime;
+        stepX = Math.Max(Math.Abs(stepX), 0.005) * Math.Sign(diffX);
+        stepX = Math.Clamp(stepX, -Math.Abs(diffX), Math.Abs(diffX));
+
+        var stepY = diffY * deltaTime;
+        stepY = Math.Max(Math.Abs(stepY), 0.005) * Math.Sign(diffY);
+        stepY = Math.Clamp(stepY, -Math.Abs(diffY), Math.Abs(diffY));
+
+        scroll.x += stepX;
+        scroll.y += stepY;
 
         if (transition >= 0 && transition <= 1) {
             if (Graphics.GetKey("A") && Math.Abs(player.dashing) <= 50)
@@ -196,7 +205,7 @@ class Program {
         for (int! i = 0; i < leafSpawnerCount; i++) {
             var leafSpawner = leafSpawners[i];
 
-            if (Random.Random() * 3000000 < leafSpawner.w * leafSpawner.h) {
+            if (Random.Random() * 50000 / deltaTime < leafSpawner.w * leafSpawner.h) {
                 var position = new Vec2(
                     leafSpawner.x + Random.Random() * leafSpawner.w,
                     leafSpawner.y + Random.Random() * leafSpawner.h
@@ -205,7 +214,7 @@ class Program {
                 particles[particleCount++] = new Particle(
                     position,
                     new Vec2(-19.2, 57.6),
-                    animations.leaf,
+                    animations.GetParticleAnimation("leaf"),
                     "leaf",
                     Random.RandInt(4)
                 );
@@ -213,19 +222,19 @@ class Program {
         }
 
         if (dead == 0)
-            player.Update(deltaTime, ref tileMap, movement);
+            player.Update(deltaTime, tileMap, movement);
 
         clouds.Update(deltaTime);
 
         var screenShakeOffset = new Vec2(Random.Random() * screenShake - screenShake / 2, Random.Random() * screenShake - screenShake / 2);
-        var renderScroll = new Vec2(screenShakeOffset.x + scroll.x, screenShakeOffset.y + scroll.y);
+        var renderScroll = new Vec2(Math.Floor(screenShakeOffset.x + scroll.x), Math.Floor(screenShakeOffset.y + scroll.y));
 
         Graphics.DrawSprite(background);
         clouds.Render(renderScroll);
         tileMap.Render(renderScroll);
 
         for (int! i = 0; i < enemyCount; i++) {
-            var kill = enemies[i].Update(deltaTime, ref tileMap, new Vec2(0, 0));
+            var kill = enemies[i].Update(deltaTime, tileMap, new Vec2(0, 0));
             enemies[i].Render(renderScroll);
 
             if (kill) {
@@ -248,7 +257,7 @@ class Program {
                     particles[particleCount++] = new Particle(
                         projPos,
                         new Vec2(Math.Cos(angle + Math.PI) * speed * 0.5, Math.Sin(angle + Math.PI) * speed * 0.5),
-                        animations.particle,
+                        animations.GetParticleAnimation("particle"),
                         "particle",
                         Random.RandInt(1)
                     );
@@ -296,7 +305,7 @@ class Program {
                         particles[particleCount++] = new Particle(
                             projPos,
                             new Vec2(Math.Cos(angle + Math.PI) * speed * 0.5, Math.Sin(angle + Math.PI) * speed * 0.5),
-                            animations.particle,
+                            animations.GetParticleAnimation("particle"),
                             "particle",
                             Random.RandInt(1)
                         );
@@ -341,7 +350,7 @@ class Program {
             particles[i].Render(renderScroll);
 
             if (particles[i].kind == "leaf")
-                particles[i].position.x += Math.Sin(particles[i].animation.frame * 0.5) * 0.3 * 2;
+                particles[i].position.x += Math.Sin(particles[i].animation.frame * Math.Clamp(Random.Random(), 0.1, 0.9)) * 100 * deltaTime;
 
             if (kill) {
                 for (int! j = i; j < particleCount - 1; j++)

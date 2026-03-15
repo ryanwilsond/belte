@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -100,9 +101,19 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         }
     }
 
+    internal sealed override AssemblySymbol containingAssembly => originalDefinition.containingAssembly;
+
     internal override NamedTypeSymbol containingType { get; }
 
     internal override MethodSymbol constructedFrom { get; }
+
+    internal sealed override ImmutableArray<AttributeData> GetAttributes() {
+        return originalDefinition.GetAttributes();
+    }
+
+    internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+        return originalDefinition.GetReturnTypeAttributes();
+    }
 
     internal sealed override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         if (!originalDefinition.TryGetThisParameter(out var originalThisParameter)) {
@@ -145,6 +156,10 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
 
             return substituted.ToImmutableAndFree();
         }
+    }
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
     }
 
     private int ComputeHashCode() {

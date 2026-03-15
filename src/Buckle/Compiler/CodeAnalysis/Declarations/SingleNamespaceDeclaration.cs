@@ -26,6 +26,8 @@ internal class SingleNamespaceDeclaration : SingleNamespaceOrTypeDeclaration {
 
     internal virtual bool hasExternAliases => false;
 
+    internal virtual bool hasAssemblyAttributes => false;
+
     internal static SingleNamespaceDeclaration Create(
         string name,
         bool hasUsings,

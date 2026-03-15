@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using Buckle.Utilities;
 
@@ -18,6 +19,10 @@ internal sealed class SubstitutedFieldSymbol : WrappedFieldSymbol {
     internal override NamedTypeSymbol containingType => _containingType;
 
     internal override FieldSymbol originalDefinition => underlyingField;
+
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return originalDefinition.GetAttributes();
+    }
 
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
         if (_lazyType is null) {
