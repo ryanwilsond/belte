@@ -160,6 +160,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Equality_SS);
     }
 
+    internal override void EmitStringChars() {
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_get_Chars_I);
+    }
+
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
@@ -390,6 +394,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldsfld => OpCodes.Ldsfld,
             CodeGeneration.OpCode.Unbox => OpCodes.Unbox,
             CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Conv_U2 => OpCodes.Conv_U2,
             CodeGeneration.OpCode.Castclass => OpCodes.Castclass,
             CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
             CodeGeneration.OpCode.Ldind_I1 => OpCodes.Ldind_I1,

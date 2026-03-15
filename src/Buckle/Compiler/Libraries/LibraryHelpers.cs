@@ -20,6 +20,16 @@ public static class LibraryHelpers {
 
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
+    private static SpecialOrKnownType.Boxed _lazyCharArray;
+
+    internal static SpecialOrKnownType CharArray {
+        get {
+            if (_lazyCharArray is null)
+                Interlocked.CompareExchange(ref _lazyCharArray, GenerateArray(SpecialType.Char), null);
+
+            return _lazyCharArray.type;
+        }
+    }
 
     internal static SpecialOrKnownType StringList {
         get {
@@ -123,7 +133,7 @@ public static class LibraryHelpers {
 
         static char GetNameCharacter(TypeSymbol type) {
             if (type.typeKind == TypeKind.Array)
-                return 'A';
+                return '[';
 
             return char.ToUpper(type.name.First());
         }
@@ -387,7 +397,7 @@ public static class LibraryHelpers {
 
     private static SpecialOrKnownType.Boxed GenerateArray(SpecialType elementType) {
         return new SpecialOrKnownType.Boxed(
-            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetNullableType(elementType)))
+            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetSpecialType(elementType)))
         );
     }
 }

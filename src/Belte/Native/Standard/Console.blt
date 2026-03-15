@@ -9,11 +9,13 @@ public static class Console {
     public static void PrintLine(string message);
     public static void PrintLine(any value);
     public static void PrintLine(Object value);
+    public static void PrintLine(char[] chars);
     public static void PrintLine();
 
     public static void Print(string message);
     public static void Print(any value);
     public static void Print(Object value);
+    public static void Print(char[] chars);
 
     public static void ResetColor();
 

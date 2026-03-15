@@ -27,6 +27,7 @@ internal sealed class Evaluator {
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
     private readonly Stack<StackFrame> _stack;
+    private readonly string[] _args;
 
     private EvaluatorValue _programObject;
     private EvaluatorValue _lastValue;
@@ -37,10 +38,11 @@ internal sealed class Evaluator {
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
     /// </summary>
-    internal Evaluator(BoundProgram program, EvaluatorContext context, string[] _) {
+    internal Evaluator(BoundProgram program, EvaluatorContext context, string[] arguments) {
         _context = context;
         _context.program = program;
         _program = program;
+        _args = arguments;
         _stack = [];
         exceptions = [];
     }
@@ -92,6 +94,28 @@ internal sealed class Evaluator {
         var programType = entryPoint.containingType;
         var result = EvaluatorValue.None;
 
+        EvaluatorValue[] arguments;
+
+        if (entryPoint.parameterCount == 0) {
+            arguments = [];
+        } else {
+            var rootLayout = new Lowering.EvaluatorSlotManager(programType);
+
+            var argsType = LibraryHelpers.StringArray.knownType;
+            var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
+
+            var index = _context.heap.Allocate(args, _stack, _context);
+            var argsPtr = EvaluatorValue.HeapPtr(index);
+            arguments = [argsPtr];
+
+            rootLayout.AllocateSlot(argsType, LocalSlotConstraints.None);
+
+            var rootFrame = new StackFrame(rootLayout);
+            rootFrame.values[0] = argsPtr;
+
+            _stack.Push(rootFrame);
+        }
+
         if (!programType.isStatic) {
             _programObject = CreateObject(programType);
             var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
@@ -100,11 +124,11 @@ internal sealed class Evaluator {
                 InvokeInstanceMethod(constructor, _programObject, [], abort);
 
             if (!entryPoint.isStatic)
-                result = InvokeInstanceMethod(entryPoint, _programObject, [], abort);
+                result = InvokeInstanceMethod(entryPoint, _programObject, arguments, abort);
         }
 
         if (entryPoint.isStatic)
-            result = InvokeStaticMethod(entryPoint, [], abort);
+            result = InvokeStaticMethod(entryPoint, arguments, abort);
 
         // Wait until Main finishes before the first call of Update
         if (_context.maintainThread) {
@@ -276,6 +300,7 @@ internal sealed class Evaluator {
             BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, abort),
             BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)node, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)node, abort),
+            BoundKind.IndexerAccessExpression => EvaluateIndexerAccessExpression((BoundIndexerAccessExpression)node, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression(),
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
@@ -499,6 +524,14 @@ internal sealed class Evaluator {
                 value.@string = Convert.ToString(value.@double);
                 value.kind = ValueKind.String;
                 break;
+            case (SpecialType.Char, SpecialType.Int):
+                value.@int64 = Convert.ToInt64(value.@char);
+                value.kind = ValueKind.Int64;
+                break;
+            case (SpecialType.Int, SpecialType.Char):
+                value.@char = Convert.ToChar(value.@int64);
+                value.kind = ValueKind.Char;
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue((fromType, toType));
         }
@@ -539,6 +572,20 @@ internal sealed class Evaluator {
             throw new BelteIndexOutOfRangeException(node.syntax.location);
 
         return _context.heap[receiver.ptr].fields[index];
+    }
+
+    private EvaluatorValue EvaluateIndexerAccessExpression(BoundIndexerAccessExpression node, ValueWrapper<bool> abort) {
+        var receiver = EvaluateExpression(node.receiver, abort);
+
+        if (receiver.kind == ValueKind.Null)
+            throw new BelteNullReferenceException(node.syntax.location);
+
+        var index = (int)EvaluateExpression(node.index, abort).int64;
+
+        if (index >= receiver.@string.Length)
+            throw new BelteIndexOutOfRangeException(node.syntax.location);
+
+        return EvaluatorValue.Literal(receiver.@string[index]);
     }
 
     private EvaluatorValue EvaluateArrayCreationExpression(
@@ -889,12 +936,8 @@ internal sealed class Evaluator {
         var left = EvaluateExpression(node.left, abort);
 
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
-            if (node.right.IsLiteralNull()) {
-                return EvaluatorValue.Literal(
-                    left.kind == ValueKind.Null == (op == BinaryOperatorKind.Equal),
-                    SpecialType.Bool
-                );
-            }
+            if (node.right.IsLiteralNull())
+                return EvaluatorValue.Literal(left.kind == ValueKind.Null == (op == BinaryOperatorKind.Equal));
         }
 
         if (left.kind == ValueKind.Null)
@@ -922,10 +965,8 @@ internal sealed class Evaluator {
         var operandType = operatorKind.OperandTypes();
 
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
-            if (node.right.IsLiteralNull()) {
-                var isNull = left.kind == ValueKind.Null;
-                return EvaluatorValue.Literal(isNull == (op == BinaryOperatorKind.Equal), SpecialType.Bool);
-            }
+            if (node.right.IsLiteralNull())
+                return EvaluatorValue.Literal(left.kind == ValueKind.Null == (op == BinaryOperatorKind.Equal));
 
             switch (operandType) {
                 case BinaryOperatorKind.Int:
@@ -1446,7 +1487,7 @@ internal sealed class Evaluator {
 
         if (mapKey == "Nullable_get_HasValue") {
             var receiverValue = EvaluateExpression(receiver, abort);
-            result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null, SpecialType.Bool);
+            result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
             return true;
         }
 
@@ -1503,7 +1544,7 @@ internal sealed class Evaluator {
                         var separator = args[1];
                         var res = text.Split(separator);
 
-                        result = res.Select(r => EvaluatorValue.Literal(r, SpecialType.String)).ToArray();
+                        result = res.Select(r => EvaluatorValue.Literal(r)).ToArray();
                     }
 
                     return true;
@@ -1772,8 +1813,8 @@ internal sealed class Evaluator {
                         vecType.constructors[0],
                         vec,
                         [
-                            EvaluatorValue.Literal(Convert.ToDouble(x), SpecialType.Decimal),
-                            EvaluatorValue.Literal(Convert.ToDouble(y), SpecialType.Decimal)
+                            EvaluatorValue.Literal(Convert.ToDouble(x)),
+                            EvaluatorValue.Literal(Convert.ToDouble(y))
                         ],
                         abort
                     );
@@ -2011,7 +2052,7 @@ internal sealed class Evaluator {
         if (_program.updatePoint is null)
             return;
 
-        var argument = EvaluatorValue.Literal(deltaTime, SpecialType.Decimal);
+        var argument = EvaluatorValue.Literal(deltaTime);
         InvokeInstanceMethod(_program.updatePoint, _programObject, [argument], abort);
 
         if (exceptions.Count > 0)

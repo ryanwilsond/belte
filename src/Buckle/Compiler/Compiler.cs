@@ -159,7 +159,10 @@ public sealed class Compiler {
                 }
             }
 
-            InternalInterpreterStart(Wrapper);
+            if (buildMode == BuildMode.Execute)
+                Wrapper(false);
+            else
+                InternalInterpreterStart(Wrapper);
         } else {
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
@@ -278,10 +281,8 @@ public sealed class Compiler {
         ValueWrapper<bool> abort = false;
 
         void CtrlCHandler(object sender, ConsoleCancelEventArgs args) {
-            if (state.buildMode != BuildMode.Execute) {
-                abort.Value = true;
-                args.Cancel = true;
-            }
+            abort.Value = true;
+            args.Cancel = true;
         }
 
         Console.CancelKeyPress += new ConsoleCancelEventHandler(CtrlCHandler);

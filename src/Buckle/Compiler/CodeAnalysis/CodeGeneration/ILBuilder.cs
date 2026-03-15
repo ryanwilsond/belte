@@ -64,6 +64,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitStringEquality();
 
+    internal abstract void EmitStringChars();
+
     internal abstract void EmitConvertCall(SpecialType from, SpecialType to);
 
     internal abstract void EmitRandomNextInt64();

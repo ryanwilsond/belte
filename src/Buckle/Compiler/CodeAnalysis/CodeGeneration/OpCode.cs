@@ -94,6 +94,7 @@ internal enum OpCode : byte {
     Ldsfld,
     Unbox,
     Conv_R8,
+    Conv_U2,
     Castclass,
     Ldind_I8,
     Ldind_I1,

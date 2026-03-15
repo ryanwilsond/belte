@@ -11,10 +11,9 @@
 
 public static class Program {
     public static void Main() {
-        string![]! luminance = new string![] { ".", ",", "-", "~", ":", ";", "=", "!", "*", "#", "$", "@" };
-
         int![]! b = new int![1760];
         int![]! z = new int![1760];
+        char![]! buffer = new char![1761];
 
         int! sA = 1024;
         int! cA = 0;
@@ -25,7 +24,7 @@ public static class Program {
         Console.SetCursorVisibility(false);
         Console.SetCursorPosition(0, 0);
 
-        for (int! outer = 0; outer < 100; outer++) {
+        while (true) {
             for (int! i = 0; i < 1760; i++) {
                 b[i] = 32;
                 z[i] = 127;
@@ -62,7 +61,7 @@ public static class Program {
 
                     if (22 > y && y > 0 && x > 0 && 80 > x && zz < z[o]) {
                         z[o] = zz;
-                        b[o] = String.Ascii(luminance[Math.Max(N, 0)])!;
+                        b[o] = ".,-~:;=!*#$@"[Math.Max(N, 0)];
                     }
 
                     R(5, 8, ref cI, ref sI);
@@ -72,7 +71,11 @@ public static class Program {
             }
 
             for (int! l = 0; l < 1761; l++)
-                Console.Print((l % 80 != 0) ? String.Char(b[l]) : "\n");
+                buffer[l] = (l % 80 != 0) ? (char!)b[l] : '\n';
+
+            Console.Print(buffer);
+
+            Time.Sleep(15);
 
             R(5, 7, ref cA, ref sA);
             R(5, 8, ref cB, ref sB);
@@ -81,6 +84,7 @@ public static class Program {
         }
 
         Console.SetCursorVisibility(true);
+        Console.Clear();
     }
 
     static void R(int! mul, int! shift, ref int! x, ref int! y) {
@@ -92,3 +96,39 @@ public static class Program {
         y = (y * _) >> 10;
     }
 }
+
+
+/*
+
+
+
+
+
+                                               int![]!b=new int![1760]
+                                        ;int![]!z=new int![1760];char![]!c=new
+                                    char![1761];int!sA=1024;int!cA=0;int!sB=1024;
+                                 int!cB=0;while(true){Console.SetCursorPosition(0,0)
+                               ;for(int!i=0;i<1760;i++){b[i]=32;z[i]=127;}int!sJ=0;int
+                             !cJ=1024;for(int!j=0;j<90;j++){int!sI=0;int!cI=1024;for(int
+                            !k=0;k<324;k++){int!R1=1;int!R2=2048;int!K2=5120*1024;int!x0=
+                           R1*cJ+R2;int!x1=(cI*x0)>>             10;int!x2=(cA*sJ)>>10;int
+                           !x3=(sI*x0)>>10;int!x4                   =R1* x2-((sA*x3)>>10);
+                          int!x5 = (sA*sJ)>>10;                       int!x6=K2+R1*1024*x5+
+                          cA*x3;int! x7=(cJ*sI)                       >>10;int!x=40+30*(cB*
+                          x1-sB*x4)/x6;int!y=12                       +15*(cB*x4+sB*x1)/x6;
+                          int!N=((-cA*x7-cB*(((                       -sA*x7)>>10)+x2)-cI*(
+                           (cJ* sB)>>10))>>10)-x5                   >>7;int!o=x+80*y; int!
+                           zz=(x6-K2)>>15;if(22>y&&y             >0&&x>0&&80>x&&zz<z[o]){z
+                            [o]=zz;b[o]=".,-~:;=!*#$@"[N>0?N:0];}R(5,8,ref cI,ref sI);}R(
+                             9,7,ref cJ,ref sJ);}for(int!l=0;l<1761;l++)c[l]=(l%80!=0)?(
+                               char!)b[l]:'\n';Console.Print(c); Time.Sleep(15);R(5,7,
+                                 ref cA,ref sA);R(5,8,ref cB,ref sB);}void R(int! m,
+                                    int!s,ref int!x,ref int!y){int!_=x;x-=(m*y)>>
+                                        s;y+=(m*_)>>s;_=(3145728-x*x-y*y)>>11;
+                                              x=(x*_)>>10;y=(y*_)>>10;}
+
+
+
+
+
+*/

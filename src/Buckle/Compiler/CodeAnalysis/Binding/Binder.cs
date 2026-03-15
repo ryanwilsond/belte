@@ -2467,6 +2467,7 @@ internal partial class Binder {
                 var access = BindArrayAccess(node, expression, analyzedArguments, diagnostics);
                 return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
             case TypeKind.Class:
+            case TypeKind.Primitive:
             case TypeKind.TemplateParameter:
                 // TODO What to do about conditional access?
                 return BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
@@ -2486,6 +2487,34 @@ internal partial class Binder {
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
+        if (expression.type.StrippedType().specialType == SpecialType.String) {
+            var argument = analyzedArguments.arguments[0];
+            var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+            var charType = CorLibrary.GetSpecialType(SpecialType.Char);
+
+            if (argument.type is not null && argument.type.IsNullableType())
+                intType = CorLibrary.GetNullableType(SpecialType.Int);
+
+            var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
+
+            if (!conversion.exists)
+                GenerateImplicitConversionError(diagnostics, node, conversion, argument, intType);
+
+            var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
+            var hasErrors = false;
+
+            var constantValue = ConstantFolding.FoldIndex(expression, boundConversion, charType);
+
+            return new BoundIndexerAccessExpression(
+                node,
+                expression,
+                boundConversion,
+                constantValue,
+                charType,
+                hasErrors
+            );
+        }
+
         diagnostics.Push(Error.CannotApplyIndexing(node.location, expression.type));
         return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
 

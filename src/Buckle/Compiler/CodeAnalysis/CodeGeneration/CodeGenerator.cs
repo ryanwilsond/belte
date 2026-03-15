@@ -450,6 +450,9 @@ internal sealed partial class CodeGenerator {
             case SpecialType.Int:
                 EmitLongConstant((long)value);
                 break;
+            case SpecialType.Char:
+                EmitCharConstant((char)value);
+                break;
             case SpecialType.Bool:
                 EmitBoolConstant((bool)value);
                 break;
@@ -496,6 +499,10 @@ internal sealed partial class CodeGenerator {
 
     private void EmitStringConstant(string value) {
         _builder.Emit(OpCode.Ldstr, value);
+    }
+
+    private void EmitCharConstant(char value) {
+        EmitIntConstant(value);
     }
 
     private void EmitLongConstant(long value) {
@@ -960,6 +967,9 @@ oneMoreTime:
             case BoundKind.ArrayAccessExpression:
                 EmitArrayElementLoad((BoundArrayAccessExpression)expression, used);
                 break;
+            case BoundKind.IndexerAccessExpression:
+                EmitIndexerAccessExpression((BoundIndexerAccessExpression)expression, used);
+                break;
             case BoundKind.TypeOfExpression:
                 if (used)
                     EmitTypeOfExpression((BoundTypeOfExpression)expression);
@@ -1039,6 +1049,15 @@ oneMoreTime:
         } else {
             EmitArrayElementLoadInternal((ArrayTypeSymbol)expression.type);
         }
+
+        EmitPopIfUnused(used);
+    }
+
+    private void EmitIndexerAccessExpression(BoundIndexerAccessExpression expression, bool used) {
+        EmitExpression(expression.receiver, used: true);
+        EmitArrayIndex(expression.index);
+
+        _builder.EmitStringChars();
 
         EmitPopIfUnused(used);
     }
@@ -2839,19 +2858,26 @@ oneMoreTime:
     }
 
     private void EmitNumericConversion(SpecialType from, SpecialType to) {
-        if (to == SpecialType.Int) {
-            if (from == SpecialType.Decimal)
+        switch (from, to) {
+            case (SpecialType.Decimal, SpecialType.Int):
                 _builder.Emit(OpCode.Conv_I8);
-        }
-
-        if (to == SpecialType.Decimal) {
-            if (from == SpecialType.Int)
+                break;
+            case (SpecialType.Int, SpecialType.Decimal):
                 _builder.Emit(OpCode.Conv_R8);
+                break;
+            case (SpecialType.Int, SpecialType.Char):
+                _builder.Emit(OpCode.Conv_U2);
+                break;
+            case (SpecialType.Char, SpecialType.Int):
+                _builder.Emit(OpCode.Conv_U8);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue((from, to));
         }
     }
 
     private static bool IsNumeric(SpecialType specialType) {
-        return specialType is SpecialType.Int or SpecialType.Decimal;
+        return specialType is SpecialType.Int or SpecialType.Decimal or SpecialType.Char;
     }
 
     private void EmitImplicitReferenceConversion(BoundCastExpression conversion) {

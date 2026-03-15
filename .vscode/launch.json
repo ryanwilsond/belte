@@ -9,7 +9,7 @@
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
                 "-r",
-                "--clearsubmissions"
+                "--clearsubmissions",
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

@@ -299,11 +299,17 @@ internal static class ConstantFolding {
     /// <param name="index">The index.</param>
     /// <returns>The constant item at the index, if constant.</returns>
     internal static ConstantValue FoldIndex(BoundExpression expression, BoundExpression index, TypeSymbol type) {
-        if (expression.constantValue is null || index.constantValue is null)
+        var expressionConstant = expression.constantValue;
+        var indexConstant = index.constantValue;
+
+        if (expressionConstant is null || indexConstant is null)
             return null;
 
-        var array = (ImmutableArray<ConstantValue>)expression.constantValue.value;
-        var item = array[Convert.ToInt32(index.constantValue.value)];
+        if (type.specialType == SpecialType.Char && indexConstant is not null)
+            return new ConstantValue(((string)expressionConstant.value)[Convert.ToInt32(indexConstant.value)], type.specialType);
+
+        var array = (ImmutableArray<ConstantValue>)expressionConstant.value;
+        var item = array[Convert.ToInt32(indexConstant.value)];
         var specialType = type.specialType;
 
         return new ConstantValue(item.value, specialType);

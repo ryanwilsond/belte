@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -719,10 +721,12 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Console_Print_S?", typeof(Console).GetMethod("Write", Flags, [typeof(string)]) },
             { "Console_Print_A?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
             { "Console_Print_O?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
+            { "Console_Print_[?", typeof(Console).GetMethod("Write", Flags, [typeof(char[])]) },
             { "Console_PrintLine", typeof(Console).GetMethod("WriteLine", Flags, Type.EmptyTypes) },
             { "Console_PrintLine_S?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(string)]) },
             { "Console_PrintLine_A?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
             { "Console_PrintLine_O?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
+            { "Console_PrintLine_[?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(char[])]) },
             { "Console_Input", typeof(Console).GetMethod("ReadLine", Flags, Type.EmptyTypes) },
             { "Console_ResetColor", typeof(Console).GetMethod("ResetColor", Flags, Type.EmptyTypes) },
             { "Console_SetForegroundColor_I", typeof(Belte.Runtime.Console).GetMethod("SetForegroundColor", Flags, [typeof(long)]) },

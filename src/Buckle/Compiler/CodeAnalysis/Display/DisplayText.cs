@@ -159,6 +159,9 @@ public sealed class DisplayText {
             case BoundKind.ArrayAccessExpression:
                 DisplayArrayAccessExpression(text, (BoundArrayAccessExpression)node);
                 break;
+            case BoundKind.IndexerAccessExpression:
+                DisplayIndexerAccessExpression(text, (BoundIndexerAccessExpression)node);
+                break;
             case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
@@ -631,6 +634,13 @@ public sealed class DisplayText {
         bool conditional = false) {
         DisplayNode(text, node.receiver);
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionOpenBracketToken : SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.index);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayIndexerAccessExpression(DisplayText text, BoundIndexerAccessExpression node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }

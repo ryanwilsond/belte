@@ -32,6 +32,15 @@ internal static class SpecialTypeExtensions {
         }
     }
 
+    internal static bool IsUnsigned(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Char:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static SpecialType SpecialTypeFromLiteralValue(object value) {
         if (value is null)
             return SpecialType.None;

@@ -641,10 +641,10 @@ public sealed partial class Compilation {
 
         var firstType = method.parameters[0].type;
 
-        if (firstType.specialType != SpecialType.List)
+        if (firstType.specialType != SpecialType.Array)
             return false;
 
-        var elementType = ((NamedTypeSymbol)firstType).templateArguments[0].type;
+        var elementType = ((ArrayTypeSymbol)firstType).elementType;
 
         if (elementType.specialType != SpecialType.String)
             return false;

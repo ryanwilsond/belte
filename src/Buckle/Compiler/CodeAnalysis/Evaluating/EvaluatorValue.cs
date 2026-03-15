@@ -80,6 +80,22 @@ public struct EvaluatorValue {
         };
     }
 
+    internal static EvaluatorValue Literal(bool value) {
+        return new EvaluatorValue() { kind = ValueKind.Bool, @bool = value };
+    }
+
+    internal static EvaluatorValue Literal(char value) {
+        return new EvaluatorValue() { kind = ValueKind.Char, @char = value };
+    }
+
+    internal static EvaluatorValue Literal(string value) {
+        return new EvaluatorValue() { kind = ValueKind.String, @string = value };
+    }
+
+    internal static EvaluatorValue Literal(double value) {
+        return new EvaluatorValue() { kind = ValueKind.Double, @double = value };
+    }
+
     public static Dictionary<ISymbol, EvaluatorValue> GetFieldsFromPtr(EvaluatorValue value, EvaluatorContext context) {
         var heapObject = context.heap[value.ptr];
 
