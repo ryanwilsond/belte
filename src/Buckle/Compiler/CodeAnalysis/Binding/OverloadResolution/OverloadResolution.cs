@@ -53,8 +53,8 @@ internal sealed partial class OverloadResolution {
             BoundExpression right,
             BinaryOperatorOverloadResolutionResult result) {
             var hadApplicableCandidates = false;
-            var leftOperatorSource = left.type?.StrippedType();
-            var rightOperatorSource = right.type?.StrippedType();
+            var leftOperatorSource = left.Type()?.StrippedType();
+            var rightOperatorSource = right.Type()?.StrippedType();
 
             if (leftOperatorSource is not null) {
                 hadApplicableCandidates = GetUserDefinedOperators(
@@ -327,10 +327,10 @@ internal sealed partial class OverloadResolution {
         UnaryOperatorKind kind,
         BoundExpression operand,
         ArrayBuilder<UnaryOperatorAnalysisResult> results) {
-        if (operand.type is null)
+        if (operand.Type() is null)
             return false;
 
-        var type0 = operand.type.StrippedType();
+        var type0 = operand.Type().StrippedType();
         TypeSymbol constrainedToTypeOpt = type0 as TemplateParameterSymbol;
 
         if (OperatorFacts.NoUserDefinedOperators(type0))
@@ -1662,7 +1662,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private bool ExpressionMatchExactly(BoundExpression node, TypeSymbol t) {
-        if (node.type is not null && Conversions.HasIdentityConversion(node.type, t))
+        if (node.Type() is not null && Conversions.HasIdentityConversion(node.Type(), t))
             return true;
 
         return false;
@@ -2052,7 +2052,7 @@ internal sealed partial class OverloadResolution {
         if (argRefKind != parRefKind)
             return Conversion.None;
 
-        var argType = argument.type;
+        var argType = argument.Type();
 
         if (argRefKind == RefKind.None) {
             var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);

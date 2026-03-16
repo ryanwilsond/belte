@@ -6,8 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Threading;
-using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -211,9 +209,14 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
+            if (type is TemplateParameterSymbol t) {
+                var containingType = _types[type.containingType.originalDefinition];
+                return containingType.GenericTypeParameters[t.ordinal];
+            }
+
             var foundType = _types[type.originalDefinition];
 
-            if (type is NamedTypeSymbol named && named.templateArguments.Length > 0)
+            if (type is NamedTypeSymbol named && named.arity > 0)
                 return foundType.MakeGenericType(named.templateArguments.Select(t => GetType(t.type.type)).ToArray());
             else
                 return foundType;
@@ -221,19 +224,38 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     internal FieldInfo GetField(FieldSymbol field) {
-        return _fields[field];
+        var foundField = _fields[field.originalDefinition];
+
+        if (field.originalDefinition.type.kind == SymbolKind.TemplateParameter) {
+            var constructedType = GetType(field.containingType);
+            return TypeBuilder.GetField(constructedType, foundField);
+        }
+
+        return foundField;
     }
 
     internal MethodInfo GetMethod(MethodSymbol method) {
-        if (_methods.TryGetValue(method, out var value))
+        if (_methods.TryGetValue(method.originalDefinition, out var value)) {
+            if (method.containingType.arity > 0) {
+                var constructedType = GetType(method.containingType);
+                return TypeBuilder.GetMethod(constructedType, value);
+            }
+
             return value;
+        }
 
         return CheckStandardMap(method);
     }
 
     internal ConstructorInfo GetConstructor(MethodSymbol method) {
-        if (_constructors.TryGetValue(method, out var value))
+        if (_constructors.TryGetValue(method.originalDefinition, out var value)) {
+            if (method.containingType.arity > 0) {
+                var constructedType = GetType(method.containingType);
+                return TypeBuilder.GetConstructor(constructedType, value);
+            }
+
             return value;
+        }
 
         return CheckConstructorsStandardMap(method);
     }

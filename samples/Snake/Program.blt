@@ -33,6 +33,7 @@ class Program {
 
     private void Main() {
         Graphics.Initialize("Snake", Settings.GameWidth, Settings.GameHeight + 80);
+        Graphics.LockFramerate(120);
 
         var scoreTextPosition = new Vec2(Settings.GameWidth / 2 - 30, 40);
         var scorePosition = new Vec2(Settings.GameWidth / 2 - 100, 37);

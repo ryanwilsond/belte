@@ -17,7 +17,7 @@ internal sealed class BoundExpressionOrTypeOrConstant {
         isTypeOrConstant = true;
     }
 
-    internal TypeSymbol type => isExpression ? _expression.type : typeOrConstant.type.type;
+    internal TypeSymbol type => isExpression ? _expression.Type() : typeOrConstant.type.type;
 
     internal bool isExpression { get; }
 

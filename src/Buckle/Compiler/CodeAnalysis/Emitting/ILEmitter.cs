@@ -68,6 +68,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
         var netstandardDll = DotnetReferenceResolver.ResolveNetStandardDll(tfm);
         var privateCoreLibDll = DotnetReferenceResolver.ResolvePrivateCoreLibDll(tfm);
+
+#if !DEBUG
+#pragma warning disable IL3000
+#endif
+
         _belteDllName = typeof(Belte.Runtime.Console).Assembly.Location;
 
         if (string.IsNullOrEmpty(_belteDllName))
@@ -84,6 +89,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             // AssemblyDefinition.ReadAssembly(netstandardDll),
             // AssemblyDefinition.ReadAssembly(privateCoreLibDll),
         ];
+
+#if !DEBUG
+#pragma warning restore IL3000
+#endif
 
         foreach (var reference in references) {
             try {

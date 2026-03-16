@@ -1551,13 +1551,10 @@ oneMoreTime:
                 object whenNotNullLabel = null;
 
                 if (!IsReferenceType(receiverType)) {
-                    // TODO Is EmitDefaultValue reachable?
-                    // if ((object)default(T) == null)
-                    // EmitDefaultValue(receiverType, true, receiver.Syntax);
-                    throw ExceptionUtilities.Unreachable();
-                    // EmitBox(receiverType);
-                    // whenNotNullLabel = new object();
-                    // _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
+                    EmitDefaultValue(receiverType, true, receiver.syntax);
+                    EmitBox(receiverType);
+                    whenNotNullLabel = new object();
+                    _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
                 }
 
                 EmitLoadIndirect(receiverType);
@@ -1568,6 +1565,21 @@ oneMoreTime:
                 if (whenNotNullLabel is not null)
                     _builder.MarkLabel(whenNotNullLabel);
             }
+        }
+    }
+
+    private void EmitDefaultValue(TypeSymbol type, bool used, SyntaxNode syntaxNode) {
+        if (used) {
+            if (!type.IsTemplateParameter()) {
+                var constantValue = type.IsVerifierValue() ? LiteralUtilities.GetDefaultValue(type.specialType) : null;
+
+                if (constantValue is not null) {
+                    EmitConstantValue(new ConstantValue(constantValue, type.specialType), type);
+                    return;
+                }
+            }
+
+            EmitInitObj(type, true);
         }
     }
 

@@ -253,6 +253,9 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
                 var typeParameters = type.originalDefinition.templateParameters;
 
                 for (var i = 0; i < typeArguments.Length; i++) {
+                    if (typeArguments[i].isConstant)
+                        return false;
+
                     if (!typeParameters[i].Equals(
                              typeArguments[i].type.type.originalDefinition,
                              TypeCompareKind.ConsiderEverything)) {

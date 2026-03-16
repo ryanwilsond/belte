@@ -192,7 +192,7 @@ internal static class ConstantFolding {
 
         opKind &= UnaryOperatorKind.OpMask;
 
-        var operandSpecialType = operand.type.specialType;
+        var operandSpecialType = operand.Type().specialType;
 
         if (operand.constantValue is null || opKind == UnaryOperatorKind.Error)
             return null;

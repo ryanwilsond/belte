@@ -55,7 +55,7 @@ internal partial class SourceDataContainerSymbol {
 
         private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
             var initializer = _initializerBinder.BindInferredDataContainerInitializer(diagnostics, refKind, _initializer, _initializer);
-            return new TypeWithAnnotations(initializer.type);
+            return new TypeWithAnnotations(initializer.Type());
         }
 
         private void MakeConstantValue(DataContainerSymbol inProgress, BoundExpression boundInitValue) {

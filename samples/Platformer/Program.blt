@@ -17,7 +17,7 @@ class Program {
     public bool! wallSlideResetsJumps;
     public Sound[] sfx;
     public int! screenShake;
-    public int dead;
+    public decimal! dead;
     public Player player;
     public TileMap tileMap;
     public Particle[] particles;
@@ -32,6 +32,7 @@ class Program {
     public void Main() {
         Graphics.Initialize("Platformer", Settings.WindowWidth, Settings.WindowHeight, true);
         Graphics.SetCursorVisibility(false);
+        Graphics.LockFramerate(120);
 
         background = Graphics.LoadSprite(
             "data/images/background.png",
@@ -143,12 +144,10 @@ class Program {
     }
 
     public void Update(decimal! deltaTime) {
-        // Console.PrintLine(1 / deltaTime);
-
         screenShake = Math.Max(0, screenShake - 4);
 
         if (enemyCount == 0) {
-            transition += Math.Min(60 * deltaTime, 1);
+            transition += 60 * deltaTime;
 
             if (transition > 30) {
                 level = ((level + 1) % mapCount + mapCount) % mapCount;
@@ -157,15 +156,15 @@ class Program {
         }
 
         if (transition < 0)
-            transition += Math.Min(60 * deltaTime, 1);
+            transition += 60 * deltaTime;
 
         if (dead > 0) {
-            dead++;
+            dead += 60 * deltaTime;
 
-            if (dead >= 60 * deltaTime)
-                transition = Math.Min(transition + 1, 30);
+            if (dead >= 60)
+                transition = Math.Min(transition + 60 * deltaTime, 30);
 
-            if (dead > 2400 * deltaTime)
+            if (dead > 120)
                 LoadLevel(level);
         }
 
@@ -246,7 +245,7 @@ class Program {
                 i--;
             } else if (dead == 0 && PhysicsEntity.Colliding(player.box, enemies[i].box)) {
                 screenShake = Math.Max(Settings.TileSize, screenShake);
-                dead++;
+                dead += 1 * deltaTime;
                 Graphics.PlaySound(sfx[2]!);
 
                 for (int! j = 0; j < 30; j++) {
@@ -294,7 +293,7 @@ class Program {
                 if (PointInsideRect(pos.x, pos.y, player.box)) {
                     screenShake = Math.Max(Settings.TileSize, screenShake);
                     remove = true;
-                    dead++;
+                    dead += 1 * deltaTime;
                     Graphics.PlaySound(sfx[2]!);
 
                     for (int! j = 0; j < 30; j++) {

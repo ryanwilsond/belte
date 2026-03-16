@@ -18,7 +18,7 @@ internal sealed class CapturedToFrameSymbolReplacement : CapturedSymbolReplaceme
         Func<NamedTypeSymbol, TArg, BoundExpression> makeFrame,
         TArg arg) {
         var frame = makeFrame(hoistedField.containingType, arg);
-        var field = hoistedField.AsMember((NamedTypeSymbol)frame.type);
+        var field = hoistedField.AsMember((NamedTypeSymbol)frame.Type());
         return new BoundFieldAccessExpression(node, frame, field, constantValue: null, field.type);
     }
 }

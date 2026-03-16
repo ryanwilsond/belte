@@ -67,7 +67,7 @@ internal static class ParameterHelpers {
         } else if (!conversion.exists) {
             diagnostics.Push(Error.NoCastForDefaultParameter(
                 parameterSyntax.identifier.location,
-                defaultExpression.type,
+                defaultExpression.Type(),
                 parameterType
             ));
 
@@ -80,7 +80,7 @@ internal static class ParameterHelpers {
             ));
 
             hasErrors = true;
-        } else if (conversion.isNullable && !defaultExpression.type.IsNullableType()) {
+        } else if (conversion.isNullable && !defaultExpression.Type().IsNullableType()) {
             // We can do:
             // M(int? x = default(int))
             // M(int? x = default(int?))

@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -121,14 +122,14 @@ internal sealed class Evaluator {
             var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
-                InvokeInstanceMethod(constructor, _programObject, [], abort);
+                InvokeMethod(constructor, _programObject, [], abort);
 
             if (!entryPoint.isStatic)
-                result = InvokeInstanceMethod(entryPoint, _programObject, arguments, abort);
+                result = InvokeMethod(entryPoint, _programObject, arguments, abort);
         }
 
         if (entryPoint.isStatic)
-            result = InvokeStaticMethod(entryPoint, arguments, abort);
+            result = InvokeMethod(entryPoint, EvaluatorValue.None, arguments, abort);
 
         // Wait until Main finishes before the first call of Update
         if (_context.maintainThread) {
@@ -151,8 +152,28 @@ internal sealed class Evaluator {
         var heapObject = new HeapObject(type, fields.Length);
 
         foreach (var field in fields) {
-            var fieldType = type.templateSubstitution.SubstituteType(field.type).type.type;
+            var fieldType = field.type;
+
+            if (type.templateSubstitution is not null)
+                fieldType = type.templateSubstitution.SubstituteType(field.type).type.type;
+
             heapObject.fields[field.slot] = GetDefaultValue(fieldType);
+        }
+
+        if (type.arity > 0) {
+            for (var i = 0; i < type.arity; i++) {
+                var parameter = type.templateParameters[i];
+
+                if (parameter.underlyingType.specialType == SpecialType.Type)
+                    continue;
+
+                var argument = type.templateArguments[i];
+                var arg = layout.GetLocal(parameter);
+                heapObject.fields[arg.slot] = EvaluatorValue.Literal(
+                    argument.constant.value,
+                    argument.constant.specialType
+                );
+            }
         }
 
         var index = _context.heap.Allocate(heapObject, _stack, _context);
@@ -308,7 +329,7 @@ internal sealed class Evaluator {
             BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)node, abort),
             BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)node, abort),
             BoundKind.IndexerAccessExpression => EvaluateIndexerAccessExpression((BoundIndexerAccessExpression)node, abort),
-            BoundKind.TypeExpression => EvaluateTypeExpression(),
+            BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)node),
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
@@ -333,20 +354,26 @@ internal sealed class Evaluator {
         return value;
     }
 
-    private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression expression) {
-        return EvaluatorValue.Type(expression.sourceType.type);
+    private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression node) {
+        return EvaluatorValue.Type(node.sourceType.type);
     }
 
-    private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup methodGroup) {
-        return EvaluatorValue.MethodGroup(methodGroup);
+    private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
+        return EvaluatorValue.MethodGroup(node);
     }
 
-    private EvaluatorValue EvaluateTypeExpression() {
-        // This should only ever be called when an invalid expression statement makes it through binding without err
-        // because script compilation ignores normal expression statement restrictions.
-        //
-        // `Console;`
-        //
+    private EvaluatorValue EvaluateTypeExpression(BoundTypeExpression node) {
+        if (node.type.kind == SymbolKind.TemplateParameter) {
+            var thisParameter = _stack.Peek().values[0];
+            var heapObject = _context.heap[thisParameter.ptr];
+
+            if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
+
+            var field = layout.GetLocal(node.type);
+            return heapObject.fields[field.slot];
+        }
+
         return EvaluatorValue.None;
     }
 
@@ -413,7 +440,7 @@ internal sealed class Evaluator {
         BoundExpression receiver,
         ValueWrapper<bool> abort,
         out EvaluatorValue expr) {
-        if (receiver is null || !CodeGenerator.IsValueType(receiver.type)) {
+        if (receiver is null || !CodeGenerator.IsValueType(receiver.Type())) {
             expr = EvaluatorValue.None;
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
@@ -438,7 +465,7 @@ internal sealed class Evaluator {
     }
 
     private bool FieldLoadPrefersRef(BoundExpression receiver) {
-        if (!receiver.type.IsVerifierValue())
+        if (!receiver.Type().IsVerifierValue())
             return true;
 
         if (receiver.kind == BoundKind.CastExpression &&
@@ -470,16 +497,16 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateCastExpression(BoundCastExpression node, ValueWrapper<bool> abort) {
         var value = EvaluateExpression(node.operand, abort);
 
-        if (CodeGenerator.IsReferenceType(node.operand.type)) {
-            if (node.type.specialType == SpecialType.Nullable)
+        if (CodeGenerator.IsReferenceType(node.operand.Type())) {
+            if (node.Type().specialType == SpecialType.Nullable)
                 return value;
         }
 
-        var isCastable = node.operand.type.specialType == SpecialType.String && node.type.IsPrimitiveType() ||
-            node.type.specialType == SpecialType.String && node.operand.type.IsPrimitiveType();
+        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().IsPrimitiveType() ||
+            node.Type().specialType == SpecialType.String && node.operand.Type().IsPrimitiveType();
 
-        var involvesRefTypes = !isCastable && (node.operand.type.IsVerifierReference() ||
-            (node.type.IsVerifierReference() && node.type.specialType != SpecialType.String));
+        var involvesRefTypes = !isCastable && (node.operand.Type().IsVerifierReference() ||
+            (node.Type().IsVerifierReference() && node.Type().specialType != SpecialType.String));
 
         switch (node.conversion.kind) {
             case ConversionKind.Identity:
@@ -499,8 +526,8 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateConvertCallOrNumericConversion(BoundCastExpression node, EvaluatorValue value) {
-        var fromType = node.operand.type.specialType;
-        var toType = node.type.specialType;
+        var fromType = node.operand.Type().specialType;
+        var toType = node.Type().specialType;
 
         switch (fromType, toType) {
             case (SpecialType.String, SpecialType.Bool):
@@ -560,7 +587,7 @@ internal sealed class Evaluator {
 
         var method = node.constructor;
         var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
-        InvokeInstanceMethod(method, ptr, evaluatedArguments, abort);
+        InvokeMethod(method, ptr, evaluatedArguments, abort);
 
         _stack.Peek().layout.FreeSlot(temp);
 
@@ -599,11 +626,11 @@ internal sealed class Evaluator {
         BoundArrayCreationExpression node,
         ValueWrapper<bool> abort) {
         var sizes = node.sizes.Select(s => (int)EvaluateExpression(s, abort).int64);
-        var heapObject = CreateArray((ArrayTypeSymbol)node.type.StrippedType(), sizes.ToArray(), 0);
+        var heapObject = CreateArray((ArrayTypeSymbol)node.Type().StrippedType(), sizes.ToArray(), 0);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         var ptr = EvaluatorValue.HeapPtr(index);
 
-        var temp = AllocateTemp(node.type);
+        var temp = AllocateTemp(node.Type());
         _stack.Peek().values[temp.slot] = ptr;
 
         if (node.initializer is BoundInitializerList initList)
@@ -689,7 +716,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateIsOperator(BoundIsOperator node, ValueWrapper<bool> abort) {
         var operand = node.left;
         var value = EvaluateExpression(operand, abort);
-        var targetType = node.right.type.StrippedType();
+        var targetType = node.right.Type().StrippedType();
 
         if (value.kind == ValueKind.Null) {
             value.@bool = node.isNot;
@@ -729,8 +756,8 @@ internal sealed class Evaluator {
         if (value.kind == ValueKind.Null)
             return value;
 
-        var operandType = operand.type;
-        var targetType = node.type;
+        var operandType = operand.Type();
+        var targetType = node.Type();
 
         if (operandType.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType))
             return value;
@@ -1156,7 +1183,7 @@ internal sealed class Evaluator {
 
                 return EvaluateArrayElementAddress((BoundArrayAccessExpression)node, abort);
             case BoundKind.ThisExpression:
-                if (CodeGenerator.IsValueType(node.type)) {
+                if (CodeGenerator.IsValueType(node.Type())) {
                     if (!HasHome(node, addressKind))
                         goto default;
 
@@ -1201,7 +1228,7 @@ internal sealed class Evaluator {
         var receiver = EvaluateExpression(node.receiver, abort);
         var index = (int)EvaluateExpression(node.index, abort).int64;
 
-        if (((ArrayTypeSymbol)node.receiver.type.StrippedType()).isSZArray)
+        if (((ArrayTypeSymbol)node.receiver.Type().StrippedType()).isSZArray)
             return EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, index);
         else
             return _context.heap[receiver.ptr].fields[index];
@@ -1231,18 +1258,17 @@ internal sealed class Evaluator {
             abort
         );
 
-        throw ExceptionUtilities.Unreachable();
+        if (field.refKind == RefKind.None)
+            return EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, node.slot);
 
-        // TODO what is receiver exactly?
-        // if (field.refKind == RefKind.None)
-        //     return ;
+        return _context.heap[receiver.ptr].fields[node.slot];
     }
 
     private EvaluatorValue EvaluateReceiverRef(
         BoundExpression receiver,
         AddressKind addressKind,
         ValueWrapper<bool> abort) {
-        var receiverType = receiver.type;
+        var receiverType = receiver.Type();
 
         if (receiverType.IsVerifierReference())
             return EvaluateExpression(receiver, abort);
@@ -1309,7 +1335,7 @@ internal sealed class Evaluator {
             if (result is EvaluatorValue e) {
                 return e;
             } else if (result is EvaluatorValue[] a) {
-                var array = new HeapObject((ArrayTypeSymbol)node.type.StrippedType(), a);
+                var array = new HeapObject((ArrayTypeSymbol)node.Type().StrippedType(), a);
                 var index = _context.heap.Allocate(array, _stack, _context);
                 return EvaluatorValue.HeapPtr(index);
             } else if (!node.method.returnsVoid) {
@@ -1334,12 +1360,58 @@ internal sealed class Evaluator {
 
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
-        var value = InvokeStaticMethod(method, evaluatedArguments, abort);
+        var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
 
         if (useKind == CodeGenerator.UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
         else
             return value;
+    }
+
+    private EvaluatorValue SynthesizeCallObject(NamedTypeSymbol type) {
+        var layout = new EvaluatorSlotManager(type);
+        var current = type;
+        var builder = ArrayBuilder<EvaluatorValue>.GetInstance();
+
+        while (current is not null) {
+            if (current.arity > 0) {
+                for (var i = 0; i < current.arity; i++) {
+                    var parameter = current.templateParameters[i];
+
+                    if (parameter.underlyingType.specialType == SpecialType.Type)
+                        continue;
+
+                    var argument = current.templateArguments[i];
+
+                    layout.DeclareLocal(
+                        parameter.underlyingType.type,
+                        parameter,
+                        parameter.name,
+                        SynthesizedLocalKind.UserDefined,
+                        LocalSlotConstraints.None,
+                        false
+                    );
+
+                    builder.Add(EvaluatorValue.Literal(
+                        argument.constant.value,
+                        argument.constant.specialType
+                    ));
+                }
+            }
+
+            current = current.containingType;
+        }
+
+        var fields = layout.LocalsInOrder();
+        var heapObject = new HeapObject(type, fields.Length);
+
+        for (var i = 0; i < builder.Count; i++)
+            heapObject.fields[i] = builder[i];
+
+        builder.Free();
+
+        var index = _context.heap.Allocate(heapObject, _stack, _context);
+        return EvaluatorValue.HeapPtr(index);
     }
 
     private EvaluatorValue EvaluateInstanceCallExpression(
@@ -1359,7 +1431,7 @@ internal sealed class Evaluator {
 
         if (method.isAbstract || method.isVirtual) {
             var typeToLookup = receiver.kind == BoundKind.BaseExpression
-                ? receiver.type.StrippedType()
+                ? receiver.Type().StrippedType()
                 : _context.heap[thisParameter.ptr].type.StrippedType();
 
             var newMethod = typeToLookup
@@ -1371,7 +1443,7 @@ internal sealed class Evaluator {
                 method = newMethod;
         }
 
-        var value = InvokeInstanceMethod(method, thisParameter, evaluatedArguments, abort);
+        var value = InvokeMethod(method, thisParameter, evaluatedArguments, abort);
 
         if (useKind == CodeGenerator.UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
@@ -1419,7 +1491,7 @@ internal sealed class Evaluator {
         return EvaluateAddress(argument, AddressKind.Writeable, abort);
     }
 
-    private EvaluatorValue InvokeInstanceMethod(
+    private EvaluatorValue InvokeMethod(
         MethodSymbol method,
         EvaluatorValue thisParameter,
         EvaluatorValue[] arguments,
@@ -1451,13 +1523,6 @@ internal sealed class Evaluator {
         _stack.Pop();
 
         return result;
-    }
-
-    private EvaluatorValue InvokeStaticMethod(
-        MethodSymbol method,
-        EvaluatorValue[] arguments,
-        ValueWrapper<bool> abort) {
-        return InvokeInstanceMethod(method, EvaluatorValue.None, arguments, abort);
     }
 
     #endregion
@@ -1556,9 +1621,9 @@ internal sealed class Evaluator {
                 case "Console_PrintLine_S?":
                 case "Console_PrintLine_A?":
                 case "Console_PrintLine_O?":
-                    if (arguments[0].type.StrippedType().isObjectType) {
+                    if (arguments[0].Type().StrippedType().isObjectType) {
                         var argument = EvaluateExpression(arguments[0], abort);
-                        var toStringResult = InvokeInstanceMethod(_toStringMethod, argument, [], abort);
+                        var toStringResult = InvokeMethod(_toStringMethod, argument, [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
                         result = func(toStringResult.@string, null, null);
                         return true;
@@ -1682,7 +1747,7 @@ internal sealed class Evaluator {
                     var temp = AllocateTemp(spriteType);
                     _stack.Peek().values[temp.slot] = sprite;
 
-                    InvokeInstanceMethod(
+                    InvokeMethod(
                         spriteType.constructors[0],
                         sprite,
                         [
@@ -1812,7 +1877,7 @@ internal sealed class Evaluator {
                     var temp = AllocateTemp(vecType);
                     _stack.Peek().values[temp.slot] = vec;
 
-                    InvokeInstanceMethod(
+                    InvokeMethod(
                         vecType.constructors[0],
                         vec,
                         [
@@ -2056,7 +2121,7 @@ internal sealed class Evaluator {
             return;
 
         var argument = EvaluatorValue.Literal(deltaTime);
-        InvokeInstanceMethod(_program.updatePoint, _programObject, [argument], abort);
+        InvokeMethod(_program.updatePoint, _programObject, [argument], abort);
 
         if (exceptions.Count > 0)
             abort.Value = true;

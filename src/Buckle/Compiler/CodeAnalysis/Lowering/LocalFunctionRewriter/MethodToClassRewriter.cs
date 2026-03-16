@@ -133,7 +133,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         var rewrittenMethodSymbol = VisitMethodSymbol(node.method);
         var rewrittenReceiver = (BoundExpression)Visit(node.receiver);
         var rewrittenArguments = VisitList(node.arguments);
-        var rewrittenType = VisitType(node.type);
+        var rewrittenType = VisitType(node.Type());
 
         if (BaseReferenceInReceiverWasRewritten(node.receiver, rewrittenReceiver) && node.method.IsMetadataVirtual())
             rewrittenMethodSymbol = GetMethodWrapperForBaseNonVirtualCall(rewrittenMethodSymbol, node.syntax);
@@ -156,7 +156,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
             node.operatorKind,
             VisitMethodSymbol(node.method),
             node.constantValue,
-            VisitType(node.type)
+            VisitType(node.Type())
         );
     }
 
@@ -166,7 +166,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
             node.operatorKind,
             VisitMethodSymbol(node.method),
             node.constantValue,
-            VisitType(node.type)
+            VisitType(node.Type())
         );
     }
 
@@ -181,7 +181,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
             (BoundExpression)Visit(node.operand),
             conversion,
             node.constantValue,
-            VisitType(node.type)
+            VisitType(node.Type())
         );
     }
 
@@ -320,14 +320,14 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
 
         var rewrittenLeft = (BoundExpression)Visit(leftLocal);
         var rewrittenRight = (BoundExpression)Visit(originalRight);
-        var rewrittenType = VisitType(node.type);
+        var rewrittenType = VisitType(node.Type());
 
         return node.Update(rewrittenLeft, rewrittenRight, node.isRef, rewrittenType);
     }
 
     internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
         var receiverOpt = (BoundExpression)Visit(node.receiver);
-        var type = VisitType(node.type);
+        var type = VisitType(node.Type());
         var fieldSymbol = node.field.originalDefinition
             .AsMember((NamedTypeSymbol)VisitType(node.field.containingType));
         return node.Update(receiverOpt, fieldSymbol, node.constantValue, type);

@@ -23,6 +23,9 @@ internal abstract partial class BoundExpression : BoundNode {
     }
 
     internal TypeSymbol Type() {
+        if (type is null)
+            return null;
+
         if (type.kind != SymbolKind.TemplateParameter)
             return type;
 
