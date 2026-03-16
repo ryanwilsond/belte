@@ -101,6 +101,8 @@ internal abstract class Symbol : ISymbol {
 
     internal virtual AssemblySymbol containingAssembly => containingSymbol?.containingAssembly;
 
+    internal virtual ModuleSymbol containingModule => containingSymbol?.containingModule;
+
     internal virtual NamespaceSymbol containingNamespace {
         get {
             for (var container = containingSymbol; container is not null; container = container.containingSymbol) {

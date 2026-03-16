@@ -124,6 +124,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             member.Accept(this, null);
     }
 
+    internal override object VisitNamespace(NamespaceSymbol symbol, TypeCompilationState _) {
+        if (!PassesFilter(_filter, symbol))
+            return null;
+
+        CompileNamespace(symbol);
+        return null;
+    }
+
     internal override object VisitNamedType(NamedTypeSymbol symbol, TypeCompilationState _) {
         if (!PassesFilter(_filter, symbol))
             return null;

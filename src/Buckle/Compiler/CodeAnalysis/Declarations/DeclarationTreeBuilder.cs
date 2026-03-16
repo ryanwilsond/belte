@@ -30,7 +30,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         SyntaxTree syntaxTree,
         OneOrMany<WeakReference<BoxedMemberNames>>? previousMemberNames = null) {
         var builder = new DeclarationTreeBuilder(
-            previousMemberNames ?? OneOrMany<WeakReference<BoxedMemberNames>>.Empty);
+            previousMemberNames ?? OneOrMany<WeakReference<BoxedMemberNames>>.Empty
+        );
+
         return (RootSingleNamespaceDeclaration)builder.Visit(syntaxTree.GetRoot());
     }
 
@@ -201,6 +203,65 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         }
 
         return false;
+    }
+
+    internal override SingleNamespaceOrTypeDeclaration VisitNamespaceDeclaration(NamespaceDeclarationSyntax node) {
+        return VisitBaseNamespaceDeclaration(node);
+    }
+
+    private SingleNamespaceDeclaration VisitBaseNamespaceDeclaration(BaseNamespaceDeclarationSyntax node) {
+        var children = VisitNamespaceChildren(node, node.members, ((CoreInternalSyntax.BaseNamespaceDeclarationSyntax)node.green).members);
+
+        var hasUsings = node.usings.Any();
+        var name = node.name;
+        BelteSyntaxNode currentNode = node;
+
+        while (name is QualifiedNameSyntax dotted) {
+            var ns = SingleNamespaceDeclaration.Create(
+                name: dotted.right.identifier.text,
+                hasUsings: hasUsings,
+                hasExternAliases: false,
+                syntaxReference: new SyntaxReference(currentNode),
+                nameLocation: dotted.right.location,
+                children: children,
+                diagnostics: []
+            );
+
+            children = [ns];
+            currentNode = name = dotted.left;
+            hasUsings = false;
+        }
+
+        var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+        if (ContainsTemplate(node.name))
+            diagnostics.Push(Error.UnexpectedTemplateName(node.name.location));
+
+        if (ContainsAlias(node.name))
+            diagnostics.Push(Error.UnexpectedAliasName(node.name.location));
+
+        if (node.attributeLists.Count > 0)
+            diagnostics.Push(Error.InvalidAttributes(node.attributeLists[0].location));
+
+        if ((node.modifiers?.Count ?? 0) > 0)
+            diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].text));
+
+        foreach (var directive in node.usings) {
+            if (directive.globalKeyword.kind == SyntaxKind.GlobalKeyword) {
+                diagnostics.Push(Error.GlobalUsingInNamespace(directive.globalKeyword.location));
+                break;
+            }
+        }
+
+        return SingleNamespaceDeclaration.Create(
+            name: name.GetUnqualifiedName().identifier.text,
+            hasUsings: hasUsings,
+            hasExternAliases: false,
+            syntaxReference: new SyntaxReference(currentNode),
+            nameLocation: name.location,
+            children: children,
+            diagnostics: diagnostics.ToImmutableAndFree()
+        );
     }
 
     internal override SingleNamespaceOrTypeDeclaration VisitClassDeclaration(ClassDeclarationSyntax node) {

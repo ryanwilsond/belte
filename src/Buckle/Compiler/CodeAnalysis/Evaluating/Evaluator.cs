@@ -1491,14 +1491,7 @@ internal sealed class Evaluator {
             return true;
         }
 
-        if (method.containingType.Equals(StandardLibrary.Console.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.Math.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.Time.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.Directory.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.File.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.String.underlyingNamedType) ||
-            method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
+        if (method.containingNamespace.Equals(LibraryHelpers.BelteNamespace.originalDefinition)) {
             switch (mapKey) {
                 case "LowLevel_GetHashCode_O":
                     result = _context.heap[EvaluateExpression(arguments[0], abort).ptr].GetHashCode();
@@ -1552,12 +1545,15 @@ internal sealed class Evaluator {
                 case "Console_Print_A?":
                 case "Console_Print_O?":
                     printed = true;
-
+                    goto case "Console_PrintLine_S?";
+                case "Console_PrintLine_S?":
+                case "Console_PrintLine_A?":
+                case "Console_PrintLine_O?":
                     if (arguments[0].type.StrippedType().isObjectType) {
                         var argument = EvaluateExpression(arguments[0], abort);
-                        var toStringResult = InvokeStaticMethod(_toStringMethod, [argument], abort);
+                        var toStringResult = InvokeInstanceMethod(_toStringMethod, argument, [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
-                        result = func(toStringResult, null, null);
+                        result = func(toStringResult.@string, null, null);
                         return true;
                     }
 

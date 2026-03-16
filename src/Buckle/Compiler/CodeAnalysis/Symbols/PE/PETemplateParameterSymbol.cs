@@ -72,7 +72,7 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override int ordinal => _ordinal;
 
-    internal PEModuleSymbol containingModule { get; }
+    internal override PEModuleSymbol containingModule { get; }
 
     internal GenericParameterHandle handle => _handle;
 

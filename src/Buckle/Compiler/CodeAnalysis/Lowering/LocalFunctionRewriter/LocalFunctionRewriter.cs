@@ -430,7 +430,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             var field = containerAsFrame.singletonCache.AsMember(constructedFrame);
             receiver = new BoundFieldAccessExpression(syntax, null, field, null, field.type);
         } else if (closureKind == ClosureKind.Static) {
-            receiver = new BoundTypeExpression(syntax, null, synthesizedMethod.containingType);
+            receiver = new BoundTypeExpression(syntax, null, null, synthesizedMethod.containingType);
         } else {
             receiver = FrameOfType(syntax, constructedFrame);
         }

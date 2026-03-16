@@ -9,6 +9,7 @@ internal abstract partial class BoundTreeVisitor<A, R> {
             return default;
 
         return node.kind switch {
+            BoundKind.NamespaceExpression => VisitNamespaceExpression(node as BoundNamespaceExpression, arg),
             BoundKind.TypeExpression => VisitTypeExpression(node as BoundTypeExpression, arg),
             BoundKind.UnaryOperator => VisitUnaryOperator(node as BoundUnaryOperator, arg),
             BoundKind.IncrementOperator => VisitIncrementOperator(node as BoundIncrementOperator, arg),

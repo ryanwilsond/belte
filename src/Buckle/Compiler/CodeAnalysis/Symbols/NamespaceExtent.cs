@@ -10,6 +10,11 @@ internal readonly struct NamespaceExtent : IEquatable<NamespaceExtent> {
         _symbolOrCompilation = assembly;
     }
 
+    internal NamespaceExtent(ModuleSymbol module) {
+        kind = NamespaceKind.Module;
+        _symbolOrCompilation = module;
+    }
+
     internal NamespaceExtent(Compilation compilation) {
         kind = NamespaceKind.Compilation;
         _symbolOrCompilation = compilation;
@@ -21,6 +26,15 @@ internal readonly struct NamespaceExtent : IEquatable<NamespaceExtent> {
         get {
             if (kind == NamespaceKind.Assembly)
                 return (AssemblySymbol)_symbolOrCompilation;
+
+            throw new InvalidOperationException();
+        }
+    }
+
+    internal ModuleSymbol module {
+        get {
+            if (kind == NamespaceKind.Module)
+                return (ModuleSymbol)_symbolOrCompilation;
 
             throw new InvalidOperationException();
         }

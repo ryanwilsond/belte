@@ -30,6 +30,7 @@ public sealed partial class Compilation {
     private readonly static Predicate<Symbol> SkipLibrariesFilter
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
+    private readonly NamespaceSymbol _specialNamespace;
     private readonly SyntaxAndDeclarationManager _syntax;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
@@ -41,6 +42,7 @@ public sealed partial class Compilation {
     private MethodSymbol _lazyEntryPoint;
     private MethodSymbol _lazyUpdatePoint;
     private NamedTypeSymbol _lazyScriptClass;
+    private NamespaceSymbol _lazyGlobalNamespace;
     private AliasSymbol _lazyGlobalNamespaceAlias;
     private AssemblySymbol _lazyAssembly;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
@@ -50,11 +52,13 @@ public sealed partial class Compilation {
         string assemblyName,
         CompilationOptions options,
         Compilation previous,
-        SyntaxAndDeclarationManager syntax) {
+        SyntaxAndDeclarationManager syntax,
+        NamespaceSymbol namespaceOpt = null) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
+        _specialNamespace = namespaceOpt;
     }
 
     public string assemblyName { get; }
@@ -107,7 +111,33 @@ public sealed partial class Compilation {
         }
     }
 
-    internal NamespaceSymbol globalNamespaceInternal => assembly.globalNamespace;
+    internal ModuleSymbol sourceModule => assembly.modules[0];
+
+    internal NamespaceSymbol globalNamespaceInternal {
+        get {
+            if (_lazyGlobalNamespace is null) {
+                var builder = ArrayBuilder<NamespaceSymbol>.GetInstance();
+                var modules = ArrayBuilder<ModuleSymbol>.GetInstance();
+                GetAllUnaliasedModules(modules);
+                builder.AddRange(modules.SelectDistinct(m => m.globalNamespace));
+
+                if (_specialNamespace is not null)
+                    builder.Add(_specialNamespace);
+
+                var result = MergedNamespaceSymbol.Create(
+                    new NamespaceExtent(this),
+                    null,
+                    builder.ToImmutableAndFree()
+                );
+
+                modules.Free();
+
+                Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
+            }
+
+            return _lazyGlobalNamespace;
+        }
+    }
 
     internal SemanticModelProvider semanticModelProvider { get; }
 
@@ -258,6 +288,10 @@ public sealed partial class Compilation {
         }
 
         return result;
+    }
+
+    internal Compilation AddNamespace(NamespaceSymbol namespaceSymbol) {
+        return new Compilation(assemblyName, options, previous, _syntax, namespaceSymbol);
     }
 
     internal void Evaluate(
@@ -724,6 +758,10 @@ public sealed partial class Compilation {
             compilation = compilation.AddSyntaxTrees(syntaxTrees);
 
         return compilation;
+    }
+
+    private void GetAllUnaliasedModules(ArrayBuilder<ModuleSymbol> builder) {
+        builder.AddRange(assembly.modules);
     }
 
     private BelteDiagnosticQueue GetDiagnostics(bool includeParse, bool includeDeclaration, bool includeMethods) {

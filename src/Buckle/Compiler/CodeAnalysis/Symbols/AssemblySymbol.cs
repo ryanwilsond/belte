@@ -97,6 +97,29 @@ internal abstract class AssemblySymbol : Symbol {
         return new MissingMetadataTypeSymbol.TopLevel(modules[0], ref emittedName, null);
     }
 
+    internal NamespaceSymbol GetAssemblyNamespace(NamespaceSymbol namespaceSymbol) {
+        if (namespaceSymbol.isGlobalNamespace)
+            return globalNamespace;
+
+        var container = namespaceSymbol.containingNamespace;
+
+        if (container is null)
+            return globalNamespace;
+
+        if (namespaceSymbol.namespaceKind == NamespaceKind.Assembly && namespaceSymbol.containingAssembly == this)
+            return namespaceSymbol;
+
+        var assemblyContainer = GetAssemblyNamespace(container);
+
+        if ((object)assemblyContainer == container)
+            return namespaceSymbol;
+
+        if (assemblyContainer is null)
+            return null;
+
+        return assemblyContainer.GetNestedNamespace(namespaceSymbol.name);
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitAssembly(this);
     }

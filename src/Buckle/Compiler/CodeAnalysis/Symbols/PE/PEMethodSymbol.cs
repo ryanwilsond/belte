@@ -101,7 +101,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override TypeWithAnnotations returnTypeWithAnnotations => signature.returnParam.typeWithAnnotations;
 
-    internal ModuleSymbol containingModule => _containingType.containingModule;
+    internal override ModuleSymbol containingModule => _containingType.containingModule;
 
     internal MethodDefinitionHandle handle => _handle;
 

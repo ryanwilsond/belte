@@ -584,6 +584,10 @@ public static class SyntaxFacts {
         return syntax?.parent?.kind == SyntaxKind.CompilationUnit;
     }
 
+    internal static bool IsInNamespaceDeclaration(int position, NamespaceDeclarationSyntax namespaceDecl) {
+        return IsBetweenTokens(position, namespaceDecl.keyword, namespaceDecl.closeBrace);
+    }
+
     internal static bool IsSimpleProgramTopLevelStatement(GlobalStatementSyntax syntax) {
         // TODO Conider making scripts not use simple programs at all
         return IsTopLevelStatement(syntax) /*&& syntax.syntaxTree.kind == SourceCodeKind.Regular*/;
@@ -601,5 +605,13 @@ public static class SyntaxFacts {
 
     private static bool IsNestedFunction(SyntaxKind kind) {
         return kind is SyntaxKind.LocalFunctionStatement;
+    }
+
+    internal static bool IsBetweenTokens(int position, SyntaxToken firstIncluded, SyntaxToken firstExcluded) {
+        return position >= firstIncluded.span.start && IsBeforeToken(position, firstExcluded);
+    }
+
+    private static bool IsBeforeToken(int position, SyntaxToken firstExcluded) {
+        return firstExcluded.kind == SyntaxKind.None || position < firstExcluded.span.start;
     }
 }

@@ -436,11 +436,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_TemplateMustBeConstant, location, message);
     }
 
-    internal static BelteDiagnostic CannotUseType(TextLocation location, TypeSymbol type) {
-        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a type, which is not valid in this context";
-        return CreateError(DiagnosticCode.ERR_CannotUseType, location, message);
-    }
-
     internal static BelteDiagnostic ConstructorInStaticClass(TextLocation location) {
         var message = $"static classes cannot have constructors";
         return CreateError(DiagnosticCode.ERR_ConstructorInStaticClass, location, message);
@@ -912,12 +907,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadSKKnown(Symbol symbol, string kind1, string kind2) {
-        var message = $"'{symbol}' is a {kind1} but is used like a {kind2}";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind1} but is used like a {kind2}";
         return CreateError(DiagnosticCode.ERR_BadSKKnown, null, message);
     }
 
     internal static BelteDiagnostic BadSKKnown(TextLocation location, Symbol symbol, string kind1, string kind2) {
-        var message = $"'{symbol}' is a {kind1} but is used like a {kind2}";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind1} but is used like a {kind2}";
         return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
     }
 
@@ -932,7 +927,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
-        var message = $"'{symbol}' is a {kind}, which is not valid in the given context";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind}, which is not valid in the given context";
         return CreateError(DiagnosticCode.ERR_BadSKUnknown, location, message);
     }
 
@@ -1443,6 +1438,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter2, location, message);
     }
 
+    internal static BelteDiagnostic UnexpectedTemplateName(TextLocation location) {
+        var message = $"unexpected use of a templated name";
+        return CreateError(DiagnosticCode.ERR_UnexpectedTemplateName, location, message);
+    }
+
+    internal static BelteDiagnostic UnexpectedAliasName(TextLocation location) {
+        var message = $"unexpected use of an aliased name";
+        return CreateError(DiagnosticCode.ERR_UnexpectedAliasName, location, message);
+    }
+
     internal static Diagnostic UnexpectedAliasName() {
         var message = $"unexpected use of an aliased name";
         return CreateError(DiagnosticCode.ERR_UnexpectedAliasName, message);
@@ -1546,6 +1551,41 @@ internal static class Error {
     internal static BelteDiagnostic ImplicitAssignedInitializerList(TextLocation location) {
         var message = $"cannot initialize an implicitly-typed data container with an initializer list";
         return CreateError(DiagnosticCode.ERR_ImplicitAssignedInitializerList, location, message);
+    }
+
+    internal static BelteDiagnostic GlobalUsingInNamespace(TextLocation location) {
+        var message = $"cannot use a global using directive in a namespace declaration";
+        return CreateError(DiagnosticCode.ERR_GlobalUsingInNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic DottedTypeNamesNotFound(TextLocation location, string text, NamespaceOrTypeSymbol symbol) {
+        var message = $"the type name '{text}' does not exist in the type '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_DottedTypeNamesNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic AliasNotFound(TextLocation location, string text) {
+        var message = $"alias '{text}' not found";
+        return CreateError(DiagnosticCode.ERR_AliasNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic SingleTypeNameNotFound(TextLocation location, string text) {
+        var message = $"the type or namespace name '{text}' could not be found";
+        return CreateError(DiagnosticCode.ERR_SingleTypeNameNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic GlobalSingleTypeNameNotFound(TextLocation location, string text) {
+        var message = $"the type or namespace name '{text}' could not be found in the global namespace";
+        return CreateError(DiagnosticCode.ERR_GlobalSingleTypeNameNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic DottedTypeNamesNotFoundInNamespace(TextLocation location, string text, object container) {
+        var message = $"the type or namespace name '{text}' does not exist in the namespace '{container}'";
+        return CreateError(DiagnosticCode.ERR_DottedTypeNamesNotFoundInNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic ConflictingAliasAndMember(TextLocation location, string alias, NamespaceOrTypeSymbol container) {
+        var message = $"namespace '{container}' contains a definition conflicting with alias '{alias}'";
+        return CreateError(DiagnosticCode.ERR_ConflictingAliasAndMember, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

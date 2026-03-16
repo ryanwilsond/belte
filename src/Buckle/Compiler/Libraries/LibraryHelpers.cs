@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -15,12 +14,24 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    internal static readonly CompilationOptions LibraryOptions
-        = new CompilationOptions(BuildMode.None, OutputKind.DynamicallyLinkedLibrary);
-
+    private static SynthesizedBelteNamespaceSymbol _lazyBelteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
     private static SpecialOrKnownType.Boxed _lazyCharArray;
+
+    internal static NamespaceSymbol BelteNamespace {
+        get {
+            if (_lazyBelteNamespace is null) {
+                Interlocked.CompareExchange(
+                    ref _lazyBelteNamespace,
+                    new SynthesizedBelteNamespaceSymbol("Belte"),
+                    null
+                );
+            }
+
+            return _lazyBelteNamespace;
+        }
+    }
 
     internal static SpecialOrKnownType CharArray {
         get {
@@ -81,31 +92,12 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var options = new CompilationOptions(buildMode, LibraryOptions.outputKind);
+        var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary);
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
 
         return corLibrary;
-    }
-
-    internal static void DeclareLibrariesInNamespace(
-        PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        CompilationOptions options) {
-        AddTypesToBuilder(StandardLibrary.GetTypes());
-
-        // TODO Consider separating OutputKind from ProjectType
-        if (options.outputKind == OutputKind.GraphicsApplication)
-            AddTypesToBuilder(GraphicsLibrary.GetTypes());
-
-        void AddTypesToBuilder(IEnumerable<NamedTypeSymbol> types) {
-            foreach (var type in types) {
-                CodeAnalysis.ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
-                    builder,
-                    type.name.AsMemory(),
-                    type
-                );
-            }
-        }
     }
 
     internal static string BuildMapKey(MethodSymbol method) {
@@ -155,7 +147,8 @@ public static class LibraryHelpers {
             name,
             TypeKind.Class,
             CorLibrary.GetSpecialType(SpecialType.Object),
-            DeclarationModifiers.Public | modifiers
+            DeclarationModifiers.Public | modifiers,
+            BelteNamespace
         );
 
         var builder = ArrayBuilder<Symbol>.GetInstance();
@@ -186,7 +179,7 @@ public static class LibraryHelpers {
             }
         }
 
-        return new SynthesizedFinishedNamedTypeSymbol(namedType, null, builder.ToImmutableAndFree());
+        return new SynthesizedFinishedNamedTypeSymbol(namedType, BelteNamespace, builder.ToImmutableAndFree());
     }
 
     internal static SynthesizedFinishedMethodSymbol StaticMethod(string name, SpecialOrKnownType type) {

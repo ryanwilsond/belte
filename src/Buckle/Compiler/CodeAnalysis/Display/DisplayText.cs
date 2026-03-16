@@ -147,6 +147,9 @@ public sealed class DisplayText {
             case BoundKind.TypeExpression:
                 DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
+            case BoundKind.NamespaceExpression:
+                DisplayNamespaceExpression(text, (BoundNamespaceExpression)node);
+                break;
             case BoundKind.BreakStatement:
                 DisplayBreakStatement(text);
                 break;
@@ -391,6 +394,10 @@ public sealed class DisplayText {
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
         SymbolDisplay.DisplayType(text, node.type);
+    }
+
+    private static void DisplayNamespaceExpression(DisplayText text, BoundNamespaceExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.namespaceSymbol, SymbolDisplayFormat.BoundDisplayFormat);
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {

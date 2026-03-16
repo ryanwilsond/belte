@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using static Buckle.Libraries.LibraryHelpers;
@@ -16,7 +17,6 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
-
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
         get {

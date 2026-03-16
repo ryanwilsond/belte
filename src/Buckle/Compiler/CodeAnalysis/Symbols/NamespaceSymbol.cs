@@ -63,6 +63,26 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
         return null;
     }
 
+    internal NamespaceSymbol GetNestedNamespace(NameSyntax name) {
+        switch (name.kind) {
+            case SyntaxKind.TemplateName:
+            case SyntaxKind.IdentifierName:
+                return GetNestedNamespace(((SimpleNameSyntax)name).identifier.text);
+            case SyntaxKind.QualifiedName:
+                var qn = (QualifiedNameSyntax)name;
+                var leftNs = GetNestedNamespace(qn.left);
+
+                if (leftNs is not null)
+                    return leftNs.GetNestedNamespace(qn.right);
+
+                break;
+            case SyntaxKind.AliasQualifiedName:
+                return GetNestedNamespace(name.GetUnqualifiedName().identifier.text);
+        }
+
+        return null;
+    }
+
     internal NamespaceSymbol LookupNestedNamespace(ImmutableArray<ReadOnlyMemory<char>> names) {
         var scope = this;
 

@@ -58,6 +58,10 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitCompilationUnit(CompilationUnitSyntax node) {
+            return VisitCompilationUnit(node, IsInUsing(node));
+        }
+
+        internal Binder VisitCompilationUnit(CompilationUnitSyntax node, bool inUsing) {
             if (node != _syntaxTree.GetRoot())
                 throw new ArgumentOutOfRangeException(nameof(node), "node is not apart of the tree");
 
@@ -68,10 +72,14 @@ internal sealed partial class BinderFactory {
             if (!_binderCache.TryGetValue(key, out var result)) {
                 // TODO The SubmissionBinder is what fetches types from previous compilations (so the CorLibrary)
                 // So is this fine as is, or should there still be some _inScript check
-                // if (_inScript)
                 result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
-                // else
-                //     result = new InContainerBinder(_compilation.globalNamespaceInternal, _endBinder);
+                result = AddInImportsBinders(
+                    (SourceNamespaceSymbol)_compilation.sourceModule.globalNamespace,
+                    node,
+                    result,
+                    inUsing
+                );
+                result = new InContainerBinder(_compilation.globalNamespaceInternal, result);
 
                 if (_inScript)
                     result = result.WithAdditionalFlags(BinderFlags.IgnoreAccessibility);
@@ -89,6 +97,110 @@ internal sealed partial class BinderFactory {
             }
 
             return result;
+        }
+
+        private static Binder AddInImportsBinders(
+            SourceNamespaceSymbol declaringSymbol,
+            BelteSyntaxNode declarationSyntax,
+            Binder next,
+            bool inUsing) {
+            if (inUsing) {
+                return next;
+            } else {
+                return WithUsingAliasesBinder.Create(
+                    declaringSymbol,
+                    declarationSyntax,
+                    WithUsingNamespacesAndTypesBinder.Create(declaringSymbol, declarationSyntax, next)
+                );
+            }
+        }
+
+        internal override Binder VisitNamespaceDeclaration(NamespaceDeclarationSyntax parent) {
+            if (!SyntaxFacts.IsInNamespaceDeclaration(_position, parent))
+                return VisitCore(parent.parent);
+
+            var inBody = SyntaxFacts.IsBetweenTokens(_position, parent.openBrace, parent.closeBrace);
+            var inUsing = IsInUsing(parent);
+
+            return VisitNamespaceDeclaration(parent, _position, inBody, inUsing);
+        }
+
+        internal Binder VisitNamespaceDeclaration(
+            BaseNamespaceDeclarationSyntax parent,
+            int position,
+            bool inBody,
+            bool inUsing) {
+
+            var extraInfo = inUsing ? NodeUsage.NamespaceUsings : (inBody ? NodeUsage.NamespaceBody : NodeUsage.Normal);
+            var key = CreateBinderCacheKey(parent, extraInfo);
+
+            if (!_binderCache.TryGetValue(key, out var result)) {
+                Binder outer;
+                outer = _factory.GetBinder(parent.parent, position);
+
+                if (!inBody)
+                    result = outer;
+                else
+                    result = MakeNamespaceBinder(parent, parent.name, outer, inUsing);
+
+                _binderCache.TryAdd(key, result);
+            }
+
+            return result;
+        }
+
+        private static Binder MakeNamespaceBinder(BelteSyntaxNode node, NameSyntax name, Binder outer, bool inUsing) {
+            if (name is QualifiedNameSyntax dotted) {
+                outer = MakeNamespaceBinder(dotted.left, dotted.left, outer, inUsing: false);
+                name = dotted.right;
+            }
+
+            NamespaceOrTypeSymbol container;
+
+            if (outer is InContainerBinder inContainerBinder)
+                container = inContainerBinder.container;
+            else
+                container = outer.compilation.globalNamespaceInternal;
+
+            var ns = ((NamespaceSymbol)container).GetNestedNamespace(name);
+
+            if (ns is null)
+                return outer;
+
+            if (node is BaseNamespaceDeclarationSyntax namespaceDecl) {
+                outer = AddInImportsBinders(
+                    (SourceNamespaceSymbol)outer.compilation.sourceModule.GetModuleNamespace(ns),
+                    namespaceDecl,
+                    outer,
+                    inUsing
+                );
+            }
+
+            return new InContainerBinder(ns, outer);
+        }
+
+        private bool IsInUsing(BelteSyntaxNode containingNode) {
+            var containingSpan = containingNode.span;
+
+            SyntaxToken token;
+
+            if (containingNode.kind != SyntaxKind.CompilationUnit && _position == containingSpan.end)
+                token = containingNode.GetLastToken();
+            else if (_position < containingSpan.start || _position > containingSpan.end)
+                return false;
+            else
+                token = containingNode.FindToken(_position);
+
+            var node = token.parent;
+
+            while (node is not null && node != containingNode) {
+                if (node.kind == SyntaxKind.UsingDirective && node.parent == containingNode)
+                    return true;
+
+                node = node.parent;
+            }
+
+            return false;
         }
 
         internal override Binder VisitGlobalStatement(GlobalStatementSyntax node) {

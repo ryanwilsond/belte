@@ -754,6 +754,7 @@ public sealed partial class BelteRepl : Repl {
                 if (currentSymbol is not null) {
                     if (currentIsType) {
                         currentSymbols = currentSymbol switch {
+                            INamespaceSymbol ns => ns.GetMembers(),
                             INamedTypeSymbol namedType => namedType.GetMembers(),
                             IMethodSymbol method => CompilationExtensions.GetMethodLocals(method)
                                                         .Cast<ISymbol>().ToImmutableArray(),

@@ -41,7 +41,11 @@ internal sealed partial class BinderFactory {
         return GetBinder(node, position, memberDeclaration, member);
     }
 
-    internal Binder GetBinder(SyntaxNode node, int position, BelteSyntaxNode memberDeclaration, Symbol member) {
+    internal Binder GetBinder(
+        SyntaxNode node,
+        int position,
+        BelteSyntaxNode memberDeclaration = null,
+        Symbol member = null) {
         var visitor = GetBinderFactoryVisitor(position, memberDeclaration, member);
         var result = visitor.Visit(node);
         ClearBinderFactoryVisitor(visitor);
