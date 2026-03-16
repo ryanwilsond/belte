@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -15,12 +14,30 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    internal static readonly CompilationOptions LibraryOptions
-        = new CompilationOptions(BuildMode.None, OutputKind.DynamicallyLinkedLibrary);
-
+    private static SynthesizedSimpleNamespaceSymbol _lazyIncompleteNamespace;
+    private static SynthesizedFinishedNamespaceSymbol _lazyCompleteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
     private static SpecialOrKnownType.Boxed _lazyCharArray;
+
+    internal static NamespaceSymbol BelteNamespace {
+        get {
+            if (_lazyIncompleteNamespace is null) {
+                Interlocked.CompareExchange(
+                    ref _lazyIncompleteNamespace,
+                    new SynthesizedSimpleNamespaceSymbol("Belte"),
+                    null
+                );
+
+                return _lazyIncompleteNamespace;
+            }
+
+            if (_lazyCompleteNamespace is null)
+                return _lazyIncompleteNamespace;
+
+            return _lazyCompleteNamespace;
+        }
+    }
 
     internal static SpecialOrKnownType CharArray {
         get {
@@ -81,31 +98,30 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var options = new CompilationOptions(buildMode, LibraryOptions.outputKind);
+        var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary);
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
         corLibrary.GetDiagnostics();
 
-        return corLibrary;
+        var belteLibrary = Compilation.Create("Belte", options, corLibrary, []);
+        belteLibrary = belteLibrary.AddNamespace(GetBelteNamespace());
+        belteLibrary.GetDiagnostics();
+
+        return belteLibrary;
     }
 
-    internal static void DeclareLibrariesInNamespace(
-        PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        CompilationOptions options) {
-        AddTypesToBuilder(StandardLibrary.GetTypes());
+    internal static NamespaceSymbol GetBelteNamespace() {
+        var builder = ArrayBuilder<Symbol>.GetInstance();
+        builder.AddRange(StandardLibrary.GetTypes());
+        // TODO Consider separating into another namespace and loading it only if used
+        // Perhaps a good time to do this would be when usings are implemented
+        builder.AddRange(GraphicsLibrary.GetTypes());
 
-        // TODO Consider separating OutputKind from ProjectType
-        if (options.outputKind == OutputKind.GraphicsApplication)
-            AddTypesToBuilder(GraphicsLibrary.GetTypes());
+        _lazyCompleteNamespace = new SynthesizedFinishedNamespaceSymbol(
+            _lazyIncompleteNamespace,
+            builder.ToImmutableAndFree()
+        );
 
-        void AddTypesToBuilder(IEnumerable<NamedTypeSymbol> types) {
-            foreach (var type in types) {
-                CodeAnalysis.ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
-                    builder,
-                    type.name.AsMemory(),
-                    type
-                );
-            }
-        }
+        return _lazyCompleteNamespace;
     }
 
     internal static string BuildMapKey(MethodSymbol method) {
@@ -155,7 +171,8 @@ public static class LibraryHelpers {
             name,
             TypeKind.Class,
             CorLibrary.GetSpecialType(SpecialType.Object),
-            DeclarationModifiers.Public | modifiers
+            DeclarationModifiers.Public | modifiers,
+            BelteNamespace
         );
 
         var builder = ArrayBuilder<Symbol>.GetInstance();
@@ -186,7 +203,7 @@ public static class LibraryHelpers {
             }
         }
 
-        return new SynthesizedFinishedNamedTypeSymbol(namedType, null, builder.ToImmutableAndFree());
+        return new SynthesizedFinishedNamedTypeSymbol(namedType, BelteNamespace, builder.ToImmutableAndFree());
     }
 
     internal static SynthesizedFinishedMethodSymbol StaticMethod(string name, SpecialOrKnownType type) {

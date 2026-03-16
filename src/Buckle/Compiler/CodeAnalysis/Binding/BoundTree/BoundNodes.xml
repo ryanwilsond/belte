@@ -56,8 +56,14 @@
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
+  <Node Name="BoundNamespaceExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="namespaceSymbol" Type="NamespaceSymbol"/>
+    <Field Name="alias" Type="AliasSymbol?"/>
+  </Node>
   <Node Name="BoundTypeExpression" Base="BoundExpression">
     <Field Name="typeWithAnnotations" Type="TypeWithAnnotations"/>
+    <Field Name="alias" Type="AliasSymbol?"/>
   </Node>
   <Node Name="BoundArrayAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>

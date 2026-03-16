@@ -1110,20 +1110,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0094_TemplateNotExpected
     // ! Error_BU0095_TemplateMustBeConstant
     // ! Error_BU0096_RefReturnOnlyParameter2
-
-    [Fact]
-    public void Reports_Error_BU0097_CannotUseType() {
-        var text = @"
-            class A { }
-            [A];
-        ";
-
-        var diagnostics = @"
-            'A' is a type, which is not valid in this context
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0097_DottedTypeNamesNotFound
 
     [Fact]
     public void Reports_Error_BU0098_ConstructorInStaticClass() {
@@ -1587,7 +1574,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0145
+    [Fact]
+    public void Reports_Error_BU0145_UnexpectedTemplateName() {
+        var text = @"
+            namespace [A<T t>] { }
+        ";
+
+        var diagnostics = @"
+            unexpected use of a templated name
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0146_MultipleAccessibilities() {
@@ -2203,7 +2201,20 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0204_InternalError
-    // ! Error_BU0205_BadSKKnown
+
+    [Fact]
+    public void Reports_Error_BU0205_BadSKKnown() {
+        var text = @"
+            class A { }
+            [A];
+        ";
+
+        var diagnostics = @"
+            'A' is a type but is used like a variable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0206_NonInvocableMemberCalled() {
@@ -3009,4 +3020,25 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // ! Error_BU0318_GlobalUsingInNamespace
+    // ! Error_BU0319_AliasNotFound
+    // ! Error_BU0320_SingleTypeNameNotFound
+
+    [Fact]
+    public void Reports_Warning_BU321_NamespaceNameShadowsBelte() {
+        var text = @"
+            namespace [Belte] { }
+        ";
+
+        var diagnostics = @"
+            namespace 'Belte' potentially shadows parts of the Standard Library
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0321_GlobalSingleTypeNameNotFound
+    // ! Error_BU0322_DottedTypeNamesNotFoundInNamespace
+
 }

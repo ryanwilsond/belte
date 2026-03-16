@@ -105,7 +105,7 @@ public enum DiagnosticCode : ushort {
     ERR_TemplateNotExpected = 94,
     ERR_TemplateMustBeConstant = 95,
     ERR_RefReturnOnlyParameter2 = 96,
-    ERR_CannotUseType = 97,
+    ERR_DottedTypeNamesNotFound = 97,
     ERR_ConstructorInStaticClass = 98,
     ERR_StaticDataContainer = 99,
     ERR_CannotCreateStatic = 100,
@@ -153,7 +153,7 @@ public enum DiagnosticCode : ushort {
     ERR_TypeDoesNotImplementAbstract = 142,
     ERR_OperatorNeedsMatch = 143,
     ERR_InvalidExpressionTerm = 144,
-    // ! 145
+    ERR_UnexpectedTemplateName = 145,
     ERR_MultipleAccessibilities = 146,
     ERR_CircularConstraint = 147,
     ERR_TemplateObjectBaseWithPrimitiveBase = 148,
@@ -326,6 +326,12 @@ public enum DiagnosticCode : ushort {
     ERR_RefAssignNarrower = 315,
     ERR_RefAssignValEscapeWider = 316,
     ERR_MissingArraySize = 317,
+    ERR_GlobalUsingInNamespace = 318,
+    ERR_AliasNotFound = 319,
+    ERR_SingleTypeNameNotFound = 320,
+    WRN_NamespaceNameShadowsBelte = 321,
+    ERR_GlobalSingleTypeNameNotFound = 322,
+    ERR_DottedTypeNamesNotFoundInNamespace = 323,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

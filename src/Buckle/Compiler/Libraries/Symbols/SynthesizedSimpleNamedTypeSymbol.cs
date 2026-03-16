@@ -16,11 +16,13 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
         string name,
         TypeKind typeKind,
         NamedTypeSymbol baseType,
-        DeclarationModifiers modifiers) {
+        DeclarationModifiers modifiers,
+        Symbol earlyContainingSymbol) {
         this.name = name;
         this.typeKind = typeKind;
         this.baseType = baseType;
         _modifiers = modifiers;
+        containingSymbol = earlyContainingSymbol;
     }
 
     public override string name { get; }
@@ -45,7 +47,7 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol baseType { get; }
 
-    internal override Symbol containingSymbol => null;
+    internal override Symbol containingSymbol { get; }
 
     internal override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
 

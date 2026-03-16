@@ -3,6 +3,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Display;
@@ -69,39 +70,64 @@ public static class CompilationExtensions {
     }
 
     internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
-        if (symbol is MethodSymbol method) {
-            SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.BoundDisplayFormat);
+        switch (symbol.kind) {
+            case SymbolKind.Namespace: {
+                    var ns = (NamespaceSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
+                    WriteMembers(ns);
+                }
 
-            if (program.TryGetMethodBodyIncludingParents(method, out var body, useOriginalDefinitions: true)) {
-                text.Write(CreateSpace());
-                DisplayText.DisplayNode(text, body);
-            } else {
-                text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                text.WriteLine();
-            }
-        } else if (symbol is NamedTypeSymbol namedType) {
-            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
-            WriteTypeMembers(namedType);
-        } else if (symbol is DataContainerSymbol v) {
-            SymbolDisplay.AppendToDisplayText(text, v, SymbolDisplayFormat.BoundDisplayFormat);
-            var type = v.type.StrippedType();
+                break;
+            case SymbolKind.NamedType: {
+                    var type = (NamedTypeSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
+                    WriteMembers(type);
+                }
 
-            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
-                WriteTypeMembers(s);
-            else
-                text.WriteLine();
-        } else if (symbol is FieldSymbol f) {
-            SymbolDisplay.AppendToDisplayText(text, f, SymbolDisplayFormat.BoundDisplayFormat);
-            var type = f.type.StrippedType();
+                break;
+            case SymbolKind.Method:
+                var method = (MethodSymbol)symbol;
+                SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.BoundDisplayFormat);
 
-            if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
-                WriteTypeMembers(s);
-            else
-                text.WriteLine();
+                if (program.TryGetMethodBodyIncludingParents(method, out var body, useOriginalDefinitions: true)) {
+                    text.Write(CreateSpace());
+                    DisplayText.DisplayNode(text, body);
+                } else {
+                    text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
+                    text.WriteLine();
+                }
+
+                break;
+            case SymbolKind.Field: {
+                    var field = (FieldSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, field, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = field.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
+            case SymbolKind.Local: {
+                    var local = (DataContainerSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, local, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = local.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
 
-        void WriteTypeMembers(NamedTypeSymbol type) {
-            var members = type.GetMembers();
+        void WriteMembers(NamespaceOrTypeSymbol typeOrNamespace) {
+            var members = typeOrNamespace.GetMembers();
 
             text.Write(CreateSpace());
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));

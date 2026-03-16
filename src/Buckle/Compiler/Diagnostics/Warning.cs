@@ -155,6 +155,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_ImpliedReference, location, message);
     }
 
+    internal static BelteDiagnostic NamespaceNameShadowsBelte(TextLocation location, NamespaceSymbol symbol) {
+        var message = $"namespace '{symbol}' potentially shadows parts of the Standard Library";
+        return CreateWarning(DiagnosticCode.WRN_NamespaceNameShadowsBelte, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

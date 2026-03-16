@@ -28,7 +28,6 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     private CustomAttributesBag<AttributeData> _lazySourceAttributesBag;
     private CustomAttributesBag<AttributeData> _lazyNetModuleAttributesBag;
     private StrongNameKeys _lazyStrongNameKeys;
-    private NamespaceSymbol _lazyGlobalNamespace;
     private AssemblyIdentity _lazyAssemblyIdentity;
     private ConcurrentSet<int> _lazyOmittedAttributeIndices;
     private ConcurrentDictionary<string, ConcurrentDictionary<ImmutableArray<byte>, Tuple<TextLocation, string>>> _lazyInternalsVisibleToMap = default;
@@ -40,6 +39,13 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
     internal SourceAssemblySymbol(Compilation compilation, string assemblySimpleName) {
         declaringCompilation = compilation;
         _assemblySimpleName = assemblySimpleName;
+
+        // TODO Expand this to include imported modules
+        var modules = new ArrayBuilder<ModuleSymbol>(1) {
+            new SourceModuleSymbol(this, compilation.declarationTable, assemblySimpleName)
+        };
+
+        _modules = modules.ToImmutableAndFree();
     }
 
     internal override Compilation declaringCompilation { get; }
@@ -53,6 +59,8 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
         }
     }
 
+    internal SourceModuleSymbol sourceModule => (SourceModuleSymbol)modules[0];
+
     internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
 
     internal override ImmutableArray<TextLocation> locations => [];
@@ -65,27 +73,6 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
         get {
             EnsureAttributesAreBound();
             return _lazyInternalsVisibleToMap is not null;
-        }
-    }
-
-    internal override NamespaceSymbol globalNamespace {
-        get {
-            if (_lazyGlobalNamespace is null) {
-                var diagnostics = BelteDiagnosticQueue.GetInstance();
-                var result = new SourceNamespaceSymbol(
-                    this,
-                    this,
-                    declaringCompilation.mergedRootDeclaration,
-                    diagnostics
-                );
-
-                Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
-
-                AddDeclarationDiagnostics(diagnostics);
-                diagnostics.Free();
-            }
-
-            return _lazyGlobalNamespace;
         }
     }
 
@@ -184,9 +171,9 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
                     }
                     break;
                 case CompletionParts.Module:
-                    globalNamespace.ForceComplete(location);
+                    sourceModule.ForceComplete(location);
 
-                    if (globalNamespace.HasComplete(CompletionParts.MembersCompleted)) {
+                    if (sourceModule.HasComplete(CompletionParts.MembersCompleted)) {
                         _state.NotePartComplete(CompletionParts.Module);
                         break;
                     } else {

@@ -21,7 +21,7 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
     private static readonly Func<SingleNamespaceDeclaration, SyntaxReference> DeclaringSyntaxReferencesSelector = d =>
         new NamespaceDeclarationSyntaxReference(d.syntaxReference);
 
-    private readonly SourceAssemblySymbol _assembly;
+    private readonly SourceModuleSymbol _module;
 
     private SymbolCompletionState _state;
     private ImmutableArray<TextLocation> _locations;
@@ -40,12 +40,12 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
     private LexicalSortKey _lazyLexicalSortKey = LexicalSortKey.NotInitialized;
 
     internal SourceNamespaceSymbol(
-        SourceAssemblySymbol assembly,
+        SourceModuleSymbol module,
         Symbol container,
         MergedNamespaceDeclaration mergedDeclaration,
         BelteDiagnosticQueue diagnostics) {
         containingSymbol = container;
-        _assembly = assembly;
+        _module = module;
         this.mergedDeclaration = mergedDeclaration;
 
         foreach (var singleDeclaration in mergedDeclaration.declarations)
@@ -78,9 +78,11 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
 
     internal override Symbol containingSymbol { get; }
 
-    internal override NamespaceExtent extent => new NamespaceExtent(containingAssembly);
+    internal override NamespaceExtent extent => new NamespaceExtent(_module);
 
-    internal override AssemblySymbol containingAssembly => _assembly;
+    internal override ModuleSymbol containingModule => _module;
+
+    internal override AssemblySymbol containingAssembly => _module.containingAssembly;
 
     internal override LexicalSortKey GetLexicalSortKey() {
         if (!_lazyLexicalSortKey.isInitialized)
@@ -244,7 +246,6 @@ done:
         }
 
         RegisterDeclaredCorTypes(builder);
-        AdditionalRegistration(builder, declaringCompilation.options);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -265,27 +266,23 @@ done:
         return result;
     }
 
-    private protected virtual void AdditionalRegistration(
-        PooledDictionary<ReadOnlyMemory<char>, object> builder,
-        CompilationOptions options) {
-        if (isGlobalNamespace)
-            LibraryHelpers.DeclareLibrariesInNamespace(builder, declaringCompilation.options);
-    }
-
     private static void CheckMembers(
         NamespaceSymbol @namespace,
         Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> result,
         BelteDiagnosticQueue diagnostics) {
         var memberOfArity = new Symbol[10];
+        bool reportedShadows;
         MergedNamespaceSymbol mergedAssemblyNamespace = null;
 
-        // TODO assemblies/modules
-        // if (@namespace.containingAssembly.Modules.Length > 1) {
-        //     mergedAssemblyNamespace = @namespace.ContainingAssembly.GetAssemblyNamespace(@namespace) as MergedNamespaceSymbol;
-        // }
+        if (@namespace.containingAssembly.modules.Length > 1) {
+            mergedAssemblyNamespace = @namespace.containingAssembly.GetAssemblyNamespace(@namespace)
+                as MergedNamespaceSymbol;
+        }
 
         foreach (var name in result.Keys) {
+            reportedShadows = false;
             Array.Clear(memberOfArity, 0, memberOfArity.Length);
+
             foreach (var symbol in result[name]) {
                 var nts = symbol as SourceMemberContainerTypeSymbol;
 
@@ -298,7 +295,7 @@ done:
 
                 if (other is null && mergedAssemblyNamespace is not null) {
                     foreach (var constituent in mergedAssemblyNamespace.constituentNamespaces) {
-                        if ((object)constituent != (object)@namespace) {
+                        if ((object)constituent != @namespace) {
                             var types = constituent.GetTypeMembers(symbol.name, arity);
 
                             if (types.Length > 0) {
@@ -314,6 +311,13 @@ done:
                         default:
                             diagnostics.Push(Error.DuplicateNameInNamespace(symbol.location, symbol.name, @namespace));
                             break;
+                    }
+                }
+
+                if (symbol is SourceNamespaceSymbol ns && !reportedShadows && @namespace.isGlobalNamespace) {
+                    if (ns.name == LibraryHelpers.BelteNamespace.name) {
+                        diagnostics.Push(Warning.NamespaceNameShadowsBelte(ns.location, ns));
+                        reportedShadows = true;
                     }
                 }
 
@@ -335,7 +339,7 @@ done:
         BelteDiagnosticQueue diagnostics) {
         switch (declaration.kind) {
             case DeclarationKind.Namespace:
-                return new SourceNamespaceSymbol(_assembly, this, (MergedNamespaceDeclaration)declaration, diagnostics);
+                return new SourceNamespaceSymbol(_module, this, (MergedNamespaceDeclaration)declaration, diagnostics);
             case DeclarationKind.Struct:
             case DeclarationKind.Class:
                 return new SourceNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
