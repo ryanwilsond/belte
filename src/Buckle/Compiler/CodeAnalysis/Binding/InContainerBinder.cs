@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -32,7 +33,38 @@ internal class InContainerBinder : Binder {
         LookupOptions options,
         Binder originalBinder,
         bool diagnose) {
-        LookupMembersInternal(result, container, name, arity, basesBeingResolved, options, originalBinder, diagnose);
+        if ((options & LookupOptions.NamespaceAliasesOnly) == 0) {
+            LookupMembersInternal(
+                result,
+                container,
+                name,
+                arity,
+                basesBeingResolved,
+                options,
+                originalBinder,
+                diagnose
+            );
+
+            if (result.isMultiViable) {
+                if (arity == 0) {
+                    if (next is WithUsingAliasesBinder withUsingAliases &&
+                        withUsingAliases.IsUsingAlias(name, basesBeingResolved)) {
+                        var error = Error.ConflictingAliasAndMember(container.location, name, container);
+                        var errorType = new ExtendedErrorTypeSymbol(
+                            containingSymbol: null,
+                            name,
+                            arity,
+                            error,
+                            unreported: true
+                        );
+
+                        result.SetFrom(LookupResult.Good(errorType));
+                    }
+                }
+
+                return;
+            }
+        }
     }
 
     internal override void AddLookupSymbolsInfoInSingleBinder(

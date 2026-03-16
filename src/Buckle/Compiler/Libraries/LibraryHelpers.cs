@@ -14,28 +14,22 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    private static SynthesizedSimpleNamespaceSymbol _lazyIncompleteNamespace;
-    private static SynthesizedFinishedNamespaceSymbol _lazyCompleteNamespace;
+    private static SynthesizedBelteNamespaceSymbol _lazyBelteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
     private static SpecialOrKnownType.Boxed _lazyCharArray;
 
     internal static NamespaceSymbol BelteNamespace {
         get {
-            if (_lazyIncompleteNamespace is null) {
+            if (_lazyBelteNamespace is null) {
                 Interlocked.CompareExchange(
-                    ref _lazyIncompleteNamespace,
-                    new SynthesizedSimpleNamespaceSymbol("Belte"),
+                    ref _lazyBelteNamespace,
+                    new SynthesizedBelteNamespaceSymbol("Belte"),
                     null
                 );
-
-                return _lazyIncompleteNamespace;
             }
 
-            if (_lazyCompleteNamespace is null)
-                return _lazyIncompleteNamespace;
-
-            return _lazyCompleteNamespace;
+            return _lazyBelteNamespace;
         }
     }
 
@@ -100,28 +94,10 @@ public static class LibraryHelpers {
 
         var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary);
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
 
-        var belteLibrary = Compilation.Create("Belte", options, corLibrary, []);
-        belteLibrary = belteLibrary.AddNamespace(GetBelteNamespace());
-        belteLibrary.GetDiagnostics();
-
-        return belteLibrary;
-    }
-
-    internal static NamespaceSymbol GetBelteNamespace() {
-        var builder = ArrayBuilder<Symbol>.GetInstance();
-        builder.AddRange(StandardLibrary.GetTypes());
-        // TODO Consider separating into another namespace and loading it only if used
-        // Perhaps a good time to do this would be when usings are implemented
-        builder.AddRange(GraphicsLibrary.GetTypes());
-
-        _lazyCompleteNamespace = new SynthesizedFinishedNamespaceSymbol(
-            _lazyIncompleteNamespace,
-            builder.ToImmutableAndFree()
-        );
-
-        return _lazyCompleteNamespace;
+        return corLibrary;
     }
 
     internal static string BuildMapKey(MethodSymbol method) {

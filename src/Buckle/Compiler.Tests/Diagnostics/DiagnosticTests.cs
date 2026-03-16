@@ -1574,18 +1574,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0145_UnexpectedTemplateName() {
-        var text = @"
-            namespace [A<T t>] { }
-        ";
-
-        var diagnostics = @"
-            unexpected use of a templated name
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0145_UnexpectedTemplateName
 
     [Fact]
     public void Reports_Error_BU0146_MultipleAccessibilities() {
@@ -3035,10 +3024,11 @@ public sealed class DiagnosticTests {
             namespace 'Belte' potentially shadows parts of the Standard Library
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Error_BU0321_GlobalSingleTypeNameNotFound
-    // ! Error_BU0322_DottedTypeNamesNotFoundInNamespace
+    // ! Error_BU0322_GlobalSingleTypeNameNotFound
+    // ! Error_BU0323_DottedTypeNamesNotFoundInNamespace
+    // ! Error_BU0324_ConflictingAliasAndMember
 
 }

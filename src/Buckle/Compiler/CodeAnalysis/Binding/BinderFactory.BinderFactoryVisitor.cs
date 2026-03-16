@@ -73,6 +73,12 @@ internal sealed partial class BinderFactory {
                 // TODO The SubmissionBinder is what fetches types from previous compilations (so the CorLibrary)
                 // So is this fine as is, or should there still be some _inScript check
                 result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
+                result = AddInImportsBinders(
+                    (SourceNamespaceSymbol)_compilation.sourceModule.globalNamespace,
+                    node,
+                    result,
+                    inUsing
+                );
                 result = new InContainerBinder(_compilation.globalNamespaceInternal, result);
 
                 if (_inScript)
@@ -91,6 +97,22 @@ internal sealed partial class BinderFactory {
             }
 
             return result;
+        }
+
+        private static Binder AddInImportsBinders(
+            SourceNamespaceSymbol declaringSymbol,
+            BelteSyntaxNode declarationSyntax,
+            Binder next,
+            bool inUsing) {
+            if (inUsing) {
+                return next;
+            } else {
+                return WithUsingAliasesBinder.Create(
+                    declaringSymbol,
+                    declarationSyntax,
+                    WithUsingNamespacesAndTypesBinder.Create(declaringSymbol, declarationSyntax, next)
+                );
+            }
         }
 
         internal override Binder VisitNamespaceDeclaration(NamespaceDeclarationSyntax parent) {
@@ -145,10 +167,14 @@ internal sealed partial class BinderFactory {
             if (ns is null)
                 return outer;
 
-            // TODO Add in when we do Usings
-            // if (node is BaseNamespaceDeclarationSyntax namespaceDecl) {
-            //     outer = AddInImportsBinders((SourceNamespaceSymbol)outer.compilation.sourceModule.GetModuleNamespace(ns), namespaceDecl, outer, inUsing);
-            // }
+            if (node is BaseNamespaceDeclarationSyntax namespaceDecl) {
+                outer = AddInImportsBinders(
+                    (SourceNamespaceSymbol)outer.compilation.sourceModule.GetModuleNamespace(ns),
+                    namespaceDecl,
+                    outer,
+                    inUsing
+                );
+            }
 
             return new InContainerBinder(ns, outer);
         }

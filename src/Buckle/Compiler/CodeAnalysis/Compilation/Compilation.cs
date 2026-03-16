@@ -111,6 +111,8 @@ public sealed partial class Compilation {
         }
     }
 
+    internal ModuleSymbol sourceModule => assembly.modules[0];
+
     internal NamespaceSymbol globalNamespaceInternal {
         get {
             if (_lazyGlobalNamespace is null) {

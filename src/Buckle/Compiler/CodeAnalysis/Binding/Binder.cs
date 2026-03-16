@@ -76,6 +76,8 @@ internal partial class Binder {
 
     internal virtual ImmutableArray<LocalFunctionSymbol> localFunctions => [];
 
+    internal virtual ImmutableArray<AliasAndUsingDirective> usingAliases => [];
+
     internal virtual ImmutableArray<LabelSymbol> labels => [];
 
     internal virtual bool isInMethodBody => next.isInMethodBody;
@@ -448,16 +450,26 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        if (namespaceOrNonNullableType.isType) {
-            var nonNullableType = namespaceOrNonNullableType.typeWithAnnotations;
+        if (namespaceOrNonNullableType.isType || namespaceOrNonNullableType.isAlias) {
+            var typeToCheck = namespaceOrNonNullableType.typeWithAnnotations;
 
-            if (nonNullableType.specialType == SpecialType.Void ||
-                nonNullableType.typeKind == TypeKind.TemplateParameter ||
-                nonNullableType.type.IsStructType()) {
-                return nonNullableType;
+            if (namespaceOrNonNullableType.isAlias) {
+                var unwrappedSymbol = UnwrapAliasNoDiagnostics(namespaceOrNonNullableType.symbol);
+
+                if (unwrappedSymbol.kind != SymbolKind.Namespace)
+                    // The alias target will already be annotated
+                    return new TypeWithAnnotations((TypeSymbol)unwrappedSymbol);
+                else
+                    return namespaceOrNonNullableType;
             }
 
-            return nonNullableType.SetIsAnnotated();
+            if (typeToCheck.specialType == SpecialType.Void ||
+                typeToCheck.typeKind == TypeKind.TemplateParameter ||
+                typeToCheck.type.IsStructType()) {
+                return typeToCheck;
+            }
+
+            return typeToCheck.SetIsAnnotated();
         }
 
         return namespaceOrNonNullableType;
@@ -5736,6 +5748,7 @@ internal partial class Binder {
         switch (expression.kind) {
             case BoundKind.NamespaceExpression:
                 diagnostics.Push(Error.BadSKKnown(
+                    expression.syntax.location,
                     ((BoundNamespaceExpression)expression).namespaceSymbol,
                     MessageID.IDS_SK_NAMESPACE.Localize(),
                     MessageID.IDS_SK_VARIABLE.Localize()
@@ -5744,7 +5757,8 @@ internal partial class Binder {
                 return false;
             case BoundKind.TypeExpression:
                 diagnostics.Push(Error.BadSKKnown(
-                    expression.type.StrippedType(),
+                    expression.syntax.location,
+                    expression.type,
                     MessageID.IDS_SK_TYPE.Localize(),
                     MessageID.IDS_SK_VARIABLE.Localize()
                 ));
@@ -7559,6 +7573,57 @@ internal partial class Binder {
         return binder;
     }
 
+    private protected void LookupSymbolInAliases(
+        ImmutableDictionary<string, AliasAndUsingDirective> usingAliases,
+        Binder originalBinder,
+        LookupResult result,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        bool diagnose) {
+        if (usingAliases.TryGetValue(name, out var alias)) {
+            var res = originalBinder.CheckViability(alias.alias, arity, options, null, diagnose, basesBeingResolved);
+
+            // TODO imports
+            // if (res.kind == LookupResultKind.Viable) {
+            // MarkImportDirective(alias.UsingDirectiveReference, callerIsSemanticModel);
+            // }
+
+            result.MergeEqual(res);
+        }
+    }
+
+    private protected bool IsUsingAlias(ImmutableDictionary<string, AliasAndUsingDirective> usingAliases, string name) {
+        if (usingAliases.TryGetValue(name, out var node)) {
+            // TODO Imports
+            // MarkImportDirective(node.UsingDirectiveReference, callerIsSemanticModel);
+            return true;
+        }
+
+        return false;
+    }
+
+    private protected void AddLookupSymbolsInfoInAliases(
+        ImmutableDictionary<string, AliasAndUsingDirective> usingAliases,
+        LookupSymbolsInfo result,
+        LookupOptions options,
+        Binder originalBinder) {
+        foreach (var pair in usingAliases) {
+            var aliasSymbol = pair.Value.alias;
+            var targetSymbol = aliasSymbol.GetAliasTarget(basesBeingResolved: null);
+
+            if (originalBinder.CanAddLookupSymbolInfo(
+                targetSymbol,
+                options,
+                result,
+                accessThroughType: null,
+                aliasSymbol: aliasSymbol)) {
+                result.AddSymbol(aliasSymbol, aliasSymbol.name, 0);
+            }
+        }
+    }
+
     internal void LookupSymbolsSimpleName(
         LookupResult result,
         NamespaceOrTypeSymbol qualifier,
@@ -8138,8 +8203,9 @@ symIsHidden:;
         Symbol symbol,
         LookupOptions options,
         LookupSymbolsInfo info,
-        TypeSymbol accessThroughType) {
-        var name = symbol.name;
+        TypeSymbol accessThroughType,
+        AliasSymbol aliasSymbol = null) {
+        var name = aliasSymbol is not null ? aliasSymbol.name : symbol.name;
 
         if (!info.CanBeAdded(name))
             return false;
@@ -8171,24 +8237,29 @@ symIsHidden:;
         bool diagnose,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         BelteDiagnostic error;
+        var unwrappedSymbol = symbol.kind == SymbolKind.Alias
+            ? ((AliasSymbol)symbol).GetAliasTarget(basesBeingResolved)
+            : symbol;
 
         if ((options & LookupOptions.MustNotBeParameter) != 0 && symbol is ParameterSymbol) {
             return LookupResult.Empty();
-        } else if (!IsInScopeOfAssociatedSyntaxTree(symbol)) {
+        } else if (!IsInScopeOfAssociatedSyntaxTree(unwrappedSymbol)) {
             return LookupResult.Empty();
         } else if ((options & (LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual)) ==
             (LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual) &&
-            (symbol is not TypeSymbol && IsInstance(symbol) || !(symbol.isAbstract || symbol.isVirtual))) {
+            (unwrappedSymbol is not TypeSymbol && IsInstance(unwrappedSymbol) ||
+            !(unwrappedSymbol.isAbstract || unwrappedSymbol.isVirtual))) {
             return LookupResult.Empty();
             // } else if (WrongArity(symbol, arity, diagnose, options, out diagInfo)) {
             //     return LookupResult.WrongArity(symbol, diagInfo);
-        } else if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && symbol is not NamespaceOrTypeSymbol) {
+        } else if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 &&
+            unwrappedSymbol is not NamespaceOrTypeSymbol) {
             return LookupResult.NotTypeOrNamespace(symbol, symbol, diagnose);
         } else if ((options & LookupOptions.MustBeInvocableIfMember) != 0
-              && IsNonInvocableMember(symbol)) {
-            return LookupResult.NotInvocable(symbol, symbol, diagnose);
+              && IsNonInvocableMember(unwrappedSymbol)) {
+            return LookupResult.NotInvocable(unwrappedSymbol, symbol, diagnose);
         } else if (!IsAccessible(
-            symbol,
+            unwrappedSymbol,
             RefineAccessThroughType(options, accessThroughType),
             out var inaccessibleViaQualifier,
             basesBeingResolved)) {
@@ -8200,14 +8271,14 @@ symIsHidden:;
                 error = Error.MemberIsInaccessible(symbol.location, symbol);
 
             return LookupResult.Inaccessible(symbol, error);
-        } else if ((options & LookupOptions.MustBeInstance) != 0 && !IsInstance(symbol)) {
+        } else if ((options & LookupOptions.MustBeInstance) != 0 && !IsInstance(unwrappedSymbol)) {
             error = Error.InstanceRequired(symbol.location, symbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
-        } else if ((options & LookupOptions.MustNotBeInstance) != 0 && IsInstance(symbol)) {
+        } else if ((options & LookupOptions.MustNotBeInstance) != 0 && IsInstance(unwrappedSymbol)) {
             error = Error.NoInstanceRequired(symbol.location, symbol.name, symbol.containingSymbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
-        } else if ((options & LookupOptions.MustNotBeNamespace) != 0 && symbol.kind == SymbolKind.Namespace) {
-            error = diagnose ? Error.BadSKUnknown(symbol.location, symbol, symbol.kind.Localize()) : null;
+        } else if ((options & LookupOptions.MustNotBeNamespace) != 0 && unwrappedSymbol.kind == SymbolKind.Namespace) {
+            error = diagnose ? Error.BadSKUnknown(symbol.location, unwrappedSymbol, unwrappedSymbol.kind.Localize()) : null;
             return LookupResult.NotTypeOrNamespace(symbol, error);
         } else {
             return LookupResult.Good(symbol);

@@ -1545,12 +1545,15 @@ internal sealed class Evaluator {
                 case "Console_Print_A?":
                 case "Console_Print_O?":
                     printed = true;
-
+                    goto case "Console_PrintLine_S?";
+                case "Console_PrintLine_S?":
+                case "Console_PrintLine_A?":
+                case "Console_PrintLine_O?":
                     if (arguments[0].type.StrippedType().isObjectType) {
                         var argument = EvaluateExpression(arguments[0], abort);
-                        var toStringResult = InvokeStaticMethod(_toStringMethod, [argument], abort);
+                        var toStringResult = InvokeInstanceMethod(_toStringMethod, argument, [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
-                        result = func(toStringResult, null, null);
+                        result = func(toStringResult.@string, null, null);
                         return true;
                     }
 

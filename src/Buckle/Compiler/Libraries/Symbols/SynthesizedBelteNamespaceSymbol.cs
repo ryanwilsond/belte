@@ -11,16 +11,12 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
 
-internal sealed class SynthesizedFinishedNamespaceSymbol : NamespaceSymbol {
-    private readonly ImmutableArray<Symbol> _allMembers;
-
+internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
 
-    internal SynthesizedFinishedNamespaceSymbol(NamespaceSymbol underlyingNamespace, ImmutableArray<Symbol> members) {
-        name = underlyingNamespace.name;
-        _originalSymbolDefinition = underlyingNamespace;
-        _allMembers = members;
+    internal SynthesizedBelteNamespaceSymbol(string name) {
+        this.name = name;
     }
 
     public override string name { get; }
@@ -37,10 +33,8 @@ internal sealed class SynthesizedFinishedNamespaceSymbol : NamespaceSymbol {
 
     internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
 
-    private protected override Symbol _originalSymbolDefinition { get; }
-
     internal override ImmutableArray<Symbol> GetMembers() {
-        return _allMembers;
+        return GetNameToMembersMap().Flatten(LexicalOrderSymbolComparer.Instance);
     }
 
     internal override ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name) {
@@ -79,15 +73,21 @@ internal sealed class SynthesizedFinishedNamespaceSymbol : NamespaceSymbol {
     }
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> MakeNameToMembersMap() {
+        var allMembers = ArrayBuilder<Symbol>.GetInstance();
+        allMembers.AddRange(StandardLibrary.GetTypes());
+        allMembers.AddRange(GraphicsLibrary.GetTypes());
+
         var builder = NameToObjectPool.Allocate();
 
-        foreach (var symbol in _allMembers) {
+        foreach (var symbol in allMembers) {
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
                 builder,
                 symbol.name.AsMemory(),
                 symbol
             );
         }
+
+        allMembers.Free();
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>>(
             builder.Count,

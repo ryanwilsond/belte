@@ -169,7 +169,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         }
     }
 
-    internal ModuleSymbol containingModule => containingPEModule;
+    internal override ModuleSymbol containingModule => containingPEModule;
 
     internal abstract override bool mangleName { get; }
 

@@ -332,6 +332,7 @@ public enum DiagnosticCode : ushort {
     WRN_NamespaceNameShadowsBelte = 321,
     ERR_GlobalSingleTypeNameNotFound = 322,
     ERR_DottedTypeNamesNotFoundInNamespace = 323,
+    ERR_ConflictingAliasAndMember = 324,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

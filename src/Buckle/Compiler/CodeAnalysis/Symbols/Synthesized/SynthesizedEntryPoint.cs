@@ -118,9 +118,13 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         var syntaxNode = this.syntaxNode;
         Binder result = new EndBinder(compilation, syntaxNode.syntaxTree.text);
 
-        for (var current = compilation; current is not null; current = current.previous)
+        for (var current = compilation; current is not null; current = current.previous) {
+            // TODO Also add usings binders for previous?
             result = new InContainerBinder(current.globalNamespaceInternal, result);
+        }
 
+        var declaringSymbol = (SourceNamespaceSymbol)compilation.sourceModule.globalNamespace;
+        result = WithUsingAliasesBinder.Create(declaringSymbol, syntaxNode, WithUsingNamespacesAndTypesBinder.Create(declaringSymbol, syntaxNode, result));
         result = new InContainerBinder(containingType, result);
         result = new InMethodBinder(this, result);
         result = result.WithAdditionalFlags(ignoreAccessibility ? BinderFlags.IgnoreAccessibility : BinderFlags.None);

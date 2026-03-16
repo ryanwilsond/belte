@@ -907,12 +907,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadSKKnown(Symbol symbol, string kind1, string kind2) {
-        var message = $"'{symbol}' is a {kind1} but is used like a {kind2}";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind1} but is used like a {kind2}";
         return CreateError(DiagnosticCode.ERR_BadSKKnown, null, message);
     }
 
     internal static BelteDiagnostic BadSKKnown(TextLocation location, Symbol symbol, string kind1, string kind2) {
-        var message = $"'{symbol}' is a {kind1} but is used like a {kind2}";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind1} but is used like a {kind2}";
         return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
     }
 
@@ -927,7 +927,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
-        var message = $"'{symbol}' is a {kind}, which is not valid in the given context";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind}, which is not valid in the given context";
         return CreateError(DiagnosticCode.ERR_BadSKUnknown, location, message);
     }
 
@@ -1581,6 +1581,11 @@ internal static class Error {
     internal static BelteDiagnostic DottedTypeNamesNotFoundInNamespace(TextLocation location, string text, object container) {
         var message = $"the type or namespace name '{text}' does not exist in the namespace '{container}'";
         return CreateError(DiagnosticCode.ERR_DottedTypeNamesNotFoundInNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic ConflictingAliasAndMember(TextLocation location, string alias, NamespaceOrTypeSymbol container) {
+        var message = $"namespace '{container}' contains a definition conflicting with alias '{alias}'";
+        return CreateError(DiagnosticCode.ERR_ConflictingAliasAndMember, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

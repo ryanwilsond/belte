@@ -287,7 +287,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = Match(SyntaxKind.UsingKeyword);
         var staticKeyword = currentToken.kind == SyntaxKind.StaticKeyword ? EatToken() : null;
         var alias = IsNamedAssignment() ? ParseNameEquals() : null;
-        var namespaceOrType = alias is null ? ParseQualifiedName() : ParseType();
+        var namespaceOrType = alias is null ? ParseQualifiedName() : ParseType(allowNoFollowUp: true);
         var semicolon = Match(SyntaxKind.SemicolonToken);
         return SyntaxFactory.UsingDirective(globalKeyword, keyword, staticKeyword, alias, namespaceOrType, semicolon);
     }
@@ -1797,7 +1797,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.IdentifierName(identifier);
     }
 
-    private TypeSyntax ParseType(bool allowRef = true, bool allowArraySize = false) {
+    private TypeSyntax ParseType(bool allowRef = true, bool allowArraySize = false, bool allowNoFollowUp = false) {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             if (allowRef) {
                 var refKeyword = EatToken();
@@ -1805,13 +1805,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return SyntaxFactory.ReferenceType(
                     refKeyword,
                     currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                    ParseTypeCore(allowArraySize)
+                    ParseTypeCore(allowArraySize, allowNoFollowUp)
                 );
             } else {
                 var unexpected = EatToken(stallDiagnostics: true);
 
                 return AddDiagnostic(
-                    WithFutureDiagnostics(AddLeadingSkippedSyntax(ParseTypeCore(allowArraySize), unexpected)),
+                    WithFutureDiagnostics(
+                        AddLeadingSkippedSyntax(ParseTypeCore(allowArraySize, allowNoFollowUp), unexpected)
+                    ),
                     Error.CannotUseRef(),
                     unexpected.GetLeadingTriviaWidth(),
                     unexpected.width
@@ -1819,14 +1821,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             }
         }
 
-        return ParseTypeCore(allowArraySize);
+        return ParseTypeCore(allowArraySize, allowNoFollowUp);
     }
 
-    private TypeSyntax ParseTypeCore(bool allowArraySize) {
+    private TypeSyntax ParseTypeCore(bool allowArraySize, bool allowNoFollowUp) {
         TypeSyntax type;
 
         if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken ||
-            (currentToken.kind == SyntaxKind.IdentifierToken &&
+            (!allowNoFollowUp && currentToken.kind == SyntaxKind.IdentifierToken &&
              Peek(1).kind is SyntaxKind.EqualsToken or SyntaxKind.SemicolonToken)) {
             type = SyntaxFactory.EmptyName();
         } else {
