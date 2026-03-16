@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -20,6 +21,7 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         LookupSymbolInAliases(
             GetUsingAliasesMap(basesBeingResolved),
@@ -27,6 +29,7 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
             result,
             name,
             arity,
+            errorLocation,
             basesBeingResolved,
             options,
             diagnose

@@ -21,7 +21,7 @@ internal static class Error {
     /// </summary>
     internal static class Unsupported {
         internal static BelteDiagnostic NonTypeTemplate(TextLocation location) {
-            var message = "unsupported: cannot declare a non-type template while building for .NET or transpiling to C#";
+            var message = "unsupported: cannot declare a non-type template when building for .NET, transpiling to C#, or executing";
             return CreateError(DiagnosticCode.UNS_NonTypeTemplate, location, message);
         }
     }
@@ -1330,11 +1330,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NonIntArraySize, location, message);
     }
 
-    internal static BelteDiagnostic BadArity(TextLocation location, TypeSymbol type, string text, int arity)
-        => BadArity(location, type.ToString(), text, arity);
+    internal static BelteDiagnostic BadArity(TextLocation location, Symbol type, string text, int arity)
+        => BadArity(location, type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat), text, arity);
 
     internal static BelteDiagnostic BadArity(TextLocation location, string type, string text, int arity) {
-        var message = $"using the template {text} '{type}' requires {arity} template arguments";
+        var message = $"the template {text} '{type}' requires {arity} template arguments";
         return CreateError(DiagnosticCode.ERR_BadArity, location, message);
     }
 
@@ -1586,6 +1586,21 @@ internal static class Error {
     internal static BelteDiagnostic ConflictingAliasAndMember(TextLocation location, string alias, NamespaceOrTypeSymbol container) {
         var message = $"namespace '{container}' contains a definition conflicting with alias '{alias}'";
         return CreateError(DiagnosticCode.ERR_ConflictingAliasAndMember, location, message);
+    }
+
+    internal static BelteDiagnostic UnexpectedUnboundTemplateName(TextLocation location) {
+        var message = $"unexpected use of an unbound template name";
+        return CreateError(DiagnosticCode.ERR_UnexpectedUnboundTemplateName, location, message);
+    }
+
+    internal static BelteDiagnostic HasNoTemplate(TextLocation location, Symbol symbol, string text) {
+        var message = $"the non-template {text} '{symbol}' cannot be used with template arguments";
+        return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic TemplateNotAllowed(TextLocation location, Symbol symbol, string text) {
+        var message = $"the {text} '{symbol}' cannot be used with template arguments";
+        return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

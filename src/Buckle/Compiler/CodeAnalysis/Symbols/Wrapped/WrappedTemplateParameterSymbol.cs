@@ -21,6 +21,8 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
 
     internal override bool hasObjectTypeConstraint => underlyingTemplateParameter.hasObjectTypeConstraint;
 
+    internal override bool isOptional => underlyingTemplateParameter.isOptional;
+
     internal override bool isPrimitiveTypeFromConstraintTypes
         => underlyingTemplateParameter.isPrimitiveTypeFromConstraintTypes ||
             CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);

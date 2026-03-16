@@ -2973,7 +2973,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0309_BadArity
+    [Fact]
+    public void Reports_Error_BU309_BadArity() {
+        var text = @"
+            class A<type t> { }
+            var a = new [A]();
+        ";
+
+        var diagnostics = @"
+            the template type 'A<type t>' requires 1 template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU310_ProtectedInStruct() {
@@ -3030,5 +3042,8 @@ public sealed class DiagnosticTests {
     // ! Error_BU0322_GlobalSingleTypeNameNotFound
     // ! Error_BU0323_DottedTypeNamesNotFoundInNamespace
     // ! Error_BU0324_ConflictingAliasAndMember
+    // ! Error_BU0325_UnexpectedUnboundTemplateName
+    // ! Error_BU0326_HasNoTemplate
+    // ! Error_BU0327_TemplateNotAllowed
 
 }

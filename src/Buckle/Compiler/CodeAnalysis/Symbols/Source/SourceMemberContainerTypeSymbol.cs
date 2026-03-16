@@ -1438,7 +1438,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         );
 
                         builder.nonTypeMembers.Add(fieldSymbol);
-                        AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
+
+                        // TODO Do we want initializers for all fields like before?
+                        if (declaration.initializer is not null)
+                            AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
                     }
 
                     break;

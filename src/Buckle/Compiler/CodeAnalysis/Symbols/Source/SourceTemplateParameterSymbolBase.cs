@@ -5,7 +5,6 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
-using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -29,6 +28,8 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     public sealed override string name { get; }
 
     internal sealed override int ordinal { get; }
+
+    internal sealed override bool isOptional => ((ParameterSyntax)syntaxReference.node).defaultValue is not null;
 
     internal sealed override TypeWithAnnotations underlyingType {
         get {
@@ -105,6 +106,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
                     GetAttributes();
                     break;
                 case CompletionParts.TemplateParameterConstraints:
+                    _ = underlyingType;
                     _ = constraintTypes;
                     break;
                 case CompletionParts.StartDefaultSyntaxValue:
@@ -182,7 +184,21 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private TypeWithAnnotations MakeUnderlyingType(BelteDiagnosticQueue diagnostics) {
         var syntax = (ParameterSyntax)syntaxReference.node;
         var binder = declaringCompilation.GetBinder(syntax);
-        return binder.BindType(syntax.type, diagnostics);
+        var type = binder.BindType(syntax.type, diagnostics);
+        var underlying = type.nullableUnderlyingTypeOrSelf;
+
+        // TODO This is what we want, type arguments being null breaks their use as normal types
+        // ! However this does create a weird inconsistency where this is the ONLY time types aren't nullable by default
+        if (underlying.specialType == SpecialType.Type)
+            return new TypeWithAnnotations(underlying);
+
+        if (declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or
+                                                      BuildMode.Execute or
+                                                      BuildMode.Dotnet) {
+            diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
+        }
+
+        return type;
     }
 
     private TypeOrConstant MakeDefaultValue(BelteDiagnosticQueue diagnostics) {

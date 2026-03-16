@@ -37,7 +37,7 @@ internal abstract partial class LocalSlotManager {
     }
 
     internal VariableDefinition GetLocal(Symbol symbol) {
-        return _localMap[symbol];
+        return _localMap[symbol.originalDefinition];
     }
 
     internal void FreeLocal(Symbol symbol) {

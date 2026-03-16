@@ -86,6 +86,8 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal sealed override Compilation declaringCompilation => null;
 
+    internal override bool isOptional => false;
+
     internal override bool hasPrimitiveTypeConstraint
         => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
 

@@ -333,6 +333,9 @@ public enum DiagnosticCode : ushort {
     ERR_GlobalSingleTypeNameNotFound = 322,
     ERR_DottedTypeNamesNotFoundInNamespace = 323,
     ERR_ConflictingAliasAndMember = 324,
+    ERR_UnexpectedUnboundTemplateName = 325,
+    ERR_HasNoTemplate = 326,
+    ERR_TemplateNotAllowed = 327,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -147,7 +147,14 @@ internal sealed class Evaluator {
         if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({type})");
 
-        var heapObject = new HeapObject(type, layout.LocalsInOrder().Length);
+        var fields = layout.LocalsInOrder();
+        var heapObject = new HeapObject(type, fields.Length);
+
+        foreach (var field in fields) {
+            var fieldType = type.templateSubstitution.SubstituteType(field.type).type.type;
+            heapObject.fields[field.slot] = GetDefaultValue(fieldType);
+        }
+
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         return EvaluatorValue.HeapPtr(index);
     }

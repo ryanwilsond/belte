@@ -514,7 +514,7 @@ internal partial class Binder {
         } else {
             var plainName = node.identifier.text;
             var result = LookupResult.GetInstance();
-            LookupSymbolsWithFallback(result, plainName, 0, null, LookupOptions.NamespaceAliasesOnly);
+            LookupSymbolsWithFallback(result, plainName, 0, node.location, null, LookupOptions.NamespaceAliasesOnly);
 
             var bindingResult = ResultSymbol(
                 result,
@@ -737,7 +737,7 @@ internal partial class Binder {
         var result = LookupResult.GetInstance();
         var options = LookupOptions.NamespacesOrTypesOnly;
 
-        LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, true);
+        LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, node.location, true);
 
         var bindingResult = ResultSymbol(result, name, 0, node, diagnostics, out _, qualifier, options);
 
@@ -799,11 +799,8 @@ internal partial class Binder {
 
         if (isUnboundTypeExpr) {
             if (!IsUnboundTypeAllowed(node)) {
-                if (!unconstructedType.IsErrorType()) {
-                    // TODO Reachable?
-                    // error CS7003: Unexpected use of an unbound generic name
-                    // diagnostics.Add(ErrorCode.ERR_UnexpectedUnboundGenericName, node.Location);
-                }
+                if (!unconstructedType.IsErrorType())
+                    diagnostics.Push(Error.UnexpectedUnboundTemplateName(node.location));
 
                 resultType = unconstructedType.Construct(
                     UnboundArgumentErrorTypeSymbol.CreateTemplateArguments(
@@ -827,8 +824,7 @@ internal partial class Binder {
                 unconstructedType,
                 node,
                 templateArguments,
-                // TODO Eventually actually use the first item (arg name for argtoparams)
-                boundTemplateArguments.Select(p => p.Item2).ToImmutableArray(),
+                boundTemplateArguments,
                 basesBeingResolved,
                 diagnostics
             );
@@ -857,7 +853,16 @@ internal partial class Binder {
             return errorResult;
 
         var lookupResult = LookupResult.GetInstance();
-        LookupSymbolsSimpleName(lookupResult, qualifier, plainName, arity, basesBeingResolved, options, true);
+        LookupSymbolsSimpleName(
+            lookupResult,
+            qualifier,
+            plainName,
+            arity,
+            basesBeingResolved,
+            options,
+            node.location,
+            true
+        );
 
         var lookupResultSymbol = ResultSymbol(
             lookupResult,
@@ -902,10 +907,53 @@ internal partial class Binder {
         NamedTypeSymbol type,
         SyntaxNode typeSyntax,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
-        ImmutableArray<TypeOrConstant> templateArguments,
+        AnalyzedArguments analyzedArguments,
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
-        type = type.Construct(templateArguments);
+        var argumentAnalysis = OverloadResolution.AnalyzeArguments(
+            type.templateParameters.ToImmutableArray<Symbol>(),
+            analyzedArguments,
+            false,
+            false
+        );
+
+        if (!argumentAnalysis.isValid) {
+            // TODO We are synthesizing an overload result to reuse the same diagnostic logic
+            // This probably means refactor
+            var analysisResult = MemberAnalysisResult.ArgumentParameterMismatch(argumentAnalysis);
+            var errorResult = new MemberResolutionResult<NamedTypeSymbol>(type, type, analysisResult, false);
+            var overloadResult = new OverloadResolutionResult<NamedTypeSymbol>();
+            overloadResult.resultsBuilder.Add(errorResult);
+            overloadResult.ReportDiagnostics(
+                this,
+                typeSyntax.location,
+                typeSyntax,
+                diagnostics,
+                type.name,
+                null,
+                typeSyntax,
+                analyzedArguments,
+                [type],
+                null
+            );
+
+            var errorArguments = analyzedArguments.arguments.ToImmutable();
+            analyzedArguments.Free();
+
+            return new ConstructedErrorTypeSymbol(
+                (ErrorTypeSymbol)CreateErrorType(type.name),
+                errorArguments.Select(e => e.typeOrConstant).ToImmutableArray()
+            );
+        }
+
+        var (rearrangedArguments, _) = RearrangeArguments(
+            analyzedArguments.arguments,
+            analyzedArguments.refKinds,
+            argumentAnalysis.argsToParams
+        );
+
+        analyzedArguments.Free();
+        type = type.Construct(rearrangedArguments.Select(r => r.typeOrConstant).ToImmutableArray());
 
         if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type)) {
             type.CheckConstraintsForNamedType(
@@ -929,7 +977,7 @@ internal partial class Binder {
         SyntaxNode typeSyntax,
         NamedTypeSymbol type,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
-        ImmutableArray<TypeOrConstant> templateArguments,
+        AnalyzedArguments templateArguments,
         BelteDiagnosticQueue diagnostics) {
         if (templateArgumentsSyntax?.Any(SyntaxKind.OmittedArgument) == true) {
             diagnostics.Push(Error.BadArity(
@@ -939,6 +987,7 @@ internal partial class Binder {
                 templateArgumentsSyntax.Count
             ));
 
+            templateArguments.Free();
             return type;
         } else {
             return ConstructNamedType(
@@ -975,39 +1024,69 @@ internal partial class Binder {
         }
     }
 
-    private ImmutableArray<(string, TypeOrConstant)> BindTemplateArguments(
+    private AnalyzedArguments BindTemplateArguments(
         SeparatedSyntaxList<BaseArgumentSyntax> templateArguments,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         var analyzedArguments = AnalyzedArguments.GetInstance();
-        var arguments = ArrayBuilder<(string, TypeOrConstant)>.GetInstance(templateArguments.Count);
 
         for (var i = 0; i < templateArguments.Count; i++) {
-            arguments.Add(BindTemplateArgument(
+            BindTemplateArgument(
                 analyzedArguments,
                 templateArguments[i],
                 diagnostics,
                 i,
                 basesBeingResolved
-            ));
+            );
         }
 
-        analyzedArguments.Free();
-        return arguments.ToImmutableAndFree();
+        return analyzedArguments;
     }
 
-    private (string, TypeOrConstant) BindTemplateArgument(
+    private void BindTemplateArgument(
         AnalyzedArguments analyzedArguments,
         BaseArgumentSyntax templateArgument,
         BelteDiagnosticQueue diagnostics,
         int index,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        // TODO This is temporary: currently ignores argument name and only allows types
-        if (templateArgument.kind == SyntaxKind.OmittedArgument)
-            return (null, new TypeOrConstant(UnboundArgumentErrorTypeSymbol.Instance));
+        analyzedArguments.syntaxes.Add(templateArgument);
 
-        var boundArg = BindType(((ArgumentSyntax)templateArgument).expression, diagnostics).type.StrippedType();
-        return (null, new TypeOrConstant(boundArg));
+        if (templateArgument.kind == SyntaxKind.OmittedArgument) {
+            var errorType = UnboundArgumentErrorTypeSymbol.Instance;
+            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(errorType)));
+            analyzedArguments.hasErrors.Add(true);
+            analyzedArguments.types.Add(errorType);
+            return;
+        }
+
+        var argument = (ArgumentSyntax)templateArgument;
+
+        if (argument.identifier is not null)
+            analyzedArguments.AddName(argument.identifier);
+
+        var type = BindType(argument.expression, BelteDiagnosticQueue.Discarded).type;
+
+        if (type is not ErrorTypeSymbol) {
+            analyzedArguments.types.Add(type);
+            analyzedArguments.hasErrors.Add(false);
+            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(type)));
+            return;
+        }
+
+        var boundArgument = BindExpression(argument.expression, diagnostics);
+
+        analyzedArguments.types.Add(boundArgument.type);
+
+        if (boundArgument.constantValue is null) {
+            diagnostics.Push(Error.ConstantExpected(templateArgument.location));
+            analyzedArguments.hasErrors.Add(true);
+        } else {
+            analyzedArguments.hasErrors.Add(false);
+        }
+
+        analyzedArguments.arguments.Add(
+            new BoundExpressionOrTypeOrConstant(new TypeOrConstant(boundArgument.constantValue))
+        );
     }
 
     internal NamedTypeSymbol CreateErrorType(string name = "") {
@@ -2268,7 +2347,7 @@ internal partial class Binder {
                 // TODO Potentially useful to keep track of
                 // initialBindingReceiverIsSubjectToCloning: ReceiverIsSubjectToCloning(receiver, resultMember),
                 resultMember,
-                args,
+                args.Select(a => a.expression).ToImmutableArray(),
                 argRefKinds,
                 defaultArguments: defaultArguments,
                 resultKind: LookupResultKind.Viable,
@@ -2509,7 +2588,7 @@ internal partial class Binder {
         if (expression.type is null)
             return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
 
-        if (analyzedArguments.hasErrors || expression.hasErrors)
+        if (analyzedArguments.anyErrors || expression.hasErrors)
             diagnostics = BelteDiagnosticQueue.Discarded;
 
         return BindArrayAccessOrIndexerCore(node, isConditional, expression, analyzedArguments, diagnostics);
@@ -2554,12 +2633,12 @@ internal partial class Binder {
             if (argument.type is not null && argument.type.IsNullableType())
                 intType = CorLibrary.GetNullableType(SpecialType.Int);
 
-            var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
+            var conversion = conversions.ClassifyImplicitConversionFromExpression(argument.expression, intType);
 
             if (!conversion.exists)
-                GenerateImplicitConversionError(diagnostics, node, conversion, argument, intType);
+                GenerateImplicitConversionError(diagnostics, node, conversion, argument.expression, intType);
 
-            var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
+            var boundConversion = CreateConversion(argument.expression, conversion, intType, diagnostics);
             var hasErrors = false;
 
             var constantValue = ConstantFolding.FoldIndex(expression, boundConversion, charType);
@@ -2650,12 +2729,12 @@ internal partial class Binder {
         if (argument.type is not null && argument.type.IsNullableType())
             intType = CorLibrary.GetNullableType(SpecialType.Int);
 
-        var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(argument.expression, intType);
 
         if (!conversion.exists)
-            GenerateImplicitConversionError(diagnostics, node, conversion, argument, intType);
+            GenerateImplicitConversionError(diagnostics, node, conversion, argument.expression, intType);
 
-        var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
+        var boundConversion = CreateConversion(argument.expression, conversion, intType, diagnostics);
         var hasErrors = false;
 
         var constantValue = ConstantFolding.FoldIndex(expression, boundConversion, elementType);
@@ -3365,7 +3444,7 @@ internal partial class Binder {
             diagnostics
         );
 
-        var arguments = analyzedArguments.arguments.ToImmutable();
+        var arguments = analyzedArguments.arguments.Select(a => a.expression).ToImmutableArray();
         var refKinds = analyzedArguments.refKinds.ToImmutableOrNull();
         var creation = new BoundObjectCreationExpression(
             node,
@@ -3517,7 +3596,7 @@ internal partial class Binder {
         BoundExpression expression;
         var hasTemplateArguments = node.arity > 0;
         var templateArgumentList = node is TemplateNameSyntax t ? t.templateArgumentList.arguments : default;
-        var templateArguments = hasTemplateArguments ? BindTemplateArguments(templateArgumentList, diagnostics) : [];
+        var templateArguments = hasTemplateArguments ? BindTemplateArguments(templateArgumentList, diagnostics) : null;
 
         var lookupResult = LookupResult.GetInstance();
         var name = node.identifier.text;
@@ -3541,7 +3620,7 @@ internal partial class Binder {
                 expression = ConstructBoundMemberGroupAndReportOmittedTemplateArguments(
                     node,
                     templateArgumentList,
-                    templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                    templateArguments,
                     receiver,
                     name,
                     members,
@@ -3560,7 +3639,7 @@ internal partial class Binder {
                         node,
                         (NamedTypeSymbol)symbol,
                         templateArgumentList,
-                        templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                        templateArguments,
                         diagnostics
                     );
                 }
@@ -3613,7 +3692,7 @@ internal partial class Binder {
     private BoundMethodGroup ConstructBoundMemberGroupAndReportOmittedTemplateArguments(
         SyntaxNode syntax,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
-        ImmutableArray<TypeOrConstant> templateArguments,
+        AnalyzedArguments templateArguments,
         BoundExpression receiver,
         string plainName,
         ArrayBuilder<Symbol> members,
@@ -3640,7 +3719,9 @@ internal partial class Binder {
                     syntax,
                     plainName,
                     members.SelectAsArray(s => (MethodSymbol)s),
-                    templateArguments,
+                    templateArguments is null
+                        ? []
+                        : templateArguments.arguments.Select(a => a.typeOrConstant).ToImmutableArray(),
                     lookupResult.singleSymbolOrDefault,
                     BelteDiagnostic.AddLocation(lookupResult.error, syntax.location),
                     methodGroupFlags,
@@ -3692,6 +3773,7 @@ internal partial class Binder {
                             basesBeingResolved: null,
                             options: LookupOptions.Default,
                             originalBinder: this,
+                            errorLocation: node.location,
                             diagnose: false
                         );
 
@@ -3860,10 +3942,15 @@ internal partial class Binder {
     }
 
     private void LookupIdentifier(LookupResult lookupResult, SimpleNameSyntax node, bool called) {
-        LookupIdentifier(lookupResult, node.identifier.text, node.arity, called);
+        LookupIdentifier(lookupResult, node.identifier.text, node.arity, called, node.location);
     }
 
-    private void LookupIdentifier(LookupResult lookupResult, string name, int arity, bool called) {
+    private void LookupIdentifier(
+        LookupResult lookupResult,
+        string name,
+        int arity,
+        bool called,
+        TextLocation errorLocation) {
         var options = LookupOptions.AllMethodsOnArityZero;
 
         if (called)
@@ -3872,7 +3959,7 @@ internal partial class Binder {
         if (!isInMethodBody && !isInsideNameof)
             options |= LookupOptions.MustNotBeMethodTemplateParameter;
 
-        LookupSymbolsWithFallback(lookupResult, name, arity, options: options);
+        LookupSymbolsWithFallback(lookupResult, name, arity, errorLocation, options: options);
     }
 
     private BoundExpression BindMemberAccess(
@@ -3958,7 +4045,7 @@ internal partial class Binder {
 
             var templateArguments = templateArgumentsSyntax?.Count > 0
                 ? BindTemplateArguments(templateArgumentsSyntax, diagnostics)
-                : [];
+                : null;
 
             var rightName = right.identifier.text;
             var rightArity = right.arity;
@@ -3967,7 +4054,14 @@ internal partial class Binder {
             switch (boundLeft.kind) {
                 case BoundKind.NamespaceExpression: {
                         var ns = ((BoundNamespaceExpression)boundLeft).namespaceSymbol;
-                        LookupMembersWithFallback(lookupResult, ns, rightName, rightArity, options: options);
+                        LookupMembersWithFallback(
+                            lookupResult,
+                            ns,
+                            rightName,
+                            rightArity,
+                            right.location,
+                            options: options
+                        );
 
                         var symbols = lookupResult.symbols;
 
@@ -3997,10 +4091,15 @@ internal partial class Binder {
                             } else {
                                 var type = (NamedTypeSymbol)sym;
 
-                                // TODO Templates
-                                // if (!templateArguments.IsDefault) {
-                                //     type = ConstructNamedTypeUnlessTypeArgumentOmitted(right, type, typeArgumentsSyntax, typeArguments, diagnostics);
-                                // }
+                                if (templateArguments is not null) {
+                                    type = ConstructNamedTypeUnlessTypeArgumentOmitted(
+                                        right,
+                                        type,
+                                        templateArgumentsSyntax,
+                                        templateArguments,
+                                        diagnostics
+                                    );
+                                }
 
                                 return new BoundTypeExpression(node, null, null, type);
                             }
@@ -4045,6 +4144,7 @@ internal partial class Binder {
                                 leftType,
                                 rightName,
                                 rightArity,
+                                right.location,
                                 null,
                                 options | LookupOptions.MustNotBeInstance | LookupOptions.MustBeAbstractOrVirtual
                             );
@@ -4081,7 +4181,15 @@ internal partial class Binder {
                                 diagnostics
                             );
                         } else {
-                            LookupMembersWithFallback(lookupResult, leftType, rightName, rightArity, null, options);
+                            LookupMembersWithFallback(
+                                lookupResult,
+                                leftType,
+                                rightName,
+                                rightArity,
+                                right.location,
+                                null,
+                                options
+                            );
 
                             if (lookupResult.isMultiViable) {
                                 result = BindMemberOfType(
@@ -4147,6 +4255,33 @@ internal partial class Binder {
             );
         } finally {
             lookupResult.Free();
+        }
+    }
+
+    private NamedTypeSymbol ConstructNamedTypeUnlessTypeArgumentOmitted(
+        SyntaxNode typeSyntax,
+        NamedTypeSymbol type,
+        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
+        AnalyzedArguments templateArguments,
+        BelteDiagnosticQueue diagnostics) {
+        if (templateArgumentsSyntax.Any(SyntaxKind.OmittedArgument)) {
+            diagnostics.Push(Error.BadArity(
+                typeSyntax.location,
+                type,
+                MessageID.IDS_SK_TYPE.Localize(),
+                templateArgumentsSyntax.Count)
+            );
+
+            return type;
+        } else {
+            return ConstructNamedType(
+                type,
+                typeSyntax,
+                templateArgumentsSyntax,
+                templateArguments,
+                basesBeingResolved: null,
+                diagnostics: diagnostics
+            );
         }
     }
 
@@ -4313,7 +4448,7 @@ internal partial class Binder {
         string rightName,
         int rightArity,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
-        ImmutableArray<(string, TypeOrConstant)> templateArguments,
+        AnalyzedArguments templateArguments,
         bool called,
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
@@ -4322,7 +4457,15 @@ internal partial class Binder {
 
         try {
             var leftIsBaseReference = boundLeft.kind == BoundKind.BaseExpression;
-            LookupInstanceMember(lookupResult, leftType, leftIsBaseReference, rightName, rightArity, called);
+            LookupInstanceMember(
+                lookupResult,
+                leftType,
+                leftIsBaseReference,
+                rightName,
+                rightArity,
+                called,
+                right.location
+            );
 
             BoundMethodGroupFlags flags = 0;
 
@@ -4362,7 +4505,8 @@ internal partial class Binder {
         bool leftIsBaseReference,
         string rightName,
         int rightArity,
-        bool called) {
+        bool called,
+        TextLocation errorLocation) {
         var options = LookupOptions.AllMethodsOnArityZero;
 
         if (called)
@@ -4376,6 +4520,7 @@ internal partial class Binder {
             leftType,
             rightName,
             rightArity,
+            errorLocation,
             basesBeingResolved: null,
             options: options
         );
@@ -4389,7 +4534,7 @@ internal partial class Binder {
         bool indexed,
         BoundExpression left,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
-        ImmutableArray<(string, TypeOrConstant)> templateArguments,
+        AnalyzedArguments templateArguments,
         LookupResult lookupResult,
         BoundMethodGroupFlags methodGroupFlags,
         BelteDiagnosticQueue diagnostics) {
@@ -4410,7 +4555,7 @@ internal partial class Binder {
             result = ConstructBoundMemberGroupAndReportOmittedTemplateArguments(
                 node,
                 templateArgumentsSyntax,
-                templateArguments.IsDefaultOrEmpty ? [] : templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                templateArguments,
                 left,
                 plainName,
                 members,
@@ -4433,12 +4578,12 @@ internal partial class Binder {
 
                     var type = (NamedTypeSymbol)symbol;
 
-                    if (!templateArguments.IsDefault && templateArgumentsSyntax != default) {
+                    if (templateArguments is not null && templateArgumentsSyntax != default) {
                         type = ConstructNamedTypeUnlessTemplateArgumentOmitted(
                             right,
                             type,
                             templateArgumentsSyntax,
-                            templateArguments.Select(p => p.Item2).ToImmutableArray(),
+                            templateArguments,
                             diagnostics
                         );
                     }
@@ -4933,41 +5078,18 @@ internal partial class Binder {
         MethodGroup methodGroup,
         BelteDiagnosticQueue diagnostics) {
         if (!result.succeeded) {
-            if (analyzedArguments.hasErrors) {
-                // TODO should this do something eventually
-                // foreach (var argument in analyzedArguments.arguments) {
-                //     switch (argument) {
-                //         case UnboundLambda unboundLambda:
-                //             var boundWithErrors = unboundLambda.BindForErrorRecovery();
-                //             diagnostics.AddRange(boundWithErrors.Diagnostics);
-                //             break;
-                //         case BoundUnconvertedObjectCreationExpression _:
-                //         case BoundTupleLiteral _:
-                //             // Tuple literals can contain unbound lambdas or switch expressions.
-                //             _ = BindToNaturalType(argument, diagnostics);
-                //             break;
-                //         case BoundUnconvertedSwitchExpression { Type: { } naturalType } switchExpr:
-                //             _ = ConvertSwitchExpression(switchExpr, naturalType, conversionIfTargetTyped: null, diagnostics);
-                //             break;
-                //         case BoundUnconvertedConditionalOperator { Type: { } naturalType } conditionalExpr:
-                //             _ = ConvertConditionalExpression(conditionalExpr, naturalType, conversionIfTargetTyped: null, diagnostics);
-                //             break;
-                //     }
-                // }
-            } else {
-                result.ReportDiagnostics(
-                    this,
-                    GetLocationForOverloadResolutionDiagnostic(node, expression),
-                    node,
-                    diagnostics,
-                    methodName,
-                    methodGroup.receiver,
-                    expression,
-                    analyzedArguments,
-                    methodGroup.methods.ToImmutable(),
-                    null
-                );
-            }
+            result.ReportDiagnostics(
+                this,
+                GetLocationForOverloadResolutionDiagnostic(node, expression),
+                node,
+                diagnostics,
+                methodName,
+                methodGroup.receiver,
+                expression,
+                analyzedArguments,
+                methodGroup.methods.ToImmutable(),
+                null
+            );
 
             return CreateErrorCall(node, methodGroup.receiver, methodGroup.resultKind, analyzedArguments);
         }
@@ -5018,7 +5140,7 @@ internal partial class Binder {
             node,
             receiver,
             method,
-            args,
+            args.Select(a => a.expression).ToImmutableArray(),
             argRefKinds,
             defaultArguments,
             LookupResultKind.Viable,
@@ -5027,11 +5149,11 @@ internal partial class Binder {
         );
     }
 
-    private static (ImmutableArray<BoundExpression>, ImmutableArray<RefKind>) RearrangeArguments(
-        ArrayBuilder<BoundExpression> arguments,
+    private static (ImmutableArray<T>, ImmutableArray<RefKind>) RearrangeArguments<T>(
+        ArrayBuilder<T> arguments,
         ArrayBuilder<RefKind> refKinds,
         ImmutableArray<int> argsToParams) {
-        ImmutableArray<BoundExpression> args;
+        ImmutableArray<T> args;
         ImmutableArray<RefKind> argRefKinds;
 
         if (argsToParams.IsDefault) {
@@ -5043,7 +5165,7 @@ internal partial class Binder {
             var argCount = arguments.Count;
             var argRefKindCount = refKinds.Count;
 
-            var argsBuilder = new BoundExpression[argCount];
+            var argsBuilder = new T[argCount];
             var argRefKindsBuilder = new RefKind[argCount];
 
             for (var i = 0; i < argsToParams.Length; i++) {
@@ -5172,29 +5294,32 @@ internal partial class Binder {
         for (var arg = 0; arg < arguments.Count; arg++) {
             var argument = arguments[arg];
 
-            if (!argument.hasErrors) {
+            if (!analyzedArguments.hasErrors[arg]) {
                 var argRefKind = analyzedArguments.RefKind(arg);
                 var argNumber = arg + 1;
 
                 // Warn for `ref`/`in` or None/`ref readonly` mismatch.
                 if (argRefKind == RefKind.Ref) {
                 } else if (argRefKind == RefKind.None &&
-                    GetCorrespondingParameter(in result, parameters, arg).refKind == RefKind.RefConst) {
+                    GetCorrespondingParameter(in result, parameters, arg).refKind == RefKind.RefConst &&
+                    argument.isExpression) {
+                    var syntax = analyzedArguments.syntaxes[arg];
+
                     if (!CheckValueKind(
-                        argument.syntax,
-                        argument,
+                        syntax,
+                        argument.expression,
                         BindValueKind.RefersToLocation,
                         checkingReceiver: false,
                         BelteDiagnosticQueue.Discarded)) {
-                        diagnostics.Push(Warning.RefConstNotVariable(argument.syntax.location, argNumber));
+                        diagnostics.Push(Warning.RefConstNotVariable(syntax.location, argNumber));
                     } else if (arg != 0) {
                         if (CheckValueKind(
-                            argument.syntax,
-                            argument,
+                            syntax,
+                            argument.expression,
                             BindValueKind.Assignable,
                             checkingReceiver: false,
                             BelteDiagnosticQueue.Discarded)) {
-                            diagnostics.Push(Warning.ArgExpectedRef(argument.syntax.location, argNumber));
+                            diagnostics.Push(Warning.ArgExpectedRef(syntax.location, argNumber));
                         } else {
                             // TODO Reachable?
                             // Argument {0} should be passed with the 'in' keyword
@@ -5208,21 +5333,26 @@ internal partial class Binder {
             }
 
             var paramNum = result.ParameterFromArgument(arg);
-            arguments[arg] = CoerceArgument(
-                in methodResult,
-                receiver,
-                parameters,
-                argument,
-                arg,
-                parameters[paramNum].typeWithAnnotations,
-                diagnostics
-            );
+
+            if (argument.isExpression) {
+                arguments[arg] = CoerceArgument(
+                    in methodResult,
+                    receiver,
+                    parameters,
+                    argument.expression,
+                    arg,
+                    parameters[paramNum].typeWithAnnotations,
+                    diagnostics
+                );
+            } else {
+                arguments[arg] = argument;
+            }
         }
 
         argsToParams = result.argsToParams;
         return;
 
-        BoundExpression CoerceArgument(
+        BoundExpressionOrTypeOrConstant CoerceArgument(
             in MemberResolutionResult<TMember> methodResult,
             BoundExpression receiver,
             ImmutableArray<ParameterSymbol> parameters,
@@ -5247,7 +5377,7 @@ internal partial class Binder {
                 coercedArgument = BindToNaturalType(argument, diagnostics);
             }
 
-            return coercedArgument;
+            return new BoundExpressionOrTypeOrConstant(coercedArgument);
         }
 
         static ParameterSymbol GetCorrespondingParameter(
@@ -5286,7 +5416,7 @@ internal partial class Binder {
     internal void BindDefaultArguments(
         SyntaxNode node,
         ImmutableArray<ParameterSymbol> parameters,
-        ArrayBuilder<BoundExpression> argumentsBuilder,
+        ArrayBuilder<BoundExpressionOrTypeOrConstant> argumentsBuilder,
         ArrayBuilder<RefKind>? argumentRefKindsBuilder,
         ArrayBuilder<(string Name, TextLocation Location)?>? namesBuilder,
         ref ImmutableArray<int> argsToParams,
@@ -5327,7 +5457,7 @@ internal partial class Binder {
             foreach (var parameter in parameters.AsSpan()[..lastIndex]) {
                 if (!visitedParameters[parameter.ordinal]) {
                     defaultArguments[argumentsBuilder.Count] = true;
-                    argumentsBuilder.Add(BindDefaultArgument(
+                    argumentsBuilder.Add(new BoundExpressionOrTypeOrConstant(BindDefaultArgument(
                         node,
                         parameter,
                         containingMember,
@@ -5336,7 +5466,7 @@ internal partial class Binder {
                         argumentsBuilder,
                         argumentsCount,
                         argsToParams
-                    ));
+                    )));
 
                     if (argumentRefKindsBuilder is { Count: > 0 })
                         argumentRefKindsBuilder.Add(RefKind.None);
@@ -5362,7 +5492,7 @@ internal partial class Binder {
             Symbol containingMember,
             bool enableCallerInfo,
             BelteDiagnosticQueue diagnostics,
-            ArrayBuilder<BoundExpression> argumentsBuilder,
+            ArrayBuilder<BoundExpressionOrTypeOrConstant> argumentsBuilder,
             int argumentsCount,
             ImmutableArray<int> argsToParamsOpt) {
             var parameterType = parameter.type;
@@ -5569,7 +5699,8 @@ internal partial class Binder {
         return result;
     }
 
-    private ImmutableArray<BoundExpression> BuildArgumentsForErrorRecovery(AnalyzedArguments analyzedArguments) {
+    private ImmutableArray<BoundExpression> BuildArgumentsForErrorRecovery(
+        AnalyzedArguments analyzedArguments) {
         return BuildArgumentsForErrorRecovery(analyzedArguments, Enumerable.Empty<ImmutableArray<ParameterSymbol>>());
     }
 
@@ -5578,7 +5709,7 @@ internal partial class Binder {
         IEnumerable<ImmutableArray<ParameterSymbol>> parameterListList) {
         var argumentCount = analyzedArguments.arguments.Count;
         var newArguments = ArrayBuilder<BoundExpression>.GetInstance(argumentCount);
-        newArguments.AddRange(analyzedArguments.arguments);
+        newArguments.AddRange(analyzedArguments.arguments.Select(a => a.expression));
 
         for (var i = 0; i < argumentCount; i++) {
             var argument = newArguments[i];
@@ -5721,7 +5852,10 @@ internal partial class Binder {
             result.names.Add(null);
         }
 
-        result.arguments.Add(boundArgumentExpression);
+        result.hasErrors.Add(boundArgumentExpression is BoundErrorExpression);
+        result.syntaxes.Add(argumentSyntax);
+        result.types.Add(boundArgumentExpression.type);
+        result.arguments.Add(new BoundExpressionOrTypeOrConstant(boundArgumentExpression));
     }
 
     private static string GetName(ExpressionSyntax syntax) {
@@ -5756,6 +5890,9 @@ internal partial class Binder {
 
                 return false;
             case BoundKind.TypeExpression:
+                if (expression.type is TemplateParameterSymbol t && t.underlyingType.specialType != SpecialType.Type)
+                    return true;
+
                 diagnostics.Push(Error.BadSKKnown(
                     expression.syntax.location,
                     expression.type,
@@ -7561,13 +7698,14 @@ internal partial class Binder {
         LookupResult result,
         string name,
         int arity,
+        TextLocation errorLocation,
         ConsList<TypeSymbol> basesBeingResolved = null,
         LookupOptions options = LookupOptions.Default) {
-        var binder = LookupSymbolsInternal(result, name, arity, basesBeingResolved, options, false);
+        var binder = LookupSymbolsInternal(result, name, arity, basesBeingResolved, options, errorLocation, false);
 
         if (result.kind != LookupResultKind.Viable && result.kind != LookupResultKind.Empty) {
             result.Clear();
-            LookupSymbolsInternal(result, name, arity, basesBeingResolved, options, true);
+            LookupSymbolsInternal(result, name, arity, basesBeingResolved, options, errorLocation, true);
         }
 
         return binder;
@@ -7579,11 +7717,20 @@ internal partial class Binder {
         LookupResult result,
         string name,
         int arity,
+        TextLocation errorLocation,
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         bool diagnose) {
         if (usingAliases.TryGetValue(name, out var alias)) {
-            var res = originalBinder.CheckViability(alias.alias, arity, options, null, diagnose, basesBeingResolved);
+            var res = originalBinder.CheckViability(
+                alias.alias,
+                arity,
+                options,
+                null,
+                diagnose,
+                errorLocation,
+                basesBeingResolved
+            );
 
             // TODO imports
             // if (res.kind == LookupResultKind.Viable) {
@@ -7631,11 +7778,23 @@ internal partial class Binder {
         int arity,
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
+        TextLocation errorLocation,
         bool diagnose) {
-        if (qualifier is null)
-            LookupSymbolsInternal(result, plainName, arity, basesBeingResolved, options, diagnose);
-        else
-            LookupMembersInternal(result, qualifier, plainName, arity, basesBeingResolved, options, this, diagnose);
+        if (qualifier is null) {
+            LookupSymbolsInternal(result, plainName, arity, basesBeingResolved, options, errorLocation, diagnose);
+        } else {
+            LookupMembersInternal(
+                result,
+                qualifier,
+                plainName,
+                arity,
+                basesBeingResolved,
+                options,
+                this,
+                errorLocation,
+                diagnose
+            );
+        }
     }
 
     private void LookupMembersWithFallback(
@@ -7643,6 +7802,7 @@ internal partial class Binder {
         NamespaceOrTypeSymbol namespaceOrType,
         string name,
         int arity,
+        TextLocation errorLocation,
         ConsList<TypeSymbol> basesBeingResolved = null,
         LookupOptions options = LookupOptions.Default) {
         LookupMembersInternal(
@@ -7653,6 +7813,7 @@ internal partial class Binder {
             basesBeingResolved,
             options,
             this,
+            errorLocation,
             false
         );
 
@@ -7666,6 +7827,7 @@ internal partial class Binder {
                 basesBeingResolved,
                 options,
                 this,
+                errorLocation,
                 true
             );
         }
@@ -7679,6 +7841,7 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         if (namespaceOrType.isNamespace) {
             LookupMembersInNamespace(
@@ -7687,6 +7850,7 @@ internal partial class Binder {
                 name,
                 arity,
                 options,
+                errorLocation,
                 originalBinder,
                 diagnose
             );
@@ -7699,6 +7863,7 @@ internal partial class Binder {
                 basesBeingResolved,
                 options,
                 originalBinder,
+                errorLocation,
                 diagnose
             );
         }
@@ -7712,6 +7877,7 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         switch (type.typeKind) {
             case TypeKind.TemplateParameter:
@@ -7723,6 +7889,7 @@ internal partial class Binder {
                     basesBeingResolved,
                     options,
                     originalBinder,
+                    errorLocation,
                     diagnose
                 );
 
@@ -7738,6 +7905,7 @@ internal partial class Binder {
                     basesBeingResolved,
                     options,
                     originalBinder,
+                    errorLocation,
                     diagnose
                 );
 
@@ -7751,6 +7919,7 @@ internal partial class Binder {
                     basesBeingResolved,
                     options,
                     originalBinder,
+                    errorLocation,
                     diagnose
                 );
 
@@ -7771,8 +7940,20 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
-        LookupMembersInClass(result, type, name, arity, basesBeingResolved, options, originalBinder, type, diagnose);
+        LookupMembersInClass(
+            result,
+            type,
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            originalBinder,
+            type,
+            errorLocation,
+            diagnose
+        );
     }
 
     private void LookupMembersInTemplateParameter(
@@ -7783,6 +7964,7 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         if ((options & LookupOptions.NamespacesOrTypesOnly) != 0)
             return;
@@ -7795,6 +7977,7 @@ internal partial class Binder {
             basesBeingResolved,
             options,
             originalBinder,
+            errorLocation,
             diagnose
         );
     }
@@ -7808,6 +7991,7 @@ internal partial class Binder {
         LookupOptions options,
         Binder originalBinder,
         TypeSymbol accessThroughType,
+        TextLocation errorLocation,
         bool diagnose) {
         var currentType = type;
         var temp = LookupResult.GetInstance();
@@ -7824,6 +8008,7 @@ internal partial class Binder {
                 arity,
                 options,
                 originalBinder,
+                errorLocation,
                 accessThroughType,
                 diagnose,
                 basesBeingResolved
@@ -7904,6 +8089,7 @@ symIsHidden:;
         int arity,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         TypeSymbol accessThroughType,
         bool diagnose,
         ConsList<TypeSymbol> basesBeingResolved) {
@@ -7916,6 +8102,7 @@ symIsHidden:;
                 options,
                 accessThroughType,
                 diagnose,
+                errorLocation,
                 basesBeingResolved
             );
 
@@ -7931,6 +8118,7 @@ symIsHidden:;
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         if (!errorType.candidateSymbols.IsDefault && errorType.candidateSymbols.Length == 1) {
             if (errorType.resultKind == LookupResultKind.Inaccessible) {
@@ -7943,6 +8131,7 @@ symIsHidden:;
                         basesBeingResolved,
                         options,
                         originalBinder,
+                        errorLocation,
                         diagnose
                     );
 
@@ -7961,12 +8150,21 @@ symIsHidden:;
         string name,
         int arity,
         LookupOptions options,
+        TextLocation errorLocation,
         Binder originalBinder,
         bool diagnose) {
         var members = GetCandidateMembers(ns, name, options, originalBinder);
 
         foreach (var member in members) {
-            var resultOfThisMember = originalBinder.CheckViability(member, arity, options, null, diagnose);
+            var resultOfThisMember = originalBinder.CheckViability(
+                member,
+                arity,
+                options,
+                null,
+                diagnose,
+                errorLocation
+            );
+
             result.MergeEqual(resultOfThisMember);
         }
     }
@@ -7998,17 +8196,38 @@ symIsHidden:;
         int arity,
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
+        TextLocation errorLocation,
         bool diagnose) {
         Binder binder = null;
 
         for (var scope = this; scope is not null && !result.isMultiViable; scope = scope.next) {
             if (binder is not null) {
                 var tmp = LookupResult.GetInstance();
-                scope.LookupSymbolsInSingleBinder(tmp, name, arity, basesBeingResolved, options, this, diagnose);
+
+                scope.LookupSymbolsInSingleBinder(
+                    tmp,
+                    name,
+                    arity,
+                    basesBeingResolved,
+                    options,
+                    this,
+                    errorLocation,
+                    diagnose
+                );
+
                 result.MergeEqual(tmp);
                 tmp.Free();
             } else {
-                scope.LookupSymbolsInSingleBinder(result, name, arity, basesBeingResolved, options, this, diagnose);
+                scope.LookupSymbolsInSingleBinder(
+                    result,
+                    name,
+                    arity,
+                    basesBeingResolved,
+                    options,
+                    this,
+                    errorLocation,
+                    diagnose
+                );
 
                 if (!result.isClear)
                     binder = scope;
@@ -8025,6 +8244,7 @@ symIsHidden:;
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) { }
 
     internal virtual void AddLookupSymbolsInfoInSingleBinder(
@@ -8067,6 +8287,7 @@ symIsHidden:;
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         var submissionSymbols = LookupResult.GetInstance();
         var nonViable = LookupResult.GetInstance();
@@ -8082,6 +8303,7 @@ symIsHidden:;
                     name,
                     arity,
                     options,
+                    errorLocation,
                     originalBinder,
                     diagnose
                 );
@@ -8235,8 +8457,8 @@ symIsHidden:;
         LookupOptions options,
         TypeSymbol accessThroughType,
         bool diagnose,
+        TextLocation errorLocation,
         ConsList<TypeSymbol> basesBeingResolved = null) {
-        BelteDiagnostic error;
         var unwrappedSymbol = symbol.kind == SymbolKind.Alias
             ? ((AliasSymbol)symbol).GetAliasTarget(basesBeingResolved)
             : symbol;
@@ -8250,8 +8472,8 @@ symIsHidden:;
             (unwrappedSymbol is not TypeSymbol && IsInstance(unwrappedSymbol) ||
             !(unwrappedSymbol.isAbstract || unwrappedSymbol.isVirtual))) {
             return LookupResult.Empty();
-            // } else if (WrongArity(symbol, arity, diagnose, options, out diagInfo)) {
-            //     return LookupResult.WrongArity(symbol, diagInfo);
+        } else if (WrongArity(unwrappedSymbol, arity, diagnose, options, errorLocation, out var error)) {
+            return LookupResult.WrongArity(symbol, error);
         } else if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 &&
             unwrappedSymbol is not NamespaceOrTypeSymbol) {
             return LookupResult.NotTypeOrNamespace(symbol, symbol, diagnose);
@@ -8283,6 +8505,80 @@ symIsHidden:;
         } else {
             return LookupResult.Good(symbol);
         }
+    }
+
+    private static bool WrongArity(
+        Symbol symbol,
+        int arity,
+        bool diagnose,
+        LookupOptions options,
+        TextLocation errorLocation,
+        out BelteDiagnostic error) {
+        switch (symbol.kind) {
+            case SymbolKind.NamedType:
+                if (arity != 0 || (options & LookupOptions.AllNamedTypesOnArityZero) == 0) {
+                    var namedType = (NamedTypeSymbol)symbol;
+
+                    if (namedType.arity != arity) {
+                        if (namedType.arity == 0) {
+                            error = diagnose
+                                ? Error.HasNoTemplate(errorLocation, namedType, MessageID.IDS_SK_TYPE.Localize())
+                                : null;
+                        } else {
+                            error = diagnose
+                                ? Error.BadArity(
+                                    errorLocation,
+                                    namedType,
+                                    MessageID.IDS_SK_TYPE.Localize(),
+                                    namedType.arity
+                                )
+                                : null;
+                        }
+
+                        return true;
+                    }
+                }
+
+                break;
+            case SymbolKind.Method:
+                if (arity != 0 || (options & LookupOptions.AllMethodsOnArityZero) == 0) {
+                    var method = (MethodSymbol)symbol;
+
+                    if (method.arity != arity) {
+                        if (method.arity == 0) {
+                            error = diagnose
+                                ? Error.HasNoTemplate(errorLocation, method, MessageID.IDS_SK_METHOD.Localize())
+                                : null;
+                        } else {
+                            error = diagnose
+                                ? Error.BadArity(
+                                    errorLocation,
+                                    method,
+                                    MessageID.IDS_SK_METHOD.Localize(),
+                                    method.arity
+                                )
+                                : null;
+                        }
+
+                        return true;
+                    }
+                }
+
+                break;
+            default:
+                if (arity != 0) {
+                    error = diagnose
+                        ? Error.TemplateNotAllowed(errorLocation, symbol, symbol.kind.Localize())
+                        : null;
+
+                    return true;
+                }
+
+                break;
+        }
+
+        error = null;
+        return false;
     }
 
     internal bool IsNonInvocableMember(Symbol symbol) {
@@ -9179,36 +9475,23 @@ symIsHidden:;
                 if (!fieldSymbol.isConstExpr) {
                     var syntaxRef = initializer.syntax;
 
-                    if (syntaxRef.node is null) {
-                        var syntax = fieldSymbol.syntaxReference.node;
-                        var type = fieldSymbol.type;
+                    switch (syntaxRef.node) {
+                        case EqualsValueClauseSyntax initializerNode:
+                            binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
+                            var parentBinder = binderFactory.GetBinder(initializerNode);
+                            parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
 
-                        var defaultValue = fieldSymbol.isNullable || CodeGenerator.IsReferenceType(type)
-                            // TODO What to do with generic T that could be a non-nullable primitive?
-                            || type.typeKind == TypeKind.TemplateParameter
-                            ? BoundFactory.Literal(syntax, null, type)
-                            : BoundFactory.Literal(syntax, LiteralUtilities.GetDefaultValue(type.specialType), type);
+                            var boundInitializer = BindFieldInitializer(
+                                parentBinder,
+                                fieldSymbol,
+                                initializerNode,
+                                diagnostics
+                            );
 
-                        boundInitializers.Add(new BoundFieldEqualsValue(syntax, fieldSymbol, [], defaultValue));
-                    } else {
-                        switch (syntaxRef.node) {
-                            case EqualsValueClauseSyntax initializerNode:
-                                binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
-                                var parentBinder = binderFactory.GetBinder(initializerNode);
-                                parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
-
-                                var boundInitializer = BindFieldInitializer(
-                                    parentBinder,
-                                    fieldSymbol,
-                                    initializerNode,
-                                    diagnostics
-                                );
-
-                                boundInitializers.Add(boundInitializer);
-                                break;
-                            default:
-                                throw ExceptionUtilities.Unreachable();
-                        }
+                            boundInitializers.Add(boundInitializer);
+                            break;
+                        default:
+                            throw ExceptionUtilities.Unreachable();
                     }
                 }
             }

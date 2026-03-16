@@ -28,8 +28,6 @@ Please delete options that are not relevant.
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-- [ ] I updated the error resource docs (e.g. [src/Buckle/Compiler/Resources/ErrorDescriptionsBU.txt](../blob/staging/src/Buckle/Compiler/Resources/ErrorDescriptionsBU.txt)) if any new errors or warnings were added
-- [ ] I updated the diagnostics codes docs ([docs/DiagnosticCodes.md](../blob/staging/docs/DiagnosticCodes.md)) if any new errors or warnings were added
 - [ ] I have added a test case(s) to the diagnostics tests (e.g. [src/Buckle/Compiler.Tests/Diagnostics/DiagnosticTests.cs](../blob/staging/src/Buckle/Compiler.Tests/Diagnostics/DiagnosticTests.cs)) if any new errors or warnings were added
 
 **If no new syntax was added delete this section:**
@@ -37,12 +35,12 @@ Please delete options that are not relevant.
 Make sure to update each of the following places to support your new syntax. Please delete items that are not relevant.
 
 - [ ] I added my new syntax to [Syntax.xml](../blob/staging/src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml) file
-- [ ] I updated the Parser class
-- [ ] I updated the Binder class
-- [ ] I updated the Lowerer class
-- [ ] I updated the Optimizer class
-- [ ] I updated the Expander class
-- [ ] I updated the DisplayText class
-- [ ] I updated the Evaluator class
+- [ ] I updated the Parser
+- [ ] I updated the Binder
+- [ ] I updated the Lowerer
+- [ ] I updated the Optimizer
+- [ ] I updated the Expander
+- [ ] I updated the DisplayText
+- [ ] I updated the Evaluator
+- [ ] I updated the CodeGenerator
 ~~I updated the CSharpEmitter class~~ (Temporarily not required)
-~~I updated the ILEmitter class~~ (Temporarily not required)

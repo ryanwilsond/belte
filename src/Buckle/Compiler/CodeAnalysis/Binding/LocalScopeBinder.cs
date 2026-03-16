@@ -335,6 +335,7 @@ internal class LocalScopeBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         var localsMap = _localsMap;
 
@@ -346,6 +347,7 @@ internal class LocalScopeBinder : Binder {
                     options,
                     null,
                     diagnose,
+                    errorLocation,
                     basesBeingResolved
                 ));
             }
@@ -361,6 +363,7 @@ internal class LocalScopeBinder : Binder {
                     options,
                     null,
                     diagnose,
+                    errorLocation,
                     basesBeingResolved
                 ));
             }

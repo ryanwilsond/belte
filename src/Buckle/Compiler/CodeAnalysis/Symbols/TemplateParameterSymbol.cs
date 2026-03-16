@@ -43,6 +43,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract int ordinal { get; }
 
+    internal abstract bool isOptional { get; }
+
     internal abstract bool hasPrimitiveTypeConstraint { get; }
 
     internal abstract bool hasObjectTypeConstraint { get; }

@@ -26,6 +26,8 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override bool isObjectTypeFromConstraintTypes => false;
 
+    internal override bool isOptional => false;
+
     internal override TypeOrConstant defaultValue => null;
 
     internal override Symbol containingSymbol { get; }

@@ -35,6 +35,9 @@ internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
         var n = templateParameters.Length;
 
         for (var i = 0; i < n; i++) {
+            if (templateArguments[i].isConstant)
+                return false;
+
             if (!templateArguments[i].type.type.Equals(templateParameters[i]))
                 return false;
         }

@@ -22,6 +22,13 @@ internal abstract partial class BoundExpression : BoundNode {
         };
     }
 
+    internal TypeSymbol Type() {
+        if (type.kind != SymbolKind.TemplateParameter)
+            return type;
+
+        return ((TemplateParameterSymbol)type).underlyingType.type;
+    }
+
     internal bool IsLiteralNull() {
         return kind == BoundKind.LiteralExpression && ConstantValue.IsNull(constantValue);
     }

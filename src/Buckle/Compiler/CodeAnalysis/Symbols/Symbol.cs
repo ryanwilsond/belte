@@ -236,6 +236,14 @@ internal abstract class Symbol : ISymbol {
         return returnType;
     }
 
+    internal bool IsOptional() {
+        return kind switch {
+            SymbolKind.Parameter => ((ParameterSymbol)this).isOptional,
+            SymbolKind.TemplateParameter => ((TemplateParameterSymbol)this).isOptional,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
     internal void GetTypeOrReturnType(
         out RefKind refKind,
         out TypeWithAnnotations returnType) {

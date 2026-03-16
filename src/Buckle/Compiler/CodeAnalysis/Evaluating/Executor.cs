@@ -211,7 +211,12 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
-            return _types[type.originalDefinition];
+            var foundType = _types[type.originalDefinition];
+
+            if (type is NamedTypeSymbol named && named.templateArguments.Length > 0)
+                return foundType.MakeGenericType(named.templateArguments.Select(t => GetType(t.type.type)).ToArray());
+            else
+                return foundType;
         }
     }
 
@@ -359,6 +364,10 @@ internal sealed partial class Executor : ModuleBuilder {
             return;
 
         var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetBaseType(type));
+
+        if (type.arity > 0)
+            typeBuilder.DefineGenericParameters(type.templateParameters.Select(t => t.name).ToArray());
+
         CreateNestedTypes(type, typeBuilder);
         _types.Add(type.originalDefinition, typeBuilder);
     }
