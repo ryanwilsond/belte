@@ -44,9 +44,6 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
 
         if (method.arity > 0) {
             foreach (var templateParameter in method.templateParameters) {
-                if (templateParameter.underlyingType.specialType == SpecialType.Type)
-                    continue;
-
                 localSlotManager.DeclareLocal(
                     templateParameter.underlyingType.type,
                     templateParameter,

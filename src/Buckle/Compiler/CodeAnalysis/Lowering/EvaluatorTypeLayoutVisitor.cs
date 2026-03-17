@@ -43,9 +43,6 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
 
             if (current.arity > 0) {
                 foreach (var templateParameter in current.templateParameters) {
-                    if (templateParameter.underlyingType.specialType == SpecialType.Type)
-                        continue;
-
                     typeLayout.DeclareLocal(
                         templateParameter.underlyingType.type,
                         templateParameter,

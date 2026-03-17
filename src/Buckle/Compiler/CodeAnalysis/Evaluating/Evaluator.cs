@@ -163,16 +163,17 @@ internal sealed class Evaluator {
         if (type.arity > 0) {
             for (var i = 0; i < type.arity; i++) {
                 var parameter = type.templateParameters[i];
-
-                if (parameter.underlyingType.specialType == SpecialType.Type)
-                    continue;
-
                 var argument = type.templateArguments[i];
                 var arg = layout.GetLocal(parameter);
-                heapObject.fields[arg.slot] = EvaluatorValue.Literal(
-                    argument.constant.value,
-                    argument.constant.specialType
-                );
+
+                if (argument.isType) {
+                    heapObject.fields[arg.slot] = EvaluatorValue.Type(argument.type.type);
+                } else {
+                    heapObject.fields[arg.slot] = EvaluatorValue.Literal(
+                        argument.constant.value,
+                        argument.constant.specialType
+                    );
+                }
             }
         }
 
@@ -355,7 +356,23 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression node) {
-        return EvaluatorValue.Type(node.sourceType.type);
+        var type = node.sourceType.type;
+
+        if (type is TemplateParameterSymbol t) {
+            if (t.templateParameterKind == TemplateParameterKind.Method)
+                return EvaluatorValue.Type(_stack.Peek().values[t.ordinal + 1].type);
+
+            var thisParameter = _stack.Peek().values[0];
+            var heapObject = _context.heap[thisParameter.ptr];
+
+            if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
+
+            var field = layout.GetLocal(type);
+            return EvaluatorValue.Type(heapObject.fields[field.slot].type);
+        }
+
+        return EvaluatorValue.Type(type);
     }
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
@@ -1383,9 +1400,6 @@ internal sealed class Evaluator {
                     var parameter = current.templateParameters[i];
                     var argument = current.templateArguments[i];
 
-                    if (argument.isType)
-                        continue;
-
                     layout.DeclareLocal(
                         parameter.underlyingType.type,
                         parameter,
@@ -1395,10 +1409,14 @@ internal sealed class Evaluator {
                         false
                     );
 
-                    builder.Add(EvaluatorValue.Literal(
-                        argument.constant.value,
-                        argument.constant.specialType
-                    ));
+                    if (argument.isType) {
+                        builder.Add(EvaluatorValue.Type(argument.type.type));
+                    } else {
+                        builder.Add(EvaluatorValue.Literal(
+                            argument.constant.value,
+                            argument.constant.specialType
+                        ));
+                    }
                 }
             }
 
@@ -1518,13 +1536,14 @@ internal sealed class Evaluator {
             for (var i = 0; i < method.arity; i++) {
                 var templateArgument = method.templateArguments[i];
 
-                if (templateArgument.isType)
-                    continue;
-
-                frame.values[i + 1] = EvaluatorValue.Literal(
-                    templateArgument.constant.value,
-                    templateArgument.constant.specialType
-                );
+                if (templateArgument.isType) {
+                    frame.values[i + 1] = EvaluatorValue.Type(templateArgument.type.type);
+                } else {
+                    frame.values[i + 1] = EvaluatorValue.Literal(
+                        templateArgument.constant.value,
+                        templateArgument.constant.specialType
+                    );
+                }
             }
         }
 

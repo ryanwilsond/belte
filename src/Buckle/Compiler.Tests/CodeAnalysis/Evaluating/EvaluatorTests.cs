@@ -347,8 +347,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int num; } type a = typeof(A);", null)]
     [InlineData("return typeof(int) == typeof(int);", true)]
     [InlineData("return typeof(int) == typeof(bool);", false)]
-    // [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
-    // [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
+    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
+    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
     // Operators
     [InlineData(@"
         class A {

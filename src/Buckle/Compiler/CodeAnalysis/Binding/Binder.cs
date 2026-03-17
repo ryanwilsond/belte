@@ -320,7 +320,7 @@ internal partial class Binder {
         ParameterSyntax templateParameter,
         ArrayBuilder<TemplateConstraintClauseSyntax> constraints,
         BelteDiagnosticQueue diagnostics) {
-        // TODO templates
+        // TODO constraints
         // Need to bind type first to make sure this template is a type parameter
         return null;
     }
