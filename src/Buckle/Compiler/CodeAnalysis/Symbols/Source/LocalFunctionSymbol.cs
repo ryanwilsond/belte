@@ -119,7 +119,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
                 withTemplateParametersBinder,
                 templateParameters,
                 syntax.templateParameterList,
-                syntax.constraintClauseList.constraintClauses,
+                syntax.constraintClauseList?.constraintClauses,
                 diagnostics
             );
 
@@ -143,7 +143,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
                 withTemplateParametersBinder,
                 templateParameters,
                 syntax.templateParameterList,
-                syntax.constraintClauseList.constraintClauses
+                syntax.constraintClauseList?.constraintClauses
             );
 
             ImmutableInterlocked.InterlockedInitialize(ref _lazyTypeParameterConstraintKinds, constraints);

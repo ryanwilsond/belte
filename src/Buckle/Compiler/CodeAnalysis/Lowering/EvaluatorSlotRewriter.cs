@@ -42,6 +42,22 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
             // The type here doesn't actually matter beyond the fact that it is something
             localSlotManager.AllocateSlot(method.returnType, LocalSlotConstraints.None);
 
+        if (method.arity > 0) {
+            foreach (var templateParameter in method.templateParameters) {
+                if (templateParameter.underlyingType.specialType == SpecialType.Type)
+                    continue;
+
+                localSlotManager.DeclareLocal(
+                    templateParameter.underlyingType.type,
+                    templateParameter,
+                    templateParameter.name,
+                    SynthesizedLocalKind.UserDefined,
+                    LocalSlotConstraints.None,
+                    false
+                );
+            }
+        }
+
         for (var i = 0; i < method.parameterCount; i++) {
             var parameter = method.parameters[i];
             var constraints = (!method.parameterRefKinds.IsDefault && method.parameterRefKinds[i] != RefKind.None)

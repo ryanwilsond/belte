@@ -119,9 +119,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         //     return;
         // }
 
-        // if (TypeInferenceFailed(binder, diagnostics, symbols, receiver, arguments, location, queryClause)) {
-        //     return;
-        // }
+        if (TypeInferenceFailed(diagnostics, name, symbols, location))
+            return;
 
         var supportedRequiredParameterMissingConflicts = false;
         MemberResolutionResult<TMember> firstSupported = default;
@@ -224,6 +223,21 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         if (!isMethodGroupConversion)
             ReportBadParameterCount(diagnostics, name, arguments, symbols, location, typeContainingConstructor);
+    }
+
+    private bool TypeInferenceFailed(
+        BelteDiagnosticQueue diagnostics,
+        string name,
+        ImmutableArray<Symbol> symbols,
+        TextLocation location) {
+        var inferenceFailed = GetFirstMemberKind(MemberResolutionKind.TypeInferenceFailed);
+
+        if (inferenceFailed.isNotNull) {
+            diagnostics.Push(Error.BadArity(location, MessageID.IDS_SK_METHOD.Localize(), name, symbols[0].GetArity()));
+            return true;
+        }
+
+        return false;
     }
 
     private static void ReportBadParameterCount(

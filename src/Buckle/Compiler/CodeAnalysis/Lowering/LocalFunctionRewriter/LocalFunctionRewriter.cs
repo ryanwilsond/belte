@@ -446,14 +446,16 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             TypeOrConstant oldTypeArg;
             var newTypeArg = templateArgument;
 
-            do {
-                oldTypeArg = newTypeArg;
-                newTypeArg = _templateMap.SubstituteType(oldTypeArg.type);
-            } while (!TypeSymbol.Equals(
-                oldTypeArg.type.type,
-                newTypeArg.type.type,
-                TypeCompareKind.ConsiderEverything
-            ));
+            if (newTypeArg.isType) {
+                do {
+                    oldTypeArg = newTypeArg;
+                    newTypeArg = _templateMap.SubstituteType(oldTypeArg.type);
+                } while (!TypeSymbol.Equals(
+                    oldTypeArg.type.type,
+                    newTypeArg.type.type,
+                    TypeCompareKind.ConsiderEverything
+                ));
+            }
 
             builder.Add(newTypeArg);
         }

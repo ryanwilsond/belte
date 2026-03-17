@@ -155,7 +155,7 @@ internal static partial class ConstraintsHelpers {
         TemplateParameterListSyntax templateParameterList,
         SyntaxList<TemplateConstraintClauseSyntax> constraintClauses,
         BelteDiagnosticQueue diagnostics) {
-        if (templateParameters.Length == 0 || constraintClauses.Count == 0)
+        if (templateParameters.Length == 0 || constraintClauses is null || constraintClauses.Count == 0)
             return [];
 
         withTemplateParametersBinder = withTemplateParametersBinder
@@ -186,7 +186,7 @@ internal static partial class ConstraintsHelpers {
 
         ImmutableArray<TypeParameterConstraintClause> clauses;
 
-        if (constraintClauses.Count == 0) {
+        if (constraintClauses is null || constraintClauses.Count == 0) {
             clauses = withTemplateParametersBinder.GetDefaultTypeParameterConstraintClauses(templateParameterList);
         } else {
             withTemplateParametersBinder = withTemplateParametersBinder.WithAdditionalFlags(

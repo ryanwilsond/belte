@@ -100,7 +100,7 @@ internal sealed class Evaluator {
         if (entryPoint.parameterCount == 0) {
             arguments = [];
         } else {
-            var rootLayout = new Lowering.EvaluatorSlotManager(programType);
+            var rootLayout = new EvaluatorSlotManager(programType);
 
             var argsType = LibraryHelpers.StringArray.knownType;
             var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
@@ -364,6 +364,11 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateTypeExpression(BoundTypeExpression node) {
         if (node.type.kind == SymbolKind.TemplateParameter) {
+            var template = (TemplateParameterSymbol)node.type;
+
+            if (template.templateParameterKind == TemplateParameterKind.Method)
+                return _stack.Peek().values[template.ordinal + 1];
+
             var thisParameter = _stack.Peek().values[0];
             var heapObject = _context.heap[thisParameter.ptr];
 
@@ -872,7 +877,6 @@ internal sealed class Evaluator {
                     else
                         expr = EvaluateReceiverRef(left.receiver, AddressKind.Writeable, abort);
 
-                    var tmp = _context.heap[expr.ptr];
                     expr = EvaluatorValue.Ref(_context.heap[expr.ptr].fields, left.slot);
                 }
 
@@ -1377,11 +1381,10 @@ internal sealed class Evaluator {
             if (current.arity > 0) {
                 for (var i = 0; i < current.arity; i++) {
                     var parameter = current.templateParameters[i];
-
-                    if (parameter.underlyingType.specialType == SpecialType.Type)
-                        continue;
-
                     var argument = current.templateArguments[i];
+
+                    if (argument.isType)
+                        continue;
 
                     layout.DeclareLocal(
                         parameter.underlyingType.type,
@@ -1500,7 +1503,7 @@ internal sealed class Evaluator {
             throw new BelteInternalException($"Failed to get method body ({method})");
 
         if (!_program.TryGetMethodLayoutIncludingParents(method, out var layout)) {
-            layout = new Lowering.EvaluatorSlotManager(method);
+            layout = new EvaluatorSlotManager(method);
 
             if (!thisParameter.Equals(EvaluatorValue.None))
                 layout.AllocateSlot(method.thisParameter.type, LocalSlotConstraints.None);
@@ -1510,6 +1513,20 @@ internal sealed class Evaluator {
 
         if (!thisParameter.Equals(EvaluatorValue.None))
             frame.values[0] = thisParameter;
+
+        if (method.arity > 0) {
+            for (var i = 0; i < method.arity; i++) {
+                var templateArgument = method.templateArguments[i];
+
+                if (templateArgument.isType)
+                    continue;
+
+                frame.values[i + 1] = EvaluatorValue.Literal(
+                    templateArgument.constant.value,
+                    templateArgument.constant.specialType
+                );
+            }
+        }
 
         for (var i = 0; i < arguments.Length; i++) {
             var slot = layout.GetLocal(method.parameters[i]).slot;

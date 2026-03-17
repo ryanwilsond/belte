@@ -29,7 +29,12 @@ internal abstract partial class BoundExpression : BoundNode {
         if (type.kind != SymbolKind.TemplateParameter)
             return type;
 
-        return ((TemplateParameterSymbol)type).underlyingType.type;
+        var underlyingType = ((TemplateParameterSymbol)type).underlyingType;
+
+        if (underlyingType.specialType == SpecialType.Type)
+            return type;
+
+        return underlyingType.type;
     }
 
     internal bool IsLiteralNull() {

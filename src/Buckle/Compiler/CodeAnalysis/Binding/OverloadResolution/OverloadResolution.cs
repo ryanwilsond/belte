@@ -1910,25 +1910,22 @@ internal sealed partial class OverloadResolution {
             ImmutableArray<TypeOrConstant> typeArguments;
 
             if (typeArgumentsBuilder.Count > 0) {
-                // generic type arguments explicitly specified at call-site:
                 typeArguments = typeArgumentsBuilder.ToImmutable();
             } else {
-                // infer generic type arguments:
-                // TODO templates
-                typeArguments = default;
-                // typeArguments = InferMethodTypeArguments(method,
-                //                     leastOverriddenMethod.ConstructedFrom.TypeParameters,
-                //                     arguments,
-                //                     constructedFromEffectiveParameters,
-                //                     out hasTypeArgumentsInferredFromFunctionType,
-                //                     out var inferenceError,
-                //                     ref useSiteInfo);
+                typeArguments = InferMethodTypeArguments(
+                    method,
+                    leastOverriddenMethod.constructedFrom.templateParameters,
+                    arguments,
+                    constructedFromEffectiveParameters,
+                    out hasTypeArgumentsInferredFromFunctionType,
+                    out var inferenceError
+                );
 
                 if (typeArguments.IsDefault) {
                     return new MemberResolutionResult<TMember>(
                         member,
                         leastOverriddenMember,
-                        default, // inference error
+                        inferenceError,
                         hasTypeArgumentInferredFromFunctionType: false
                     );
                 }
@@ -1973,6 +1970,37 @@ internal sealed partial class OverloadResolution {
             applicableResult,
             hasTypeArgumentsInferredFromFunctionType
         );
+    }
+
+    private ImmutableArray<TypeOrConstant> InferMethodTypeArguments(
+        MethodSymbol method,
+        ImmutableArray<TemplateParameterSymbol> originalTemplateParameters,
+        AnalyzedArguments arguments,
+        EffectiveParameters originalEffectiveParameters,
+        out bool hasTypeArgumentsInferredFromFunctionType,
+        out MemberAnalysisResult error) {
+        // TODO Type inferrer
+        // var args = arguments.arguments.ToImmutable();
+
+        // var inferenceResult = MethodTypeInferrer.Infer(
+        //     _binder,
+        //     _binder.Conversions,
+        //     originalTemplateParameters,
+        //     method.ContainingType,
+        //     originalEffectiveParameters.ParameterTypes,
+        //     originalEffectiveParameters.ParameterRefKinds,
+        //     args,
+        //     ref useSiteInfo);
+
+        // if (inferenceResult.Success) {
+        //     hasTypeArgumentsInferredFromFunctionType = inferenceResult.HasTypeArgumentInferredFromFunctionType;
+        //     error = default;
+        //     return inferenceResult.InferredTypeArguments;
+        // }
+
+        hasTypeArgumentsInferredFromFunctionType = false;
+        error = MemberAnalysisResult.TypeInferenceFailed();
+        return default;
     }
 
     private MemberAnalysisResult IsApplicable(

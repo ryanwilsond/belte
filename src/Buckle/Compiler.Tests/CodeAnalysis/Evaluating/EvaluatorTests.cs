@@ -391,7 +391,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A<type t> { public t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
     [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int[]>(); a.a = new int[] {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
-    // [InlineData("T Test<type T>(T a) { return a; } return Test<int>(3);", 3)]
+    [InlineData("T Test<type T>(T a) { return a; } return Test<int>(3);", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue);
     }

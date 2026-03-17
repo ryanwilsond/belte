@@ -49,6 +49,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
     private readonly Dictionary<MethodSymbol, MethodInfo> _methods = [];
+    private readonly Dictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
     private readonly Dictionary<MethodSymbol, ConstructorInfo> _constructors = [];
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
     private readonly Dictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
@@ -210,6 +211,14 @@ internal sealed partial class Executor : ModuleBuilder {
                 return value;
 
             if (type is TemplateParameterSymbol t) {
+                if (t.templateParameterKind == TemplateParameterKind.Method) {
+                    var containingMethodTypeParameters = _methodTypeParameters[
+                        (MethodSymbol)type.containingSymbol.originalDefinition
+                    ];
+
+                    return containingMethodTypeParameters[t.ordinal];
+                }
+
                 var containingType = _types[type.containingType.originalDefinition];
                 return containingType.GenericTypeParameters[t.ordinal];
             }
@@ -238,8 +247,11 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_methods.TryGetValue(method.originalDefinition, out var value)) {
             if (method.containingType.arity > 0) {
                 var constructedType = GetType(method.containingType);
-                return TypeBuilder.GetMethod(constructedType, value);
+                value = TypeBuilder.GetMethod(constructedType, value);
             }
+
+            if (method.arity > 0)
+                value = value.MakeGenericMethod(method.templateArguments.Select(t => GetType(t.type.type)).ToArray());
 
             return value;
         }
@@ -518,8 +530,19 @@ internal sealed partial class Executor : ModuleBuilder {
     private void CreateNormalMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
         var methodBuilder = typeBuilder.DefineMethod(
             method.name,
-            GetMethodAttributes(method),
-            GetType(method.returnType, method.returnsByRef),
+            GetMethodAttributes(method)
+        );
+
+        if (method.arity > 0) {
+            var typeParameters = methodBuilder.DefineGenericParameters(
+                method.templateParameters.Select(t => t.name).ToArray()
+            );
+
+            _methodTypeParameters.Add(method, typeParameters);
+        }
+
+        methodBuilder.SetReturnType(GetType(method.returnType, method.returnsByRef));
+        methodBuilder.SetParameters(
             method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
