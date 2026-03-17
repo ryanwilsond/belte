@@ -144,7 +144,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
-            localBase.CheckAllConstraints(declaringCompilation, location, diagnostics);
+            localBase.CheckAllConstraints(location, diagnostics);
         }
     }
 

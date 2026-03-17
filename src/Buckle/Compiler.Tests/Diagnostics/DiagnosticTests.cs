@@ -1408,10 +1408,38 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0122_UnknownTemplate
-    // ! Error_BU0123_CannotExtendCheckNonType
+
+    [Fact]
+    public void Reports_Error_BU0123_CannotExtendCheckNonType() {
+        var text = @"
+            class A<int [T]> where { T extends Object; } { }
+        ";
+
+        var diagnostics = @"
+            template 'T' is not a type; cannot extension check a non-type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0124_ConstraintIsNotConstant
     // ! Error_BU0125_RefReturnNonreturnableLocal2
-    // ! Error_BU0126_ExtendConstraintFailed
+
+    [Fact]
+    public void Reports_Error_BU0126_ExtendConstraintFailed() {
+        var text = @"
+            class B { }
+            class A<type T> where { T extends B; } {}
+            var a = new [A<Object>]();
+        ";
+
+        var diagnostics = @"
+            the type 'Object' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type T extends B>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0127_ConstraintWasNull
     // ! Error_BU0128_ConstraintFailed
     // ! Error_BU0129_RefReturnNonreturnableLocal
@@ -1589,10 +1617,59 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0147_CircularConstraint
-    // ! Error_BU0148_TemplateObjectBaseWithPrimitiveBase
-    // ! Error_BU0149_TemplateBaseConstraintConflict
-    // ! Error_BU0150_TemplateBaseBothObjectAndPrimitive
+    [Fact]
+    public void Reports_Error_BU0147_CircularConstraints() {
+        var text = @"
+            class A<type T, [type T2]> where { T extends T2; T2 extends T; } { }
+        ";
+
+        var diagnostics = @"
+            template parameters 'T' and 'T2' form a circular constraint
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0148_TemplateObjectBaseWithPrimitiveBase() {
+        var text = @"
+            class A<[type T], type T2> where { T2 is primitive; T extends T2; } { }
+        ";
+
+        var diagnostics = @"
+            template parameter 'T2' cannot be used as a constraint for template parameter 'T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0149_TemplateObjectBaseWithPrimitiveBase() {
+        var text = @"
+            class B { }
+            class C { }
+            class A<[type T]> where { T extends B; T extends C; } { }
+        ";
+
+        var diagnostics = @"
+            template parameter 'T' cannot be constrained to both types 'C' and 'B'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0150_TemplateBaseBothObjectAndPrimitive() {
+        var text = @"
+            class A<[type T]> where { T is primitive; T extends Object; } { }
+        ";
+
+        var diagnostics = @"
+            template parameter 'T' cannot be constrained as both an object type and a primitive type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0151_MemberNameSameAsType() {
@@ -2727,7 +2804,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0278_CantOverrideNonMethod
 
     [Fact]
-    public void Reports_Error_BU279_OverrideNotExpected() {
+    public void Reports_Error_BU0279_OverrideNotExpected() {
         var text = @"
             class A {
                 public override void [F]() {}
@@ -2744,7 +2821,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0280_AmbiguousOverride
 
     [Fact]
-    public void Reports_Error_BU281_CantOverrideNonVirtual() {
+    public void Reports_Error_BU0281_CantOverrideNonVirtual() {
         var text = @"
             class A {
                 public void F() {}
@@ -2762,7 +2839,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU282_CantOverrideSealed() {
+    public void Reports_Error_BU0282_CantOverrideSealed() {
         var text = @"
             class A {
                 public virtual void F() {}
@@ -2783,7 +2860,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU283_CantChangeAccessOnOverride() {
+    public void Reports_Error_BU0283_CantChangeAccessOnOverride() {
         var text = @"
             class A {
                 public virtual void F() {}
@@ -2803,7 +2880,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0284_CantChangeRefReturnOnOverride
 
     [Fact]
-    public void Reports_Error_BU285_CantChangeReturnTypeOnOverride() {
+    public void Reports_Error_BU0285_CantChangeReturnTypeOnOverride() {
         var text = @"
             class A {
                 public virtual void F() {}
@@ -2828,7 +2905,7 @@ public sealed class DiagnosticTests {
     // ! Fatal_BU0291_LibraryErrors
 
     [Fact]
-    public void Reports_Error_BU292_OperatorCantReturnVoid() {
+    public void Reports_Error_BU0292_OperatorCantReturnVoid() {
         var text = @"
             class A {
                 public static void [operator]+(A a, A b) { }
@@ -2843,7 +2920,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU293_BadUnaryOperatorSignature() {
+    public void Reports_Error_BU0293_BadUnaryOperatorSignature() {
         var text = @"
             class A {
                 public static A [operator]+(int a) { return null; }
@@ -2860,7 +2937,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0294_BadAbstractUnaryOperatorSignature
 
     [Fact]
-    public void Reports_Error_BU295_BadShiftOperatorSignature() {
+    public void Reports_Error_BU0295_BadShiftOperatorSignature() {
         var text = @"
             class A {
                 public static A [operator]<<(int a, int b) { return null; }
@@ -2877,7 +2954,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0296_BadAbstractShiftOperatorSignature
 
     [Fact]
-    public void Reports_Error_BU297_BadBinaryOperatorSignature() {
+    public void Reports_Error_BU0297_BadBinaryOperatorSignature() {
         var text = @"
             class A {
                 public static A [operator]+(int a, int b) { return null; }
@@ -2895,7 +2972,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0299_BadAbstractEqualityOperatorSignature
 
     [Fact]
-    public void Reports_Error_BU300_BadIncrementOperatorSignature() {
+    public void Reports_Error_BU0300_BadIncrementOperatorSignature() {
         var text = @"
             class A {
                 public static A [operator]++(int a) { return null; }
@@ -2912,7 +2989,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0301_BadAbstractIncrementOperatorSignature
 
     [Fact]
-    public void Reports_Error_BU302_BadIncrementReturnType() {
+    public void Reports_Error_BU0302_BadIncrementReturnType() {
         var text = @"
             class A {
                 public static int [operator]++(A a) { return null; }
@@ -2929,7 +3006,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0303_BadAbstractIncrementReturnType
 
     [Fact]
-    public void Reports_Error_BU304_BadIndexCount() {
+    public void Reports_Error_BU0304_BadIndexCount() {
         var text = @"
             var a = new int\[\] {1, 2, 3};
             [a\[2,3\]];
@@ -2946,7 +3023,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0306_SeparateMainAndUpdate
 
     [Fact]
-    public void Reports_Error_BU307_FieldsCannotBeImplicitlyTyped() {
+    public void Reports_Error_BU0307_FieldsCannotBeImplicitlyTyped() {
         var text = @"
             class A {
                 [var] a = 3;
@@ -2961,7 +3038,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU308_NonIntArraySize() {
+    public void Reports_Error_BU0308_NonIntArraySize() {
         var text = @"
             var a = new int[\[true\]];
         ";
@@ -2974,7 +3051,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU309_BadArity() {
+    public void Reports_Error_BU0309_BadArity() {
         var text = @"
             class A<type t> { }
             var a = new [A]();
@@ -2988,7 +3065,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU310_ProtectedInStruct() {
+    public void Reports_Error_BU0310_ProtectedInStruct() {
         var text = @"
             struct A {
                 protected [int f];
@@ -3010,7 +3087,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0316_RefAssignValEscapeWider
 
     [Fact]
-    public void Reports_Error_BU317_MissingArraySize() {
+    public void Reports_Error_BU0317_MissingArraySize() {
         var text = @"
             var a = new int[\[\]];
         ";
@@ -3027,7 +3104,7 @@ public sealed class DiagnosticTests {
     // ! Error_BU0320_SingleTypeNameNotFound
 
     [Fact]
-    public void Reports_Warning_BU321_NamespaceNameShadowsBelte() {
+    public void Reports_Warning_BU0321_NamespaceNameShadowsBelte() {
         var text = @"
             namespace [Belte] { }
         ";
@@ -3046,4 +3123,88 @@ public sealed class DiagnosticTests {
     // ! Error_BU0326_HasNoTemplate
     // ! Error_BU0327_TemplateNotAllowed
 
+    [Fact]
+    public void Reports_Error_BU0328_BadTemplateArgument() {
+        var text = @"
+            class A<type T> {}
+            var a = new [A<void>]();
+        ";
+
+        var diagnostics = @"
+            the type 'void' may not be used as a type argument
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0329_TemplateIsStatic() {
+        var text = @"
+            static class S { }
+            class A<type T> {}
+            var a = new [A<S>]();
+        ";
+
+        var diagnostics = @"
+            'S': static types cannot be used as type arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0330_ObjectConstraintFailed() {
+        var text = @"
+            class A<type T> where { T extends Object; } {}
+            var a = new [A<int>]();
+        ";
+
+        var diagnostics = @"
+            the type 'int' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type T extends Object>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0331_PrimitiveConstraintFailed() {
+        var text = @"
+            class A<type T> where { T is primitive; } {}
+            var a = new [A<Object>]();
+        ";
+
+        var diagnostics = @"
+            the type 'Object' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0332_NotNullableConstraintFailed
+
+    [Fact]
+    public void Reports_Error_BU0333_DuplicateConstraint() {
+        var text = @"
+            class A<type T> where { T is notnull; [T is notnull;] } { }
+        ";
+
+        var diagnostics = @"
+            duplicate constraint on template parameter 'T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0334_CannotIsCheckNonType() {
+        var text = @"
+            class A<int [T]> where { T is primitive; } { }
+        ";
+
+        var diagnostics = @"
+            template 'T' is not a type; cannot is check a non-type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

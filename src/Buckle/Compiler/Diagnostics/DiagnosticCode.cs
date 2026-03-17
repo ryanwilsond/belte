@@ -336,6 +336,13 @@ public enum DiagnosticCode : ushort {
     ERR_UnexpectedUnboundTemplateName = 325,
     ERR_HasNoTemplate = 326,
     ERR_TemplateNotAllowed = 327,
+    ERR_BadTemplateArgument = 328,
+    ERR_TemplateIsStatic = 329,
+    ERR_ObjectConstraintFailed = 330,
+    ERR_PrimitiveConstraintFailed = 331,
+    ERR_NotNullableConstraintFailed = 332,
+    ERR_DuplicateConstraint = 333,
+    ERR_CannotIsCheckNonType = 334,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

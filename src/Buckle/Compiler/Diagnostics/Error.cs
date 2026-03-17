@@ -553,14 +553,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ConstraintIsNotConstant, location, message);
     }
 
-    // TODO implement error
-    internal static BelteDiagnostic ExtendConstraintFailed(
-        TextLocation location,
-        string constraint,
-        int ordinal,
-        string templateName,
-        string extensionName) {
-        var message = $"template constraint {ordinal} fails ('{constraint}'); '{templateName}' must be or inherit from '{extensionName}'";
+    internal static BelteDiagnostic ExtendConstraintFailed(TextLocation location, Symbol constructed, string parameter, Symbol type, Symbol extend) {
+        var message = $"the type '{type}' must be or derive from '{extend.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_ExtendConstraintFailed, location, message);
     }
 
@@ -636,23 +630,23 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_MultipleAccessibilities, location, message);
     }
 
-    internal static BelteDiagnostic CircularConstraint(TextLocation location, TemplateParameterSymbol templateParameter1, TemplateParameterSymbol templateParameter2) {
-        var message = $"template parameters '{templateParameter1}' and '{templateParameter2}' form a circular constraint";
+    internal static BelteDiagnostic CircularConstraint(TextLocation location, string parameter1, string parameter2) {
+        var message = $"template parameters '{parameter1}' and '{parameter2}' form a circular constraint";
         return CreateError(DiagnosticCode.ERR_CircularConstraint, location, message);
     }
 
-    internal static BelteDiagnostic TemplateObjectBaseWithPrimitiveBase(TextLocation location, TemplateParameterSymbol templateParameter1, TemplateParameterSymbol templateParameter2) {
-        var message = $"template parameter '{templateParameter2}' cannot be used as a constraint for template parameter '{templateParameter1}'";
+    internal static BelteDiagnostic TemplateObjectBaseWithPrimitiveBase(TextLocation location, string parameter1, string parameter2) {
+        var message = $"template parameter '{parameter1}' cannot be used as a constraint for template parameter '{parameter2}'";
         return CreateError(DiagnosticCode.ERR_TemplateObjectBaseWithPrimitiveBase, location, message);
     }
 
-    internal static BelteDiagnostic TemplateBaseConstraintConflict(TextLocation location, TemplateParameterSymbol templateParameter, TypeSymbol base1, TypeSymbol base2) {
-        var message = $"template parameter '{templateParameter}' cannot be constrained to both types '{base1}' and '{base2}'";
+    internal static BelteDiagnostic TemplateBaseConstraintConflict(TextLocation location, string parameter, TypeSymbol base1, TypeSymbol base2) {
+        var message = $"template parameter '{parameter}' cannot be constrained to both types '{base1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' and '{base2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_TemplateBaseConstraintConflict, location, message);
     }
 
-    internal static BelteDiagnostic TemplateBaseBothObjectAndPrimitive(TextLocation location, TemplateParameterSymbol templateParameter) {
-        var message = $"template parameter '{templateParameter}' cannot be constrained as both an Object type and Primitive type";
+    internal static BelteDiagnostic TemplateBaseBothObjectAndPrimitive(TextLocation location, string parameter) {
+        var message = $"template parameter '{parameter}' cannot be constrained as both an object type and a primitive type";
         return CreateError(DiagnosticCode.ERR_TemplateBaseBothObjectAndPrimitive, location, message);
     }
 
@@ -1601,6 +1595,41 @@ internal static class Error {
     internal static BelteDiagnostic TemplateNotAllowed(TextLocation location, Symbol symbol, string text) {
         var message = $"the {text} '{symbol}' cannot be used with template arguments";
         return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic BadTemplateArgument(TextLocation location, Symbol symbol) {
+        var message = $"the type '{symbol}' may not be used as a type argument";
+        return CreateError(DiagnosticCode.ERR_BadTemplateArgument, location, message);
+    }
+
+    internal static BelteDiagnostic TemplateIsStatic(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': static types cannot be used as type arguments";
+        return CreateError(DiagnosticCode.ERR_TemplateIsStatic, location, message);
+    }
+
+    internal static BelteDiagnostic ObjectConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must be an object type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ObjectConstraintFailed, location, message);
+    }
+
+    internal static BelteDiagnostic PrimitiveConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must be a primitive type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_PrimitiveConstraintFailed, location, message);
+    }
+
+    internal static BelteDiagnostic NotNullableConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must be a non-nullable type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateConstraint(TextLocation location, string parameter) {
+        var message = $"duplicate constraint on template parameter '{parameter}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateConstraint, location, message);
+    }
+
+    internal static BelteDiagnostic CannotIsCheckNonType(TextLocation location, string name) {
+        var message = $"template '{name}' is not a type; cannot is check a non-type";
+        return CreateError(DiagnosticCode.ERR_CannotIsCheckNonType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

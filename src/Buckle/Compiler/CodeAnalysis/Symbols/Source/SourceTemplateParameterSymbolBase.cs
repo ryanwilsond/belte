@@ -172,12 +172,12 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     }
 
     private void CheckConstraintTypeConstraints(BelteDiagnosticQueue diagnostics) {
-        if (constraintTypes.Length == 0)
-            return;
+        if (underlyingType.specialType != SpecialType.Type) {
+            if (hasPrimitiveTypeConstraint || hasNotNullConstraint)
+                diagnostics.Push(Error.CannotIsCheckNonType(location, name));
 
-        foreach (var constraintType in constraintTypes) {
-            if (constraintType.type.specialType != SpecialType.Type)
-                diagnostics.Push(Error.CannotExtendCheckNonType(syntaxReference.location, constraintType.type.name));
+            if (constraintTypes.Length > 0)
+                diagnostics.Push(Error.CannotExtendCheckNonType(location, name));
         }
     }
 
@@ -197,6 +197,9 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
                                                       BuildMode.Dotnet) {
             diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
         }
+
+        if (hasNotNullConstraint)
+            return new TypeWithAnnotations(underlying);
 
         return type;
     }

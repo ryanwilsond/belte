@@ -88,6 +88,19 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isOptional => false;
 
+    internal override bool hasNotNullConstraint {
+        get {
+            return (_flags & (GenericParameterAttributes.NotNullableValueTypeConstraint |
+                GenericParameterAttributes.ReferenceTypeConstraint)) == 0;
+        }
+    }
+
+    internal override bool allowsRefLikeType {
+        get {
+            return (_flags & MetadataHelpers.GenericParameterAttributesAllowByRefLike) != 0;
+        }
+    }
+
     internal override bool hasPrimitiveTypeConstraint
         => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
 

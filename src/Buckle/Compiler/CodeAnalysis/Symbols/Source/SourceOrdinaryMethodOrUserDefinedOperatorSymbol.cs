@@ -50,12 +50,10 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
     internal override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
         base.AfterAddingTypeMembersChecks(diagnostics);
 
-        var compilation = declaringCompilation;
-
-        returnType.CheckAllConstraints(compilation, syntaxReference.location, diagnostics);
+        returnType.CheckAllConstraints(syntaxReference.location, diagnostics);
 
         foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(compilation, parameter.syntaxReference.location, diagnostics);
+            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
     }
 
     private protected abstract int GetParameterCountFromSyntax();

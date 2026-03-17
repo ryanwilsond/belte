@@ -18,10 +18,7 @@ internal static partial class ConstraintsHelpers {
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
         TextLocation errorLocation) {
-        var effectiveBaseClass = CorLibrary.GetSpecialType(
-            templateParameter.hasPrimitiveTypeConstraint ? SpecialType.None : SpecialType.Object
-        );
-
+        var effectiveBaseClass = CorLibrary.GetSpecialType(SpecialType.Object);
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
         if (constraintTypes.Length != 0) {
@@ -30,10 +27,11 @@ internal static partial class ConstraintsHelpers {
             foreach (var constraintType in constraintTypes) {
                 NamedTypeSymbol constraintEffectiveBase;
                 TypeSymbol constraintDeducedBase;
+                var strippedConstraintType = constraintType.type.StrippedType();
 
-                switch (constraintType.typeKind) {
+                switch (strippedConstraintType.typeKind) {
                     case TypeKind.TemplateParameter:
-                        var constraintTypeParameter = (TemplateParameterSymbol)constraintType.type;
+                        var constraintTypeParameter = (TemplateParameterSymbol)strippedConstraintType;
                         ConsList<TemplateParameterSymbol> constraintsInProgress;
 
                         if (constraintTypeParameter.containingSymbol == templateParameter.containingSymbol) {
@@ -41,8 +39,8 @@ internal static partial class ConstraintsHelpers {
                                 diagnostics.Push(
                                     Error.CircularConstraint(
                                         errorLocation,
-                                        constraintTypeParameter,
-                                        templateParameter
+                                        constraintTypeParameter.name,
+                                        templateParameter.name
                                     )
                                 );
 
@@ -64,8 +62,8 @@ internal static partial class ConstraintsHelpers {
                                 diagnostics.Push(
                                     Error.TemplateObjectBaseWithPrimitiveBase(
                                         errorLocation,
-                                        templateParameter,
-                                        constraintTypeParameter
+                                        constraintTypeParameter.name,
+                                        templateParameter.name
                                     )
                                 );
 
@@ -86,8 +84,8 @@ internal static partial class ConstraintsHelpers {
                                         diagnostics.Push(
                                             Error.CircularConstraint(
                                                 errorLocation,
-                                                underlyingTypeParameter,
-                                                templateParameter
+                                                underlyingTypeParameter.name,
+                                                templateParameter.name
                                             )
                                         );
 
@@ -117,11 +115,12 @@ internal static partial class ConstraintsHelpers {
 
                 if (!deducedBaseType.IsErrorType() && !constraintDeducedBase.IsErrorType()) {
                     if (!IsEncompassedBy(deducedBaseType, constraintDeducedBase)) {
-                        if (!IsEncompassedBy(constraintDeducedBase, deducedBaseType)) {
+                        if (!IsEncompassedBy(constraintDeducedBase, deducedBaseType) &&
+                            !templateParameter.hasPrimitiveTypeConstraint) {
                             diagnostics.Push(
                                 Error.TemplateBaseConstraintConflict(
                                     errorLocation,
-                                    templateParameter,
+                                    templateParameter.name,
                                     constraintDeducedBase,
                                     deducedBaseType
                                 )
@@ -142,8 +141,9 @@ internal static partial class ConstraintsHelpers {
 
         var bounds = new TypeParameterBounds(constraintTypes, effectiveBaseClass, deducedBaseType);
 
-        if (inherited)
-            CheckOverrideConstraints(templateParameter, bounds, diagnostics, errorLocation);
+        // TODO We always want to check this, right?
+        // if (inherited)
+        CheckOverrideConstraints(templateParameter, bounds, diagnostics, errorLocation);
 
         return bounds;
     }
@@ -257,50 +257,246 @@ internal static partial class ConstraintsHelpers {
         return constraintClauses;
     }
 
-    internal static void CheckAllConstraints(
-        this TypeSymbol type,
-        Compilation compilation,
-        TextLocation errorLocation,
+    internal static void CheckAllConstraints(this TypeSymbol type, TextLocation location, BelteDiagnosticQueue diagnostics) {
+        while (true) {
+            var current = type;
+
+            switch (type.typeKind) {
+                case TypeKind.Class:
+                case TypeKind.Struct:
+                    CheckConstraintsSingleType((NamedTypeSymbol)type, location, diagnostics);
+                    return;
+            }
+
+            TypeWithAnnotations next;
+
+            switch (type.typeKind) {
+                case TypeKind.TemplateParameter:
+                case TypeKind.Primitive:
+                    return;
+                case TypeKind.Error:
+                case TypeKind.Class:
+                case TypeKind.Struct:
+                    var typeArguments = ((NamedTypeSymbol)current).templateArguments;
+
+                    if (typeArguments.IsEmpty)
+                        return;
+
+                    var nextType = typeArguments[0].type.nullableUnderlyingTypeOrSelf;
+                    CheckConstraintsSingleType((NamedTypeSymbol)nextType, location, diagnostics);
+                    return;
+                case TypeKind.Array:
+                    next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(current.typeKind);
+            }
+
+            type = next.nullableUnderlyingTypeOrSelf;
+        }
+    }
+
+    private static void CheckConstraintsSingleType(
+        NamedTypeSymbol type,
+        TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        // var boxedArgs = CheckConstraintsArgsBoxed.Allocate(compilation, includeNullability: false, NoLocation.Singleton, diagnostics);
-        // type.CheckAllConstraints(boxedArgs);
-        // TODO
+        type.CheckConstraints(
+            location,
+            diagnostics,
+            type.templateSubstitution,
+            type.templateParameters,
+            type.templateArguments
+        );
     }
 
     internal static bool CheckConstraintsForNamedType(
         this NamedTypeSymbol type,
-        in CheckConstraintsArgs args,
-        SyntaxNode typeSyntax,
-        SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentSyntax,
-        ConsList<TypeSymbol> basesBeingResolved) {
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode typeSyntax) {
         if (!RequiresChecking(type))
             return true;
 
-        // TODO constraints
-        // var diagnosticsBuilder = ArrayBuilder<TypeParameterDiagnosticInfo>.GetInstance();
-        // ArrayBuilder<TypeParameterDiagnosticInfo> useSiteDiagnosticsBuilder = null;
-        // var result = !typeSyntax.HasErrors && CheckTypeConstraints(type, in args, diagnosticsBuilder, nullabilityDiagnosticsBuilderOpt: args.IncludeNullability ? diagnosticsBuilder : null,
-        //                                                            ref useSiteDiagnosticsBuilder);
+        return !typeSyntax.containsDiagnostics && CheckTypeConstraints(type, location, diagnostics);
+    }
 
-        // if (useSiteDiagnosticsBuilder != null) {
-        //     diagnosticsBuilder.AddRange(useSiteDiagnosticsBuilder);
-        // }
+    private static bool CheckTypeConstraints(
+        NamedTypeSymbol type,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
+        return CheckConstraints(
+            type,
+            location,
+            diagnostics,
+            type.templateSubstitution,
+            type.originalDefinition.templateParameters,
+            type.templateArguments
+        );
+    }
 
-        // foreach (var pair in diagnosticsBuilder) {
-        //     int ordinal = pair.TypeParameter.Ordinal;
-        //     var location = ordinal < typeArgumentsSyntax.Count ? typeArgumentsSyntax[ordinal].Location : args.Location;
-        //     args.Diagnostics.Add(pair.UseSiteInfo, location);
-        // }
+    internal static bool CheckMethodConstraints(
+        this MethodSymbol method,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
+        return CheckConstraints(
+            method,
+            location,
+            diagnostics,
+            method.templateSubstitution,
+            method.originalDefinition.templateParameters,
+            method.templateArguments
+        );
+    }
 
-        // diagnosticsBuilder.Free();
+    internal static bool CheckConstraints(
+        this Symbol containingSymbol,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        TemplateMap substitution,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<TypeOrConstant> templateArguments) {
+        var n = templateParameters.Length;
+        var succeeded = true;
 
-        // if (HasDuplicateInterfaces(type, basesBeingResolved)) {
-        //     result = false;
-        //     args.Diagnostics.Add(ErrorCode.ERR_BogusType, args.Location, type);
-        // }
+        for (var i = 0; i < n; i++) {
+            if (!CheckConstraints(
+                containingSymbol,
+                location,
+                diagnostics,
+                substitution,
+                templateParameters[i],
+                templateArguments[i])) {
+                succeeded = false;
+            }
+        }
 
-        // return result;
+        // TODO Constraint expressions
+
+        return succeeded;
+    }
+
+    private static bool CheckConstraints(
+        Symbol containingSymbol,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        TemplateMap substitution,
+        TemplateParameterSymbol templateParameter,
+        TypeOrConstant templateArgument) {
+        if (templateArgument.type?.type?.IsErrorType() ?? false)
+            return true;
+
+        if (!CheckBasicConstraints(containingSymbol, location, diagnostics, templateParameter, templateArgument))
+            return false;
+
+        var constraintTypes = ArrayBuilder<TypeWithAnnotations>.GetInstance();
+        var originalConstraintTypes = templateParameter.constraintTypes;
+        substitution.SubstituteConstraintTypesDistinctWithoutModifiers(originalConstraintTypes, constraintTypes);
+        var hasError = false;
+
+        foreach (var constraintType in constraintTypes) {
+            CheckConstraintType(
+                containingSymbol,
+                location,
+                diagnostics,
+                templateParameter,
+                templateArgument,
+                constraintType,
+                ref hasError
+            );
+        }
+
+        constraintTypes.Free();
+
+        return !hasError;
+    }
+
+    private static bool CheckBasicConstraints(
+        Symbol containingSymbol,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        TemplateParameterSymbol templateParameter,
+        TypeOrConstant templateArgument) {
+        if (templateArgument.isConstant)
+            return true;
+
+        if (templateArgument.type.IsVoidType()) {
+            diagnostics.Push(Error.BadTemplateArgument(location, templateArgument.type.type));
+            return false;
+        }
+
+        if (templateArgument.type.type.StrippedType().isStatic) {
+            diagnostics.Push(Error.TemplateIsStatic(location, templateArgument.type.type));
+            return false;
+        }
+
+        if (templateParameter.hasObjectTypeConstraint && !templateArgument.type.type.StrippedType().isObjectType) {
+            diagnostics.Push(Error.ObjectConstraintFailed(
+                location,
+                containingSymbol.ConstructedFrom(),
+                templateParameter.name,
+                templateArgument.type.type
+            ));
+
+            return false;
+        }
+
+        if (templateParameter.hasNotNullConstraint && templateArgument.type.isNullable) {
+            diagnostics.Push(Error.NotNullableConstraintFailed(
+                location,
+                containingSymbol.ConstructedFrom(),
+                templateParameter.name,
+                templateArgument.type.type
+            ));
+        }
+
+        if (templateParameter.hasPrimitiveTypeConstraint && !templateArgument.type.type.StrippedType().isPrimitiveType) {
+            diagnostics.Push(Error.PrimitiveConstraintFailed(
+                location,
+                containingSymbol.ConstructedFrom(),
+                templateParameter.name,
+                templateArgument.type.type
+            ));
+
+            return false;
+        }
+
         return true;
+    }
+
+    private static void CheckConstraintType(
+        Symbol containingSymbol,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        TemplateParameterSymbol templateParameter,
+        TypeOrConstant templateArgument,
+        TypeWithAnnotations constraintType,
+        ref bool hasError) {
+        if (templateArgument.isConstant)
+            return;
+
+        if (SatisfiesConstraintType(templateArgument.type.type, constraintType.type))
+            return;
+
+        diagnostics.Push(Error.ExtendConstraintFailed(
+            location,
+            containingSymbol.ConstructedFrom(),
+            templateParameter.name,
+            templateArgument.type.type,
+            constraintType.type
+        ));
+
+        hasError = true;
+    }
+
+    private static bool SatisfiesConstraintType(TypeSymbol typeArgument, TypeSymbol constraintType) {
+        if (constraintType.IsErrorType())
+            return false;
+
+        // TODO Does this properly handle nested template arguments or constructed types? (I think not)
+        if (typeArgument.InheritsFromIgnoringConstruction((NamedTypeSymbol)constraintType))
+            return true;
+
+        return false;
     }
 
     internal static bool RequiresChecking(NamedTypeSymbol type) {
@@ -326,10 +522,10 @@ internal static partial class ConstraintsHelpers {
         var constraintTypes = bounds.constraintTypes;
 
         if (IsPrimitiveType(templateParameter, constraintTypes) && IsObjectType(templateParameter, constraintTypes)) {
-            diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter));
+            diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter.name));
         } else if (deducedBase.IsNullableType() &&
             (templateParameter.hasPrimitiveTypeConstraint || templateParameter.hasObjectTypeConstraint)) {
-            diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter));
+            diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter.name));
         }
     }
 

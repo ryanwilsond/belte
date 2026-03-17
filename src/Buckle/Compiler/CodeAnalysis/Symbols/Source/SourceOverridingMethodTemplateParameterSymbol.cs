@@ -25,6 +25,19 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
     // TODO Do we need this?
     // internal override bool hasConstructorConstraint
 
+    internal override bool hasNotNullConstraint {
+        get {
+            return _overriddenTemplateParameter?.hasNotNullConstraint == true;
+        }
+    }
+
+    internal override bool allowsRefLikeType {
+        get {
+            var typeParameter = _overriddenTemplateParameter;
+            return (typeParameter is not null) && typeParameter.allowsRefLikeType;
+        }
+    }
+
     internal override bool hasPrimitiveTypeConstraint
         => _overriddenTemplateParameter?.hasPrimitiveTypeConstraint == true;
 
@@ -35,9 +48,6 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
 
     internal override bool isObjectTypeFromConstraintTypes
         => _overriddenTemplateParameter?.isObjectTypeFromConstraintTypes == true;
-
-    // TODO Do we need this?
-    // internal override bool hasNotNullConstraint => _overriddenTemplateParameter?.hasNotNullConstraint == true;
 
     private protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
         => owner.templateParameters;

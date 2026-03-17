@@ -294,7 +294,7 @@ internal partial class Binder {
 
             if (syntaxNodes[ordinal] is not null) {
                 var constraintClause = BindTypeParameterConstraints(
-                    templateParameterList.parameters[ordinal],
+                    templateParameters[ordinal],
                     syntaxNodes[ordinal],
                     diagnostics
                 );
@@ -317,12 +317,42 @@ internal partial class Binder {
     }
 
     private TypeParameterConstraintClause BindTypeParameterConstraints(
-        ParameterSyntax templateParameter,
-        ArrayBuilder<TemplateConstraintClauseSyntax> constraints,
+        TemplateParameterSymbol templateParameter,
+        ArrayBuilder<TemplateConstraintClauseSyntax> constraintsSyntax,
         BelteDiagnosticQueue diagnostics) {
-        // TODO constraints
-        // Need to bind type first to make sure this template is a type parameter
-        return null;
+        var constraints = TypeParameterConstraintKinds.None;
+        var constraintTypes = ArrayBuilder<TypeWithAnnotations>.GetInstance();
+
+        for (int i = 0, n = constraintsSyntax.Count; i < n; i++) {
+            var syntax = constraintsSyntax[i];
+
+            if (syntax.extendConstraint is not null) {
+                var typeSyntax = syntax.extendConstraint.type;
+                var type = BindType(typeSyntax, diagnostics);
+                constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
+            } else if (syntax.isConstraint is not null) {
+                switch (syntax.isConstraint.keyword.kind) {
+                    case SyntaxKind.PrimitiveKeyword:
+                        if ((constraints & TypeParameterConstraintKinds.Primitive) == 0)
+                            constraints |= TypeParameterConstraintKinds.Primitive;
+                        else
+                            diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
+
+                        continue;
+                    case SyntaxKind.NotnullKeyword:
+                        if ((constraints & TypeParameterConstraintKinds.NotNull) == 0)
+                            constraints |= TypeParameterConstraintKinds.NotNull;
+                        else
+                            diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
+
+                        continue;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(syntax.isConstraint.keyword.kind);
+                }
+            }
+        }
+
+        return TypeParameterConstraintClause.Create(constraints, constraintTypes.ToImmutableAndFree());
     }
 
     #endregion
@@ -365,7 +395,14 @@ internal partial class Binder {
             return symbol;
         }
 
-        var error = Error.BadSKKnown(symbol.symbol, symbol.symbol.kind.Localize(), MessageID.IDS_SK_TYPE.Localize());
+        var error = Error.BadSKKnown(
+            syntax.location,
+            symbol.symbol,
+            symbol.symbol.kind.Localize(),
+            MessageID.IDS_SK_TYPE.Localize()
+        );
+
+        diagnostics.Push(error);
 
         return new TypeWithAnnotations(
             new ExtendedErrorTypeSymbol(
@@ -955,20 +992,8 @@ internal partial class Binder {
         analyzedArguments.Free();
         type = type.Construct(rearrangedArguments.Select(r => r.typeOrConstant).ToImmutableArray());
 
-        if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type)) {
-            type.CheckConstraintsForNamedType(
-                new ConstraintsHelpers.CheckConstraintsArgs(
-                    compilation,
-                    conversions,
-                    true,
-                    typeSyntax.location,
-                    diagnostics
-                ),
-                typeSyntax,
-                templateArgumentsSyntax,
-                basesBeingResolved
-            );
-        }
+        if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type))
+            type.CheckConstraintsForNamedType(typeSyntax.location, diagnostics, typeSyntax);
 
         return type;
     }
@@ -1066,7 +1091,7 @@ internal partial class Binder {
 
         var type = BindType(argument.expression, BelteDiagnosticQueue.Discarded).type;
 
-        if (type is not ErrorTypeSymbol) {
+        if (type.StrippedType() is not ErrorTypeSymbol) {
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(false);
             analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(type)));
@@ -5212,9 +5237,7 @@ internal partial class Binder {
             }
         }
 
-        // TODO constraints
-        // return !methodSymbol.CheckConstraints(new ConstraintsHelper.CheckConstraintsArgs(this.Compilation, this.Conversions, includeNullability: false, node.Location, diagnostics));
-        return false;
+        return !methodSymbol.CheckMethodConstraints(node.location, diagnostics);
     }
 
     private static bool IsMemberAccessedThroughVariableOrValue(BoundExpression receiver) {

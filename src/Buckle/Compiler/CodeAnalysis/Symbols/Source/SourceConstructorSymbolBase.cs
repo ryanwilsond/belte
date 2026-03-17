@@ -53,7 +53,7 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         base.AfterAddingTypeMembersChecks(diagnostics);
 
         foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(declaringCompilation, parameter.syntaxReference.location, diagnostics);
+            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
