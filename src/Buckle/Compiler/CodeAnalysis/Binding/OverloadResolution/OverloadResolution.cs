@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -1935,12 +1936,23 @@ internal sealed partial class OverloadResolution {
             leastOverriddenMember = (TMember)(Symbol)leastOverriddenMethod.constructedFrom.Construct(typeArguments);
 
             var parameterTypes = leastOverriddenMember.GetParameterTypes();
+            var parameters = leastOverriddenMember.GetParameters();
 
             for (var i = 0; i < parameterTypes.Length; i++) {
-                // TODO template constraints
-                // if (!parameterTypes[i].type.CheckAllConstraints(compilation, Conversions)) {
-                //     return new MemberResolutionResult<TMember>(member, leastOverriddenMember, MemberAnalysisResult.ConstructedParameterFailedConstraintsCheck(i), hasTypeArgumentsInferredFromFunctionType);
-                // }
+                var _ = BelteDiagnosticQueue.GetInstance();
+                parameterTypes[i].type.CheckAllConstraints(parameters[i].location, _);
+
+                if (_.Any()) {
+                    _.Free();
+                    return new MemberResolutionResult<TMember>(
+                        member,
+                        leastOverriddenMember,
+                        MemberAnalysisResult.ConstructedParameterFailedConstraintsCheck(i),
+                        hasTypeArgumentsInferredFromFunctionType
+                    );
+                }
+
+                _.Free();
             }
 
             var map = new TemplateMap(leastOverriddenMethod.templateParameters, typeArguments); // ? allowAlpha: true

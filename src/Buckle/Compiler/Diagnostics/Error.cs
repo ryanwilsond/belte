@@ -547,7 +547,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotExtendCheckNonType, location, message);
     }
 
-    // TODO implement error
     internal static BelteDiagnostic ConstraintIsNotConstant(TextLocation location) {
         var message = $"template constraint is not a compile-time constant";
         return CreateError(DiagnosticCode.ERR_ConstraintIsNotConstant, location, message);
@@ -558,15 +557,13 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ExtendConstraintFailed, location, message);
     }
 
-    // TODO implement error
-    internal static BelteDiagnostic ConstraintWasNull(TextLocation location, string constraint, int ordinal) {
-        var message = $"template constraint {ordinal} fails ('{constraint}'); constraint results in null";
+    internal static BelteDiagnostic ConstraintWasNull(TextLocation location, string constraint) {
+        var message = $"template constraint fails: constraint results in null ({constraint})";
         return CreateError(DiagnosticCode.ERR_ConstraintWasNull, location, message);
     }
 
-    // TODO implement error
-    internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint, int ordinal) {
-        var message = $"template constraint {ordinal} fails ('{constraint}')";
+    internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint) {
+        var message = $"template constraint fails ({constraint})";
         return CreateError(DiagnosticCode.ERR_ConstraintFailed, location, message);
     }
 

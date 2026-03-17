@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Threading;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Lowering;
@@ -272,8 +273,11 @@ internal partial class Binder {
             .GetInstance(n, fillWithValue: null);
 
         foreach (var clause in clauses) {
-            if (clause.expressionConstraint is not null)
+            if (clause.expressionConstraint is not null) {
+                var syntax = clause.expressionConstraint.expression;
+                results.Add(TypeParameterConstraintClause.Create(syntax));
                 continue;
+            }
 
             var name = clause.extendConstraint is null
                 ? clause.isConstraint.name.identifier
@@ -314,6 +318,66 @@ internal partial class Binder {
         syntaxNodes.Free();
 
         return results.ToImmutableAndFree();
+    }
+
+    internal ImmutableArray<BoundExpression> BindExpressionConstraints(
+        ImmutableArray<ExpressionSyntax> constraints,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        BelteDiagnosticQueue diagnostics) {
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+        var targetType = CorLibrary.GetNullableType(SpecialType.Bool);
+
+        foreach (var constraint in constraints) {
+            var expression = BindExpression(constraint, diagnostics);
+
+            if (!EnsureExpressionIsCompileTime(expression, templateParameters))
+                diagnostics.Push(Error.ConstraintIsNotConstant(constraint.location));
+
+            var conversion = conversions.ClassifyImplicitConversionFromExpression(expression, targetType);
+
+            if (!conversion.exists)
+                GenerateImplicitConversionError(diagnostics, expression.syntax, conversion, expression, targetType);
+
+            expression = CreateConversion(expression, conversion, targetType, diagnostics);
+            builder.Add(expression);
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
+    private bool EnsureExpressionIsCompileTime(
+        BoundExpression expression,
+        ImmutableArray<TemplateParameterSymbol> templateParameters) {
+        if (expression.constantValue is not null)
+            return true;
+
+        switch (expression.kind) {
+            case BoundKind.UnaryOperator:
+                return EnsureExpressionIsCompileTime(((BoundUnaryOperator)expression).operand, templateParameters);
+            case BoundKind.BinaryOperator:
+                var binary = (BoundBinaryOperator)expression;
+                return EnsureExpressionIsCompileTime(binary.left, templateParameters) &&
+                       EnsureExpressionIsCompileTime(binary.right, templateParameters);
+            case BoundKind.IsOperator:
+                return EnsureExpressionIsCompileTime(((BoundIsOperator)expression).left, templateParameters);
+            case BoundKind.NullCoalescingOperator:
+                var nullCoalescing = (BoundNullCoalescingOperator)expression;
+                return EnsureExpressionIsCompileTime(nullCoalescing.left, templateParameters) &&
+                       EnsureExpressionIsCompileTime(nullCoalescing.right, templateParameters);
+            case BoundKind.NullAssertOperator:
+                return EnsureExpressionIsCompileTime(((BoundNullAssertOperator)expression).operand, templateParameters);
+            case BoundKind.CastExpression:
+                return EnsureExpressionIsCompileTime(((BoundCastExpression)expression).operand, templateParameters);
+            case BoundKind.ConditionalOperator:
+                var conditional = (BoundConditionalOperator)expression;
+                return EnsureExpressionIsCompileTime(conditional.condition, templateParameters) &&
+                       EnsureExpressionIsCompileTime(conditional.trueExpression, templateParameters) &&
+                       EnsureExpressionIsCompileTime(conditional.falseExpression, templateParameters);
+            case BoundKind.TypeExpression:
+                return templateParameters.Contains(expression.type);
+            default:
+                return false;
+        }
     }
 
     private TypeParameterConstraintClause BindTypeParameterConstraints(

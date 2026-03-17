@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -257,7 +258,10 @@ internal static partial class ConstraintsHelpers {
         return constraintClauses;
     }
 
-    internal static void CheckAllConstraints(this TypeSymbol type, TextLocation location, BelteDiagnosticQueue diagnostics) {
+    internal static void CheckAllConstraints(
+        this TypeSymbol type,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
         while (true) {
             var current = type;
 
@@ -370,9 +374,91 @@ internal static partial class ConstraintsHelpers {
             }
         }
 
-        // TODO Constraint expressions
+        if (containingSymbol is NamedTypeSymbol named) {
+            foreach (var constraint in named.originalDefinition.templateConstraints)
+                EvaluateConstraint(constraint, location, templateParameters, templateArguments, diagnostics);
+        }
 
         return succeeded;
+    }
+
+    private static void EvaluateConstraint(
+        BoundExpression constraint,
+        TextLocation location,
+        ImmutableArray<TemplateParameterSymbol> templateParameters,
+        ImmutableArray<TypeOrConstant> templateArguments,
+        BelteDiagnosticQueue diagnostics) {
+        var n = templateParameters.Length;
+        var names = new Dictionary<string, int>(n, StringOrdinalComparer.Instance);
+
+        foreach (var templateParameter in templateParameters) {
+            var name = templateParameter.name;
+
+            if (!names.ContainsKey(name))
+                names.Add(name, names.Count);
+        }
+
+        var result = EvaluateConstraintCore(constraint, names, templateArguments);
+
+        if (result.value is null)
+            diagnostics.Push(Error.ConstraintWasNull(location, constraint.syntax.ToString()));
+        else if (!(bool)result.value)
+            diagnostics.Push(Error.ConstraintFailed(location, constraint.syntax.ToString()));
+
+        static ConstantValue EvaluateConstraintCore(
+            BoundExpression expression,
+            Dictionary<string, int> names,
+            ImmutableArray<TypeOrConstant> templateArguments) {
+            if (expression.constantValue is not null)
+                return expression.constantValue;
+
+            switch (expression.kind) {
+                case BoundKind.UnaryOperator:
+                    var unary = (BoundUnaryOperator)expression;
+                    return ConstantFolding.FoldUnary(
+                        EvaluateConstraintCore(unary.operand, names, templateArguments),
+                        unary.operatorKind, unary.Type());
+                case BoundKind.BinaryOperator:
+                    var binary = (BoundBinaryOperator)expression;
+                    return ConstantFolding.FoldBinary(
+                        EvaluateConstraintCore(binary.left, names, templateArguments),
+                        EvaluateConstraintCore(binary.right, names, templateArguments),
+                        binary.operatorKind, binary.left.Type());
+                case BoundKind.IsOperator:
+                    var isOperator = (BoundIsOperator)expression;
+                    return ConstantFolding.FoldIs(
+                        EvaluateConstraintCore(isOperator.left, names, templateArguments),
+                        EvaluateConstraintCore(isOperator.right, names, templateArguments),
+                        isOperator.isNot);
+                case BoundKind.NullCoalescingOperator:
+                    var nullCoalescing = (BoundNullCoalescingOperator)expression;
+                    return ConstantFolding.FoldNullCoalescing(
+                        EvaluateConstraintCore(nullCoalescing.left, names, templateArguments),
+                        EvaluateConstraintCore(nullCoalescing.right, names, templateArguments),
+                        nullCoalescing.Type());
+                case BoundKind.NullAssertOperator:
+                    var nullAssert = (BoundNullAssertOperator)expression;
+                    return ConstantFolding.FoldNullAssert(
+                        EvaluateConstraintCore(nullAssert.operand, names, templateArguments));
+                case BoundKind.CastExpression:
+                    var cast = (BoundCastExpression)expression;
+                    return ConstantFolding.FoldCast(
+                        EvaluateConstraintCore(cast.operand, names, templateArguments),
+                        new TypeWithAnnotations(cast.type));
+                case BoundKind.ConditionalOperator:
+                    var conditional = (BoundConditionalOperator)expression;
+                    return ConstantFolding.FoldConditional(
+                        EvaluateConstraintCore(conditional.condition, names, templateArguments),
+                        EvaluateConstraintCore(conditional.trueExpression, names, templateArguments),
+                        EvaluateConstraintCore(conditional.falseExpression, names, templateArguments),
+                        conditional.Type());
+                case BoundKind.TypeExpression:
+                    var templateParameter = (TemplateParameterSymbol)expression.type;
+                    return templateArguments[names[templateParameter.name]].constant;
+                default:
+                    return new ConstantValue(false);
+            }
+        }
     }
 
     private static bool CheckConstraints(

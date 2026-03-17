@@ -132,7 +132,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal bool anyMemberHasAttributes {
         get {
             if (!_lazyAnyMemberHasAttributes.HasValue()) {
-                bool anyMemberHasAttributes = _declaration.anyMemberHasAttributes;
+                var anyMemberHasAttributes = _declaration.anyMemberHasAttributes;
                 _lazyAnyMemberHasAttributes = anyMemberHasAttributes.ToThreeState();
             }
 
@@ -217,6 +217,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     foreach (var templateParameter in templateParameters)
                         templateParameter.ForceComplete(location);
 
+                    _ = templateConstraints;
                     _state.NotePartComplete(CompletionParts.TemplateParameters);
                     break;
                 case CompletionParts.Members:
