@@ -1618,6 +1618,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotPassGlobalByRef, location, message);
     }
 
+    internal static BelteDiagnostic ThrowMisplaced(TextLocation location) {
+        var message = $"a throw expression is not valid in this context";
+        return CreateError(DiagnosticCode.ERR_ThrowMisplaced, location, message);
+    }
+
+    internal static BelteDiagnostic CannotReturnFromFinally(TextLocation location) {
+        var message = $"control cannot leave the body of a finally clause";
+        return CreateError(DiagnosticCode.ERR_CannotReturnFromFinally, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -6,8 +6,8 @@ internal static class SpecialTypes {
     // TODO Eventually these will be inside a namespace
     private static readonly Dictionary<string, SpecialType> NameToTypeMap = new Dictionary<string, SpecialType>() {
         { "global::Object", SpecialType.Object },
-        { "global::List<type>", SpecialType.List },
-        { "global::Dictionary<type,type>", SpecialType.Dictionary },
+        { "global::List`1", SpecialType.List },
+        { "global::Dictionary`2", SpecialType.Dictionary },
         { "global::void", SpecialType.Void },
         { "global::int", SpecialType.Int },
         { "global::decimal", SpecialType.Decimal },
@@ -22,6 +22,7 @@ internal static class SpecialTypes {
         { "global::Rect", SpecialType.Rect },
         { "global::Texture", SpecialType.Texture },
         { "global::Sound", SpecialType.Sound },
+        { "global::Exception", SpecialType.Exception },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

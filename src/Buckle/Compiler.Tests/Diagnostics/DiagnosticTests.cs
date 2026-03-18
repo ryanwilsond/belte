@@ -3337,4 +3337,34 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0336_ThrowMisplaced() {
+        var text = @"
+            3 + [throw] new Exception();
+        ";
+
+        var diagnostics = @"
+            a throw expression is not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0337_CannotReturnFromFinally() {
+        var text = @"
+            try {
+                return 4;
+            } finally {
+                [return 6;]
+            }
+        ";
+
+        var diagnostics = @"
+            control cannot leave the body of a finally clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -14,6 +14,11 @@ internal sealed class RefILBuilder : ILBuilder {
     private readonly MethodSymbol _method;
     private readonly bool _log;
     private readonly List<Label> _labelCounts;
+    private readonly Stack<object> _tryStack;
+
+    private object _epilogue;
+    private LocalBuilder _returnLocal;
+    private bool _needsEpilogue;
 
     private int _localCount;
 
@@ -22,6 +27,7 @@ internal sealed class RefILBuilder : ILBuilder {
         _iLGenerator = iLGenerator;
         _module = module;
         _labelCounts = [];
+        _tryStack = new Stack<object>();
         _log = log;
         _localSlotManager = new RefLocalSlotManager();
     }
@@ -30,7 +36,63 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override LocalSlotManager localSlotManager => _localSlotManager;
 
-    internal override void Finish() { }
+    internal override int tryNestingLevel => _tryStack.Count;
+
+    internal override void Finish() {
+        if (_needsEpilogue) {
+            MarkLabel(_epilogue);
+
+            if (!_method.returnsVoid)
+                _iLGenerator.Emit(OpCodes.Ldloc, _returnLocal);
+
+            _iLGenerator.Emit(OpCodes.Ret);
+        }
+    }
+
+    internal override void BeginTry() {
+        if (!_needsEpilogue) {
+            _needsEpilogue = true;
+            _epilogue = new object();
+            _returnLocal = ((RefVariableDefinition)AllocateSlot(
+                _method.returnType,
+                _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+            )).localBuilder;
+        }
+
+        _iLGenerator.BeginExceptionBlock();
+        _tryStack.Push(new object());
+    }
+
+    internal override void BeginCatch() {
+        EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
+        _iLGenerator.BeginCatchBlock(typeof(Exception));
+    }
+
+    internal override void BeginFinally() {
+        EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
+        _iLGenerator.BeginFinallyBlock();
+    }
+
+    internal override void EndTry() {
+        _iLGenerator.EndExceptionBlock();
+        MarkLabel(_tryStack.Pop());
+
+        if (_tryStack.Count > 0)
+            EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
+        else
+            Emit(CodeGeneration.OpCode.Nop);
+    }
+
+    internal override void EmitReturn() {
+        if (_tryStack.Count == 0) {
+            _iLGenerator.Emit(OpCodes.Ret);
+        } else {
+            if (!_method.returnsVoid)
+                Emit(OpCodes.Stloc, _returnLocal);
+
+            EmitBranch(CodeGeneration.OpCode.Leave, _epilogue);
+        }
+    }
 
     internal override void FreeTemp(VariableDefinition temp) {
         // TODO Reflection does not handle slot freeing, we would need to do this manually by keeping a stack
@@ -448,6 +510,8 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ble => OpCodes.Ble,
             CodeGeneration.OpCode.Bgt_Un => OpCodes.Bgt_Un,
             CodeGeneration.OpCode.Readonly => OpCodes.Readonly,
+            CodeGeneration.OpCode.Leave => OpCodes.Leave,
+            CodeGeneration.OpCode.Leave_S => OpCodes.Leave_S,
             CodeGeneration.OpCode.Isinst => OpCodes.Isinst,
             CodeGeneration.OpCode.Brtrue => OpCodes.Brtrue,
             CodeGeneration.OpCode.Brfalse => OpCodes.Brfalse,
@@ -532,6 +596,7 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
             CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
+            CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
             _ => throw new NotImplementedException()
         };
     }

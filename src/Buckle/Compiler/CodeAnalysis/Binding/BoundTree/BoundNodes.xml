@@ -297,8 +297,8 @@
   </Node>
   <Node Name="BoundTryStatement" Base="BoundStatement">
     <Field Name="body" Type="BoundStatement"/>
-    <Field Name="catchBody" Type="BoundStatement"/>
-    <Field Name="finallyBody" Type="BoundStatement"/>
+    <Field Name="catchBody" Type="BoundStatement?"/>
+    <Field Name="finallyBody" Type="BoundStatement?"/>
   </Node>
   <Node Name="BoundWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

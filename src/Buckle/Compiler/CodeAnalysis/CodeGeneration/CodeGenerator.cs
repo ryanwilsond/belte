@@ -43,8 +43,6 @@ internal sealed partial class CodeGenerator {
     private readonly ILEmitStyle _ilEmitStyle;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
-    private VariableDefinition _returnTemp;
-    private int _tryNestingLevel = 0;
 
     internal CodeGenerator(
         ModuleBuilder module,
@@ -63,48 +61,8 @@ internal sealed partial class CodeGenerator {
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
     }
 
-    private VariableDefinition _lazyReturnTemp {
-        get {
-            var result = _returnTemp;
-
-            if (result is null) {
-                var slotConstraints = _method.refKind == RefKind.None
-                    ? LocalSlotConstraints.None
-                    : LocalSlotConstraints.ByRef;
-
-                var bodySyntax = _methodBodySyntax;
-
-                if (_ilEmitStyle == ILEmitStyle.Debug && bodySyntax is not null) {
-                    var localSymbol = new SynthesizedDataContainerSymbol(
-                        _method,
-                        _method.returnTypeWithAnnotations,
-                        SynthesizedLocalKind.EmitterTemp,
-                        bodySyntax
-                    );
-
-                    result = _builder.DeclareLocal(
-                        localSymbol.type,
-                        localSymbol,
-                        null,
-                        localSymbol.synthesizedKind,
-                        slotConstraints,
-                        false
-                    );
-                } else {
-                    result = AllocateTemp(_method.returnType, slotConstraints);
-                }
-
-                _returnTemp = result;
-            }
-
-            return result;
-        }
-    }
-
     internal void Generate() {
-        foreach (var statement in _body.statements)
-            EmitStatement(statement);
-
+        EmitBlock(_body);
         _builder.Finish();
         _expressionTemps?.Free();
     }
@@ -572,6 +530,11 @@ internal sealed partial class CodeGenerator {
 
     #region Statements
 
+    private void EmitBlock(BoundBlockStatement block) {
+        foreach (var statement in block.statements)
+            EmitStatement(statement);
+    }
+
     private void EmitStatement(BoundStatement statement) {
         switch (statement.kind) {
             case BoundKind.NopStatement:
@@ -854,28 +817,25 @@ oneMoreTime:
             );
         }
 
-        if (ShouldUseIndirectReturn()) {
-            if (expression is not null)
-                _builder.EmitLocalStore(_lazyReturnTemp);
-
-            // TODO fill this out when Try is added
-        } else {
-            EmitRet(expression is null);
-        }
-    }
-
-    private void EmitRet(bool isVoid) {
-        // TODO Gets more complicated with blocks
-        _builder.Emit(OpCode.Ret);
-    }
-
-    private bool ShouldUseIndirectReturn() {
-        // TODO return in exception handler
-        return false;
+        _builder.EmitReturn();
     }
 
     private void EmitTryStatement(BoundTryStatement statement) {
-        // TODO
+        _builder.BeginTry();
+
+        EmitBlock((BoundBlockStatement)statement.body);
+
+        if (statement.catchBody is not null) {
+            _builder.BeginCatch();
+            EmitBlock((BoundBlockStatement)statement.catchBody);
+        }
+
+        if (statement.finallyBody is not null) {
+            _builder.BeginFinally();
+            EmitBlock((BoundBlockStatement)statement.finallyBody);
+        }
+
+        _builder.EndTry();
     }
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -995,6 +955,9 @@ oneMoreTime:
             case BoundKind.MethodGroup:
                 EmitMethodGroup((BoundMethodGroup)expression);
                 break;
+            case BoundKind.ThrowExpression:
+                EmitThrowExpression((BoundThrowExpression)expression, used);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
@@ -1025,6 +988,23 @@ oneMoreTime:
         var type = expression.sourceType.type;
         _builder.EmitWithSymbolToken(OpCode.Ldtoken, type);
         _builder.EmitGetTypeFromHandle(type);
+    }
+
+    private void EmitThrowExpression(BoundThrowExpression expression, bool used) {
+        var thrown = expression.expression;
+
+        if (thrown is not null) {
+            EmitExpression(thrown, true);
+
+            var exprType = thrown.type;
+
+            if (exprType?.typeKind == TypeKind.TemplateParameter)
+                EmitBox(exprType);
+        }
+
+        _builder.Emit(thrown is null ? OpCode.Rethrow : OpCode.Throw);
+
+        EmitDefaultValue(expression.type, used, expression.syntax);
     }
 
     private void EmitArrayElementLoad(BoundArrayAccessExpression expression, bool used) {
@@ -2617,7 +2597,7 @@ oneMoreTime:
 
     private bool PartialCtorResultCannotEscape(BoundExpression left) {
         if (TargetIsNotOnHeap(left)) {
-            if (_tryNestingLevel != 0)
+            if (_builder.tryNestingLevel != 0)
                 return false;
 
             return true;

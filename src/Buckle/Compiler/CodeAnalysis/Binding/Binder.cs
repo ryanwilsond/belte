@@ -2533,7 +2533,6 @@ internal partial class Binder {
             case SyntaxKind.ReferenceType:
                 return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
             case SyntaxKind.NonNullableType:
-                // TODO Confirm this is not reachable without er
                 return ErrorExpression(node);
             case SyntaxKind.ParenthesizedExpression:
                 return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
@@ -2571,8 +2570,9 @@ internal partial class Binder {
                 return BindIndexExpression((IndexExpressionSyntax)node, diagnostics);
             case SyntaxKind.TypeOfExpression:
                 return BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics);
-            case SyntaxKind.InitializerDictionaryExpression:
             case SyntaxKind.ThrowExpression:
+                return BindThrowExpression((ThrowExpressionSyntax)node, diagnostics);
+            case SyntaxKind.InitializerDictionaryExpression:
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -2659,6 +2659,45 @@ internal partial class Binder {
                 resultType ?? CreateErrorType(),
                 true
             );
+        }
+    }
+
+    private BoundExpression BindThrowExpression(ThrowExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var hasErrors = node.containsDiagnostics;
+
+        if (!IsThrowExpressionInProperContext(node)) {
+            diagnostics.Push(Error.ThrowMisplaced(node.throwKeyword.location));
+            hasErrors = true;
+        }
+
+        var boundExpression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
+        var thrownExpression = GenerateConversionForAssignment(
+            CorLibrary.GetSpecialType(SpecialType.Exception),
+            boundExpression,
+            diagnostics
+        );
+
+        return new BoundThrowExpression(node, thrownExpression, null, hasErrors);
+    }
+
+    private static bool IsThrowExpressionInProperContext(ThrowExpressionSyntax node) {
+        var parent = node.parent;
+
+        if (parent is null || node.containsDiagnostics)
+            return true;
+
+        switch (parent.kind) {
+            case SyntaxKind.TernaryExpression:
+                var conditionalParent = (TernaryExpressionSyntax)parent;
+                return node == conditionalParent.center || node == conditionalParent.right;
+            case SyntaxKind.BinaryExpression:
+                var binaryParent = (BinaryExpressionSyntax)parent;
+                return binaryParent.operatorToken.kind == SyntaxKind.QuestionQuestionToken &&
+                    node == binaryParent.right;
+            case SyntaxKind.ExpressionStatement:
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -9026,7 +9065,7 @@ symIsHidden:;
             SyntaxKind.ForStatement => BindForStatement((ForStatementSyntax)node, diagnostics),
             SyntaxKind.BreakStatement => BindBreakStatement((BreakStatementSyntax)node, diagnostics),
             SyntaxKind.ContinueStatement => BindContinueStatement((ContinueStatementSyntax)node, diagnostics),
-            // SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
+            SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -9115,6 +9154,20 @@ symIsHidden:;
         }
 
         return new BoundContinueStatement(node, target);
+    }
+
+    private BoundStatement BindTryStatement(TryStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var tryBlock = BindBlockStatement(node.body, diagnostics);
+
+        var catchBlock = (node.catchClause is not null)
+            ? BindBlockStatement(node.catchClause.body, diagnostics)
+            : null;
+
+        var finallyBlock = (node.finallyClause is not null)
+            ? BindBlockStatement(node.finallyClause.body, diagnostics)
+            : null;
+
+        return new BoundTryStatement(node, tryBlock, catchBlock, finallyBlock);
     }
 
     private BoundStatement BindLocalFunctionStatement(

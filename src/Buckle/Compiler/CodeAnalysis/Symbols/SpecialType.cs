@@ -25,4 +25,5 @@ public enum SpecialType : byte {
     Rect,
     Texture,
     Sound,
+    Exception,
 }

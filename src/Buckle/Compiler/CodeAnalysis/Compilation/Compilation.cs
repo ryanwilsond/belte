@@ -312,9 +312,7 @@ public sealed partial class Compilation {
         }
 
         if (verbose && options.enableOutput) {
-            if (!diagnostics.AnyErrors())
-                EmitCFG();
-
+            EmitCFG();
             EmitBoundProgram();
         }
 
@@ -393,9 +391,7 @@ public sealed partial class Compilation {
         }
 
         if (verbose && options.enableOutput) {
-            if (!diagnostics.AnyErrors())
-                EmitCFG();
-
+            EmitCFG();
             EmitBoundProgram();
         }
 

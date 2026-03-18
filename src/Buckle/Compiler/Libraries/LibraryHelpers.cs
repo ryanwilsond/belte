@@ -82,7 +82,8 @@ public static class LibraryHelpers {
                 libraryName != "Compiler.Sound.blt" &&
                 libraryName != "Compiler.Sprite.blt" &&
                 libraryName != "Compiler.List.blt" &&
-                libraryName != "Compiler.Array.blt") {
+                libraryName != "Compiler.Array.blt" &&
+                libraryName != "Compiler.Exception.blt") {
                 continue;
             }
 

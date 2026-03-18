@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -21,12 +22,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         _expander = new Expander(container);
     }
 
-    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
+    internal static BoundBlockStatement Lower(
+        MethodSymbol method,
+        BoundStatement statement,
+        BelteDiagnosticQueue diagnostics) {
         var lowerer = new Lowerer(method);
 
         var rewrittenStatement = Optimizer.Optimize(statement);
 
-        rewrittenStatement = FlowLowerer.Lower(rewrittenStatement);
+        rewrittenStatement = FlowLowerer.Lower(rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, rewrittenStatement);

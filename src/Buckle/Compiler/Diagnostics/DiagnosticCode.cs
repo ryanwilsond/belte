@@ -344,6 +344,8 @@ public enum DiagnosticCode : ushort {
     ERR_DuplicateConstraint = 333,
     ERR_CannotIsCheckNonType = 334,
     ERR_CannotPassGlobalByRef = 335,
+    ERR_ThrowMisplaced = 336,
+    ERR_CannotReturnFromFinally = 337,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -29,7 +29,9 @@ internal sealed class Optimizer : BoundTreeRewriter {
         for (var i = 0; i < builder.Count; i++) {
             var statement = builder[i];
 
-            if (!reachableStatements.Contains(statement)) {
+            // TODO This only works on surface level and breaks on nested trys
+            // TODO Will have to rewrite the CFG builder from scratch fix trys later
+            if (!reachableStatements.Contains(statement) && statement.kind != BoundKind.TryStatement) {
                 var statementToRemove = statement;
                 PotentiallyReportDeadCode(statementToRemove);
                 builder.RemoveAt(i);

@@ -273,7 +273,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics) {
-        var loweredBody = Lowerer.Lower(method, body);
+        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
 
         loweredBody = LocalFunctionRewriter.Rewrite(
             loweredBody,

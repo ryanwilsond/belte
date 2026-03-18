@@ -334,7 +334,7 @@ internal sealed partial class Executor : ModuleBuilder {
             var current = type;
 
             while (current is not null) {
-                if (current.specialType == SpecialType.Object)
+                if (current.specialType is SpecialType.Object or SpecialType.Exception)
                     break;
 
                 baseStack.Push(current);
@@ -581,6 +581,8 @@ internal sealed partial class Executor : ModuleBuilder {
 
         return mapKey switch {
             "Object<>_.ctor" => MethodInfoCache.Object_ctor,
+            "Exception<>_.ctor" => MethodInfoCache.Exception_ctor,
+            "Exception<>_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
             "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
         };

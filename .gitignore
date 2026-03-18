@@ -16,3 +16,5 @@
 *.g.blt
 *.Generated.cs
 *.log
+
+*/project-words

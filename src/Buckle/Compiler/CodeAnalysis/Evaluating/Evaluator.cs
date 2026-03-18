@@ -38,6 +38,7 @@ internal sealed class Evaluator {
     private bool _hasValue;
     private MethodSymbol _lazyToString;
     private Random _lazyRandom;
+    private bool _insideTry;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -199,11 +200,15 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateStatement(
         MethodSymbol method,
         BoundBlockStatement block,
-        ValueWrapper<bool> abort) {
+        ValueWrapper<bool> abort,
+        out bool returned) {
         _hasValue = false;
-        var insideTry = false;
+        returned = false;
 
         try {
+            if (block.statements.Length == 0)
+                return _lastValue;
+
             var labelToIndex = new Dictionary<LabelSymbol, int>();
 
             for (var i = 0; i < block.statements.Length; i++) {
@@ -225,6 +230,53 @@ internal sealed class Evaluator {
                 switch (s.kind) {
                     case BoundKind.NopStatement:
                         index++;
+                        break;
+                    case BoundKind.TryStatement:
+                        var node = (BoundTryStatement)s;
+                        var previousInsideTry = _insideTry;
+                        _insideTry = true;
+
+                        try {
+                            _lastValue = EvaluateStatement(
+                                method,
+                                (BoundBlockStatement)node.body,
+                                abort,
+                                out returned
+                            );
+                        } catch (BelteException) {
+                            if (node.catchBody is null)
+                                throw;
+
+                            _lastValue = EvaluateStatement(
+                                method,
+                                (BoundBlockStatement)node.catchBody,
+                                abort,
+                                out returned
+                            );
+                        } finally {
+                            if (node.finallyBody is not null) {
+                                var previousHasValue = _hasValue;
+                                var previousLastValue = _lastValue;
+
+                                EvaluateStatement(
+                                    method,
+                                    (BoundBlockStatement)node.finallyBody,
+                                    abort,
+                                    out returned
+                                );
+
+                                _hasValue = previousHasValue;
+                                _lastValue = previousLastValue;
+                            }
+
+                            _insideTry = previousInsideTry;
+                        }
+
+                        index++;
+
+                        if (returned)
+                            return _lastValue;
+
                         break;
                     case BoundKind.ExpressionStatement:
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
@@ -252,6 +304,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundKind.ReturnStatement:
                         _hasValue = true;
+                        returned = true;
 
                         if (method.returnsVoid) {
                             if (_lastValue.Equals(EvaluatorValue.None) || !_context.options.isScript)
@@ -284,7 +337,7 @@ internal sealed class Evaluator {
             if (abort)
                 return EvaluatorValue.None;
 
-            if (insideTry)
+            if (_insideTry)
                 throw;
 
             exceptions.Add(e);
@@ -339,6 +392,7 @@ internal sealed class Evaluator {
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)node),
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node, used),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
+            BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -386,6 +440,20 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
         return EvaluatorValue.MethodGroup(node);
+    }
+
+    private EvaluatorValue EvaluateThrowExpression(BoundThrowExpression node, ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(node.expression, true, abort);
+        var location = node.syntax.location;
+
+        if (value.kind == ValueKind.Null)
+            throw new BelteNullReferenceException(location);
+
+        var exception = _context.heap[value.ptr];
+        // The message will always be the first field as Object has no fields
+        var message = exception.fields[0].@string;
+
+        throw new BelteEvaluatorException(message, location);
     }
 
     private EvaluatorValue EvaluateTypeExpression(BoundTypeExpression node) {
@@ -1636,7 +1704,7 @@ internal sealed class Evaluator {
 
         _stack.Push(frame);
 
-        var result = EvaluateStatement(method, body, abort);
+        var result = EvaluateStatement(method, body, abort, out _);
 
         _stack.Pop();
 

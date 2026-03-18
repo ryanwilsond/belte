@@ -389,13 +389,11 @@ public sealed class EvaluatorTests {
         var b = new B();
         return b.T();", "B")]
     [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r[0]++; return a.b[0];", 2)]
-    /*
     // Try statements
     [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
-    [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; } catch { a += 3; } finally { return a; }", 6)]
-    [InlineData("int a = 3; try { int b = 56/1; a += b; } catch { a += 3; } finally { return a; }", 59)]
-    */
+    [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 6)]
+    [InlineData("int a = 3; try { int b = 56/1; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 59)]
     // Templates
     // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
     // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]

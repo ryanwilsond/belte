@@ -1005,6 +1005,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             (SpecialType.Void, "System.Void"),
             (SpecialType.Type, "System.Type"),
             (SpecialType.Char, "System.Char"),
+            (SpecialType.Exception, "System.Exception"),
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
@@ -1059,6 +1060,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private void GenerateSTLMap() {
         _stlMap = new Dictionary<string, MethodReference>() {
             { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+            { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
+            { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
             { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
             { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
             { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
