@@ -41,6 +41,19 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
         while (types.Count > 0) {
             current = types.Pop();
 
+            if (current.arity > 0) {
+                foreach (var templateParameter in current.templateParameters) {
+                    typeLayout.DeclareLocal(
+                        templateParameter.underlyingType.type,
+                        templateParameter,
+                        templateParameter.name,
+                        SynthesizedLocalKind.UserDefined,
+                        CodeGeneration.LocalSlotConstraints.None,
+                        false
+                    );
+                }
+            }
+
             foreach (var member in current.GetMembers()) {
                 switch (member) {
                     case FieldSymbol field:

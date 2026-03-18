@@ -18,6 +18,8 @@ internal static class SyntaxNodeExtensions {
             if (current is ArrayRankSpecifierSyntax rankSpecifier) {
                 action(rankSpecifier, argument);
                 continue;
+            } else if (current is ArgumentSyntax syntax) {
+                type = (TypeSyntax)syntax.expression;
             } else {
                 type = (TypeSyntax)current;
             }

@@ -119,13 +119,18 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Increment(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.type.StrippedType().specialType == SpecialType.Int;
-        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Addition, operand.type, operand.type);
-        var opSignature = new BinaryOperatorSignature(opKind, operand.type, operand.type, operand.type);
+        var isInt = operand.StrippedType().specialType == SpecialType.Int;
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(
+            BinaryOperatorKind.Addition,
+            operand.Type(),
+            operand.Type()
+        );
+
+        var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            isInt ? Literal(syntax, 1L, operand.type) : Literal(syntax, 1D, operand.type),
+            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
             opSignature,
             null,
             null,
@@ -133,18 +138,18 @@ internal static partial class BoundFactory {
             null,
             LookupResultKind.Viable,
             [],
-            operand.type
+            operand.Type()
         );
     }
 
     internal static BoundCompoundAssignmentOperator Decrement(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.type.StrippedType().specialType == SpecialType.Int;
-        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.type, operand.type);
-        var opSignature = new BinaryOperatorSignature(opKind, operand.type, operand.type, operand.type);
+        var isInt = operand.StrippedType().specialType == SpecialType.Int;
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.Type(), operand.Type());
+        var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            isInt ? Literal(syntax, 1L, operand.type) : Literal(syntax, 1D, operand.type),
+            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
             opSignature,
             null,
             null,
@@ -152,7 +157,7 @@ internal static partial class BoundFactory {
             null,
             LookupResultKind.Viable,
             [],
-            operand.type
+            operand.Type()
         );
     }
 
@@ -193,7 +198,7 @@ internal static partial class BoundFactory {
         return new BoundIsOperator(
             syntax,
             expression,
-            Literal(syntax, null, expression.type),
+            Literal(syntax, null, expression.Type()),
             true,
             null,
             CorLibrary.GetSpecialType(SpecialType.Bool)

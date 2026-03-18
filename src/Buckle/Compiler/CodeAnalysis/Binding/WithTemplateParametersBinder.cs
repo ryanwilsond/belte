@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -17,6 +18,7 @@ internal abstract class WithTemplateParametersBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         if ((options & _lookupMask) != 0)
             return;
@@ -24,8 +26,16 @@ internal abstract class WithTemplateParametersBinder : Binder {
         if (!_templateParameterMap.TryGetValue(name, out var value))
             return;
 
-        foreach (var templateParameter in value)
-            result.MergeEqual(originalBinder.CheckViability(templateParameter, arity, options, null, diagnose));
+        foreach (var templateParameter in value) {
+            result.MergeEqual(originalBinder.CheckViability(
+                templateParameter,
+                arity,
+                options,
+                null,
+                diagnose,
+                errorLocation
+            ));
+        }
     }
 
     private protected bool CanConsiderTypeParameters(LookupOptions options) {

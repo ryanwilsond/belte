@@ -31,7 +31,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
     );
 
     public static readonly SymbolDisplayFormat FullyQualifiedNameFormat = new SymbolDisplayFormat(
@@ -39,6 +39,14 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+    );
+
+    public static readonly SymbolDisplayFormat ToStringNameFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes | SymbolDisplayQualificationStyle.IncludeContainingNamespaces,
+        templateOptions: SymbolDisplayTemplateOptions.None,
+        memberOptions: SymbolDisplayMemberOptions.None,
+        parameterOptions: SymbolDisplayParameterOptions.None,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
 
@@ -86,4 +94,14 @@ public sealed class SymbolDisplayFormat {
     internal SymbolDisplayParameterOptions parameterOptions { get; }
 
     internal SymbolDisplayMiscellaneousOptions miscellaneousOptions { get; }
+
+    internal SymbolDisplayFormat WithOptions(SymbolDisplayMiscellaneousOptions options) {
+        return new SymbolDisplayFormat(
+            qualificationStyle,
+            templateOptions,
+            memberOptions,
+            parameterOptions,
+            miscellaneousOptions | options
+        );
+    }
 }

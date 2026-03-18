@@ -306,7 +306,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
     internal override BoundNode VisitThisExpression(BoundThisExpression node) {
         return _currentMethod == _topLevelMethod || _topLevelMethod.thisParameter is null
             ? node
-            : FramePointer(node.syntax, (NamedTypeSymbol)node.type);
+            : FramePointer(node.syntax, (NamedTypeSymbol)node.Type());
     }
 
     internal override BoundNode VisitBaseExpression(BoundBaseExpression node) {
@@ -446,14 +446,16 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             TypeOrConstant oldTypeArg;
             var newTypeArg = templateArgument;
 
-            do {
-                oldTypeArg = newTypeArg;
-                newTypeArg = _templateMap.SubstituteType(oldTypeArg.type);
-            } while (!TypeSymbol.Equals(
-                oldTypeArg.type.type,
-                newTypeArg.type.type,
-                TypeCompareKind.ConsiderEverything
-            ));
+            if (newTypeArg.isType) {
+                do {
+                    oldTypeArg = newTypeArg;
+                    newTypeArg = _templateMap.SubstituteType(oldTypeArg.type);
+                } while (!TypeSymbol.Equals(
+                    oldTypeArg.type.type,
+                    newTypeArg.type.type,
+                    TypeCompareKind.ConsiderEverything
+                ));
+            }
 
             builder.Add(newTypeArg);
         }
@@ -488,7 +490,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         if (node.method.methodKind == MethodKind.LocalFunction) {
             var args = VisitList(node.arguments);
             var argRefKinds = node.argumentRefKinds;
-            var type = VisitType(node.type);
+            var type = VisitType(node.Type());
 
             RemapLocalFunction(
                 node.syntax,
@@ -606,7 +608,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
                 var assignment = new BoundExpressionStatement(
                     syntax,
-                    new BoundAssignmentOperator(syntax, left, right, false, left.type)
+                    new BoundAssignmentOperator(syntax, left, right, false, left.Type())
                 );
 
                 prologue.Add(assignment);
@@ -689,7 +691,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 (syntax, framePointer)
             );
 
-            var assignToProxy = new BoundAssignmentOperator(syntax, left, value, false, value.type);
+            var assignToProxy = new BoundAssignmentOperator(syntax, left, value, false, value.Type());
 
             if (_currentMethod.methodKind == MethodKind.Constructor &&
                 symbol == _currentMethod.thisParameter &&

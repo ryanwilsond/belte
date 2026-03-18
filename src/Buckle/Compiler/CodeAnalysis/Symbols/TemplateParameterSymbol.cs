@@ -43,6 +43,12 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract int ordinal { get; }
 
+    internal abstract bool isOptional { get; }
+
+    internal abstract bool allowsRefLikeType { get; }
+
+    internal abstract bool hasNotNullConstraint { get; }
+
     internal abstract bool hasPrimitiveTypeConstraint { get; }
 
     internal abstract bool hasObjectTypeConstraint { get; }
@@ -118,7 +124,7 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
         ImmutableArray<TypeWithAnnotations> constraintTypes) {
         foreach (var constraintType in constraintTypes) {
-            if (constraintType.type.isPrimitiveType)
+            if (constraintType.type.StrippedType().isPrimitiveType)
                 return true;
         }
 
@@ -146,6 +152,9 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0)
+            other = other.StrippedType();
+
         return Equals(other as TemplateParameterSymbol, compareKind);
     }
 

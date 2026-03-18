@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -53,8 +54,8 @@ internal sealed partial class OverloadResolution {
             BoundExpression right,
             BinaryOperatorOverloadResolutionResult result) {
             var hadApplicableCandidates = false;
-            var leftOperatorSource = left.type?.StrippedType();
-            var rightOperatorSource = right.type?.StrippedType();
+            var leftOperatorSource = left.Type()?.StrippedType();
+            var rightOperatorSource = right.Type()?.StrippedType();
 
             if (leftOperatorSource is not null) {
                 hadApplicableCandidates = GetUserDefinedOperators(
@@ -327,10 +328,10 @@ internal sealed partial class OverloadResolution {
         UnaryOperatorKind kind,
         BoundExpression operand,
         ArrayBuilder<UnaryOperatorAnalysisResult> results) {
-        if (operand.type is null)
+        if (operand.Type() is null)
             return false;
 
-        var type0 = operand.type.StrippedType();
+        var type0 = operand.StrippedType();
         TypeSymbol constrainedToTypeOpt = type0 as TemplateParameterSymbol;
 
         if (OperatorFacts.NoUserDefinedOperators(type0))
@@ -776,7 +777,12 @@ internal sealed partial class OverloadResolution {
         MethodSymbol constructor,
         AnalyzedArguments arguments,
         bool completeResults) {
-        var argumentAnalysis = AnalyzeArguments(constructor, arguments, isMethodGroupConversion: false, false);
+        var argumentAnalysis = AnalyzeArguments(
+            constructor.GetParameters().ToImmutableArray<Symbol>(),
+            arguments,
+            isMethodGroupConversion: false,
+            false
+        );
 
         if (!argumentAnalysis.isValid)
             return MemberAnalysisResult.ArgumentParameterMismatch(argumentAnalysis);
@@ -1245,7 +1251,7 @@ internal sealed partial class OverloadResolution {
     private BetterResult BetterFunctionMember<TMember>(
         MemberResolutionResult<TMember> m1,
         MemberResolutionResult<TMember> m2,
-        ArrayBuilder<BoundExpression> arguments)
+        ArrayBuilder<BoundExpressionOrTypeOrConstant> arguments)
         where TMember : Symbol {
         switch (RequiredFunctionType(m1), RequiredFunctionType(m2)) {
             case (false, true):
@@ -1266,7 +1272,7 @@ internal sealed partial class OverloadResolution {
     private BetterResult BetterFunctionMember<TMember>(
         MemberResolutionResult<TMember> m1,
         MemberResolutionResult<TMember> m2,
-        ArrayBuilder<BoundExpression> arguments,
+        ArrayBuilder<BoundExpressionOrTypeOrConstant> arguments,
         bool considerRefKinds)
         where TMember : Symbol {
         var result = BetterResult.Neither;
@@ -1279,7 +1285,7 @@ internal sealed partial class OverloadResolution {
         var allSame = true;
         int i;
         for (i = 0; i < arguments.Count; i++) {
-            var argumentKind = arguments[i].kind;
+            var argumentKind = arguments[i].expression.kind;
 
             var type1 = GetParameterTypeAndRefKind(
                 i,
@@ -1298,7 +1304,7 @@ internal sealed partial class OverloadResolution {
             BetterResult r;
 
             r = BetterConversionFromExpression(
-                arguments[i],
+                arguments[i].expression,
                 type1,
                 m1.result.ConversionForArg(i),
                 parameter1RefKind,
@@ -1365,7 +1371,7 @@ internal sealed partial class OverloadResolution {
 
         if (allSame && m1ParametersUsedIncludingOptional == m2ParametersUsedIncludingOptional) {
             for (i = i + 1; i < arguments.Count; i++) {
-                var argumentKind = arguments[i].kind;
+                var argumentKind = arguments[i].expression.kind;
 
                 var type1 = GetParameterTypeAndRefKind(i, m1.result, m1LeastOverriddenParameters, out _);
                 var type2 = GetParameterTypeAndRefKind(i, m2.result, m2LeastOverriddenParameters, out _);
@@ -1468,7 +1474,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private static BetterResult PreferValOverInOrRefInterpolatedHandlerParameters<TMember>(
-        ArrayBuilder<BoundExpression> arguments,
+        ArrayBuilder<BoundExpressionOrTypeOrConstant> arguments,
         MemberResolutionResult<TMember> m1,
         ImmutableArray<ParameterSymbol> parameters1,
         MemberResolutionResult<TMember> m2,
@@ -1657,7 +1663,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private bool ExpressionMatchExactly(BoundExpression node, TypeSymbol t) {
-        if (node.type is not null && Conversions.HasIdentityConversion(node.type, t))
+        if (node.Type() is not null && Conversions.HasIdentityConversion(node.Type(), t))
             return true;
 
         return false;
@@ -1739,7 +1745,7 @@ internal sealed partial class OverloadResolution {
 
     private static void GetParameterCounts<TMember>(
         MemberResolutionResult<TMember> m,
-        ArrayBuilder<BoundExpression> arguments,
+        ArrayBuilder<BoundExpressionOrTypeOrConstant> arguments,
         out int declaredParameterCount,
         out int parametersUsedIncludingExpansionAndOptional)
         where TMember : Symbol {
@@ -1773,7 +1779,12 @@ internal sealed partial class OverloadResolution {
         AnalyzedArguments arguments,
         bool completeResults)
         where TMember : Symbol {
-        var argumentAnalysis = AnalyzeArguments(member, arguments, isMethodGroupConversion: false, expanded: false);
+        var argumentAnalysis = AnalyzeArguments(
+            member.GetParameters().ToImmutableArray<Symbol>(),
+            arguments,
+            isMethodGroupConversion: false,
+            expanded: false
+        );
 
         if (!argumentAnalysis.isValid) {
             switch (argumentAnalysis.kind) {
@@ -1900,25 +1911,22 @@ internal sealed partial class OverloadResolution {
             ImmutableArray<TypeOrConstant> typeArguments;
 
             if (typeArgumentsBuilder.Count > 0) {
-                // generic type arguments explicitly specified at call-site:
                 typeArguments = typeArgumentsBuilder.ToImmutable();
             } else {
-                // infer generic type arguments:
-                // TODO templates
-                typeArguments = default;
-                // typeArguments = InferMethodTypeArguments(method,
-                //                     leastOverriddenMethod.ConstructedFrom.TypeParameters,
-                //                     arguments,
-                //                     constructedFromEffectiveParameters,
-                //                     out hasTypeArgumentsInferredFromFunctionType,
-                //                     out var inferenceError,
-                //                     ref useSiteInfo);
+                typeArguments = InferMethodTypeArguments(
+                    method,
+                    leastOverriddenMethod.constructedFrom.templateParameters,
+                    arguments,
+                    constructedFromEffectiveParameters,
+                    out hasTypeArgumentsInferredFromFunctionType,
+                    out var inferenceError
+                );
 
                 if (typeArguments.IsDefault) {
                     return new MemberResolutionResult<TMember>(
                         member,
                         leastOverriddenMember,
-                        default, // inference error
+                        inferenceError,
                         hasTypeArgumentInferredFromFunctionType: false
                     );
                 }
@@ -1928,12 +1936,23 @@ internal sealed partial class OverloadResolution {
             leastOverriddenMember = (TMember)(Symbol)leastOverriddenMethod.constructedFrom.Construct(typeArguments);
 
             var parameterTypes = leastOverriddenMember.GetParameterTypes();
+            var parameters = leastOverriddenMember.GetParameters();
 
             for (var i = 0; i < parameterTypes.Length; i++) {
-                // TODO template constraints
-                // if (!parameterTypes[i].type.CheckAllConstraints(compilation, Conversions)) {
-                //     return new MemberResolutionResult<TMember>(member, leastOverriddenMember, MemberAnalysisResult.ConstructedParameterFailedConstraintsCheck(i), hasTypeArgumentsInferredFromFunctionType);
-                // }
+                var _ = BelteDiagnosticQueue.GetInstance();
+                parameterTypes[i].type.CheckAllConstraints(parameters[i].location, _);
+
+                if (_.Any()) {
+                    _.Free();
+                    return new MemberResolutionResult<TMember>(
+                        member,
+                        leastOverriddenMember,
+                        MemberAnalysisResult.ConstructedParameterFailedConstraintsCheck(i),
+                        hasTypeArgumentsInferredFromFunctionType
+                    );
+                }
+
+                _.Free();
             }
 
             var map = new TemplateMap(leastOverriddenMethod.templateParameters, typeArguments); // ? allowAlpha: true
@@ -1965,6 +1984,37 @@ internal sealed partial class OverloadResolution {
         );
     }
 
+    private ImmutableArray<TypeOrConstant> InferMethodTypeArguments(
+        MethodSymbol method,
+        ImmutableArray<TemplateParameterSymbol> originalTemplateParameters,
+        AnalyzedArguments arguments,
+        EffectiveParameters originalEffectiveParameters,
+        out bool hasTypeArgumentsInferredFromFunctionType,
+        out MemberAnalysisResult error) {
+        // TODO Type inferrer
+        // var args = arguments.arguments.ToImmutable();
+
+        // var inferenceResult = MethodTypeInferrer.Infer(
+        //     _binder,
+        //     _binder.Conversions,
+        //     originalTemplateParameters,
+        //     method.ContainingType,
+        //     originalEffectiveParameters.ParameterTypes,
+        //     originalEffectiveParameters.ParameterRefKinds,
+        //     args,
+        //     ref useSiteInfo);
+
+        // if (inferenceResult.Success) {
+        //     hasTypeArgumentsInferredFromFunctionType = inferenceResult.HasTypeArgumentInferredFromFunctionType;
+        //     error = default;
+        //     return inferenceResult.InferredTypeArguments;
+        // }
+
+        hasTypeArgumentsInferredFromFunctionType = false;
+        error = MemberAnalysisResult.TypeInferenceFailed();
+        return default;
+    }
+
     private MemberAnalysisResult IsApplicable(
         Symbol candidate,
         EffectiveParameters parameters,
@@ -1991,7 +2041,7 @@ internal sealed partial class OverloadResolution {
 
             conversion = CheckArgumentForApplicability(
                 candidate,
-                argument,
+                argument.expression,
                 argumentRefKind,
                 parameters.parameterTypes[argumentPosition].type,
                 parameterRefKind
@@ -2042,7 +2092,7 @@ internal sealed partial class OverloadResolution {
         if (argRefKind != parRefKind)
             return Conversion.None;
 
-        var argType = argument.type;
+        var argType = argument.Type();
 
         if (argRefKind == RefKind.None) {
             var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
@@ -2098,13 +2148,11 @@ internal sealed partial class OverloadResolution {
         return containingTypeMap;
     }
 
-    private static ArgumentAnalysisResult AnalyzeArguments(
-        Symbol symbol,
+    internal static ArgumentAnalysisResult AnalyzeArguments(
+        ImmutableArray<Symbol> parameters,
         AnalyzedArguments arguments,
         bool isMethodGroupConversion,
         bool expanded) {
-        var parameters = symbol.GetParameters();
-
         if (!expanded && arguments.names.Count == 0)
             return AnalyzeArgumentsForNormalFormNoNamedArguments(parameters, arguments, isMethodGroupConversion);
 
@@ -2140,8 +2188,7 @@ internal sealed partial class OverloadResolution {
                     parametersPositions[i] = i;
             }
 
-            if (parametersPositions is not null)
-                parametersPositions[argumentPosition] = parameterPosition;
+            parametersPositions?[argumentPosition] = parameterPosition;
         }
 
         var argsToParameters = new ParameterMap(parametersPositions, argumentCount);
@@ -2233,7 +2280,7 @@ internal sealed partial class OverloadResolution {
 
     private static int? CheckForMissingRequiredParameter(
         ParameterMap argsToParameters,
-        ImmutableArray<ParameterSymbol> parameters,
+        ImmutableArray<Symbol> parameters,
         bool isMethodGroupConversion,
         bool expanded) {
         var count = expanded ? parameters.Length - 1 : parameters.Length;
@@ -2261,7 +2308,9 @@ internal sealed partial class OverloadResolution {
         return null;
     }
 
-    private static int? NameUsedForPositional(AnalyzedArguments arguments, ParameterMap argsToParameters) {
+    private static int? NameUsedForPositional(
+        AnalyzedArguments arguments,
+        ParameterMap argsToParameters) {
         if (argsToParameters.isTrivial)
             return null;
 
@@ -2285,7 +2334,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private static int? CorrespondsToAnyParameter(
-        ImmutableArray<ParameterSymbol> memberParameters,
+        ImmutableArray<Symbol> memberParameters,
         bool expanded,
         AnalyzedArguments arguments,
         int argumentPosition,
@@ -2327,7 +2376,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private static ArgumentAnalysisResult AnalyzeArgumentsForNormalFormNoNamedArguments(
-        ImmutableArray<ParameterSymbol> parameters,
+        ImmutableArray<Symbol> parameters,
         AnalyzedArguments arguments,
         bool isMethodGroupConversion) {
         var parameterCount = parameters.Length;
@@ -2347,8 +2396,8 @@ internal sealed partial class OverloadResolution {
         return ArgumentAnalysisResult.NormalForm(default);
     }
 
-    private static bool CanBeOptional(ParameterSymbol parameter, bool isMethodGroupConversion) {
-        return !isMethodGroupConversion && parameter.isOptional;
+    private static bool CanBeOptional(Symbol parameter, bool isMethodGroupConversion) {
+        return !isMethodGroupConversion && parameter.IsOptional();
     }
 
     private static bool MemberGroupContainsMoreDerivedOverride<TMember>(

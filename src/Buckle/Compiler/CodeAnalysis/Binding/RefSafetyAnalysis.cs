@@ -448,7 +448,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         if (expression.constantValue is not null)
             return CallingMethodScope;
 
-        if (expression.type?.IsRefLikeOrAllowsRefLikeType() != true)
+        if (expression.Type()?.IsRefLikeOrAllowsRefLikeType() != true)
             return CallingMethodScope;
 
         switch (expression.kind) {
@@ -640,7 +640,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         if (expression.constantValue is not null)
             return true;
 
-        if (expression.type?.IsRefLikeOrAllowsRefLikeType() != true)
+        if (expression.Type()?.IsRefLikeOrAllowsRefLikeType() != true)
             return true;
 
         switch (expression.kind) {
@@ -1029,7 +1029,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 if (refKind != RefKind.None)
                     escapeValues.Add(new EscapeValue(null, argument, EscapeLevel.ReturnOnly, true));
 
-                if (argument.type?.IsRefLikeOrAllowsRefLikeType() == true)
+                if (argument.Type()?.IsRefLikeOrAllowsRefLikeType() == true)
                     escapeValues.Add(new EscapeValue(null, argument, EscapeLevel.CallingMethod, false));
 
                 continue;
@@ -1133,11 +1133,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             if (method is not null &&
                 method.TryGetThisParameter(out thisParameter) &&
                 thisParameter is not null) {
-                if (receiver.type is TemplateParameterSymbol typeParameter) {
-                    // Pretend that the type of the parameter is the type parameter
-                    // TODO
-                    // thisParameter = new TypeParameterThisParameterSymbol(thisParameter, typeParameter);
-                }
+                if (receiver.type is TemplateParameterSymbol typeParameter)
+                    thisParameter = new TemplateParameterThisParameterSymbol(thisParameter, typeParameter);
 
                 refKind = thisParameter.refKind;
             }
@@ -1372,7 +1369,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 }
             }
 
-            if (!hasErrors && op1.type.IsRefLikeOrAllowsRefLikeType()) {
+            if (!hasErrors && op1.Type().IsRefLikeOrAllowsRefLikeType()) {
                 var leftEscape = GetValEscape(op1, _localScopeDepth);
                 ValidateEscape(op2, leftEscape, isByRef: false, diagnostics);
             }

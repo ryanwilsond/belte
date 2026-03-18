@@ -6,8 +6,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class TemplateMap {
     private static readonly TemplateMap _empty = new TemplateMap();
-    private static readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _emptyDictionary
-        = new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
+    private static Dictionary<TemplateParameterSymbol, TypeOrConstant> _emptyDictionary
+        => new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
 
     internal static TemplateMap Empty => _empty;
 
@@ -67,7 +67,7 @@ internal sealed class TemplateMap {
         if (_mapping.TryGetValue(templateParameter, out var result))
             return result;
 
-        return null;
+        return new TypeOrConstant(templateParameter);
     }
 
     internal TypeOrConstant SubstituteType(TypeSymbol previous) {

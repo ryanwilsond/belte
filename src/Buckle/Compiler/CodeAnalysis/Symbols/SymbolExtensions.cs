@@ -21,6 +21,18 @@ internal static class SymbolExtensions {
         return SyntaxTree.Dummy.GetRoot();
     }
 
+    internal static Symbol ConstructedFrom(this Symbol symbol) {
+        switch (symbol.kind) {
+            case SymbolKind.NamedType:
+            case SymbolKind.ErrorType:
+                return ((NamedTypeSymbol)symbol).constructedFrom;
+            case SymbolKind.Method:
+                return ((MethodSymbol)symbol).constructedFrom;
+            default:
+                return symbol;
+        }
+    }
+
     internal static int GetArity(this Symbol symbol) {
         if (symbol is not null) {
             switch (symbol.kind) {

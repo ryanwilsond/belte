@@ -56,18 +56,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <left> = new Nullable(<right>)
 
         */
-        if (expression.left.type.IsNullableType() &&
-            !expression.right.type.IsNullableType() &&
-            CodeGenerator.IsValueType(expression.right.type)) {
+        if (expression.left.Type().IsNullableType() &&
+            !expression.right.Type().IsNullableType() &&
+            CodeGenerator.IsValueType(expression.right.Type())) {
             var syntax = expression.syntax;
 
             return VisitAssignmentOperator(
                 Assignment(
                     syntax,
                     expression.left,
-                    CreateNullable(syntax, expression.right, expression.left.type),
+                    CreateNullable(syntax, expression.right, expression.left.Type()),
                     expression.isRef,
-                    expression.type
+                    expression.Type()
                 )
             );
         }
@@ -88,8 +88,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var declaration = statement.declaration;
 
         if (declaration.dataContainer.type.IsNullableType() &&
-            !declaration.initializer.type.IsNullableType() &&
-            CodeGenerator.IsValueType(declaration.initializer.type)) {
+            !declaration.initializer.Type().IsNullableType() &&
+            CodeGenerator.IsValueType(declaration.initializer.Type())) {
             var syntax = statement.syntax;
             return VisitLocalDeclarationStatement(new BoundLocalDeclarationStatement(syntax,
                 new BoundDataContainerDeclaration(syntax,
@@ -97,7 +97,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     CreateNullable(
                         syntax,
                         declaration.initializer,
-                        CorLibrary.GetOrCreateNullableType(declaration.initializer.type)
+                        CorLibrary.GetOrCreateNullableType(declaration.initializer.Type())
                     )
                 )
             ));
@@ -118,7 +118,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var condition = (BoundExpression)Visit(expression.condition);
 
-        if (condition.constantValue is null && condition.type.IsNullableType()) {
+        if (condition.constantValue is null && condition.Type().IsNullableType()) {
             var syntax = expression.syntax;
 
             return VisitConditionalOperator(
@@ -129,7 +129,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.trueExpression,
                     expression.falseExpression,
                     null,
-                    expression.type
+                    expression.Type()
                 )
             );
         }
@@ -154,7 +154,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var condition = (BoundExpression)Visit(statement.condition);
 
         if (condition.constantValue is null &&
-            condition.type.IsNullableType()) {
+            condition.Type().IsNullableType()) {
             var syntax = statement.syntax;
 
             if (condition is BoundConditionalOperator conditional) {
@@ -208,7 +208,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var op = expression.operatorKind;
-        var type = expression.type;
+        var type = expression.Type();
 
         if (op.Operator() == BinaryOperatorKind.Power) {
             return Visit(
@@ -240,8 +240,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 right = rCast.operand;
             }
 
-            var leftIsNullable = left.type.IsNullableType();
-            var rightIsNullable = right.type.IsNullableType();
+            var leftIsNullable = left.Type().IsNullableType();
+            var rightIsNullable = right.Type().IsNullableType();
 
             if (op.IsConditional() && (leftIsNullable || rightIsNullable)) {
                 var coalescedLeft = leftIsNullable
@@ -267,9 +267,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         ),
                         @then: CreateNullable(syntax,
                             Binary(syntax,
-                                Value(syntax, left, left.type.GetNullableUnderlyingType()),
+                                Value(syntax, left, left.Type().GetNullableUnderlyingType()),
                                 op,
-                                Value(syntax, right, right.type.GetNullableUnderlyingType()),
+                                Value(syntax, right, right.Type().GetNullableUnderlyingType()),
                                 type.StrippedType()
                                 ),
                             type
@@ -286,7 +286,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         @if: HasValue(syntax, left),
                         @then: CreateNullable(syntax,
                             Binary(syntax,
-                                Value(syntax, left, left.type.GetNullableUnderlyingType()),
+                                Value(syntax, left, left.Type().GetNullableUnderlyingType()),
                                 op,
                                 DeNull(right),
                                 type.StrippedType()
@@ -307,7 +307,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                             Binary(syntax,
                                 DeNull(left),
                                 op,
-                                Value(syntax, right, right.type.GetNullableUnderlyingType()),
+                                Value(syntax, right, right.Type().GetNullableUnderlyingType()),
                                 type.StrippedType()
                             ),
                             type
@@ -337,9 +337,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return VisitConditionalOperator(
             Conditional(syntax,
                 @if: HasValue(syntax, expression.left),
-                @then: Value(syntax, expression.left, expression.left.type.StrippedType()),
+                @then: Value(syntax, expression.left, expression.left.StrippedType()),
                 @else: expression.right,
-                expression.type
+                expression.Type()
             )
         );
     }
@@ -371,20 +371,20 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (op == UnaryOperatorKind.UnaryPlus)
             return Visit(expression.operand);
 
-        if (op.IsLifted() && expression.operand.type.IsNullableType()) {
+        if (op.IsLifted() && expression.operand.Type().IsNullableType()) {
             return VisitConditionalOperator(
                 Conditional(syntax,
                     @if: HasValue(syntax, expression.operand),
                     @then: CreateNullable(syntax,
                         Unary(syntax,
                             op,
-                            Value(syntax, expression.operand, expression.operand.type.GetNullableUnderlyingType()),
-                            expression.type.StrippedType()
+                            Value(syntax, expression.operand, expression.operand.Type().GetNullableUnderlyingType()),
+                            expression.StrippedType()
                         ),
                         expression.type
                     ),
-                    @else: Literal(syntax, null, expression.type),
-                    expression.type
+                    @else: Literal(syntax, null, expression.Type()),
+                    expression.Type()
                 )
             );
         }
@@ -395,12 +395,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
     internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
         var syntax = expression.syntax;
 
-        if (expression.index.type.IsNullableType()) {
+        if (expression.index.Type().IsNullableType()) {
             return Visit(new BoundArrayAccessExpression(syntax,
                 expression.receiver,
                 RewriteNull(syntax, expression.index),
                 expression.constantValue,
-                expression.type
+                expression.Type()
             ));
         }
 
@@ -425,14 +425,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 syntax,
                 [Literal(syntax, (long)expression.items.Length, sizeType)],
                 VisitNonIsolatedList(expression),
-                expression.type
+                expression.Type()
             )
         );
     }
 
     private BoundInitializerList VisitNonIsolatedList(BoundInitializerList expression) {
         var syntax = expression.syntax;
-        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+        var arrayType = (ArrayTypeSymbol)expression.StrippedType();
         ArrayBuilder<BoundExpression>? newList = null;
 
         for (var i = 0; i < expression.items.Length; i++) {
@@ -451,13 +451,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         if (newList is not null)
-            return new BoundInitializerList(syntax, newList.ToImmutableAndFree(), expression.type);
+            return new BoundInitializerList(syntax, newList.ToImmutableAndFree(), expression.Type());
 
         return expression;
 
         BoundNode VisitListItem(BoundExpression item) {
             if (ShouldBeTreatedAsNullable(arrayType.elementType) &&
-                !item.type.IsNullableType()) {
+                !item.Type().IsNullableType()) {
                 if (item.constantValue is null)
                     return Visit(CreateNullable(syntax, item, arrayType.elementType));
                 else
@@ -475,7 +475,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             ? null
             : VisitNonIsolatedList(expression.initializer);
 
-        var type = VisitType(expression.type);
+        var type = VisitType(expression.Type());
         return expression.Update(sizes, initializer, type);
     }
 
@@ -540,28 +540,27 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
 
         if (expression.right.IsLiteralNull()) {
-            if (ShouldBeTreatedAsNullable(expression.left.type)) {
+            if (ShouldBeTreatedAsNullable(expression.left.Type())) {
                 var call = InstanceCall(
                     syntax,
                     expression.left,
-                    CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)
-                        .Construct([new TypeOrConstant(expression.left.type.GetNullableUnderlyingType())])
+                    CreateNullableGetHasValueSymbol(expression.left.Type().GetNullableUnderlyingType())
                 );
 
                 if (expression.isNot)
                     return Visit(call);
 
-                return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.type));
+                return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.Type()));
             }
 
             var binaryOp = expression.isNot ? BinaryOperatorKind.NotEqual : BinaryOperatorKind.Equal;
-            var right = Literal(expression.right.syntax, null, expression.left.type);
+            var right = Literal(expression.right.syntax, null, expression.left.Type());
 
-            binaryOp |= expression.left.type.specialType == SpecialType.String
+            binaryOp |= expression.left.Type().specialType == SpecialType.String
                 ? BinaryOperatorKind.String
                 : BinaryOperatorKind.Object;
 
-            return Visit(Binary(syntax, expression.left, binaryOp, right, expression.type));
+            return Visit(Binary(syntax, expression.left, binaryOp, right, expression.Type()));
         }
 
         return base.VisitIsOperator(expression);
@@ -577,8 +576,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <operand>.get_Value
 
         */
-        if (ShouldBeTreatedAsNullable(expression.operand.type))
-            return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.type));
+        if (ShouldBeTreatedAsNullable(expression.operand.Type()))
+            return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
 
         return base.VisitNullAssertOperator(expression);
     }
@@ -590,8 +589,34 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return InstanceCall(
             syntax,
             operand,
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)
-                .Construct([new TypeOrConstant(genericType)])
+            CreateNullableGetValueSymbol(genericType)
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetHasValueSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateNullableCtorSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateMethodAsMemberOfNullable(MethodSymbol method, TypeSymbol genericType) {
+        return (MethodSymbol)method.SymbolAsMember(
+            CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(genericType)])
         );
     }
 
@@ -619,8 +644,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = expression.syntax;
         var operand = expression.operand;
-        var type = expression.type;
-        var operandType = operand.type;
+        var type = expression.Type();
+        var operandType = operand.Type();
 
         if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
             return Visit(operand);
@@ -706,10 +731,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
         var method = expression.method;
 
-        if (method.name == "Value" && !expression.arguments[0].type.IsNullableType())
+        if (method.name == "Value" && !expression.arguments[0].Type().IsNullableType())
             return Visit(expression.arguments[0]);
-        else if (method.name == "HasValue" && !expression.arguments[0].type.IsNullableType())
-            return Literal(syntax, true, expression.type);
+        else if (method.name == "HasValue" && !expression.arguments[0].Type().IsNullableType())
+            return Literal(syntax, true, expression.Type());
 
         ArrayBuilder<BoundExpression> builder = null;
 
@@ -740,7 +765,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 expression.argumentRefKinds,
                 expression.defaultArguments,
                 expression.resultKind,
-                expression.type
+                expression.Type()
             )
         );
     }
@@ -766,11 +791,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.right,
                     expression.op.kind,
                     expression.op.method,
-                    ConstantFolding.FoldBinary(expression.left, expression.right, expression.op.kind, expression.type),
-                    expression.type
+                    ConstantFolding.FoldBinary(expression.left, expression.right, expression.op.kind, expression.Type()),
+                    expression.Type()
                 ),
                 false,
-                expression.type
+                expression.Type()
             )
         );
     }
@@ -795,10 +820,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.left,
                     expression.right,
                     null,
-                    expression.type
+                    expression.Type()
                 ),
                 false,
-                expression.type
+                expression.Type()
             )
         );
     }
@@ -862,8 +887,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         return new BoundObjectCreationExpression(
             syntax,
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
-                .Construct([new TypeOrConstant(nullableType.GetNullableUnderlyingType())]),
+            CreateNullableCtorSymbol(nullableType.GetNullableUnderlyingType()),
             [expression],
             default,
             default,
@@ -875,7 +899,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundNode VisitConstant(BoundExpression expression) {
         var syntax = expression.syntax;
-        var type = expression.type;
+        var type = expression.Type();
 
         if (expression.constantValue.value is null)
             type = CorLibrary.GetOrCreateNullableType(type);
@@ -907,12 +931,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 RewriteNull(syntax, binary.left),
                 binary.operatorKind,
                 RewriteNull(syntax, binary.right),
-                binary.type.StrippedType()
+                binary.StrippedType()
             );
         }
 
-        if (expression.type.IsNullableType())
-            return Value(syntax, expression, expression.type.GetNullableUnderlyingType());
+        if (expression.Type().IsNullableType())
+            return Value(syntax, expression, expression.Type().GetNullableUnderlyingType());
 
         return expression;
     }
@@ -921,6 +945,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.constantValue is null)
             return expression;
 
-        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.type.StrippedType());
+        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.StrippedType());
     }
 }

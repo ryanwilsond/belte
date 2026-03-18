@@ -36,6 +36,7 @@ internal sealed class InMethodBinder : LocalScopeBinder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         var parameterMap = _lazyParameterMap;
 
@@ -56,8 +57,16 @@ internal sealed class InMethodBinder : LocalScopeBinder {
         }
 
         if (parameterMap.TryGetValue(name, out var parameterSymbols)) {
-            foreach (var parameterSymbol in parameterSymbols)
-                result.MergeEqual(originalBinder.CheckViability(parameterSymbol, arity, options, null, diagnose));
+            foreach (var parameterSymbol in parameterSymbols) {
+                result.MergeEqual(originalBinder.CheckViability(
+                    parameterSymbol,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    errorLocation
+                ));
+            }
         }
     }
 

@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed partial class OverloadResolution {
-    private readonly struct ParameterMap {
+    internal readonly struct ParameterMap {
         private readonly int[] _parameters;
         private readonly int _length;
 

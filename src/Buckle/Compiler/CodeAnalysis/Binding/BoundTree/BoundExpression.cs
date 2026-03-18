@@ -22,6 +22,20 @@ internal abstract partial class BoundExpression : BoundNode {
         };
     }
 
+    internal TypeSymbol Type() {
+        if (type is null)
+            return null;
+
+        return type.UnderlyingTemplateTypeOrSelf();
+    }
+
+    internal TypeSymbol StrippedType() {
+        if (type is null)
+            return null;
+
+        return type.StrippedType().UnderlyingTemplateTypeOrSelf().StrippedType();
+    }
+
     internal bool IsLiteralNull() {
         return kind == BoundKind.LiteralExpression && ConstantValue.IsNull(constantValue);
     }

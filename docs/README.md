@@ -11,7 +11,6 @@
   - [Building Buckle](Building.md)
   - [Using Buckle](Buckle.md)
   - [Using the Repl](Repl.md)
-  - [Diagnostic Codes](DiagnosticCodes.md)
 
 - #### Belte Language Docs in Its Current State
 

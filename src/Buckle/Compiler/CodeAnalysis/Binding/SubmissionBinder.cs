@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -45,6 +46,7 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         LookupMembersInSubmissions(
             result,
@@ -54,10 +56,20 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
             basesBeingResolved,
             options,
             originalBinder,
+            errorLocation,
             diagnose
         );
 
-        base.LookupSymbolsInSingleBinder(result, name, arity, basesBeingResolved, options, originalBinder, diagnose);
+        base.LookupSymbolsInSingleBinder(
+            result,
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            originalBinder,
+            errorLocation,
+            diagnose
+        );
     }
 
     internal override void AddLookupSymbolsInfoInSingleBinder(

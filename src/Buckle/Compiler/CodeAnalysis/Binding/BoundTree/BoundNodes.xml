@@ -82,8 +82,8 @@
   <Node Name="BoundAsOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
-    <Field Name="operandPlaceholder" Type="BoundValuePlaceholder" SkipInVisitor="true"/>
-    <Field Name="operandConversion" Type="BoundExpression" SkipInVisitor="true"/>
+    <Field Name="operandPlaceholder" Type="BoundValuePlaceholder?" SkipInVisitor="true"/>
+    <Field Name="operandConversion" Type="BoundExpression?" SkipInVisitor="true"/>
   </Node>
   <Node Name="BoundAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>

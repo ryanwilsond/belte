@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -32,6 +33,7 @@ internal class InContainerBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         if ((options & LookupOptions.NamespaceAliasesOnly) == 0) {
             LookupMembersInternal(
@@ -42,6 +44,7 @@ internal class InContainerBinder : Binder {
                 basesBeingResolved,
                 options,
                 originalBinder,
+                errorLocation,
                 diagnose
             );
 

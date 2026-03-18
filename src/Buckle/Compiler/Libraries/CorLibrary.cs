@@ -153,39 +153,40 @@ internal sealed class CorLibrary {
 
     private void RegisterNonPrimitiveCorTypes() {
         RegisterSpecialType(new PrimitiveTypeSymbol("Array", SpecialType.Array));
-        RegisterSpecialType(new PrimitiveTypeSymbol("Nullable", SpecialType.Nullable, 1));
+
+        RegisterSpecialType(new SynthesizedSimpleNamedTypeSymbol(
+            "Nullable",
+            TypeKind.Class,
+            null,
+            CodeAnalysis.DeclarationModifiers.None,
+            null,
+            [new TypeWithAnnotations(_specialTypes[SpecialType.Type])],
+            SpecialType.Nullable
+        ));
     }
 
     private void RegisterWellKnownMembers() {
         var nullableType = GetSpecialTypeCore(SpecialType.Nullable);
 
-        RegisterWellKnownMember(WellKnownMembers.Nullable_ctor, new SynthesizedTemplateMethodSymbol(
-            ".ctor",
-            nullableType,
-            new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Void)),
-            [new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0)],
-            [],
-            MethodKind.Constructor
-        ));
+        RegisterWellKnownMember(WellKnownMembers.Nullable_ctor, new SynthesizedConstructorSymbol(nullableType));
 
-        var getValueT = new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0);
-        RegisterWellKnownMember(WellKnownMembers.Nullable_getValue, new SynthesizedTemplateMethodSymbol(
-            "get_Value",
-            nullableType,
-            new TypeWithAnnotations(getValueT),
-            [getValueT],
-            [],
-            MethodKind.Ordinary
-        ));
+        RegisterWellKnownMember(WellKnownMembers.Nullable_getValue,
+            new SynthesizedFinishedMethodSymbol(
+            new SynthesizedSimpleOrdinaryMethodSymbol(
+                "get_Value",
+                new TypeWithAnnotations(nullableType.templateParameters[0]),
+                RefKind.None,
+                CodeAnalysis.DeclarationModifiers.None
+            ), nullableType, []));
 
-        RegisterWellKnownMember(WellKnownMembers.Nullable_getHasValue, new SynthesizedTemplateMethodSymbol(
-            "get_HasValue",
-            nullableType,
-            new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Bool)),
-            [new SynthesizedTemplateParameterSymbol(null, new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Type)), 0)],
-            [],
-            MethodKind.Ordinary
-        ));
+        RegisterWellKnownMember(WellKnownMembers.Nullable_getHasValue,
+            new SynthesizedFinishedMethodSymbol(
+            new SynthesizedSimpleOrdinaryMethodSymbol(
+                "get_HasValue",
+                new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Bool)),
+                RefKind.None,
+                CodeAnalysis.DeclarationModifiers.None
+            ), nullableType, []));
     }
 
     private void RegisterWellKnownMember(WellKnownMembers wellKnownMember, MethodSymbol member) {

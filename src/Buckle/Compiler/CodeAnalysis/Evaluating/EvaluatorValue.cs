@@ -163,7 +163,7 @@ public struct EvaluatorValue {
             throw ExceptionUtilities.UnexpectedValue(type);
 
         foreach (var local in layout.LocalsInOrder()) {
-            var name = local.symbol.containingType.Equals(type)
+            var name = local.symbol.containingType.Equals(type.originalDefinition)
                 ? local.name
                 : $"{local.symbol.containingType.name}.{local.name}";
 

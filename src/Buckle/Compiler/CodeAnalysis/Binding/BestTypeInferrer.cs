@@ -16,7 +16,7 @@ internal static class BestTypeInferrer {
             // TODO figure this out
             var conversionsWithoutNullability = conversions;
 
-            if (expression1.type is { } type1) {
+            if (expression1.Type() is { } type1) {
                 if (type1.IsErrorType()) {
                     hadMultipleCandidates = false;
                     return type1;
@@ -26,7 +26,7 @@ internal static class BestTypeInferrer {
                     candidateTypes.Add(type1);
             }
 
-            if (expression2.type is { } type2) {
+            if (expression2.Type() is { } type2) {
                 if (type2.IsErrorType()) {
                     hadMultipleCandidates = false;
                     return type2;

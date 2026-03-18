@@ -46,7 +46,7 @@ internal sealed class Expander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandFieldAccessExpression(
         BoundFieldAccessExpression expression,
         out BoundExpression replacement) {
-        var type = expression.receiver.type;
+        var type = expression.receiver.Type();
         var syntax = expression.syntax;
 
         var savedAccessDepth = _accessDepth;
@@ -79,7 +79,7 @@ internal sealed class Expander : BoundTreeExpander {
 
         if (_conditionalDepth > 0 && _accessDepth <= 1) {
             var statements = ExpandExpression(expression.receiver, out var newReceiver);
-            var tempLocal = GenerateTempLocal(expression.type);
+            var tempLocal = GenerateTempLocal(expression.Type());
 
             statements.Add(
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
@@ -90,7 +90,7 @@ internal sealed class Expander : BoundTreeExpander {
                         newReceiver,
                         expression.field,
                         expression.constantValue,
-                        expression.type
+                        expression.Type()
                     )
                 ))
             );
@@ -129,7 +129,7 @@ internal sealed class Expander : BoundTreeExpander {
                         expression.finalConversion,
                         expression.resultKind,
                         expression.originalUserDefinedOperators,
-                        expression.type
+                        expression.Type()
                     )
                 )
             );
@@ -174,7 +174,7 @@ internal sealed class Expander : BoundTreeExpander {
                         syntax,
                         newLeft,
                         newRight,
-                        expression.type
+                        expression.Type()
                     )
                 )
             );
@@ -196,7 +196,7 @@ internal sealed class Expander : BoundTreeExpander {
 
         if (_conditionalDepth > 0) {
             var statements = ExpandCallExpressionInternal(expression, out var callReplacement);
-            var tempLocal = GenerateTempLocal(expression.type);
+            var tempLocal = GenerateTempLocal(expression.Type());
 
             statements.Add(new BoundLocalDeclarationStatement(
                 syntax,
@@ -250,14 +250,14 @@ internal sealed class Expander : BoundTreeExpander {
         var savedConditionalDepth = _conditionalDepth;
         var syntax = expression.syntax;
 
-        if (expression.left.type.IsNullableType() || expression.right.type.IsNullableType())
+        if (expression.left.Type().IsNullableType() || expression.right.Type().IsNullableType())
             _conditionalDepth++;
 
         if (_conditionalDepth > 1) {
             var statements = ExpandExpression(expression.left, out var newLeft);
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-            var tempLocal = GenerateTempLocal(expression.type);
+            var tempLocal = GenerateTempLocal(expression.Type());
 
             statements.Add(
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
@@ -270,7 +270,7 @@ internal sealed class Expander : BoundTreeExpander {
                         expression.operatorKind,
                         expression.method,
                         expression.constantValue,
-                        expression.type
+                        expression.Type()
                     )
                 ))
             );
@@ -293,7 +293,7 @@ internal sealed class Expander : BoundTreeExpander {
         _operatorDepth++;
         var savedConditionalDepth = _conditionalDepth;
 
-        if (expression.operand.type.IsNullableType())
+        if (expression.operand.Type().IsNullableType())
             _conditionalDepth++;
 
         var baseStatements = base.ExpandUnaryOperator(expression, out replacement);
@@ -308,17 +308,17 @@ internal sealed class Expander : BoundTreeExpander {
         _operatorDepth++;
         var savedConditionalDepth = _conditionalDepth;
 
-        if (expression.operand.type.IsNullableType() && expression.type.IsNullableType())
+        if (expression.operand.Type().IsNullableType() && expression.Type().IsNullableType())
             _conditionalDepth++;
 
         if (_conditionalDepth > 1 &&
-            (expression.type.IsNullableType() || expression.operand.type.IsNullableType()) &&
+            (expression.Type().IsNullableType() || expression.operand.Type().IsNullableType()) &&
             expression.conversion.underlyingConversions != default &&
             expression.conversion.kind is ConversionKind.ImplicitNullable or ConversionKind.ExplicitNullable &&
-            !expression.operand.type.Equals(expression.type)) {
+            !expression.operand.Type().Equals(expression.Type())) {
             var syntax = expression.syntax;
             var statements = ExpandExpression(expression.operand, out var newOperand);
-            var tempLocal = GenerateTempLocal(expression.type);
+            var tempLocal = GenerateTempLocal(expression.Type());
 
             statements.Add(
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
@@ -329,7 +329,7 @@ internal sealed class Expander : BoundTreeExpander {
                         newOperand,
                         expression.conversion,
                         expression.constantValue,
-                        expression.type
+                        expression.Type()
                     )
                 ))
             );
@@ -379,7 +379,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.AddRange(ExpandExpression(expression.trueExpression, out var newTrueExpression));
             statements.AddRange(ExpandExpression(expression.falseExpression, out var newFalseExpression));
 
-            var tempLocal = GenerateTempLocal(expression.type);
+            var tempLocal = GenerateTempLocal(expression.Type());
 
             statements.Add(
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
@@ -392,7 +392,7 @@ internal sealed class Expander : BoundTreeExpander {
                         newTrueExpression,
                         newFalseExpression,
                         null,
-                        expression.type
+                        expression.Type()
                     )
                 ))
             );
@@ -413,7 +413,7 @@ internal sealed class Expander : BoundTreeExpander {
         // TODO Add a way where if _operatorDepth == 0 a temp local isn't made if this is a variable initializer
         var syntax = expression.syntax;
         var dictionaryType = expression.type as NamedTypeSymbol;
-        var tempLocal = GenerateTempLocal(expression.type);
+        var tempLocal = GenerateTempLocal(expression.Type());
         var statements = new List<BoundStatement>() {
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
                 syntax,
@@ -426,7 +426,7 @@ internal sealed class Expander : BoundTreeExpander {
                     [],
                     default,
                     false,
-                    expression.type
+                    expression.Type()
                 )
             ))
         };
@@ -456,7 +456,7 @@ internal sealed class Expander : BoundTreeExpander {
         var syntax = expression.syntax;
         var receiver = expression.receiver;
         var access = expression.accessExpression;
-        var tempLocal = GenerateTempLocal(receiver.type);
+        var tempLocal = GenerateTempLocal(receiver.Type());
         var statements = ExpandExpression(receiver, out var receiverReplacement);
 
         statements.Add(new BoundLocalDeclarationStatement(syntax,
@@ -468,10 +468,10 @@ internal sealed class Expander : BoundTreeExpander {
         BoundExpression newAccess;
 
         if (access is BoundFieldAccessExpression f) {
-            newAccess = new BoundFieldAccessExpression(syntax, receiverLocal, f.field, f.constantValue, f.type);
+            newAccess = new BoundFieldAccessExpression(syntax, receiverLocal, f.field, f.constantValue, f.Type());
         } else if (access is BoundArrayAccessExpression a) {
             statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
-            newAccess = new BoundArrayAccessExpression(syntax, receiverLocal, indexReplacement, null, a.type);
+            newAccess = new BoundArrayAccessExpression(syntax, receiverLocal, indexReplacement, null, a.Type());
         } else {
             throw ExceptionUtilities.Unreachable();
         }
@@ -481,9 +481,9 @@ internal sealed class Expander : BoundTreeExpander {
             HasValue(syntax, receiverLocal),
             false,
             newAccess,
-            new BoundLiteralExpression(syntax, new ConstantValue(null), access.type),
+            new BoundLiteralExpression(syntax, new ConstantValue(null), access.Type()),
             null,
-            access.type
+            access.Type()
         );
 
         return statements;

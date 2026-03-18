@@ -132,7 +132,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal bool anyMemberHasAttributes {
         get {
             if (!_lazyAnyMemberHasAttributes.HasValue()) {
-                bool anyMemberHasAttributes = _declaration.anyMemberHasAttributes;
+                var anyMemberHasAttributes = _declaration.anyMemberHasAttributes;
                 _lazyAnyMemberHasAttributes = anyMemberHasAttributes.ToThreeState();
             }
 
@@ -217,6 +217,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     foreach (var templateParameter in templateParameters)
                         templateParameter.ForceComplete(location);
 
+                    _ = templateConstraints;
                     _state.NotePartComplete(CompletionParts.TemplateParameters);
                     break;
                 case CompletionParts.Members:
@@ -1395,8 +1396,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             if (builder.declarationWithParameters is null) {
                 builder.declarationWithParameters = syntax;
 
-                if (isStatic)
-                    diagnostics.Push(Error.ConstructorInStaticClass(syntax.identifier.location));
+                // TODO Do we want to err here
+                // if (isStatic)
+                //     diagnostics.Push(Error.ConstructorInStaticClass(syntax.identifier.location));
             }
         }
     }
@@ -1438,7 +1440,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         );
 
                         builder.nonTypeMembers.Add(fieldSymbol);
-                        AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
+
+                        // TODO Do we want initializers for all fields like before?
+                        if (declaration.initializer is not null)
+                            AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
                     }
 
                     break;

@@ -36,9 +36,24 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     }
 
     private void AssignParameterSlots(MethodSymbol method) {
-        // TODO Check there isn't duplication happening here
         if (!method.isStatic)
             localSlotManager.AllocateSlot(method.thisParameter.type, LocalSlotConstraints.None);
+        else
+            // The type here doesn't actually matter beyond the fact that it is something
+            localSlotManager.AllocateSlot(method.returnType, LocalSlotConstraints.None);
+
+        if (method.arity > 0) {
+            foreach (var templateParameter in method.templateParameters) {
+                localSlotManager.DeclareLocal(
+                    templateParameter.underlyingType.type,
+                    templateParameter,
+                    templateParameter.name,
+                    SynthesizedLocalKind.UserDefined,
+                    LocalSlotConstraints.None,
+                    false
+                );
+            }
+        }
 
         for (var i = 0; i < method.parameterCount; i++) {
             var parameter = method.parameters[i];
@@ -87,7 +102,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
 
         if (!local.isGlobal) {
             var slot = localSlotManager.GetLocal(local).slot;
-            return new BoundStackSlotExpression(node.syntax, node, local, slot, node.type);
+            return new BoundStackSlotExpression(node.syntax, node, local, slot, node.Type());
         }
 
         return node;
@@ -96,15 +111,15 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
         var parameter = node.parameter;
         var slot = localSlotManager.GetLocal(parameter).slot;
-        return new BoundStackSlotExpression(node.syntax, node, parameter, slot, node.type);
+        return new BoundStackSlotExpression(node.syntax, node, parameter, slot, node.Type());
     }
 
     internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
         var receiver = (BoundExpression)Visit(node.receiver);
         var field = node.field;
-        var layout = _typeLayouts[(NamedTypeSymbol)receiver.type.StrippedType()];
+        var layout = _typeLayouts[(NamedTypeSymbol)receiver.StrippedType().originalDefinition];
         var slot = layout.GetLocal(field).slot;
-        return new BoundFieldSlotExpression(node.syntax, node, receiver, field, slot, node.type);
+        return new BoundFieldSlotExpression(node.syntax, node, receiver, field, slot, node.Type());
     }
 
     internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {

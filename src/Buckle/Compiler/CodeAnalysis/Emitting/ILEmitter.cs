@@ -68,6 +68,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
         var netstandardDll = DotnetReferenceResolver.ResolveNetStandardDll(tfm);
         var privateCoreLibDll = DotnetReferenceResolver.ResolvePrivateCoreLibDll(tfm);
+
+#if !DEBUG
+#pragma warning disable IL3000
+#endif
+
         _belteDllName = typeof(Belte.Runtime.Console).Assembly.Location;
 
         if (string.IsNullOrEmpty(_belteDllName))
@@ -84,6 +89,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             // AssemblyDefinition.ReadAssembly(netstandardDll),
             // AssemblyDefinition.ReadAssembly(privateCoreLibDll),
         ];
+
+#if !DEBUG
+#pragma warning restore IL3000
+#endif
 
         foreach (var reference in references) {
             try {
@@ -1006,31 +1015,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetTypeReference.Random = ResolveType(null, "System.Random");
         NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
         NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
-
-
-        // _specialTypes.Add(SpecialType.Object, _assemblyDefinition.MainModule.TypeSystem.Object);
-        // _specialTypes.Add(SpecialType.Any, _assemblyDefinition.MainModule.TypeSystem.Object);
-        // _specialTypes.Add(SpecialType.Bool, _assemblyDefinition.MainModule.TypeSystem.Boolean);
-        // _specialTypes.Add(SpecialType.Int, _assemblyDefinition.MainModule.TypeSystem.Int64);
-        // _specialTypes.Add(SpecialType.String, _assemblyDefinition.MainModule.TypeSystem.String);
-        // _specialTypes.Add(SpecialType.Decimal, _assemblyDefinition.MainModule.TypeSystem.Double);
-        // _specialTypes.Add(SpecialType.Void, _assemblyDefinition.MainModule.TypeSystem.Void);
-        // _specialTypes.Add(SpecialType.Char, _assemblyDefinition.MainModule.TypeSystem.Char);
-
-        // _specialTypes.Add(SpecialType.Type, ResolveType(CorLibrary.GetSpecialType(SpecialType.Type).name, "System.Type"));
-
-        // NetTypeReference.Random = ResolveType(null, "System.Random");
-        // NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
-        // NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         return mapKey switch {
-            "Nullable_.ctor" => GetNullableCtor(method.templateArguments[0].type.type),
-            "Nullable_get_Value" => GetNullableValue(method.templateArguments[0].type.type),
-            "Nullable_get_HasValue" => GetNullableHasValue(method.templateArguments[0].type.type),
+            "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_get_Value" => GetNullableValue(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_get_HasValue" => GetNullableHasValue(method.containingType.templateArguments[0].type.type),
             _ => _stlMap[mapKey],
         };
     }
@@ -1065,7 +1058,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void GenerateSTLMap() {
         _stlMap = new Dictionary<string, MethodReference>() {
-            { "Object_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+            { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
             { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
             { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
             { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },

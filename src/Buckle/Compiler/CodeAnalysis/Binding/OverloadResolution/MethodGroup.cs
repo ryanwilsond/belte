@@ -56,7 +56,7 @@ internal sealed class MethodGroup {
         this.methods.AddRange(methods);
 
         if (!templateArguments.IsDefault)
-            templateArguments.AddRange(templateArguments);
+            this.templateArguments.AddRange(templateArguments);
     }
 
     private void PopulateHelper(BoundExpression receiver, LookupResultKind resultKind, BelteDiagnostic error) {

@@ -12,7 +12,7 @@ class Tile {
         this.y = y;
         this.key = key;
         this.onGrid = onGrid;
-        kind = String.Split(key, ";")[0]!;
+        kind = String.Split(key, ";")[0];
 
         if (onGrid)
             this.sprite = new Sprite(texture, null, new Rect(x * tileSize, y * tileSize, texture.width * 4, texture.height * 4), 0);

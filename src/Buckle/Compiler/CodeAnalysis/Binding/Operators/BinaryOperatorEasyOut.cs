@@ -175,12 +175,12 @@ internal sealed partial class OverloadResolution {
         BoundExpression left,
         BoundExpression right,
         BinaryOperatorOverloadResolutionResult result) {
-        var leftType = left.type;
+        var leftType = left.Type();
 
         if (leftType is null)
             return;
 
-        var rightType = right.type;
+        var rightType = right.Type();
 
         if (rightType is null)
             return;

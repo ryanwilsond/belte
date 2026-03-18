@@ -11,6 +11,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
+    private ImmutableArray<ExpressionSyntax> _unboundConstraints;
+    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private NamedTypeSymbol _lazyDeclaredBase;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
@@ -25,7 +27,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     private TemplateParameterInfo _templateParameterInfo {
         get {
             if (_lazyTemplateParameterInfo is null) {
-                var templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
+                var templateParameterInfo = (arity == 0) ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
                 Interlocked.CompareExchange(ref _lazyTemplateParameterInfo, templateParameterInfo, null);
             }
 
@@ -51,8 +53,23 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         }
     }
 
-    // TODO This should be something
-    public override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints {
+        get {
+            if (_lazyTemplateConstraints.IsDefault) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                ImmutableInterlocked.InterlockedInitialize(
+                    ref _lazyTemplateConstraints,
+                    MakeTemplateConstraints(diagnostics)
+                );
+
+                AddDeclarationDiagnostics(diagnostics);
+                diagnostics.Free();
+            }
+
+            return _lazyTemplateConstraints;
+        }
+    }
 
     public override ImmutableArray<TypeOrConstant> templateArguments
         => GetTemplateParametersAsTemplateArguments();
@@ -144,7 +161,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
-            localBase.CheckAllConstraints(declaringCompilation, location, diagnostics);
+            localBase.CheckAllConstraints(location, diagnostics);
         }
     }
 
@@ -197,6 +214,22 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
         _hasNoBaseCycles = true;
         return declaredBase;
+    }
+
+    private ImmutableArray<BoundExpression> MakeTemplateConstraints(BelteDiagnosticQueue diagnostics) {
+        _ = GetTypeParameterConstraintTypes(diagnostics);
+
+        if (_unboundConstraints.IsDefault || _unboundConstraints.Length == 0)
+            return [];
+
+        var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
+        var binder = binderFactory.GetBinder(_unboundConstraints[0]);
+        binder = binder.WithAdditionalFlagsAndContainingMember(
+            BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks,
+            this
+        );
+
+        return binder.BindExpressionConstraints(_unboundConstraints, templateParameters, diagnostics);
     }
 
     private NamedTypeSymbol MakeDeclaredBase(
@@ -368,6 +401,15 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
                         .Add(constraints);
                 }
             }
+
+            var constraintsBuilder = ArrayBuilder<ExpressionSyntax>.GetInstance();
+
+            foreach (var constraint in results) {
+                if ((constraint.constraints & TypeParameterConstraintKinds.Expression) != 0)
+                    constraintsBuilder.Add(constraint.expression);
+            }
+
+            _unboundConstraints = constraintsBuilder.ToImmutableAndFree();
 
             if (results.All(clause => clause.constraintTypes.IsEmpty))
                 results = [];

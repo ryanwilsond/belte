@@ -76,7 +76,7 @@ internal abstract class AliasSymbol : Symbol {
         var target = this.target as TypeSymbol;
 
         if (target is not null && _locations.Length > 0)
-            target.CheckAllConstraints(declaringCompilation, location, diagnostics);
+            target.CheckAllConstraints(location, diagnostics);
     }
 
     internal override bool Equals(Symbol obj, TypeCompareKind compareKind) {

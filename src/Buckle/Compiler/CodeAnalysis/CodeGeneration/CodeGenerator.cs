@@ -124,11 +124,24 @@ internal sealed partial class CodeGenerator {
     }
 
     internal static bool IsReferenceType(TypeSymbol type) {
-        return (type.isObjectType && !type.IsStructType() && !IsTrueNullable(type)) || IsReferenceType(type.specialType);
+        var isReferenceType = (type.isObjectType && !type.IsStructType() &&
+                              !IsTrueNullable(type)) || IsReferenceType(type.specialType);
+
+        if (type.StrippedType() is TemplateParameterSymbol t)
+            isReferenceType &= t.hasObjectTypeConstraint;
+
+        return isReferenceType;
     }
 
     internal static bool IsValueType(TypeSymbol type) {
-        return (type.isPrimitiveType || type.IsStructType() || IsTrueNullable(type)) && IsValueType(type.specialType);
+        var isValueType = (type.isPrimitiveType || type.IsStructType() ||
+                           IsTrueNullable(type)) && IsValueType(type.specialType);
+
+        // TODO Double check there is no edge case where a primitive constraint can result in a reference type
+        if (type.StrippedType() is TemplateParameterSymbol t)
+            isValueType &= t.hasPrimitiveTypeConstraint;
+
+        return isValueType;
     }
 
     private VariableDefinition AllocateTemp(
@@ -274,7 +287,7 @@ internal sealed partial class CodeGenerator {
         if (ShouldEmitReadOnlyPrefix(arrayAccess, addressKind))
             _builder.Emit(OpCode.Readonly);
 
-        if (((ArrayTypeSymbol)arrayAccess.receiver.type.StrippedType()).isSZArray)
+        if (((ArrayTypeSymbol)arrayAccess.receiver.StrippedType()).isSZArray)
             _builder.EmitWithSymbolToken(OpCode.Ldelema, arrayAccess.type);
         else
             EmitArrayElementAddressInternal((ArrayTypeSymbol)arrayAccess.index.type);
@@ -413,7 +426,8 @@ internal sealed partial class CodeGenerator {
     }
 
     private static bool BoxNonVerifierReferenceReceiver(TypeSymbol receiverType, AddressKind addressKind) {
-        return receiverType.typeKind == TypeKind.TemplateParameter && addressKind != AddressKind.Constrained;
+        return receiverType.StrippedType().typeKind == TypeKind.TemplateParameter &&
+            addressKind != AddressKind.Constrained;
     }
 
     private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
@@ -1017,7 +1031,7 @@ oneMoreTime:
         EmitExpression(expression.receiver, used: true);
         EmitArrayIndex(expression.index);
 
-        if (((ArrayTypeSymbol)expression.receiver.type.StrippedType()).isSZArray) {
+        if (((ArrayTypeSymbol)expression.receiver.StrippedType()).isSZArray) {
             var elementType = expression.type;
 
             switch (elementType.specialType) {
@@ -1037,7 +1051,7 @@ oneMoreTime:
                         if (used) {
                             _builder.EmitWithSymbolToken(OpCode.Ldelem, elementType);
                         } else {
-                            if (elementType.typeKind == TypeKind.TemplateParameter)
+                            if (elementType.StrippedType().typeKind == TypeKind.TemplateParameter)
                                 _builder.Emit(OpCode.Readonly);
 
                             _builder.EmitWithSymbolToken(OpCode.Ldelema, elementType);
@@ -1063,7 +1077,7 @@ oneMoreTime:
     }
 
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
-        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+        var arrayType = (ArrayTypeSymbol)expression.StrippedType();
 
         EmitArrayIndices(expression.sizes);
 
@@ -1216,7 +1230,7 @@ oneMoreTime:
                     var refKind = GetArgumentRefKind(arguments, method.parameters, expression.argumentRefKinds, 0);
                     EmitArgument(argument, refKind);
 
-                    _builder.EmitSort(((ArrayTypeSymbol)argument.type.StrippedType()).elementType);
+                    _builder.EmitSort(((ArrayTypeSymbol)argument.StrippedType()).elementType);
 
                     EmitCallCleanup(method, useKind);
 
@@ -1257,7 +1271,7 @@ oneMoreTime:
                     var argument = Lowerer.CreateNullableGetValueCall(
                         null,
                         arguments[0],
-                        arguments[0].type.StrippedType()
+                        arguments[0].StrippedType()
                     );
 
                     var refKind = GetArgumentRefKind(arguments, method.parameters, argumentRefKinds, 0);
@@ -1551,13 +1565,10 @@ oneMoreTime:
                 object whenNotNullLabel = null;
 
                 if (!IsReferenceType(receiverType)) {
-                    // TODO Is EmitDefaultValue reachable?
-                    // if ((object)default(T) == null)
-                    // EmitDefaultValue(receiverType, true, receiver.Syntax);
-                    throw ExceptionUtilities.Unreachable();
-                    // EmitBox(receiverType);
-                    // whenNotNullLabel = new object();
-                    // _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
+                    EmitDefaultValue(receiverType, true, receiver.syntax);
+                    EmitBox(receiverType);
+                    whenNotNullLabel = new object();
+                    _builder.EmitBranch(OpCode.Brtrue, whenNotNullLabel);
                 }
 
                 EmitLoadIndirect(receiverType);
@@ -1568,6 +1579,21 @@ oneMoreTime:
                 if (whenNotNullLabel is not null)
                     _builder.MarkLabel(whenNotNullLabel);
             }
+        }
+    }
+
+    private void EmitDefaultValue(TypeSymbol type, bool used, SyntaxNode syntaxNode) {
+        if (used) {
+            if (!type.IsTemplateParameter()) {
+                var constantValue = type.IsVerifierValue() ? LiteralUtilities.GetDefaultValue(type.specialType) : null;
+
+                if (constantValue is not null) {
+                    EmitConstantValue(new ConstantValue(constantValue, type.specialType), type);
+                    return;
+                }
+            }
+
+            EmitInitObj(type, true);
         }
     }
 
@@ -2342,7 +2368,7 @@ oneMoreTime:
                 break;
             case BoundKind.ArrayAccessExpression:
                 var array = ((BoundArrayAccessExpression)expression).receiver;
-                var arrayType = (ArrayTypeSymbol)array.type.StrippedType();
+                var arrayType = (ArrayTypeSymbol)array.StrippedType();
                 EmitArrayElementStore(arrayType);
                 break;
             case BoundKind.ThisExpression:
@@ -2619,7 +2645,7 @@ oneMoreTime:
             return false;
 
         if (left.kind == BoundKind.ArrayAccessExpression &&
-            left.type.typeKind == TypeKind.TemplateParameter &&
+            left.StrippedType().typeKind == TypeKind.TemplateParameter &&
             !IsValueType(left.type)) {
             return false;
         }

@@ -90,8 +90,8 @@ public enum DiagnosticCode : ushort {
     ERR_UnrecognizedEscapeSequence = 79,
     ERR_PrimitivesDoNotHaveMembers = 80,
     ERR_CannotConstructPrimitive = 81,
-    ERR_NoTemplateOverload = 82,
-    ERR_AmbiguousTemplateOverload = 83,
+    ERR_AnnotationsDisallowedInTemplateArgument = 82,
+    // ! 83
     ERR_CannotUseStruct = 84,
     ERR_CannotUseThis = 85,
     ERR_MemberIsInaccessible = 86,
@@ -102,8 +102,8 @@ public enum DiagnosticCode : ushort {
     ERR_CannotInitializeInStructs = 91,
     ERR_MultipleMains = 92,
     ERR_InvalidAttributes = 93,
-    ERR_TemplateNotExpected = 94,
-    ERR_TemplateMustBeConstant = 95,
+    // ! 94
+    // ! 95
     ERR_RefReturnOnlyParameter2 = 96,
     ERR_DottedTypeNamesNotFound = 97,
     ERR_ConstructorInStaticClass = 98,
@@ -333,6 +333,16 @@ public enum DiagnosticCode : ushort {
     ERR_GlobalSingleTypeNameNotFound = 322,
     ERR_DottedTypeNamesNotFoundInNamespace = 323,
     ERR_ConflictingAliasAndMember = 324,
+    ERR_UnexpectedUnboundTemplateName = 325,
+    ERR_HasNoTemplate = 326,
+    ERR_TemplateNotAllowed = 327,
+    ERR_BadTemplateArgument = 328,
+    ERR_TemplateIsStatic = 329,
+    ERR_ObjectConstraintFailed = 330,
+    ERR_PrimitiveConstraintFailed = 331,
+    ERR_NotNullableConstraintFailed = 332,
+    ERR_DuplicateConstraint = 333,
+    ERR_CannotIsCheckNonType = 334,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

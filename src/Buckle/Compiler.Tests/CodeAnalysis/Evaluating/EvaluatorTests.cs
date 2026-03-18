@@ -347,8 +347,11 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int num; } type a = typeof(A);", null)]
     [InlineData("return typeof(int) == typeof(int);", true)]
     [InlineData("return typeof(int) == typeof(bool);", false)]
-    // [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
-    // [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
+    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
+    [InlineData("class C<type T> where { T is notnull; } { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", false)]
+    [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
+    [InlineData("bool C<type T>() { return typeof(T) == typeof(int); } return C<int>();", true)]
+    [InlineData("bool C<type T>() { return typeof(T) == typeof(int); } return C<bool>();", false)]
     // Operators
     [InlineData(@"
         class A {
@@ -373,26 +376,26 @@ public sealed class EvaluatorTests {
 
         var b = new B();
         return b.T();", "B")]
+    [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r[0]++; return a.b[0];", 2)]
     /*
-    // TODO Add this test back after adding containingAssembly checks to CannotUseGlobalInClass
-    // [InlineData("int a = 3; class A { public ref int b = ref a; } var m = new A(); a = 6; return m.b;", 6)]
-    [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Try statements
     [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
     [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; } catch { a += 3; } finally { return a; }", 6)]
     [InlineData("int a = 3; try { int b = 56/1; a += b; } catch { a += 3; } finally { return a; }", 59)]
+    */
     // Templates
-    [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
-    [InlineData("class A<type t> { public t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
-    [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int[]>(); a.a = {1, 2, 3}; return a.a[1]; }", 2)]
-    [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
-    [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
-    [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
-    [InlineData("lowlevel int[] Test<int[] a>() { return a; } lowlevel { return Test<{1, 2, 3}>()[1]; }", 2)]
-    // TODO
+    // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
+    // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
+    // [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
+    // [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
+    // [InlineData("lowlevel int[] Test<int[] a>() { return a; } lowlevel { return Test<{1, 2, 3}>()[1]; }", 2)]
     // [InlineData("lowlevel { int[] Test<int[] a>() { return a; } return Test<{1, 2, 3}>()[1]; }", 2)]
-        */
+    [InlineData("class A<type t> { public t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
+    [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int[]>(); a.a = new int[] {1, 2, 3}; return a.a[1]; }", 2)]
+    [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
+    [InlineData("T Test<type T>(T a) { return a; } return Test<int>(3);", 3)]
+    [InlineData("T Test<type T>() { return null; } return Test<int>();", null)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue);
     }

@@ -1,11 +1,12 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class TypeParameterConstraintClause {
     internal static readonly TypeParameterConstraintClause Empty = new TypeParameterConstraintClause(
-        TypeParameterConstraintKinds.None, []
+        TypeParameterConstraintKinds.None, [], null
     );
 
     internal static TypeParameterConstraintClause Create(
@@ -18,18 +19,25 @@ internal sealed class TypeParameterConstraintClause {
             }
         }
 
-        return new TypeParameterConstraintClause(constraints, constraintTypes);
+        return new TypeParameterConstraintClause(constraints, constraintTypes, null);
+    }
+
+    internal static TypeParameterConstraintClause Create(ExpressionSyntax expressionConstraint) {
+        return new TypeParameterConstraintClause(TypeParameterConstraintKinds.Expression, [], expressionConstraint);
     }
 
     private TypeParameterConstraintClause(
         TypeParameterConstraintKinds constraints,
-        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        ImmutableArray<TypeWithAnnotations> constraintTypes,
+        ExpressionSyntax expressionConstraint) {
         this.constraints = constraints;
         this.constraintTypes = constraintTypes;
+        expression = expressionConstraint;
     }
 
     internal readonly TypeParameterConstraintKinds constraints;
     internal readonly ImmutableArray<TypeWithAnnotations> constraintTypes;
+    internal readonly ExpressionSyntax expression;
 
     internal static Dictionary<TemplateParameterSymbol, bool> BuildIsPrimitiveTypeMap(
         ImmutableArray<TemplateParameterSymbol> typeParameters,
@@ -38,7 +46,12 @@ internal sealed class TypeParameterConstraintClause {
         var isPrimitiveTypeMap = new Dictionary<TemplateParameterSymbol, bool>(ReferenceEqualityComparer.Instance);
 
         foreach (var typeParameter in typeParameters) {
-            IsPrimitiveType(typeParameter, constraintClauses, isPrimitiveTypeMap, ConsList<TemplateParameterSymbol>.Empty);
+            IsPrimitiveType(
+                typeParameter,
+                constraintClauses,
+                isPrimitiveTypeMap,
+                ConsList<TemplateParameterSymbol>.Empty
+            );
         }
 
         return isPrimitiveTypeMap;

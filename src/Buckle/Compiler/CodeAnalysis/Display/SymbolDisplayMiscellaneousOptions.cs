@@ -8,4 +8,5 @@ internal enum SymbolDisplayMiscellaneousOptions : byte {
     IncludeKeywords = 1 << 0,
     SimplifyNullable = 1 << 1,
     IncludeBaseList = 1 << 2,
+    ExpandTemplateParameter = 1 << 3,
 }

@@ -101,8 +101,14 @@ public static class LibraryHelpers {
     }
 
     internal static string BuildMapKey(MethodSymbol method) {
+        var containingType = method.containingType;
+
         var stringBuilder = new StringBuilder();
-        stringBuilder.Append(method.containingType.name);
+        stringBuilder.Append(containingType.name);
+
+        if (containingType.specialType != SpecialType.None)
+            stringBuilder.Append("<>");
+
         stringBuilder.Append('_');
         stringBuilder.Append(method.name);
 
@@ -148,7 +154,8 @@ public static class LibraryHelpers {
             TypeKind.Class,
             CorLibrary.GetSpecialType(SpecialType.Object),
             DeclarationModifiers.Public | modifiers,
-            BelteNamespace
+            BelteNamespace,
+            []
         );
 
         var builder = ArrayBuilder<Symbol>.GetInstance();

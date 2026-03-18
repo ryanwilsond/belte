@@ -70,7 +70,7 @@ internal sealed partial class OverloadResolution {
         UnaryOperatorKind kind,
         BoundExpression operand,
         UnaryOperatorOverloadResolutionResult result) {
-        var operandType = operand.type;
+        var operandType = operand.Type();
 
         if (operandType is null)
             return;

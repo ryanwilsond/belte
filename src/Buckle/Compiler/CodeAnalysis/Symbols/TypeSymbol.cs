@@ -141,6 +141,18 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return ExtendedErrorTypeSymbol.ExtractNonErrorType(this);
     }
 
+    internal TypeSymbol UnderlyingTemplateTypeOrSelf() {
+        if (kind != SymbolKind.TemplateParameter)
+            return this;
+
+        var underlyingType = ((TemplateParameterSymbol)this).underlyingType;
+
+        if (underlyingType.specialType == SpecialType.Type)
+            return this;
+
+        return underlyingType.type;
+    }
+
     internal bool ContainsErrorType() {
         var result = VisitType(
             (type, unused1, unused2) => type.IsErrorType(),

@@ -41,7 +41,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     }
 
     internal override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        type.CheckAllConstraints(declaringCompilation, errorLocation, diagnostics);
+        type.UnderlyingTemplateTypeOrSelf().CheckAllConstraints(errorLocation, diagnostics);
         base.AfterAddingTypeMembersChecks(diagnostics);
     }
 

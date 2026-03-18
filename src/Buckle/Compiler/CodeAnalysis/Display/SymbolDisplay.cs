@@ -155,7 +155,10 @@ public static class SymbolDisplay {
         else
             text.Write(CreateIdentifier(namedType.name));
 
-        DisplayTemplateArguments(text, namedType.templateArguments, SymbolDisplayFormat.ObjectCreationFormat);
+        if ((object)namedType.constructedFrom == namedType)
+            DisplayTemplateParameters(text, namedType.templateParameters, format);
+        else
+            DisplayTemplateArguments(text, namedType.templateArguments, format);
 
         if (namedType.baseType is not null &&
             (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
@@ -289,12 +292,12 @@ public static class SymbolDisplay {
         SymbolDisplayFormat format) {
         var needSpace = false;
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter) != 0) {
             DisplayType(text, templateParameter.underlyingType.type, format);
             needSpace = true;
         }
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0 &&
+        if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateParameters) != 0 &&
             !string.IsNullOrEmpty(templateParameter.name)) {
             if (needSpace)
                 text.Write(CreateSpace());
@@ -360,7 +363,8 @@ public static class SymbolDisplay {
         DisplayText text,
         ImmutableArray<TypeOrConstant> templateArguments,
         SymbolDisplayFormat format) {
-        if (templateArguments.Length > 0) {
+        if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateParameters) != 0 &&
+            templateArguments.Length > 0) {
             text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
 
             var isFirst = true;
@@ -398,7 +402,11 @@ public static class SymbolDisplay {
                 else
                     text.Write(CreatePunctuation(", "));
 
-                DisplayTemplateParameter(text, templateParameter, format);
+                DisplayTemplateParameter(
+                    text,
+                    templateParameter,
+                    format.WithOptions(SymbolDisplayMiscellaneousOptions.SimplifyNullable)
+                );
             }
 
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));

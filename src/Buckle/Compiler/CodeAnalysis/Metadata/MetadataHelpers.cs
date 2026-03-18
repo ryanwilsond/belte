@@ -12,6 +12,9 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal static partial class MetadataHelpers {
+    internal const System.Reflection.GenericParameterAttributes GenericParameterAttributesAllowByRefLike
+        = (System.Reflection.GenericParameterAttributes)0x0020;
+
     private static readonly ImmutableArray<string> SplitQualifiedNameSystem = [SystemString];
     private static readonly ImmutableArray<ReadOnlyMemory<char>> SplitQualifiedNameSystemMemory
         = [SystemString.AsMemory()];

@@ -23,6 +23,20 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
 
     internal override Symbol containingSymbol => _owner;
 
+    internal override bool allowsRefLikeType {
+        get {
+            var constraints = GetConstraintKinds();
+            return (constraints & TypeParameterConstraintKinds.AllowByRefLike) != 0;
+        }
+    }
+
+    internal override bool hasNotNullConstraint {
+        get {
+            var constraints = GetConstraintKinds();
+            return (constraints & TypeParameterConstraintKinds.NotNull) != 0;
+        }
+    }
+
     internal override bool hasPrimitiveTypeConstraint {
         get {
             var constraints = GetConstraintKinds();

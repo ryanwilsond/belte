@@ -119,9 +119,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         //     return;
         // }
 
-        // if (TypeInferenceFailed(binder, diagnostics, symbols, receiver, arguments, location, queryClause)) {
-        //     return;
-        // }
+        if (TypeInferenceFailed(diagnostics, name, symbols, location))
+            return;
 
         var supportedRequiredParameterMissingConflicts = false;
         MemberResolutionResult<TMember> firstSupported = default;
@@ -224,6 +223,21 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         if (!isMethodGroupConversion)
             ReportBadParameterCount(diagnostics, name, arguments, symbols, location, typeContainingConstructor);
+    }
+
+    private bool TypeInferenceFailed(
+        BelteDiagnosticQueue diagnostics,
+        string name,
+        ImmutableArray<Symbol> symbols,
+        TextLocation location) {
+        var inferenceFailed = GetFirstMemberKind(MemberResolutionKind.TypeInferenceFailed);
+
+        if (inferenceFailed.isNotNull) {
+            diagnostics.Push(Error.BadArity(location, MessageID.IDS_SK_METHOD.Localize(), name, symbols[0].GetArity()));
+            return true;
+        }
+
+        return false;
     }
 
     private static void ReportBadParameterCount(
@@ -330,19 +344,19 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         int arg) {
         var argument = arguments.Argument(arg);
 
-        if (argument.hasErrors)
+        if (arguments.hasErrors[arg])
             return;
 
         var parm = badArg.result.ParameterFromArgument(arg);
-        var sourceLocation = argument.syntax.location;
+        var sourceLocation = arguments.syntaxes[arg].location;
 
         var parameter = method.GetParameters()[parm];
         var isLastParameter = method.GetParameterCount() == parm + 1;
         var refArg = arguments.RefKind(arg);
         var refParameter = parameter.refKind;
 
-        if (!argument.HasExpressionType()) {
-            if (argument.syntax.kind == SyntaxKind.OmittedArgument)
+        if (!argument.expression.HasExpressionType()) {
+            if (arguments.syntaxes[arg].kind == SyntaxKind.OmittedArgument)
                 diagnostics.Push(Error.CannotImplyNull(sourceLocation, arg + 1, parameter.type));
             else
                 diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
@@ -353,7 +367,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             else
                 diagnostics.Push(Error.ArgumentWrongRef(sourceLocation, "ref", arg + 1));
         } else {
-            if (argument.type is { } argType) {
+            if (arguments.types[arg] is { } argType) {
                 diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
             } else {
                 // TODO Reachable error?

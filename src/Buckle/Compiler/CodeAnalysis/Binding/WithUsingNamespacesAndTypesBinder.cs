@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -18,6 +19,7 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
 
         foreach (var typeOrNamespace in GetUsings(basesBeingResolved)) {
@@ -32,7 +34,15 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
                 if (!IsValidLookupCandidateInUsings(symbol))
                     continue;
 
-                var res = originalBinder.CheckViability(symbol, arity, options, null, diagnose, basesBeingResolved);
+                var res = originalBinder.CheckViability(
+                    symbol,
+                    arity,
+                    options,
+                    null,
+                    diagnose,
+                    errorLocation,
+                    basesBeingResolved
+                );
 
                 // TODO Imports
                 // if (res.kind == LookupResultKind.Viable) {

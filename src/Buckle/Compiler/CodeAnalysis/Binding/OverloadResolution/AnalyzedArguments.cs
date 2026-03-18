@@ -9,20 +9,26 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class AnalyzedArguments {
     internal static readonly ObjectPool<AnalyzedArguments> Pool = CreatePool();
 
-    internal readonly ArrayBuilder<BoundExpression> arguments;
+    internal readonly ArrayBuilder<BoundExpressionOrTypeOrConstant> arguments;
+    internal readonly ArrayBuilder<bool> hasErrors;
+    internal readonly ArrayBuilder<SyntaxNode> syntaxes;
+    internal readonly ArrayBuilder<TypeSymbol> types;
     internal readonly ArrayBuilder<(string Name, TextLocation Location)?> names;
     internal readonly ArrayBuilder<RefKind> refKinds;
 
     internal AnalyzedArguments() {
-        arguments = new ArrayBuilder<BoundExpression>(32);
+        arguments = new ArrayBuilder<BoundExpressionOrTypeOrConstant>(32);
+        hasErrors = new ArrayBuilder<bool>(32);
+        syntaxes = new ArrayBuilder<SyntaxNode>(32);
+        types = new ArrayBuilder<TypeSymbol>(32);
         names = new ArrayBuilder<(string, TextLocation)?>(32);
         refKinds = new ArrayBuilder<RefKind>(32);
     }
 
-    internal bool hasErrors {
+    internal bool anyErrors {
         get {
-            foreach (var argument in arguments) {
-                if (argument is BoundErrorExpression)
+            foreach (var hasError in hasErrors) {
+                if (hasError)
                     return true;
             }
 
@@ -32,11 +38,14 @@ internal sealed class AnalyzedArguments {
 
     internal void Clear() {
         arguments.Clear();
+        hasErrors.Clear();
+        syntaxes.Clear();
+        types.Clear();
         names.Clear();
         refKinds.Clear();
     }
 
-    internal BoundExpression Argument(int i) {
+    internal BoundExpressionOrTypeOrConstant Argument(int i) {
         return arguments[i];
     }
 
@@ -77,17 +86,26 @@ internal sealed class AnalyzedArguments {
     internal static AnalyzedArguments GetInstance(AnalyzedArguments original) {
         var instance = GetInstance();
         instance.arguments.AddRange(original.arguments);
+        instance.hasErrors.AddRange(original.hasErrors);
+        instance.syntaxes.AddRange(original.syntaxes);
+        instance.types.AddRange(original.types);
         instance.names.AddRange(original.names);
         instance.refKinds.AddRange(original.refKinds);
         return instance;
     }
 
     internal static AnalyzedArguments GetInstance(
-        ImmutableArray<BoundExpression> arguments,
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        ImmutableArray<bool> hasErrors,
+        ImmutableArray<SyntaxNode> syntaxes,
+        ImmutableArray<TypeSymbol> types,
         ImmutableArray<RefKind> argumentRefKindsOpt,
         ImmutableArray<(string, TextLocation)?> argumentNamesOpt) {
         var instance = GetInstance();
         instance.arguments.AddRange(arguments);
+        instance.hasErrors.AddRange(hasErrors);
+        instance.syntaxes.AddRange(syntaxes);
+        instance.types.AddRange(types);
 
         if (!argumentRefKindsOpt.IsDefault)
             instance.refKinds.AddRange(argumentRefKindsOpt);

@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -30,6 +31,7 @@ internal sealed class NameofBinder : Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         var foundParameter = false;
 
@@ -41,6 +43,7 @@ internal sealed class NameofBinder : Binder {
                 basesBeingResolved,
                 options,
                 originalBinder,
+                errorLocation,
                 diagnose
             );
 
@@ -62,6 +65,7 @@ internal sealed class NameofBinder : Binder {
                     basesBeingResolved,
                     options,
                     originalBinder,
+                    errorLocation,
                     diagnose
                 );
 
@@ -74,6 +78,7 @@ internal sealed class NameofBinder : Binder {
                     basesBeingResolved,
                     options,
                     originalBinder,
+                    errorLocation,
                     diagnose
                 );
             }

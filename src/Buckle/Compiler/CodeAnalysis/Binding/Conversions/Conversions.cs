@@ -103,7 +103,7 @@ internal sealed class Conversions {
             // We tried our best. There are no built-in conversions for lists.
             return result;
 
-        return Conversion.Classify(sourceExpression.type, target);
+        return Conversion.Classify(sourceExpression.Type(), target);
     }
 
     internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target) {
@@ -138,19 +138,16 @@ internal sealed class Conversions {
         if (sourceExpression.IsLiteralNull()) {
             if (target.IsNullableType())
                 return Conversion.NullLiteral;
-            // TODO Do we actually need this type of cast:
-            // else if (target.isObjectType)
-            //     return Conversion.ImplicitReference;
             else
                 return Conversion.None;
         }
 
-        var conversion = FastClassifyConversion(sourceExpression.type, target);
+        var conversion = FastClassifyConversion(sourceExpression.Type(), target);
 
         if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
-        conversion = Conversion.Classify(sourceExpression.type, target);
+        conversion = Conversion.Classify(sourceExpression.Type(), target);
 
         if (Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;

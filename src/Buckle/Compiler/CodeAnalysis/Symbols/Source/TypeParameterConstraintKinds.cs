@@ -8,4 +8,6 @@ internal enum TypeParameterConstraintKinds : byte {
     Primitive = 1 << 0,
     Object = 1 << 1,
     NotNull = 1 << 2,
+    AllowByRefLike = 1 << 3,
+    Expression = 1 << 4,
 }
