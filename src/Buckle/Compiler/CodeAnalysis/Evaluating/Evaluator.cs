@@ -20,6 +20,7 @@ using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended.Text;
 using Shared;
 using static Buckle.CodeAnalysis.Binding.Binder;
+using static Buckle.CodeAnalysis.CodeGeneration.CodeGenerator;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -183,7 +184,10 @@ internal sealed class Evaluator {
         return EvaluatorValue.HeapPtr(index);
     }
 
-    private void IndirectStore(EvaluatorValue lhs, EvaluatorValue value) {
+    private void IndirectStore(TextLocation location, EvaluatorValue lhs, EvaluatorValue value) {
+        if (lhs.kind == ValueKind.Null)
+            throw new BelteNullReferenceException(location);
+
         if (lhs.kind != ValueKind.Ref)
             throw ExceptionUtilities.UnexpectedValue(lhs.kind);
 
@@ -235,7 +239,7 @@ internal sealed class Evaluator {
                         break;
                     case BoundKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = EvaluateExpression(cgs.condition, abort);
+                        var condition = EvaluateExpression(cgs.condition, true, abort);
 
                         if (condition.kind == ValueKind.Null)
                             throw new BelteNullReferenceException(cgs.condition.syntax.location);
@@ -260,7 +264,7 @@ internal sealed class Evaluator {
                         var expression = returnStatement.expression;
 
                         if (returnStatement.refKind == RefKind.None) {
-                            _lastValue = EvaluateExpression(expression, abort);
+                            _lastValue = EvaluateExpression(expression, true, abort);
                         } else {
                             _lastValue = EvaluateAddress(
                                 expression,
@@ -296,7 +300,7 @@ internal sealed class Evaluator {
 
     private void EvaluateExpressionStatement(BoundExpressionStatement node, ValueWrapper<bool> abort) {
         var expression = node.expression;
-        var value = EvaluateExpression(expression, abort);
+        var value = EvaluateExpression(expression, false, abort);
 
         if (expression.syntax.kind != Syntax.SyntaxKind.LocalDeclarationStatement)
             _lastValue = value;
@@ -306,7 +310,7 @@ internal sealed class Evaluator {
 
     #region Expressions
 
-    private EvaluatorValue EvaluateExpression(BoundExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateExpression(BoundExpression node, bool used, ValueWrapper<bool> abort) {
         if (abort)
             throw new BelteThreadException();
 
@@ -316,24 +320,24 @@ internal sealed class Evaluator {
         return node.kind switch {
             BoundKind.ThisExpression => EvaluateThisExpression((BoundThisExpression)node),
             BoundKind.BaseExpression => EvaluateBaseExpression((BoundBaseExpression)node),
-            BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)node),
-            BoundKind.StackSlotExpression => EvaluateStackSlotExpression((BoundStackSlotExpression)node),
-            BoundKind.FieldSlotExpression => EvaluateFieldSlotExpression((BoundFieldSlotExpression)node, abort),
-            BoundKind.CastExpression => EvaluateCastExpression((BoundCastExpression)node, abort),
-            BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)node, CodeGenerator.UseKind.UsedAsValue, abort),
-            BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)node, abort),
-            BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)node, abort),
-            BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)node, abort),
-            BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)node, abort),
-            BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)node, abort),
-            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)node, abort),
-            BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)node, CodeGenerator.UseKind.UsedAsValue, abort),
-            BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, abort),
+            BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)node, used),
+            BoundKind.StackSlotExpression => EvaluateStackSlotExpression((BoundStackSlotExpression)node, used),
+            BoundKind.FieldSlotExpression => EvaluateFieldSlotExpression((BoundFieldSlotExpression)node, used, abort),
+            BoundKind.CastExpression => EvaluateCastExpression((BoundCastExpression)node, used, abort),
+            BoundKind.AssignmentOperator => EvaluateAssignmentOperator((BoundAssignmentOperator)node, used ? UseKind.UsedAsValue : UseKind.Unused, abort),
+            BoundKind.UnaryOperator => EvaluateUnaryOperator((BoundUnaryOperator)node, used, abort),
+            BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)node, used, abort),
+            BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)node, used, abort),
+            BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)node, used, abort),
+            BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)node, used, abort),
+            BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)node, used, abort),
+            BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)node, used ? UseKind.UsedAsValue : UseKind.Unused, abort),
+            BoundKind.ObjectCreationExpression => EvaluateObjectCreationExpression((BoundObjectCreationExpression)node, used, abort),
             BoundKind.ArrayCreationExpression => EvaluateArrayCreationExpression((BoundArrayCreationExpression)node, abort),
-            BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)node, abort),
-            BoundKind.IndexerAccessExpression => EvaluateIndexerAccessExpression((BoundIndexerAccessExpression)node, abort),
+            BoundKind.ArrayAccessExpression => EvaluateArrayAccessExpression((BoundArrayAccessExpression)node, used, abort),
+            BoundKind.IndexerAccessExpression => EvaluateIndexerAccessExpression((BoundIndexerAccessExpression)node, used, abort),
             BoundKind.TypeExpression => EvaluateTypeExpression((BoundTypeExpression)node),
-            BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node),
+            BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node, used),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
@@ -342,7 +346,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (CodeGenerator.IsValueType(node.type))
+        if (IsValueType(node.type))
             return value.loc[value.ptr];
 
         return value;
@@ -351,13 +355,16 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateBaseExpression(BoundBaseExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (CodeGenerator.IsValueType(node.type))
+        if (IsValueType(node.type))
             return value.loc[value.ptr];
 
         return value;
     }
 
-    private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression node) {
+    private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression node, bool used) {
+        if (!used)
+            return EvaluatorValue.None;
+
         var type = node.sourceType.type;
 
         if (type.StrippedType() is TemplateParameterSymbol t) {
@@ -401,35 +408,52 @@ internal sealed class Evaluator {
         return EvaluatorValue.None;
     }
 
-    private EvaluatorValue EvaluateDataContainerExpression(BoundDataContainerExpression node) {
+    private EvaluatorValue EvaluateDataContainerExpression(BoundDataContainerExpression node, bool used) {
         var global = node.dataContainer;
         var isRefLocal = global.refKind != RefKind.None;
 
-        if (!_context.TryGetGlobal(node.dataContainer, out var value))
-            throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist");
+        if (used || isRefLocal) {
+            if (!_context.TryGetGlobal(node.dataContainer, out var value))
+                throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist");
 
-        if (isRefLocal)
-            return value.loc[value.ptr];
+            if (isRefLocal)
+                return value.loc[value.ptr];
 
-        return value;
+            return value;
+        }
+
+        return EvaluatorValue.None;
     }
 
-    private EvaluatorValue EvaluateStackSlotExpression(BoundStackSlotExpression node) {
+    private EvaluatorValue EvaluateStackSlotExpression(BoundStackSlotExpression node, bool used) {
         var local = node.symbol;
+
+        if (local.kind == SymbolKind.Parameter && !used)
+            return EvaluatorValue.None;
+
         var isRefLocal = local.GetRefKind() != RefKind.None;
 
-        var value = _stack.Peek().values[node.slot];
+        if (used || isRefLocal) {
+            var value = _stack.Peek().values[node.slot];
 
-        if (isRefLocal)
-            return value.loc[value.ptr];
+            if (isRefLocal)
+                return value.loc[value.ptr];
 
-        return value;
+            return value;
+        }
+
+        return EvaluatorValue.None;
     }
 
-    private EvaluatorValue EvaluateFieldSlotExpression(BoundFieldSlotExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateFieldSlotExpression(BoundFieldSlotExpression node, bool used, ValueWrapper<bool> abort) {
         var field = node.field;
 
-        var value = EvaluateFieldNoIndirection(node, abort);
+        if (!used) {
+            if (!field.isStatic && node.receiver.type.IsVerifierValue() && field.refKind == RefKind.None)
+                return EvaluateExpression(node.receiver, false, abort);
+        }
+
+        var value = EvaluateFieldNoIndirection(node, used, abort);
 
         if (field.refKind != RefKind.None)
             return value.loc[value.ptr];
@@ -437,13 +461,13 @@ internal sealed class Evaluator {
         return value;
     }
 
-    private EvaluatorValue EvaluateFieldNoIndirection(BoundFieldSlotExpression node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateFieldNoIndirection(BoundFieldSlotExpression node, bool used, ValueWrapper<bool> abort) {
         var field = node.field;
         var receiver = node.receiver;
         var fieldType = field.type;
 
-        if (CodeGenerator.IsValueType(fieldType) && (object)fieldType == receiver.type) {
-            return EvaluateExpression(receiver, abort);
+        if (IsValueType(fieldType) && (object)fieldType == receiver.type) {
+            return EvaluateExpression(receiver, used, abort);
         } else {
             var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
             return _context.heap[receiverValue.ptr].fields[node.slot];
@@ -451,27 +475,27 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateFieldLoadReceiver(BoundExpression receiver, ValueWrapper<bool> abort) {
-        if (CodeGenerator.FieldLoadMustUseRef(receiver) || FieldLoadPrefersRef(receiver)) {
+        if (FieldLoadMustUseRef(receiver) || FieldLoadPrefersRef(receiver)) {
             return EvaluateFieldLoadReceiverAddress(receiver, abort, out var expr)
                 ? expr
                 : EvaluateReceiverRef(receiver, AddressKind.ReadOnly, abort);
         }
 
-        return EvaluateExpression(receiver, abort);
+        return EvaluateExpression(receiver, true, abort);
     }
 
     private bool EvaluateFieldLoadReceiverAddress(
         BoundExpression receiver,
         ValueWrapper<bool> abort,
         out EvaluatorValue expr) {
-        if (receiver is null || !CodeGenerator.IsValueType(receiver.Type())) {
+        if (receiver is null || !IsValueType(receiver.Type())) {
             expr = EvaluatorValue.None;
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
             var conversion = (BoundCastExpression)receiver;
 
             if (conversion.conversion.kind == ConversionKind.AnyUnboxing) {
-                expr = EvaluateExpression(conversion.operand, abort);
+                expr = EvaluateExpression(conversion.operand, true, abort);
                 return true;
             }
         } else if (receiver.kind == BoundKind.FieldSlotExpression) {
@@ -518,10 +542,15 @@ internal sealed class Evaluator {
         return true;
     }
 
-    private EvaluatorValue EvaluateCastExpression(BoundCastExpression node, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(node.operand, abort);
+    private EvaluatorValue EvaluateCastExpression(BoundCastExpression node, bool used, ValueWrapper<bool> abort) {
+        if (!used && !node.ConversionHasSideEffects()) {
+            EvaluateExpression(node.operand, false, abort);
+            return EvaluatorValue.None;
+        }
 
-        if (CodeGenerator.IsReferenceType(node.operand.Type())) {
+        var value = EvaluateExpression(node.operand, true, abort);
+
+        if (IsReferenceType(node.operand.Type())) {
             if (node.Type().specialType == SpecialType.Nullable)
                 return value;
         }
@@ -599,9 +628,10 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateObjectCreationExpression(
         BoundObjectCreationExpression node,
+        bool used,
         ValueWrapper<bool> abort) {
         if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
-            return EvaluateExpression(node.arguments[0], abort);
+            return EvaluateExpression(node.arguments[0], used, abort);
 
         var type = (NamedTypeSymbol)node.type;
         var ptr = CreateObject(type);
@@ -618,38 +648,49 @@ internal sealed class Evaluator {
         return ptr;
     }
 
-    private EvaluatorValue EvaluateArrayAccessExpression(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {
-        var receiver = EvaluateExpression(node.receiver, abort);
+    private EvaluatorValue EvaluateArrayAccessExpression(BoundArrayAccessExpression node, bool used, ValueWrapper<bool> abort) {
+        var receiver = EvaluateExpression(node.receiver, true, abort);
 
         if (receiver.kind == ValueKind.Null)
             throw new BelteNullReferenceException(node.syntax.location);
 
-        var index = (int)EvaluateExpression(node.index, abort).int64;
+        var index = (int)EvaluateExpression(node.index, true, abort).int64;
 
-        if (index >= _context.heap[receiver.ptr].fields.Length)
-            throw new BelteIndexOutOfRangeException(node.syntax.location);
+        if (used || node.type.specialType is SpecialType.Int or SpecialType.Bool or SpecialType.Decimal ||
+            node.type.IsVerifierReference()) {
+            if (index >= _context.heap[receiver.ptr].fields.Length)
+                throw new BelteIndexOutOfRangeException(node.syntax.location);
 
-        return _context.heap[receiver.ptr].fields[index];
+            return _context.heap[receiver.ptr].fields[index];
+        }
+
+        return EvaluatorValue.None;
     }
 
-    private EvaluatorValue EvaluateIndexerAccessExpression(BoundIndexerAccessExpression node, ValueWrapper<bool> abort) {
-        var receiver = EvaluateExpression(node.receiver, abort);
+    private EvaluatorValue EvaluateIndexerAccessExpression(
+        BoundIndexerAccessExpression node,
+        bool used,
+        ValueWrapper<bool> abort) {
+        var receiver = EvaluateExpression(node.receiver, true, abort);
 
         if (receiver.kind == ValueKind.Null)
             throw new BelteNullReferenceException(node.syntax.location);
 
-        var index = (int)EvaluateExpression(node.index, abort).int64;
+        var index = (int)EvaluateExpression(node.index, true, abort).int64;
 
         if (index >= receiver.@string.Length)
             throw new BelteIndexOutOfRangeException(node.syntax.location);
 
-        return EvaluatorValue.Literal(receiver.@string[index]);
+        if (used)
+            return EvaluatorValue.Literal(receiver.@string[index]);
+        else
+            return EvaluatorValue.None;
     }
 
     private EvaluatorValue EvaluateArrayCreationExpression(
         BoundArrayCreationExpression node,
         ValueWrapper<bool> abort) {
-        var sizes = node.sizes.Select(s => (int)EvaluateExpression(s, abort).int64);
+        var sizes = node.sizes.Select(s => (int)EvaluateExpression(s, true, abort).int64);
         var heapObject = CreateArray((ArrayTypeSymbol)node.StrippedType(), sizes.ToArray(), 0);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         var ptr = EvaluatorValue.HeapPtr(index);
@@ -679,7 +720,7 @@ internal sealed class Evaluator {
                 var child = _context.heap[elements[i].ptr];
                 EvaluateInitializerList(child, nested, abort, depth + 1);
             } else {
-                elements[i] = EvaluateExpression(item, abort);
+                elements[i] = EvaluateExpression(item, true, abort);
             }
         }
     }
@@ -712,24 +753,24 @@ internal sealed class Evaluator {
 
     #region Operators
 
-    private EvaluatorValue EvaluateConditionalOperator(BoundConditionalOperator node, ValueWrapper<bool> abort) {
-        var condition = EvaluateExpression(node.condition, abort).@bool;
+    private EvaluatorValue EvaluateConditionalOperator(BoundConditionalOperator node, bool used, ValueWrapper<bool> abort) {
+        var condition = EvaluateExpression(node.condition, true, abort).@bool;
 
         if (condition)
-            return EvaluateExpression(node.trueExpression, abort);
+            return EvaluateExpression(node.trueExpression, used, abort);
         else
-            return EvaluateExpression(node.falseExpression, abort);
+            return EvaluateExpression(node.falseExpression, used, abort);
     }
 
-    private EvaluatorValue EvaluateNullAssertOperator(BoundNullAssertOperator node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateNullAssertOperator(BoundNullAssertOperator node, bool used, ValueWrapper<bool> abort) {
         if (!node.throwIfNull)
-            return EvaluateExpression(node.operand, abort);
+            return EvaluateExpression(node.operand, used, abort);
 
         return NullAssertValue(node.operand, abort);
     }
 
     private EvaluatorValue NullAssertValue(BoundExpression node, ValueWrapper<bool> abort) {
-        var value = EvaluateExpression(node, abort);
+        var value = EvaluateExpression(node, true, abort);
 
         if (value.kind == ValueKind.Null)
             throw new BelteNullReferenceException(node.syntax.location);
@@ -737,9 +778,13 @@ internal sealed class Evaluator {
         return value;
     }
 
-    private EvaluatorValue EvaluateIsOperator(BoundIsOperator node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateIsOperator(BoundIsOperator node, bool used, ValueWrapper<bool> abort) {
         var operand = node.left;
-        var value = EvaluateExpression(operand, abort);
+        var value = EvaluateExpression(operand, used, abort);
+
+        if (!used)
+            return EvaluatorValue.None;
+
         var targetType = node.right.StrippedType();
 
         if (value.kind == ValueKind.Null) {
@@ -773,9 +818,12 @@ internal sealed class Evaluator {
         return value;
     }
 
-    private EvaluatorValue EvaluateAsOperator(BoundAsOperator node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateAsOperator(BoundAsOperator node, bool used, ValueWrapper<bool> abort) {
         var operand = node.left;
-        var value = EvaluateExpression(operand, abort);
+        var value = EvaluateExpression(operand, used, abort);
+
+        if (!used)
+            return EvaluatorValue.None;
 
         if (value.kind == ValueKind.Null)
             return value;
@@ -791,7 +839,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateAssignmentOperator(
         BoundAssignmentOperator node,
-        CodeGenerator.UseKind useKind,
+        UseKind useKind,
         ValueWrapper<bool> abort) {
         if (node.left is BoundDataContainerExpression)
             return EvaluateGlobalAssignment(node, useKind, abort);
@@ -806,39 +854,40 @@ internal sealed class Evaluator {
 
     private void EvaluateStore(BoundAssignmentOperator node, EvaluatorValue lhs, EvaluatorValue value) {
         var expression = node.left;
+        var location = expression.syntax.location;
 
         switch (expression.kind) {
             case BoundKind.FieldSlotExpression:
                 var field = ((BoundFieldSlotExpression)expression).field;
 
                 if (field.refKind != RefKind.None && !node.isRef)
-                    IndirectStore(lhs.loc[lhs.ptr], value);
+                    IndirectStore(location, lhs.loc[lhs.ptr], value);
                 else
-                    IndirectStore(lhs, value);
+                    IndirectStore(location, lhs, value);
 
                 break;
             case BoundKind.DataContainerExpression:
                 var local = (BoundDataContainerExpression)expression;
 
                 if (local.dataContainer.refKind != RefKind.None && !node.isRef)
-                    IndirectStore(lhs.loc[lhs.ptr], value);
+                    IndirectStore(location, lhs.loc[lhs.ptr], value);
                 else
-                    IndirectStore(lhs, value);
+                    IndirectStore(location, lhs, value);
 
                 break;
             case BoundKind.StackSlotExpression:
                 var symbol = ((BoundStackSlotExpression)expression).symbol;
 
                 if (symbol.GetRefKind() != RefKind.None && !node.isRef)
-                    IndirectStore(lhs.loc[lhs.ptr], value);
+                    IndirectStore(location, lhs.loc[lhs.ptr], value);
                 else
-                    IndirectStore(lhs, value);
+                    IndirectStore(location, lhs, value);
 
                 break;
             case BoundKind.ArrayAccessExpression:
             case BoundKind.CallExpression:
             case BoundKind.ConditionalOperator:
-                IndirectStore(lhs, value);
+                IndirectStore(location, lhs, value);
                 break;
             case BoundKind.ThisExpression:
                 lhs.ptr = value.ptr;
@@ -849,7 +898,7 @@ internal sealed class Evaluator {
                 if (!nested.isRef)
                     goto default;
 
-                IndirectStore(lhs, value);
+                IndirectStore(location, lhs, value);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
@@ -858,14 +907,14 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateGlobalAssignment(
         BoundAssignmentOperator node,
-        CodeGenerator.UseKind useKind,
+        UseKind useKind,
         ValueWrapper<bool> abort) {
         var global = (node.left as BoundDataContainerExpression).dataContainer;
         var value = EvaluateAssignmentValue(node, abort);
 
         if (global.refKind != RefKind.None && !node.isRef) {
             _context.TryGetGlobal(global, out var indirect);
-            IndirectStore(indirect, value);
+            IndirectStore(node.syntax.location, indirect, value);
         } else {
             _context.AddOrUpdateGlobal(global, value);
         }
@@ -876,8 +925,11 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateAssignmentPostfix(
         BoundAssignmentOperator node,
         EvaluatorValue value,
-        CodeGenerator.UseKind useKind) {
-        if (useKind == CodeGenerator.UseKind.UsedAsValue && node.isRef)
+        UseKind useKind) {
+        if (node.syntax.kind == Syntax.SyntaxKind.LocalDeclarationStatement)
+            _lastValue = EvaluatorValue.None;
+
+        if (useKind == UseKind.UsedAsValue && node.isRef)
             return value.loc[value.ptr];
 
         return value;
@@ -892,7 +944,7 @@ internal sealed class Evaluator {
                     var left = (BoundFieldSlotExpression)assignmentTarget;
 
                     if (left.field.refKind != RefKind.None && !node.isRef)
-                        expr = EvaluateFieldNoIndirection(left, abort);
+                        expr = EvaluateFieldNoIndirection(left, true, abort);
                     else
                         expr = EvaluateReceiverRef(left.receiver, AddressKind.Writeable, abort);
 
@@ -908,8 +960,8 @@ internal sealed class Evaluator {
                 break;
             case BoundKind.ArrayAccessExpression: {
                     var left = (BoundArrayAccessExpression)assignmentTarget;
-                    var receiver = EvaluateExpression(left.receiver, abort);
-                    var index = (int)EvaluateExpression(left.index, abort).int64;
+                    var receiver = EvaluateExpression(left.receiver, true, abort);
+                    var index = (int)EvaluateExpression(left.index, true, abort).int64;
                     expr = EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, index);
                 }
 
@@ -928,7 +980,7 @@ internal sealed class Evaluator {
                 break;
             case BoundKind.CallExpression: {
                     var left = (BoundCallExpression)assignmentTarget;
-                    expr = EvaluateCallExpression(left, CodeGenerator.UseKind.UsedAsAddress, abort);
+                    expr = EvaluateCallExpression(left, UseKind.UsedAsAddress, abort);
                 }
 
                 break;
@@ -938,7 +990,7 @@ internal sealed class Evaluator {
                 if (!assignment.isRef)
                     goto default;
 
-                expr = EvaluateAssignmentOperator(assignment, CodeGenerator.UseKind.UsedAsAddress, abort);
+                expr = EvaluateAssignmentOperator(assignment, UseKind.UsedAsAddress, abort);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(assignmentTarget.kind);
@@ -949,7 +1001,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateAssignmentValue(BoundAssignmentOperator node, ValueWrapper<bool> abort) {
         if (!node.isRef) {
-            return EvaluateExpression(node.right, abort);
+            return EvaluateExpression(node.right, true, abort);
         } else {
             var lhs = node.left;
             return EvaluateAddress(
@@ -962,9 +1014,14 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorValue EvaluateUnaryOperator(BoundUnaryOperator node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateUnaryOperator(BoundUnaryOperator node, bool used, ValueWrapper<bool> abort) {
+        if (!used) {
+            EvaluateExpression(node.operand, false, abort);
+            return EvaluatorValue.None;
+        }
+
         var operatorKind = node.operatorKind;
-        var operand = EvaluateExpression(node.operand, abort);
+        var operand = EvaluateExpression(node.operand, true, abort);
 
         switch (operatorKind.Operator()) {
             case UnaryOperatorKind.UnaryMinus:
@@ -987,10 +1044,17 @@ internal sealed class Evaluator {
         return operand;
     }
 
-    private EvaluatorValue EvaluateBinaryOperator(BoundBinaryOperator node, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateBinaryOperator(BoundBinaryOperator node, bool used, ValueWrapper<bool> abort) {
         var operatorKind = node.operatorKind;
+
+        if (!used && !operatorKind.IsConditional() && !OperatorHasSideEffects(operatorKind)) {
+            EvaluateExpression(node.left, false, abort);
+            EvaluateExpression(node.right, false, abort);
+            return EvaluatorValue.None;
+        }
+
         var op = operatorKind.Operator();
-        var left = EvaluateExpression(node.left, abort);
+        var left = EvaluateExpression(node.left, true, abort);
 
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
             if (node.right.IsLiteralNull())
@@ -1004,17 +1068,17 @@ internal sealed class Evaluator {
             if (!left.@bool)
                 return left;
 
-            return EvaluateExpression(node.right, abort);
+            return EvaluateExpression(node.right, true, abort);
         }
 
         if (operatorKind == BinaryOperatorKind.BoolConditionalOr) {
             if (left.@bool)
                 return left;
 
-            return EvaluateExpression(node.right, abort);
+            return EvaluateExpression(node.right, true, abort);
         }
 
-        var right = EvaluateExpression(node.right, abort);
+        var right = EvaluateExpression(node.right, true, abort);
 
         if (right.kind == ValueKind.Null)
             return right;
@@ -1209,7 +1273,7 @@ internal sealed class Evaluator {
 
                 return EvaluateArrayElementAddress((BoundArrayAccessExpression)node, abort);
             case BoundKind.ThisExpression:
-                if (CodeGenerator.IsValueType(node.Type())) {
+                if (IsValueType(node.Type())) {
                     if (!HasHome(node, addressKind))
                         goto default;
 
@@ -1222,8 +1286,8 @@ internal sealed class Evaluator {
             case BoundKind.CallExpression:
                 var call = (BoundCallExpression)node;
 
-                if (CodeGenerator.UseCallResultAsAddress(call, addressKind))
-                    return EvaluateCallExpression(call, CodeGenerator.UseKind.UsedAsAddress, abort);
+                if (UseCallResultAsAddress(call, addressKind))
+                    return EvaluateCallExpression(call, UseKind.UsedAsAddress, abort);
 
                 goto default;
             case BoundKind.ConditionalOperator:
@@ -1232,7 +1296,7 @@ internal sealed class Evaluator {
 
                 return EvaluateConditionalOperatorAddress((BoundConditionalOperator)node, addressKind, abort);
             case BoundKind.ThrowExpression:
-                return EvaluateExpression(node, abort);
+                return EvaluateExpression(node, true, abort);
             default:
                 return EvaluateAddressOfTempClone(node, abort);
         }
@@ -1242,7 +1306,7 @@ internal sealed class Evaluator {
         BoundConditionalOperator node,
         AddressKind addressKind,
         ValueWrapper<bool> abort) {
-        var condition = EvaluateExpression(node.condition, abort).@bool;
+        var condition = EvaluateExpression(node.condition, true, abort).@bool;
 
         if (condition)
             return EvaluateAddress(node.trueExpression, addressKind, abort);
@@ -1251,8 +1315,8 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateArrayElementAddress(BoundArrayAccessExpression node, ValueWrapper<bool> abort) {
-        var receiver = EvaluateExpression(node.receiver, abort);
-        var index = (int)EvaluateExpression(node.index, abort).int64;
+        var receiver = EvaluateExpression(node.receiver, true, abort);
+        var index = (int)EvaluateExpression(node.index, true, abort).int64;
 
         if (((ArrayTypeSymbol)node.receiver.StrippedType()).isSZArray)
             return EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, index);
@@ -1297,7 +1361,7 @@ internal sealed class Evaluator {
         var receiverType = receiver.Type();
 
         if (receiverType.IsVerifierReference())
-            return EvaluateExpression(receiver, abort);
+            return EvaluateExpression(receiver, true, abort);
 
         return EvaluateAddress(receiver, addressKind, abort);
     }
@@ -1347,7 +1411,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateCallExpression(
         BoundCallExpression node,
-        CodeGenerator.UseKind useKind,
+        UseKind useKind,
         ValueWrapper<bool> abort) {
         if (CheckStandardMap(
             node.syntax.location,
@@ -1382,7 +1446,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateStaticCallExpression(
         BoundCallExpression node,
-        CodeGenerator.UseKind useKind,
+        UseKind useKind,
         ValueWrapper<bool> abort) {
         var method = node.method;
         var arguments = node.arguments;
@@ -1391,7 +1455,7 @@ internal sealed class Evaluator {
 
         var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
 
-        if (useKind == CodeGenerator.UseKind.UsedAsValue && method.refKind != RefKind.None)
+        if (useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
         else
             return value;
@@ -1445,13 +1509,13 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateInstanceCallExpression(
         BoundCallExpression node,
-        CodeGenerator.UseKind useKind,
+        UseKind useKind,
         ValueWrapper<bool> abort) {
         var method = node.method;
         var arguments = node.arguments;
         var receiver = node.receiver;
 
-        var thisParameter = EvaluateExpression(receiver, abort);
+        var thisParameter = EvaluateExpression(receiver, true, abort);
 
         if (thisParameter.kind == ValueKind.Null)
             throw new BelteNullReferenceException(receiver.syntax.location);
@@ -1462,7 +1526,7 @@ internal sealed class Evaluator {
 
         var value = InvokeMethod(method, thisParameter, evaluatedArguments, abort);
 
-        if (useKind == CodeGenerator.UseKind.UsedAsValue && method.refKind != RefKind.None)
+        if (useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
         else
             return value;
@@ -1525,7 +1589,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateArgument(BoundExpression argument, RefKind refKind, ValueWrapper<bool> abort) {
         if (refKind == RefKind.None)
-            return EvaluateExpression(argument, abort);
+            return EvaluateExpression(argument, true, abort);
 
         return EvaluateAddress(argument, AddressKind.Writeable, abort);
     }
@@ -1611,13 +1675,13 @@ internal sealed class Evaluator {
         }
 
         if (mapKey == "Nullable<>_get_HasValue") {
-            var receiverValue = EvaluateExpression(receiver, abort);
+            var receiverValue = EvaluateExpression(receiver, true, abort);
             result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
             return true;
         }
 
         if (mapKey == "Object<>_ToString") {
-            var thisParameter = EvaluateExpression(receiver, abort);
+            var thisParameter = EvaluateExpression(receiver, true, abort);
 
             if (thisParameter.kind == ValueKind.Null)
                 throw new BelteNullReferenceException(receiver.syntax.location);
@@ -1632,7 +1696,7 @@ internal sealed class Evaluator {
         if (method.containingNamespace.Equals(LibraryHelpers.BelteNamespace.originalDefinition)) {
             switch (mapKey) {
                 case "LowLevel_GetHashCode_O": {
-                        var argument = EvaluateExpression(arguments[0], abort);
+                        var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
                             result = _context.heap[argument.ptr].GetHashCode();
@@ -1655,7 +1719,7 @@ internal sealed class Evaluator {
 
                     return true;
                 case "LowLevel_GetTypeName_O": {
-                        var argument = EvaluateExpression(arguments[0], abort);
+                        var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
                             var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
@@ -1676,7 +1740,7 @@ internal sealed class Evaluator {
                     return true;
                 case "Random_RandInt_I?":
                     _lazyRandom ??= new Random();
-                    var max = (int)EvaluateExpression(arguments[0], abort).int64;
+                    var max = (int)EvaluateExpression(arguments[0], true, abort).int64;
                     result = _lazyRandom.NextInt64(max);
                     return true;
                 case "LowLevel_ThrowNullConditionException":
@@ -1686,7 +1750,7 @@ internal sealed class Evaluator {
                     result = _lazyRandom.NextDouble();
                     return true;
                 case "LowLevel_Sort_A?": {
-                        var arrayPtr = EvaluateExpression(arguments[0], abort);
+                        var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
                         if (arrayPtr.kind != ValueKind.HeapPtr)
                             return true;
@@ -1707,7 +1771,7 @@ internal sealed class Evaluator {
 
                     return true;
                 case "String_Split_SS": {
-                        var args = arguments.Select(a => EvaluateExpression(a, abort).@string).ToArray();
+                        var args = arguments.Select(a => EvaluateExpression(a, true, abort).@string).ToArray();
                         var text = args[0];
                         var separator = args[1];
                         var res = text.Split(separator);
@@ -1725,7 +1789,7 @@ internal sealed class Evaluator {
                 case "Console_PrintLine_A?":
                 case "Console_PrintLine_O?":
                     if (arguments[0].StrippedType().isObjectType) {
-                        var argument = EvaluateExpression(arguments[0], abort);
+                        var argument = EvaluateExpression(arguments[0], true, abort);
                         var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
                         var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
@@ -1738,7 +1802,7 @@ internal sealed class Evaluator {
 
             var function = StandardLibrary.EvaluatorMap[mapKey];
             var valueArguments = arguments
-                .Select(a => EvaluatorValue.Format(EvaluateExpression(a, abort), _context))
+                .Select(a => EvaluatorValue.Format(EvaluateExpression(a, true, abort), _context))
                 .ToArray();
 
             switch (mapKey) {
@@ -1862,7 +1926,7 @@ internal sealed class Evaluator {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         if (mapKey == "Graphics_Initialize_SIIB") {
-            var valueArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+            var valueArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
 
             StartGraphics(
                 valueArguments[0].@string,
@@ -1883,7 +1947,7 @@ internal sealed class Evaluator {
 
         switch (mapKey) {
             case "Graphics_LoadTexture_S": {
-                    var path = GetFilePath(EvaluateExpression(arguments[0], abort).@string, location)
+                    var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
 
                     result = LoadTexture(path);
@@ -1891,7 +1955,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_LoadTexture_SIII": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
 
@@ -1904,7 +1968,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_LoadSprite_SV?V?I?": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist", location);
 
@@ -1933,7 +1997,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_DrawSprite_S?": {
-                    var argument = EvaluateExpression(arguments[0], abort);
+                    var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
                         return true;
@@ -1943,7 +2007,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_DrawSprite_S?V?": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var spritePtr = evaluatedArguments[0];
 
                     if (spritePtr.kind == ValueKind.Null)
@@ -1954,7 +2018,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_StopDraw_I?": {
-                    var argument = EvaluateExpression(arguments[0], abort);
+                    var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
                         return true;
@@ -1964,7 +2028,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_LoadText_S?SV?DD?I?I?I?": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist", location);
 
@@ -1990,7 +2054,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_DrawText_T?": {
-                    var argument = EvaluateExpression(arguments[0], abort);
+                    var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
                         return true;
@@ -2020,13 +2084,13 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_GetKey_S": {
-                    var argument = EvaluateExpression(arguments[0], abort).@string;
+                    var argument = EvaluateExpression(arguments[0], true, abort).@string;
                     result = _context.graphicsHandler.GetKey(argument);
                 }
 
                 break;
             case "Graphics_GetMouseButton_S": {
-                    var argument = EvaluateExpression(arguments[0], abort).@string;
+                    var argument = EvaluateExpression(arguments[0], true, abort).@string;
                     result = _context.graphicsHandler.GetMouseButton(argument);
                 }
 
@@ -2067,7 +2131,7 @@ internal sealed class Evaluator {
                 DrawRect(true, out result);
                 break;
             case "Graphics_Fill_III": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
 
                     var r = evaluatedArguments[0].int64;
                     var g = evaluatedArguments[1].int64;
@@ -2084,7 +2148,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_Draw_T?R?R?I?B?D?": {
-                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+                    var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var texturePtr = evaluatedArguments[0];
 
                     if (H(texturePtr)[0].data is not Texture2D texture2D)
@@ -2135,7 +2199,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_LoadSound_S": {
-                    var path = GetFilePath(EvaluateExpression(arguments[0], abort).@string, location)
+                    var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist", location);
 
                     var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
@@ -2149,7 +2213,7 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_PlaySound_S": {
-                    var argument = EvaluateExpression(arguments[0], abort);
+                    var argument = EvaluateExpression(arguments[0], true, abort);
                     var fields = H(argument);
                     double? volume = fields[1].kind == ValueKind.Null ? null : fields[1].@double;
                     bool? loop = fields[2].kind == ValueKind.Null ? null : fields[2].@bool;
@@ -2159,13 +2223,13 @@ internal sealed class Evaluator {
 
                 break;
             case "Graphics_SetCursorVisibility_B": {
-                    var argument = EvaluateExpression(arguments[0], abort).@bool;
+                    var argument = EvaluateExpression(arguments[0], true, abort).@bool;
                     _context.graphicsHandler.SetCursorVisibility(argument);
                 }
 
                 break;
             case "Graphics_LockFramerate_I": {
-                    var argument = EvaluateExpression(arguments[0], abort).int64;
+                    var argument = EvaluateExpression(arguments[0], true, abort).int64;
                     _context.graphicsHandler.LockFramerate((int)argument);
                 }
 
@@ -2178,7 +2242,7 @@ internal sealed class Evaluator {
 
         void DrawRect(bool includeAlpha, out object result) {
             result = null;
-            var fields = arguments.Select(a => EvaluateExpression(a, abort)).ToArray();
+            var fields = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
             var rectPtr = fields[0];
 
             if (rectPtr.kind == ValueKind.Null)

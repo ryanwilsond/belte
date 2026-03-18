@@ -3,9 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Reflection.Metadata;
-using System.Text;
-using Buckle.CodeAnalysis.Display;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -37,22 +34,10 @@ internal static partial class MetadataHelpers {
     internal static ImmutableArray<ReadOnlyMemory<char>> SplitQualifiedName(ReadOnlyMemory<char> name)
         => SplitQualifiedNameWorker(name, SplitQualifiedNameSystemMemory, static memory => memory);
 
-    internal static string ComposeSuffixedMetadataName(string name, ImmutableArray<TemplateParameterSymbol> templates) {
-        if (templates.Length == 0)
-            return name;
-
-        var builder = new StringBuilder(name);
-        builder.Append(MangledNameRegionStartChar);
-
-        for (var i = 0; i < templates.Length; i++) {
-            if (i > 0)
-                builder.Append(CommaDelimiter);
-
-            builder.Append(templates[i].underlyingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat));
-        }
-
-        builder.Append(MangledNameRegionEndChar);
-        return builder.ToString();
+    internal static string ComposeSuffixedMetadataName(string name, int arity) {
+        // ? Even if we wanted the template parameter underlying types here can't get them
+        // Doing so would require resolving the type completely but this is needed during construction
+        return (arity == 0) ? name : name + GenericTypeNameManglingChar + arity.ToString();
     }
 
     internal static string BuildQualifiedName(string qualifier, string name) {

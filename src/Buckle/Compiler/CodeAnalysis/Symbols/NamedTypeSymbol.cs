@@ -15,7 +15,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
     public abstract override string name { get; }
 
     public override string metadataName
-        => mangleName ? MetadataHelpers.ComposeSuffixedMetadataName(name, templateParameters) : name;
+        => mangleName ? MetadataHelpers.ComposeSuffixedMetadataName(name, arity) : name;
 
     public override SymbolKind kind => SymbolKind.NamedType;
 
