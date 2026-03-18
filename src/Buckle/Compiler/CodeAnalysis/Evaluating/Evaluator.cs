@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
@@ -1653,7 +1655,8 @@ internal sealed class Evaluator {
                         var argument = EvaluateExpression(arguments[0], abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
-                            result = _context.heap[argument.ptr].type.name;
+                            var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                            result = GetTypeName(type);
                         } else {
                             // TODO These are .NET types not Belte types! (to ensure parity with IL code gen)
                             result = argument.kind switch {
@@ -1764,6 +1767,68 @@ internal sealed class Evaluator {
             return true;
         } else {
             return false;
+        }
+    }
+
+    private static string GetTypeName(TypeSymbol type) {
+        var builder = new StringBuilder();
+        GetTypeNameCore(type, builder);
+        return builder.ToString();
+    }
+
+    private static void GetTypeNameCore(TypeSymbol type, StringBuilder builder) {
+        // ? The goal here is IL parity, not Belte-correctness
+        // TODO This always adds the arity distinguisher (`1) even if the type name is unique unlike .NET
+        switch (type.typeKind) {
+            case TypeKind.Array:
+                GetTypeNameCore(((ArrayTypeSymbol)type).elementType, builder);
+                builder.Append("[]");
+                break;
+            case TypeKind.Primitive:
+                builder.Append(type.specialType switch {
+                    SpecialType.String => "System.String",
+                    SpecialType.Int => "System.Int64",
+                    SpecialType.Bool => "System.Boolean",
+                    SpecialType.Decimal => "System.Double",
+                    SpecialType.Char => "System.Char",
+                    _ => throw ExceptionUtilities.UnexpectedValue(type.typeKind)
+                });
+
+                break;
+            case TypeKind.Struct:
+            case TypeKind.Class:
+                if (type.specialType == SpecialType.Nullable)
+                    builder.Append("System.");
+
+                var namedType = (NamedTypeSymbol)type;
+                builder.Append(namedType.ToDisplayString(SymbolDisplayFormat.ToStringNameFormat));
+
+                var arity = namedType.arity;
+
+                if (arity == 0)
+                    return;
+
+                builder.Append('`');
+                builder.Append(arity);
+                builder.Append('[');
+
+                for (var i = 0; i < arity; i++) {
+                    var argument = namedType.templateArguments[i];
+
+                    if (argument.isConstant)
+                        builder.Append(argument.constant.value);
+                    else
+                        GetTypeNameCore(argument.type.type, builder);
+
+                    if (i < arity - 1)
+                        builder.Append(',');
+                }
+
+                builder.Append(']');
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }
     }
 

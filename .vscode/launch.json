@@ -10,8 +10,6 @@
             "args": [
                 "-r",
                 "--clearsubmissions",
-                // ".tmp/test.blt",
-                // ".tmp/test.blt"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

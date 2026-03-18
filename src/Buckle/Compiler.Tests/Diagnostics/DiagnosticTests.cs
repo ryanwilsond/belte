@@ -1435,7 +1435,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0124_ConstraintIsNotConstant
+    [Fact]
+    public void Reports_Error_BU0124_ConstraintIsNotConstant() {
+        var text = @"
+            class A<string a> where { [a == Console.Input()]; } { }
+        ";
+
+        var diagnostics = @"
+            template constraint is not a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0125_RefReturnNonreturnableLocal2
 
     [Fact]
@@ -1447,14 +1459,40 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'Object' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type T extends B>'
+            the type 'Object' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0127_ConstraintWasNull
-    // ! Error_BU0128_ConstraintFailed
+    [Fact]
+    public void Reports_Error_BU0127_ConstraintWasNull() {
+        var text = @"
+            class A<int a> where { a == 3; } { }
+            var a = new [A<null>]();
+        ";
+
+        var diagnostics = @"
+            template constraint fails: constraint results in null (a == 3)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0128_ConstraintFailed() {
+        var text = @"
+            class A<int a> where { a == 3; } { }
+            var a = new [A<4>]();
+        ";
+
+        var diagnostics = @"
+            template constraint fails (a == 3)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0129_RefReturnNonreturnableLocal
     // ! Error_BU0130_RefReturnLocal2
     // ! Error_BU0131_RefReturnLocal
@@ -3084,7 +3122,21 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the template type 'A<type t>' requires 1 template arguments
+            the template type 'A<type! t>' requires 1 template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0309_BadArity2() {
+        var text = @"
+            class A<int t> { }
+            var a = new [A]();
+        ";
+
+        var diagnostics = @"
+            the template type 'A<int t>' requires 1 template arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3186,7 +3238,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'int' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type T extends Object>'
+            the type 'int' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3200,7 +3252,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'Object' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type T>'
+            the type 'Object' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

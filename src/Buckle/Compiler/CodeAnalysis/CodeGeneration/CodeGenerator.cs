@@ -124,11 +124,24 @@ internal sealed partial class CodeGenerator {
     }
 
     internal static bool IsReferenceType(TypeSymbol type) {
-        return (type.isObjectType && !type.IsStructType() && !IsTrueNullable(type)) || IsReferenceType(type.specialType);
+        var isReferenceType = (type.isObjectType && !type.IsStructType() &&
+                              !IsTrueNullable(type)) || IsReferenceType(type.specialType);
+
+        if (type.StrippedType() is TemplateParameterSymbol t)
+            isReferenceType &= t.hasObjectTypeConstraint;
+
+        return isReferenceType;
     }
 
     internal static bool IsValueType(TypeSymbol type) {
-        return (type.isPrimitiveType || type.IsStructType() || IsTrueNullable(type)) && IsValueType(type.specialType);
+        var isValueType = (type.isPrimitiveType || type.IsStructType() ||
+                           IsTrueNullable(type)) && IsValueType(type.specialType);
+
+        // TODO Double check there is no edge case where a primitive constraint can result in a reference type
+        if (type.StrippedType() is TemplateParameterSymbol t)
+            isValueType &= t.hasPrimitiveTypeConstraint;
+
+        return isValueType;
     }
 
     private VariableDefinition AllocateTemp(
@@ -413,7 +426,8 @@ internal sealed partial class CodeGenerator {
     }
 
     private static bool BoxNonVerifierReferenceReceiver(TypeSymbol receiverType, AddressKind addressKind) {
-        return receiverType.typeKind == TypeKind.TemplateParameter && addressKind != AddressKind.Constrained;
+        return receiverType.StrippedType().typeKind == TypeKind.TemplateParameter &&
+            addressKind != AddressKind.Constrained;
     }
 
     private VariableDefinition EmitAddressOfTempClone(BoundExpression expression) {
@@ -1037,7 +1051,7 @@ oneMoreTime:
                         if (used) {
                             _builder.EmitWithSymbolToken(OpCode.Ldelem, elementType);
                         } else {
-                            if (elementType.typeKind == TypeKind.TemplateParameter)
+                            if (elementType.StrippedType().typeKind == TypeKind.TemplateParameter)
                                 _builder.Emit(OpCode.Readonly);
 
                             _builder.EmitWithSymbolToken(OpCode.Ldelema, elementType);
@@ -2631,7 +2645,7 @@ oneMoreTime:
             return false;
 
         if (left.kind == BoundKind.ArrayAccessExpression &&
-            left.type.typeKind == TypeKind.TemplateParameter &&
+            left.StrippedType().typeKind == TypeKind.TemplateParameter &&
             !IsValueType(left.type)) {
             return false;
         }
