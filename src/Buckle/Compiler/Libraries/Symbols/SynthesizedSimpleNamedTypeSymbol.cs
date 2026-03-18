@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
 
@@ -17,23 +18,36 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
         TypeKind typeKind,
         NamedTypeSymbol baseType,
         DeclarationModifiers modifiers,
-        Symbol earlyContainingSymbol) {
+        Symbol earlyContainingSymbol,
+        TypeWithAnnotations[] templateParameterTypes,
+        SpecialType specialType = SpecialType.None) {
         this.name = name;
         this.typeKind = typeKind;
         this.baseType = baseType;
         _modifiers = modifiers;
         containingSymbol = earlyContainingSymbol;
+        this.specialType = specialType;
+
+        var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+
+        for (var i = 0; i < templateParameterTypes.Length; i++)
+            builder.Add(new SynthesizedTemplateParameterSymbol(this, templateParameterTypes[i], i));
+
+        templateParameters = builder.ToImmutableAndFree();
+        arity = templateParameters.Length;
     }
 
     public override string name { get; }
 
-    public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
-    public override int arity => 0;
+    public override int arity { get; }
+
+    public override SpecialType specialType { get; }
 
     public override TypeKind typeKind { get; }
 

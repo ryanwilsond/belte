@@ -339,30 +339,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotConstructPrimitive, location, message);
     }
 
-    // TODO implement error
-    internal static BelteDiagnostic NoTemplateOverload(TextLocation location, string name) {
-        var message = $"no overload for template '{name}' matches template argument list";
-        return CreateError(DiagnosticCode.ERR_NoTemplateOverload, location, message);
-    }
-
-    // TODO implement error
-    internal static BelteDiagnostic AmbiguousTemplateOverload(TextLocation location, ISymbolWithTemplates[] symbols) {
-        var message = new StringBuilder($"template is ambiguous between ");
-
-        for (var i = 0; i < symbols.Length; i++) {
-            if (i == symbols.Length - 1 && i > 1)
-                message.Append(", and ");
-            else if (i == symbols.Length - 1)
-                message.Append(" and ");
-            else if (i > 0)
-                message.Append(", ");
-
-            message.Append($"'{symbols[i]}'");
-        }
-
-        return CreateError(DiagnosticCode.ERR_AmbiguousTemplateOverload, location, message.ToString());
-    }
-
     internal static BelteDiagnostic CannotUseStruct(TextLocation location) {
         var message = "cannot use structs outside of low-level contexts";
         return CreateError(DiagnosticCode.ERR_CannotUseStruct, location, message);
@@ -422,18 +398,6 @@ internal static class Error {
     internal static BelteDiagnostic InvalidAttributes(TextLocation location) {
         var message = "attributes are not valid in this context";
         return CreateError(DiagnosticCode.ERR_InvalidAttributes, location, message);
-    }
-
-    // TODO implement error
-    internal static BelteDiagnostic TemplateNotExpected(TextLocation location, string name) {
-        var message = $"item '{name}' does not expect any template arguments";
-        return CreateError(DiagnosticCode.ERR_TemplateNotExpected, location, message);
-    }
-
-    // TODO implement error
-    internal static BelteDiagnostic TemplateMustBeConstant(TextLocation location) {
-        var message = "template argument must be a compile-time constant";
-        return CreateError(DiagnosticCode.ERR_TemplateMustBeConstant, location, message);
     }
 
     internal static BelteDiagnostic ConstructorInStaticClass(TextLocation location) {
@@ -1522,6 +1486,11 @@ internal static class Error {
     internal static BelteDiagnostic AnnotationsDisallowedInObjectCreation(TextLocation location) {
         var message = $"cannot use a non-nullable annotation in object creation";
         return CreateError(DiagnosticCode.ERR_AnnotationsDisallowedInObjectCreation, location, message);
+    }
+
+    internal static BelteDiagnostic AnnotationsDisallowedInTemplateArgument(TextLocation location) {
+        var message = $"cannot use a non-nullable annotation in template arguments";
+        return CreateError(DiagnosticCode.ERR_AnnotationsDisallowedInTemplateArgument, location, message);
     }
 
     internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {

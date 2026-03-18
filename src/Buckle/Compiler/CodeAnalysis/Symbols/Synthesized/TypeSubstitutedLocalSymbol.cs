@@ -47,6 +47,9 @@ internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
 
     public override RefKind refKind => _originalVariable.refKind;
 
+    // TODO Any way this backfires/isn't necessary?
+    private protected override Symbol _originalSymbolDefinition => _originalVariable;
+
     internal override ScopedKind scope => throw new System.NotImplementedException();
 
     internal override bool isCompilerGenerated => _originalVariable.isCompilerGenerated;

@@ -163,24 +163,26 @@ internal sealed partial class Executor : ModuleBuilder {
             timer.Restart();
         }
 
-        try {
-            if (_graphicsEnabled && _graphicsInitialized) {
-                var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
-                GraphicsHandler.SetExecuteMain(mainAction);
-                GraphicsHandler.Run();
-                return null;
-            }
+        object result;
 
-            return mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
-        } finally {
-            if (logTime) {
-                timer.Stop();
-                _diagnostics.Push(new BelteDiagnostic(
-                    DiagnosticSeverity.Debug,
-                    $"Executed the program in {timer.ElapsedMilliseconds} ms"
-                ));
-            }
+        if (_graphicsEnabled && _graphicsInitialized) {
+            var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
+            GraphicsHandler.SetExecuteMain(mainAction);
+            GraphicsHandler.Run();
+            result = null;
+        } else {
+            result = mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
         }
+
+        if (logTime) {
+            timer.Stop();
+            _diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Executed the program in {timer.ElapsedMilliseconds} ms"
+            ));
+        }
+
+        return result;
     }
 
     internal Type GetType(TypeSymbol type, bool byRef = false) {
@@ -235,7 +237,7 @@ internal sealed partial class Executor : ModuleBuilder {
     internal FieldInfo GetField(FieldSymbol field) {
         var foundField = _fields[field.originalDefinition];
 
-        if (field.originalDefinition.type.kind == SymbolKind.TemplateParameter) {
+        if (field.originalDefinition.type.StrippedType().kind == SymbolKind.TemplateParameter) {
             var constructedType = GetType(field.containingType);
             return TypeBuilder.GetField(constructedType, foundField);
         }
@@ -263,7 +265,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_constructors.TryGetValue(method.originalDefinition, out var value)) {
             if (method.containingType.arity > 0) {
                 var constructedType = GetType(method.containingType);
-                return TypeBuilder.GetConstructor(constructedType, value);
+                value = TypeBuilder.GetConstructor(constructedType, value);
             }
 
             return value;
@@ -332,11 +334,14 @@ internal sealed partial class Executor : ModuleBuilder {
             var current = type;
 
             while (current is not null) {
+                if (current.specialType == SpecialType.Object)
+                    break;
+
                 baseStack.Push(current);
                 current = current.baseType;
             }
 
-            while (baseStack.Count != 0)
+            while (baseStack.Count > 0)
                 CreateTypeBuilder(baseStack.Pop());
         }
 
@@ -575,8 +580,8 @@ internal sealed partial class Executor : ModuleBuilder {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         return mapKey switch {
-            "Object_.ctor" => MethodInfoCache.Object_ctor,
-            "Nullable_.ctor" => GetNullableCtor(method.templateArguments[0].type.type),
+            "Object<>_.ctor" => MethodInfoCache.Object_ctor,
+            "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
         };
     }
@@ -585,10 +590,10 @@ internal sealed partial class Executor : ModuleBuilder {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         switch (mapKey) {
-            case "Nullable_get_Value":
-                return GetNullableValue(method.templateArguments[0].type.type);
-            case "Nullable_get_HasValue":
-                return GetNullableHasValue(method.templateArguments[0].type.type);
+            case "Nullable<>_get_Value":
+                return GetNullableValue(method.containingType.templateArguments[0].type.type);
+            case "Nullable<>_get_HasValue":
+                return GetNullableHasValue(method.containingType.templateArguments[0].type.type);
             case "Graphics_Initialize_SIIB":
                 _graphicsInitialized = true;
                 goto default;
@@ -873,8 +878,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },
             { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
             { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
-            { "Object_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
-            { "Object_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
+            { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
+            { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", Flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", Flags, [typeof(string)]) },

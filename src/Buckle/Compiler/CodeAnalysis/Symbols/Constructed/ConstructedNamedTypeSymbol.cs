@@ -4,7 +4,6 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
-    // TODO This constructor should take in template constraint expressions as well
     internal ConstructedNamedTypeSymbol(
         NamedTypeSymbol constructedFrom,
         ImmutableArray<TypeOrConstant> templateArguments,

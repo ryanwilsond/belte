@@ -957,8 +957,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0082_NoTemplateOverload
-    // ! Error_BU0083_AmbiguousTemplateOverload
+    [Fact]
+    public void Reports_Error_BU0082_AnnotationsDisallowedInTemplateArgument() {
+        var text = @"
+            class A<type T> { }
+            var a = new A<[int!]>();
+        ";
+
+        var diagnostics = @"
+            cannot use a non-nullable annotation in template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0083
 
     [Fact]
     public void Reports_Error_BU0084_CannotUseStruct() {
@@ -1618,7 +1631,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0147_CircularConstraints() {
+    public void Reports_Error_BU0147_CircularConstraint() {
         var text = @"
             class A<type T, [type T2]> where { T extends T2; T2 extends T; } { }
         ";
@@ -2095,6 +2108,19 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot convert null to 'int!' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0183_ValueCannotBeNull2() {
+        var text = @"
+            class A<type T> where { T is notnull; } { public T C() { return [null]; } }
+        ";
+
+        var diagnostics = @"
+            cannot convert null to 'T' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

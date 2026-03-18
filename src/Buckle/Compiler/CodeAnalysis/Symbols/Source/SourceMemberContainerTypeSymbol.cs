@@ -1396,8 +1396,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             if (builder.declarationWithParameters is null) {
                 builder.declarationWithParameters = syntax;
 
-                if (isStatic)
-                    diagnostics.Push(Error.ConstructorInStaticClass(syntax.identifier.location));
+                // TODO Do we want to err here
+                // if (isStatic)
+                //     diagnostics.Push(Error.ConstructorInStaticClass(syntax.identifier.location));
             }
         }
     }

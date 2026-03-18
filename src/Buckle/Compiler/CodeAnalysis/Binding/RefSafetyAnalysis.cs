@@ -1133,12 +1133,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             if (method is not null &&
                 method.TryGetThisParameter(out thisParameter) &&
                 thisParameter is not null) {
-                if (receiver.type is TemplateParameterSymbol typeParameter) {
-                    // Pretend that the type of the parameter is the type parameter
-                    // TODO
-                    throw ExceptionUtilities.Unreachable();
-                    // thisParameter = new TypeParameterThisParameterSymbol(thisParameter, typeParameter);
-                }
+                if (receiver.type is TemplateParameterSymbol typeParameter)
+                    thisParameter = new TemplateParameterThisParameterSymbol(thisParameter, typeParameter);
 
                 refKind = thisParameter.refKind;
             }

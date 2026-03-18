@@ -331,7 +331,7 @@ internal sealed partial class OverloadResolution {
         if (operand.Type() is null)
             return false;
 
-        var type0 = operand.Type().StrippedType();
+        var type0 = operand.StrippedType();
         TypeSymbol constrainedToTypeOpt = type0 as TemplateParameterSymbol;
 
         if (OperatorFacts.NoUserDefinedOperators(type0))

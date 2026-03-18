@@ -90,8 +90,8 @@ public enum DiagnosticCode : ushort {
     ERR_UnrecognizedEscapeSequence = 79,
     ERR_PrimitivesDoNotHaveMembers = 80,
     ERR_CannotConstructPrimitive = 81,
-    ERR_NoTemplateOverload = 82,
-    ERR_AmbiguousTemplateOverload = 83,
+    ERR_AnnotationsDisallowedInTemplateArgument = 82,
+    // ! 83
     ERR_CannotUseStruct = 84,
     ERR_CannotUseThis = 85,
     ERR_MemberIsInaccessible = 86,
@@ -102,8 +102,8 @@ public enum DiagnosticCode : ushort {
     ERR_CannotInitializeInStructs = 91,
     ERR_MultipleMains = 92,
     ERR_InvalidAttributes = 93,
-    ERR_TemplateNotExpected = 94,
-    ERR_TemplateMustBeConstant = 95,
+    // ! 94
+    // ! 95
     ERR_RefReturnOnlyParameter2 = 96,
     ERR_DottedTypeNamesNotFound = 97,
     ERR_ConstructorInStaticClass = 98,

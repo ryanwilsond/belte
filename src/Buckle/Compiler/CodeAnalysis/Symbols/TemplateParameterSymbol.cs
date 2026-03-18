@@ -152,6 +152,9 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
+        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0)
+            other = other.StrippedType();
+
         return Equals(other as TemplateParameterSymbol, compareKind);
     }
 

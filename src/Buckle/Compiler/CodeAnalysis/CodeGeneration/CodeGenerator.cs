@@ -274,7 +274,7 @@ internal sealed partial class CodeGenerator {
         if (ShouldEmitReadOnlyPrefix(arrayAccess, addressKind))
             _builder.Emit(OpCode.Readonly);
 
-        if (((ArrayTypeSymbol)arrayAccess.receiver.type.StrippedType()).isSZArray)
+        if (((ArrayTypeSymbol)arrayAccess.receiver.StrippedType()).isSZArray)
             _builder.EmitWithSymbolToken(OpCode.Ldelema, arrayAccess.type);
         else
             EmitArrayElementAddressInternal((ArrayTypeSymbol)arrayAccess.index.type);
@@ -1017,7 +1017,7 @@ oneMoreTime:
         EmitExpression(expression.receiver, used: true);
         EmitArrayIndex(expression.index);
 
-        if (((ArrayTypeSymbol)expression.receiver.type.StrippedType()).isSZArray) {
+        if (((ArrayTypeSymbol)expression.receiver.StrippedType()).isSZArray) {
             var elementType = expression.type;
 
             switch (elementType.specialType) {
@@ -1063,7 +1063,7 @@ oneMoreTime:
     }
 
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
-        var arrayType = (ArrayTypeSymbol)expression.type.StrippedType();
+        var arrayType = (ArrayTypeSymbol)expression.StrippedType();
 
         EmitArrayIndices(expression.sizes);
 
@@ -1216,7 +1216,7 @@ oneMoreTime:
                     var refKind = GetArgumentRefKind(arguments, method.parameters, expression.argumentRefKinds, 0);
                     EmitArgument(argument, refKind);
 
-                    _builder.EmitSort(((ArrayTypeSymbol)argument.type.StrippedType()).elementType);
+                    _builder.EmitSort(((ArrayTypeSymbol)argument.StrippedType()).elementType);
 
                     EmitCallCleanup(method, useKind);
 
@@ -1257,7 +1257,7 @@ oneMoreTime:
                     var argument = Lowerer.CreateNullableGetValueCall(
                         null,
                         arguments[0],
-                        arguments[0].type.StrippedType()
+                        arguments[0].StrippedType()
                     );
 
                     var refKind = GetArgumentRefKind(arguments, method.parameters, argumentRefKinds, 0);
@@ -2354,7 +2354,7 @@ oneMoreTime:
                 break;
             case BoundKind.ArrayAccessExpression:
                 var array = ((BoundArrayAccessExpression)expression).receiver;
-                var arrayType = (ArrayTypeSymbol)array.type.StrippedType();
+                var arrayType = (ArrayTypeSymbol)array.StrippedType();
                 EmitArrayElementStore(arrayType);
                 break;
             case BoundKind.ThisExpression:

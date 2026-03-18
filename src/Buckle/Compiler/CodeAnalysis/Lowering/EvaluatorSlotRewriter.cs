@@ -117,7 +117,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
         var receiver = (BoundExpression)Visit(node.receiver);
         var field = node.field;
-        var layout = _typeLayouts[(NamedTypeSymbol)receiver.Type().StrippedType().originalDefinition];
+        var layout = _typeLayouts[(NamedTypeSymbol)receiver.StrippedType().originalDefinition];
         var slot = layout.GetLocal(field).slot;
         return new BoundFieldSlotExpression(node.syntax, node, receiver, field, slot, node.Type());
     }

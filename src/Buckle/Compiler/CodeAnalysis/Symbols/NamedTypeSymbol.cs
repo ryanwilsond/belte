@@ -282,7 +282,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
         var otherAsType = other as NamedTypeSymbol;
 
-        if (other is null) return false;
+        if (other is null)
+            return false;
 
         var thisOriginalDefinition = originalDefinition;
         var otherOriginalDefinition = other.originalDefinition;
@@ -297,6 +298,9 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
             (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
             return false;
         }
+
+        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && this.IsNullableType())
+            return Equals(StrippedType(), other, compareKind);
 
         if (!Equals(thisOriginalDefinition, otherOriginalDefinition, compareKind))
             return false;
@@ -354,6 +358,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         for (var i = 0; i < count; i++) {
             var templateArgument = thisTemplateArguments[i];
             var otherTemplateArgument = otherTemplateArguments[i];
+
             if (!templateArgument.Equals(otherTemplateArgument, compareKind))
                 return false;
         }

@@ -289,12 +289,12 @@ public static class SymbolDisplay {
         SymbolDisplayFormat format) {
         var needSpace = false;
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
+        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0) {
             DisplayType(text, templateParameter.underlyingType.type, format);
             needSpace = true;
         }
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0 &&
+        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0 &&
             !string.IsNullOrEmpty(templateParameter.name)) {
             if (needSpace)
                 text.Write(CreateSpace());

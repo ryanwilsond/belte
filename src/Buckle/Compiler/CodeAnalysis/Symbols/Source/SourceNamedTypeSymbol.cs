@@ -27,7 +27,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
     private TemplateParameterInfo _templateParameterInfo {
         get {
             if (_lazyTemplateParameterInfo is null) {
-                var templateParameterInfo = arity == 0 ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
+                var templateParameterInfo = (arity == 0) ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
                 Interlocked.CompareExchange(ref _lazyTemplateParameterInfo, templateParameterInfo, null);
             }
 

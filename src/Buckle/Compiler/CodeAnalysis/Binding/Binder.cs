@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Threading;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Lowering;
@@ -260,9 +259,11 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var n = templateParameters.Length;
         var names = new Dictionary<string, int>(n, StringOrdinalComparer.Instance);
+        var basesBeingResolved = ConsList<TypeSymbol>.Empty;
 
         foreach (var templateParameter in templateParameters) {
             var name = templateParameter.name;
+            basesBeingResolved = basesBeingResolved.Prepend(templateParameter);
 
             if (!names.ContainsKey(name))
                 names.Add(name, names.Count);
@@ -300,6 +301,7 @@ internal partial class Binder {
                 var constraintClause = BindTypeParameterConstraints(
                     templateParameters[ordinal],
                     syntaxNodes[ordinal],
+                    basesBeingResolved,
                     diagnostics
                 );
 
@@ -383,6 +385,7 @@ internal partial class Binder {
     private TypeParameterConstraintClause BindTypeParameterConstraints(
         TemplateParameterSymbol templateParameter,
         ArrayBuilder<TemplateConstraintClauseSyntax> constraintsSyntax,
+        ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
         var constraints = TypeParameterConstraintKinds.None;
         var constraintTypes = ArrayBuilder<TypeWithAnnotations>.GetInstance();
@@ -392,7 +395,7 @@ internal partial class Binder {
 
             if (syntax.extendConstraint is not null) {
                 var typeSyntax = syntax.extendConstraint.type;
-                var type = BindType(typeSyntax, diagnostics);
+                var type = BindType(typeSyntax, diagnostics, basesBeingResolved);
                 constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
             } else if (syntax.isConstraint is not null) {
                 switch (syntax.isConstraint.keyword.kind) {
@@ -564,10 +567,14 @@ internal partial class Binder {
                     return namespaceOrNonNullableType;
             }
 
-            if (typeToCheck.specialType == SpecialType.Void ||
-                typeToCheck.typeKind == TypeKind.TemplateParameter ||
-                typeToCheck.type.IsStructType()) {
+            if (typeToCheck.specialType == SpecialType.Void || typeToCheck.type.IsStructType())
                 return typeToCheck;
+
+            // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
+            if (typeToCheck.type is TemplateParameterSymbol t &&
+                (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
+                if (t.hasNotNullConstraint)
+                    return typeToCheck;
             }
 
             return typeToCheck.SetIsAnnotated();
@@ -1053,13 +1060,33 @@ internal partial class Binder {
             argumentAnalysis.argsToParams
         );
 
+        var templateArguments = FixTemplateArgumentsForConstruction(rearrangedArguments, type.templateParameters);
+
         analyzedArguments.Free();
-        type = type.Construct(rearrangedArguments.Select(r => r.typeOrConstant).ToImmutableArray());
+        type = type.Construct(templateArguments);
 
         if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type))
             type.CheckConstraintsForNamedType(typeSyntax.location, diagnostics, typeSyntax);
 
         return type;
+    }
+
+    private ImmutableArray<TypeOrConstant> FixTemplateArgumentsForConstruction(
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        ImmutableArray<TemplateParameterSymbol> parameters) {
+        var builder = ArrayBuilder<TypeOrConstant>.GetInstance();
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var argument = arguments[i].typeOrConstant;
+            var parameter = parameters[i];
+
+            if (parameter.hasNotNullConstraint)
+                builder.Add(new TypeOrConstant(argument.type.type.StrippedType()));
+            else
+                builder.Add(argument);
+        }
+
+        return builder.ToImmutableAndFree();
     }
 
     private NamedTypeSymbol ConstructNamedTypeUnlessTemplateArgumentOmitted(
@@ -1153,9 +1180,15 @@ internal partial class Binder {
         if (argument.identifier is not null)
             analyzedArguments.AddName(argument.identifier);
 
-        var type = BindType(argument.expression, BelteDiagnosticQueue.Discarded).type;
+        var typeWithAnnotations = BindType(argument.expression, BelteDiagnosticQueue.Discarded);
+        var type = typeWithAnnotations.type;
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
+            if (!typeWithAnnotations.isNullable && !type.IsStructType() &&
+                type.specialType != SpecialType.Void && type.typeKind != TypeKind.TemplateParameter) {
+                diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
+            }
+
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(false);
             analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(type)));
@@ -2689,7 +2722,7 @@ internal partial class Binder {
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
-        switch (expression.Type().StrippedType().typeKind) {
+        switch (expression.StrippedType().typeKind) {
             case TypeKind.Array:
                 var access = BindArrayAccess(node, expression, analyzedArguments, diagnostics);
                 return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
@@ -2714,7 +2747,7 @@ internal partial class Binder {
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
-        if (expression.Type().StrippedType().specialType == SpecialType.String) {
+        if (expression.StrippedType().specialType == SpecialType.String) {
             var argument = analyzedArguments.arguments[0];
             var intType = CorLibrary.GetSpecialType(SpecialType.Int);
             var charType = CorLibrary.GetSpecialType(SpecialType.Char);
@@ -2793,7 +2826,7 @@ internal partial class Binder {
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
-        var arrayType = (ArrayTypeSymbol)expression.Type().StrippedType();
+        var arrayType = (ArrayTypeSymbol)expression.StrippedType();
         var elementType = arrayType.isSZArray
             ? arrayType.elementType
             : ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1);
@@ -4526,7 +4559,7 @@ internal partial class Binder {
             if (boundLeft.type is null)
                 diagnostics.Push(Error.NoSuchMember(name.location, boundLeft, plainName));
             else
-                diagnostics.Push(Error.NoSuchMember(name.location, boundLeft.Type().StrippedType(), plainName));
+                diagnostics.Push(Error.NoSuchMember(name.location, boundLeft.StrippedType(), plainName));
         }
     }
 
@@ -4541,7 +4574,7 @@ internal partial class Binder {
         bool called,
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
-        var leftType = boundLeft.Type().StrippedType();
+        var leftType = boundLeft.StrippedType();
         var lookupResult = LookupResult.GetInstance();
 
         try {
@@ -6453,8 +6486,8 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
 
-        if (left.type is not null && left.Type().StrippedType().specialType == SpecialType.Bool &&
-            right.type is not null && right.Type().StrippedType().specialType == SpecialType.Bool) {
+        if (left.type is not null && left.StrippedType().specialType == SpecialType.Bool &&
+            right.type is not null && right.StrippedType().specialType == SpecialType.Bool) {
             var constantValue = ConstantFolding.FoldBinary(left, right, kind | BinaryOperatorKind.Bool, left.Type());
             return new BoundBinaryOperator(
                 node,
@@ -6463,7 +6496,7 @@ internal partial class Binder {
                 kind | BinaryOperatorKind.Bool,
                 null,
                 constantValue,
-                left.Type().StrippedType()
+                left.StrippedType()
             );
         }
 

@@ -119,7 +119,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Increment(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.Type().StrippedType().specialType == SpecialType.Int;
+        var isInt = operand.StrippedType().specialType == SpecialType.Int;
         var opKind = OverloadResolution.BinOpEasyOut.OpKind(
             BinaryOperatorKind.Addition,
             operand.Type(),
@@ -143,7 +143,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Decrement(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.Type().StrippedType().specialType == SpecialType.Int;
+        var isInt = operand.StrippedType().specialType == SpecialType.Int;
         var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.Type(), operand.Type());
         var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
         return new BoundCompoundAssignmentOperator(

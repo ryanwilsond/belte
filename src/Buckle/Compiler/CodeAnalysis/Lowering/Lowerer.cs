@@ -337,7 +337,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return VisitConditionalOperator(
             Conditional(syntax,
                 @if: HasValue(syntax, expression.left),
-                @then: Value(syntax, expression.left, expression.left.Type().StrippedType()),
+                @then: Value(syntax, expression.left, expression.left.StrippedType()),
                 @else: expression.right,
                 expression.Type()
             )
@@ -379,7 +379,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         Unary(syntax,
                             op,
                             Value(syntax, expression.operand, expression.operand.Type().GetNullableUnderlyingType()),
-                            expression.Type().StrippedType()
+                            expression.StrippedType()
                         ),
                         expression.type
                     ),
@@ -432,7 +432,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundInitializerList VisitNonIsolatedList(BoundInitializerList expression) {
         var syntax = expression.syntax;
-        var arrayType = (ArrayTypeSymbol)expression.Type().StrippedType();
+        var arrayType = (ArrayTypeSymbol)expression.StrippedType();
         ArrayBuilder<BoundExpression>? newList = null;
 
         for (var i = 0; i < expression.items.Length; i++) {
@@ -544,8 +544,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 var call = InstanceCall(
                     syntax,
                     expression.left,
-                    CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)
-                        .Construct([new TypeOrConstant(expression.left.Type().GetNullableUnderlyingType())])
+                    CreateNullableGetHasValueSymbol(expression.left.Type().GetNullableUnderlyingType())
                 );
 
                 if (expression.isNot)
@@ -590,8 +589,34 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return InstanceCall(
             syntax,
             operand,
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue)
-                .Construct([new TypeOrConstant(genericType)])
+            CreateNullableGetValueSymbol(genericType)
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetHasValueSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateNullableCtorSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateMethodAsMemberOfNullable(MethodSymbol method, TypeSymbol genericType) {
+        return (MethodSymbol)method.SymbolAsMember(
+            CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(genericType)])
         );
     }
 
@@ -862,8 +887,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         return new BoundObjectCreationExpression(
             syntax,
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor)
-                .Construct([new TypeOrConstant(nullableType.GetNullableUnderlyingType())]),
+            CreateNullableCtorSymbol(nullableType.GetNullableUnderlyingType()),
             [expression],
             default,
             default,
@@ -907,7 +931,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 RewriteNull(syntax, binary.left),
                 binary.operatorKind,
                 RewriteNull(syntax, binary.right),
-                binary.Type().StrippedType()
+                binary.StrippedType()
             );
         }
 
@@ -921,6 +945,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression.constantValue is null)
             return expression;
 
-        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.Type().StrippedType());
+        return new BoundLiteralExpression(expression.syntax, expression.constantValue, expression.StrippedType());
     }
 }

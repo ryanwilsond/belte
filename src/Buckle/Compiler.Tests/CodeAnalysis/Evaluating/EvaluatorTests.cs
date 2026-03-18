@@ -348,7 +348,10 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int) == typeof(int);", true)]
     [InlineData("return typeof(int) == typeof(bool);", false)]
     [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", true)]
+    [InlineData("class C<type T> where { T is notnull; } { public bool M() { return typeof(T) == typeof(int); } } var c = new C<int>(); return c.M();", false)]
     [InlineData("class C<type T> { public bool M() { return typeof(T) == typeof(int); } } var c = new C<bool>(); return c.M();", false)]
+    [InlineData("bool C<type T>() { return typeof(T) == typeof(int); } return C<int>();", true)]
+    [InlineData("bool C<type T>() { return typeof(T) == typeof(int); } return C<bool>();", false)]
     // Operators
     [InlineData(@"
         class A {
@@ -392,6 +395,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int[]>(); a.a = new int[] {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int>(3);", 3)]
+    [InlineData("T Test<type T>() { return null; } return Test<int>();", null)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue);
     }

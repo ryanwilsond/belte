@@ -86,7 +86,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         var overriddenMethod = MethodChecks(returnType, parameters, diagnostics);
 
         if (!declaredConstraints.IsDefault && overriddenMethod is not null) {
-            // TODO
+            // TODO constraints
         }
 
         CheckModifiers(GetSyntax().identifier.location, diagnostics);

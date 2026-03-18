@@ -358,7 +358,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateTypeOfExpression(BoundTypeOfExpression node) {
         var type = node.sourceType.type;
 
-        if (type is TemplateParameterSymbol t) {
+        if (type.StrippedType() is TemplateParameterSymbol t) {
             if (t.templateParameterKind == TemplateParameterKind.Method)
                 return EvaluatorValue.Type(_stack.Peek().values[t.ordinal + 1].type);
 
@@ -368,7 +368,7 @@ internal sealed class Evaluator {
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
                 throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
 
-            var field = layout.GetLocal(type);
+            var field = layout.GetLocal(type.StrippedType());
             return EvaluatorValue.Type(heapObject.fields[field.slot].type);
         }
 
@@ -648,7 +648,7 @@ internal sealed class Evaluator {
         BoundArrayCreationExpression node,
         ValueWrapper<bool> abort) {
         var sizes = node.sizes.Select(s => (int)EvaluateExpression(s, abort).int64);
-        var heapObject = CreateArray((ArrayTypeSymbol)node.Type().StrippedType(), sizes.ToArray(), 0);
+        var heapObject = CreateArray((ArrayTypeSymbol)node.StrippedType(), sizes.ToArray(), 0);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         var ptr = EvaluatorValue.HeapPtr(index);
 
@@ -738,7 +738,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateIsOperator(BoundIsOperator node, ValueWrapper<bool> abort) {
         var operand = node.left;
         var value = EvaluateExpression(operand, abort);
-        var targetType = node.right.Type().StrippedType();
+        var targetType = node.right.StrippedType();
 
         if (value.kind == ValueKind.Null) {
             value.@bool = node.isNot;
@@ -1040,7 +1040,10 @@ internal sealed class Evaluator {
                     left.@bool = left.ptr == right.ptr;
                     break;
                 case BinaryOperatorKind.Type:
-                    left.@bool = ((TypeSymbol)left.type).Equals((TypeSymbol)right.type);
+                    left.@bool = ((TypeSymbol)left.type).Equals(
+                        (TypeSymbol)right.type, SymbolEqualityComparer.ConsiderEverything
+                    );
+
                     break;
             }
 
@@ -1249,7 +1252,7 @@ internal sealed class Evaluator {
         var receiver = EvaluateExpression(node.receiver, abort);
         var index = (int)EvaluateExpression(node.index, abort).int64;
 
-        if (((ArrayTypeSymbol)node.receiver.Type().StrippedType()).isSZArray)
+        if (((ArrayTypeSymbol)node.receiver.StrippedType()).isSZArray)
             return EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, index);
         else
             return _context.heap[receiver.ptr].fields[index];
@@ -1356,7 +1359,7 @@ internal sealed class Evaluator {
             if (result is EvaluatorValue e) {
                 return e;
             } else if (result is EvaluatorValue[] a) {
-                var array = new HeapObject((ArrayTypeSymbol)node.Type().StrippedType(), a);
+                var array = new HeapObject((ArrayTypeSymbol)node.StrippedType(), a);
                 var index = _context.heap.Allocate(array, _stack, _context);
                 return EvaluatorValue.HeapPtr(index);
             } else if (!node.method.returnsVoid) {
@@ -1450,9 +1453,24 @@ internal sealed class Evaluator {
 
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
-        if (method.isAbstract || method.isVirtual) {
-            var typeToLookup = receiver.kind == BoundKind.BaseExpression
-                ? receiver.Type().StrippedType()
+        method = ResolveVirtualMethod(method, receiver, thisParameter);
+
+        var value = InvokeMethod(method, thisParameter, evaluatedArguments, abort);
+
+        if (useKind == CodeGenerator.UseKind.UsedAsValue && method.refKind != RefKind.None)
+            return value.loc[value.ptr];
+        else
+            return value;
+    }
+
+    private MethodSymbol ResolveVirtualMethod(
+        MethodSymbol method,
+        BoundExpression receiver,
+        EvaluatorValue thisParameter) {
+        if ((method.isAbstract || method.isVirtual) &&
+            receiver?.StrippedType()?.typeKind != TypeKind.TemplateParameter) {
+            var typeToLookup = receiver?.kind == BoundKind.BaseExpression
+                ? receiver.StrippedType()
                 : _context.heap[thisParameter.ptr].type.StrippedType();
 
             var newMethod = typeToLookup
@@ -1461,15 +1479,10 @@ internal sealed class Evaluator {
                 .FirstOrDefault() as MethodSymbol;
 
             if (newMethod is not null)
-                method = newMethod;
+                return newMethod;
         }
 
-        var value = InvokeMethod(method, thisParameter, evaluatedArguments, abort);
-
-        if (useKind == CodeGenerator.UseKind.UsedAsValue && method.refKind != RefKind.None)
-            return value.loc[value.ptr];
-        else
-            return value;
+        return method;
     }
 
     private EvaluatorValue[] EvaluateArguments(
@@ -1579,33 +1592,81 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
-        // First check if we are in a graphics project before comparing
-        // (otherwise would unnecessarily create the overhead of constructing the Graphics type)
         if (_context.options.outputKind == OutputKind.GraphicsApplication) {
             if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
                 return HandleGraphicsCall(location, method, arguments, abort, out result);
         }
 
+        // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if (mapKey == "Nullable_get_Value") {
+        if (mapKey == "Nullable<>_get_Value") {
             result = NullAssertValue(receiver, abort);
             return true;
         }
 
-        if (mapKey == "Nullable_get_HasValue") {
+        if (mapKey == "Nullable<>_get_HasValue") {
             var receiverValue = EvaluateExpression(receiver, abort);
             result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
             return true;
         }
 
+        if (mapKey == "Object<>_ToString") {
+            var thisParameter = EvaluateExpression(receiver, abort);
+
+            if (thisParameter.kind == ValueKind.Null)
+                throw new BelteNullReferenceException(receiver.syntax.location);
+
+            result = thisParameter.kind == ValueKind.HeapPtr
+                ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
+                : EvaluatorValue.Format(thisParameter, _context);
+
+            return true;
+        }
+
         if (method.containingNamespace.Equals(LibraryHelpers.BelteNamespace.originalDefinition)) {
             switch (mapKey) {
-                case "LowLevel_GetHashCode_O":
-                    result = _context.heap[EvaluateExpression(arguments[0], abort).ptr].GetHashCode();
+                case "LowLevel_GetHashCode_O": {
+                        var argument = EvaluateExpression(arguments[0], abort);
+
+                        if (argument.kind == ValueKind.HeapPtr) {
+                            result = _context.heap[argument.ptr].GetHashCode();
+                        } else {
+                            switch (argument.kind) {
+                                case ValueKind.Int64:
+                                case ValueKind.Bool:
+                                case ValueKind.Char:
+                                case ValueKind.Double:
+                                    result = argument.int64;
+                                    break;
+                                case ValueKind.String:
+                                    result = argument.@string.GetHashCode();
+                                    break;
+                                default:
+                                    throw ExceptionUtilities.UnexpectedValue(argument.kind);
+                            }
+                        }
+                    }
+
                     return true;
-                case "LowLevel_GetTypeName_O":
-                    result = _context.heap[EvaluateExpression(arguments[0], abort).ptr].type.name;
+                case "LowLevel_GetTypeName_O": {
+                        var argument = EvaluateExpression(arguments[0], abort);
+
+                        if (argument.kind == ValueKind.HeapPtr) {
+                            result = _context.heap[argument.ptr].type.name;
+                        } else {
+                            // TODO These are .NET types not Belte types! (to ensure parity with IL code gen)
+                            result = argument.kind switch {
+                                ValueKind.Int64 => "Int64",
+                                ValueKind.Bool => "Boolean",
+                                ValueKind.Char => "Char",
+                                ValueKind.Double => "Double",
+                                ValueKind.String => "String",
+                                _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
+                            };
+                        }
+                    }
+
                     return true;
                 case "Random_RandInt_I?":
                     _lazyRandom ??= new Random();
@@ -1657,9 +1718,10 @@ internal sealed class Evaluator {
                 case "Console_PrintLine_S?":
                 case "Console_PrintLine_A?":
                 case "Console_PrintLine_O?":
-                    if (arguments[0].Type().StrippedType().isObjectType) {
+                    if (arguments[0].StrippedType().isObjectType) {
                         var argument = EvaluateExpression(arguments[0], abort);
-                        var toStringResult = InvokeMethod(_toStringMethod, argument, [], abort);
+                        var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
+                        var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
                         var func = StandardLibrary.EvaluatorMap[mapKey];
                         result = func(toStringResult.@string, null, null);
                         return true;
@@ -1675,8 +1737,9 @@ internal sealed class Evaluator {
 
             switch (mapKey) {
                 case "File_Copy_SS":
+                    valueArguments[0] = GetFilePath((string)valueArguments[0], location);
                     valueArguments[1] = GetFilePath((string)valueArguments[1], location);
-                    goto case "Directory_Create_S";
+                    break;
                 case "Directory_Create_S":
                 case "Directory_Delete_S":
                 case "Directory_Exists_S":
