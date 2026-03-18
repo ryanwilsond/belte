@@ -1505,7 +1505,7 @@ internal partial class Binder {
         MethodSymbol baseConstructor = null;
         var resultKind = LookupResultKind.Viable;
 
-        foreach (var ctor in baseType.constructors) {
+        foreach (var ctor in baseType.instanceConstructors) {
             if (ctor.parameterCount == 0) {
                 baseConstructor = ctor;
                 break;
@@ -1724,9 +1724,8 @@ internal partial class Binder {
         }
 
         if (field.isStatic) {
-            // TODO uncomment when .cctor added
-            // return containingSymbol is MethodSymbol { methodKind: MethodKind.StaticConstructor } or FieldSymbol { isStatic: true };
-            return containingSymbol is FieldSymbol { isStatic: true };
+            return containingSymbol is MethodSymbol { methodKind: MethodKind.StaticConstructor } or
+                FieldSymbol { isStatic: true };
         } else {
             // ? or MethodSymbol { isInitOnly: true }
             return (containingSymbol is MethodSymbol { methodKind: MethodKind.Constructor }
@@ -2318,8 +2317,7 @@ internal partial class Binder {
                 : true)) {
             if (containing.kind == SymbolKind.Method) {
                 var containingMethod = (MethodSymbol)containing;
-                // MethodKind desiredMethodKind = fieldIsStatic ? MethodKind.StaticConstructor : MethodKind.Constructor;
-                var desiredMethodKind = MethodKind.Constructor;
+                var desiredMethodKind = fieldIsStatic ? MethodKind.StaticConstructor : MethodKind.Constructor;
 
                 canModifyReadonly = (containingMethod.methodKind == desiredMethodKind) ||
                     IsAssignedFromInitOnlySetterOnThis(receiverIsThis);
@@ -2996,13 +2994,15 @@ internal partial class Binder {
             }
 
             var arguments = analyzedArguments.arguments.ToImmutable();
+            var expression = arguments[0].expression;
+            var index = arguments[1].expression;
 
             // TODO Do we need any of this extra information?
             indexerAccess = new BoundIndexerAccessExpression(
                 syntax,
-                arguments[0].expression,
+                expression,
                 // initialBindingReceiverIsSubjectToCloning: ReceiverIsSubjectToCloning(receiver, property),
-                arguments[1].expression,
+                index,
                 method,
                 // arguments,
                 // argumentNames,
@@ -3455,8 +3455,8 @@ internal partial class Binder {
 
         switch (type.typeKind) {
             case TypeKind.Struct:
-                if (!flags.Includes(BinderFlags.LowLevelContext))
-                    diagnostics.Push(Error.CannotUseStruct(node.type.location));
+                // if (!flags.Includes(BinderFlags.LowLevelContext))
+                //     diagnostics.Push(Error.CannotUseStruct(node.type.location));
 
                 goto case TypeKind.Class;
             case TypeKind.Class:
@@ -3716,7 +3716,7 @@ internal partial class Binder {
         if (type.IsNullableType())
             type = type.StrippedType() as NamedTypeSymbol ?? type;
 
-        allInstanceConstructors = type.constructors;
+        allInstanceConstructors = type.instanceConstructors;
         return FilterInaccessibleConstructors(allInstanceConstructors, allowProtectedConstructorsOfBaseType);
     }
 

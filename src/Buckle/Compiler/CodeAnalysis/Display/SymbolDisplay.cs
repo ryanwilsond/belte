@@ -86,7 +86,6 @@ public static class SymbolDisplay {
         if (type is ArrayTypeSymbol array) {
             DisplayType(text, array.elementType, format);
             text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-            text.Write(CreateLiteral(array.rank.ToString()));
             text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
 
             if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)

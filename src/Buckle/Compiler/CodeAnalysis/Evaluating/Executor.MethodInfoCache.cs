@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -9,6 +10,7 @@ internal sealed partial class Executor {
         internal static readonly BindingFlags InstFlags = BindingFlags.Public | BindingFlags.Instance;
 
         internal static ConstructorInfo Object_ctor = typeof(object).GetConstructor(Type.EmptyTypes);
+        internal static ConstructorInfo Nullable_ctor = typeof(Nullable<>).GetConstructors().Single();
         internal static ConstructorInfo Exception_ctor = typeof(Exception).GetConstructor(Type.EmptyTypes);
         internal static ConstructorInfo Exception_ctor_S = typeof(Exception).GetConstructor([typeof(string)]);
         internal static MethodInfo Object_ToString = typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes);

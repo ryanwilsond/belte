@@ -140,7 +140,7 @@ internal static class StandardLibrary {
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
-            StaticMethod("Length", SpecialType.Int, true, [("array", SpecialType.Any, true)]),
+            StaticMethod("Length", SpecialType.Int, [("array", SpecialType.Any, true)]),
             StaticMethod("Sort", SpecialType.Void, [("array", SpecialType.Any, true)]),
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
         ]);
@@ -478,8 +478,6 @@ internal static class StandardLibrary {
                 => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
-            { "LowLevel_Length_A?", new Func<object, object, object, object>((a, b, c)
-                => { return a is not object[] array ? null : array.LongLength; }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)

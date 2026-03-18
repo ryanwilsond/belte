@@ -17,8 +17,8 @@ public static class Utilities {
         return array;
     }
 
-    public static long? Length(object[] array) {
-        return array?.LongLength;
+    public static long Length(object[] array) {
+        return array?.LongLength ?? 0;
     }
 
     public static long TimeNow() {

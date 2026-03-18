@@ -18,7 +18,8 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         (DeclarationModifiers declarationModifiers, Flags flags) modifiersAndFlags)
         : base(containingType, new SyntaxReference(syntax), modifiersAndFlags) { }
 
-    public sealed override string name => WellKnownMemberNames.InstanceConstructorName;
+    public sealed override string name
+        => isStatic ? WellKnownMemberNames.StaticConstructorName : WellKnownMemberNames.InstanceConstructorName;
 
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
@@ -85,6 +86,9 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
 
         _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
 
+        if (methodKind == MethodKind.StaticConstructor && (_lazyParameters.Length != 0))
+            diagnostics.Push(Error.StaticConstructorParameter(location));
+
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
     }
 
@@ -123,6 +127,7 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         if (containingType.TryCalculateSyntaxOffsetOfPositionInInitializer(
             position,
             tree,
+            true,
             ctorInitializerLength,
             out var syntaxOffset)) {
             return syntaxOffset;

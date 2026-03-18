@@ -45,6 +45,7 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Texture, typeof(BTexture) },
         { SpecialType.Text, typeof(BText) },
         { SpecialType.Sound, typeof(BSound) },
+        { SpecialType.Exception, typeof(Exception) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
@@ -77,7 +78,13 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
+        _topLevelTypes = program.GetAllTypes()
+            .Where(t => t.kind == SymbolKind.NamedType &&
+                t.containingSymbol.kind == SymbolKind.Namespace &&
+                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary)
+            .ToArray()
+            .Cast<NamedTypeSymbol>()
+            .ToImmutableArray();
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -89,20 +96,6 @@ internal sealed partial class Executor : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
-    }
-
-    public static T AssertObjectNull<T>(T value) where T : class {
-        if (value is null)
-            throw new NullReferenceException();
-
-        return value;
-    }
-
-    public static T AssertValueNull<T>(T? value) where T : struct {
-        if (!value.HasValue)
-            throw new NullReferenceException();
-
-        return value.Value;
     }
 
     internal object Execute(bool verbose, bool logTime) {
@@ -225,32 +218,68 @@ internal sealed partial class Executor : ModuleBuilder {
                 return containingType.GenericTypeParameters[t.ordinal];
             }
 
+            return GetTypeWithContainingGenerics((NamedTypeSymbol)type);
+        }
+
+        Type GetTypeWithContainingGenerics(NamedTypeSymbol type) {
             var foundType = _types[type.originalDefinition];
 
-            if (type is NamedTypeSymbol named && named.arity > 0)
-                return foundType.MakeGenericType(named.templateArguments.Select(t => GetType(t.type.type)).ToArray());
-            else
-                return foundType;
+            var chain = new Stack<NamedTypeSymbol>();
+            var current = type;
+
+            while (current is not null) {
+                chain.Push(current);
+                current = current.containingType;
+            }
+
+            // Type constructed = null;
+            var allTypeArgs = new List<Type>();
+
+            while (chain.Count > 0) {
+                var s = chain.Pop();
+
+                // var def = _types[s.originalDefinition];
+
+                // if (constructed is not null)
+                //     def = constructed.GetNestedTypes().Single(t => t.Name == def.Name);
+
+                if (s.arity > 0) {
+                    foreach (var arg in s.templateArguments)
+                        allTypeArgs.Add(GetType(arg.type.type));
+                }
+
+                // if (allTypeArgs.Count > 0)
+                //     def = def.MakeGenericType(allTypeArgs.ToArray());
+
+                // constructed = def;
+            }
+
+            if (allTypeArgs.Count > 0)
+                return foundType.MakeGenericType(allTypeArgs.ToArray());
+
+            return foundType;
+
+            // return constructed;
         }
     }
 
     internal FieldInfo GetField(FieldSymbol field) {
         var foundField = _fields[field.originalDefinition];
 
-        if (field.originalDefinition.type.StrippedType().kind == SymbolKind.TemplateParameter) {
-            var constructedType = GetType(field.containingType);
+        var constructedType = GetType(field.containingType);
+
+        if (!constructedType.ContainsGenericParameters && constructedType.GenericTypeArguments.Length > 0)
             return TypeBuilder.GetField(constructedType, foundField);
-        }
 
         return foundField;
     }
 
     internal MethodInfo GetMethod(MethodSymbol method) {
         if (_methods.TryGetValue(method.originalDefinition, out var value)) {
-            if (method.containingType.arity > 0) {
-                var constructedType = GetType(method.containingType);
+            var constructedType = GetType(method.containingType);
+
+            if (!constructedType.ContainsGenericParameters && constructedType.GenericTypeArguments.Length > 0)
                 value = TypeBuilder.GetMethod(constructedType, value);
-            }
 
             if (method.arity > 0)
                 value = value.MakeGenericMethod(method.templateArguments.Select(t => GetType(t.type.type)).ToArray());
@@ -263,10 +292,10 @@ internal sealed partial class Executor : ModuleBuilder {
 
     internal ConstructorInfo GetConstructor(MethodSymbol method) {
         if (_constructors.TryGetValue(method.originalDefinition, out var value)) {
-            if (method.containingType.arity > 0) {
-                var constructedType = GetType(method.containingType);
+            var constructedType = GetType(method.containingType);
+
+            if (!constructedType.ContainsGenericParameters && constructedType.GenericTypeArguments.Length > 0)
                 value = TypeBuilder.GetConstructor(constructedType, value);
-            }
 
             return value;
         }
@@ -278,14 +307,8 @@ internal sealed partial class Executor : ModuleBuilder {
         randomField = typeof(Executor).GetField("Random", BindingFlags.Public | BindingFlags.Static);
     }
 
-    internal MethodInfo GetNullAssertObject(TypeSymbol type) {
-        var assertNull = typeof(Executor).GetMethod("AssertObjectNull", BindingFlags.Public | BindingFlags.Static);
-        var closedMethod = assertNull.MakeGenericMethod(GetType(type));
-        return closedMethod;
-    }
-
-    internal MethodInfo GetNullAssertValue(TypeSymbol type) {
-        var assertNull = typeof(Executor).GetMethod("AssertValueNull", BindingFlags.Public | BindingFlags.Static);
+    internal MethodInfo GetNullAssert(TypeSymbol type) {
+        var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
         return closedMethod;
     }
@@ -294,7 +317,11 @@ internal sealed partial class Executor : ModuleBuilder {
         var generic = GetType(type);
         var nullable = typeof(Nullable<>);
         var closedType = nullable.MakeGenericType(generic);
-        return closedType.GetConstructor([generic]);
+
+        if (closedType.ContainsGenericParameters || generic is TypeBuilder || generic is GenericTypeParameterBuilder)
+            return TypeBuilder.GetConstructor(closedType, MethodInfoCache.Nullable_ctor);
+        else
+            return closedType.GetConstructor([generic]);
     }
 
     internal MethodInfo GetNullableValue(TypeSymbol type) {
@@ -403,11 +430,14 @@ internal sealed partial class Executor : ModuleBuilder {
             return;
 
         var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetBaseType(type));
+        string[] workingParams = [];
 
-        if (type.arity > 0)
-            typeBuilder.DefineGenericParameters(type.templateParameters.Select(t => t.name).ToArray());
+        if (type.arity > 0) {
+            workingParams = type.templateParameters.Select(t => t.name).ToArray();
+            typeBuilder.DefineGenericParameters(workingParams);
+        }
 
-        CreateNestedTypes(type, typeBuilder);
+        CreateNestedTypes(type, typeBuilder, workingParams);
         _types.Add(type.originalDefinition, typeBuilder);
     }
 
@@ -418,23 +448,28 @@ internal sealed partial class Executor : ModuleBuilder {
         return GetType(type.baseType);
     }
 
-    private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder) {
+    private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder, string[] workingParams) {
         foreach (var member in type.GetTypeMembers())
-            AddNestedType(member);
+            AddNestedType(member, workingParams);
 
         if (_program.nestedTypes.ContainsKey(type)) {
             foreach (var nestedType in _program.nestedTypes[type])
-                AddNestedType(nestedType);
+                AddNestedType(nestedType, workingParams);
         }
 
-        void AddNestedType(NamedTypeSymbol nestedType) {
+        void AddNestedType(NamedTypeSymbol nestedType, string[] workingParams) {
             var nestedBuilder = typeBuilder.DefineNestedType(
                 nestedType.name,
                 GetTypeAttributes(nestedType, true),
                 GetBaseType(nestedType)
             );
 
-            CreateNestedTypes(nestedType, nestedBuilder);
+            workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
+
+            if (workingParams.Length > 0)
+                nestedBuilder.DefineGenericParameters(workingParams);
+
+            CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             _types.Add(nestedType.originalDefinition, nestedBuilder);
         }
     }
@@ -508,14 +543,14 @@ internal sealed partial class Executor : ModuleBuilder {
             }
         }
 
-        foreach (var pair in _program.methodBodies) {
-            if (pair.Key.containingType.originalDefinition.Equals(type))
-                CreateMethodDefinition(pair.Key, pair.Value, typeBuilder);
+        foreach (var pair in _program.GetAllMethodBodies()) {
+            if (pair.Item1.containingType.originalDefinition.Equals(type))
+                CreateMethodDefinition(pair.Item1, pair.Item2, typeBuilder);
         }
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
-        if (method.methodKind == MethodKind.Constructor)
+        if (method.methodKind is MethodKind.Constructor or MethodKind.StaticConstructor)
             CreateConstructorDefinition(method, body, typeBuilder);
         else
             CreateNormalMethodDefinition(method, body, typeBuilder);
@@ -605,6 +640,13 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     #region Libraries
+
+    public static T AssertNull<T>(T value) {
+        if (value is null)
+            throw new NullReferenceException();
+
+        return value;
+    }
 
     public static void Fill(long r, long g, long b) {
         GraphicsHandler.Fill(r, g, b);
@@ -881,6 +923,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
             { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
+            { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", Flags, [typeof(long), typeof(long), typeof(long)]) },

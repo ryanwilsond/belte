@@ -630,7 +630,9 @@ public sealed class DisplayText {
         DisplayText text,
         BoundFieldAccessExpression node,
         bool conditional = false) {
-        DisplayNode(text, node.receiver);
+        if (node.receiver is not null)
+            DisplayNode(text, node.receiver);
+
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
     }

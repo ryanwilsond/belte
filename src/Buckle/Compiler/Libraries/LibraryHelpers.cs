@@ -71,7 +71,12 @@ public static class LibraryHelpers {
             if (libraryName.StartsWith("Compiler.Resources"))
                 continue;
 
+            if (!libraryName.EndsWith(".blt"))
+                continue;
+
             // TODO Remove this, temp
+            // if (libraryName == "Compiler.Dictionary.blt")
+            //     continue;
             if (libraryName != "Compiler.Object.blt" &&
                 libraryName != "Compiler.Vec2.blt" &&
                 libraryName != "Compiler.Text.blt" &&
@@ -81,8 +86,8 @@ public static class LibraryHelpers {
                 libraryName != "Compiler.Vec4.blt" &&
                 libraryName != "Compiler.Sound.blt" &&
                 libraryName != "Compiler.Sprite.blt" &&
-                libraryName != "Compiler.List.blt" &&
-                libraryName != "Compiler.Array.blt" &&
+                // libraryName != "Compiler.List.blt" &&
+                // libraryName != "Compiler.Array.blt" &&
                 libraryName != "Compiler.Exception.blt") {
                 continue;
             }

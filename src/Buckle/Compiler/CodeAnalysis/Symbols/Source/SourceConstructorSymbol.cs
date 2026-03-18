@@ -9,12 +9,14 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
     private SourceConstructorSymbol(
         SourceMemberContainerTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
+        MethodKind methodKind,
         BelteDiagnosticQueue diagnostics)
         : base(
             containingType,
             syntax,
             MakeModifiersAndFlags(
                 syntax,
+                methodKind,
                 syntax.constructorInitializer?.thisOrBaseKeyword?.kind == SyntaxKind.ThisKeyword,
                 diagnostics,
                 out var hasErrors
@@ -36,8 +38,11 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         SourceMemberContainerTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        // Eventually this will distinguish static and instance constructors
-        return new SourceConstructorSymbol(containingType, syntax, diagnostics);
+        var methodKind = (syntax.modifiers?.Any(SyntaxKind.StaticKeyword) == true)
+            ? MethodKind.StaticConstructor
+            : MethodKind.Constructor;
+
+        return new SourceConstructorSymbol(containingType, syntax, methodKind, diagnostics);
     }
 
     internal ConstructorDeclarationSyntax GetSyntax() {
@@ -60,15 +65,16 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
         ConstructorDeclarationSyntax syntax,
+        MethodKind methodKind,
         bool hasThisInitializer,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var hasAnyBody = syntax.body is not null;
 
-        var declarationModifiers = MakeModifiers(syntax, diagnostics, out modifierErrors);
+        var declarationModifiers = MakeModifiers(syntax, methodKind, diagnostics, out modifierErrors);
 
         var flags = new Flags(
-            MethodKind.Constructor,
+            methodKind,
             RefKind.None,
             declarationModifiers,
             true,
@@ -82,10 +88,14 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
 
     private static DeclarationModifiers MakeModifiers(
         ConstructorDeclarationSyntax syntax,
+        MethodKind methodKind,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
-        var defaultAccess = DeclarationModifiers.Private;
-        var allowedModifiers = DeclarationModifiers.AccessibilityMask;
+        var defaultAccess = (methodKind == MethodKind.StaticConstructor)
+            ? DeclarationModifiers.None
+            : DeclarationModifiers.Private;
+
+        var allowedModifiers = DeclarationModifiers.AccessibilityMask | DeclarationModifiers.Static;
 
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
@@ -96,14 +106,22 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
             out modifierErrors
         );
 
+        if (methodKind == MethodKind.StaticConstructor) {
+            if ((mods & DeclarationModifiers.AccessibilityMask) != 0) {
+                mods &= ~DeclarationModifiers.AccessibilityMask;
+                diagnostics.Push(Error.StaticConstructorWithAccessModifier(syntax.constructorKeyword.location));
+                modifierErrors = true;
+            }
+
+            mods |= DeclarationModifiers.Private;
+        }
+
         return mods;
     }
 
     private void CheckModifiers(TextLocation location, BelteDiagnosticQueue diagnostics) {
         if (containingType.isSealed && declaredAccessibility == Accessibility.Protected && !isOverride)
             diagnostics.Push(Warning.ProtectedInSealed(location, this));
-        else if (containingType.isStatic)
-            diagnostics.Push(Error.ConstructorInStaticClass(location));
     }
 
     private protected override SyntaxNode GetInitializer() {

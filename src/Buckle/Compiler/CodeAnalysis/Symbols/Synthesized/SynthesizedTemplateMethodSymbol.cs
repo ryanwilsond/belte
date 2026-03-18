@@ -27,7 +27,7 @@ internal sealed class SynthesizedTemplateMethodSymbol : SynthesizedInstanceMetho
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+    public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
     public override MethodKind methodKind { get; }
 

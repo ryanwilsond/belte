@@ -6,6 +6,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// </summary>
 internal static class WellKnownMemberNames {
     internal const string InstanceConstructorName = ".ctor";
+    internal const string StaticConstructorName = ".cctor";
     internal const string PowerOperatorName = "op_Power";
     internal const string MultiplyOperatorName = "op_Multiply";
     internal const string DivideOperatorName = "op_Divide";

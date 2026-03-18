@@ -400,11 +400,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidAttributes, location, message);
     }
 
-    internal static BelteDiagnostic ConstructorInStaticClass(TextLocation location) {
-        var message = $"static classes cannot have constructors";
-        return CreateError(DiagnosticCode.ERR_ConstructorInStaticClass, location, message);
-    }
-
     internal static BelteDiagnostic StaticDataContainer(TextLocation location) {
         var message = $"cannot declare a field or data container with a static type";
         return CreateError(DiagnosticCode.ERR_StaticDataContainer, location, message);
@@ -1627,6 +1622,22 @@ internal static class Error {
         var message = $"control cannot leave the body of a finally clause";
         return CreateError(DiagnosticCode.ERR_CannotReturnFromFinally, location, message);
     }
+
+    internal static BelteDiagnostic StaticConstructorWithAccessModifier(TextLocation location) {
+        var message = $"access modifiers are not allowed on static constructors";
+        return CreateError(DiagnosticCode.ERR_StaticConstructorWithAccessModifier, location, message);
+    }
+
+    internal static BelteDiagnostic StaticConstructorParameter(TextLocation location) {
+        var message = $"static constructors must be parameterless";
+        return CreateError(DiagnosticCode.ERR_StaticConstructorParameter, location, message);
+    }
+
+    internal static BelteDiagnostic StaticConstructorWithInitializer(TextLocation location) {
+        var message = $"static constructor cannot have an explicit 'this' or 'base' constructor call";
+        return CreateError(DiagnosticCode.ERR_StaticConstructorWithInitializer, location, message);
+    }
+
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);

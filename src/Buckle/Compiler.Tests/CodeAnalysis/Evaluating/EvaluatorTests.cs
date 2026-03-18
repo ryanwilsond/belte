@@ -281,6 +281,9 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int a; public int b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
     [InlineData("class A { public int num; } A myVar; int a = myVar?.num; return a;", null)]
     [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 7; int a = myVar?.num; return a;", 7)]
+    [InlineData("class A { public static int a = 3; } return A.a;", 3)]
+    [InlineData("class A { public static int a = 3; static constructor() { a = 10; } } return A.a;", 10)]
+    [InlineData("class A { public static int a = 3; } A.a = 20; return A.a;", 20)]
     // This expression
     [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; this.a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
     [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
@@ -291,6 +294,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public constexpr int a; } return A.a;", null)]
     [InlineData("class A { public static int B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { public static int B(int a) { return a + 3; } } return A.B(4);", 7)]
+    // Structs
+    [InlineData("struct A { public int! a; } var a = new A(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
     // If statements
     [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]

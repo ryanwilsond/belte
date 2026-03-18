@@ -10,6 +10,7 @@
             "args": [
                 "-r",
                 "--clearsubmissions",
+
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

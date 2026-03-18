@@ -986,20 +986,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0084_CannotUseStruct() {
-        var text = @"
-            struct MyStruct { }
-            var a = new [MyStruct]();
-        ";
-
-        var diagnostics = @"
-            cannot use structs outside of low-level contexts
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
+    // ! Error_BU0084_CannotUseStruct
     // ! Error_BU0085_CannotUseThis
 
     [Fact]
@@ -1039,12 +1026,12 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0088_InvalidModifier() {
         var text = @"
             class MyClass {
-                static int [a];
+                const static [constructor]() { }
             }
         ";
 
         var diagnostics = @"
-            modifier 'static' is not valid for this item
+            modifier 'const' is not valid for this item
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1165,15 +1152,15 @@ public sealed class DiagnosticTests {
     // ! Error_BU0097_DottedTypeNamesNotFound
 
     [Fact]
-    public void Reports_Error_BU0098_ConstructorInStaticClass() {
+    public void Reports_Error_BU0098_StaticConstructorParameter() {
         var text = @"
             static class A {
-                [constructor]() { }
+                static [constructor](int a) { }
             }
         ";
 
         var diagnostics = @"
-            static classes cannot have constructors
+            static constructors must be parameterless
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3363,6 +3350,36 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             control cannot leave the body of a finally clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0338_StaticConstructorWithAccessModifier() {
+        var text = @"
+            static class A {
+                public static [constructor]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            access modifiers are not allowed on static constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0339_StaticConstructorWithInitializer() {
+        var text = @"
+            static class A {
+                static constructor() : [base]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            static constructor cannot have an explicit 'this' or 'base' constructor call
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

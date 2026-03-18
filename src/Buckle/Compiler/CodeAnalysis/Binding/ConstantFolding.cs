@@ -308,17 +308,17 @@ internal static class ConstantFolding {
     /// </summary>
     /// <param name="items">Initializer list contents.</param>
     /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
-    internal static ConstantValue FoldInitializerList(ImmutableArray<BoundExpression> items) {
+    internal static ConstantValue FoldInitializerList(BoundInitializerList list) {
         var foldedItems = ArrayBuilder<ConstantValue>.GetInstance();
 
-        foreach (var item in items) {
+        foreach (var item in list.items) {
             if (item.constantValue is not null)
                 foldedItems.Add(item.constantValue);
             else
                 return null;
         }
 
-        return new ConstantValue(foldedItems.ToImmutableAndFree(), SpecialType.None);
+        return new ConstantValue(foldedItems.ToImmutableAndFree(), SpecialType.Array);
     }
 
     /// <summary>

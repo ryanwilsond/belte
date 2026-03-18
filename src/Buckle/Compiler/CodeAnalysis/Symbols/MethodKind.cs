@@ -7,4 +7,5 @@ public enum MethodKind : byte {
     Builtin,
     LocalFunction,
     Operator,
+    StaticConstructor,
 }

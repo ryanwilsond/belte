@@ -182,6 +182,9 @@ internal abstract class Symbol : ISymbol {
     }
 
     internal virtual LexicalSortKey GetLexicalSortKey() {
+        if (syntaxReference is null)
+            return LexicalSortKey.NotInSource;
+
         return new LexicalSortKey(syntaxReference, declaringCompilation);
     }
 

@@ -39,7 +39,7 @@ internal class Heap {
         foreach (var frame in stack)
             MarkMany(frame.values);
 
-        MarkMany(context.GetTrackedGlobalObjects().Values);
+        MarkMany(context.globalSlots);
 
         Sweep();
 

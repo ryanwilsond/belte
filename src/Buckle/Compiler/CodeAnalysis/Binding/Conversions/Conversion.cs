@@ -148,9 +148,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return new Conversion(EasyOut.Classify(source, target));
 
         // Handle conversions with 'any' type that weren't picked up with the EasyOut
-        // We only allow using 'any' with other primitives, so the only type that the EasyOut couldn't pick up was
-        // array conversions
-        if (target.specialType == SpecialType.Any && source.specialType == SpecialType.Array)
+        // ~~We only allow using 'any' with other primitives, so the only type that the EasyOut couldn't pick up was array conversions~~
+        // TODO We changed this to now treat any as a bigger-O Object
+        if (target.specialType == SpecialType.Any)
             return Implicit;
 
         if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
@@ -170,11 +170,12 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.isStatic)
             return None;
 
-        if (source is NamedTypeSymbol s && target is NamedTypeSymbol t) {
-            if (IsBaseClass(s, t))
+        if (source.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter &&
+            target.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter) {
+            if (IsBaseClass(source, target))
                 return Implicit;
 
-            if (IsBaseClass(t, s))
+            if (IsBaseClass(target, source))
                 return Explicit;
         }
 
@@ -217,12 +218,20 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (!baseType.IsClassType())
             return false;
 
-        for (TypeSymbol b = derivedType.baseType; (object)b is not null; b = b.baseType) {
+        for (var b = BaseType(derivedType); (object)b is not null; b = BaseType(b)) {
             if (HasIdentityConversionInternal(b, baseType))
                 return true;
         }
 
         return false;
+
+        static TypeSymbol BaseType(TypeSymbol type) {
+            return type.kind switch {
+                SymbolKind.NamedType => ((NamedTypeSymbol)type).baseType,
+                SymbolKind.TemplateParameter => ((TemplateParameterSymbol)type).effectiveBaseClass,
+                _ => null
+            };
+        }
     }
 
     internal static bool HasIdentityOrImplicitConversion(TypeSymbol source, TypeSymbol destination) {

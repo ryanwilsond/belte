@@ -140,8 +140,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    internal ImmutableArray<ImmutableArray<FieldInitializer>> initializers
-        => GetMembersAndInitializers().fieldInitializers;
+    internal ImmutableArray<ImmutableArray<FieldInitializer>> instanceInitializers
+        => GetMembersAndInitializers().instanceInitializers;
+
+    internal ImmutableArray<ImmutableArray<FieldInitializer>> staticInitializers
+        => GetMembersAndInitializers().staticInitializers;
 
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
@@ -1410,7 +1413,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (members.Count == 0)
             return;
 
-        ArrayBuilder<FieldInitializer>? initializers = null;
+        ArrayBuilder<FieldInitializer>? instanceInitializers = null;
+        ArrayBuilder<FieldInitializer>? staticInitializers = null;
 
         foreach (var m in members) {
             if (_lazyMembersAndInitializers is not null)
@@ -1441,9 +1445,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(fieldSymbol);
 
-                        // TODO Do we want initializers for all fields like before?
-                        if (declaration.initializer is not null)
-                            AddInitializer(ref initializers, fieldSymbol, declaration.initializer);
+                        if (declaration.initializer is not null) {
+                            if (fieldSymbol.isStatic)
+                                AddInitializer(ref staticInitializers, fieldSymbol, declaration.initializer);
+                            else
+                                AddInitializer(ref instanceInitializers, fieldSymbol, declaration.initializer);
+                        }
                     }
 
                     break;
@@ -1497,7 +1504,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             }
         }
 
-        AddInitializers(builder.fieldInitializers, initializers);
+        AddInitializers(builder.instanceInitializers, instanceInitializers);
+        AddInitializers(builder.staticInitializers, staticInitializers);
     }
 
     private static void AddInitializer(
@@ -1545,6 +1553,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         DeclaredMembersAndInitializers declaredMembersAndInitializers) {
         var hasConstructor = false;
         var hasParameterlessConstructor = false;
+        var hasStaticConstructor = false;
 
         var membersSoFar = builder.GetNonTypeMembers(declaredMembersAndInitializers);
 
@@ -1557,6 +1566,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         hasConstructor = true;
                         hasParameterlessConstructor = hasParameterlessConstructor || method.parameters.Length == 0;
                         break;
+                    case MethodKind.StaticConstructor:
+                        hasStaticConstructor = true;
+                        break;
                 }
             }
 
@@ -1564,8 +1576,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 break;
         }
 
+        if (!hasStaticConstructor)
+            builder.AddNonTypeMember(new SynthesizedStaticConstructor(this), declaredMembersAndInitializers);
+
         if (!hasConstructor && !isStatic)
-            builder.AddNonTypeMember(new SynthesizedConstructorSymbol(this), declaredMembersAndInitializers);
+            builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
@@ -1730,10 +1745,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal bool TryCalculateSyntaxOffsetOfPositionInInitializer(
         int position,
         SyntaxTree tree,
+        bool isStatic,
         int ctorInitializerLength,
         out int syntaxOffset) {
         var membersAndInitializers = GetMembersAndInitializers();
-        var allInitializers = membersAndInitializers.fieldInitializers;
+        var allInitializers = isStatic
+            ? membersAndInitializers.staticInitializers
+            : membersAndInitializers.instanceInitializers;
 
         if (!FindInitializer(allInitializers, position, tree, out var initializer, out var precedingLength)) {
             syntaxOffset = 0;
@@ -1833,10 +1851,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         return -1;
     }
 
-    internal int CalculateSyntaxOffsetInSynthesizedConstructor(int position, SyntaxTree tree) {
+    internal int CalculateSyntaxOffsetInSynthesizedConstructor(int position, SyntaxTree tree, bool isStatic) {
         if (TryCalculateSyntaxOffsetOfPositionInInitializer(
             position,
             tree,
+            isStatic,
             0,
             out var syntaxOffset)) {
             return syntaxOffset;

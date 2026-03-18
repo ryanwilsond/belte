@@ -145,16 +145,24 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
         var members = symbol.GetMembers();
-        var processedInitializers = new Binder.ProcessedFieldInitializers();
+        var processedInstanceInitializers = new Binder.ProcessedFieldInitializers();
+        var processedStaticInitializers = new Binder.ProcessedFieldInitializers();
 
         var sourceType = symbol as SourceMemberContainerTypeSymbol;
 
         if (sourceType is not null) {
             Binder.BindFieldInitializers(
                 _compilation,
-                sourceType.initializers,
+                sourceType.staticInitializers,
                 _diagnostics,
-                ref processedInitializers
+                ref processedStaticInitializers
+            );
+
+            Binder.BindFieldInitializers(
+                _compilation,
+                sourceType.instanceInitializers,
+                _diagnostics,
+                ref processedInstanceInitializers
             );
         }
 
@@ -169,8 +177,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     member.Accept(this, state);
                     break;
                 case MethodSymbol m:
-                    var initializers = m.methodKind == MethodKind.Constructor ? processedInitializers : default;
-                    CompileMethod(m, ordinal, ref initializers, state);
+                    var processedInitializers = (m.methodKind == MethodKind.Constructor) ? processedInstanceInitializers
+                        : (m.methodKind == MethodKind.StaticConstructor) ? processedStaticInitializers : default;
+                    CompileMethod(m, ordinal, ref processedInitializers, state);
                     break;
                 case FieldSymbol f:
                     if (f.isConstExpr)
@@ -323,6 +332,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (method is SourceMemberMethodSymbol sourceMethod) {
             syntaxNode = sourceMethod.syntaxNode;
+
+            if (sourceMethod.methodKind == MethodKind.StaticConstructor &&
+                syntaxNode is ConstructorDeclarationSyntax constructorSyntax &&
+                constructorSyntax.constructorInitializer is not null) {
+                diagnostics.Push(Error.StaticConstructorWithInitializer(
+                    constructorSyntax.constructorInitializer.thisOrBaseKeyword.location
+                ));
+            }
+
             var bodyBinder = sourceMethod.TryGetBodyBinder(null, state.compilation.options.isScript);
 
             if (bodyBinder is null)
@@ -336,7 +354,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 case BoundConstructorMethodBody constructor:
                     body = constructor.body;
 
-                    if (constructor.initializer is BoundExpressionStatement expressionStatement) {
+                    if (sourceMethod.methodKind == MethodKind.Constructor &&
+                        constructor.initializer is BoundExpressionStatement expressionStatement) {
                         ReportConstructorInitializerCycles(
                             method,
                             expressionStatement.expression,

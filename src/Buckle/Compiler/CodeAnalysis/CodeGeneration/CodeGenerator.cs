@@ -1896,10 +1896,7 @@ oneMoreTime:
         var operand = expression.operand;
         EmitExpression(operand, true);
 
-        if (operand.type.IsVerifierValue())
-            _builder.EmitNullAssertValue(expression.type);
-        else
-            _builder.EmitNullAssertObject(expression.type);
+        _builder.EmitNullAssert(expression.type);
 
         EmitPopIfUnused(used);
     }

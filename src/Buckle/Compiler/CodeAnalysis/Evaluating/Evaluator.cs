@@ -32,6 +32,7 @@ internal sealed class Evaluator {
     private readonly EvaluatorContext _context;
     private readonly Stack<StackFrame> _stack;
     private readonly string[] _args;
+    private readonly bool _isScript;
 
     private EvaluatorValue _programObject;
     private EvaluatorValue _lastValue;
@@ -50,6 +51,7 @@ internal sealed class Evaluator {
         _args = arguments;
         _stack = [];
         exceptions = [];
+        _isScript = _context.options.isScript;
     }
 
     /// <summary>
@@ -123,7 +125,7 @@ internal sealed class Evaluator {
 
         if (!programType.isStatic) {
             _programObject = CreateObject(programType);
-            var constructor = programType.constructors.Where(c => c.parameterCount == 0).FirstOrDefault();
+            var constructor = programType.instanceConstructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
                 InvokeMethod(constructor, _programObject, [], abort);
@@ -148,7 +150,39 @@ internal sealed class Evaluator {
         return hasValue ? EvaluatorValue.Format(result, _context) : null;
     }
 
+    private EvaluatorValue GetOrCreateStaticType(NamedTypeSymbol type, ValueWrapper<bool> abort) {
+        if (_context.TryGetStaticType(type, out var value))
+            return value;
+
+        var staticConstructor = type.staticConstructors.SingleOrDefault();
+
+        if (staticConstructor is not null) {
+            if (type.IsStructType()) {
+                var structValue = CreateStruct(type);
+                _context.AddStaticType(type, structValue);
+                return value;
+            }
+
+            var ptr = CreateObject(type);
+            _context.AddStaticType(type, ptr);
+            InvokeMethod(staticConstructor, ptr, [], abort);
+            return ptr;
+        }
+
+        return EvaluatorValue.None;
+    }
+
     private EvaluatorValue CreateObject(NamedTypeSymbol type) {
+        var heapObject = CreateHeapObject(type);
+        var index = _context.heap.Allocate(heapObject, _stack, _context);
+        return EvaluatorValue.HeapPtr(index);
+    }
+
+    private EvaluatorValue CreateStruct(NamedTypeSymbol type) {
+        return EvaluatorValue.Struct(CreateHeapObject(type));
+    }
+
+    private HeapObject CreateHeapObject(NamedTypeSymbol type) {
         if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({type})");
 
@@ -181,8 +215,29 @@ internal sealed class Evaluator {
             }
         }
 
-        var index = _context.heap.Allocate(heapObject, _stack, _context);
-        return EvaluatorValue.HeapPtr(index);
+        return heapObject;
+    }
+
+    private EvaluatorValue GetHeapFieldSlotOrStructFieldSlot(EvaluatorValue ptr, int slot) {
+        if (ptr.kind == ValueKind.Ref)
+            return GetHeapFieldSlotOrStructFieldSlot(ptr.loc[ptr.ptr], slot);
+        else if (ptr.kind == ValueKind.Struct)
+            return ptr.@struct.fields[slot];
+        else if (ptr.kind == ValueKind.HeapPtr)
+            return _context.heap[ptr.ptr].fields[slot];
+        else
+            throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+    }
+
+    private EvaluatorValue GetHeapFieldSlotOrStructFieldSlotRef(EvaluatorValue ptr, int slot) {
+        if (ptr.kind == ValueKind.Ref)
+            return GetHeapFieldSlotOrStructFieldSlotRef(ptr.loc[ptr.ptr], slot);
+        else if (ptr.kind == ValueKind.Struct)
+            return EvaluatorValue.Ref(ptr.@struct.fields, slot);
+        else if (ptr.kind == ValueKind.HeapPtr)
+            return EvaluatorValue.Ref(_context.heap[ptr.ptr].fields, slot);
+        else
+            throw ExceptionUtilities.UnexpectedValue(ptr.kind);
     }
 
     private void IndirectStore(TextLocation location, EvaluatorValue lhs, EvaluatorValue value) {
@@ -307,7 +362,7 @@ internal sealed class Evaluator {
                         returned = true;
 
                         if (method.returnsVoid) {
-                            if (_lastValue.Equals(EvaluatorValue.None) || !_context.options.isScript)
+                            if (_lastValue.Equals(EvaluatorValue.None) || !_isScript)
                                 _hasValue = false;
 
                             return _lastValue;
@@ -344,7 +399,7 @@ internal sealed class Evaluator {
             lastOutputWasPrint = false;
             _hasValue = false;
 
-            if (!_context.options.isScript)
+            if (!_isScript)
                 abort.Value = true;
 
             return EvaluatorValue.None;
@@ -353,7 +408,7 @@ internal sealed class Evaluator {
 
     private void EvaluateExpressionStatement(BoundExpressionStatement node, ValueWrapper<bool> abort) {
         var expression = node.expression;
-        var value = EvaluateExpression(expression, false, abort);
+        var value = EvaluateExpression(expression, _isScript, abort);
 
         if (expression.syntax.kind != Syntax.SyntaxKind.LocalDeclarationStatement)
             _lastValue = value;
@@ -531,14 +586,20 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateFieldNoIndirection(BoundFieldSlotExpression node, bool used, ValueWrapper<bool> abort) {
         var field = node.field;
-        var receiver = node.receiver;
-        var fieldType = field.type;
 
-        if (IsValueType(fieldType) && (object)fieldType == receiver.type) {
-            return EvaluateExpression(receiver, used, abort);
+        if (field.isStatic) {
+            var ptr = GetOrCreateStaticType(field.containingType.originalDefinition, abort);
+            return GetHeapFieldSlotOrStructFieldSlot(ptr, node.slot);
         } else {
-            var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
-            return _context.heap[receiverValue.ptr].fields[node.slot];
+            var receiver = node.receiver;
+            var fieldType = field.type;
+
+            if (IsValueType(fieldType) && (object)fieldType == receiver.type) {
+                return EvaluateExpression(receiver, used, abort);
+            } else {
+                var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
+                return GetHeapFieldSlotOrStructFieldSlot(receiverValue, node.slot);
+            }
         }
     }
 
@@ -571,7 +632,7 @@ internal sealed class Evaluator {
             var field = fieldSlot.field;
 
             if (!field.isStatic && EvaluateFieldLoadReceiverAddress(fieldSlot.receiver, abort, out var nestedExpr)) {
-                expr = EvaluatorValue.Ref(_context.heap[nestedExpr.ptr].fields, fieldSlot.slot);
+                expr = GetHeapFieldSlotOrStructFieldSlotRef(nestedExpr, fieldSlot.slot);
                 return true;
             }
         }
@@ -698,6 +759,13 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
+        if (node.type.IsStructType()) {
+            if (used)
+                return CreateStruct((NamedTypeSymbol)node.type);
+
+            return EvaluatorValue.None;
+        }
+
         if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], used, abort);
 
@@ -724,15 +792,15 @@ internal sealed class Evaluator {
 
         var index = (int)EvaluateExpression(node.index, true, abort).int64;
 
-        if (used || node.type.specialType is SpecialType.Int or SpecialType.Bool or SpecialType.Decimal ||
-            node.type.IsVerifierReference()) {
-            if (index >= _context.heap[receiver.ptr].fields.Length)
-                throw new BelteIndexOutOfRangeException(node.syntax.location);
+        if (index >= _context.heap[receiver.ptr].fields.Length)
+            throw new BelteIndexOutOfRangeException(node.syntax.location);
 
+        if (node.type.IsVerifierReference() || node.type.specialType is
+            SpecialType.Int or SpecialType.Bool or SpecialType.Decimal || used) {
             return _context.heap[receiver.ptr].fields[index];
+        } else {
+            return EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, index);
         }
-
-        return EvaluatorValue.None;
     }
 
     private EvaluatorValue EvaluateIndexerAccessExpression(
@@ -812,6 +880,9 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue GetDefaultValue(TypeSymbol type) {
+        if (type.IsStructType())
+            return CreateStruct((NamedTypeSymbol)type);
+
         return (!type.IsNullableType() && type.IsVerifierValue())
             ? EvaluatorValue.Literal(LiteralUtilities.GetDefaultValue(type.specialType), type.specialType)
             : EvaluatorValue.Null;
@@ -881,6 +952,16 @@ internal sealed class Evaluator {
             }
         }
 
+        if (value.kind == ValueKind.Struct) {
+            var operandType = value.@struct.type;
+
+            if (operandType.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType)) {
+                value.@bool = !node.isNot;
+                value.kind = ValueKind.Bool;
+                return value;
+            }
+        }
+
         value.@bool = node.isNot;
         value.kind = ValueKind.Bool;
         return value;
@@ -914,10 +995,26 @@ internal sealed class Evaluator {
 
         var lhs = EvaluateAssignmentPreamble(node, abort);
         var value = EvaluateAssignmentValue(node, abort);
+        value = EvaluateAssignmentDuplication(useKind, value);
 
         EvaluateStore(node, lhs, value);
 
         return EvaluateAssignmentPostfix(node, value, useKind);
+    }
+
+    private EvaluatorValue EvaluateAssignmentDuplication(UseKind useKind, EvaluatorValue value) {
+        if (useKind != UseKind.Unused && value.kind == ValueKind.Struct) {
+            var original = value.@struct;
+            var slotCount = original.fields.Length;
+            var duplicate = new HeapObject(original.type, slotCount);
+
+            for (var i = 0; i < slotCount; i++)
+                duplicate.fields[i] = EvaluateAssignmentDuplication(useKind, original.fields[i]);
+
+            return EvaluatorValue.Struct(duplicate);
+        }
+
+        return value;
     }
 
     private void EvaluateStore(BoundAssignmentOperator node, EvaluatorValue lhs, EvaluatorValue value) {
@@ -979,6 +1076,7 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort) {
         var global = (node.left as BoundDataContainerExpression).dataContainer;
         var value = EvaluateAssignmentValue(node, abort);
+        value = EvaluateAssignmentDuplication(useKind, value);
 
         if (global.refKind != RefKind.None && !node.isRef) {
             _context.TryGetGlobal(global, out var indirect);
@@ -1013,10 +1111,15 @@ internal sealed class Evaluator {
 
                     if (left.field.refKind != RefKind.None && !node.isRef)
                         expr = EvaluateFieldNoIndirection(left, true, abort);
-                    else
+                    else if (!left.field.isStatic)
                         expr = EvaluateReceiverRef(left.receiver, AddressKind.Writeable, abort);
+                    else
+                        expr = GetOrCreateStaticType(left.field.containingType.originalDefinition, abort);
 
-                    expr = EvaluatorValue.Ref(_context.heap[expr.ptr].fields, left.slot);
+                    if (expr.kind == ValueKind.Null)
+                        throw new BelteNullReferenceException(node.syntax.location);
+
+                    expr = GetHeapFieldSlotOrStructFieldSlotRef(expr, left.slot);
                 }
 
                 break;
@@ -1298,10 +1401,17 @@ internal sealed class Evaluator {
                 left.int64 >>>= (int)right.int64;
                 break;
             case BinaryOperatorKind.Modulo:
-                if (operandType == BinaryOperatorKind.Int)
+                if (operandType == BinaryOperatorKind.Int) {
+                    if (right.int64 == 0)
+                        throw new BelteDivideByZeroException(node.syntax.location);
+
                     left.int64 %= right.int64;
-                else
+                } else {
+                    if (right.@double == 0)
+                        throw new BelteDivideByZeroException(node.syntax.location);
+
                     left.@double %= right.@double;
+                }
 
                 break;
             case BinaryOperatorKind.Power:
@@ -1417,9 +1527,9 @@ internal sealed class Evaluator {
         );
 
         if (field.refKind == RefKind.None)
-            return EvaluatorValue.Ref(_context.heap[receiver.ptr].fields, node.slot);
+            return GetHeapFieldSlotOrStructFieldSlotRef(receiver, node.slot);
 
-        return _context.heap[receiver.ptr].fields[node.slot];
+        return GetHeapFieldSlotOrStructFieldSlot(receiver, node.slot);
     }
 
     private EvaluatorValue EvaluateReceiverRef(
@@ -1768,6 +1878,8 @@ internal sealed class Evaluator {
 
                         if (argument.kind == ValueKind.HeapPtr) {
                             result = _context.heap[argument.ptr].GetHashCode();
+                        } else if (argument.kind == ValueKind.Struct) {
+                            result = argument.@struct.GetHashCode();
                         } else {
                             switch (argument.kind) {
                                 case ValueKind.Int64:
@@ -1792,6 +1904,9 @@ internal sealed class Evaluator {
                         if (argument.kind == ValueKind.HeapPtr) {
                             var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
                             result = GetTypeName(type);
+                        } else if (argument.kind == ValueKind.Struct) {
+                            var type = argument.@struct.type;
+                            result = GetTypeName(type);
                         } else {
                             // TODO These are .NET types not Belte types! (to ensure parity with IL code gen)
                             result = argument.kind switch {
@@ -1803,6 +1918,25 @@ internal sealed class Evaluator {
                                 _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
                             };
                         }
+                    }
+
+                    return true;
+                case "LowLevel_Length_A?": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+
+                        if (argument.kind != ValueKind.HeapPtr) {
+                            result = 0;
+                            return true;
+                        }
+
+                        var array = _context.heap[argument.ptr];
+
+                        if (array.type.kind != SymbolKind.ArrayType) {
+                            result = 0;
+                            return true;
+                        }
+
+                        result = array.fields.Length;
                     }
 
                     return true;
@@ -1824,6 +1958,10 @@ internal sealed class Evaluator {
                             return true;
 
                         var array = _context.heap[arrayPtr.ptr];
+
+                        if (array.type.kind != SymbolKind.ArrayType)
+                            return true;
+
                         var elementSpecialType = ((ArrayTypeSymbol)array.type).elementType.StrippedType().specialType;
                         Comparison<EvaluatorValue> comparison;
 
@@ -2047,7 +2185,7 @@ internal sealed class Evaluator {
                     _stack.Peek().values[temp.slot] = sprite;
 
                     InvokeMethod(
-                        spriteType.constructors[0],
+                        spriteType.instanceConstructors[0],
                         sprite,
                         [
                             LoadTexture(path),
@@ -2141,7 +2279,7 @@ internal sealed class Evaluator {
                     if (fields[0].data is not DynamicSpriteFont spriteFont)
                         throw new BelteEvaluatorException("Cannot draw text: invalid text object", location);
 
-                    if (_context.options.isScript) {
+                    if (_isScript) {
                         result = _context.graphicsHandler.AddAction(
                             () => { _context.graphicsHandler.DrawText(spriteFont, text, posX, posY, r, g, b); }
                         );
@@ -2177,7 +2315,7 @@ internal sealed class Evaluator {
                     _stack.Peek().values[temp.slot] = vec;
 
                     InvokeMethod(
-                        vecType.constructors[0],
+                        vecType.instanceConstructors[0],
                         vec,
                         [
                             EvaluatorValue.Literal(Convert.ToDouble(x)),
@@ -2205,7 +2343,7 @@ internal sealed class Evaluator {
                     var g = evaluatedArguments[1].int64;
                     var b = evaluatedArguments[2].int64;
 
-                    if (_context.options.isScript) {
+                    if (_isScript) {
                         result = _context.graphicsHandler.AddAction(
                             () => { _context.graphicsHandler.Fill(r, g, b); }
                         );
@@ -2238,7 +2376,7 @@ internal sealed class Evaluator {
                     var (dx, dy, dw, dh) = ExtRect(dstRect);
                     var dst = new Microsoft.Xna.Framework.Rectangle(dx, dy, dw, dh);
 
-                    if (_context.options.isScript) {
+                    if (_isScript) {
                         result = _context.graphicsHandler.AddAction(
                             () => {
                                 _context.graphicsHandler.Draw(
@@ -2322,7 +2460,7 @@ internal sealed class Evaluator {
             long? b = fields[3].kind == ValueKind.Null ? null : fields[3].int64;
             long? a = includeAlpha ? (fields[4].kind == ValueKind.Null ? null : fields[4].int64) : 255;
 
-            if (_context.options.isScript) {
+            if (_isScript) {
                 result = _context.graphicsHandler.AddAction(
                     () => { _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b, a); }
                 );
@@ -2360,7 +2498,7 @@ internal sealed class Evaluator {
                 dy -= (int)H(offsetVec)[1].@double;
             }
 
-            if (_context.options.isScript) {
+            if (_isScript) {
                 result = _context.graphicsHandler.AddAction(
                     () => {
                         _context.graphicsHandler.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);

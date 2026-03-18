@@ -65,6 +65,10 @@ public struct EvaluatorValue {
         return new EvaluatorValue() { kind = ValueKind.MethodGroup, methodGroup = methodGroup };
     }
 
+    internal static EvaluatorValue Struct(HeapObject structValue) {
+        return new EvaluatorValue() { kind = ValueKind.Struct, @struct = structValue };
+    }
+
     internal static EvaluatorValue Literal(object value, SpecialType specialType) {
         if (value is null)
             return Null;

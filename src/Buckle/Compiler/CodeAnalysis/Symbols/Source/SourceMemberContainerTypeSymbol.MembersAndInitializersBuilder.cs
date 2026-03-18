@@ -13,13 +13,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol {
             var nonTypeMembers = _nonTypeMembers?.ToImmutableAndFree() ?? declaredMembers.nonTypeMembers;
 
             var instanceInitializers = _instanceInitializersForPositionalMembers is null
-                ? declaredMembers.fieldInitializers
+                ? declaredMembers.instanceInitializers
                 : MergeInitializers();
 
-            return new MembersAndInitializers(nonTypeMembers, instanceInitializers);
+            return new MembersAndInitializers(
+                nonTypeMembers,
+                instanceInitializers,
+                declaredMembers.staticInitializers
+            );
 
             ImmutableArray<ImmutableArray<FieldInitializer>> MergeInitializers() {
-                var groupCount = declaredMembers.fieldInitializers.Length;
+                var groupCount = declaredMembers.instanceInitializers.Length;
 
                 if (groupCount == 0)
                     return [_instanceInitializersForPositionalMembers.ToImmutableAndFree()];
@@ -32,7 +36,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol {
                 for (insertAt = 0; insertAt < groupCount; insertAt++) {
                     if (LexicalSortKey.Compare(
                         sortKey,
-                        new LexicalSortKey(declaredMembers.fieldInitializers[insertAt][0].syntax, compilation)) < 0) {
+                        new LexicalSortKey(declaredMembers.instanceInitializers[insertAt][0].syntax, compilation)) < 0) {
                         break;
                     }
                 }
@@ -41,26 +45,26 @@ internal abstract partial class SourceMemberContainerTypeSymbol {
 
                 if (insertAt != groupCount &&
                     declaredMembers.declarationWithParameters.syntaxTree ==
-                        declaredMembers.fieldInitializers[insertAt][0].syntax.syntaxTree &&
+                        declaredMembers.instanceInitializers[insertAt][0].syntax.syntaxTree &&
                     declaredMembers.declarationWithParameters.span
-                        .Contains(declaredMembers.fieldInitializers[insertAt][0].syntax.span.start)) {
-                    var declaredInitializers = declaredMembers.fieldInitializers[insertAt];
+                        .Contains(declaredMembers.instanceInitializers[insertAt][0].syntax.span.start)) {
+                    var declaredInitializers = declaredMembers.instanceInitializers[insertAt];
                     var insertedInitializers = _instanceInitializersForPositionalMembers;
                     insertedInitializers.AddRange(declaredInitializers);
 
                     groupsBuilder = ArrayBuilder<ImmutableArray<FieldInitializer>>.GetInstance(groupCount);
-                    groupsBuilder.AddRange(declaredMembers.fieldInitializers, insertAt);
+                    groupsBuilder.AddRange(declaredMembers.instanceInitializers, insertAt);
                     groupsBuilder.Add(insertedInitializers.ToImmutableAndFree());
                     groupsBuilder.AddRange(
-                        declaredMembers.fieldInitializers,
+                        declaredMembers.instanceInitializers,
                         insertAt + 1,
                         groupCount - (insertAt + 1)
                     );
                 } else {
                     groupsBuilder = ArrayBuilder<ImmutableArray<FieldInitializer>>.GetInstance(groupCount + 1);
-                    groupsBuilder.AddRange(declaredMembers.fieldInitializers, insertAt);
+                    groupsBuilder.AddRange(declaredMembers.instanceInitializers, insertAt);
                     groupsBuilder.Add(_instanceInitializersForPositionalMembers.ToImmutableAndFree());
-                    groupsBuilder.AddRange(declaredMembers.fieldInitializers, insertAt, groupCount - insertAt);
+                    groupsBuilder.AddRange(declaredMembers.instanceInitializers, insertAt, groupCount - insertAt);
                 }
 
                 var result = groupsBuilder.ToImmutableAndFree();

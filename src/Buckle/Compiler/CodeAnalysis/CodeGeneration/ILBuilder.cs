@@ -66,9 +66,7 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitGetTypeFromHandle(TypeSymbol type);
 
-    internal abstract void EmitNullAssertObject(TypeSymbol type);
-
-    internal abstract void EmitNullAssertValue(TypeSymbol type);
+    internal abstract void EmitNullAssert(TypeSymbol type);
 
     internal abstract void EmitSort(TypeSymbol elementType);
 
