@@ -14,13 +14,14 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         string name,
         SourceMemberContainerTypeSymbol containingType,
         BelteSyntaxNode syntax,
+        RefKind refKind,
         DeclarationModifiers modifiers,
         bool hasAnyBody,
         BelteDiagnosticQueue diagnostics)
         : base(
             containingType,
             new SyntaxReference(syntax),
-            (modifiers, new Flags(methodKind, RefKind.None, modifiers, false, false, hasAnyBody, false))
+            (modifiers, new Flags(methodKind, refKind, modifiers, false, false, hasAnyBody, false))
         ) {
         this.name = name;
         var location = ((OperatorDeclarationSyntax)syntaxReference.node).operatorToken.location;
@@ -65,6 +66,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         if (containingType.isStatic)
             return;
 
+        CheckReturnRefKind(diagnostics);
         CheckValueParameters(diagnostics);
         CheckOperatorSignatures(diagnostics);
     }
@@ -211,11 +213,15 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     private void CheckValueParameters(BelteDiagnosticQueue diagnostics) {
         foreach (var parameter in parameters) {
             if (parameter.refKind != RefKind.None) {
-                // TODO
-                // diagnostics.Push(Error.OperatorCannotHaveRefParameters(parameter.syntaxReference.location));
+                diagnostics.Push(Error.OperatorRefParameter(location));
                 break;
             }
         }
+    }
+
+    private void CheckReturnRefKind(BelteDiagnosticQueue diagnostics) {
+        if (refKind != RefKind.None && name != WellKnownMemberNames.IndexOperatorName)
+            diagnostics.Push(Error.OperatorRefReturn(location));
     }
 
     private protected (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
@@ -240,7 +246,8 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             isVirtual || isAbstract
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
-        returnType = signatureBinder.BindType(returnTypeSyntax, diagnostics);
+        var syntax = returnTypeSyntax.SkipRef(out _);
+        returnType = signatureBinder.BindType(syntax, diagnostics);
 
         return (returnType, parameters);
     }

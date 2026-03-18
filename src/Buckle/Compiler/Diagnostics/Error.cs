@@ -1598,6 +1598,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotIsCheckNonType, location, message);
     }
 
+    internal static BelteDiagnostic OperatorRefParameter(TextLocation location) {
+        var message = $"operators cannot have ref parameters";
+        return CreateError(DiagnosticCode.ERR_OperatorRefParameter, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorRefReturn(TextLocation location) {
+        var message = $"non-indexing operators cannot return by reference";
+        return CreateError(DiagnosticCode.ERR_OperatorRefReturn, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnGlobal(TextLocation location) {
+        var message = $"cannot return a global by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnGlobal, location, message);
+    }
+
+    internal static BelteDiagnostic CannotPassGlobalByRef(TextLocation location) {
+        var message = $"cannot pass a global by reference";
+        return CreateError(DiagnosticCode.ERR_CannotPassGlobalByRef, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

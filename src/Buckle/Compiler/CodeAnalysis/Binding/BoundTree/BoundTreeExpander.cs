@@ -610,7 +610,14 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.index, out var newIndex));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newOperand, newIndex, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newOperand,
+                newIndex,
+                expression.method,
+                expression.constantValue,
+                expression.type
+            );
+
             return statements;
         }
 

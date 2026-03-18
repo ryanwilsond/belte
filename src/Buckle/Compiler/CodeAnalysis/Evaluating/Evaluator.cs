@@ -1313,6 +1313,9 @@ internal sealed class Evaluator {
         if (!HasHome(node.original, addressKind))
             return EvaluateAddressOfTempClone(node, abort);
 
+        if (node.symbol is ParameterSymbol p && p.refKind != RefKind.None)
+            return _stack.Peek().values[node.slot];
+
         return EvaluatorValue.Ref(_stack.Peek().values, node.slot);
     }
 

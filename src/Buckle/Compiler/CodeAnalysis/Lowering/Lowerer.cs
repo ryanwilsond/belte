@@ -180,6 +180,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitConditionalGotoStatement(statement);
     }
 
+    internal override BoundNode VisitIndexerAccessExpression(BoundIndexerAccessExpression node) {
+        /*
+
+        <receiver>[<index>]
+
+        ----> node has a method attached
+
+        <method>(<receiver>, <index>)
+
+        */
+        var syntax = node.syntax;
+
+        if (node.method is not null)
+            return Visit(Call(syntax, node.method, node.receiver, node.index));
+
+        return base.VisitIndexerAccessExpression(node);
+    }
+
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
         /*
 

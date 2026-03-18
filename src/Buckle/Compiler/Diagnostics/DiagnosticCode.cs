@@ -91,7 +91,7 @@ public enum DiagnosticCode : ushort {
     ERR_PrimitivesDoNotHaveMembers = 80,
     ERR_CannotConstructPrimitive = 81,
     ERR_AnnotationsDisallowedInTemplateArgument = 82,
-    // ! 83
+    ERR_OperatorRefParameter = 83,
     ERR_CannotUseStruct = 84,
     ERR_CannotUseThis = 85,
     ERR_MemberIsInaccessible = 86,
@@ -102,8 +102,8 @@ public enum DiagnosticCode : ushort {
     ERR_CannotInitializeInStructs = 91,
     ERR_MultipleMains = 92,
     ERR_InvalidAttributes = 93,
-    // ! 94
-    // ! 95
+    ERR_OperatorRefReturn = 94,
+    ERR_RefReturnGlobal = 95,
     ERR_RefReturnOnlyParameter2 = 96,
     ERR_DottedTypeNamesNotFound = 97,
     ERR_ConstructorInStaticClass = 98,
@@ -343,6 +343,7 @@ public enum DiagnosticCode : ushort {
     ERR_NotNullableConstraintFailed = 332,
     ERR_DuplicateConstraint = 333,
     ERR_CannotIsCheckNonType = 334,
+    ERR_CannotPassGlobalByRef = 335,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

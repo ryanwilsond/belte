@@ -971,7 +971,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0083
+    [Fact]
+    public void Reports_Error_BU0083_OperatorRefParameter() {
+        var text = @"
+            class A {
+                public static A [operator]+(ref A a, A b) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            operators cannot have ref parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0084_CannotUseStruct() {
@@ -1120,8 +1133,34 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0094_TemplateNotExpected
-    // ! Error_BU0095_TemplateMustBeConstant
+    [Fact]
+    public void Reports_Error_BU0094_OperatorRefReturn() {
+        var text = @"
+            class A {
+                public static ref A [operator]+(A a, A b) { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            non-indexing operators cannot return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0095_RefReturnGlobal() {
+        var text = @"
+            int a = 3; ref int b = ref a; ref int F() { return ref [b]; }
+        ";
+
+        var diagnostics = @"
+            cannot return a global by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0096_RefReturnOnlyParameter2
     // ! Error_BU0097_DottedTypeNamesNotFound
 
@@ -3281,6 +3320,19 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             template 'T' is not a type; cannot is check a non-type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0335_CannotPassGlobalByRef() {
+        var text = @"
+            ref int F(ref int a) { return ref a; } int b = 3; F([ref b]) = 6; return b;
+        ";
+
+        var diagnostics = @"
+            cannot pass a global by reference
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

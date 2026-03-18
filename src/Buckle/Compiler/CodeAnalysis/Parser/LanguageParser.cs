@@ -602,7 +602,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private OperatorDeclarationSyntax ParseOperatorDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
-        var type = ParseType(false);
+        var type = ParseType();
         var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
         var operatorToken = EatToken();
         var opKind = operatorToken.kind;

@@ -17,6 +17,7 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
             name,
             containingType,
             syntax,
+            syntax.returnType.GetRefKind(),
             MakeDeclarationModifiers(syntax, syntax.operatorToken.location, diagnostics),
             syntax.body is not null,
             diagnostics

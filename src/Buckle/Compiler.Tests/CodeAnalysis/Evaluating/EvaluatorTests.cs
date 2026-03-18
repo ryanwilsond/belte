@@ -251,6 +251,7 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("lowlevel { int[] a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
+    [InlineData("int M() { ref int F(ref int a) { return ref a; } int b = 3; F(ref b) = 6; return b; } return M();", 6)]
     // Initializer list expressions and index expressions
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]
@@ -363,6 +364,17 @@ public sealed class EvaluatorTests {
 
         var a = new A(3);
         return a + 5;", 8)]
+    [InlineData(@"
+        class A {
+            public int[] a = { 1, 2, 3 };
+            public static ref int operator[](A a, int b) {
+                return ref a.a[b];
+            }
+        }
+
+        var a = new A();
+        a[1]++;
+        return a[1] + a[0];", 4)]
     // Overrides
     [InlineData(@"
         class A {
