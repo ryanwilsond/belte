@@ -348,14 +348,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     internal MethodInfo GetSort(TypeSymbol elementType) {
         var generic = GetType(elementType);
-        var sort = typeof(Array).GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .First(m =>
-                m.Name == "Sort" &&
-                m.IsGenericMethodDefinition &&
-                m.GetGenericArguments().Length == 1 &&
-                m.GetParameters().Length == 1 &&
-                m.GetParameters()[0].ParameterType.IsArray);
-
+        var sort = typeof(Belte.Runtime.Utilities).GetMethod("Sort");
         var closedMethod = sort.MakeGenericMethod(generic);
         return closedMethod;
     }

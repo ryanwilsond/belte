@@ -12,12 +12,11 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
-    public static T Sort<T>(T array) {
+    public static void Sort<T>(T array) {
         if (array is null)
-            return array;
+            return;
 
         Array.Sort((Array)(object)array);
-        return array;
     }
 
     public static long Length<T>(T array) {

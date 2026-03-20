@@ -4,6 +4,8 @@
 
     This program uses the built-in graphics library to make an intractable, 2D pong game.
 
+    Based on AstroSam's implementation: https://github.com/sam-astro/Z-Sharp/tree/master/examples/Pong-Example-Project
+
 */
 
 // When `Main` is present in a non-static class, a single instance of that class is automatically created and managed

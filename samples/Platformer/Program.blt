@@ -1,3 +1,12 @@
+/*
+
+    Platformer
+
+    Basic 2d platformer game with enemies and multiple levels.
+
+    Based on DaFluffyPotato's tutorial: https://youtu.be/2gABYM5M0ww
+
+*/
 
 class Program {
     bool previousSpace;
@@ -149,7 +158,7 @@ class Program {
         if (enemyCount == 0) {
             transition = Math.Min(transition + 60 * deltaTime, 30);
 
-            if (transition > 30) {
+            if (transition == 30) {
                 level = ((level + 1) % mapCount + mapCount) % mapCount;
                 LoadLevel(level);
             }
