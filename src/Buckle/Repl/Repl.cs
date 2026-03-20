@@ -13,7 +13,7 @@ namespace Repl;
 /// <summary>
 /// Overrides default console handling and controls all keystrokes. Adds framework for meta commands and submissions.
 /// </summary>
-public abstract partial class Repl {
+public abstract partial class Repl : IDisposable {
     /// <summary>
     /// The width of a tab or '\t' character in spaces.
     /// </summary>
@@ -24,34 +24,32 @@ public abstract partial class Repl {
     /// </summary>
     internal OutputCapture writer = new OutputCapture();
 
-    protected readonly List<string> _submissionHistory = new List<string>();
+    private protected readonly List<string> _submissionHistory = new List<string>();
 
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
-    protected ValueWrapper<bool> _abortEvaluation;
-    protected bool _showTime;
-    protected bool _hasDiagnosticHandle;
+    private protected ValueWrapper<bool> _abortEvaluation;
+    private protected bool _showTime;
+    private protected bool _hasDiagnosticHandle;
 
     private int _submissionHistoryIndex;
     private bool _done;
     private bool _evaluate;
 
-    protected Repl(object handle) {
+    private protected Repl(object handle) {
         _handle = handle;
         InitializeMetaCommands();
     }
 
     private delegate void LineRenderHandler(IReadOnlyList<string> lines, int lineIndex);
 
-    /// <summary>
-    /// <see cref="Repl" /> specific state used by child classes.
-    /// </summary>
-    internal object _state { get; set; }
+    private protected object _state;
 
-    /// <summary>
-    /// The callback handle. Usually a compiler object.
-    /// </summary>
-    internal object _handle { get; set; }
+    private protected object _handle;
+
+    public virtual void Dispose() {
+        GC.SuppressFinalize(this);
+    }
 
     /// <summary>
     /// Resets all state.
@@ -104,9 +102,7 @@ public abstract partial class Repl {
                     broke = false;
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
-
-                    while (evaluateSubmissionThread.IsAlive)
-                        ;
+                    evaluateSubmissionThread.Join();
 
                     if (broke || _showTime) {
                         var finishWord = broke ? "Aborted" : "Finished";
@@ -176,31 +172,31 @@ public abstract partial class Repl {
         return _submissionHistory;
     }
 
-    protected virtual void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+    private protected virtual void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
         writer.Write(lines[lineIndex]);
     }
 
-    protected void ClearHistory() {
+    private protected void ClearHistory() {
         _submissionHistory.Clear();
     }
 
-    protected abstract bool IsCompleteSubmission(string text);
-    protected abstract void EvaluateSubmission(string text);
-    protected abstract void EvaluateSubmission();
-    protected abstract void AddDiagnostic(Diagnostic diagnostic);
-    protected abstract void ClearDiagnostics();
-    protected abstract void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null);
+    private protected abstract bool IsCompleteSubmission(string text);
+    private protected abstract void EvaluateSubmission(string text);
+    private protected abstract void EvaluateSubmission();
+    private protected abstract void AddDiagnostic(Diagnostic diagnostic);
+    private protected abstract void ClearDiagnostics();
+    private protected abstract void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null);
 
-    protected virtual void AddChange(
+    private protected virtual void AddChange(
         ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) { }
 
-    protected virtual void AddClearChange(ObservableCollection<string> document) { }
+    private protected virtual void AddClearChange(ObservableCollection<string> document) { }
 
-    protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
+    private protected virtual void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) { }
 
 
     [MetaCommand("help", "Show this document")]
-    protected void EvaluateHelp() {
+    private protected void EvaluateHelp() {
         var previous = Console.BackgroundColor;
 
         var maxLength = _metaCommands
@@ -232,7 +228,7 @@ public abstract partial class Repl {
     }
 
     [MetaCommand("state", "Dump the current state of the Repl")]
-    protected void EvaluateState() {
+    private protected void EvaluateState() {
         var fields = _state.GetType()
             .GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
@@ -250,7 +246,7 @@ public abstract partial class Repl {
         }
     }
 
-    protected virtual string EditSubmission() {
+    private protected virtual string EditSubmission() {
         _done = false;
 
         var document = new ObservableCollection<string>() { "" };
@@ -760,7 +756,7 @@ public abstract partial class Repl {
     private void HandleEscape(ObservableCollection<string> document, SubmissionView view) {
         AddClearChange(document);
         document.Clear();
-        document.Add(string.Empty);
+        document.Add("");
         view.currentLine = 0;
         view.currentCharacter = 0;
     }
@@ -1036,11 +1032,27 @@ public abstract partial class Repl {
             args.Add(sb.ToString());
 
         var commandName = args.FirstOrDefault();
+        var argCount = args.Count;
 
-        if (args.Count > 0)
+        if (argCount > 0) {
             args.RemoveAt(0);
+            argCount--;
+        }
 
-        var command = _metaCommands.SingleOrDefault(mc => mc.name == commandName);
+        var commandCandidates = _metaCommands.Where(mc => mc.name == commandName).ToArray();
+        MetaCommand command = null;
+
+        if (commandCandidates.Length == 1) {
+            command = commandCandidates[0];
+        } else if (commandCandidates.Length > 1) {
+            // TODO Implement are more thorough overload resolution algorithm when necessary
+            foreach (var candidate in commandCandidates) {
+                if (candidate.method.GetParameters().Length == argCount) {
+                    command = candidate;
+                    break;
+                }
+            }
+        }
 
         if (command is null) {
             AddDiagnostic(Diagnostics.Error.UnknownReplCommand(line));
@@ -1055,8 +1067,8 @@ public abstract partial class Repl {
 
         var parameters = command.method.GetParameters();
 
-        if (args.Count != parameters.Length) {
-            if (args.Count == command.method.GetParameters()
+        if (argCount != parameters.Length) {
+            if (argCount == command.method.GetParameters()
                 .Where(t => !t.HasDefaultValue).Count()) {
                 foreach (var parameter in command.method.GetParameters().Where(p => p.HasDefaultValue))
                     args.Add(parameter.DefaultValue.ToString());

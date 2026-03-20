@@ -1,0 +1,6 @@
+
+public class Texture {
+    private const int! ptr;
+    public const int! width;
+    public const int! height;
+}

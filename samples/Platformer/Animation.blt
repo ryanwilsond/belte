@@ -1,0 +1,45 @@
+
+class Animation {
+    int length;
+    Texture[] textures;
+    decimal duration;
+    bool loop;
+    decimal timer;
+
+    public int frame;
+    public bool done;
+
+    public constructor(Texture[] textures, int duration = 5, bool loop = true) {
+        length = LowLevel.Length<Texture[]>(textures);
+        this.textures = textures;
+        this.duration = duration / 60.0;
+        this.loop = loop;
+        done = false;
+        frame = 0;
+        timer = 0;
+    }
+
+    public void Update(decimal! deltaTime) {
+        timer += deltaTime;
+
+        if (timer >= duration) {
+            int framesToAdvance = (int)(timer / duration);
+            timer -= framesToAdvance * duration;
+
+            if (loop) {
+                frame = (frame + framesToAdvance) % length;
+            } else {
+                frame = (frame + framesToAdvance);
+
+                if (frame >= length) {
+                    done = true;
+                    frame = length - 1;
+                }
+            }
+        }
+    }
+
+    public Texture GetTexture() {
+        return textures[frame];
+    }
+}

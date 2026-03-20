@@ -3,7 +3,7 @@
         "*.csproj": "msbuild",
     },
     "files.exclude": {
-        "**/bin": true,
+        // "*/**/bin": true,
         "**/obj": true,
         "**/.vs": true,
     },
@@ -17,4 +17,7 @@
     "files.trimFinalNewlines": true,
     "editor.formatOnSave": true,
     "dotnet.defaultSolution": "Belte.sln",
+    "csharp.debug.expressionEvaluationOptions.allowFastEvaluate": true,
+    "csharp.debug.expressionEvaluationOptions.allowImplicitFuncEval": true,
+    "csharp.debug.expressionEvaluationOptions.allowToString": true,
 }

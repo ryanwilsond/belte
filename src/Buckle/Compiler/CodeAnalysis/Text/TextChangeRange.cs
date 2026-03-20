@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
 
 /// <summary>
 /// Represents a change to a span of text.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal sealed partial class TextChangeRange {
     /// <summary>
     /// Creates a <see cref="TextChangeRange" /> instance.
@@ -61,7 +64,7 @@ internal sealed partial class TextChangeRange {
     internal static ImmutableArray<TextChangeRange> Merge(
         ImmutableArray<TextChangeRange> oldChanges, ImmutableArray<TextChangeRange> newChanges) {
         // Literally have no clue how this works
-        var builder = ImmutableArray.CreateBuilder<TextChangeRange>();
+        var builder = ArrayBuilder<TextChangeRange>.GetInstance();
 
         var oldChange = oldChanges[0];
         var newChange = new UnadjustedNewChange(newChanges[0]);
@@ -95,13 +98,13 @@ internal sealed partial class TextChangeRange {
         }
 
         void AddAndAdjustOldDelta(
-            ImmutableArray<TextChangeRange>.Builder builder, ref int oldDelta, TextChangeRange oldChange) {
+            ArrayBuilder<TextChangeRange> builder, ref int oldDelta, TextChangeRange oldChange) {
             oldDelta = oldDelta - oldChange.span.length + oldChange.newLength;
             Add(builder, oldChange);
         }
 
         void AdjustAndAddNewChange(
-            ImmutableArray<TextChangeRange>.Builder builder, int oldDelta, UnadjustedNewChange newChange) {
+            ArrayBuilder<TextChangeRange> builder, int oldDelta, UnadjustedNewChange newChange) {
             Add(
                 builder,
                 new TextChangeRange(
@@ -110,7 +113,7 @@ internal sealed partial class TextChangeRange {
             );
         }
 
-        void Add(ImmutableArray<TextChangeRange>.Builder builder, TextChangeRange change) {
+        void Add(ArrayBuilder<TextChangeRange> builder, TextChangeRange change) {
             if (builder.Count > 0) {
                 var last = builder[^1];
 
@@ -121,7 +124,7 @@ internal sealed partial class TextChangeRange {
                     );
                     return;
                 } else if (last.span.end > change.span.start) {
-                    throw new BelteInternalException("Merge.Add", new ArgumentOutOfRangeException(nameof(change)));
+                    throw new ArgumentOutOfRangeException(nameof(change));
                 }
             }
 
@@ -213,7 +216,7 @@ internal sealed partial class TextChangeRange {
         }
 
         if (!((oldIndex == oldChanges.Length) ^ (newIndex == newChanges.Length)))
-            throw new BelteInternalException("Merge", new InvalidOperationException());
+            throw new InvalidOperationException();
 
         while (oldIndex < oldChanges.Length) {
             AddAndAdjustOldDelta(builder, ref oldDelta, oldChange);
@@ -225,8 +228,12 @@ internal sealed partial class TextChangeRange {
             TryGetNextNewChange();
         }
 
-        return builder.ToImmutable();
+        return builder.ToImmutableAndFree();
     }
 
     private static int NewEnd(TextChangeRange range) => range.span.start + range.newLength;
+
+    private string GetDebuggerDisplay() {
+        return $"new TextChangeRange(new TextSpan({span.start}, {span.length}), {newLength})";
+    }
 }

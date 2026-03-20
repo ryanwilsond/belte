@@ -4,7 +4,7 @@ namespace Belte.Diagnostics;
 /// <summary>
 /// All codes used to represent each possible error and warning uniquely.
 /// </summary>
-public enum DiagnosticCode : int {
+public enum DiagnosticCode : ushort {
     // Never modify these codes after a release, as that would break backwards compatibility.
     // Instead mark unused errors and warnings in the docs, and append new errors and warnings to use new codes.
 
@@ -39,4 +39,6 @@ public enum DiagnosticCode : int {
     ERR_CodeIsNotWarning = 28,
     ERR_MissingType = 29,
     ERR_UnrecognizedType = 30,
+    FTL_DLLWithWrongBuildMode = 31,
+    FTL_CannotSpecifyOutAndModuleWithDll = 32,
 }

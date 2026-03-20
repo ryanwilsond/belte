@@ -1,0 +1,44 @@
+
+class Food {
+    public Sprite sprite;
+    public int x;
+    public int y;
+
+    public constructor() {
+        sprite = Graphics.LoadSprite(
+            "samples/Assets/ball.png",
+            new Vec2(0, 0),
+            new Vec2(Settings.SpaceSize - 10, Settings.SpaceSize - 10),
+            0
+        );
+
+        x = 4;
+        y = 4;
+
+        sprite.SetPosition(
+            x * Settings.SpaceSize + Settings.SpaceSize / 2 + 5,
+            y * Settings.SpaceSize + Settings.SpaceSize / 2 + 85
+        );
+    }
+
+    public void RandomizeLocation(Snake snake) {
+        do {
+            x = Random.RandInt(Settings.GameWidth / Settings.SpaceSize - 1);
+            y = Random.RandInt(Settings.GameHeight / Settings.SpaceSize - 1);
+        } while (InSnake(snake, x, y));
+
+        sprite.SetPosition(
+            x * Settings.SpaceSize + Settings.SpaceSize / 2 + 5,
+            y * Settings.SpaceSize + Settings.SpaceSize / 2 + 85
+        );
+    }
+
+    private bool! InSnake(Snake snake, int x, int y) {
+        for (var i = 0; i < snake.bodySize; i++) {
+            if (x == snake.coords[i].x && y == snake.coords[i].y)
+                return true;
+        }
+
+        return false;
+    }
+}

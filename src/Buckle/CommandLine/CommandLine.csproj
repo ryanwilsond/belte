@@ -7,13 +7,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Remove="Resources/ErrorDescriptionsCL.txt" />
     <Content Remove="Resources/HelpPrompt.txt" />
     <Content Remove="Resources/Version.txt" />
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources/ErrorDescriptionsCL.txt" />
     <EmbeddedResource Include="Resources/HelpPrompt.txt" />
     <EmbeddedResource Include="Resources/Version.txt" />
     </ItemGroup>
@@ -27,5 +25,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
+
+  <Target Name="CopyFreetypeDll" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(OutputPath)/lib/x64/freetype6.dll"
+      DestinationFolder="$(OutputPath)"
+      SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>

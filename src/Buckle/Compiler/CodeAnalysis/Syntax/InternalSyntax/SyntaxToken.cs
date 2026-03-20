@@ -1,3 +1,4 @@
+using System.IO;
 using Buckle.Utilities;
 using Diagnostics;
 
@@ -46,12 +47,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// </summary>
     internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia)
         : base(kind) {
-        if (leadingTrivia != null) {
+        if (leadingTrivia is not null) {
             AdjustFlagsAndWidth(leadingTrivia);
             _leading = leadingTrivia;
         }
 
-        if (trailingTrivia != null) {
+        if (trailingTrivia is not null) {
             AdjustFlagsAndWidth(trailingTrivia);
             _trailing = trailingTrivia;
         }
@@ -62,12 +63,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// </summary>
     internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
         : base(kind, diagnostics) {
-        if (leadingTrivia != null) {
+        if (leadingTrivia is not null) {
             AdjustFlagsAndWidth(leadingTrivia);
             _leading = leadingTrivia;
         }
 
-        if (trailingTrivia != null) {
+        if (trailingTrivia is not null) {
             AdjustFlagsAndWidth(trailingTrivia);
             _trailing = trailingTrivia;
         }
@@ -82,12 +83,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         _text = text;
         fullWidth = this.text.Length;
 
-        if (leadingTrivia != null) {
+        if (leadingTrivia is not null) {
             AdjustFlagsAndWidth(leadingTrivia);
             _leading = leadingTrivia;
         }
 
-        if (trailingTrivia != null) {
+        if (trailingTrivia is not null) {
             AdjustFlagsAndWidth(trailingTrivia);
             _trailing = trailingTrivia;
         }
@@ -104,12 +105,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         _text = text;
         fullWidth = this.text.Length;
 
-        if (leadingTrivia != null) {
+        if (leadingTrivia is not null) {
             AdjustFlagsAndWidth(leadingTrivia);
             _leading = leadingTrivia;
         }
 
-        if (trailingTrivia != null) {
+        if (trailingTrivia is not null) {
             AdjustFlagsAndWidth(trailingTrivia);
             _trailing = trailingTrivia;
         }
@@ -134,7 +135,7 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// <summary>
     /// Text related to <see cref="SyntaxToken" /> (if applicable).
     /// </summary>
-    internal virtual string text => isFabricated ? string.Empty : _text ?? SyntaxFacts.GetText(kind);
+    internal virtual string text => isFabricated ? "" : _text ?? SyntaxFacts.GetText(kind);
 
     /// <summary>
     /// Value related to <see cref="SyntaxToken" /> (if applicable).
@@ -161,12 +162,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
 
     internal override int GetLeadingTriviaWidth() {
         var leading = GetLeadingTrivia();
-        return leading != null ? leading.fullWidth : 0;
+        return leading is not null ? leading.fullWidth : 0;
     }
 
     internal override int GetTrailingTriviaWidth() {
         var trailing = GetTrailingTrivia();
-        return trailing != null ? trailing.fullWidth : 0;
+        return trailing is not null ? trailing.fullWidth : 0;
     }
 
     internal override GreenNode GetLeadingTrivia() {
@@ -219,7 +220,7 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     }
 
     internal static DirectiveStack ApplyDirectivesToTrivia(GreenNode triviaList, DirectiveStack stack) {
-        if (triviaList != null && triviaList.containsDirectives)
+        if (triviaList is not null && triviaList.containsDirectives)
             return ApplyDirectivesToListOrNode(triviaList, stack);
 
         return stack;
@@ -237,5 +238,19 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// </summary>
     internal virtual SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
         return new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia, GetDiagnostics());
+    }
+
+    private protected override void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {
+        if (leading) {
+            var trivia = GetLeadingTrivia();
+            trivia?.WriteTo(writer, true, true);
+        }
+
+        writer.Write(text);
+
+        if (trailing) {
+            var trivia = GetTrailingTrivia();
+            trivia?.WriteTo(writer, true, true);
+        }
     }
 }

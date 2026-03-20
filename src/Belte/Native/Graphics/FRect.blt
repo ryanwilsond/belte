@@ -1,0 +1,18 @@
+
+public class FRect {
+    public decimal x;
+    public decimal y;
+    public decimal w;
+    public decimal h;
+
+    public constructor(decimal x, decimal y, decimal w, decimal h) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+    }
+
+    public Rect ToRect() {
+        return new Rect((int!)x, (int!)y, (int!)w, (int!)h);
+    }
+}

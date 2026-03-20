@@ -11,6 +11,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Tree of SyntaxNodes produced from the <see cref="LanguageParser" />.
 /// </summary>
 public partial class SyntaxTree {
+    internal static readonly SyntaxTree Dummy = new DummySyntaxTree();
+
     internal SyntaxTree(SourceText text, SourceCodeKind kind) {
         this.kind = kind;
         this.text = text;
@@ -50,7 +52,7 @@ public partial class SyntaxTree {
     /// <summary>
     /// The length of the <see cref="SourceText" />.
     /// </summary>
-    protected virtual int _length => text.length;
+    private protected virtual int _length => text.length;
 
     /// <summary>
     /// Parses text (not necessarily related to a source file).
@@ -116,12 +118,10 @@ public partial class SyntaxTree {
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Parse(SourceText text, SourceCodeKind kind = SourceCodeKind.Regular) {
-        var tree = new SyntaxTree(text, kind);
-        var lexer = new Lexer(tree, kind == SourceCodeKind.Regular);
+        var lexer = new Lexer(text, kind == SourceCodeKind.Regular);
         var parser = new LanguageParser(lexer);
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(tree.text, compilationUnit, true, kind);
-
+        var parsedTree = new ParsedSyntaxTree(text, compilationUnit, true, kind);
         return parsedTree;
     }
 
@@ -143,7 +143,7 @@ public partial class SyntaxTree {
     internal BelteDiagnosticQueue GetDiagnostics() {
         var root = GetRoot();
 
-        if (root != null)
+        if (root is not null)
             return GetDiagnostics(root);
         else
             return new BelteDiagnosticQueue();
@@ -166,7 +166,7 @@ public partial class SyntaxTree {
         return new BelteDiagnosticQueue();
     }
 
-    protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
+    private protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
         return SyntaxNode.CloneNodeAsRoot(node, this);
     }
 
@@ -188,8 +188,7 @@ public partial class SyntaxTree {
             oldTree = null;
         }
 
-        var tree = new SyntaxTree(newText, kind);
-        var lexer = new Lexer(tree, kind == SourceCodeKind.Regular);
+        var lexer = new Lexer(newText, kind == SourceCodeKind.Regular);
         var parser = new LanguageParser(lexer, oldTree?.GetRoot(), workingChanges);
 
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();

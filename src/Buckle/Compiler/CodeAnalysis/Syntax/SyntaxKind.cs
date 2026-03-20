@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
-public enum SyntaxKind {
+public enum SyntaxKind : ushort {
     None = 0,
     List = GreenNode.ListKind,
 
@@ -32,6 +32,7 @@ public enum SyntaxKind {
     SlashToken,
     QuestionToken,
     ColonToken,
+    ColonColonToken,
     PeriodToken,
     HashToken,
 
@@ -107,6 +108,13 @@ public enum SyntaxKind {
     AsKeyword,
     WhereKeyword,
     ThrowKeyword,
+    PrimitiveKeyword,
+    NotnullKeyword,
+    UsingKeyword,
+    NamespaceKeyword,
+    GlobalKeyword,
+    ImplicitKeyword,
+    ExplicitKeyword,
 
     // Tokens with text
     BadToken,
@@ -129,7 +137,6 @@ public enum SyntaxKind {
     ThisExpression,
     BaseExpression,
     ThrowExpression,
-    EmptyExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -139,7 +146,6 @@ public enum SyntaxKind {
     PrefixExpression,
     PostfixExpression,
     AssignmentExpression,
-    CompoundAssignmentExpression,
 
     // Primary expressions
     LiteralExpression,
@@ -149,13 +155,14 @@ public enum SyntaxKind {
     ReferenceExpression,
     MemberAccessExpression,
     ObjectCreationExpression,
+    ArrayCreationExpression,
 
     // Statements
+    EmptyStatement,
     BlockStatement,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
-    EmptyStatement,
 
     // Jump statements
     BreakStatement,
@@ -172,9 +179,14 @@ public enum SyntaxKind {
     CatchClause,
     FinallyClause,
 
+    // Directives
+    UsingDirective,
+
     // Declarations
     CompilationUnit,
     GlobalStatement,
+    NamespaceDeclaration,
+    FileScopedNamespaceDeclaration,
     VariableDeclaration,
     EqualsValueClause,
     StructDeclaration,
@@ -184,20 +196,26 @@ public enum SyntaxKind {
     ConstructorDeclaration,
     ConstructorInitializer,
     OperatorDeclaration,
+    ConversionDeclaration,
 
     // Names
     IdentifierName,
     TemplateName,
     QualifiedName,
+    AliasQualifiedName,
     EmptyName,
     ArrayType,
     NonNullableType,
     ReferenceType,
     BaseType,
+    NameEquals,
 
     // Lists
     Argument,
+    OmittedArgument,
+    OmittedArgumentToken,
     ArgumentList,
+    BracketedArgumentList,
     Parameter,
     ParameterList,
     ArrayRankSpecifier,
@@ -205,8 +223,10 @@ public enum SyntaxKind {
     TemplateArgumentList,
     Attribute,
     AttributeList,
-    TemplateParameterConstraintClause,
-    TemplateParameterConstraintClauseList,
+    TemplateConstraintClause,
+    TemplateExtendsConstraintClause,
+    TemplateIsConstraintClause,
+    TemplateConstraintClauseList,
     InitializerListExpression,
     KeyValuePair,
     InitializerDictionaryExpression,

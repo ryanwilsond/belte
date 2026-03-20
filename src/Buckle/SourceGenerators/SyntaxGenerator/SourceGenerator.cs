@@ -17,8 +17,8 @@ namespace SyntaxGenerator;
 /// Generates all red and green syntax files for the compiler.
 /// </summary>
 [Generator]
-public sealed class SourceGenerator : IIncrementalGenerator {
-    private static readonly DiagnosticDescriptor s_MissingSyntaxXml = new DiagnosticDescriptor(
+public sealed partial class SourceGenerator : IIncrementalGenerator {
+    private static readonly DiagnosticDescriptor MissingSyntaxXml = new DiagnosticDescriptor(
         "SG1001",
         title: "Syntax.xml is missing",
         messageFormat: "The Syntax.xml file was not included in the project, so we are not generating source",
@@ -26,7 +26,7 @@ public sealed class SourceGenerator : IIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor s_UnableToReadSyntaxXml = new DiagnosticDescriptor(
+    private static readonly DiagnosticDescriptor UnableToReadSyntaxXml = new DiagnosticDescriptor(
         "SG1002",
         title: "Syntax.xml could not be read",
         messageFormat: "The Syntax.xml file could not even be read. Ensure it exists.",
@@ -34,7 +34,7 @@ public sealed class SourceGenerator : IIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
-    private static readonly DiagnosticDescriptor s_SyntaxXmlError = new DiagnosticDescriptor(
+    private static readonly DiagnosticDescriptor SyntaxXmlError = new DiagnosticDescriptor(
         "SG1003",
         title: "Syntax.xml has a syntax error",
         messageFormat: "{0}",
@@ -54,13 +54,13 @@ public sealed class SourceGenerator : IIncrementalGenerator {
             var input = syntaxXmlFiles.SingleOrDefault();
 
             if (input is null) {
-                context.ReportDiagnostic(Diagnostic.Create(s_MissingSyntaxXml, location: null));
+                context.ReportDiagnostic(Diagnostic.Create(MissingSyntaxXml, location: null));
                 return;
             }
 
             var inputText = input.GetText();
             if (inputText is null) {
-                context.ReportDiagnostic(Diagnostic.Create(s_UnableToReadSyntaxXml, location: null));
+                context.ReportDiagnostic(Diagnostic.Create(UnableToReadSyntaxXml, location: null));
                 return;
             }
 
@@ -74,18 +74,18 @@ public sealed class SourceGenerator : IIncrementalGenerator {
 
                 var serializer = new XmlSerializer(typeof(Tree));
                 tree = (Tree)serializer.Deserialize(reader);
-            } catch (InvalidOperationException ex) when (ex.InnerException is XmlException) {
-                var xmlException = (XmlException)ex.InnerException;
+            } catch (InvalidOperationException ex) when (ex.InnerException is XmlException exception) {
+                var xmlException = exception;
 
                 var line = inputText.Lines[xmlException.LineNumber - 1];
-                int offset = xmlException.LinePosition - 1;
+                var offset = xmlException.LinePosition - 1;
                 var position = line.Start + offset;
                 var span = new TextSpan(position, 0);
                 var lineSpan = inputText.Lines.GetLinePositionSpan(span);
 
                 context.ReportDiagnostic(
                     Diagnostic.Create(
-                        s_SyntaxXmlError,
+                        SyntaxXmlError,
                         location: Location.Create(input.Path, span, lineSpan),
                         xmlException.Message));
 
@@ -101,10 +101,10 @@ public sealed class SourceGenerator : IIncrementalGenerator {
         TreeFlattening.FlattenChildren(tree);
 
         var sourcesBuilder = ImmutableArray.CreateBuilder<(string hintName, SourceText sourceText)>();
-        addResult(writer => SourceWriter.WriteInternal(writer, tree), "Syntax.xml.Internal.Generated.cs");
-        addResult(writer => SourceWriter.WriteSyntax(writer, tree), "Syntax.xml.Syntax.Generated.cs");
+        AddResult(writer => SourceWriter.WriteInternal(writer, tree), "Syntax.xml.Internal.Generated.cs");
+        AddResult(writer => SourceWriter.WriteSyntax(writer, tree), "Syntax.xml.Syntax.Generated.cs");
 
-        void addResult(Action<TextWriter> writeFunction, string hintName) {
+        void AddResult(Action<TextWriter> writeFunction, string hintName) {
             var stringBuilder = new StringBuilder();
             using (var textWriter = new StringWriter(stringBuilder)) {
                 writeFunction(textWriter);
@@ -115,72 +115,6 @@ public sealed class SourceGenerator : IIncrementalGenerator {
             );
 
             context.AddSource(hintName, sourceText);
-        }
-    }
-
-    private sealed class SourceTextReader : TextReader {
-        private readonly SourceText _sourceText;
-        private int _position;
-
-        public SourceTextReader(SourceText sourceText) {
-            _sourceText = sourceText;
-            _position = 0;
-        }
-
-        public override int Peek() {
-            if (_position == _sourceText.Length) {
-                return -1;
-            }
-
-            return _sourceText[_position];
-        }
-
-        public override int Read() {
-            if (_position == _sourceText.Length) {
-                return -1;
-            }
-
-            return _sourceText[_position++];
-        }
-
-        public override int Read(char[] buffer, int index, int count) {
-            var charsToCopy = Math.Min(count, _sourceText.Length - _position);
-            _sourceText.CopyTo(_position, buffer, index, charsToCopy);
-            _position += charsToCopy;
-            return charsToCopy;
-        }
-    }
-
-    private sealed class StringBuilderReader : TextReader {
-        private readonly StringBuilder _stringBuilder;
-        private int _position;
-
-        public StringBuilderReader(StringBuilder stringBuilder) {
-            _stringBuilder = stringBuilder;
-            _position = 0;
-        }
-
-        public override int Peek() {
-            if (_position == _stringBuilder.Length) {
-                return -1;
-            }
-
-            return _stringBuilder[_position];
-        }
-
-        public override int Read() {
-            if (_position == _stringBuilder.Length) {
-                return -1;
-            }
-
-            return _stringBuilder[_position++];
-        }
-
-        public override int Read(char[] buffer, int index, int count) {
-            var charsToCopy = Math.Min(count, _stringBuilder.Length - _position);
-            _stringBuilder.CopyTo(_position, buffer, index, charsToCopy);
-            _position += charsToCopy;
-            return charsToCopy;
         }
     }
 }

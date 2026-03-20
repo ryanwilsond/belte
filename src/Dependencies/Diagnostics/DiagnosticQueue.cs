@@ -9,13 +9,13 @@ namespace Diagnostics;
 /// </summary>
 /// <typeparam name="T">The type of <see cref="Diagnostic" /> to store.</typeparam>
 public class DiagnosticQueue<T> where T : Diagnostic {
-    private readonly List<T> _diagnostics;
+    protected readonly List<T> _diagnostics;
 
     /// <summary>
     /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)
     /// </summary>
     public DiagnosticQueue() {
-        _diagnostics = new List<T>();
+        _diagnostics = [];
     }
 
     /// <summary>
@@ -50,24 +50,57 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <see cref="DiagnosticQueue<T>" />).
     /// </summary>
     /// <returns>Array copy of the <see cref="DiagnosticQueue<T>" /> (not a reference).</returns>
-    public Diagnostic[] ToArray() => _diagnostics.ToArray();
+    public T[] ToArray() => _diagnostics.ToArray();
 
     /// <summary>
-    /// Checks if any Diagnostics of given type.
+    /// Checks if the queue contains any Diagnostics of the given severity.
     /// </summary>
-    /// <param name="type">Type to check for, ignores all other Diagnostics.</param>
-    /// <returns>If any Diagnostics of type.</returns>
-    public bool Any(DiagnosticSeverity type) {
-        return _diagnostics.Where(d => d.info.severity == type).Any();
+    /// <param name="severity">The severity to look for.</param>
+    /// <returns>If any were found.</returns>
+    public bool Any(DiagnosticSeverity severity) {
+        return _diagnostics.Any(d => d.info.severity == severity);
+    }
+
+    /// <summary>
+    /// Checks if the queue contains any Diagnostics of the given severity or higher.
+    /// </summary>
+    /// <param name="severity">The minimum severity to look for.</param>
+    /// <returns>If any were found.</returns>
+    public bool AnyAbove(DiagnosticSeverity severity) {
+        return _diagnostics.Any(d => (int)d.info.severity >= (int)severity);
     }
 
     /// <summary>
     /// Pushes a <see cref="Diagnostic" /> onto the <see cref="DiagnosticQueue<T>" />.
     /// </summary>
     /// <param name="diagnostic"><see cref="Diagnostic" /> to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
-    public void Push(T diagnostic) {
-        if (diagnostic != null)
+    public DiagnosticInfo Push(T diagnostic) {
+        if (diagnostic is not null)
             _diagnostics.Add(diagnostic);
+
+        return diagnostic?.info;
+    }
+
+    /// <summary>
+    /// Pushes multiple <see cref="Diagnostic" />s onto the <see cref="DiagnosticQueue<T>" /> at the same time.
+    /// </summary>
+    /// <param name="diagnostics"><see cref="Diagnostic" />s to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
+    public void PushRange(IEnumerable<T> diagnostics) {
+        if (!diagnostics.Any())
+            return;
+
+        _diagnostics.AddRange(diagnostics);
+    }
+
+    /// <summary>
+    /// Pushes another <see cref="DiagnosticQueue<T>" /> onto the <see cref="DiagnosticQueue<T>" />.
+    /// </summary>
+    /// <param name="diagnostics"><see cref="Diagnostic" />s to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
+    public void PushRange(DiagnosticQueue<T> diagnostics) {
+        if (!diagnostics.Any())
+            return;
+
+        _diagnostics.AddRange(diagnostics._diagnostics);
     }
 
     /// <summary>
@@ -80,7 +113,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
 
         var diagnostic = diagnosticQueue.Pop();
 
-        while (diagnostic != null) {
+        while (diagnostic is not null) {
             _diagnostics.Add(diagnostic);
             diagnostic = diagnosticQueue.Pop();
         }

@@ -1,1563 +1,1173 @@
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
+using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
-using static Buckle.Utilities.MethodUtilities;
-using Buckle.Utilities;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-/// <summary>
-/// Emits a bound program into a .NET assembly.
-/// </summary>
-internal sealed partial class ILEmitter {
-    private readonly List<AssemblyDefinition> _assemblies = new List<AssemblyDefinition>();
-    private readonly List<(TypeSymbol type, string metadataName)> _builtinTypes;
-    private readonly Dictionary<MethodSymbol, MethodDefinition> _methods =
-        new Dictionary<MethodSymbol, MethodDefinition>();
+internal sealed partial class ILEmitter : ModuleBuilder {
+    private readonly BelteDiagnosticQueue _diagnostics;
     private readonly AssemblyDefinition _assemblyDefinition;
-    private readonly Dictionary<TypeSymbol, TypeReference> _knownTypes;
-    private readonly Dictionary<TypeSymbol, TypeDefinition> _typeDefinitions =
-        new Dictionary<TypeSymbol, TypeDefinition>();
-    private readonly Dictionary<VariableSymbol, VariableDefinition> _locals =
-        new Dictionary<VariableSymbol, VariableDefinition>();
-    private readonly List<(int instructionIndex, BoundLabel target)> _unhandledGotos =
-        new List<(int instructionIndex, BoundLabel target)>();
-    private readonly Dictionary<BoundLabel, int> _labels = new Dictionary<BoundLabel, int>();
-    private readonly Dictionary<NetMethodReference, MethodReference> _methodReferences;
-    private readonly TypeReference _randomReference;
-    private readonly TypeReference _nullableReference;
-    private readonly string _namespaceName;
+    private readonly List<AssemblyDefinition> _assemblies;
+    private readonly List<AssemblyDefinition> _backupAssemblies;
+    private readonly BoundProgram _program;
+    private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
+    private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
+    private readonly bool _isDll;
 
-    private TypeDefinition _programTypeDefinition;
-    private FieldDefinition _randomFieldDefinition;
-    private Stack<MethodDefinition> _methodStack = new Stack<MethodDefinition>();
-    private bool _insideMain;
-    private int _ternaryLabelCount;
-    private string _dllPath = null;
+    private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
+    private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
+    private readonly Dictionary<MethodSymbol, MethodDefinition> _methods = [];
+    private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
+    private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly string _belteDllName;
 
-    private ILEmitter(string moduleName, string[] references) {
-        diagnostics = new BelteDiagnosticQueue();
-        _namespaceName = moduleName;
+    private Dictionary<string, MethodReference> _stlMap;
 
-        var tempReferences = (references ?? new string[] { }).ToList();
-        tempReferences.AddRange(new string[] {
-            LocateSystemDLL("System.Console.dll"),
-            LocateSystemDLL("System.Runtime.dll"),
-            LocateSystemDLL("System.Runtime.Extensions.dll")
-        });
+    // <Globals> class members
+    private TypeDefinition _globalsClass;
+    private MethodDefinition _nullAssertMethod;
+    // private FieldDefinition _c9;
+    // private MethodDefinition _cMain;
+    // private MethodDefinition _cctor;
+    // private MethodDefinition _ctor;
+    // private MethodDefinition _pcctor;
+    // private MethodDefinition _actualEntryPoint;
 
-        references = tempReferences.ToArray();
+    internal FieldDefinition randomField;
+
+    private ILEmitter(
+        BoundProgram program,
+        string assemblySimpleName,
+        string[] references,
+        BelteDiagnosticQueue diagnostics) {
+        _diagnostics = diagnostics;
+        _program = program;
+        _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+
+        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var attr = currentAssembly
+            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
+            .OfType<TargetFrameworkAttribute>()
+            .FirstOrDefault();
+
+        var tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
+        var netstandardDll = DotnetReferenceResolver.ResolveNetStandardDll(tfm);
+        var privateCoreLibDll = DotnetReferenceResolver.ResolvePrivateCoreLibDll(tfm);
+
+#if !DEBUG
+#pragma warning disable IL3000
+#endif
+
+        _belteDllName = typeof(Belte.Runtime.Console).Assembly.Location;
+
+        if (string.IsNullOrEmpty(_belteDllName))
+            _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
+
+        _assemblies = [
+            AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),
+            // AssemblyDefinition.ReadAssembly(_belteDllName),
+        ];
+
+        _backupAssemblies = [
+            AssemblyDefinition.ReadAssembly(typeof(Console).Assembly.Location),
+            // AssemblyDefinition.ReadAssembly(runtimeDll),
+            // AssemblyDefinition.ReadAssembly(netstandardDll),
+            // AssemblyDefinition.ReadAssembly(privateCoreLibDll),
+        ];
+
+#if !DEBUG
+#pragma warning restore IL3000
+#endif
 
         foreach (var reference in references) {
             try {
                 var assembly = AssemblyDefinition.ReadAssembly(reference);
                 _assemblies.Add(assembly);
             } catch (BadImageFormatException) {
-                diagnostics.Push(Error.InvalidReference(reference));
-                return;
+                _diagnostics.Push(Error.InvalidReference(reference));
             }
         }
 
-        _builtinTypes = new List<(TypeSymbol type, string metadataName)>() {
-            (TypeSymbol.Any, "System.Object"),
-            (TypeSymbol.Bool, "System.Boolean"),
-            (TypeSymbol.Int, "System.Int32"),
-            (TypeSymbol.Decimal, "System.Double"),
-            (TypeSymbol.String, "System.String"),
-            (TypeSymbol.Void, "System.Void"),
-        };
+        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, new Version(1, 0));
 
-        var assemblyName = new AssemblyNameDefinition(moduleName, new Version(1, 0));
-        _assemblyDefinition = AssemblyDefinition.CreateAssembly(assemblyName, moduleName, ModuleKind.Console);
-        _knownTypes = new Dictionary<TypeSymbol, TypeReference>();
-
-        foreach (var (typeSymbol, metadataName) in _builtinTypes) {
-            var typeReference = ResolveType(typeSymbol.name, metadataName);
-            _knownTypes.Add(typeSymbol, typeReference);
-        }
-
-        _methodReferences = new Dictionary<NetMethodReference, MethodReference>() {
-            {
-                NetMethodReference.ConsoleWrite,
-                ResolveMethod("System.Console", "Write", new [] { "System.Object" })
-            }, {
-                NetMethodReference.ConsoleWriteLine,
-                ResolveMethod("System.Console", "WriteLine", new [] { "System.Object" })
-            }, {
-                NetMethodReference.ConsoleWriteLineNoArgs,
-                ResolveMethod("System.Console", "WriteLine", Array.Empty<string>())
-            }, {
-                NetMethodReference.ConsoleReadLine,
-                ResolveMethod("System.Console", "ReadLine", Array.Empty<string>())
-            }, {
-                NetMethodReference.StringConcat2,
-                ResolveMethod("System.String", "Concat", new [] { "System.String", "System.String" })
-            }, {
-                NetMethodReference.StringConcat3,
-                ResolveMethod("System.String", "Concat", new [] { "System.String", "System.String", "System.String" })
-            }, {
-                NetMethodReference.StringConcat4,
-                ResolveMethod("System.String", "Concat",
-                    new [] { "System.String", "System.String", "System.String", "System.String" })
-            }, {
-                NetMethodReference.StringConcatArray,
-                ResolveMethod("System.String", "Concat", new [] { "System.String[]" })
-            }, {
-                NetMethodReference.ConvertToBoolean,
-                ResolveMethod("System.Convert", "ToBoolean", new [] { "System.Object" })
-            }, {
-                NetMethodReference.ConvertToInt32,
-                ResolveMethod("System.Convert", "ToInt32", new [] { "System.Object" })
-            }, {
-                NetMethodReference.ConvertToString,
-                ResolveMethod("System.Convert", "ToString", new [] { "System.Object" })
-            }, {
-                NetMethodReference.ConvertToDouble,
-                ResolveMethod("System.Convert", "ToDouble", new [] { "System.Object" })
-            }, {
-                NetMethodReference.ObjectEquals,
-                ResolveMethod("System.Object", "Equals", new [] { "System.Object", "System.Object" })
-            }, {
-                NetMethodReference.RandomCtor,
-                ResolveMethod("System.Random", ".ctor", Array.Empty<string>())
-            }, {
-                NetMethodReference.RandomNext,
-                ResolveMethod("System.Random", "Next", new [] { "System.Int32" })
-            }, {
-                NetMethodReference.NullableCtor,
-                ResolveMethod("System.Nullable`1", ".ctor", null)
-            }, {
-                NetMethodReference.NullableValue,
-                ResolveMethod("System.Nullable`1", "get_Value", null)
-            }, {
-                NetMethodReference.NullableHasValue,
-                ResolveMethod("System.Nullable`1", "get_HasValue", null)
-            },
-        };
-
-        _randomReference = ResolveType(null, "System.Random");
-        _nullableReference = ResolveType(null, "System.Nullable`1");
-    }
-
-    /// <summary>
-    /// Diagnostics produced by <see cref="ILEmitter" />.
-    /// These diagnostics are fatal, as all error checking has been done already.
-    /// </summary>
-    internal BelteDiagnosticQueue diagnostics { get; set; }
-
-    private string dllPath {
-        get {
-            if (_dllPath is null)
-                _dllPath = GetDLLPath();
-
-            return _dllPath;
-        }
-    }
-
-    /// <summary>
-    /// Emits a program to a .NET assembly.
-    /// </summary>
-    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
-    /// <param name="moduleName">Name of emitted assembly/application.</param>
-    /// <param name="references">All external .NET references.</param>
-    /// <param name="outputPath">Where to put the emitted assembly.</param>
-    /// <returns>Any produced diagnostics.</returns>
-    internal static BelteDiagnosticQueue Emit(
-        BoundProgram program, string moduleName, string[] references, string outputPath) {
-        var emitter = new ILEmitter(moduleName, references);
-        return emitter.EmitToFile(program, outputPath);
-    }
-
-    /// <summary>
-    /// Emits a program to a string.
-    /// </summary>
-    /// <param name="program"><see cref="BoundProgram" /> to emit.</param>
-    /// <param name="moduleName">Name of emitted assembly/application.</param>
-    /// <param name="references">All external .NET references.</param>
-    /// <param name="diagnostics">Any produced diagnostics.</param>
-    /// <returns>IL code as a string.</returns>
-    internal static string Emit(
-        BoundProgram program, string moduleName, string[] references, out BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(moduleName, references);
-        return emitter.EmitToString(program, out diagnostics);
-    }
-
-    private static string GetSafeName(string name) {
-        var provider = CodeDomProvider.CreateProvider("C#");
-        return (provider.IsValidIdentifier(name) ? name : "@" + name)
-            .Replace('<', '_').Replace('>', '_').Replace(':', '_');
-    }
-
-    private static string GetDLLPath() {
-        var basePath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            "dotnet",
-            "packs",
-            "Microsoft.NETCore.App.Ref"
+        _assemblyDefinition = AssemblyDefinition.CreateAssembly(
+            assemblyName,
+            assemblySimpleName,
+            _isDll ? ModuleKind.Dll : ModuleKind.Console
         );
 
-        var frameworkVersion = RuntimeInformation.FrameworkDescription.Split(' ');
-        var fullVersion = frameworkVersion.Contains("Core") || frameworkVersion.Contains("Framework")
-            ? frameworkVersion[2]
-            : frameworkVersion[1];
+        var belteRuntimeData = File.ReadAllBytes(_belteDllName);
+        var embeddedResource = new EmbeddedResource(_belteDllName, ManifestResourceAttributes.Private, belteRuntimeData);
 
-        var majorMinorVersion = string.Join('.', fullVersion.Split('.').Take(2));
-        var fullPath = Path.Combine(basePath, fullVersion, "ref", $"net{majorMinorVersion}");
+        _assemblyDefinition.MainModule.Resources.Add(embeddedResource);
 
-        return fullPath;
+        ResolveTypes();
+        ResolveMethods();
+        GenerateSTLMap();
+
+        _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
+
+        var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
+        foreach (var set in _program.nestedTypes)
+            linearBuilder.AddRange(set.Value);
+
+        _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
-    private string LocateSystemDLL(string dllName) {
-        return Path.Combine(dllPath, dllName);
+    internal static void Emit(
+        BoundProgram program,
+        string moduleName,
+        string[] references,
+        string outputPath,
+        BelteDiagnosticQueue diagnostics) {
+        var emitter = new ILEmitter(program, moduleName, references, diagnostics);
+        emitter.EmitToFile(outputPath);
     }
 
-    private BelteDiagnosticQueue EmitToFile(BoundProgram program, string outputPath) {
-        EmitInternal(program);
+    internal static string EmitToString(
+        BoundProgram program,
+        string moduleName,
+        string[] references,
+        BelteDiagnosticQueue diagnostics) {
+        var emitter = new ILEmitter(program, moduleName, references, diagnostics);
+        return emitter.EmitToString();
+    }
+
+    private void EmitToFile(string outputPath) {
+        EmitInternal();
         _assemblyDefinition.Write(outputPath);
-        return diagnostics;
     }
 
-    private string EmitToString(BoundProgram program, out BelteDiagnosticQueue diagnostics) {
-        EmitInternal(program);
-        diagnostics = this.diagnostics;
+    private string EmitToString() {
+        EmitInternal();
 
         var stringWriter = new StringWriter();
-        var indentString = "    ";
-        var isFirst = true;
-        var seenTypes = new HashSet<string>();
 
-        using (var indentedTextWriter = new IndentedTextWriter(stringWriter, indentString))
-        using (var classCurly = new CurlyIndenter(indentedTextWriter, _programTypeDefinition.ToString())) {
-            foreach (var type in _typeDefinitions) {
-                if (!seenTypes.Add(type.Key.name))
-                    continue;
-
-                if (isFirst)
-                    isFirst = false;
-                else
-                    indentedTextWriter.WriteLine();
-
-                using var structCurly = new CurlyIndenter(indentedTextWriter, type.Value.ToString());
-                foreach (var field in type.Value.Fields)
-                    indentedTextWriter.WriteLine(field);
-            }
-
-            foreach (var method in _methods) {
-                if (isFirst)
-                    isFirst = false;
-                else
-                    indentedTextWriter.WriteLine();
-
-                using var methodCurly = new CurlyIndenter(indentedTextWriter, method.Value.ToString());
-                foreach (var instruction in method.Value.Body.Instructions)
-                    indentedTextWriter.WriteLine(instruction);
+        using (var indentedTextWriter = new System.CodeDom.Compiler.IndentedTextWriter(stringWriter, "    ")) {
+            foreach (var type in _topLevelTypes) {
+                var typeDefinition = _types[type.originalDefinition];
+                WriteType(stringWriter, indentedTextWriter, typeDefinition);
             }
 
             stringWriter.Flush();
         }
 
         return stringWriter.ToString();
+
+        static void WriteType(
+            StringWriter writer,
+            System.CodeDom.Compiler.IndentedTextWriter indentedTextWriter,
+            TypeDefinition typeDefinition) {
+            using var classCurly = new CurlyIndenter(indentedTextWriter, typeDefinition.ToString());
+            foreach (var field in typeDefinition.Fields)
+                indentedTextWriter.WriteLine(field);
+
+            indentedTextWriter.WriteLine();
+
+            foreach (var method in typeDefinition.Methods) {
+                using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.ToString())) {
+                    foreach (var instruction in method.Body.Instructions)
+                        indentedTextWriter.WriteLine(instruction);
+                }
+
+                indentedTextWriter.WriteLine();
+            }
+
+            foreach (var nestedType in typeDefinition.NestedTypes)
+                WriteType(writer, indentedTextWriter, nestedType);
+        }
     }
 
-    private void EmitInternal(BoundProgram program) {
-        var objectType = _knownTypes[TypeSymbol.Any];
-        _programTypeDefinition = new TypeDefinition(
-            "", "<Program>$", TypeAttributes.Abstract | TypeAttributes.Sealed, objectType);
-        _assemblyDefinition.MainModule.Types.Add(_programTypeDefinition);
+    internal TypeReference GetType(TypeSymbol type, bool byRef = false) {
+        var typeRef = GetTypeCore(type);
 
-        foreach (var @struct in program.types.Where(t => t is StructSymbol))
-            EmitStructDeclaration(@struct as StructSymbol);
+        if (byRef)
+            typeRef = typeRef.MakeByReferenceType();
 
-        foreach (var methodWithBody in program.methodBodies) {
-            var isMain = program.entryPoint == methodWithBody.Key;
-            EmitMethodDeclaration(methodWithBody.Key, isMain);
+        return _assemblyDefinition.MainModule.ImportReference(typeRef);
+
+        TypeReference GetTypeCore(TypeSymbol type) {
+            if (type.specialType == SpecialType.Nullable) {
+                var underlyingType = type.GetNullableUnderlyingType();
+                var genericArgumentType = GetTypeCore(underlyingType);
+
+                if (!CodeGenerator.IsValueType(underlyingType))
+                    return genericArgumentType;
+
+                var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+                typeReference.GenericArguments.Add(genericArgumentType);
+                return typeReference;
+            }
+
+            if (type is ArrayTypeSymbol array) {
+                var elementType = GetTypeCore(array.elementType);
+                var arrayType = elementType.MakeArrayType(array.rank);
+                return arrayType.Resolve();
+            }
+
+            if (type.specialType != SpecialType.None)
+                return _specialTypes[type.specialType];
+
+            return _types[type.originalDefinition];
         }
-
-        foreach (var methodWithBody in program.methodBodies) {
-            _insideMain = program.entryPoint == methodWithBody.Key;
-
-            EmitMethodBody(methodWithBody.Key, methodWithBody.Value);
-        }
-
-        if (program.entryPoint != null)
-            _assemblyDefinition.EntryPoint = LookupMethod(_methods, program.entryPoint);
     }
 
-    private TypeReference ResolveType(string buckleName, string metadataName) {
-        var foundTypes = _assemblies.SelectMany(a => a.Modules)
+    internal MethodReference GetMethod(MethodSymbol method) {
+        if (_methods.TryGetValue(method, out var value))
+            return value;
+
+        return CheckStandardMap(method);
+    }
+
+    internal MethodReference GetNullableCtor(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        // var genericDef = NetTypeReference.Nullable.Resolve();
+
+        // var ctorDef = genericDef.Methods
+        //     .First(m => m.IsConstructor && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.Name == "T");
+        var ctorDef = NetMethodReference.Nullable_ctor;
+
+        var ctorRef = _assemblyDefinition.MainModule.ImportReference(ctorDef);
+        var genericCtor = new MethodReference(ctorRef.Name, ctorRef.ReturnType, typeReference) {
+            HasThis = ctorRef.HasThis,
+            ExplicitThis = ctorRef.ExplicitThis,
+            CallingConvention = ctorRef.CallingConvention,
+        };
+
+        foreach (var p in ctorRef.Parameters)
+            genericCtor.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
+
+        return _assemblyDefinition.MainModule.ImportReference(genericCtor);
+    }
+
+    internal MethodReference GetNullableValue(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_Value;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+    }
+
+    internal MethodReference GetSort(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var sortRef = new GenericInstanceMethod(NetMethodReference.Array_Sort);
+        sortRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReference(sortRef);
+    }
+
+    internal MethodReference GetLength(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var lengthRef = new GenericInstanceMethod(NetMethodReference.LowLevel_Length);
+        lengthRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReference(lengthRef);
+    }
+
+    internal MethodReference GetNullableHasValue(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_HasValue;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+    }
+
+    internal MethodReference GetNullAssert(TypeSymbol genericType) {
+        var genericMethod = new GenericInstanceMethod(_nullAssertMethod);
+        genericMethod.GenericArguments.Add(GetType(genericType));
+        return _assemblyDefinition.MainModule.ImportReference(genericMethod);
+    }
+
+    internal FieldReference GetField(FieldSymbol field) {
+        return _fields[field];
+    }
+
+    internal override void EmitGlobalsClass() {
+        _globalsClass = new TypeDefinition(
+            "",
+            "<Globals>",
+            TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Public,
+            _specialTypes[SpecialType.Object]
+        );
+
+        randomField = new FieldDefinition(
+            "<random>",
+            FieldAttributes.Static | FieldAttributes.Public,
+            NetTypeReference.Random
+        );
+
+        _globalsClass.Fields.Add(randomField);
+
+        var cctor = new MethodDefinition(
+            ".cctor",
+            MethodAttributes.Static | MethodAttributes.Private |
+            MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            _specialTypes[SpecialType.Void]
+        );
+
+        cctor.Body.InitLocals = true;
+        var cctorILProcessor = cctor.Body.GetILProcessor();
+        cctorILProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
+        cctorILProcessor.Emit(OpCodes.Stsfld, randomField);
+        cctorILProcessor.Emit(OpCodes.Ret);
+
+        _globalsClass.Methods.Insert(0, cctor);
+
+        // AssertObjectNotNull and AssertValueNotNull
+        {
+            _nullAssertMethod = new MethodDefinition(
+                "<AssertObjectNotNull>",
+                MethodAttributes.Static | MethodAttributes.Public,
+                _specialTypes[SpecialType.Void]
+            );
+
+            var nullAssertObjectT = new GenericParameter("T", _nullAssertMethod) {
+                // Attributes = GenericParameterAttributes.ReferenceTypeConstraint
+            };
+
+            _nullAssertMethod.GenericParameters.Add(nullAssertObjectT);
+            _nullAssertMethod.ReturnType = nullAssertObjectT;
+            _nullAssertMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("o", ParameterAttributes.None, nullAssertObjectT));
+
+            _nullAssertMethod.Body.InitLocals = true;
+            var nullAssertObjectILProcessor = _nullAssertMethod.Body.GetILProcessor();
+
+            /*
+
+            public static T AssertObjectNotNull<T>(T o) where T : class {
+                if (o is null)
+                    throw new NullReferenceException();
+
+                return o;
+            }
+
+            */
+            nullAssertObjectILProcessor.Emit(OpCodes.Ldarg_0);
+            nullAssertObjectILProcessor.Emit(OpCodes.Box, nullAssertObjectT);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ldnull);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ceq);
+            nullAssertObjectILProcessor.Emit(OpCodes.Brfalse_S, Instruction.Create(OpCodes.Nop));
+            nullAssertObjectILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
+            nullAssertObjectILProcessor.Emit(OpCodes.Throw);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ldarg_0);
+            nullAssertObjectILProcessor.Emit(OpCodes.Ret);
+
+            nullAssertObjectILProcessor.Body.Instructions[4].Operand = nullAssertObjectILProcessor.Body.Instructions[7];
+
+            _globalsClass.Methods.Add(_nullAssertMethod);
+
+            // _nullAssertValueMethod = new MethodDefinition(
+            //     "<AssertValueNotNull>",
+            //     MethodAttributes.Static | MethodAttributes.Public,
+            //     _specialTypes[SpecialType.Void]
+            // );
+
+            // var nullAssertValueT = new GenericParameter("T", _nullAssertValueMethod) {
+            //     Attributes = GenericParameterAttributes.NotNullableValueTypeConstraint
+            // };
+
+            // _nullAssertValueMethod.GenericParameters.Add(nullAssertValueT);
+            // _nullAssertValueMethod.ReturnType = nullAssertValueT;
+            // _nullAssertValueMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("v", ParameterAttributes.None, nullAssertValueT));
+
+            // _nullAssertValueMethod.Body.InitLocals = true;
+            // var nullAssertValueILProcessor = _nullAssertValueMethod.Body.GetILProcessor();
+
+            // /*
+
+            // public static T AssertValueNotNull<T>(T? v) where T : struct {
+            //     if (!v.HasValue)
+            //         throw new NullReferenceException();
+
+            //     return v.Value;
+            // }
+
+            // */
+            // var hvTypeReference = new GenericInstanceType(NetTypeReference.Nullable);
+            // hvTypeReference.GenericArguments.Add(nullAssertValueT);
+
+            // var getHasValueDef = NetMethodReference.Nullable_HasValue;
+            // var getHasValueRef = _assemblyDefinition.MainModule.ImportReference(getHasValueDef);
+            // var genericGetHasValue = new MethodReference(getHasValueRef.Name, getHasValueRef.ReturnType, hvTypeReference) {
+            //     HasThis = getHasValueRef.HasThis,
+            //     ExplicitThis = getHasValueRef.ExplicitThis,
+            //     CallingConvention = getHasValueRef.CallingConvention,
+            // };
+
+            // var nullHasValue = _assemblyDefinition.MainModule.ImportReference(genericGetHasValue);
+
+            // var gvTypeReference = new GenericInstanceType(NetTypeReference.Nullable);
+            // gvTypeReference.GenericArguments.Add(nullAssertValueT);
+
+            // var getValueDef = NetMethodReference.Nullable_HasValue;
+            // var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+            // var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, gvTypeReference) {
+            //     HasThis = getValueRef.HasThis,
+            //     ExplicitThis = getValueRef.ExplicitThis,
+            //     CallingConvention = getValueRef.CallingConvention,
+            // };
+
+            // var nullGetValue = _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+
+            // nullAssertValueILProcessor.Emit(OpCodes.Ldarga_S, 0);
+            // nullAssertValueILProcessor.Emit(OpCodes.Call, nullHasValue);
+            // nullAssertValueILProcessor.Emit(OpCodes.Ldc_I4_0);
+            // nullAssertValueILProcessor.Emit(OpCodes.Ceq);
+            // nullAssertValueILProcessor.Emit(OpCodes.Brfalse_S, Instruction.Create(OpCodes.Nop));
+            // nullAssertValueILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
+            // nullAssertValueILProcessor.Emit(OpCodes.Throw);
+            // nullAssertValueILProcessor.Emit(OpCodes.Ldarga_S, 0);
+            // nullAssertValueILProcessor.Emit(OpCodes.Call, nullGetValue);
+            // nullAssertValueILProcessor.Emit(OpCodes.Ret);
+
+            // nullAssertValueILProcessor.Body.Instructions[4].Operand = nullAssertValueILProcessor.Body.Instructions[7];
+
+            // _globalsClass.Methods.Add(_nullAssertValueMethod);
+        }
+
+        _assemblyDefinition.MainModule.Types.Add(_globalsClass);
+    }
+
+    private void EmitInternal() {
+        foreach (var type in _topLevelTypes) {
+            var typeDefinition = CreateNamedTypeDefinition(type);
+            _assemblyDefinition.MainModule.Types.Add(typeDefinition);
+        }
+
+        foreach (var type in _topLevelTypes)
+            CreateMemberDefinitions(type);
+
+        foreach (var type in _linearNestedTypes)
+            CreateMemberDefinitions(type);
+
+        foreach (var method in _methods)
+            EmitMethod(method.Value);
+
+        var entryPoint = _program.entryPoint;
+
+        if (entryPoint is not null) {
+            _assemblyDefinition.EntryPoint = _methods[entryPoint];
+
+            // if (_actualEntryPoint is not null) {
+            //     _assemblyDefinition.EntryPoint = _actualEntryPoint;
+
+            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int))
+                _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+        }
+    }
+
+    private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
+        var typeDefinition = new TypeDefinition(
+            GetNamespaceName(type),
+            type.name,
+            GetTypeAttributes(type, isNested),
+            type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
+        );
+
+        foreach (var member in type.GetTypeMembers())
+            CreateNestedType(member);
+
+        if (_program.nestedTypes.ContainsKey(type)) {
+            foreach (var nestedType in _program.nestedTypes[type])
+                CreateNestedType(nestedType);
+        }
+
+        _types.Add(type.originalDefinition, typeDefinition);
+        return typeDefinition;
+
+        void CreateNestedType(NamedTypeSymbol nestedType) {
+            var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
+            typeDefinition.NestedTypes.Add(nestedDefinition);
+        }
+    }
+
+    private string GetNamespaceName(Symbol symbol) {
+        if (symbol.containingNamespace is null || symbol.containingNamespace.isGlobalNamespace)
+            return "";
+
+        return symbol.containingNamespace.name;
+    }
+
+    private void CreateMemberDefinitions(NamedTypeSymbol type) {
+        var typeDefinition = _types[type.originalDefinition];
+
+        foreach (var member in type.GetMembers()) {
+            if (member is FieldSymbol f) {
+                var fieldDefinition = new FieldDefinition(
+                    f.name,
+                    GetFieldAttributes(f),
+                    GetType(f.type, f.refKind != RefKind.None)
+                );
+
+                _fields.Add(f, fieldDefinition);
+                typeDefinition.Fields.Add(fieldDefinition);
+            } else if (member is NamedTypeSymbol t) {
+                CreateMemberDefinitions(t);
+            }
+        }
+
+        // Checking program map for methods to make sure synthesized ones are included (such as closure methods)
+        foreach (var pair in _program.methodBodies) {
+            if (pair.Key.containingType.Equals(type)) {
+                // var method =
+                CreateMethodDefinition(pair.Key, pair.Value, typeDefinition);
+
+                // if (pair.Key == _program.entryPoint)
+                //     CreateAssemblyResolverDefinition(typeDefinition, method);
+            }
+        }
+    }
+
+    private MethodDefinition CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeDefinition containingType) {
+        var methodDefinition = new MethodDefinition(
+            method.name,
+            GetMethodAttributes(method),
+            GetType(method.returnType, method.returnsByRef)
+        );
+
+        foreach (var parameter in method.parameters) {
+            var parameterDefinition = new Mono.Cecil.ParameterDefinition(
+                parameter.name,
+                ParameterAttributes.None,
+                GetType(parameter.type, parameter.refKind != RefKind.None)
+            );
+
+            methodDefinition.Parameters.Add(parameterDefinition);
+        }
+
+        _methods.Add(method, methodDefinition);
+        _methodBodies.Add(methodDefinition, (method, body));
+        containingType.Methods.Add(methodDefinition);
+
+        return methodDefinition;
+    }
+
+    private static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
+        var attributes = TypeAttributes.Class;
+
+        if (type.isStatic)
+            attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
+        if (type.isAbstract)
+            attributes |= TypeAttributes.Abstract;
+        if (type.isSealed)
+            attributes |= TypeAttributes.Sealed;
+
+        attributes |= type.declaredAccessibility switch {
+            Accessibility.Private => TypeAttributes.NestedPrivate,
+            Accessibility.Public when isNested => TypeAttributes.NestedPublic,
+            Accessibility.Public => TypeAttributes.Public,
+            Accessibility.Protected => TypeAttributes.NestedFamily,
+            _ => 0
+        };
+
+        return attributes;
+    }
+
+    private static FieldAttributes GetFieldAttributes(FieldSymbol field) {
+        FieldAttributes attributes = field.declaredAccessibility switch {
+            Accessibility.Private => FieldAttributes.Private,
+            Accessibility.Public => FieldAttributes.Public,
+            Accessibility.Protected => FieldAttributes.Family,
+            _ => 0
+        };
+
+        if (field.isStatic)
+            attributes |= FieldAttributes.Static;
+
+        return attributes;
+    }
+
+    private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
+        var attributes = method.declaredAccessibility switch {
+            Accessibility.Private => MethodAttributes.Private,
+            Accessibility.Public => MethodAttributes.Public,
+            Accessibility.Protected => MethodAttributes.Family,
+            _ => 0
+        } | MethodAttributes.HideBySig;
+
+        if (method.isStatic)
+            attributes |= MethodAttributes.Static;
+        if (method.isAbstract)
+            attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
+        if (method.isVirtual)
+            attributes |= MethodAttributes.Virtual;
+        if (method.isOverride)
+            attributes |= MethodAttributes.Virtual;
+
+        return attributes;
+    }
+
+    private void EmitMethod(MethodDefinition methodDefinition) {
+        var (method, body) = _methodBodies[methodDefinition];
+        var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder);
+
+        // if (_program.entryPoint == method)
+        //     EmitAssemblyResolver(methodDefinition);
+
+        codeGen.Generate();
+
+        methodDefinition.Body.OptimizeMacros();
+    }
+
+    /*
+        private void CreateAssemblyResolverDefinition(TypeDefinition mainType, MethodDefinition mainMethod) {
+            var cDefinition = new TypeDefinition(
+                "",
+                "<>AssemblyResolverClass",
+                TypeAttributes.NestedPrivate |
+                TypeAttributes.Sealed |
+                TypeAttributes.BeforeFieldInit,
+                _specialTypes[SpecialType.Object]
+            );
+
+            _c9 = new FieldDefinition(
+                "<>9",
+                FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
+                cDefinition
+            );
+
+            cDefinition.Fields.Add(_c9);
+
+            var cctor = new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Static | MethodAttributes.Private |
+                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                _specialTypes[SpecialType.Void]
+            );
+
+            var ctor = new MethodDefinition(
+                ".ctor",
+                MethodAttributes.Public |
+                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                _specialTypes[SpecialType.Void]
+            );
+
+            var methodDefinition = new MethodDefinition(
+                "<Main>AssemblyResolver",
+                MethodAttributes.HideBySig | MethodAttributes.Assembly,
+                ResolveType(null, "System.Reflection.Assembly")
+            );
+
+            methodDefinition.Parameters.Add(
+                new Mono.Cecil.ParameterDefinition(
+                    "s",
+                    ParameterAttributes.None,
+                    _specialTypes[SpecialType.Object]
+                )
+            );
+
+            methodDefinition.Parameters.Add(
+                new Mono.Cecil.ParameterDefinition(
+                    "e",
+                    ParameterAttributes.None,
+                    ResolveType(null, "System.ResolveEventArgs")
+                )
+            );
+
+            _cMain = methodDefinition;
+            _cctor = cctor;
+            _ctor = ctor;
+            cDefinition.Methods.Add(cctor);
+            cDefinition.Methods.Add(ctor);
+            cDefinition.Methods.Add(_cMain);
+
+            mainType.NestedTypes.Add(cDefinition);
+
+            _pcctor = new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Static | MethodAttributes.Private |
+                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                _specialTypes[SpecialType.Void]
+            );
+
+            _actualEntryPoint = new MethodDefinition(
+                "<>Main",
+                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static,
+                mainMethod.ReturnType
+            );
+
+            mainType.Methods.Add(_pcctor);
+            mainType.Methods.Add(_actualEntryPoint);
+        }
+
+        private void EmitAssemblyResolver(MethodDefinition mainMethod) {
+            var cctorBuilder = new CecilILBuilder(null, this, _cctor);
+            var cctorIL = cctorBuilder.iLProcessor;
+
+            cctorIL.Emit(OpCodes.Newobj, _ctor);
+            cctorIL.Emit(OpCodes.Stsfld, _c9);
+            cctorIL.Emit(OpCodes.Ret);
+
+            cctorBuilder.Finish();
+
+            var ctorBuilder = new CecilILBuilder(null, this, _ctor);
+            var ctorIL = ctorBuilder.iLProcessor;
+
+            ctorIL.Emit(OpCodes.Ldarg_0);
+            ctorIL.Emit(OpCodes.Call, ResolveMethod("System.Object", ".ctor", []));
+            ctorIL.Emit(OpCodes.Ret);
+
+            ctorBuilder.Finish();
+
+            var cBuilder = new CecilILBuilder(null, this, _cMain);
+
+            cBuilder.AllocateSlot(_assemblyDefinition.MainModule.ImportReference(ResolveType(null, "System.Byte").MakeArrayType(1)), LocalSlotConstraints.None);
+
+            var cIL = cBuilder.iLProcessor;
+            var ret = new object();
+
+            // var targetName = Path.Combine(AppContext.BaseDirectory, "a", _belteDllName);
+            var targetName = Path.Combine("a", "bin", "debug", _belteDllName);
+
+            cIL.Emit(OpCodes.Ldarg_2);
+            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.ResolveEventArgs", "get_Name", []));
+            cIL.Emit(OpCodes.Newobj, ResolveMethod("System.Reflection.AssemblyName", ".ctor", ["System.String"]));
+            cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.AssemblyName", "get_Name", []));
+            cIL.Emit(OpCodes.Ldstr, "Belte.Runtime");
+            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.String", "Contains", ["System.String"]));
+            cBuilder.EmitBranch(CodeGeneration.OpCode.Brfalse_S, ret);
+            cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "GetExecutingAssembly", []));
+            cIL.Emit(OpCodes.Ldstr, targetName);
+            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.Reflection.Assembly", "GetManifestResourceStream", ["System.String"]));
+            cIL.Emit(OpCodes.Dup);
+            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "get_Length", []));
+            cIL.Emit(OpCodes.Conv_Ovf_I);
+            cIL.Emit(OpCodes.Newarr, ResolveType(null, "System.Byte"));
+            cIL.Emit(OpCodes.Stloc_0);
+            cIL.Emit(OpCodes.Ldloc_0);
+            cIL.Emit(OpCodes.Ldc_I4_0);
+            cIL.Emit(OpCodes.Ldloc_0);
+            cIL.Emit(OpCodes.Ldlen);
+            cIL.Emit(OpCodes.Conv_I4);
+            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "Read", ["System.Byte[]", "System.Int32", "System.Int32"]));
+            cIL.Emit(OpCodes.Pop);
+            cIL.Emit(OpCodes.Ldloc_0);
+            cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "Load", ["System.Byte[]"]));
+            cIL.Emit(OpCodes.Ret);
+            cBuilder.MarkLabel(ret);
+            cIL.Emit(OpCodes.Ldnull);
+            cIL.Emit(OpCodes.Ret);
+
+            cBuilder.Finish();
+
+            // var cBuilder = new CecilILBuilder(null, this, _cMain);
+
+            // cBuilder.AllocateSlot(ResolveType(null, "System.IO.Stream"), LocalSlotConstraints.None);
+            // cBuilder.AllocateSlot(_assemblyDefinition.MainModule.ImportReference(ResolveType(null, "System.Byte").MakeArrayType(1)), LocalSlotConstraints.None);
+            // cBuilder.AllocateSlot(ResolveType(null, "System.Reflection.Assembly"), LocalSlotConstraints.None);
+
+            // var cIL = cBuilder.iLProcessor;
+            // var endTry = new object();
+            // var endFinally = new object();
+            // var ret = new object();
+
+            // cIL.Emit(OpCodes.Ldarg_2);
+            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.ResolveEventArgs", "get_Name", []));
+            // cIL.Emit(OpCodes.Newobj, ResolveMethod("System.Reflection.AssemblyName", ".ctor", ["System.String"]));
+            // cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.AssemblyName", "get_Name", []));
+            // cIL.Emit(OpCodes.Ldstr, "Belte.Runtime");
+            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.String", "Contains", ["System.String"]));
+            // cBuilder.EmitBranch(CodeGeneration.OpCode.Brfalse_S, endTry);
+            // cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "GetExecutingAssembly", []));
+            // cIL.Emit(OpCodes.Ldstr, "Belte.Runtime.dll");
+            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.Reflection.Assembly", "GetManifestResourceStream", ["System.String"]));
+            // cIL.Emit(OpCodes.Stloc_0);
+            // var tryStart = cIL.Create(OpCodes.Ldloc_0);
+            // cIL.Append(tryStart);
+            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "get_Length", []));
+            // cIL.Emit(OpCodes.Conv_Ovf_I);
+            // cIL.Emit(OpCodes.Newarr, ResolveType(null, "System.Byte"));
+            // cIL.Emit(OpCodes.Stloc_1);
+            // cIL.Emit(OpCodes.Ldloc_0);
+            // cIL.Emit(OpCodes.Ldloc_1);
+            // cIL.Emit(OpCodes.Ldc_I4_0);
+            // cIL.Emit(OpCodes.Ldloc_1);
+            // cIL.Emit(OpCodes.Ldlen);
+            // cIL.Emit(OpCodes.Conv_I4);
+            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "Read", ["System.Byte[]", "System.Int32", "System.Int32"]));
+            // cIL.Emit(OpCodes.Pop);
+            // cIL.Emit(OpCodes.Ldloc_1);
+            // cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "Load", ["System.Byte[]"]));
+            // cIL.Emit(OpCodes.Stloc_2);
+            // cBuilder.EmitBranch(CodeGeneration.OpCode.Leave_S, ret);
+            // var finallyStart = cIL.Create(OpCodes.Ldloc_0);
+            // cIL.Append(finallyStart);
+            // cBuilder.EmitBranch(CodeGeneration.OpCode.Brfalse_S, endFinally);
+            // cIL.Emit(OpCodes.Ldloc_0);
+            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IDisposable", "Dispose", []));
+            // cBuilder.MarkLabel(endFinally);
+            // var finallyEnd = cIL.Create(OpCodes.Endfinally);
+            // cIL.Append(finallyEnd);
+            // cBuilder.MarkLabel(endTry);
+            // cIL.Emit(OpCodes.Ldnull);
+            // cIL.Emit(OpCodes.Ret);
+            // cBuilder.MarkLabel(ret);
+            // cIL.Emit(OpCodes.Ldloc_2);
+            // cIL.Emit(OpCodes.Ret);
+
+            // _cMain.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Finally) {
+            //     TryStart = tryStart,
+            //     TryEnd = finallyStart,
+            //     HandlerStart = finallyStart,
+            //     HandlerEnd = finallyEnd
+            // });
+
+            // cBuilder.Finish();
+
+            var pcctorBuilder = new CecilILBuilder(null, this, _pcctor);
+            var pcctorIL = pcctorBuilder.iLProcessor;
+
+            var endPcctor = new object();
+
+            // pcctorIL.Emit(OpCodes.Call, ResolveMethod("System.AppDomain", "get_CurrentDomain", []));
+            // pcctorIL.Emit(OpCodes.Ldsfld, _c9__0_0);
+            // pcctorIL.Emit(OpCodes.Dup);
+            // pcctorBuilder.EmitBranch(CodeGeneration.OpCode.Brtrue_S, endPcctor);
+            // pcctorIL.Emit(OpCodes.Pop);
+            // pcctorIL.Emit(OpCodes.Ldsfld, _c9);
+            // pcctorIL.Emit(OpCodes.Ldftn, _cMain);
+            // pcctorIL.Emit(OpCodes.Newobj, ResolveMethod("System.ResolveEventHandler", ".ctor", ["System.Object", "System.IntPtr"]));
+            // pcctorIL.Emit(OpCodes.Dup);
+            // pcctorIL.Emit(OpCodes.Stsfld, _c9__0_0);
+            // pcctorBuilder.MarkLabel(endPcctor);
+            // pcctorIL.Emit(OpCodes.Callvirt, ResolveMethod("System.AppDomain", "add_AssemblyResolve", ["System.ResolveEventHandler"]));
+
+            pcctorIL.Emit(OpCodes.Call, ResolveMethod("System.AppDomain", "get_CurrentDomain", []));
+            pcctorIL.Emit(OpCodes.Ldsfld, _c9);
+            pcctorIL.Emit(OpCodes.Ldftn, _cMain);
+            pcctorIL.Emit(OpCodes.Newobj, ResolveMethod("System.ResolveEventHandler", ".ctor", ["System.Object", "System.IntPtr"]));
+            pcctorIL.Emit(OpCodes.Callvirt, ResolveMethod("System.AppDomain", "add_AssemblyResolve", ["System.ResolveEventHandler"]));
+            pcctorIL.Emit(OpCodes.Ret);
+
+            pcctorBuilder.Finish();
+
+            // ? Debug segment for listing manifest resources
+
+            var amBuilder = new CecilILBuilder(null, this, _actualEntryPoint);
+            var amIL = amBuilder.iLProcessor;
+
+            amBuilder.AllocateSlot(_assemblyDefinition.MainModule.ImportReference(_specialTypes[SpecialType.String].MakeArrayType(1)), LocalSlotConstraints.None);
+            amBuilder.AllocateSlot(ResolveType(null, "System.Int32"), LocalSlotConstraints.None);
+
+            var endLoop = new object();
+            var loopAgain = new object();
+
+            amIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "GetExecutingAssembly", []));
+            amIL.Emit(OpCodes.Callvirt, ResolveMethod("System.Reflection.Assembly", "GetManifestResourceNames", []));
+            amIL.Emit(OpCodes.Stloc_0);
+            amIL.Emit(OpCodes.Ldc_I4_0);
+            amIL.Emit(OpCodes.Stloc_1);
+            amBuilder.EmitBranch(CodeGeneration.OpCode.Br_S, endLoop);
+            amBuilder.MarkLabel(loopAgain);
+            amIL.Emit(OpCodes.Ldloc_0);
+            amIL.Emit(OpCodes.Ldloc_1);
+            amIL.Emit(OpCodes.Ldelem_Ref);
+            amIL.Emit(OpCodes.Call, ResolveMethod("System.Console", "WriteLine", ["System.String"]));
+            amIL.Emit(OpCodes.Ldloc_1);
+            amIL.Emit(OpCodes.Ldc_I4_1);
+            amIL.Emit(OpCodes.Add);
+            amIL.Emit(OpCodes.Stloc_1);
+            amBuilder.MarkLabel(endLoop);
+            amIL.Emit(OpCodes.Ldloc_1);
+            amIL.Emit(OpCodes.Ldloc_0);
+            amIL.Emit(OpCodes.Ldlen);
+            amIL.Emit(OpCodes.Conv_I4);
+            amBuilder.EmitBranch(CodeGeneration.OpCode.Blt_S, loopAgain);
+
+            amIL.Emit(OpCodes.Call, mainMethod);
+            amIL.Emit(OpCodes.Ret);
+
+            amBuilder.Finish();
+        }
+    */
+
+    private TypeReference ResolveType(string name, string metadataName) {
+        var foundTypes = _assemblies
+            .SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == metadataName)
             .ToArray();
 
         if (foundTypes.Length == 1) {
-            var typeReference = _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
-            return typeReference;
+            return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
         } else if (foundTypes.Length == 0) {
-            ThrowRequiredTypeNotFound(buckleName, metadataName);
+            throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
         } else {
-            ThrowRequiredTypeAmbiguous(buckleName, metadataName, foundTypes);
+            throw new BelteInternalException(
+                $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Length} candidates"
+            );
         }
-
-        throw ExceptionUtilities.Unreachable();
     }
 
-    private MethodReference ResolveMethod(
-        string typeName, string methodName, string[] parameterTypeNames) {
-
-        var foundTypes = _assemblies.SelectMany(a => a.Modules)
+    private MethodReference ResolveMethod(string typeName, string methodName, string[] parameterTypeNames) {
+        var foundTypes = _assemblies
+            .SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == typeName)
             .ToArray();
 
-        if (foundTypes.Length == 1) {
-            var foundType = foundTypes[0];
-            var methods = foundType.Methods.Where(m => m.Name == methodName);
-
-            if (methods.Count() == 1 && parameterTypeNames is null)
-                return _assemblyDefinition.MainModule.ImportReference(methods.Single());
-
-            foreach (var method in methods) {
-                if (method.Parameters.Count != parameterTypeNames.Length)
-                    continue;
-
-                var allParametersMatch = true;
-
-                for (var i = 0; i < parameterTypeNames.Length; i++) {
-                    if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
-                        allParametersMatch = false;
-                        break;
-                    }
-                }
-
-                if (!allParametersMatch)
-                    continue;
-
-                return _assemblyDefinition.MainModule.ImportReference(method);
-            }
-
-            ThrowRequiredMethodNotFound(typeName, methodName, parameterTypeNames);
-        } else if (foundTypes.Length == 0) {
-            ThrowRequiredTypeNotFound(null, typeName);
-        } else {
-            ThrowRequiredTypeAmbiguous(null, typeName, foundTypes);
+        if (foundTypes.Length == 1 &&
+            TryResolveMethodCore(foundTypes, typeName, methodName, parameterTypeNames, out var methodRef1)) {
+            return methodRef1;
         }
 
-        throw ExceptionUtilities.Unreachable();
+        var foundType = _backupAssemblies
+            .SelectMany(a => a.Modules)
+            .SelectMany(m => m.Types)
+            .Where(t => t.FullName == typeName)
+            .ToArray()
+            .FirstOrDefault()
+                ?? throw new BelteInternalException($"Required type not found: {typeName}");
+
+        if (TryResolveMethodCore([foundType], typeName, methodName, parameterTypeNames, out var methodRef2))
+            return methodRef2;
+        else
+            throw new BelteInternalException($"Required method not found: {typeName} {methodName} {parameterTypeNames.Length}");
     }
 
-    private void ThrowRequiredMethodNotFound(string typeName, object methodName, string[] parameterTypeNames) {
-        string message;
-
-        if (parameterTypeNames is null) {
-            message = $"could not resolve method '{typeName}.{methodName}' with the given references";
-        } else {
-            var parameterList = string.Join(", ", parameterTypeNames);
-            message =
-                $"could not resolve method '{typeName}.{methodName}({parameterList})' with the given references";
-        }
-
-        throw new BelteInternalException($"ThrowRequiredMethodNotFound: {message}");
-    }
-
-    private void ThrowRequiredTypeNotFound(string buckleName, string metadataName) {
-        var message = buckleName != null
-            ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
-            : $"could not resolve type '{metadataName}' with the given references";
-
-        throw new BelteInternalException($"ThrowRequiredTypeNotFound: {message}");
-    }
-
-    private void ThrowRequiredTypeAmbiguous(string buckleName, string metadataName, TypeDefinition[] foundTypes) {
-        var assemblyNames = foundTypes.Select(t => t.Module.Assembly.Name.Name);
-        var nameList = string.Join(", ", assemblyNames);
-
-        var message = buckleName != null
-            ? $"could not resolve type '{buckleName}' ('{metadataName}') with the given references"
-            : $"could not resolve type '{metadataName}' with the given references";
-
-        throw new BelteInternalException($"ThrowRequiredTypeAmbiguous: {message}");
-    }
-
-    private MethodReference GetNullableCtor(BoundType type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
-        var methodReference =
-            _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableCtor]);
-
-        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
-        (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
-        methodReference.Resolve();
-
-        return methodReference;
-    }
-
-    private MethodReference GetNullableValue(BoundType type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
-        var methodReference =
-            _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableValue]);
-
-        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
-        (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
-        methodReference.Resolve();
-
-        return methodReference;
-    }
-
-    private MethodReference GetNullableHasValue(BoundType type) {
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
-        var methodReference =
-            _assemblyDefinition.MainModule.ImportReference(_methodReferences[NetMethodReference.NullableHasValue]);
-
-        methodReference.DeclaringType = new GenericInstanceType(_nullableReference);
-        (methodReference.DeclaringType as GenericInstanceType).GenericArguments.Add(genericArgumentType);
-        methodReference.Resolve();
-
-        return methodReference;
-    }
-
-    private MethodReference GetConvertTo(BoundType from, BoundType to, bool isImplicit) {
-        if (!from.isNullable || isImplicit) {
-            if (to.typeSymbol == TypeSymbol.Any)
-                return null;
-            else if (to.typeSymbol == TypeSymbol.Bool)
-                return _methodReferences[NetMethodReference.ConvertToBoolean];
-            else if (to.typeSymbol == TypeSymbol.Int)
-                return _methodReferences[NetMethodReference.ConvertToInt32];
-            else if (to.typeSymbol == TypeSymbol.String)
-                return _methodReferences[NetMethodReference.ConvertToString];
-            else if (to.typeSymbol == TypeSymbol.Decimal)
-                return _methodReferences[NetMethodReference.ConvertToDouble];
-            else
-                throw new BelteInternalException($"GetConvertTo: unexpected cast from '{from}' to '{to}'");
-        }
-
-        throw new BelteInternalException("GetConvertTo: cannot convert nullable types");
-    }
-
-    private FieldReference GetFieldReference(BoundMemberAccessExpression expression) {
-        var member = (expression.right as BoundVariableExpression).variable;
-        return new FieldReference(
-            GetSafeName(member.name), GetType(expression.type), GetType(expression.type)
-        );
-    }
-
-    private TypeReference GetType(
-        BoundType type, bool overrideNullability = false, bool ignoreReference = false) {
-        if ((type.dimensions == 0 && !type.isNullable && !overrideNullability) ||
-            type.typeSymbol == TypeSymbol.Void) {
-            return _knownTypes[type.typeSymbol];
-        }
-
-        var genericArgumentType = _assemblyDefinition.MainModule.ImportReference(_knownTypes[type.typeSymbol]);
-        var typeReference = new GenericInstanceType(_nullableReference.Resolve());
-        typeReference.GenericArguments.Add(genericArgumentType.Resolve());
-        var referenceType = new ByReferenceType(typeReference.Resolve());
-
-        if (type.dimensions == 0) {
-            if (type.isReference && !ignoreReference) {
-                referenceType.Resolve();
-                return referenceType;
-            } else {
-                typeReference.Resolve();
-                return typeReference;
-            }
-        } else {
-            ArrayType arrayType;
-
-            if (type.isReference && !ignoreReference)
-                arrayType = referenceType.MakeArrayType(type.dimensions);
-            else
-                arrayType = typeReference.MakeArrayType(type.dimensions);
-
-            arrayType.Resolve();
-            return arrayType;
-        }
-    }
-
-    private void EmitRandomField() {
-        _randomFieldDefinition = new FieldDefinition(
-                                "$randInt", FieldAttributes.Static | FieldAttributes.Private, _randomReference);
-        _programTypeDefinition.Fields.Add(_randomFieldDefinition);
-        var staticConstructor = new MethodDefinition(
-            ".cctor",
-            MethodAttributes.Static | MethodAttributes.Private |
-            MethodAttributes.RTSpecialName | MethodAttributes.SpecialName,
-            _knownTypes[TypeSymbol.Void]
-        );
-        _programTypeDefinition.Methods.Insert(0, staticConstructor);
-
-        var iLProcessor = staticConstructor.Body.GetILProcessor();
-        iLProcessor.Emit(OpCodes.Newobj, _methodReferences[NetMethodReference.RandomCtor]);
-        iLProcessor.Emit(OpCodes.Stsfld, _randomFieldDefinition);
-        iLProcessor.Emit(OpCodes.Ret);
-    }
-
-    private void EmitMethodBody(MethodSymbol method, BoundBlockStatement body) {
-        var methodDefinition = _methods[method];
-        _locals.Clear();
-        _labels.Clear();
-        _unhandledGotos.Clear();
-        var iLProcessor = methodDefinition.Body.GetILProcessor();
-
-        _methodStack.Push(methodDefinition);
-
-        foreach (var statement in body.statements)
-            EmitStatement(iLProcessor, statement);
-
-        _methodStack.Pop();
-
-        foreach (var fixup in _unhandledGotos) {
-            var targetLabel = fixup.target;
-            var targetInstructionIndex = _labels[targetLabel];
-            var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
-            var instructionFix = iLProcessor.Body.Instructions[fixup.instructionIndex];
-            instructionFix.Operand = targetInstruction;
-        }
-
-        methodDefinition.Body.OptimizeMacros();
-    }
-
-    private void EmitMethodDeclaration(MethodSymbol method, bool isMain) {
-        var methodType = isMain ? GetType(BoundType.CopyWith(method.type, isNullable: false)) : GetType(method.type);
-        var newMethod = new MethodDefinition(
-            method.name, MethodAttributes.Static | MethodAttributes.Private, methodType);
-
-        foreach (var parameter in method.parameters) {
-            var parameterType = GetType(parameter.type);
-            var parameterAttributes = ParameterAttributes.None;
-            var parameterDefinition = new ParameterDefinition(parameter.name, parameterAttributes, parameterType);
-            newMethod.Parameters.Add(parameterDefinition);
-        }
-
-        _programTypeDefinition.Methods.Add(newMethod);
-        _methods.Add(method, newMethod);
-    }
-
-    private void EmitStructDeclaration(StructSymbol @struct) {
-        var objectType = _knownTypes[TypeSymbol.Any];
-        var typeDefinition = new TypeDefinition(
-            _namespaceName, GetSafeName(@struct.name), TypeAttributes.NestedPublic, objectType
-        );
-
-        foreach (var field in @struct.members.OfType<FieldSymbol>()) {
-            var fieldDefinition = new FieldDefinition(
-                GetSafeName(field.name), FieldAttributes.Public, GetType(field.type)
-            );
-
-            typeDefinition.Fields.Add(fieldDefinition);
-        }
-
-        _knownTypes.Add(@struct, typeDefinition);
-        _typeDefinitions.Add(@struct, typeDefinition);
-        _assemblyDefinition.MainModule.Types.Add(typeDefinition);
-    }
-
-    private void EmitStatement(ILProcessor iLProcessor, BoundStatement statement) {
-        switch (statement.kind) {
-            case BoundNodeKind.NopStatement:
-                EmitNopStatement(iLProcessor, (BoundNopStatement)statement);
-                break;
-            case BoundNodeKind.GotoStatement:
-                EmitGotoStatement(iLProcessor, (BoundGotoStatement)statement);
-                break;
-            case BoundNodeKind.LabelStatement:
-                EmitLabelStatement(iLProcessor, (BoundLabelStatement)statement);
-                break;
-            case BoundNodeKind.ConditionalGotoStatement:
-                EmitConditionalGotoStatement(iLProcessor, (BoundConditionalGotoStatement)statement);
-                break;
-            case BoundNodeKind.LocalDeclarationStatement:
-                EmitLocalDeclarationStatement(iLProcessor, (BoundLocalDeclarationStatement)statement);
-                break;
-            case BoundNodeKind.ReturnStatement:
-                EmitReturnStatement(iLProcessor, (BoundReturnStatement)statement);
-                break;
-            case BoundNodeKind.TryStatement:
-                EmitTryStatement(iLProcessor, (BoundTryStatement)statement);
-                break;
-            case BoundNodeKind.ExpressionStatement:
-                EmitExpressionStatement(iLProcessor, (BoundExpressionStatement)statement);
-                break;
-            default:
-                throw new BelteInternalException($"EmitStatement: unexpected node '{statement.kind}'");
-        }
-    }
-
-    private void EmitNopStatement(ILProcessor iLProcessor, BoundNopStatement statement) {
-        /*
-
-        ---->
-
-        nop
-
-        */
-        iLProcessor.Emit(OpCodes.Nop);
-    }
-
-    private void EmitLabelStatement(ILProcessor iLProcessor, BoundLabelStatement statement) {
-        _labels.Add(statement.label, iLProcessor.Body.Instructions.Count);
-    }
-
-    private void EmitGotoStatement(ILProcessor iLProcessor, BoundGotoStatement statement) {
-        /*
-
-        <label>
-
-        ---->
-
-        br.s <label>
-
-        */
-        _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, statement.label));
-        iLProcessor.Emit(OpCodes.Br_S, Instruction.Create(OpCodes.Nop));
-    }
-
-    private void EmitConditionalGotoStatement(ILProcessor iLProcessor, BoundConditionalGotoStatement statement) {
-        /*
-
-        <label> <condition> <jumpIfTrue>
-
-        ----> <jumpIfTrue> is true
-
-        <condition>
-        brtrue <label>
-
-        ----> <jumpIfTrue> is false
-
-        <condition>
-        brfalse <label>
-
-        */
-        EmitExpression(iLProcessor, statement.condition);
-
-        var opcode = statement.jumpIfTrue
-            ? OpCodes.Brtrue
-            : OpCodes.Brfalse;
-        _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, statement.label));
-        iLProcessor.Emit(opcode, Instruction.Create(OpCodes.Nop));
-    }
-
-    private void EmitLocalDeclarationStatement(ILProcessor iLProcessor, BoundLocalDeclarationStatement statement) {
-        /*
-
-        <type> <variable> <initializer>
-
-        ----> default case
-
-        <initializer>
-        stloc #
-
-        ----> <type> is nullable and <initializer> is null
-
-        ldloca.s #
-        initobj valuetype <type>
-
-        ----> <type> is nullable and <initializer> is not null
-
-        ldloca.s #
-        <initializer>
-        call instance void valuetype <type>::.ctor(!0)
-
-        ----> <type> is a struct
-
-        <initializer>
-        stloc.s #
-
-        */
-        var variableType = statement.declaration.variable.type;
-        var typeReference = GetType(variableType);
-        var variableDefinition = new VariableDefinition(typeReference);
-        _locals.Add(statement.declaration.variable, variableDefinition);
-        iLProcessor.Body.Variables.Add(variableDefinition);
-
-        var preset = true;
-
-        if (variableType.isNullable &&
-            variableType.typeSymbol is not StructSymbol &&
-            variableType.dimensions < 1) {
-            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-        } else {
-            preset = false;
-        }
-
-        EmitExpression(iLProcessor, statement.declaration.initializer);
-
-        if (variableType.typeSymbol is StructSymbol) {
-            iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
-        } else if (variableType.isNullable &&
-            !BoundConstant.IsNull(statement.declaration.initializer.constantValue) &&
-            variableType.dimensions < 1) {
-            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(statement.declaration.initializer.type));
-        } else if (!preset) {
-            iLProcessor.Emit(OpCodes.Stloc, variableDefinition);
-        }
-    }
-
-    private void EmitReturnStatement(ILProcessor iLProcessor, BoundReturnStatement statement) {
-        /*
-
-        <expression>
-
-        ----> no <expression>
-
-        ret
-
-        ----> inside Program.Main and <expresion> is 'null'
-
-        ldc.i4.0
-        ret
-
-        ---->
-
-        <expression>
-        ret
-
-        */
-        if (statement.expression != null) {
-            if (_insideMain && BoundConstant.IsNull(statement.expression.constantValue))
-                iLProcessor.Emit(OpCodes.Ldc_I4_0);
-            else
-                EmitExpression(iLProcessor, statement.expression);
-        }
-
-        iLProcessor.Emit(OpCodes.Ret);
-    }
-
-    private void EmitTryStatement(ILProcessor iLProcessor, BoundTryStatement statement) {
-        /*
-
-        <body> <catchBody> <finallyBody>
-
-        ----> <catchBody> is null
-
-        nop
-        .try {
-            nop
-            <body>
-            leave.s <label>
-        } finally {
-            nop
-            <finallyBody>
-            leave.s <label>
-        }
-
-        ----> <finallyBody> is null
-
-        nop
-        .try {
-            nop
-            <body>
-            leave.s <label>
-        } catch {
-            nop
-            <catchBody>
-            leave.s <label>
-        }
-
-        ---->
-
-        nop
-        .try {
-            nop
-            nop
-            .try {
-                nop
-                <body>
-            } catch {
-                nop
-                <catchBody>
-                leave.s <label>
-            }
-            leave.s <label>
-        } finally {
-            nop
-            <finallyBody>
-            leave.s <label>
-        }
-
-        */
-        var method = _methodStack.Last();
-
-        void EmitTryCatch(ImmutableArray<BoundStatement> tryBody, ImmutableArray<BoundStatement> catchBody) {
-            var end = iLProcessor.Create(OpCodes.Nop);
-            var tryStart = iLProcessor.Create(OpCodes.Nop);
-            var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            var handlerStart = iLProcessor.Create(OpCodes.Nop);
-            var handlerEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            iLProcessor.Append(tryStart);
-
-            foreach (var node in tryBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(tryEnd);
-            iLProcessor.Append(handlerStart);
-
-            foreach (var node in catchBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(handlerEnd);
-            iLProcessor.Append(end);
-
-            var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                TryStart = tryStart,
-                TryEnd = handlerStart,
-                HandlerStart = handlerStart,
-                HandlerEnd = end,
-                CatchType = _knownTypes[TypeSymbol.Any],
-            };
-
-            method.Body.ExceptionHandlers.Add(handler);
-        }
-
-        void EmitTryFinally(ImmutableArray<BoundStatement> tryBody, ImmutableArray<BoundStatement> finallyBody) {
-            var end = iLProcessor.Create(OpCodes.Nop);
-            var tryStart = iLProcessor.Create(OpCodes.Nop);
-            var tryEnd = iLProcessor.Create(OpCodes.Leave_S, end);
-
-            var handlerStart = iLProcessor.Create(OpCodes.Nop);
-            var handlerEnd = iLProcessor.Create(OpCodes.Endfinally);
-
-            iLProcessor.Append(tryStart);
-
-            foreach (var node in tryBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(tryEnd);
-            iLProcessor.Append(handlerStart);
-
-            foreach (var node in finallyBody)
-                EmitStatement(iLProcessor, node);
-
-            iLProcessor.Append(handlerEnd);
-            iLProcessor.Append(end);
-
-            var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
-                TryStart = tryStart,
-                TryEnd = handlerStart,
-                HandlerStart = handlerStart,
-                HandlerEnd = end,
-            };
-
-            method.Body.ExceptionHandlers.Add(handler);
-        }
-
-        if (statement.catchBody is null) {
-            EmitTryFinally(statement.body.statements, statement.finallyBody.statements);
-        } else if (statement.finallyBody is null) {
-            EmitTryCatch(statement.body.statements, statement.catchBody.statements);
-        } else {
-            EmitTryFinally(
-                ImmutableArray.Create<BoundStatement>(new BoundTryStatement(statement.body, statement.catchBody, null)),
-                statement.finallyBody.statements
-            );
-        }
-    }
-
-    private void EmitExpressionStatement(ILProcessor iLProcessor, BoundExpressionStatement statement) {
-        /*
-
-        <expression>;
-
-        ----> <expression> is a call and the return is not picked up
-
-        <expression>
-        pop
-
-        ---->
-
-        <expression>
-
-        */
-        EmitExpression(iLProcessor, statement.expression);
-
-        if (statement.expression is BoundCallExpression && statement.expression.type.typeSymbol != TypeSymbol.Void)
-            iLProcessor.Emit(OpCodes.Pop);
-    }
-
-    private void EmitExpression(ILProcessor iLProcessor, BoundExpression expression) {
-        if (expression.constantValue != null) {
-            EmitConstantExpression(iLProcessor, expression);
-            return;
-        }
-
-        switch (expression.kind) {
-            case BoundNodeKind.InitializerListExpression:
-                EmitInitializerListExpression(iLProcessor, (BoundInitializerListExpression)expression);
-                break;
-            case BoundNodeKind.UnaryExpression:
-                EmitUnaryExpression(iLProcessor, (BoundUnaryExpression)expression);
-                break;
-            case BoundNodeKind.BinaryExpression:
-                EmitBinaryExpression(iLProcessor, (BoundBinaryExpression)expression);
-                break;
-            case BoundNodeKind.VariableExpression:
-                EmitVariableExpression(iLProcessor, (BoundVariableExpression)expression);
-                break;
-            case BoundNodeKind.AssignmentExpression:
-                EmitAssignmentExpression(iLProcessor, (BoundAssignmentExpression)expression);
-                break;
-            case BoundNodeKind.EmptyExpression:
-                EmitEmptyExpression(iLProcessor, (BoundEmptyExpression)expression);
-                break;
-            case BoundNodeKind.CallExpression:
-                EmitCallExpression(iLProcessor, (BoundCallExpression)expression);
-                break;
-            case BoundNodeKind.IndexExpression:
-                // EmitIndexExpression(indentedTextWriter, (BoundIndexExpression)expression);
-                break;
-            case BoundNodeKind.CastExpression:
-                EmitCastExpression(iLProcessor, (BoundCastExpression)expression);
-                break;
-            case BoundNodeKind.TernaryExpression:
-                EmitTernaryExpression(iLProcessor, (BoundTernaryExpression)expression);
-                break;
-            case BoundNodeKind.ReferenceExpression:
-                // EmitReferenceExpression(indentedTextWriter, (BoundReferenceExpression)expression);
-                break;
-            case BoundNodeKind.ObjectCreationExpression:
-                EmitObjectCreationExpression(iLProcessor, (BoundObjectCreationExpression)expression);
-                break;
-            case BoundNodeKind.MemberAccessExpression:
-                // EmitMemberAccessExpression(indentedTextWriter, (BoundMemberAccessExpression)expression);
-                break;
-            default:
-                throw new BelteInternalException($"EmitExpression: unexpected node '{expression.kind}'");
-        }
-    }
-
-    private void EmitConstantExpression(ILProcessor iLProcessor, BoundExpression expression) {
-        EmitBoundConstant(iLProcessor, expression.constantValue, expression.type);
-    }
-
-    private void EmitBoundConstant(ILProcessor iLProcessor, BoundConstant constant, BoundType type) {
-        if (BoundConstant.IsNull(constant)) {
-            if (type.typeSymbol is StructSymbol)
-                iLProcessor.Emit(OpCodes.Ldnull);
-            else
-                iLProcessor.Emit(OpCodes.Initobj, GetType(type));
-
-            return;
-        }
-
-        var expressionType = type.typeSymbol;
-
-        if (constant.value is ImmutableArray<BoundConstant> ia) {
-            for (var i = 0; i < ia.Length; i++) {
-                var item = ia[i];
-                iLProcessor.Emit(OpCodes.Dup);
-                iLProcessor.Emit(OpCodes.Ldc_I4, i);
-                EmitBoundConstant(iLProcessor, item, type.ChildType());
-
-                if (type.ChildType().dimensions == 0)
-                    iLProcessor.Emit(OpCodes.Stelem_Any, GetType(type.ChildType()));
-                else
-                    iLProcessor.Emit(OpCodes.Stelem_Ref);
-            }
-
-            return;
-        }
-
-        if (expressionType == TypeSymbol.Int) {
-            var value = Convert.ToInt32(constant.value);
-            iLProcessor.Emit(OpCodes.Ldc_I4, value);
-        } else if (expressionType == TypeSymbol.String) {
-            var value = Convert.ToString(constant.value);
-            iLProcessor.Emit(OpCodes.Ldstr, value);
-        } else if (expressionType == TypeSymbol.Bool) {
-            var value = Convert.ToBoolean(constant.value);
-            var instruction = value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0;
-            iLProcessor.Emit(instruction);
-        } else if (expressionType == TypeSymbol.Decimal) {
-            var value = Convert.ToSingle(constant.value);
-            iLProcessor.Emit(OpCodes.Ldc_R4, value);
-        } else if (expressionType == TypeSymbol.Any) {
-            var assumedType = BoundType.Assume(constant.value);
-            EmitBoundConstant(iLProcessor, constant, assumedType);
-            iLProcessor.Emit(OpCodes.Box, GetType(assumedType));
-        } else {
-            throw new BelteInternalException(
-                $"EmitBoundConstant: unexpected constant expression type '{expressionType}'"
-            );
-        }
-    }
-
-    private void EmitInitializerListExpression(ILProcessor iLProcessor, BoundInitializerListExpression expression) {
-        /*
-
-        <items>
-
-        ---->
-
-        ldc.i4 <items.Length>
-        newarr <type>
-
-            For each item (single dimension):
-        dup
-        ldc.i4 <i>
-        <items[i]>
-        stelem.any <item[i].type>
-
-            For each item (multi-dimensional):
-        dup
-        ldc.i4 <i>
-        <items[i]>
-        stelem.ref
-
-        */
-        iLProcessor.Emit(OpCodes.Ldc_I4, expression.items.Length);
-        iLProcessor.Emit(OpCodes.Newarr, GetType(expression.type.ChildType()));
-
-        for (var i = 0; i < expression.items.Length; i++) {
-            var item = expression.items[i];
-            iLProcessor.Emit(OpCodes.Dup);
-            iLProcessor.Emit(OpCodes.Ldc_I4, i);
-            EmitExpression(iLProcessor, item);
-
-            if (item.type.dimensions == 0) {
-                iLProcessor.Emit(OpCodes.Stelem_Any, GetType(item.type));
-            } else {
-                iLProcessor.Emit(OpCodes.Stelem_Ref);
-            }
-        }
-    }
-
-    private void EmitUnaryExpression(ILProcessor iLProcessor, BoundUnaryExpression expression) {
-        /*
-
-        <op> <operand>
-
-        ---->
-
-        <operand>
-
-            Depending on <op>:
-        | neg
-        | ldc.i4.0
-          ceq
-        | not
-
-        */
-        EmitExpression(iLProcessor, expression.operand);
-
-        if (expression.op.opKind == BoundUnaryOperatorKind.NumericalNegation) {
-            iLProcessor.Emit(OpCodes.Neg);
-        } else if (expression.op.opKind == BoundUnaryOperatorKind.BooleanNegation) {
-            iLProcessor.Emit(OpCodes.Ldc_I4_0);
-            iLProcessor.Emit(OpCodes.Ceq);
-        } else if (expression.op.opKind == BoundUnaryOperatorKind.BitwiseCompliment) {
-            iLProcessor.Emit(OpCodes.Not);
-        } else {
-            throw new BelteInternalException($"EmitUnaryExpression: unexpected unary operator" +
-                $"{SyntaxFacts.GetText(expression.op.kind)}({expression.operand.type.typeSymbol})"
-            );
-        }
-    }
-
-    private void EmitBinaryExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
-        /*
-
-        <left> <op> <right>
-
-        ----> <left> and <right> are strings and <op> is addition
-
-        <left>
-        <right>
-        call System.String System.String::Concat(System.String, System.String)
-
-        ---->
-
-        <left>
-        <right>
-
-            Depending on <op>:
-        | add
-        | sub
-        | mul
-        | div
-        | and
-        | or
-        | xor
-        | shl
-        | shr.un
-        | and
-        | or
-        | ceq
-        | ceq
-          ldc.i4.0
-          ceq
-        | clt
-        | cgt
-        | cgt
-          ldc.i4.0
-          ceq
-        | clt
-          ldc.it.0
-          ceq
-        | rem
-
-        */
-        var leftType = expression.left.type.typeSymbol;
-        var rightType = expression.right.type.typeSymbol;
-
-        if (expression.op.opKind == BoundBinaryOperatorKind.Addition) {
-            if (leftType == TypeSymbol.String && rightType == TypeSymbol.String ||
-                leftType == TypeSymbol.Any && rightType == TypeSymbol.Any) {
-                EmitStringConcatExpression(iLProcessor, expression);
-                return;
-            }
-        }
-
-        EmitExpression(iLProcessor, expression.left);
-        EmitExpression(iLProcessor, expression.right);
-
-        switch (expression.op.opKind) {
-            case BoundBinaryOperatorKind.Addition:
-                iLProcessor.Emit(OpCodes.Add);
-                break;
-            case BoundBinaryOperatorKind.Subtraction:
-                iLProcessor.Emit(OpCodes.Sub);
-                break;
-            case BoundBinaryOperatorKind.Multiplication:
-                iLProcessor.Emit(OpCodes.Mul);
-                break;
-            case BoundBinaryOperatorKind.Division:
-                iLProcessor.Emit(OpCodes.Div);
-                break;
-            case BoundBinaryOperatorKind.LogicalAnd:
-                iLProcessor.Emit(OpCodes.And);
-                break;
-            case BoundBinaryOperatorKind.LogicalOr:
-                iLProcessor.Emit(OpCodes.Or);
-                break;
-            case BoundBinaryOperatorKind.LogicalXor:
-                iLProcessor.Emit(OpCodes.Xor);
-                break;
-            case BoundBinaryOperatorKind.LeftShift:
-                iLProcessor.Emit(OpCodes.Shl);
-                break;
-            case BoundBinaryOperatorKind.RightShift:
-                iLProcessor.Emit(OpCodes.Shr);
-                break;
-            case BoundBinaryOperatorKind.UnsignedRightShift:
-                iLProcessor.Emit(OpCodes.Shr_Un);
-                break;
-            case BoundBinaryOperatorKind.ConditionalAnd:
-                iLProcessor.Emit(OpCodes.And);
-                break;
-            case BoundBinaryOperatorKind.ConditionalOr:
-                iLProcessor.Emit(OpCodes.Or);
-                break;
-            case BoundBinaryOperatorKind.EqualityEquals:
-                iLProcessor.Emit(OpCodes.Ceq);
-                break;
-            case BoundBinaryOperatorKind.EqualityNotEquals:
-                iLProcessor.Emit(OpCodes.Ceq);
-                iLProcessor.Emit(OpCodes.Ldc_I4_0);
-                iLProcessor.Emit(OpCodes.Ceq);
-                break;
-            case BoundBinaryOperatorKind.LessThan:
-                iLProcessor.Emit(OpCodes.Clt);
-                break;
-            case BoundBinaryOperatorKind.GreaterThan:
-                iLProcessor.Emit(OpCodes.Cgt);
-                break;
-            case BoundBinaryOperatorKind.LessOrEqual:
-                iLProcessor.Emit(OpCodes.Cgt);
-                iLProcessor.Emit(OpCodes.Ldc_I4_0);
-                iLProcessor.Emit(OpCodes.Ceq);
-                break;
-            case BoundBinaryOperatorKind.GreatOrEqual:
-                iLProcessor.Emit(OpCodes.Clt);
-                iLProcessor.Emit(OpCodes.Ldc_I4_0);
-                iLProcessor.Emit(OpCodes.Ceq);
-                break;
-            case BoundBinaryOperatorKind.Modulo:
-                iLProcessor.Emit(OpCodes.Rem);
-                break;
-            default:
-                throw new BelteInternalException($"EmitBinaryOperator: unexpected binary operator" +
-                    $"({expression.left.type}){SyntaxFacts.GetText(expression.op.kind)}({expression.right.type})"
-                );
-        }
-    }
-
-    private void EmitStringConcatExpression(ILProcessor iLProcessor, BoundBinaryExpression expression) {
-        // Flatten the expression tree to a sequence of nodes to concatenate,
-        // Then fold consecutive constants in that sequence.
-        // This approach enables constant folding of non-sibling nodes,
-        // Which cannot be done in theConstantFolding class as it would require changing the tree.
-        // Example: folding b and c in ((a + b) + c) if they are constant.
-
-        var nodes = FoldConstants(Flatten(expression)).ToList();
-
-        switch (nodes.Count) {
-            case 0:
-                iLProcessor.Emit(OpCodes.Ldstr, string.Empty);
-                break;
-            case 1:
-                EmitExpression(iLProcessor, nodes[0]);
-                break;
-            case 2:
-                EmitExpression(iLProcessor, nodes[0]);
-                EmitExpression(iLProcessor, nodes[1]);
-                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcat2]);
-                break;
-            case 3:
-                EmitExpression(iLProcessor, nodes[0]);
-                EmitExpression(iLProcessor, nodes[1]);
-                EmitExpression(iLProcessor, nodes[2]);
-                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcat3]);
-                break;
-            case 4:
-                EmitExpression(iLProcessor, nodes[0]);
-                EmitExpression(iLProcessor, nodes[1]);
-                EmitExpression(iLProcessor, nodes[2]);
-                EmitExpression(iLProcessor, nodes[3]);
-                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcat4]);
-                break;
-            default:
-                iLProcessor.Emit(OpCodes.Ldc_I4, nodes.Count);
-                iLProcessor.Emit(OpCodes.Newarr, _knownTypes[TypeSymbol.String]);
-
-                for (var i = 0; i < nodes.Count; i++) {
-                    iLProcessor.Emit(OpCodes.Dup);
-                    iLProcessor.Emit(OpCodes.Ldc_I4, i);
-                    EmitExpression(iLProcessor, nodes[i]);
-                    iLProcessor.Emit(OpCodes.Stelem_Ref);
-                }
-
-                iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.StringConcatArray]);
-                break;
-        }
-
-        // TODO Use similar logic for other data types and operators (e.g. 2 * x * 4 -> 8 * x)
-
-        // (a + b) + (c + d) --> [a, b, c, d]
-        static IEnumerable<BoundExpression> Flatten(BoundExpression node) {
-            if (node is BoundBinaryExpression binaryExpression &&
-                binaryExpression.op.opKind == BoundBinaryOperatorKind.Addition &&
-                binaryExpression.left.type.typeSymbol == TypeSymbol.String &&
-                binaryExpression.right.type.typeSymbol == TypeSymbol.String) {
-                foreach (var result in Flatten(binaryExpression.left))
-                    yield return result;
-
-                foreach (var result in Flatten(binaryExpression.right))
-                    yield return result;
-            } else {
-                if (node.type.typeSymbol != TypeSymbol.String) {
-                    throw new BelteInternalException(
-                        $"Flatten: unexpected node type in string concatenation '{node.type.typeSymbol}'"
-                    );
-                }
-
-                yield return node;
-            }
-        }
-
-        // [a, "foo", "bar", b, ""] --> [a, "foobar", b]
-        static IEnumerable<BoundExpression> FoldConstants(IEnumerable<BoundExpression> nodes) {
-            StringBuilder sb = null;
-
-            foreach (var node in nodes) {
-                if (node.constantValue != null) {
-                    var stringValue = (string)node.constantValue.value;
-
-                    if (string.IsNullOrEmpty(stringValue))
-                        continue;
-
-                    sb ??= new StringBuilder();
-                    sb.Append(stringValue);
-                } else {
-                    if (sb?.Length > 0) {
-                        yield return new BoundLiteralExpression(sb.ToString());
-                        sb.Clear();
-                    }
-
-                    yield return node;
+    private bool TryResolveMethodCore(
+        TypeDefinition[] foundTypes,
+        string typeName,
+        string methodName,
+        string[] parameterTypeNames,
+        out MethodReference methodDefinition) {
+        var foundType = foundTypes[0];
+        var methods = foundType.Methods.Where(m => m.Name == methodName);
+
+        foreach (var method in methods) {
+            if (method.Parameters.Count != parameterTypeNames.Length)
+                continue;
+
+            var allParametersMatch = true;
+
+            for (var i = 0; i < parameterTypeNames.Length; i++) {
+                if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
+                    allParametersMatch = false;
+                    break;
                 }
             }
 
-            if (sb?.Length > 0)
-                yield return new BoundLiteralExpression(sb.ToString());
-        }
-    }
+            if (!allParametersMatch)
+                continue;
 
-    private void EmitVariableExpression(ILProcessor iLProcessor, BoundVariableExpression expression) {
-        /*
-
-        <variable>
-
-        ---->
-
-        ldloc <variable>
-
-        */
-        iLProcessor.Emit(OpCodes.Ldloc, _locals[expression.variable]);
-    }
-
-    private void EmitAssignmentExpression(ILProcessor iLProcessor, BoundAssignmentExpression expression) {
-        /*
-
-        <left> = <right>
-
-        ----> <left> is an IndexExpression
-
-        <left>
-        <right>
-        stelem.any
-
-        ----> <left> is a MemberAccessExpression
-
-        <left>
-        <right>
-        stfld <left.field>
-
-        ----> <left> is a VariableExpression and a struct
-
-        ldloca.s <left.variable>
-        <right>
-        stloc.s <left.variable>
-
-        ----> <left> is a VariableExpression and nullable or dimensioned
-
-        ldloca.s <left.variable>
-        <right>
-        call T System.Nullable`1< <left.type> >::.ctor(T)
-
-        ----> <left> is a VariableExpression and not nullable
-
-        <left>
-        <right>
-        stloc <left.variable>
-
-        */
-        var isNullable = false;
-
-        if (expression.left is BoundVariableExpression ve) {
-            if (ve.variable.type.isNullable &&
-                ve.variable.type.typeSymbol is not StructSymbol &&
-                ve.variable.type.dimensions < 1) {
-                if (!expression.right.type.isNullable) {
-                    isNullable = true;
-                    iLProcessor.Emit(OpCodes.Ldloca_S, _locals[ve.variable]);
-                }
-            }
-        } else {
-            EmitExpression(iLProcessor, expression.left);
+            methodDefinition = _assemblyDefinition.MainModule.ImportReference(method);
+            return true;
         }
 
-        EmitExpression(iLProcessor, expression.right);
-
-        if (expression.left is BoundIndexExpression) {
-            iLProcessor.Emit(OpCodes.Stelem_Any);
-        } else if (expression.left is BoundMemberAccessExpression ma) {
-            iLProcessor.Emit(OpCodes.Stfld, GetFieldReference(ma));
-        } else if (expression.left is BoundVariableExpression bve) {
-            if (expression.left.type.typeSymbol is StructSymbol)
-                iLProcessor.Emit(OpCodes.Stloc_S, _locals[bve.variable]);
-            else if (!isNullable)
-                iLProcessor.Emit(OpCodes.Stloc, _locals[bve.variable]);
-            else if (isNullable)
-                iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.left.type));
-        }
+        methodDefinition = null;
+        return false;
     }
 
-    private void EmitEmptyExpression(ILProcessor iLProcessor, BoundEmptyExpression expression) {
-        /*
+    private void ResolveTypes() {
+        var builtInTypes = new List<(SpecialType type, string metadataName)>() {
+            (SpecialType.Object, "System.Object"),
+            (SpecialType.Any, "System.Object"),
+            (SpecialType.Bool, "System.Boolean"),
+            (SpecialType.Int, "System.Int64"),
+            (SpecialType.String, "System.String"),
+            (SpecialType.Decimal, "System.Double"),
+            (SpecialType.Nullable, "System.Nullable`1"),
+            (SpecialType.Void, "System.Void"),
+            (SpecialType.Type, "System.Type"),
+            (SpecialType.Char, "System.Char"),
+            (SpecialType.Exception, "System.Exception"),
+        };
 
-        ---->
-
-        nop
-
-        */
-        iLProcessor.Emit(OpCodes.Nop);
-    }
-
-    private void EmitCallExpression(ILProcessor iLProcessor, BoundCallExpression expression) {
-        /*
-
-        <method>(<arguments>)
-
-        ----> <method> is RandInt
-
-        <arguments>
-        callvirt System.Int32 System.Random::Next()
-
-        ----> <method> is Print
-
-        <arguments>
-        call System.Void System.Console::Write(System.Object)
-
-        ----> <method> is PrintLine
-
-        <arguments>
-        call System.Void System.Console::WriteLine(System.Object)
-
-        ----> <method> is PrintLineNoValue
-
-        call System.Void System.Console::WriteLine()
-
-        ----> <method> is Input
-
-        call System.String System.Console::ReadLine()
-
-        ----> <method> is Value
-
-        <arguments>
-        stloc.s
-        ldloca.s
-        call T System.Nullable`1< <type> >::.get_Value()
-
-        ----> <method> is HasValue
-
-        <arguments>
-        stloc.s
-        ldloca.s
-        call System.Boolean System.Nullable`1< <type> >::.get_HasValue()
-
-        ---->
-
-        <arguments>
-        call <method>
-
-        */
-        if (expression.method == BuiltinMethods.RandInt) {
-            if (_randomFieldDefinition is null)
-                EmitRandomField();
-
-            iLProcessor.Emit(OpCodes.Ldsfld, _randomFieldDefinition);
+        foreach (var (type, metadataName) in builtInTypes) {
+            var typeReference = ResolveType(CorLibrary.GetSpecialType(type).name, metadataName);
+            _specialTypes.Add(type, typeReference);
         }
 
-        foreach (var argument in expression.arguments)
-            EmitExpression(iLProcessor, argument);
-
-        if (expression.method == BuiltinMethods.RandInt) {
-            iLProcessor.Emit(OpCodes.Callvirt, _methodReferences[NetMethodReference.RandomNext]);
-            return;
-        }
-
-        // if (expression.method == BuiltinMethods.Print) {
-        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWrite]);
-        // } else if (expression.method == BuiltinMethods.PrintLine) {
-        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLine]);
-        // } else if (expression.method == BuiltinMethods.PrintLineNoValue) {
-        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleWriteLineNoArgs]);
-        // } else if (expression.method == BuiltinMethods.Input) {
-        //     iLProcessor.Emit(OpCodes.Call, _methodReferences[NetMethodReference.ConsoleReadLine]);
-        if (expression.method.name == "Value") {
-            var typeReference = GetType(expression.arguments[0].type);
-            var variableDefinition = new VariableDefinition(typeReference);
-            iLProcessor.Body.Variables.Add(variableDefinition);
-
-            iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
-            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-            iLProcessor.Emit(OpCodes.Call, GetNullableValue(expression.arguments[0].type));
-        } else if (expression.method.name == "HasValue") {
-            var typeReference = GetType(expression.arguments[0].type);
-            var variableDefinition = new VariableDefinition(typeReference);
-            iLProcessor.Body.Variables.Add(variableDefinition);
-
-            iLProcessor.Emit(OpCodes.Stloc_S, variableDefinition);
-            iLProcessor.Emit(OpCodes.Ldloca_S, variableDefinition);
-            iLProcessor.Emit(OpCodes.Call, GetNullableHasValue(expression.arguments[0].type));
-        } else {
-            var methodDefinition = LookupMethod(_methods, expression.method);
-            iLProcessor.Emit(OpCodes.Call, methodDefinition);
-        }
+        NetTypeReference.Random = ResolveType(null, "System.Random");
+        NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
+        NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
     }
 
-    private void EmitCastExpression(ILProcessor iLProcessor, BoundCastExpression expression) {
-        if (BoundConstant.IsNull(expression.expression.constantValue)) {
-            EmitExpression(iLProcessor, new BoundLiteralExpression(null, expression.type));
-            return;
-        }
+    private MethodReference CheckStandardMap(MethodSymbol method) {
+        var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        EmitExpression(iLProcessor, expression.expression);
-        var subExpressionType = expression.expression.type;
-        var expressionType = expression.type;
-
-        var needsBoxing = subExpressionType.typeSymbol == TypeSymbol.Int ||
-            subExpressionType.typeSymbol == TypeSymbol.Bool ||
-            subExpressionType.typeSymbol == TypeSymbol.Decimal;
-
-        if (needsBoxing)
-            iLProcessor.Emit(OpCodes.Box, GetType(subExpressionType));
-
-        if (expressionType.typeSymbol != TypeSymbol.Any)
-            iLProcessor.Emit(OpCodes.Call, GetConvertTo(subExpressionType, expressionType, true));
-
-        if (expression.type.isNullable && !needsBoxing)
-            iLProcessor.Emit(OpCodes.Call, GetNullableCtor(expression.type));
+        return mapKey switch {
+            "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_get_Value" => GetNullableValue(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_get_HasValue" => GetNullableHasValue(method.containingType.templateArguments[0].type.type),
+            _ => _stlMap[mapKey],
+        };
     }
 
-    private void EmitTernaryExpression(ILProcessor iLProcessor, BoundTernaryExpression expression) {
-        /*
-
-        <left> <center> <op> <right>
-
-        ----> <op> is conditional
-
-        <left>
-        brtrue.s TernaryLabel0
-        <right>
-        br.s TernaryLabel1
-    TernaryLabel0
-        nop
-        <center>
-    TernaryLabel1
-        nop
-
-        */
-        switch (expression.op.opKind) {
-            case BoundTernaryOperatorKind.Conditional:
-                EmitExpression(iLProcessor, expression.left);
-
-                var centerBranchLabel = GenerateLabel();
-                _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, centerBranchLabel));
-                iLProcessor.Emit(OpCodes.Brtrue_S, Instruction.Create(OpCodes.Nop));
-
-                EmitExpression(iLProcessor, expression.right);
-
-                var rightBranchLabel = GenerateLabel();
-                _unhandledGotos.Add((iLProcessor.Body.Instructions.Count, rightBranchLabel));
-                iLProcessor.Emit(OpCodes.Br_S, Instruction.Create(OpCodes.Nop));
-
-                _labels.Add(centerBranchLabel, iLProcessor.Body.Instructions.Count);
-
-                EmitExpression(iLProcessor, expression.center);
-
-                _labels.Add(rightBranchLabel, iLProcessor.Body.Instructions.Count);
-                break;
-            default:
-                throw new BelteInternalException(
-                    $"EmitTernaryExpression: unexpected ternary operator ({expression.left.type})" +
-                    $"{SyntaxFacts.GetText(expression.op.leftOpKind)}({expression.center.type})" +
-                    $"{SyntaxFacts.GetText(expression.op.rightOpKind)}({expression.right.type})"
-                );
-        }
+    private void ResolveMethods() {
+        NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
+        NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
+        NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
+        NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
+        NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
+        NetMethodReference.String_Concat_A = ResolveMethod("System.String", "Concat", ["System.String[]"]);
+        NetMethodReference.String_Equality_SS = ResolveMethod("System.String", "op_Equality", ["System.String", "System.String"]);
+        NetMethodReference.String_get_Chars_I = ResolveMethod("System.String", "get_Chars", ["System.Int32"]);
+        NetMethodReference.Convert_ToBoolean_S = ResolveMethod("System.Convert", "ToBoolean", ["System.String"]);
+        NetMethodReference.Convert_ToInt64_S = ResolveMethod("System.Convert", "ToInt64", ["System.String"]);
+        NetMethodReference.Convert_ToInt64_D = ResolveMethod("System.Convert", "ToInt64", ["System.Double"]);
+        NetMethodReference.Convert_ToDouble_S = ResolveMethod("System.Convert", "ToDouble", ["System.String"]);
+        NetMethodReference.Convert_ToDouble_I = ResolveMethod("System.Convert", "ToDouble", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
+        NetMethodReference.Random_ctor = ResolveMethod("System.Random", ".ctor", []);
+        NetMethodReference.Random_NextInt64_I = ResolveMethod("System.Random", "NextInt64", ["System.Int64"]);
+        NetMethodReference.Random_NextDouble = ResolveMethod("System.Random", "NextDouble", []);
+        NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
+        NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
+        NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
+        NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
+        NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
+        NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
+        NetMethodReference.Array_Sort = ResolveMethod("System.Array", "Sort", ["T[]"]);
+        NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T[]"]);
     }
 
-    private BoundLabel GenerateLabel() {
-        var name = $"TernaryLabel{++_ternaryLabelCount}";
-
-        return new BoundLabel(name);
-    }
-
-    private void EmitObjectCreationExpression(ILProcessor iLProcessor, BoundObjectCreationExpression expression) {
-        // iLProcessor.Emit(OpCodes.Newobj, /* TODO */null);
+    private void GenerateSTLMap() {
+        _stlMap = new Dictionary<string, MethodReference>() {
+            { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+            { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
+            { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
+            { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
+            { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
+            { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
+            { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+            { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+            { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
+            { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
+            { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+            { "Console_PrintLine_O?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+            { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
+            { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
+            { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
+            { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
+            { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
+            { "Directory_Create_S", ResolveMethod("System.IO.Directory", "CreateDirectory", ["System.String"]) },
+            { "Directory_Delete_S", ResolveMethod("System.IO.Directory", "Delete", ["System.String"]) },
+            { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
+            { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
+            { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },
+            { "File_Create_S", ResolveMethod("System.IO.File", "Create", ["System.String"]) },
+            { "File_Copy_S", ResolveMethod("System.IO.File", "Copy", ["System.String", "System.String"]) },
+            { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
+            { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
+            { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
+            { "File_WriteText_S", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
+            { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
+            { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
+            { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
+            { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
+            { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
+            { "LowLevel_Sort_A?", ResolveMethod("Belte.Runtime.Utilities", "Sort", ["System.Object[]"]) },
+            { "LowLevel_Length_A?", ResolveMethod("Belte.Runtime.Utilities", "Length", ["System.Object[]"]) },
+            { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
+            { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
+            { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
+            { "Math_Abs_D?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Abs_D", ResolveMethod("System.Math", "Abs", ["System.Double"]) },
+            { "Math_Abs_I?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Int64>"]) },
+            { "Math_Abs_I", ResolveMethod("System.Math", "Abs", ["System.Int64"]) },
+            { "Math_Acos_D?", ResolveMethod("Belte.Runtime.Math", "Acos", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Acos_D", ResolveMethod("System.Math", "Acos", ["System.Double"]) },
+            { "Math_Acosh_D?", ResolveMethod("Belte.Runtime.Math", "Acosh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Acosh_D", ResolveMethod("System.Math", "Acosh", ["System.Double"]) },
+            { "Math_Asin_D?", ResolveMethod("Belte.Runtime.Math", "Asin", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Asin_D", ResolveMethod("System.Math", "Asin", ["System.Double"]) },
+            { "Math_Asinh_D?", ResolveMethod("Belte.Runtime.Math", "Asinh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Asinh_D", ResolveMethod("System.Math", "Asinh", ["System.Double"]) },
+            { "Math_Atan_D?", ResolveMethod("Belte.Runtime.Math", "Atan", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Atan_D", ResolveMethod("System.Math", "Atan", ["System.Double"]) },
+            { "Math_Atanh_D?", ResolveMethod("Belte.Runtime.Math", "Atanh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Atanh_D", ResolveMethod("System.Math", "Atanh", ["System.Double"]) },
+            { "Math_Ceiling_D?", ResolveMethod("Belte.Runtime.Math", "Ceiling", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Ceiling_D", ResolveMethod("System.Math", "Ceiling", ["System.Double"]) },
+            { "Math_Clamp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Clamp_DDD", ResolveMethod("System.Math", "Clamp", ["System.Double","System.Double", "System.Double"]) },
+            { "Math_Clamp_I?I?I?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Clamp_III", ResolveMethod("System.Math", "Clamp", ["System.Int64","System.Int64", "System.Int64"]) },
+            { "Math_Cos_D?", ResolveMethod("Belte.Runtime.Math", "Cos", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Cos_D", ResolveMethod("System.Math", "Cos", ["System.Double"]) },
+            { "Math_Cosh_D?", ResolveMethod("Belte.Runtime.Math", "Cosh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Cosh_D", ResolveMethod("System.Math", "Cosh", ["System.Double"]) },
+            { "Math_Exp_D?", ResolveMethod("Belte.Runtime.Math", "Exp", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Exp_D", ResolveMethod("System.Math", "Exp", ["System.Double"]) },
+            { "Math_Floor_D?", ResolveMethod("Belte.Runtime.Math", "Floor", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Floor_D", ResolveMethod("System.Math", "Floor", ["System.Double"]) },
+            { "Math_Lerp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Lerp_DDD", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Double", "System.Double", "System.Double"]) },
+            { "Math_Log_D?D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Log_DD", ResolveMethod("System.Math", "Log", ["System.Double", "System.Double"]) },
+            { "Math_Log_D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Log_D", ResolveMethod("System.Math", "Log", ["System.Double"]) },
+            { "Math_Max_D?D?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Max_DD", ResolveMethod("System.Math", "Max", ["System.Double", "System.Double"]) },
+            { "Math_Max_I?I?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Max_II", ResolveMethod("System.Math", "Max", ["System.Int64", "System.Int64"]) },
+            { "Math_Min_D?D?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Min_DD", ResolveMethod("System.Math", "Min", ["System.Double", "System.Double"]) },
+            { "Math_Min_I?I?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Min_II", ResolveMethod("System.Math", "Min", ["System.Int64", "System.Int64"]) },
+            { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
+            { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
+            { "Math_Pow_I?I?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Round_D?", ResolveMethod("Belte.Runtime.Math", "Round", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Round_D", ResolveMethod("System.Math", "Round", ["System.Double"]) },
+            { "Math_Sign_D?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sign_D", ResolveMethod("System.Math", "Sign", ["System.Double"]) },
+            { "Math_Sign_I?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Int64>"]) },
+            { "Math_Sign_I", ResolveMethod("System.Math", "Sign", ["System.Int64"]) },
+            { "Math_Sin_D?", ResolveMethod("Belte.Runtime.Math", "Sin", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sin_D", ResolveMethod("System.Math", "Sin", ["System.Double"]) },
+            { "Math_Sinh_D?", ResolveMethod("Belte.Runtime.Math", "Sinh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sinh_D", ResolveMethod("System.Math", "Sinh", ["System.Double"]) },
+            { "Math_Sqrt_D?", ResolveMethod("Belte.Runtime.Math", "Sqrt", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sqrt_D", ResolveMethod("System.Math", "Sqrt", ["System.Double"]) },
+            { "Math_Tan_D?", ResolveMethod("Belte.Runtime.Math", "Tan", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Tan_D", ResolveMethod("System.Math", "Tan", ["System.Double"]) },
+            { "Math_Tanh_D?", ResolveMethod("Belte.Runtime.Math", "Tanh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Tanh_D", ResolveMethod("System.Math", "Tanh", ["System.Double"]) },
+            { "Math_Truncate_D?", ResolveMethod("Belte.Runtime.Math", "Truncate", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Truncate_D", ResolveMethod("System.Math", "Truncate", ["System.Double"]) },
+        };
     }
 }

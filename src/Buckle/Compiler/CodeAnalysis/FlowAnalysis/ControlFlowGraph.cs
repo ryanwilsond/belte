@@ -55,7 +55,7 @@ internal sealed class ControlFlowGraph {
         var blocks = basicBlockBuilder.Build(body);
         var graphBuilder = new ControlFlowGraphBuilder();
 
-        return graphBuilder.Build(blocks);
+        return graphBuilder.Build(blocks, basicBlockBuilder.regions);
     }
 
     /// <summary>
@@ -68,10 +68,14 @@ internal sealed class ControlFlowGraph {
 
         foreach (var branch in graph.end.incoming) {
             var lastStatement = branch.from.statements.LastOrDefault();
+
+            if (lastStatement is null)
+                return false;
+
             var lastStatementIsThrow = lastStatement is BoundExpressionStatement es &&
                 es.expression is BoundThrowExpression;
 
-            if (lastStatement is null || (lastStatement.kind != BoundNodeKind.ReturnStatement && !lastStatementIsThrow))
+            if (lastStatement.kind != BoundKind.ReturnStatement && !lastStatementIsThrow)
                 return false;
         }
 

@@ -1,0 +1,175 @@
+/*
+
+    Snake Game
+
+    This program uses the built-in graphics library to make a simple snake game.
+
+    Based on Bro Code's tutorial: https://youtu.be/bfRwxS5d0SI
+
+*/
+
+class Program {
+    string! direction;
+    string! pendingDirection;
+    decimal! snakeTimer;
+    int! scoreCounter = 0;
+    int! highScoreCounter = 21;
+
+    Text score;
+    Text highScore;
+    Text scoreText;
+    Text gameOverLine1;
+    Text gameOverLine2;
+    Text gameOverLine3;
+    Text gameOverLine4;
+    Snake snake;
+    Food food;
+    Rect banner;
+
+    bool! previousW;
+    bool! previousA;
+    bool! previousS;
+    bool! previousD;
+
+    bool! gameOver;
+
+    private void Main() {
+        Graphics.Initialize("Snake", Settings.GameWidth, Settings.GameHeight + 80);
+        Graphics.LockFramerate(120);
+
+        var scoreTextPosition = new Vec2(Settings.GameWidth / 2 - 30, 40);
+        var scorePosition = new Vec2(Settings.GameWidth / 2 - 100, 37);
+        var highScorePosition = new Vec2(Settings.GameWidth / 2 + 280, 37);
+
+        scoreText = Graphics.LoadText("Score:        High Score:", "samples/Assets/arial.ttf", scoreTextPosition, 40, 0, 255, 255, 255);
+        score = Graphics.LoadText("0", "samples/Assets/arial.ttf", scorePosition, 40, 0, 255, 255, 255);
+        highScore = Graphics.LoadText((string)highScoreCounter, "samples/Assets/arial.ttf", highScorePosition, 40, 0, 255, 255, 255);
+
+        var position1 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 - 100);
+        var position2 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2);
+        var position3 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 75);
+        var position4 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 250);
+        gameOverLine1 = Graphics.LoadText("Game Over!", "samples/Assets/arial.ttf", position1, 80, 0, 255, 100, 100);
+        gameOverLine2 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position2, 50, 0, 255, 100, 100);
+        gameOverLine3 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position3, 50, 0, 255, 100, 100);
+        gameOverLine4 = Graphics.LoadText("Press 'ENTER' to restart", "samples/Assets/arial.ttf", position4, 30, 0, 255, 255, 255);
+
+        banner = new Rect(0, 0, Settings.GameWidth, 80);
+        Restart();
+    }
+
+    private void Restart() {
+        snake = new Snake();
+        food = new Food();
+        gameOver = false;
+        direction = "down";
+        pendingDirection = "down";
+        snakeTimer = 0;
+        previousW = false;
+        previousA = false;
+        previousS = false;
+        previousD = false;
+        score.text = "0";
+        scoreCounter = 0;
+    }
+
+    private void Update(decimal! deltaTime) {
+        Graphics.Fill(0, 0, 0);
+
+        if (gameOver) {
+            Graphics.DrawText(gameOverLine1);
+            Graphics.DrawText(gameOverLine2);
+            Graphics.DrawText(gameOverLine3);
+            Graphics.DrawText(gameOverLine4);
+
+            if (Graphics.GetKey("Enter"))
+                Restart();
+
+            return;
+        }
+
+        snakeTimer += deltaTime;
+
+        if (Graphics.GetKey("W") && !previousW && direction != "down")
+            pendingDirection = "up";
+        else if (Graphics.GetKey("S") && !previousS && direction != "up")
+            pendingDirection = "down";
+        else if (Graphics.GetKey("A") && !previousA && direction != "right")
+            pendingDirection = "left";
+        else if (Graphics.GetKey("D") && !previousD && direction != "left")
+            pendingDirection = "right";
+
+        if (snakeTimer >= Settings.Speed) {
+            snakeTimer -= Settings.Speed;
+            UpdateSnake();
+        }
+
+        Graphics.DrawRect(banner, 100, 100, 100);
+        Graphics.DrawText(score);
+        Graphics.DrawText(scoreText);
+        Graphics.DrawText(highScore);
+        Graphics.DrawSprite(food.sprite);
+        snake.Draw();
+
+        previousW = Graphics.GetKey("W");
+        previousA = Graphics.GetKey("A");
+        previousS = Graphics.GetKey("S");
+        previousD = Graphics.GetKey("D");
+    }
+
+    private void UpdateSnake() {
+        direction = pendingDirection;
+        var backSegment = snake.coords[snake.bodySize - 1];
+
+        for (int i = snake.bodySize - 1; i > 0; i--) {
+            snake.coords[i].x = snake.coords[i - 1].x;
+            snake.coords[i].y = snake.coords[i - 1].y;
+        }
+
+        if (direction == "up")
+            snake.coords[0].y -= 1;
+        else if (direction == "down")
+            snake.coords[0].y += 1;
+        else if (direction == "left")
+            snake.coords[0].x -= 1;
+        else if (direction == "right")
+            snake.coords[0].x += 1;
+
+        if (snake.coords[0].x == food.x && snake.coords[0].y == food.y) {
+            scoreCounter++;
+            highScoreCounter = Math.Max(highScoreCounter, scoreCounter);
+
+            score.text = (string)scoreCounter;
+            highScore.text = (string)highScoreCounter;
+
+            snake.AddBodySegment(backSegment.x, backSegment.y);
+            food.RandomizeLocation(snake);
+        }
+
+        if (CheckCollisions())
+            GameOver();
+    }
+
+    private bool! CheckCollisions() {
+        var x = snake.coords[0].x;
+        var y = snake.coords[0].y;
+
+        var max = (Settings.GameWidth / Settings.SpaceSize);
+
+        if (x < 0 || x >= max || y < 0 || y >= max)
+            return true;
+
+        for (var i = 1; i < snake.bodySize; i++) {
+            if (x == snake.coords[i].x && y == snake.coords[i].y)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void GameOver() {
+        gameOver = true;
+        gameOverLine2.text = "Score: " + score.text;
+        gameOverLine3.text = "High Score: " + highScore.text;
+    }
+}

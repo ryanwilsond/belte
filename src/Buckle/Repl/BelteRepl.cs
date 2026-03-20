@@ -14,6 +14,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Diagnostics;
 using Repl.Themes;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
@@ -25,8 +26,9 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, ProjectType.Console, [], true, false);
-    private static readonly Compilation EmptyCompilation = Compilation.CreateScript(DefaultOptions, null);
+        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true, false);
+    // TODO Any benefit to generating numbered assembly names so they are unique?
+    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         [
             ("Dark", "", new DarkTheme()),
@@ -48,13 +50,22 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
+        handle.state.warningLevel = 2;
+
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
         _hasDiagnosticHandle = true;
+        var diagnostics = LoadLibraries();
         ResetState();
         Console.BackgroundColor = state.colorTheme.background;
         EvaluateClear();
-        LoadSubmissions();
+
+        if (diagnostics.AnyErrors()) {
+            handle.AddLibraryErrors(diagnostics);
+            errorHandle(handle, "repl");
+        } else {
+            LoadSubmissions();
+        }
     }
 
     /// <summary>
@@ -92,6 +103,25 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
+    public override void Dispose() {
+        state.context.Dispose();
+        base.Dispose();
+    }
+
+    /// <summary>
+    /// Clears the submissions directory (without evaluation).
+    /// </summary>
+    public static int ClearSubmissions() {
+        var path = GetSubmissionsDirectory();
+
+        if (!Directory.Exists(path))
+            return 0;
+
+        var submissionCount = Directory.GetFiles(path).Length;
+        Directory.Delete(path, true);
+        return submissionCount;
+    }
+
     internal override void ResetState() {
         state.showTokens = false;
         state.showTree = false;
@@ -100,16 +130,20 @@ public sealed partial class BelteRepl : Repl {
         state.showIL = false;
         state.showCS = false;
         state.loadingSubmissions = false;
-        state.variables = new Dictionary<IVariableSymbol, EvaluatorObject>();
-        state.previous = null;
+        state.previous = state.baseCompilation;
         state.currentPage = Page.Repl;
+
+        if (state.context is null)
+            state.context = new EvaluatorContext(DefaultOptions);
+        else
+            state.context.Reset();
+
         _changes.Clear();
         ClearTree();
         base.ResetState();
-        LoadLibraries();
     }
 
-    protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
+    private protected override void RenderLine(IReadOnlyList<string> lines, int lineIndex) {
         UpdateTree();
 
         var texts = new List<(string text, ConsoleColor color)>();
@@ -161,25 +195,25 @@ public sealed partial class BelteRepl : Repl {
 
         Console.ForegroundColor = state.colorTheme.@default;
     }
-    protected override void EvaluateSubmission(string text) {
+    private protected override void EvaluateSubmission(string text) {
         // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
         // Otherwise, this is much slower than the 0 arity overload
         var syntaxTree = SyntaxTree.Parse(text, SourceCodeKind.Script);
         EvaluateSubmissionInternal(syntaxTree);
     }
 
-    protected override void EvaluateSubmission() {
+    private protected override void EvaluateSubmission() {
         UpdateTree();
         EvaluateSubmissionInternal(state.tree);
         ClearTree();
     }
 
-    protected override string EditSubmission() {
+    private protected override string EditSubmission() {
         ClearTree();
         return base.EditSubmission();
     }
 
-    protected override void AddChange(
+    private protected override void AddChange(
         ObservableCollection<string> document, int lineIndex, int startIndex, int oldLength, string newText) {
         var position = startIndex;
 
@@ -189,11 +223,11 @@ public sealed partial class BelteRepl : Repl {
         _changes.Add(new TextChange(new TextSpan(position, oldLength), newText));
     }
 
-    protected override void AddClearChange(ObservableCollection<string> document) {
+    private protected override void AddClearChange(ObservableCollection<string> document) {
         ClearTree();
     }
 
-    protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
+    private protected override void AddRemoveLineChange(ObservableCollection<string> document, int lineIndex) {
         var position = 0;
 
         for (var i = 0; i < lineIndex; i++) {
@@ -208,16 +242,14 @@ public sealed partial class BelteRepl : Repl {
         );
     }
 
-    protected override bool IsCompleteSubmission(string text) {
+    private protected override bool IsCompleteSubmission(string text) {
         if (string.IsNullOrEmpty(text))
             return true;
 
-        var twoBlankTines = text.Split(Environment.NewLine).Reverse()
-            .TakeWhile(s => string.IsNullOrEmpty(s) || string.IsNullOrWhiteSpace(s))
-            .Take(2)
-            .Count() == 2;
+        var lines = text.Split(Environment.NewLine);
+        var twoBlankLines = lines.TakeLast(2).All(string.IsNullOrWhiteSpace);
 
-        if (twoBlankTines)
+        if (twoBlankLines)
             return true;
 
         UpdateTree();
@@ -229,26 +261,19 @@ public sealed partial class BelteRepl : Repl {
         return true;
     }
 
-    protected override void AddDiagnostic(Diagnostic diagnostic) {
+    private protected override void AddDiagnostic(Diagnostic diagnostic) {
         handle.diagnostics.Push(diagnostic);
     }
 
-    protected override void ClearDiagnostics() {
+    private protected override void ClearDiagnostics() {
         handle.diagnostics.Clear();
     }
 
-    protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
+    private protected override void CallDiagnosticHandle(object handle, object arg1 = null, object arg2 = null) {
         if (arg2 is null)
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string);
         else
             _diagnosticHandle(handle as Compiler, arg1 is null ? null : arg1 as string, (ConsoleColor)arg2);
-    }
-
-    private static void ClearSubmissions() {
-        var path = GetSubmissionsDirectory();
-
-        if (Directory.Exists(path))
-            Directory.Delete(GetSubmissionsDirectory(), true);
     }
 
     private static string GetSubmissionsDirectory() {
@@ -269,7 +294,7 @@ public sealed partial class BelteRepl : Repl {
 
     private void IterateTokens(SyntaxNodeOrToken node, DisplayText text) {
         if (node.isToken) {
-            node.AsToken().WriteTo(text);
+            SyntaxTokenExtensions.PrettyPrint(text, node.AsToken());
             text.Write(CreateSpace());
         }
 
@@ -279,24 +304,24 @@ public sealed partial class BelteRepl : Repl {
         }
     }
 
-    private void LoadLibraries() {
-        var compilation = CompilerHelpers.LoadLibraries(DefaultOptions);
-        state.previous = compilation;
-        compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), _abortEvaluation);
+    private BelteDiagnosticQueue LoadLibraries() {
+        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl);
+        state.baseCompilation = compilation;
+        return compilation.GetDiagnostics();
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
-        var compilation = Compilation.CreateScript(DefaultOptions, state.previous, syntaxTree);
+        var compilation = Compilation.CreateScript("ReplSubmission", DefaultOptions, syntaxTree, state.previous);
         var displayText = new DisplayText();
 
         if (state.showTokens) {
             IterateTokens(syntaxTree.GetRoot(), displayText);
-            displayText.Write(CreateLine());
+            displayText.WriteLine();
             WriteDisplayText(displayText);
         }
 
         if (state.showTree) {
-            syntaxTree.GetRoot().WriteTo(displayText);
+            SyntaxNodeExtensions.PrettyPrint(displayText, syntaxTree.GetRoot());
             WriteDisplayText(displayText);
         }
 
@@ -306,29 +331,31 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showCS) {
-            var code = compilation.EmitToString(BuildMode.CSharpTranspile, "ReplSubmission");
+            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile);
             writer.Write(code);
         }
 
         if (state.showIL) {
             try {
-                var code = compilation.EmitToString(BuildMode.Dotnet, "ReplSubmission");
+                var code = compilation.EmitToString(out _, BuildMode.Dotnet);
                 writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
             }
         }
 
+        var diagnostics = compilation.GetDiagnostics();
+
         if (state.showWarnings)
-            handle.diagnostics.Move(compilation.diagnostics);
+            handle.diagnostics.PushRange(diagnostics);
         else
-            handle.diagnostics.Move(compilation.diagnostics.Errors());
+            handle.diagnostics.PushRange(diagnostics.Errors());
 
         EvaluationResult result = null;
         Console.ForegroundColor = state.colorTheme.result;
 
-        if (!handle.diagnostics.Errors().Any()) {
-            result = compilation.Evaluate(state.variables, _abortEvaluation);
+        if (!handle.diagnostics.AnyErrors()) {
+            result = compilation.Evaluate(state.context, _abortEvaluation);
 
             if (result.lastOutputWasPrint)
                 writer.WriteLine();
@@ -337,35 +364,32 @@ public sealed partial class BelteRepl : Repl {
                 Console.ForegroundColor = state.colorTheme.@default;
                 return;
             }
-
-            if (state.showWarnings)
-                handle.diagnostics.Move(result.diagnostics);
-            else
-                handle.diagnostics.Move(result.diagnostics.Errors());
         }
 
-        var hasErrors = handle.diagnostics.Errors().Any();
+        var hasErrors = handle.diagnostics.AnyErrors();
 
         if (handle.diagnostics.Any()) {
-            if (_hasDiagnosticHandle) {
-                // ? View the todo marker in BelteDiagnosticQueue.CleanDiagnostics
-                // handle.diagnostics = BelteDiagnosticQueue.CleanDiagnostics(handle.diagnostics);
+            if (_hasDiagnosticHandle)
                 _diagnosticHandle(handle, textColor: state.colorTheme.textDefault);
-            } else {
+            else
                 handle.diagnostics.Clear();
-            }
         }
 
         if (!hasErrors) {
-            if (result.hasValue && !state.loadingSubmissions) {
-                RenderResult(result.value);
-                writer.WriteLine();
+            if (result.exceptions.Count != 0) {
+                foreach (var exception in result.exceptions)
+                    DiagnosticFormatter.PrettyPrintException(exception, state.colorTheme.textDefault);
+            } else {
+                if (result.hasValue && !state.loadingSubmissions) {
+                    RenderResult(result.value);
+                    writer.WriteLine();
+                }
+
+                if (!result.containsIO)
+                    SaveSubmission(syntaxTree.text.ToString());
             }
 
             state.previous = compilation;
-
-            if (!result.containsIO)
-                SaveSubmission(syntaxTree.text.ToString());
         }
 
         Console.ForegroundColor = state.colorTheme.@default;
@@ -431,6 +455,10 @@ public sealed partial class BelteRepl : Repl {
             }
 
             writer.Write(" }");
+        } else if (value is ISymbol symbol) {
+            displayText.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            displayText.Write(CreateSpace());
+            SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.QualifiedNameFormat);
         } else {
             writer.Write(value);
         }
@@ -456,7 +484,7 @@ public sealed partial class BelteRepl : Repl {
 
         var displayText = new DisplayText();
         displayText.Write(CreatePunctuation($"loaded {files.Length} {keyword}"));
-        displayText.Write(CreateLine());
+        displayText.WriteLine();
         WriteDisplayText(displayText);
 
         var @out = Console.Out;
@@ -489,6 +517,10 @@ public sealed partial class BelteRepl : Repl {
             else
                 writer.Write(segment.text);
         }
+    }
+
+    private object EvaluatorValueToNativeObject(EvaluatorValue evaluatorValue) {
+        return EvaluatorValue.Format(evaluatorValue, state.context);
     }
 
     [MetaCommand("showTree", "Toggle display of the parse tree")]
@@ -537,38 +569,352 @@ public sealed partial class BelteRepl : Repl {
         EvaluateSubmission(text);
     }
 
-    [MetaCommand("list", "List all defined symbols")]
-    private void EvaluateList() {
-        var compilation = state.previous ?? EmptyCompilation;
-        var symbols = compilation.GetSymbols().OrderBy(s => s.kind).ThenBy(s => s.name);
+    [MetaCommand("list", "List [all|global|type] symbols")]
+    private void EvaluateList(string mode = "global") {
+        if (mode != "all" && mode != "global" && mode != "type") {
+            handle.diagnostics.Push(
+                new BelteDiagnostic(Diagnostics.Error.InvalidOption(mode, ["all", "global", "type"]))
+            );
+
+            if (_hasDiagnosticHandle)
+                _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            else
+                handle.diagnostics.Clear();
+
+            return;
+        }
+
         var displayText = new DisplayText();
 
-        foreach (var symbol in symbols) {
-            if (symbol.parent == null) {
-                SymbolDisplay.DisplaySymbol(displayText, symbol, true);
-                displayText.Write(CreateLine());
+        if (mode == "type" || mode == "all") {
+            writer.WriteLine("Type Symbols:");
+
+            var compilation = state.previous ?? EmptyCompilation;
+            var symbols = compilation.GetSymbols(true);
+
+            foreach (var symbol in symbols) {
+                displayText.Write(CreateIndent());
+                SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
+                displayText.WriteLine();
+            }
+
+            WriteDisplayText(displayText);
+        }
+
+        if (mode == "all")
+            writer.WriteLine();
+
+        if (mode == "global" || mode == "all") {
+            writer.WriteLine("Global Symbols:");
+
+            if (state.previous is not null) {
+                var seenLocals = new HashSet<string>();
+                var seenMethods = new HashSet<string>();
+
+                var globals = state.previous.GetSymbols(
+                    includePreviousCompilations: true,
+                    includeSimpleProgramLocals: true
+                ).Where(
+                    s => (s.kind == SymbolKind.Local && seenLocals.Add(s.name)) ||
+                    (s is IMethodSymbol m &&
+                        m.methodKind == MethodKind.LocalFunction &&
+                        seenMethods.Add(s.name)));
+
+                foreach (var symbol in globals) {
+                    displayText.Write(CreateIndent());
+                    SymbolDisplay.AppendToDisplayText(displayText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
+                    displayText.WriteLine();
+                }
+
+                WriteDisplayText(displayText);
+            }
+        }
+    }
+
+    [MetaCommand("dump", "Locate a symbol to show the contents of")]
+    private void EvaluateDump() {
+        state.currentPage = Page.DumpLocator;
+        Console.CursorVisible = false;
+
+        var targetIndex = 0;
+        var select = false;
+        ISymbol currentSymbol = null;
+        var currentIsType = false;
+        var isAtTop = true;
+
+        var compilation = state.previous ?? EmptyCompilation;
+        var topLevelSymbols = compilation.GetSymbols(includeExternal: true, includePreviousCompilations: true);
+        var toplevelGlobals = state.context.GetTrackedGlobalObjects();
+        var currentSymbols = topLevelSymbols;
+        var currentGlobals = toplevelGlobals;
+        var currentGlobal = EvaluatorValue.None;
+        Stack<(ISymbol, EvaluatorValue)> globalChain = [];
+
+        while (true) {
+            if (UpdatePage(select))
+                break;
+
+            var key = Console.ReadKey(true);
+            select = false;
+
+            if (key.Key == ConsoleKey.Enter) {
+                select = true;
+            } else if (key.Key == ConsoleKey.UpArrow) {
+                if (targetIndex > 0)
+                    targetIndex--;
+            } else if (key.Key == ConsoleKey.DownArrow) {
+                var pageLength = (currentSymbol is null ? 0 : 2) + currentSymbols.Length + currentGlobals.Count;
+
+                if (targetIndex < pageLength)
+                    targetIndex++;
             }
         }
 
-        WriteDisplayText(displayText);
+        Console.BackgroundColor = state.colorTheme.background;
+        Console.CursorVisible = true;
+        ReviveDocument();
+        state.currentPage = Page.Repl;
+
+        if (currentSymbol is not null) {
+            var displayText = new DisplayText();
+
+            displayText.Write(CreatePunctuation("#"));
+            displayText.Write(CreateKeyword("dump "));
+            DisplaySymbolName(displayText, currentSymbol);
+            displayText.WriteLine();
+
+            if (currentIsType) {
+                compilation.EmitTree(currentSymbol, displayText);
+                WriteDisplayText(displayText);
+            } else {
+                SymbolDisplay.AppendToDisplayText(displayText, currentSymbol, SymbolDisplayFormat.BoundDisplayFormat);
+                displayText.Write(CreatePunctuation(" = "));
+                WriteDisplayText(displayText);
+                var localValue = EvaluatorValueToNativeObject(currentGlobal);
+                RenderResult(localValue);
+                writer.WriteLine();
+            }
+        }
+
+        bool UpdatePage(bool select) {
+            var includeUp = currentSymbol is not null;
+
+            if (select) {
+                if (targetIndex == 0) {
+                    currentSymbol = null;
+                    return true;
+                } else if (targetIndex == 1 && includeUp) {
+                    if (currentIsType) {
+                        currentSymbol = currentSymbol.containingSymbol;
+
+                        if (currentSymbol.kind == SymbolKind.Namespace) {
+                            currentSymbol = null;
+                            currentSymbols = topLevelSymbols;
+                            currentGlobals = toplevelGlobals;
+                            isAtTop = true;
+                        }
+                    } else {
+                        if (globalChain.TryPop(out var both)) {
+                            currentSymbol = both.Item1;
+                            currentGlobal = both.Item2;
+                        } else {
+                            currentSymbol = null;
+                            currentGlobal = EvaluatorValue.None;
+                            currentSymbols = topLevelSymbols;
+                            currentGlobals = toplevelGlobals;
+                            isAtTop = true;
+                        }
+                    }
+                } else if (targetIndex == 2 && includeUp) {
+                    return true;
+                } else {
+                    var trueIndex = targetIndex - (includeUp ? 3 : 1);
+
+                    if (isAtTop) {
+                        isAtTop = false;
+
+                        if (trueIndex >= currentSymbols.Length) {
+                            currentIsType = false;
+                            trueIndex -= currentSymbols.Length;
+                            currentSymbols = [];
+                        } else {
+                            currentGlobals = [];
+                            currentIsType = true;
+                        }
+                    }
+
+                    if (currentIsType) {
+                        currentSymbol = currentSymbols[trueIndex];
+                    } else {
+                        (currentSymbol, currentGlobal) = currentGlobals.ElementAt(trueIndex);
+                        globalChain.Push((currentSymbol, currentGlobal));
+                    }
+                }
+
+                if (currentSymbol is not null) {
+                    if (currentIsType) {
+                        currentSymbols = currentSymbol switch {
+                            INamespaceSymbol ns => ns.GetMembers(),
+                            INamedTypeSymbol namedType => namedType.GetMembers(),
+                            IMethodSymbol method => CompilationExtensions.GetMethodLocals(method)
+                                                        .Cast<ISymbol>().ToImmutableArray(),
+                            _ => [],
+                        };
+                    } else {
+                        currentGlobals = EvaluatorValue.GetFieldsFromPtr(currentGlobal, state.context);
+                    }
+                }
+
+                includeUp = currentSymbol is not null;
+                targetIndex = includeUp ? 2 : 1;
+
+                if (!includeUp &&
+                    ((currentIsType && currentSymbols.Length == 0) || (!currentIsType && currentGlobals.Count == 0))) {
+                    targetIndex--;
+                }
+            }
+
+            Console.BackgroundColor = state.colorTheme.background;
+            Console.Clear();
+            var pageText = new DisplayText();
+            pageText.Write(CreatePunctuation("#"));
+            pageText.Write(CreateKeyword("dump "));
+
+            if (currentSymbol is null)
+                pageText.Write(CreatePunctuation("[none]"));
+            else
+                DisplaySymbolName(pageText, currentSymbol);
+
+            WriteDisplayText(pageText);
+
+            writer.WriteLine();
+
+            var index = 2;
+            Console.ForegroundColor = state.colorTheme.textDefault;
+
+            if (targetIndex == 0)
+                Console.BackgroundColor = state.colorTheme.selection;
+
+            writer.SetCursorPosition(9, index++);
+            writer.Write("Exit");
+            Console.BackgroundColor = state.colorTheme.background;
+
+            if (includeUp) {
+                if (targetIndex == 1)
+                    Console.BackgroundColor = state.colorTheme.selection;
+
+                writer.SetCursorPosition(9, index++);
+                writer.Write("..");
+                Console.BackgroundColor = state.colorTheme.background;
+
+                if (targetIndex == 2)
+                    Console.BackgroundColor = state.colorTheme.selection;
+
+                writer.SetCursorPosition(9, index++);
+                writer.Write("Select Current Symbol");
+                Console.BackgroundColor = state.colorTheme.background;
+            }
+
+            if (currentSymbols.Length > 0 && currentGlobals.Count > 0) {
+                writer.SetCursorPosition(0, index);
+                writer.WriteLine("Types:");
+            }
+
+            foreach (var symbol in currentSymbols) {
+                writer.SetCursorPosition(9, index++);
+
+                if (targetIndex == index - 3)
+                    Console.BackgroundColor = state.colorTheme.selection;
+                else
+                    Console.BackgroundColor = state.colorTheme.background;
+
+                SymbolDisplay.AppendToDisplayText(pageText, symbol, SymbolDisplayFormat.BoundDisplayFormat);
+                WriteDisplayText(pageText);
+            }
+
+            if (currentSymbols.Length > 0 && currentGlobals.Count > 0) {
+                Console.BackgroundColor = state.colorTheme.background;
+                writer.SetCursorPosition(0, index);
+                writer.WriteLine("Globals:");
+            }
+
+            foreach (var global in currentGlobals) {
+                writer.SetCursorPosition(9, index++);
+
+                if (targetIndex == index - 3)
+                    Console.BackgroundColor = state.colorTheme.selection;
+                else
+                    Console.BackgroundColor = state.colorTheme.background;
+
+                SymbolDisplay.AppendToDisplayText(pageText, global.Key, SymbolDisplayFormat.BoundDisplayFormat);
+                WriteDisplayText(pageText);
+            }
+
+            return false;
+        }
+
+        static void DisplaySymbolName(DisplayText text, ISymbol symbol) {
+            if (symbol.kind == SymbolKind.Local) {
+                SymbolDisplay.AppendToDisplayText(
+                    text,
+                    symbol.containingSymbol,
+                    SymbolDisplayFormat.QualifiedNameFormat
+                );
+
+                text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+            }
+
+            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.QualifiedNameFormat);
+        }
     }
 
     [MetaCommand("dump", "Show contents of symbol <signature>")]
     private void EvaluateDump(string signature) {
         // TODO Let this work with template overloads
+
+        if (signature.StartsWith("global::"))
+            signature = signature.Substring(8);
+        else if (signature.StartsWith("global."))
+            signature = signature.Substring(7);
+
+        // Prefer tracked symbols first
+        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects()) {
+            var local = symbolAndValue.Key;
+
+            if (local.name == signature) {
+                var localDisplayText = new DisplayText();
+                SymbolDisplay.AppendToDisplayText(localDisplayText, local, SymbolDisplayFormat.BoundDisplayFormat);
+                localDisplayText.Write(CreatePunctuation(" = "));
+                WriteDisplayText(localDisplayText);
+
+                var localValue = EvaluatorValueToNativeObject(symbolAndValue.Value);
+                RenderResult(localValue);
+                writer.WriteLine();
+
+                return;
+            }
+        }
+
+        // Then do a deeper search for non-global symbols
         var compilation = state.previous ?? EmptyCompilation;
+
+        var allSymbols = compilation.GetSymbols(
+            includePreviousCompilations: true,
+            includeSimpleProgramLocals: true,
+            includeExternal: true
+        );
+
         var name = signature.Contains('(') ? signature.Split('(')[0] : signature;
         ISymbol[] symbols;
 
         if (name.Contains('.')) {
             var failed = false;
             var parts = name.Split('.');
-            var currentSymbols = compilation.GetSymbols();
 
             for (var i = 0; i < parts.Length - 1; i++) {
-                var namedTypes = currentSymbols
-                    .Where(s => s.name == parts[i] && s is ITypeSymbolWithMembers)
-                    .Select(s => s as ITypeSymbolWithMembers);
+                var namedTypes = allSymbols
+                    .Where(s => s.name == parts[i] && s is INamedTypeSymbol)
+                    .Select(s => s as INamedTypeSymbol);
 
                 if (!namedTypes.Any()) {
                     failed = true;
@@ -576,43 +922,27 @@ public sealed partial class BelteRepl : Repl {
                 }
 
                 var first = namedTypes.First();
-                currentSymbols = first.GetMembers().Where(s => s.parent == first);
-
-                if (!currentSymbols.Any())
-                    currentSymbols = first.GetMembers();
+                allSymbols = first.GetMembers();
             }
 
             if (failed) {
                 symbols = [];
             } else {
                 symbols = (signature == name
-                    ? currentSymbols.Where(s => s.name == parts[^1])
-                    : currentSymbols.Where(s => s is IMethodSymbol i &&
-                        i.Signature() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
+                    ? allSymbols.Where(s => s.name == parts[^1])
+                    : allSymbols.Where(s => s is IMethodSymbol i &&
+                        i.ToString() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
                     .ToArray();
             }
         } else {
             symbols = (signature == name
-                ? compilation.GetSymbols().Where(f => f.name == name)
-                : compilation.GetSymbols<IMethodSymbol>().Where(f => f.Signature() == signature))
+                ? allSymbols.Where(s => s.name == name)
+                : allSymbols.Where(s => s.name == name).Where(f => f.ToString() == signature))
                     .ToArray();
         }
 
         ISymbol symbol = null;
         var displayText = new DisplayText();
-
-        if (symbols.Length == 0 && signature.StartsWith('<')) {
-            // This will find hidden method symbols not normally exposed to the user
-            // Generated methods should never have overloads, so only the name is checked
-            // (as apposed to the entire signature)
-            try {
-                compilation.EmitTree(name, displayText);
-                WriteDisplayText(displayText);
-                return;
-            } catch (BelteException) {
-                // If the generated method does not actually exist, just ignore and continue
-            }
-        }
 
         if (symbols.Length == 0) {
             if (signature == name)
@@ -635,7 +965,7 @@ public sealed partial class BelteRepl : Repl {
             symbol = symbols[0];
         }
 
-        if (symbol != null) {
+        if (symbol is not null) {
             compilation.EmitTree(symbol, displayText);
             WriteDisplayText(displayText);
             return;
@@ -720,6 +1050,37 @@ public sealed partial class BelteRepl : Repl {
         foreach (var (name, _, _) in InUse)
             maxNameLength = name.Length > maxNameLength ? name.Length : maxNameLength;
 
+        var targetIndex = 2;
+        var index = 2;
+
+        foreach (var (_, _, theme) in InUse) {
+            if (state.colorTheme.GetType() == theme.GetType())
+                targetIndex = index;
+            else
+                index++;
+        }
+
+        while (true) {
+            UpdatePage(targetIndex);
+
+            var key = Console.ReadKey(true);
+
+            if (key.Key == ConsoleKey.Enter) {
+                Console.BackgroundColor = state.colorTheme.background;
+                break;
+            } else if (key.Key == ConsoleKey.UpArrow) {
+                if (targetIndex - 2 > 0)
+                    targetIndex--;
+            } else if (key.Key == ConsoleKey.DownArrow) {
+                if (targetIndex - 2 < InUse.Length - 1)
+                    targetIndex++;
+            }
+        }
+
+        Console.BackgroundColor = state.colorTheme.background;
+        ReviveDocument();
+        state.currentPage = Page.Repl;
+
         void UpdatePage(int targetIndex) {
             targetIndex -= 2;
             state.colorTheme = InUse[targetIndex].theme;
@@ -751,37 +1112,6 @@ public sealed partial class BelteRepl : Repl {
 
             writer.SetCursorPosition(7, targetIndex + 2);
         }
-
-        var targetIndex = 2;
-        var index = 2;
-
-        foreach (var (_, _, theme) in InUse) {
-            if (state.colorTheme.GetType() == theme.GetType())
-                targetIndex = index;
-            else
-                index++;
-        }
-
-        while (true) {
-            UpdatePage(targetIndex);
-
-            var key = Console.ReadKey(true);
-
-            if (key.Key == ConsoleKey.Enter) {
-                Console.BackgroundColor = state.colorTheme.background;
-                break;
-            } else if (key.Key == ConsoleKey.UpArrow) {
-                if (targetIndex - 2 > 0)
-                    targetIndex--;
-            } else if (key.Key == ConsoleKey.DownArrow) {
-                if (targetIndex - 2 < InUse.Length - 1)
-                    targetIndex++;
-            }
-        }
-
-        Console.BackgroundColor = state.colorTheme.background;
-        ReviveDocument();
-        state.currentPage = Page.Repl;
     }
 
     [MetaCommand("showWarnings", "Toggle display of warnings")]

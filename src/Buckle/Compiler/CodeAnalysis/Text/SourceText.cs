@@ -23,7 +23,7 @@ public abstract class SourceText {
     private static readonly ObjectPool<char[]> CharArrayPool =
         new ObjectPool<char[]>(() => new char[CharBufferSize], CharBufferCount);
 
-    protected ImmutableArray<TextLine>? _lines;
+    private protected ImmutableArray<TextLine>? _lines;
 
     public override string ToString() => ToString(new TextSpan(0, length));
 
@@ -118,8 +118,8 @@ public abstract class SourceText {
         if (!changes.Any())
             return this;
 
-        var segments = ImmutableArray.CreateBuilder<SourceText>();
-        var changeRanges = ImmutableArray.CreateBuilder<TextChangeRange>();
+        var segments = ArrayBuilder<SourceText>.GetInstance();
+        var changeRanges = ArrayBuilder<TextChangeRange>.GetInstance();
 
         var position = 0;
 
@@ -168,11 +168,14 @@ public abstract class SourceText {
         }
 
         var newText = CompositeText.ToSourceText(segments);
+        segments.Free();
 
-        if (newText != null)
-            return new ChangedText(this, newText, changeRanges.ToImmutable());
-        else
+        if (newText is not null) {
+            return new ChangedText(this, newText, changeRanges.ToImmutableAndFree());
+        } else {
+            changeRanges.Free();
             return this;
+        }
     }
 
     /// <summary>
@@ -221,6 +224,16 @@ public abstract class SourceText {
         return false;
     }
 
+    public SourceText GetSubText(int start) {
+        if (start < 0 || start > length)
+            throw new ArgumentOutOfRangeException(nameof(start));
+
+        if (start == 0)
+            return this;
+
+        return GetSubText(new TextSpan(start, length - start));
+    }
+
     /// <summary>
     /// Constructs a new <see cref="SourceText" /> from this with the specified changes.
     /// </summary>
@@ -253,8 +266,8 @@ public abstract class SourceText {
             return new SubText(this, span);
     }
 
-    protected static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
-        var result = ImmutableArray.CreateBuilder<TextLine>();
+    private protected static ImmutableArray<TextLine> ParseLines(SourceText pointer, string text) {
+        var result = ArrayBuilder<TextLine>.GetInstance();
 
         if (text is null)
             return result.ToImmutable();
@@ -277,12 +290,12 @@ public abstract class SourceText {
         if (position >= lineStart)
             AddLine(result, pointer, position, lineStart, 0);
 
-        return result.ToImmutable();
+        return result.ToImmutableAndFree();
     }
 
-    protected abstract void EnsureLines();
+    private protected abstract void EnsureLines();
 
-    private static void AddLine(ImmutableArray<TextLine>.Builder result, SourceText pointer,
+    private static void AddLine(ArrayBuilder<TextLine> result, SourceText pointer,
         int position, int lineStart, int lineBreakWidth) {
         var lineLength = position - lineStart;
         var line = new TextLine(pointer, lineStart, lineLength, lineLength + lineBreakWidth);

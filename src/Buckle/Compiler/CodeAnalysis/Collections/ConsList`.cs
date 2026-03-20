@@ -23,6 +23,17 @@ internal partial class ConsList<T> : IEnumerable<T> {
 
     internal ConsList<T> tail => _tail;
 
+    internal bool ContainsReference(T element) {
+        var list = this;
+
+        for (; list != Empty; list = list.tail) {
+            if (ReferenceEquals(list.head, element))
+                return true;
+        }
+
+        return false;
+    }
+
     internal bool Any() {
         return this != Empty;
     }

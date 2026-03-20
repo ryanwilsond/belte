@@ -1,3 +1,4 @@
+using System.IO;
 using Buckle.Utilities;
 using Diagnostics;
 
@@ -68,5 +69,9 @@ internal class SyntaxTrivia : BelteSyntaxNode {
 
     internal override void Accept(SyntaxVisitor visitor) {
         visitor.VisitTrivia(this);
+    }
+
+    private protected override void WriteTriviaTo(TextWriter writer) {
+        writer.Write(text);
     }
 }

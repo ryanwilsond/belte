@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />
+    <ProjectReference Include="..\..\Buckle\Compiler\Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

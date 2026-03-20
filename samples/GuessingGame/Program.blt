@@ -8,21 +8,87 @@
 */
 
 // In this file, the entry point is `void Main()` because the compiler searches
-// for either a `void Main()` or `int Main()` function to treat as the entry point.
-void Main() {
-    var max = 100;
+// for either a `void Main()` or `int Main()` method to treat as the entry point.
+// There can only be 1 Main method, and it can be contained in any class
+static class Program {
+    public static void Main() {
+        var max = 100;
 
-    // The functions `StartGame`, `AskForHints`, and `RunGame` are defined in "./Game.blt"
-    // The compiler finds them automatically, no importing of any kind necessary
-    var magicNumber = StartGame(max);
-    var hintsWanted = AskForHints();
-    var guesses = RunGame(magicNumber, max, hintsWanted);
+        // The functions `StartGame`, `AskForHints`, and `RunGame` are defined in "./Game.blt"
+        // The compiler finds them automatically, no importing of any kind necessary
+        var magicNumber = StartGame(max);
+        var hintsWanted = AskForHints();
+        var guesses = RunGame(magicNumber, max, hintsWanted);
 
-    // If statements don't require curly braces if they only contain a single statement.
-    if (guesses < 0)
-        Console.PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
-    else
-        Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
+        // If statements don't require curly braces if they only contain a single statement.
+        if (guesses < 0)
+            Console.PrintLine("Giving up, are we? The number would have been " + ((string)magicNumber) + ".");
+        else
+            Console.PrintLine("Congrats, you guessed correctly in " + ((string)guesses) + " guesses!");
 
-    Console.PrintLine("Bye.");
+        Console.PrintLine("Bye.");
+    }
+
+    private static int StartGame(int max) {
+        // Use the `RandInt` built-in method to generate a random number from 0 to `max`, inclusive.
+        var magicNumber = Random.RandInt(max);
+        Console.PrintLine("I thought of a number between 1 and " + ((string)max) + ".");
+
+        return magicNumber;
+    }
+
+    private static bool AskForHints() {
+        while (true) {
+            Console.Print("Do you want hints? ");
+            // Use the `Input` built-in method to get input from the user; standard in (the terminal).
+            var wantsHints = Console.Input();
+
+            if (wantsHints == "yes" || wantsHints == "y")
+                return true;
+            if (wantsHints == "no" || wantsHints == "n")
+                return false;
+
+            Console.PrintLine("You can say 'yes', 'y', 'no', or 'n'");
+        }
+    }
+
+    private static int RunGame(int magicNumber, int max, bool hintsWanted) {
+        var guesses = 1;
+        var idealGuess = max / 2;
+        var lowerBound = 1;
+        var upperBound = max;
+
+        while (true) {
+            var prompt = "OK, what's your guess? ";
+
+            if (hintsWanted)
+                prompt = prompt + "(ideal: " + ((string)idealGuess) + ") ";
+
+            Console.Print(prompt);
+            var guessText = Console.Input();
+
+            if (guessText == "") {
+                if (hintsWanted)
+                    guessText = (string!)idealGuess;
+                else
+                    return -1;
+            }
+
+            var guess = (int)guessText;
+
+            if (guess > magicNumber) {
+                Console.PrintLine("The number is lower");
+                upperBound = idealGuess;
+                idealGuess -= (upperBound - lowerBound + 1) / 2;
+            } else if (guess < magicNumber) {
+                Console.PrintLine("The number is higher");
+                lowerBound = idealGuess;
+                idealGuess += (upperBound - lowerBound + 1) / 2;
+            } else {
+                return guesses;
+            }
+
+            guesses++;
+        }
+    }
 }

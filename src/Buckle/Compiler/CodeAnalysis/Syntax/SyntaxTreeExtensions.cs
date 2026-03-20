@@ -31,23 +31,17 @@ public static class SyntaxTreeExtensions {
         SourceText text,
         bool includeEOF = false) {
         var tokens = new InternalSyntax.SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
+        var lexer = new Lexer(text, true);
 
-        void ParseTokens(SyntaxTree syntaxTree) {
-            var lexer = new Lexer(syntaxTree, true);
+        while (true) {
+            var token = lexer.LexNext(LexerMode.Syntax);
 
-            while (true) {
-                var token = lexer.LexNext(LexerMode.Syntax);
+            if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
+                tokens.Add(token);
 
-                if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
-                    tokens.Add(token);
-
-                if (token.kind == SyntaxKind.EndOfFileToken)
-                    break;
-            }
+            if (token.kind == SyntaxKind.EndOfFileToken)
+                break;
         }
-
-        var syntaxTree = new SyntaxTree(text, SourceCodeKind.Script);
-        ParseTokens(syntaxTree);
 
         return tokens.ToList();
     }

@@ -1,174 +1,207 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 internal static partial class BoundFactory {
-    internal static BoundGlobalScope GlobalScope(BoundGlobalScope previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundGlobalScope(
-            ImmutableArray<(MethodSymbol, BoundBlockStatement)>.Empty,
-            previous,
-            diagnostics,
-            new Dictionary<string, MethodSymbol> {
-                { WellKnownMethodNames.EntryPoint, null },
-                { WellKnownMethodNames.GraphicsStart, null },
-                { WellKnownMethodNames.GraphicsUpdate, null }
-            },
-            ImmutableArray<MethodSymbol>.Empty,
-            ImmutableArray<VariableSymbol>.Empty,
-            ImmutableArray<NamedTypeSymbol>.Empty,
-            ImmutableArray<BoundStatement>.Empty,
-            previous.libraryTypes,
-            []
-        );
-    }
-
-    internal static BoundProgram Program(BoundProgram previous, BelteDiagnosticQueue diagnostics) {
-        return new BoundProgram(
-            previous,
-            diagnostics,
-            new Dictionary<string, MethodSymbol> {
-                { WellKnownMethodNames.EntryPoint, null },
-                { WellKnownMethodNames.GraphicsStart, null },
-                { WellKnownMethodNames.GraphicsUpdate, null }
-            },
-            ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Empty,
-            ImmutableArray<NamedTypeSymbol>.Empty,
-            ImmutableArray<NamedTypeSymbol>.Empty
-        );
-    }
-
     internal static BoundNopStatement Nop() {
-        return new BoundNopStatement();
+        return new BoundNopStatement(null);
     }
 
-    internal static BoundLiteralExpression Literal(object value, BoundType type = null) {
-        if (type != null)
-            return new BoundLiteralExpression(value, type);
+    internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
+        if (type is not null)
+            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.StrippedType().specialType), type);
 
-        return new BoundLiteralExpression(value);
+        var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
+        return new BoundLiteralExpression(
+            syntax,
+            new ConstantValue(value, specialType),
+            CorLibrary.GetSpecialType(specialType)
+        );
     }
 
-    internal static BoundBlockStatement Block(params BoundStatement[] statements) {
-        return new BoundBlockStatement(ImmutableArray.Create(statements));
+    internal static BoundBlockStatement Block(SyntaxNode syntax, params BoundStatement[] statements) {
+        return new BoundBlockStatement(syntax, ImmutableArray.Create(statements), [], []);
     }
 
-    internal static BoundBlockStatement Block(params ImmutableArray<BoundStatement>[] blocks) {
-        var builder = blocks[0].ToBuilder();
-
-        for (var i = 1; i < blocks.Length; i++)
-            builder.AddRange(blocks[i]);
-
-        return new BoundBlockStatement(builder.ToImmutable());
+    internal static BoundBlockStatement Block(
+        SyntaxNode syntax,
+        ImmutableArray<DataContainerSymbol> locals,
+        params BoundStatement[] statements) {
+        return new BoundBlockStatement(syntax, ImmutableArray.Create(statements), locals, []);
     }
 
-    internal static BoundBlockStatement Block() {
-        return new BoundBlockStatement(ImmutableArray<BoundStatement>.Empty);
+    internal static BoundLabelStatement Label(SyntaxNode syntax, LabelSymbol label) {
+        return new BoundLabelStatement(syntax, label);
     }
 
-    internal static BoundLabelStatement Label(BoundLabel label) {
-        return new BoundLabelStatement(label);
+    internal static BoundGotoStatement Goto(SyntaxNode syntax, LabelSymbol label) {
+        return new BoundGotoStatement(syntax, label);
     }
 
-    internal static BoundGotoStatement Goto(BoundLabel label) {
-        return new BoundGotoStatement(label);
+    internal static BoundConditionalGotoStatement GotoIf(SyntaxNode syntax, LabelSymbol @goto, BoundExpression @if) {
+        return new BoundConditionalGotoStatement(syntax, @goto, @if, true);
     }
 
-    internal static BoundConditionalGotoStatement GotoIf(BoundLabel @goto, BoundExpression @if) {
-        return new BoundConditionalGotoStatement(@goto, @if, true);
+    internal static BoundConditionalGotoStatement GotoIfNot(
+        SyntaxNode syntax,
+        LabelSymbol @goto,
+        BoundExpression @ifNot) {
+        return new BoundConditionalGotoStatement(syntax, @goto, @ifNot, false);
     }
 
-    internal static BoundConditionalGotoStatement GotoIfNot(BoundLabel @goto, BoundExpression @ifNot) {
-        return new BoundConditionalGotoStatement(@goto, @ifNot, false);
-    }
-
-    internal static BoundExpressionStatement Statement(BoundExpression expression) {
-        return new BoundExpressionStatement(expression);
+    internal static BoundExpressionStatement Statement(SyntaxNode syntax, BoundExpression expression) {
+        return new BoundExpressionStatement(syntax, expression);
     }
 
     internal static BoundWhileStatement While(
-        BoundExpression condition, BoundStatement body, BoundLabel breakLabel, BoundLabel continueLabel) {
-        return new BoundWhileStatement(condition, body, breakLabel, continueLabel);
+        SyntaxNode syntax,
+        ImmutableArray<DataContainerSymbol> locals,
+        BoundExpression condition,
+        BoundStatement body,
+        SynthesizedLabelSymbol breakLabel,
+        SynthesizedLabelSymbol continueLabel) {
+        return new BoundWhileStatement(syntax, locals, condition, body, breakLabel, continueLabel);
     }
 
-    internal static BoundCallExpression Call(MethodSymbol method, params BoundExpression[] arguments) {
-        return new BoundCallExpression(new BoundEmptyExpression(), method, ImmutableArray.Create(arguments), []);
+    internal static BoundCallExpression InstanceCall(
+        SyntaxNode syntax,
+        BoundExpression receiver,
+        MethodSymbol method,
+        params BoundExpression[] arguments) {
+        return new BoundCallExpression(
+            syntax,
+            receiver,
+            method,
+            ImmutableArray.Create(arguments),
+            ImmutableArray.CreateRange(Enumerable.Repeat(RefKind.None, arguments.Length)),
+            BitVector.Empty,
+            LookupResultKind.Viable,
+            method.returnType
+        );
     }
 
-    internal static BoundCastExpression Cast(BoundType type, BoundExpression expression) {
-        return new BoundCastExpression(type, expression);
+    internal static BoundCallExpression Call(
+        SyntaxNode syntax,
+        MethodSymbol method,
+        params BoundExpression[] arguments) {
+        return InstanceCall(syntax, null, method, arguments);
     }
 
-    internal static BoundMemberAccessExpression MemberAccess(
+    internal static BoundCastExpression Cast(
+        SyntaxNode syntax,
+        TypeSymbol type,
+        BoundExpression expression,
+        Conversion conversion,
+        ConstantValue constant) {
+        return new BoundCastExpression(syntax, expression, conversion, constant, type);
+    }
+
+    internal static BoundConditionalOperator Conditional(
+        SyntaxNode syntax,
+        BoundExpression @if,
+        BoundExpression @then,
+        BoundExpression @else,
+        TypeSymbol type) {
+        return new BoundConditionalOperator(syntax, @if, false, @then, @else, null, type);
+    }
+
+    internal static BoundAssignmentOperator Assignment(
+        SyntaxNode syntax,
         BoundExpression left,
         BoundExpression right,
-        bool isStaticAccess = false) {
-        return new BoundMemberAccessExpression(left, right, false, isStaticAccess);
+        bool isRef,
+        TypeSymbol type) {
+        return new BoundAssignmentOperator(syntax, left, right, isRef, type);
     }
 
-    internal static BoundIndexExpression Index(BoundExpression operand, BoundExpression index) {
-        return new BoundIndexExpression(operand, index, false);
-    }
-
-    internal static BoundTernaryExpression NullConditional(
-        BoundExpression @if, BoundExpression @then, BoundExpression @else) {
-        var op = BoundTernaryOperator.Bind(
-            SyntaxKind.QuestionToken, SyntaxKind.ColonToken, @if.type, @then.type, @else.type
+    internal static BoundCompoundAssignmentOperator Increment(SyntaxNode syntax, BoundExpression operand) {
+        var isInt = operand.StrippedType().specialType == SpecialType.Int;
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(
+            BinaryOperatorKind.Addition,
+            operand.Type(),
+            operand.Type()
         );
 
-        return new BoundTernaryExpression(@if, op, @then, @else);
+        var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
+        return new BoundCompoundAssignmentOperator(
+            syntax,
+            operand,
+            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
+            opSignature,
+            null,
+            null,
+            null,
+            null,
+            LookupResultKind.Viable,
+            [],
+            operand.Type()
+        );
     }
 
-    internal static BoundAssignmentExpression Assignment(BoundExpression left, BoundExpression right) {
-        return new BoundAssignmentExpression(left, right);
+    internal static BoundCompoundAssignmentOperator Decrement(SyntaxNode syntax, BoundExpression operand) {
+        var isInt = operand.StrippedType().specialType == SpecialType.Int;
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.Type(), operand.Type());
+        var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
+        return new BoundCompoundAssignmentOperator(
+            syntax,
+            operand,
+            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
+            opSignature,
+            null,
+            null,
+            null,
+            null,
+            LookupResultKind.Viable,
+            [],
+            operand.Type()
+        );
     }
 
-    internal static BoundCompoundAssignmentExpression Increment(BoundExpression operand) {
-        var value = new BoundTypeWrapper(BoundType.Int, new BoundConstant(1));
-        var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, operand.type, value.type);
-
-        return new BoundCompoundAssignmentExpression(operand, op, value);
+    internal static BoundUnaryOperator Unary(
+        SyntaxNode syntax,
+        UnaryOperatorKind opKind,
+        BoundExpression operand,
+        TypeSymbol type) {
+        return new BoundUnaryOperator(syntax, operand, opKind, null, null, type);
     }
 
-    internal static BoundCompoundAssignmentExpression Decrement(BoundExpression operand) {
-        var value = new BoundTypeWrapper(BoundType.Int, new BoundConstant(1));
-        var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, operand.type, value.type);
-
-        return new BoundCompoundAssignmentExpression(operand, op, value);
+    internal static BoundBinaryOperator Binary(
+        SyntaxNode syntax,
+        BoundExpression left,
+        BinaryOperatorKind opKind,
+        BoundExpression right,
+        TypeSymbol type) {
+        return new BoundBinaryOperator(syntax, left, right, opKind, null, null, type);
     }
 
-    internal static BoundUnaryExpression Unary(BoundUnaryOperator op, BoundExpression operand) {
-        return new BoundUnaryExpression(op, operand);
+    internal static BoundBinaryOperator And(SyntaxNode syntax, BoundExpression left, BoundExpression right) {
+        return new BoundBinaryOperator(
+            syntax,
+            left,
+            right,
+            BinaryOperatorKind.BoolAnd,
+            null,
+            null,
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
     }
 
-    internal static BoundUnaryExpression Not(BoundExpression operand) {
-        var op = BoundUnaryOperator.Bind(SyntaxKind.ExclamationToken, operand.type);
-
-        return new BoundUnaryExpression(op, operand);
+    internal static BoundNullAssertOperator Value(SyntaxNode syntax, BoundExpression expression, TypeSymbol type) {
+        return new BoundNullAssertOperator(syntax, expression, false, null, type);
     }
 
-    internal static BoundBinaryExpression Binary(BoundExpression left, BoundBinaryOperator op, BoundExpression right) {
-        return new BoundBinaryExpression(left, op, right);
-    }
-
-    internal static BoundBinaryExpression Add(BoundExpression left, BoundExpression right) {
-        var op = BoundBinaryOperator.Bind(SyntaxKind.PlusToken, left.type, right.type);
-
-        return new BoundBinaryExpression(left, op, right);
-    }
-
-    internal static BoundBinaryExpression Subtract(BoundExpression left, BoundExpression right) {
-        var op = BoundBinaryOperator.Bind(SyntaxKind.MinusToken, left.type, right.type);
-
-        return new BoundBinaryExpression(left, op, right);
-    }
-
-    internal static BoundBinaryExpression And(BoundExpression left, BoundExpression right) {
-        var op = BoundBinaryOperator.Bind(SyntaxKind.AmpersandAmpersandToken, left.type, right.type);
-
-        return new BoundBinaryExpression(left, op, right);
+    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
+        return new BoundIsOperator(
+            syntax,
+            expression,
+            Literal(syntax, null, expression.Type()),
+            true,
+            null,
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
     }
 }

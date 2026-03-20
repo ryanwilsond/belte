@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -39,7 +41,7 @@ public static partial class SyntaxFactory {
     /// Creates a <see cref="LiteralExpressionSyntax"/>.
     /// </summary>
     public static LiteralExpressionSyntax Literal(object value) {
-        if (value is int or double) {
+        if (value is long or double) {
             return LiteralExpression(Token(SyntaxKind.NumericLiteralToken, value.ToString(), value));
         } else if (value is bool b) {
             return LiteralExpression(
@@ -85,13 +87,24 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates an empty <see cref="TemplateParameterConstraintClauseListSyntax" />.
+    /// Creates an empty <see cref="ParameterListSyntax" />.
     /// </summary>
-    public static TemplateParameterConstraintClauseListSyntax ConstraintClauseList() {
-        return TemplateParameterConstraintClauseList(
+    public static ParameterListSyntax ParameterList() {
+        return ParameterList(
+            Token(SyntaxKind.OpenParenToken),
+            SeparatedList<ParameterSyntax>(),
+            Token(SyntaxKind.CloseParenToken)
+        );
+    }
+
+    /// <summary>
+    /// Creates an empty <see cref="TemplateConstraintClauseListSyntax" />.
+    /// </summary>
+    public static TemplateConstraintClauseListSyntax ConstraintClauseList() {
+        return TemplateConstraintClauseList(
             Token(SyntaxKind.WhereKeyword),
             Token(SyntaxKind.OpenBraceToken),
-            List<TemplateParameterConstraintClauseSyntax>(),
+            List<TemplateConstraintClauseSyntax>(),
             Token(SyntaxKind.CloseBraceToken)
         );
     }
@@ -122,7 +135,35 @@ public static partial class SyntaxFactory {
         return BlockStatement(
             Token(SyntaxKind.OpenBraceToken),
             List(statements),
-            Token(SyntaxKind.CloseBraceToken)
+            Token(SyntaxKind.CloseBraceToken),
+            statements[0],
+            statements[0].position
+        );
+    }
+
+    internal static BlockStatementSyntax BlockWithParent(params StatementSyntax[] statements) {
+        return BlockStatement(
+            Token(SyntaxKind.OpenBraceToken),
+            List(statements),
+            Token(SyntaxKind.CloseBraceToken),
+            statements[0],
+            statements[0].position
+        );
+    }
+
+    internal static MethodDeclarationSyntax MethodWithParent(BlockStatementSyntax body) {
+        return MethodDeclaration(
+            List<AttributeListSyntax>(),
+            SyntaxTokenList.Empty,
+            IdentifierName(""),
+            Identifier(""),
+            TemplateParameterList(),
+            ParameterList(),
+            ConstraintClauseList(),
+            body,
+            Token(SyntaxKind.SemicolonToken),
+            body.statements[0],
+            body.statements[0].position
         );
     }
 
@@ -228,11 +269,33 @@ public static partial class SyntaxFactory {
     /// <summary>
     /// Creates an argument list.
     /// </summary>
-    public static ArgumentListSyntax ArgumentList(params ArgumentSyntax[] arguments) {
+    public static ArgumentListSyntax ArgumentList(params BaseArgumentSyntax[] arguments) {
         return ArgumentList(
             Token(SyntaxKind.OpenParenToken),
             SeparatedList(arguments),
             Token(SyntaxKind.CloseParenToken)
         );
+    }
+
+    public static CompilationUnitSyntax ParseCompilationUnit(string text, int offset = 0) {
+        using var lexer = MakeLexer(text, offset);
+        using var parser = MakeParser(lexer);
+        var node = parser.ParseCompilationUnit();
+        return (CompilationUnitSyntax)node.CreateRed();
+    }
+
+    private static Lexer MakeLexer(string text, int offset) {
+        return new Lexer(
+            MakeSourceText(text, offset),
+            false
+        );
+    }
+
+    private static LanguageParser MakeParser(Lexer lexer) {
+        return new LanguageParser(lexer, oldTree: null, changes: null);
+    }
+
+    private static SourceText MakeSourceText(string text, int offset) {
+        return SourceText.From(text).GetSubText(offset);
     }
 }

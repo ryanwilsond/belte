@@ -1,0 +1,24 @@
+
+class Cloud {
+    Sprite sprite;
+    Vec2 position;
+    decimal speed;
+    decimal depth;
+
+    public constructor(Vec2 position, ref Texture texture, decimal speed, decimal depth) {
+        this.speed = speed;
+        this.depth = depth;
+        this.position = position;
+        sprite = new Sprite(texture, null, new Rect(0, 0, texture.width * 3, texture.height * 3), 0);
+    }
+
+    public void Update(decimal! deltaTime) {
+        position.x += speed * deltaTime;
+    }
+
+    public void Render(Vec2 offset) {
+        sprite.dst.x = (int!)((position.x - offset.x * depth) % (Settings.WindowWidth + sprite.dst.w) - sprite.dst.w);
+        sprite.dst.y = (int!)((position.y - offset.y * depth) % (Settings.WindowHeight + sprite.dst.h) - sprite.dst.h);
+        Graphics.DrawSprite(sprite);
+    }
+}

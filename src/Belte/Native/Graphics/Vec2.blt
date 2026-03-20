@@ -1,0 +1,14 @@
+
+public class Vec2 {
+    public decimal x;
+    public decimal y;
+
+    public constructor(decimal x, decimal y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public Vec2! Copy() {
+        return new Vec2(x, y);
+    }
+}

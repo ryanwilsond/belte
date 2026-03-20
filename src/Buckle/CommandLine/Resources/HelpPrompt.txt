@@ -5,18 +5,30 @@ Options:
   --version                   Display compiler version information.
   --dumpmachine               Display the compiler's target system.
   --noout                     Disable any output the compiler would have produced.
-  --explain[BU|RE|CL]<code>   Extended information for a specific error.
 
   -r|--repl                   Invoke the Repl.
+  --clearsubmissions          Delete all Repl submissions (does not evaluate submissions on startup).
+
   -i                          Compile and run (default).
 
-  --type=[console|graphics|...]       Specify the type of Belte project (default console).
+  --script                    Compile and run using the interpreter.
+  --evaluate                  Compile and run using the evaluator.
+  --execute                   Compile and run using the executor.
+  -t|--transpile              Compile and transpile into C#; do not assemble or link.
+  -o <file>                   Specify output file.
+
+  -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
+  --modulename=<name>         Specify the module name (used with .NET integration only).
+  --ref=<file>|--reference=<file>     Specify a reference (used with .NET integration only).
+
+  --type=[console|graphics|dll]         Specify the type of Belte project (default console).
 
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
   --wignore=<[BU|RE|CL]<code>,...>    Specify a specific warning to suppress.
   --winclude=<[BU|RE|CL]<code>,...>   Specify a specific warning to report.
 
+  --time                      Display timing information for each compilation stage.
   --verbose                   Display additional information about the compilation process.
 
 Additional Resources:

@@ -24,17 +24,37 @@
       <Kind Name="IdentifierToken"/>
     </Field>
   </Node>
-  <Node Name="ArgumentListSyntax" Base="SyntaxNode">
+  <Node Name="NameEqualsSyntax" Base="SyntaxNode">
+    <Kind Name="NameEquals"/>
+    <Field Name="name" Type="IdentifierNameSyntax"/>
+    <Field Name="equals" Type="SyntaxToken">
+      <Kind Name="EqualsToken"/>
+    </Field>
+  </Node>
+  <AbstractNode Name="BaseArgumentListSyntax" Base="SyntaxNode">
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;"/>
+  </AbstractNode>
+  <Node Name="ArgumentListSyntax" Base="BaseArgumentListSyntax">
     <Kind Name="ArgumentList"/>
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;" Override="true"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
-  <Node Name="ArgumentSyntax" Base="SyntaxNode">
+  <Node Name="BracketedArgumentListSyntax" Base="BaseArgumentListSyntax">
+    <Kind Name="BracketedArgumentList"/>
+    <Field Name="openBracket" Type="SyntaxToken"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;" Override="true"/>
+    <Field Name="closeBracket" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
+  </Node>
+  <AbstractNode Name="BaseArgumentSyntax" Base="SyntaxNode">
+  </AbstractNode>
+  <Node Name="ArgumentSyntax" Base="BaseArgumentSyntax">
     <Kind Name="Argument"/>
     <Field Name="identifier" Type="SyntaxToken" Optional="true">
       <Kind Name="IdentifierToken"/>
@@ -42,7 +62,16 @@
     <Field Name="colon" Type="SyntaxToken" Optional="true">
       <Kind Name="ColonToken"/>
     </Field>
+    <Field Name="refKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="RefKeyword"/>
+    </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="OmittedArgumentSyntax" Base="BaseArgumentSyntax">
+    <Kind Name="OmittedArgument"/>
+    <Field Name="omittedArgumentToken" Type="SyntaxToken">
+      <Kind Name="OmittedArgumentToken"/>
+    </Field>
   </Node>
   <Node Name="ParameterListSyntax" Base="SyntaxNode">
     <Kind Name="ParameterList"/>
@@ -56,21 +85,20 @@
   </Node>
   <Node Name="ParameterSyntax" Base="SyntaxNode">
     <Kind Name="Parameter"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
-    <Field Name="equals" Type="SyntaxToken" Optional="true">
-      <Kind Name="EqualsToken"/>
-    </Field>
-    <Field Name="defaultValue" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="defaultValue" Type="EqualsValueClauseSyntax" Optional="true"/>
   </Node>
   <Node Name="TemplateArgumentListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateArgumentList"/>
     <Field Name="openAngleBracket" Type="SyntaxToken">
       <Kind Name="LessThanToken"/>
     </Field>
-    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ArgumentSyntax&gt;"/>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;BaseArgumentSyntax&gt;"/>
     <Field Name="closeAngleBracket" Type="SyntaxToken">
       <Kind Name="GreaterThanToken"/>
     </Field>
@@ -102,32 +130,50 @@
     </Field>
     <Field Name="type" Type="SimpleNameSyntax"/>
   </Node>
-  <Node Name="TemplateParameterConstraintClauseListSyntax" Base="SyntaxNode">
-    <Kind Name="TemplateParameterConstraintClauseList"/>
+  <Node Name="TemplateConstraintClauseListSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateConstraintClauseList"/>
     <Field Name="whereKeyword" Type="SyntaxToken">
       <Kind Name="WhereKeyword"/>
     </Field>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
-    <Field Name="constraintClauses" Type="SyntaxList&lt;TemplateParameterConstraintClauseSyntax&gt;"/>
+    <Field Name="constraintClauses" Type="SyntaxList&lt;TemplateConstraintClauseSyntax&gt;"/>
     <Field Name="closeBrace" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
-  <Node Name="TemplateParameterConstraintClauseSyntax" Base="SyntaxNode">
-    <Kind Name="TemplateParameterConstraintClause"/>
-    <Field Name="name" Type="IdentifierNameSyntax" Optional="true">
+  <Node Name="TemplateConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateConstraintClause"/>
+    <Field Name="extendConstraint" Type="TemplateExtendsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="isConstraint" Type="TemplateIsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="expressionConstraint" Type="ExpressionStatementSyntax" Optional="true"/>
+  </Node>
+  <Node Name="TemplateExtendsConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateExtendsConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
       <Kind Name="IdentifierName"/>
     </Field>
-    <Field Name="extendsKeyword" Type="SyntaxToken" Optional="true">
+    <Field Name="extendsKeyword" Type="SyntaxToken">
       <Kind Name="ExtendsKeyword"/>
     </Field>
-    <Field Name="type" Type="SimpleNameSyntax" Optional="true"/>
-    <Field Name="semicolon" Type="SyntaxToken" Optional="true">
+    <Field Name="type" Type="SimpleNameSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
-    <Field Name="expressionStatement" Type="ExpressionStatementSyntax" Optional="true"/>
+  </Node>
+  <Node Name="TemplateIsConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateIsConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
+      <Kind Name="IdentifierName"/>
+    </Field>
+    <Field Name="isKeyword" Type="SyntaxToken">
+      <Kind Name="IsKeyword"/>
+    </Field>
+    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="ConstructorInitializerSyntax" Base="SyntaxNode">
     <Kind Name="ConstructorInitializer"/>
@@ -155,6 +201,23 @@
     <Field Name="identifier" Type="SyntaxToken"/>
     <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
       <Kind Name="EndOfDirectiveToken" />
+    </Field>
+  </Node>
+  <Node Name="UsingDirectiveSyntax" Base="SyntaxNode">
+    <Kind Name="UsingDirective"/>
+    <Field Name="globalKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="GlobalKeyword" />
+    </Field>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="UsingKeyword" />
+    </Field>
+    <Field Name="staticKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="StaticKeyword" />
+    </Field>
+    <Field Name="alias" Type="NameEqualsSyntax" Optional="true"/>
+    <Field Name="namespaceOrType" Type="TypeSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
   <!-- Names -->
@@ -189,6 +252,12 @@
     </Field>
     <Field Name="right" Type="SimpleNameSyntax"/>
   </Node>
+  <Node Name="AliasQualifiedNameSyntax" Base="NameSyntax">
+    <Kind Name="AliasQualifiedName"/>
+    <Field Name="alias" Type="IdentifierNameSyntax"/>
+    <Field Name="colonColonToken" Type="SyntaxToken"/>
+    <Field Name="name" Type="SimpleNameSyntax"/>
+  </Node>
   <Node Name="ArrayTypeSyntax" Base="TypeSyntax">
     <Kind Name="ArrayType"/>
     <Field Name="elementType" Type="TypeSyntax"/>
@@ -214,6 +283,8 @@
   <!-- Declarations -->
   <Node Name="CompilationUnitSyntax" Base="SyntaxNode">
     <Kind Name="CompilationUnit"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;"/>
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;"/>
     <Field Name="endOfFile" Type="SyntaxToken">
       <Kind Name="EndOfFileToken"/>
@@ -223,13 +294,52 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
   </AbstractNode>
+  <AbstractNode Name="BaseNamespaceDeclarationSyntax" Base="MemberDeclarationSyntax">
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="NamespaceKeyword"/>
+    </Field>
+    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;"/>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;"/>
+  </AbstractNode>
+  <Node Name="NamespaceDeclarationSyntax" Base="BaseNamespaceDeclarationSyntax">
+    <Kind Name="NamespaceDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="NamespaceKeyword"/>
+    </Field>
+    <Field Name="name" Type="NameSyntax" Override="true"/>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;" Override="true"/>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="FileScopedNamespaceDeclarationSyntax" Base="BaseNamespaceDeclarationSyntax">
+    <Kind Name="FileScopedNamespaceDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="NamespaceKeyword"/>
+    </Field>
+    <Field Name="name" Type="NameSyntax" Override="true"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;" Override="true"/>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true"/>
+  </Node>
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberDeclarationSyntax">
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -269,7 +379,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -289,7 +399,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
     </Field>
@@ -328,11 +438,23 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken"/>
     </Field>
+  </Node>
+  <Node Name="ConversionDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="ConversionDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="implicitOrExplicitKeyword" Type="SyntaxToken"/>
+    <Field Name="operatorKeyword" Type="SyntaxToken">
+      <Kind Name="OperatorKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
   <Node Name="OperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="OperatorDeclaration"/>
@@ -355,6 +477,10 @@
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="statement" Type="StatementSyntax"/>
   </Node>
+  <Node Name="EmptyStatementSyntax" Base="StatementSyntax">
+    <Kind Name="EmptyStatement"/>
+    <Field Name="semicolon" Type="SyntaxToken"/>
+  </Node>
   <Node Name="LocalDeclarationStatementSyntax" Base="StatementSyntax">
     <Kind Name="LocalDeclarationStatement"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
@@ -374,7 +500,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax"/>
-    <Field Name="constraintClauseList" Type="TemplateParameterConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="BlockStatementSyntax" Base="StatementSyntax">
@@ -442,11 +568,11 @@
       <Kind Name="OpenParenToken"/>
     </Field>
     <Field Name="initializer" Type="StatementSyntax"/>
-    <Field Name="condition" Type="ExpressionSyntax"/>
+    <Field Name="condition" Type="ExpressionSyntax" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
-    <Field Name="step" Type="ExpressionSyntax"/>
+    <Field Name="step" Type="ExpressionSyntax" Optional="true"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
@@ -582,18 +708,18 @@
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="argumentList" Type="ArgumentListSyntax" Optional="true"/>
   </Node>
-  <Node Name="EmptyExpressionSyntax" Base="ExpressionSyntax">
-    <Kind Name="EmptyExpression"/>
-    <Field Name="artificalLocation" Type="SyntaxToken" Optional="true"/>
+  <Node Name="ArrayCreationExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ArrayCreationExpression"/>
+    <Field Name="newKeyword" Type="SyntaxToken">
+      <Kind Name="NewKeyword"/>
+    </Field>
+    <Field Name="type" Type="ArrayTypeSyntax"/>
+    <Field Name="initializer" Type="InitializerListExpressionSyntax" Optional="true" />
   </Node>
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IndexExpression"/>
     <Field Name="expression" Type="ExpressionSyntax"/>
-    <Field Name="openBracket" Type="SyntaxToken" Optional="true"/>
-    <Field Name="index" Type="ExpressionSyntax"/>
-    <Field Name="closeBracket" Type="SyntaxToken" Optional="true">
-      <Kind Name="CloseBracketToken"/>
-    </Field>
+    <Field Name="argumentList" Type="BracketedArgumentListSyntax"/>
   </Node>
   <Node Name="InitializerListExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="InitializerListExpression"/>

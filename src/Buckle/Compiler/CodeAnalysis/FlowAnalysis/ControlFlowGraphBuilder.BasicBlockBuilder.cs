@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
@@ -10,46 +10,89 @@ internal sealed partial class ControlFlowGraphBuilder {
     /// Builds BasicBlocks from BoundStatements.
     /// </summary>
     internal sealed class BasicBlockBuilder {
-        private readonly List<BasicBlock> _blocks = new List<BasicBlock>();
-        private readonly List<BoundStatement> _statements = new List<BoundStatement>();
+        internal readonly List<TryRegion> regions = [];
+
+        private readonly List<BasicBlock> _blocks = [];
+        private readonly List<BoundStatement> _statements = [];
+        private BasicBlock _currentBlock;
 
         internal List<BasicBlock> Build(BoundBlockStatement block) {
+            _currentBlock = new BasicBlock();
+            VisitBlock(block);
+            EndBlock();
+            return _blocks.ToList();
+        }
+
+        private void VisitBlock(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
                 switch (statement.kind) {
-                    case BoundNodeKind.LabelStatement:
+                    case BoundKind.LabelStatement:
                         StartBlock();
                         _statements.Add(statement);
                         break;
-                    case BoundNodeKind.GotoStatement:
-                    case BoundNodeKind.ConditionalGotoStatement:
-                    case BoundNodeKind.ReturnStatement:
-                    case BoundNodeKind.ExpressionStatement
+                    case BoundKind.GotoStatement:
+                    case BoundKind.ConditionalGotoStatement:
+                    case BoundKind.ReturnStatement:
+                    case BoundKind.ExpressionStatement
                         when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
                         _statements.Add(statement);
                         StartBlock();
                         break;
-                    case BoundNodeKind.NopStatement:
-                    case BoundNodeKind.ExpressionStatement:
-                    case BoundNodeKind.LocalDeclarationStatement:
-                    case BoundNodeKind.TryStatement:
+                    case BoundKind.NopStatement:
+                    case BoundKind.ExpressionStatement:
+                    case BoundKind.LocalDeclarationStatement:
+                    case BoundKind.LocalFunctionStatement:
                         _statements.Add(statement);
                         break;
+                    case BoundKind.TryStatement:
+                        BuildTryRegion((BoundTryStatement)statement);
+                        break;
                     default:
-                        throw new BelteInternalException($"Build: unexpected statement '{statement.kind}'");
+                        throw ExceptionUtilities.UnexpectedValue(statement.kind);
                 }
             }
+        }
 
-            EndBlock();
+        private void BuildTryRegion(BoundTryStatement node) {
+            StartBlock();
 
-            return _blocks.ToList();
+            var tryStartBlock = _currentBlock;
+
+            VisitBlock((BoundBlockStatement)node.body);
+
+            StartBlock();
+
+            var tryRegion = new TryRegion() {
+                tryStart = tryStartBlock
+            };
+
+            if (node.catchBody is not null) {
+                tryRegion.catchBlock = _currentBlock;
+                VisitBlock((BoundBlockStatement)node.catchBody);
+                StartBlock();
+            }
+
+            if (node.finallyBody is not null) {
+                tryRegion.finallyBlock = _currentBlock;
+                VisitBlock((BoundBlockStatement)node.finallyBody);
+                StartBlock();
+            }
+
+            tryRegion.tryEnd = _currentBlock;
+            // Needs to be somewhere between the end of the finally and the end of the program if the finally is the last statement
+            _statements.Add(new BoundNopStatement(node.syntax));
+
+            StartBlock();
+
+            regions.Add(tryRegion);
         }
 
         private void EndBlock() {
             if (_statements.Count > 0) {
-                var block = new BasicBlock();
-                block.statements.AddRange(_statements);
-                _blocks.Add(block);
+                _currentBlock.statements.AddRange(_statements);
+                _blocks.Add(_currentBlock);
                 _statements.Clear();
+                _currentBlock = new BasicBlock();
             }
         }
 

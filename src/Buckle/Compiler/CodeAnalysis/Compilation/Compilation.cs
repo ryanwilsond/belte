@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -10,10 +11,14 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle.CodeAnalysis;
@@ -21,372 +26,779 @@ namespace Buckle.CodeAnalysis;
 /// <summary>
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
-public sealed class Compilation {
-    private BoundGlobalScope _globalScope;
+public sealed partial class Compilation {
+    private readonly static Predicate<Symbol> SkipLibrariesFilter
+        = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
-    private Compilation(CompilationOptions options, Compilation previous, params SyntaxTree[] syntaxTrees) {
-        this.previous = previous;
+    private readonly NamespaceSymbol _specialNamespace;
+    private readonly SyntaxAndDeclarationManager _syntax;
+    private WeakReference<BinderFactory>[] _binderFactories;
+    private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
+
+    private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
+    private BoundProgram _lazyBoundProgram;
+    private BelteDiagnosticQueue _lazyMethodDiagnostics;
+    private List<LocalFunctionRewriter.Analysis> _lazyPreviousAnalyses;
+    private MethodSymbol _lazyEntryPoint;
+    private MethodSymbol _lazyUpdatePoint;
+    private NamedTypeSymbol _lazyScriptClass;
+    private NamespaceSymbol _lazyGlobalNamespace;
+    private AliasSymbol _lazyGlobalNamespaceAlias;
+    private AssemblySymbol _lazyAssembly;
+    private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
+    private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
+
+    private Compilation(
+        string assemblyName,
+        CompilationOptions options,
+        Compilation previous,
+        SyntaxAndDeclarationManager syntax,
+        NamespaceSymbol namespaceOpt = null) {
+        this.assemblyName = assemblyName;
         this.options = options;
-        diagnostics = new BelteDiagnosticQueue();
-
-        foreach (var syntaxTree in syntaxTrees)
-            diagnostics.Move(syntaxTree.GetDiagnostics());
-
-        this.syntaxTrees = syntaxTrees.ToImmutableArray();
+        this.previous = previous;
+        _syntax = syntax;
+        _specialNamespace = namespaceOpt;
     }
 
-    /// <summary>
-    /// Diagnostics relating to the <see cref="Compilation" />.
-    /// </summary>
-    public BelteDiagnosticQueue diagnostics { get; }
+    public string assemblyName { get; }
 
-    /// <summary>
-    /// Options and flags for the compilation.
-    /// </summary>
-    internal CompilationOptions options { get; }
+    public INamespaceSymbol globalNamespace => globalNamespaceInternal;
 
-    /// <summary>
-    /// The entry point of the program.
-    /// </summary>
-    internal MethodSymbol entryPoint => globalScope.wellKnownMethods[WellKnownMethodNames.EntryPoint];
+    public CompilationOptions options { get; }
 
-    /// <summary>
-    /// The graphics entry point (if applicable).
-    /// </summary>
-    internal MethodSymbol graphicsStart => globalScope.wellKnownMethods[WellKnownMethodNames.GraphicsStart];
+    public Compilation previous { get; }
 
-    /// <summary>
-    /// The graphics update routine (if applicable).
-    /// </summary>
-    internal MethodSymbol graphicsUpdate => globalScope.wellKnownMethods[WellKnownMethodNames.GraphicsUpdate];
+    internal MethodSymbol entryPoint => boundProgram.entryPoint;
 
-    /// <summary>
-    /// All MethodSymbols in the global scope.
-    /// </summary>
-    internal ImmutableArray<MethodSymbol> methods => globalScope.methods;
-
-    /// <summary>
-    /// All VariableSymbols in the global scope.
-    /// </summary>
-    internal ImmutableArray<VariableSymbol> variables => globalScope.variables;
-
-    /// <summary>
-    /// All TypeSymbols in the global scope
-    /// </summary>
-    internal ImmutableArray<NamedTypeSymbol> types => globalScope.types;
-
-    /// <summary>
-    /// The SyntaxTrees of the parsed source files.
-    /// </summary>
-    internal ImmutableArray<SyntaxTree> syntaxTrees { get; }
-
-    /// <summary>
-    /// Previous <see cref="Compilation" />.
-    /// </summary>
-    internal Compilation previous { get; }
-
-    /// <summary>
-    /// The global scope (top level) of the program, contains Symbols.
-    /// </summary>
-    internal BoundGlobalScope globalScope {
+    internal BelteDiagnosticQueue declarationDiagnostics {
         get {
-            if (_globalScope is null)
-                EnsureGlobalScope();
+            if (_lazyDeclarationDiagnostics is null)
+                Interlocked.CompareExchange(ref _lazyDeclarationDiagnostics, new BelteDiagnosticQueue(), null);
 
-            return _globalScope;
+            return _lazyDeclarationDiagnostics;
         }
     }
 
-    /// <summary>
-    /// Creates a new <see cref="Compilation" /> with SyntaxTrees.
-    /// </summary>
-    /// <param name="options">Additional flags and options for compilation such as context.</param>
-    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
-    /// <returns>New <see cref="Compilation" />.</returns>
-    public static Compilation Create(CompilationOptions options, params SyntaxTree[] syntaxTrees) {
-        return new Compilation(options, null, syntaxTrees);
+    internal BoundProgram boundProgram {
+        get {
+            EnsureBoundProgramAndMethodDiagnostics();
+            return _lazyBoundProgram;
+        }
     }
 
-    /// <summary>
-    /// Creates a new <see cref="Compilation" /> with SyntaxTrees from a previous <see cref="Compilation"/>.
-    /// </summary>
-    /// <param name="options">Additional flags and options for compilation such as context.</param>
-    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
-    /// <returns>New <see cref="Compilation" />.</returns>
-    public static Compilation CreateWithPrevious(
+    internal BelteDiagnosticQueue methodDiagnostics {
+        get {
+            EnsureBoundProgramAndMethodDiagnostics();
+            return _lazyMethodDiagnostics;
+        }
+    }
+
+    internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
+
+    internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+
+    internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
+
+    internal DeclarationTable declarationTable => _syntax.state.declarationTable;
+
+    internal AssemblySymbol assembly {
+        get {
+            if (_lazyAssembly is null)
+                Interlocked.CompareExchange(ref _lazyAssembly, new SourceAssemblySymbol(this, assemblyName), null);
+
+            return _lazyAssembly;
+        }
+    }
+
+    internal ModuleSymbol sourceModule => assembly.modules[0];
+
+    internal NamespaceSymbol globalNamespaceInternal {
+        get {
+            if (_lazyGlobalNamespace is null) {
+                var builder = ArrayBuilder<NamespaceSymbol>.GetInstance();
+                var modules = ArrayBuilder<ModuleSymbol>.GetInstance();
+                GetAllUnaliasedModules(modules);
+                builder.AddRange(modules.SelectDistinct(m => m.globalNamespace));
+
+                if (_specialNamespace is not null)
+                    builder.Add(_specialNamespace);
+
+                var result = MergedNamespaceSymbol.Create(
+                    new NamespaceExtent(this),
+                    null,
+                    builder.ToImmutableAndFree()
+                );
+
+                modules.Free();
+
+                Interlocked.CompareExchange(ref _lazyGlobalNamespace, result, null);
+            }
+
+            return _lazyGlobalNamespace;
+        }
+    }
+
+    internal SemanticModelProvider semanticModelProvider { get; }
+
+    internal AliasSymbol globalNamespaceAlias {
+        get {
+            if (_lazyGlobalNamespaceAlias is null)
+                Interlocked.CompareExchange(ref _lazyGlobalNamespaceAlias, CreateGlobalNamespaceAlias(), null);
+
+            return _lazyGlobalNamespaceAlias;
+        }
+    }
+
+    internal NamedTypeSymbol scriptClass {
+        get {
+            if (_lazyScriptClass is null) {
+                var scriptClass = SynthesizedEntryPoint.GetSimpleProgramNamedTypeSymbol(this);
+                Interlocked.CompareExchange(ref _lazyScriptClass, scriptClass, null);
+            }
+
+            return _lazyScriptClass;
+        }
+    }
+
+    internal List<LocalFunctionRewriter.Analysis> previousAnalyses {
+        get {
+            if (_lazyPreviousAnalyses is null) {
+                List<LocalFunctionRewriter.Analysis> result;
+
+                if (previous?.previousAnalyses is not null)
+                    result = new List<LocalFunctionRewriter.Analysis>(previous.previousAnalyses);
+                else
+                    result = [];
+
+                Interlocked.CompareExchange(ref _lazyPreviousAnalyses, result, null);
+            }
+
+            return _lazyPreviousAnalyses;
+        }
+    }
+
+    public SemanticModel GetSemanticModel(SyntaxTree syntaxTree) {
+        ArgumentNullException.ThrowIfNull(syntaxTree);
+
+        if (!_syntax.state.rootNamespaces.ContainsKey(syntaxTree))
+            throw new ArgumentException($"Syntax tree {nameof(syntaxTree)} not found");
+
+        SemanticModel model = null;
+
+        if (semanticModelProvider is not null)
+            model = semanticModelProvider.GetSemanticModel(syntaxTree, this);
+
+        return model ?? CreateSemanticModel(syntaxTree);
+    }
+
+    internal SemanticModel CreateSemanticModel(SyntaxTree syntaxTree) {
+        // return new SyntaxTreeSemanticModel(this, syntaxTree);
+        throw new NotImplementedException();
+    }
+
+    public ImmutableArray<ISymbol> GetSymbols(
+        bool includePreviousCompilations = false,
+        bool includeExternal = false,
+        bool includeSimpleProgramLocals = false) {
+        if (!includePreviousCompilations)
+            return globalNamespace.GetMembers();
+
+        // TODO Cache this lookup?
+        // TODO Eventually flesh out this function to support more options (filtering, sorting, etc.)
+        var builder = new HashSet<ISymbol>();
+        var current = this;
+
+        while (current is not null) {
+            if (includeExternal) {
+                builder.AddAll(current.globalNamespace.GetMembers());
+            } else {
+                foreach (var member in current.globalNamespace.GetMembers()) {
+                    if (member is not SynthesizedFinishedNamedTypeSymbol)
+                        builder.Add(member);
+                }
+            }
+
+            if (includeSimpleProgramLocals) {
+                if (current.entryPoint is SynthesizedEntryPoint synthesizedEntryPoint) {
+                    var compilationUnit = synthesizedEntryPoint.compilationUnit;
+                    var entryPointBinder = synthesizedEntryPoint
+                        .TryGetBodyBinder(null, true)
+                        .GetBinder(compilationUnit);
+
+                    builder.AddAll(entryPointBinder.GetDeclaredLocalsForScope(compilationUnit));
+                    builder.AddAll(entryPointBinder.GetDeclaredLocalFunctionsForScope(compilationUnit));
+                }
+            }
+
+            current = current.previous;
+        }
+
+        return builder.ToImmutableArray();
+    }
+
+    public static Compilation Create(string assemblyName, CompilationOptions options, params SyntaxTree[] syntaxTrees) {
+        return Create(assemblyName, options, null, syntaxTrees);
+    }
+
+    public static Compilation Create(
+        string assemblyName,
         CompilationOptions options,
         Compilation previous,
         params SyntaxTree[] syntaxTrees) {
-        return new Compilation(options, previous, syntaxTrees);
+        return Create(assemblyName, options, previous, (IEnumerable<SyntaxTree>)syntaxTrees);
     }
 
-    /// <summary>
-    /// Creates a new script <see cref="Compilation" /> with SyntaxTrees, and the previous <see cref="Compilation" />.
-    /// </summary>
-    /// <param name="options">Additional flags and options for compilation such as context.</param>
-    /// <param name="previous">Previous <see cref="Compilation" />.</param>
-    /// <param name="syntaxTrees">SyntaxTrees to use during compilation.</param>
     public static Compilation CreateScript(
+        string assemblyName,
         CompilationOptions options,
-        Compilation previous,
-        params SyntaxTree[] syntaxTrees) {
+        SyntaxTree syntaxTree = null,
+        Compilation previous = null) {
         options.isScript = true;
-        return new Compilation(options, previous, syntaxTrees);
+        var syntaxTress = syntaxTree is null ? null : (IEnumerable<SyntaxTree>)[syntaxTree];
+        return Create(assemblyName, options, previous, syntaxTress);
     }
 
-    /// <summary>
-    /// Evaluates SyntaxTrees.
-    /// </summary>
-    /// <param name="variables">Existing variables to add to the scope.</param>
-    /// <param name="abort">External flag used to cancel evaluation.</param>
-    /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    public EvaluationResult Evaluate(
-        Dictionary<IVariableSymbol, EvaluatorObject> variables,
-        ValueWrapper<bool> abort,
-        bool logTime = false) {
-        if (globalScope.diagnostics.Errors().Any())
-            return EvaluationResult.Failed(globalScope.diagnostics);
+    public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool verbose = false, bool logTime = false) {
+        using var context = new EvaluatorContext(options);
+        var result = Evaluate(context, abort, verbose, logTime);
+        context.WaitForCompletion();
 
-        var timer = logTime ? Stopwatch.StartNew() : null;
-        var program = GetProgram();
-
-#if DEBUG
-        if (options.enableOutput) {
-            CreateCfg(program);
-            CreateBoundProgram(program);
+        if (verbose && result.heap is not null) {
+            Console.WriteLine(
+                $"Heap after completion: Capacity {result.heap.capacity}, " +
+                $"Allocated {result.heap.usedCount}");
         }
-#endif
-
-        if (logTime) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Bound the program in {timer.ElapsedMilliseconds} ms"
-            ));
-            timer.Restart();
-        }
-
-        if (program.diagnostics.Errors().Any())
-            return EvaluationResult.Failed(program.diagnostics);
-
-        diagnostics.Move(program.diagnostics);
-        var eval = new Evaluator(program, variables, options.arguments);
-        var evalResult = eval.Evaluate(abort, out var hasValue);
-
-        if (logTime) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Evaluated the program in {timer.ElapsedMilliseconds} ms"
-            ));
-        }
-
-        diagnostics.Move(eval.diagnostics);
-        var result = new EvaluationResult(
-            evalResult,
-            hasValue,
-            diagnostics,
-            eval.exceptions,
-            eval.lastOutputWasPrint,
-            eval.containsIO
-        );
 
         return result;
     }
 
-    /// <summary>
-    /// Executes SyntaxTrees by creating an executable and running it.
-    /// </summary>
-    public void Execute() {
-        if (globalScope.diagnostics.Errors().Any())
-            return;
-
-        var program = GetProgram();
-
-#if DEBUG
-        if (options.enableOutput) {
-            CreateCfg(program);
-            CreateBoundProgram(program);
-        }
-#endif
-
-        if (program.diagnostics.Errors().Any())
-            return;
-
-        diagnostics.Move(program.diagnostics);
-        Executor.Execute(program, options.arguments);
-    }
-
-    /// <summary>
-    /// Compiles and evaluates SyntaxTrees chunk by chunk.
-    /// </summary>
-    /// <param name="variables">Existing variables to add to the scope.</param>
-    /// <param name="abort">External flag used to cancel evaluation.</param>
-    /// <returns>Result of evaluation (see <see cref="EvaluationResult" />).</returns>
-    public EvaluationResult Interpret(
-        Dictionary<IVariableSymbol, EvaluatorObject> variables,
-        ValueWrapper<bool> abort) {
-        // syntaxTrees.Single() should have already been asserted by this point
-        return Interpreter.Interpret(syntaxTrees[0], options, variables, abort);
-    }
-
-    /// <summary>
-    /// Emits the program to a string.
-    /// </summary>
-    /// <param name="buildMode">Which emitter to use.</param>
-    /// <param name="moduleName">
-    /// Name of the module. If <param name="buildMode" /> is set to <see cref="BuildMode.CSharpTranspile" /> this is
-    /// used as the namespace name instead.
-    /// </param>
-    /// <param name="references">
-    /// .NET references, only applicable if <param name="buildMode" /> is set to <see cref="BuildMode.Dotnet" />.
-    /// </param>
-    /// <returns>Emitted program as a string. Diagnostics must be accessed manually off of this.</returns>
-    public string EmitToString(BuildMode buildMode, string moduleName, string[] references = null) {
-        if (diagnostics.Errors().Any())
-            return null;
-
-        var program = GetProgram();
-        program.diagnostics.Move(diagnostics);
-
-        if (program.diagnostics.Errors().Any())
-            return null;
-
-        if (buildMode == BuildMode.CSharpTranspile) {
-            var content = CSharpEmitter.Emit(program, moduleName, out var emitterDiagnostics);
-            diagnostics.Move(emitterDiagnostics);
-            return content;
-        } else if (buildMode == BuildMode.Dotnet) {
-            var content = ILEmitter.Emit(program, moduleName, references, out var emitterDiagnostics);
-            diagnostics.Move(emitterDiagnostics);
-            return content;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Gets all Symbols across submissions (only global scope).
-    /// </summary>
-    /// <returns>All Symbols (checks all previous Compilations).</returns>
-    public IEnumerable<ISymbol> GetSymbols() => GetSymbols<ISymbol>();
-
-    /// <summary>
-    /// Gets all Symbols of certain child type across submissions (only global scope).
-    /// </summary>
-    /// <typeparam name="T">Type of <see cref="Symbol" /> to get.</typeparam>
-    /// <returns>Found symbols.</returns>
-    public IEnumerable<T> GetSymbols<T>() where T : ISymbol {
-        var submission = this;
-        var seenSymbolNames = new HashSet<string>();
-        var builtins = BuiltinMethods.GetAll();
-
-        while (submission != null) {
-            foreach (var method in submission.methods) {
-                if (seenSymbolNames.Add(method.Signature()) && method is T t)
-                    yield return t;
-            }
-
-            foreach (var builtin in builtins) {
-                if (seenSymbolNames.Add(builtin.Signature()) && builtin is T t)
-                    yield return t;
-            }
-
-            foreach (var variable in submission.variables) {
-                if (seenSymbolNames.Add(variable.name) && variable is T t)
-                    yield return t;
-            }
-
-            foreach (var type in submission.types) {
-                if (seenSymbolNames.Add(type.name) && type is T t)
-                    yield return t;
-            }
-
-            submission = submission.previous;
-        }
-    }
-
-    /// <summary>
-    /// Emits the program to an assembly.
-    /// </summary>
-    /// <param name="buildMode">Which emitter to use.</param>
-    /// <param name="moduleName">Application name.</param>
-    /// <param name="references">All external references (.NET).</param>
-    /// <param name="outputPath">Where to put the application once assembled.</param>
-    /// <param name="finishStage">
-    /// What stage to finish at (only applicable if <param name="buildMode" /> is set to
-    /// <see cref="BuildMode.Independent" />.
-    /// </param>
-    /// <returns>Diagnostics.</returns>
-    internal BelteDiagnosticQueue Emit(
-        BuildMode buildMode,
-        string moduleName,
-        string[] references,
-        string outputPath,
-        CompilerStage _,
+    public EvaluationResult Evaluate(
+        EvaluatorContext context,
+        ValueWrapper<bool> abort,
+        bool verbose = false,
         bool logTime = false) {
-        if (diagnostics.Errors().Any())
-            return diagnostics;
+        EvaluationResult result = null;
+        Evaluate(context, abort, ref result, verbose, logTime);
+
+        if (verbose && result.heap is not null) {
+            Console.WriteLine(
+                $"Heap: Capacity {result.heap.capacity}, " +
+                $"Allocated {result.heap.usedCount}");
+        }
+
+        return result;
+    }
+
+    internal Compilation AddNamespace(NamespaceSymbol namespaceSymbol) {
+        return new Compilation(assemblyName, options, previous, _syntax, namespaceSymbol);
+    }
+
+    internal void Evaluate(
+        EvaluatorContext context,
+        ValueWrapper<bool> abort,
+        ref EvaluationResult rollingResult,
+        bool verbose = false,
+        bool logTime = false) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var diagnostics = GetDiagnostics();
+        var program = boundProgram;
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (diagnostics.AnyErrors()) {
+            rollingResult = EvaluationResult.Failed(diagnostics);
+            return;
+        }
+
+        if (verbose && options.enableOutput) {
+            EmitCFG();
+            EmitBoundProgram();
+        }
+
+        var evaluator = new Evaluator(program, context, options.arguments);
+        var evalResult = evaluator.Evaluate(abort, out var hasValue);
+
+        Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (verbose && options.enableOutput && evalResult is not null)
+            Console.WriteLine(evalResult);
+
+        if (rollingResult is null) {
+            rollingResult = new EvaluationResult(
+                evalResult,
+                hasValue,
+                diagnostics,
+                evaluator.exceptions,
+                evaluator.lastOutputWasPrint,
+                evaluator.containsIO,
+                context.heap
+            );
+        } else {
+            rollingResult.Update(
+                evalResult,
+                hasValue,
+                diagnostics,
+                evaluator.exceptions,
+                evaluator.lastOutputWasPrint,
+                evaluator.containsIO,
+                context.heap
+            );
+        }
+    }
+
+    public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
+        if (options.buildMode == BuildMode.Independent) {
+            var fatal = new BelteDiagnosticQueue();
+            fatal.Push(Fatal.Unsupported.IndependentCompilation());
+            return fatal;
+        }
 
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var program = GetProgram();
-        program.diagnostics.Move(diagnostics);
+        var diagnostics = GetDiagnostics();
+        var program = boundProgram;
 
-        if (logTime) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Bound the program in {timer.ElapsedMilliseconds} ms"
-            ));
-            timer.Restart();
-        }
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
-        if (program.diagnostics.Errors().Any())
-            return program.diagnostics;
+        if (diagnostics.AnyErrors())
+            return diagnostics;
 
-        if (buildMode == BuildMode.Dotnet)
-            // return ILEmitter.Emit(program, moduleName, references, outputPath);
-            diagnostics.Push(Fatal.Unsupported.DotnetCompilation());
-        else if (buildMode == BuildMode.CSharpTranspile)
-            return CSharpEmitter.Emit(program, outputPath);
-        else if (buildMode == BuildMode.Independent)
-            diagnostics.Push(Fatal.Unsupported.IndependentCompilation());
+        if (options.buildMode == BuildMode.Dotnet)
+            ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
+        else if (options.buildMode == BuildMode.CSharpTranspile)
+            CSharpEmitter.Emit(program, outputPath, diagnostics);
 
-        if (logTime && buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile) {
-            timer.Stop();
-            diagnostics.Push(new BelteDiagnostic(
-                DiagnosticSeverity.Debug,
-                $"Emitted the program in {timer.ElapsedMilliseconds} ms"
-            ));
-        }
+        if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
+            Log(logTime, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
 
         return diagnostics;
     }
 
-    /// <summary>
-    /// Gets the previous <see cref="BoundProgram" />, and binds a new one.
-    /// </summary>
-    /// <returns>Newly bound <see cref="BoundProgram" />.</returns>
-    internal BoundProgram GetProgram() {
-        var previous = this.previous?.GetProgram();
-        return Binder.BindProgram(options, previous, globalScope);
+    public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false) {
+        return Execute(verbose, logTime, out _);
     }
 
-    /// <summary>
-    /// Binds the global scope if it hasn't been bound already. Does not return anything to indicate if the global scope
-    /// was bound or already bound, but after this method is called the global scope is guaranteed to have been bound.
-    /// </summary>
-    internal void EnsureGlobalScope() {
-        var tempScope = Binder.BindGlobalScope(options, previous?.globalScope, syntaxTrees);
-        // Makes assignment thread-safe, if multiple threads try to initialize they use whoever did it first
-        Interlocked.CompareExchange(ref _globalScope, tempScope, null);
+    internal BelteDiagnosticQueue Execute(bool verbose, bool logTime, out object result) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var diagnostics = GetDiagnostics();
+        var program = boundProgram;
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (diagnostics.AnyErrors()) {
+            result = null;
+            return diagnostics;
+        }
+
+        if (verbose && options.enableOutput) {
+            EmitCFG();
+            EmitBoundProgram();
+        }
+
+        var executor = new Executor(program, options.arguments, diagnostics);
+        result = executor.Execute(verbose, logTime);
+
+        if (verbose && options.enableOutput && result is not null)
+            Console.WriteLine(result);
+
+        return diagnostics;
     }
 
-    private static void CreateCfg(BoundProgram program) {
+    public EvaluationResult Interpret(ValueWrapper<bool> abort, bool logTime) {
+        return Interpreter.Interpret(_syntax.syntaxTrees[0], options, abort, logTime);
+    }
+
+    public string EmitToString(out BelteDiagnosticQueue diagnostics, BuildMode? alternateBuildMode = null) {
+        var buildMode = alternateBuildMode ?? options.buildMode;
+        diagnostics = GetDiagnostics();
+        var program = boundProgram;
+
+        if (diagnostics.AnyErrors())
+            return null;
+
+        if (buildMode == BuildMode.CSharpTranspile)
+            return CSharpEmitter.EmitToString(program, assemblyName, diagnostics);
+        else if (buildMode == BuildMode.Dotnet)
+            return ILEmitter.EmitToString(program, assemblyName, options.references, diagnostics);
+
+        return null;
+    }
+
+    public BelteDiagnosticQueue GetParseDiagnostics() {
+        return GetDiagnostics(true, false, false);
+    }
+
+    public BelteDiagnosticQueue GetDeclarationDiagnostics() {
+        return GetDiagnostics(false, true, false);
+    }
+
+    public BelteDiagnosticQueue GetMethodBodyDiagnostics() {
+        return GetDiagnostics(false, false, true);
+    }
+
+    public BelteDiagnosticQueue GetDiagnostics() {
+        return GetDiagnostics(true, true, true);
+    }
+
+    internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
+        if (_lazyEntryPoint is null) {
+            var simpleEntryPoint = SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this);
+            Interlocked.CompareExchange(ref _lazyEntryPoint, FindEntryPoint(simpleEntryPoint, diagnostics), null);
+        }
+
+        return _lazyEntryPoint;
+    }
+
+    internal MethodSymbol GetUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
+        if (_lazyUpdatePoint is null)
+            Interlocked.CompareExchange(ref _lazyUpdatePoint, FindUpdatePoint(entryPoint, diagnostics), null);
+
+        return _lazyUpdatePoint;
+    }
+
+    internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
+        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
+
+        if (comparison != 0)
+            return comparison;
+
+        return syntax1.span.start - syntax2.span.start;
+    }
+
+    internal int CompareSourceLocations(
+        SyntaxReference syntax1,
+        TextLocation location1,
+        SyntaxReference syntax2,
+        TextLocation location2) {
+        var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
+
+        if (comparison != 0)
+            return comparison;
+
+        return location1.span.start - location2.span.start;
+    }
+
+    internal int CompareSyntaxTreeOrdering(SyntaxTree tree1, SyntaxTree tree2) {
+        if (tree1 == tree2)
+            return 0;
+
+        return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
+    }
+
+    internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
+        // TODO Maybe make the CorLibrary not static?
+        CorLibrary.RegisterDeclaredSpecialType(type);
+    }
+
+    internal Binder GetBinder(BelteSyntaxNode syntax) {
+        return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
+    }
+
+    internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree, bool ignoreAccessibility = false) {
+        if (ignoreAccessibility && SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this) is not null)
+            return GetBinderFactory(syntaxTree, ignoreAccessibility: true, ref _ignoreAccessibilityBinderFactories);
+
+        return GetBinderFactory(syntaxTree, ignoreAccessibility: false, ref _binderFactories);
+    }
+
+    internal BinderFactory GetBinderFactory(
+        SyntaxTree syntaxTree,
+        bool ignoreAccessibility,
+        ref WeakReference<BinderFactory>[] cachedBinderFactories) {
+        var treeOrdinal = GetSyntaxTreeOrdinal(syntaxTree);
+        var binderFactories = cachedBinderFactories;
+
+        if (binderFactories is null) {
+            binderFactories = new WeakReference<BinderFactory>[syntaxTrees.Length];
+            binderFactories = Interlocked.CompareExchange(ref cachedBinderFactories, binderFactories, null)
+                ?? binderFactories;
+        }
+
+        var previousWeakReference = binderFactories[treeOrdinal];
+
+        if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
+            return previousFactory;
+
+        return AddNewFactory(syntaxTree, ignoreAccessibility, ref binderFactories[treeOrdinal]);
+    }
+
+    internal int GetSyntaxTreeOrdinal(SyntaxTree syntaxTree) {
+        return _syntax.state.ordinalMap[syntaxTree];
+    }
+
+    internal void RecordImport(UsingDirectiveSyntax syntax) {
+        LazyInitializer.EnsureInitialized(ref _lazyImportInfos)
+            .TryAdd(new ImportInfo(syntax.syntaxTree, syntax.kind, syntax.span), default);
+    }
+
+    internal void AddUsedAssemblies(ICollection<AssemblySymbol> assemblies) {
+        if (!assemblies.IsNullOrEmpty()) {
+            foreach (var candidate in assemblies)
+                AddUsedAssembly(candidate);
+        }
+    }
+
+    internal bool AddUsedAssembly(AssemblySymbol assembly) {
+        if (assembly is null || assembly == this.assembly || assembly.isMissing)
+            return false;
+
+        if (_lazyUsedAssemblyReferences is null)
+            Interlocked.CompareExchange(ref _lazyUsedAssemblyReferences, new ConcurrentSet<AssemblySymbol>(), null);
+
+        return _lazyUsedAssemblyReferences.Add(assembly);
+    }
+
+    private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
+
+        foreach (var type in classes) {
+            foreach (var member in type.GetMembers(WellKnownMemberNames.UpdatePointMethodName)) {
+                if (member is MethodSymbol m && HasUpdatePointSignature(m))
+                    builder.Add(m);
+            }
+        }
+
+        var updatePointCandidates = builder.ToImmutableAndFree();
+        MethodSymbol updatePoint = null;
+
+        if (updatePointCandidates.Length == 1) {
+            updatePoint = updatePointCandidates[0];
+        } else if (updatePointCandidates.Length > 1) {
+            var updatesNearMain = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var method in updatePointCandidates) {
+                if (method.containingType.Equals(entryPoint.containingType))
+                    updatesNearMain.Add(method);
+            }
+
+            if (updatesNearMain.Count == 1)
+                updatePoint = updatesNearMain[0];
+            else
+                diagnostics.Push(Error.MultipleUpdates(updatePointCandidates[0].location));
+        }
+
+        return updatePoint;
+    }
+
+    private static bool HasUpdatePointSignature(MethodSymbol method) {
+        var returnType = method.returnType;
+
+        if (!returnType.IsVoidType())
+            return false;
+
+        if (method.refKind != RefKind.None)
+            return false;
+
+        if (method.parameterCount != 1)
+            return false;
+
+        if (!method.parameterRefKinds.IsDefault)
+            return false;
+
+        var firstType = method.parameters[0].type;
+
+        if (firstType.specialType != SpecialType.Decimal)
+            return false;
+
+        return true;
+    }
+
+    private MethodSymbol FindEntryPoint(SynthesizedEntryPoint simpleEntryPoint, BelteDiagnosticQueue diagnostics) {
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
+
+        foreach (var type in classes) {
+            foreach (var member in type.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
+                if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
+                    builder.Add(m);
+            }
+        }
+
+        builder.AddIfNotNull(simpleEntryPoint);
+        var entryPointCandidates = builder.ToImmutableAndFree();
+        return SelectEntryPoint(simpleEntryPoint, entryPointCandidates, diagnostics, options.isScript);
+    }
+
+    internal static MethodSymbol SelectEntryPoint(
+        SynthesizedEntryPoint simpleEntryPoint,
+        ImmutableArray<MethodSymbol> methods,
+        BelteDiagnosticQueue diagnostics,
+        bool isScript) {
+        var expectedCount = simpleEntryPoint is null ? 1 : 2;
+
+        MethodSymbol entryPoint = null;
+
+        if (methods.Length == 0 && !isScript) {
+            diagnostics.Push(Error.NoSuitableEntryPoint());
+        } else if (methods.Length == 1) {
+            entryPoint = methods[0];
+        } else if (methods.Length > 1) {
+            if (methods.Length > expectedCount)
+                diagnostics.Push(Error.MultipleMains(methods[0].location));
+
+            if (methods.Length > 1 && simpleEntryPoint is not null)
+                diagnostics.Push(Error.MainAndGlobals(methods[0].location));
+        }
+
+        return entryPoint;
+    }
+
+    internal static bool HasEntryPointSignature(MethodSymbol method) {
+        if (!method.name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+            return false;
+
+        var returnType = method.returnType;
+
+        if (returnType.specialType != SpecialType.Int && !returnType.IsVoidType()) {
+            if (returnType.specialType == SpecialType.Nullable &&
+                returnType.GetNullableUnderlyingType().specialType != SpecialType.Int) {
+                return false;
+            }
+        }
+
+        if (method.refKind != RefKind.None)
+            return false;
+
+        if (method.parameterCount == 0)
+            return true;
+
+        if (method.parameterCount > 1)
+            return false;
+
+        if (!method.parameterRefKinds.IsDefault)
+            return false;
+
+        var firstType = method.parameters[0].type;
+
+        if (firstType.specialType != SpecialType.Array)
+            return false;
+
+        var elementType = ((ArrayTypeSymbol)firstType).elementType;
+
+        if (elementType.specialType != SpecialType.String)
+            return false;
+
+        return true;
+    }
+
+    private AliasSymbol CreateGlobalNamespaceAlias() {
+        return AliasSymbol.CreateGlobalNamespaceAlias(globalNamespaceInternal);
+    }
+
+    private Compilation AddSyntaxTrees(IEnumerable<SyntaxTree> trees) {
+        ArgumentNullException.ThrowIfNull(trees);
+
+        if (trees.IsEmpty())
+            return this;
+
+        var externalSyntaxTrees = PooledHashSet<SyntaxTree>.GetInstance();
+        var syntax = _syntax;
+        externalSyntaxTrees.AddAll(syntax.syntaxTrees);
+
+        var i = 0;
+
+        foreach (var tree in trees) {
+            if (tree is null)
+                throw new ArgumentNullException($"{nameof(trees)}[{i}]");
+
+            if (externalSyntaxTrees.Contains(tree))
+                throw new ArgumentException("Syntax tree already present", $"{nameof(trees)}[{i}]");
+
+            externalSyntaxTrees.Add(tree);
+            i++;
+        }
+
+        externalSyntaxTrees.Free();
+        syntax = syntax.AddSyntaxTrees(trees);
+        return Update(syntax);
+    }
+
+    private Compilation Update(SyntaxAndDeclarationManager syntax) {
+        return new Compilation(assemblyName, options, previous, syntax);
+    }
+
+    private BinderFactory AddNewFactory(
+        SyntaxTree syntaxTree,
+        bool ignoreAccessibility,
+        ref WeakReference<BinderFactory> slot) {
+        var newFactory = new BinderFactory(this, syntaxTree, ignoreAccessibility);
+        var newWeakReference = new WeakReference<BinderFactory>(newFactory);
+
+        while (true) {
+            var previousWeakReference = slot;
+
+            if (previousWeakReference is not null && previousWeakReference.TryGetTarget(out var previousFactory))
+                return previousFactory;
+
+            if (Interlocked.CompareExchange(ref slot!, newWeakReference, previousWeakReference)
+                == previousWeakReference) {
+                return newFactory;
+            }
+        }
+    }
+
+    private static Compilation Create(
+        string assemblyName,
+        CompilationOptions options,
+        Compilation previous,
+        IEnumerable<SyntaxTree> syntaxTrees) {
+        var compilation = new Compilation(
+            assemblyName,
+            options,
+            previous,
+            new SyntaxAndDeclarationManager([], null)
+        );
+
+        if (syntaxTrees is not null)
+            compilation = compilation.AddSyntaxTrees(syntaxTrees);
+
+        return compilation;
+    }
+
+    private void GetAllUnaliasedModules(ArrayBuilder<ModuleSymbol> builder) {
+        builder.AddRange(assembly.modules);
+    }
+
+    private BelteDiagnosticQueue GetDiagnostics(bool includeParse, bool includeDeclaration, bool includeMethods) {
+        var builder = new BelteDiagnosticQueue();
+
+        if (includeParse) {
+            foreach (var syntaxTree in _syntax.syntaxTrees)
+                builder.PushRange(syntaxTree.GetDiagnostics());
+        }
+
+        if (includeDeclaration) {
+            assembly.ForceComplete(null);
+            builder.PushRange(declarationDiagnostics);
+        }
+
+        if (includeMethods)
+            builder.PushRange(methodDiagnostics);
+
+        return BelteDiagnosticQueue.CleanDiagnostics(builder);
+    }
+
+    private void EnsureBoundProgramAndMethodDiagnostics() {
+        if (_lazyBoundProgram is null)
+            CreateBoundProgramAndMethodDiagnostics();
+    }
+
+    private void CreateBoundProgramAndMethodDiagnostics() {
+        _lazyMethodDiagnostics = new BelteDiagnosticQueue();
+        _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
+            this,
+            _lazyMethodDiagnostics,
+            SkipLibrariesFilter
+        );
+    }
+
+    private void EmitCFG() {
+        var program = boundProgram;
         var cfgPath = GetProjectPath("cfg.dot");
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
-        if (cfgStatement != null) {
+        if (cfgStatement is not null) {
             var cfg = ControlFlowGraph.Create(cfgStatement);
 
             using var streamWriter = new StreamWriter(cfgPath);
@@ -394,14 +806,18 @@ public sealed class Compilation {
         }
     }
 
-    private static void CreateBoundProgram(BoundProgram program) {
-        var programPath = GetProjectPath("program.blt");
+    private void EmitBoundProgram() {
+        const string BoundProgramName = "BoundProgram.g.blt";
+
+        var program = boundProgram;
+        Console.WriteLine($"Dumping bound program to \"{BoundProgramName}\"");
+
         var displayText = new DisplayText();
 
         foreach (var pair in program.methodBodies)
             CompilationExtensions.EmitTree(pair.Key, displayText, program);
 
-        using var streamWriter = new StreamWriter(programPath);
+        using var streamWriter = new StreamWriter(BoundProgramName);
         var segments = displayText.Flush();
 
         foreach (var segment in segments) {
@@ -412,11 +828,21 @@ public sealed class Compilation {
             else
                 streamWriter.Write(segment.text);
         }
+
+        streamWriter.Close();
     }
 
     private static string GetProjectPath(string fileName) {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
         return Path.Combine(appDirectory, fileName);
+    }
+
+    private static void Log(bool log, Stopwatch timer, BelteDiagnosticQueue diagnostics, string message) {
+        if (log) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
+            timer.Restart();
+        }
     }
 }

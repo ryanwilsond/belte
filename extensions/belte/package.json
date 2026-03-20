@@ -1,27 +1,32 @@
 {
     "name": "belte",
-    "displayName": "BELTE",
+    "displayName": "Belte",
     "description": "Language support for Belte",
-    "version": "0.2.0",
-    "publisher": "ryan_wilson",
+    "version": "0.1.0",
+    "author": "Ryan Wilson",
+    "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/ryanwilsond/belte"
     },
     "icon": "./images/BelteCapital.png",
-    "engines": {
-        "vscode": "^1.88.0"
-    },
+    "publisher": "ryan_wilson",
     "categories": [
         "Programming Languages"
     ],
+    "keywords": [
+        "multi-root ready"
+    ],
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "main": "./client/out/extension",
     "contributes": {
         "languages": [
             {
                 "id": "belte",
                 "aliases": [
-                    "Belte",
-                    "belte"
+                    "Belte"
                 ],
                 "extensions": [
                     ".blt",
@@ -33,13 +38,23 @@
                     "dark": "./images/belte-icon128x.png"
                 }
             }
-        ],
-        "grammars": [
-            {
-                "language": "belte",
-                "scopeName": "source.belte",
-                "path": "./belte.tmLanguage.json"
-            }
         ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -b",
+        "watch": "tsc -b -w",
+        "lint": "eslint",
+        "postinstall": "cd client && npm install && cd .."
+    },
+    "devDependencies": {
+        "@eslint/js": "^9.13.0",
+        "@stylistic/eslint-plugin": "^2.9.0",
+        "@types/mocha": "^10.0.6",
+        "@types/node": "^20",
+        "eslint": "^9.13.0",
+        "mocha": "^10.3.0",
+        "typescript": "^5.8.2",
+        "typescript-eslint": "^8.26.0"
     }
 }

@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
@@ -15,6 +14,19 @@ namespace Buckle.Tests;
 /// All assertions used by Buckle tests.
 /// </summary>
 internal static class Assertions {
+    private static CompilationOptions DefaultEvalOptions
+        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, [], enableOutput: false);
+    private static CompilationOptions DefaultExecOptions
+        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, [], enableOutput: false);
+
+    private readonly static Compilation BaseCompilation;
+
+    static Assertions() {
+        var compilation = LibraryHelpers.LoadLibraries();
+        _ = compilation.boundProgram;
+        BaseCompilation = compilation;
+    }
+
     /// <summary>
     /// Asserts that a piece of Belte code evaluates to a value.
     /// </summary>
@@ -22,17 +34,35 @@ internal static class Assertions {
     /// <param name="expectedValue">Expected result.</param>
     internal static void AssertValue(string text, object expectedValue) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var compilation = Compilation.CreateScript(
-            new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
+
+        var evalCompilation = Compilation.CreateScript(
+            "Tests",
+            DefaultEvalOptions,
+            syntaxTree,
+            BaseCompilation
         );
 
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+        var execCompilation = Compilation.CreateScript(
+            "Tests",
+            DefaultExecOptions,
+            syntaxTree,
+            BaseCompilation
+        );
 
-        if (result.value is double && Convert.ToDouble(expectedValue).CompareTo(result.value) == 0)
+        var evalResult = evalCompilation.Evaluate(false);
+
+        if (evalResult.value is double && Convert.ToDouble(expectedValue).CompareTo(evalResult.value) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
+        else if (evalResult.value is long && Convert.ToInt64(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToInt64(expectedValue);
 
-        Assert.Empty(result.diagnostics.Errors().ToArray());
-        Assert.Equal(expectedValue, result.value);
+        Assert.Empty(evalResult.diagnostics.Errors().ToArray());
+        Assert.Equal(expectedValue, evalResult.value);
+
+        var execDiags = execCompilation.Execute(false, false, out var execResult);
+
+        Assert.Empty(execDiags.Errors().ToArray());
+        Assert.Equal(expectedValue, execResult);
     }
 
     /// <summary>
@@ -44,10 +74,13 @@ internal static class Assertions {
     internal static void AssertExceptions(string text, ITestOutputHelper writer, params Exception[] exceptions) {
         var syntaxTree = SyntaxTree.Parse(text);
         var compilation = Compilation.CreateScript(
-            new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
+            "Tests",
+            DefaultEvalOptions,
+            syntaxTree,
+            BaseCompilation
         );
 
-        var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+        var result = compilation.Evaluate(false);
 
         if (exceptions.Length != result.exceptions.Count) {
             writer.WriteLine($"Input: {text}");
@@ -69,22 +102,32 @@ internal static class Assertions {
     /// <param name="diagnosticText">Diagnostic message(s).</param>
     /// <param name="writer">Writer to write debug into to if the assertion fails.</param>
     /// <param name="assertWarnings">If to assert against warnings as well as errors.</param>
+    /// <param name="script">If the compilation should be in script mode.</param>
     internal static void AssertDiagnostics(
-        string text, string diagnosticText, ITestOutputHelper writer, bool assertWarnings = false) {
+        string text,
+        string diagnosticText,
+        ITestOutputHelper writer,
+        bool assertWarnings = false,
+        bool script = true) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
         var tempDiagnostics = new BelteDiagnosticQueue();
         var treeDiagnostics = syntaxTree.GetDiagnostics();
 
-        if (treeDiagnostics.Errors().Any()) {
+        if (treeDiagnostics.AnyErrors()) {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
-            var compilation = Compilation.CreateScript(
-                new CompilationOptions(BuildMode.Independent, ProjectType.Console, [], true, false), null, syntaxTree
-            );
+            var compilation = script
+                ? Compilation.CreateScript(
+                    "Tests",
+                    DefaultEvalOptions,
+                    syntaxTree,
+                    BaseCompilation
+                )
+                : Compilation.Create("Tests", DefaultEvalOptions, BaseCompilation, syntaxTree);
 
-            var result = compilation.Evaluate(new Dictionary<IVariableSymbol, EvaluatorObject>(), false);
+            var result = compilation.Evaluate(false);
             tempDiagnostics = result.diagnostics;
         }
 
@@ -114,7 +157,9 @@ internal static class Assertions {
             Assert.Equal(expectedMessage, actualMessage);
 
             var expectedSpan = annotatedText.spans[i];
-            var actualSpan = diagnostic.location.span;
+            var actualSpan = diagnostic.location?.span
+                ?? TextSpan.FromBounds(annotatedText.text.Length, annotatedText.text.Length);
+
             writer.WriteLine($"start: {expectedSpan.start}, {actualSpan.start}");
             Assert.Equal(expectedSpan.start, actualSpan.start);
             writer.WriteLine($"end: {expectedSpan.end}, {actualSpan.end}");
@@ -132,14 +177,17 @@ internal static class Assertions {
     /// <param name="buildMode">Which emitter to use.</param>
     internal static void AssertText(string text, string expectedText, BuildMode buildMode) {
         var syntaxTree = SyntaxTree.Parse(text);
+        var options = new CompilationOptions(buildMode, OutputKind.ConsoleApplication, [], false, false);
         var compilation = Compilation.Create(
-            new CompilationOptions(buildMode, ProjectType.Console, [], false, false),
+            "EmitterTests",
+            options,
+            BaseCompilation,
             syntaxTree
         );
 
-        var result = compilation.EmitToString(buildMode, "EmitterTests");
+        var result = compilation.EmitToString(out var diagnostics);
 
-        Assert.Empty(compilation.diagnostics.Errors().ToArray());
+        Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
     }
 }

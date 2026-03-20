@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BelteLspServer", "server\BelteLspServer.csproj", "{A2DF00D1-B2CE-426B-72F2-D6CAF3EFC307}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A2DF00D1-B2CE-426B-72F2-D6CAF3EFC307}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2DF00D1-B2CE-426B-72F2-D6CAF3EFC307}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2DF00D1-B2CE-426B-72F2-D6CAF3EFC307}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2DF00D1-B2CE-426B-72F2-D6CAF3EFC307}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2629A612-839F-4B7D-8BC5-07A01CF6267A}
+	EndGlobalSection
+EndGlobal

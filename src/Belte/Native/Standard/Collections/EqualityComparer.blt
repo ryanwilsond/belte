@@ -1,0 +1,10 @@
+
+public class EqualityComparer<type T> {
+    public const bool! Equals(T x, T y) {
+        return x.Equals(y);
+    }
+
+    public const int! GetHashCode(T obj) {
+        return obj.GetHashCode();
+    }
+}

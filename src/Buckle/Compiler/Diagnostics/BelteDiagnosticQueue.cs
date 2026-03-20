@@ -1,13 +1,31 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
+using Buckle.CodeAnalysis.Symbols;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Diagnostics;
 
 /// <summary>
 /// A <see cref="DiagnosticQueue<T>" /> containing <see cref="BelteDiagnostic" />s.
 /// </summary>
-public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
+public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
+    internal static readonly BelteDiagnosticQueue Discarded = new DiscardedDiagnosticQueue();
+
+    private static readonly ObjectPool<BelteDiagnosticQueue> Pool
+        = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
+
+    internal readonly ICollection<AssemblySymbol> dependenciesBag;
+
+    private readonly ObjectPool<BelteDiagnosticQueue> _pool;
+
+    private BelteDiagnosticQueue(ObjectPool<BelteDiagnosticQueue> pool) : base() {
+        _pool = pool;
+    }
+
     /// <summary>
     /// Creates a <see cref="BelteDiagnosticQueue" /> with no Diagnostics.
     /// </summary>
@@ -28,7 +46,7 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     public static BelteDiagnosticQueue CleanDiagnostics(BelteDiagnosticQueue diagnostics) {
         // TODO This needs to be tested with duplicate diagnostics at the end of the input before being used
         var cleanedDiagnostics = new BelteDiagnosticQueue();
-        var specialDiagnostics = new BelteDiagnosticQueue();
+        var specialDiagnostics = GetInstance();
 
         var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
 
@@ -47,7 +65,8 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
             cleanedDiagnostics.Push(diagnostic);
         }
 
-        cleanedDiagnostics.Move(specialDiagnostics);
+        cleanedDiagnostics.PushRange(specialDiagnostics);
+        specialDiagnostics.Free();
 
         return cleanedDiagnostics;
     }
@@ -60,11 +79,77 @@ public sealed class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return new BelteDiagnosticQueue(FilterAbove(DiagnosticSeverity.Error).ToList());
     }
 
-    public void Push<T>(T diagnostic) where T : Diagnostic {
-        base.Push(new BelteDiagnostic(diagnostic));
+    public bool AnyErrors() {
+        return AnyAbove(DiagnosticSeverity.Error);
     }
 
-    public new void Push(BelteDiagnostic diagnostic) {
-        base.Push(diagnostic);
+    public virtual DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
+        return base.Push(new BelteDiagnostic(diagnostic));
+    }
+
+    public new virtual DiagnosticInfo Push(BelteDiagnostic diagnostic) {
+        return base.Push(diagnostic);
+    }
+
+    public new virtual void PushRange(IEnumerable<BelteDiagnostic> diagnostics) {
+        base.PushRange(diagnostics);
+    }
+
+    public virtual void PushRange(BelteDiagnosticQueue diagnostics) {
+        base.PushRange(diagnostics);
+    }
+
+    public virtual void Move(BelteDiagnosticQueue diagnostics) {
+        base.Move(diagnostics);
+    }
+
+    internal static BelteDiagnosticQueue GetInstance() {
+        return Pool.Allocate();
+    }
+
+    internal void Free() {
+        if (_pool is not null) {
+            Clear();
+            ((PooledHashSet<AssemblySymbol>)dependenciesBag)?.Free();
+            _pool.Free(this);
+        }
+    }
+
+    internal BelteDiagnostic[] ToArrayAndFree() {
+        var diagnostics = ToArray();
+        Free();
+        return diagnostics;
+    }
+
+    internal virtual void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
+        PushRange(diagnostics);
+        diagnostics.Free();
+    }
+
+    internal ImmutableArray<BelteDiagnostic> ToImmutableAndFree() {
+        return ToArrayAndFree().ToImmutableArray();
+    }
+
+    internal void AddAssembliesUsedByNamespaceReference(NamespaceSymbol ns) {
+        if (dependenciesBag is null)
+            return;
+
+        AddAssembliesUsedByNamespaceReferenceImpl(ns);
+
+        void AddAssembliesUsedByNamespaceReferenceImpl(NamespaceSymbol ns) {
+            if (ns.extent.kind == NamespaceKind.Compilation) {
+                foreach (var constituent in ns.constituentNamespaces)
+                    AddAssembliesUsedByNamespaceReferenceImpl(constituent);
+            } else {
+                var containingAssembly = ns.containingAssembly;
+
+                if (containingAssembly?.isMissing == false)
+                    dependenciesBag.Add(containingAssembly);
+            }
+        }
+    }
+
+    private string GetDebuggerDisplay() {
+        return "Count = " + (_diagnostics?.Count ?? 0);
     }
 }

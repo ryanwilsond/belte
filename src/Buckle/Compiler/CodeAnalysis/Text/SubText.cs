@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Immutable;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -51,12 +51,12 @@ internal sealed class SubText : SourceText {
         return new SubText(underlyingText, GetCompositeSpan(span.start, span.length));
     }
 
-    protected override void EnsureLines() {
-        if (_lines != null)
+    private protected override void EnsureLines() {
+        if (_lines is not null)
             return;
 
         var lines = underlyingText.GetLines();
-        var builder = ImmutableArray.CreateBuilder<TextLine>();
+        var builder = ArrayBuilder<TextLine>.GetInstance();
 
         foreach (var line in lines) {
             var start = line.spanWithBreak.start;
@@ -102,7 +102,7 @@ internal sealed class SubText : SourceText {
             }
         }
 
-        _lines = builder.ToImmutable();
+        _lines = builder.ToImmutableAndFree();
     }
 
     private TextSpan GetCompositeSpan(int start, int length) {

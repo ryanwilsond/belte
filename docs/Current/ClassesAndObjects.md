@@ -217,8 +217,8 @@ class List<type t> {
     length = Length(array);
   }
 
-  public static t operator[](List list, int index) {
-    return list.array[index];
+  public static ref t operator[](List<t> list, int index) {
+    return ref list.array[index];
   }
 }
 ```

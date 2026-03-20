@@ -1,0 +1,22 @@
+
+class Tile {
+    public int! x;
+    public int! y;
+    public string! key;
+    public Sprite sprite;
+    public string! kind;
+    public bool onGrid;
+
+    public constructor(int! x, int! y, Texture texture, string! key, int! tileSize, bool onGrid = true) {
+        this.x = x;
+        this.y = y;
+        this.key = key;
+        this.onGrid = onGrid;
+        kind = String.Split(key, ";")[0];
+
+        if (onGrid)
+            this.sprite = new Sprite(texture, null, new Rect(x * tileSize, y * tileSize, texture.width * 4, texture.height * 4), 0);
+        else
+            this.sprite = new Sprite(texture, null, new Rect(x, y, texture.width * 4, texture.height * 4), 0);
+    }
+}

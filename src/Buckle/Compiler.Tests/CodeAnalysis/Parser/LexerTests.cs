@@ -43,6 +43,7 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanGreaterThanToken);
         untestedTokenTypes.Remove(SyntaxKind.HashToken);
         untestedTokenTypes.Remove(SyntaxKind.EndOfDirectiveToken);
+        untestedTokenTypes.Remove(SyntaxKind.OmittedArgumentToken);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -149,7 +150,7 @@ public sealed class LexerTests {
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
                          and not SyntaxKind.HashToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
-            .Where(t => t.text != null);
+            .Where(t => t.text is not null);
 
         var dynamicTokens = new[] {
             (SyntaxKind.NumericLiteralToken, "1"),
@@ -341,6 +342,10 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionOpenBracketToken)
             return true;
         if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.PeriodToken)
+            return true;
+        if (t1Kind == SyntaxKind.ColonToken && t2Kind == SyntaxKind.ColonToken)
+            return true;
+        if (t1Kind == SyntaxKind.ColonToken && t2Kind == SyntaxKind.ColonColonToken)
             return true;
 
         return false;
