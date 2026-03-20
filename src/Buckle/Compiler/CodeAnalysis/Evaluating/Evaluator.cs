@@ -926,6 +926,9 @@ internal sealed class Evaluator {
 
         var targetType = node.right.StrippedType();
 
+        if (node.right.IsLiteralNull())
+            return EvaluatorValue.Literal(value.kind == ValueKind.Null == (!node.isNot));
+
         if (value.kind == ValueKind.Null) {
             value.@bool = node.isNot;
             value.kind = ValueKind.Bool;
@@ -1226,11 +1229,6 @@ internal sealed class Evaluator {
 
         var op = operatorKind.Operator();
         var left = EvaluateExpression(node.left, true, abort);
-
-        if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
-            if (node.right.IsLiteralNull())
-                return EvaluatorValue.Literal(left.kind == ValueKind.Null == (op == BinaryOperatorKind.Equal));
-        }
 
         if (left.kind == ValueKind.Null)
             return left;
@@ -1839,10 +1837,8 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
-        if (_context.options.outputKind == OutputKind.GraphicsApplication) {
-            if (method.containingType.Equals(GraphicsLibrary.Graphics.underlyingNamedType))
-                return HandleGraphicsCall(location, method, arguments, abort, out result);
-        }
+        if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType)
+            return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
         var mapKey = LibraryHelpers.BuildMapKey(method);
@@ -1871,7 +1867,7 @@ internal sealed class Evaluator {
             return true;
         }
 
-        if (method.containingNamespace.Equals(LibraryHelpers.BelteNamespace.originalDefinition)) {
+        if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
             switch (mapKey) {
                 case "LowLevel_GetHashCode_O": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
@@ -1921,7 +1917,7 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_A?": {
+                case "LowLevel_Length_[?": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind != ValueKind.HeapPtr) {
@@ -1951,7 +1947,7 @@ internal sealed class Evaluator {
                     _lazyRandom ??= new Random();
                     result = _lazyRandom.NextDouble();
                     return true;
-                case "LowLevel_Sort_A?": {
+                case "LowLevel_Sort_[?": {
                         var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
                         if (arrayPtr.kind != ValueKind.HeapPtr)
@@ -2129,6 +2125,10 @@ internal sealed class Evaluator {
         ValueWrapper<bool> abort,
         out object result) {
         result = null;
+
+        if (_program.compilation.options.outputKind != OutputKind.GraphicsApplication)
+            throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
+
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
         if (mapKey == "Graphics_Initialize_SIIB") {

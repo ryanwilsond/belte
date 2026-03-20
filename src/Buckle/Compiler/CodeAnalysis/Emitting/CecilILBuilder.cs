@@ -170,6 +170,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
     }
 
+    internal override void EmitLength(TypeSymbol elementType) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetLength(elementType));
+    }
+
     internal override void EmitStringConcat2() {
         iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.String_Concat_SS);
     }

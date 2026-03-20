@@ -70,6 +70,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitSort(TypeSymbol elementType);
 
+    internal abstract void EmitLength(TypeSymbol elementType);
+
     internal abstract void EmitStringConcat2();
 
     internal abstract void EmitStringEquality();

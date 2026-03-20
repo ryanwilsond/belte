@@ -1,6 +1,6 @@
 
-public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
-    private int[] _buckets;
+public lowlevel sealed class Dictionary<type TKey, type TValue> {
+    private int![]! _buckets;
     private Entry[] _entries;
     private int! _count = 0;
     private int! _freeList = -1;
@@ -10,27 +10,27 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
 
     public constructor(int! capacity) : this(capacity, null) { }
 
-    public constructor(ref EqualityComparer<TKey> comparer) : this(0, comparer) { }
+    public constructor(EqualityComparer<TKey> comparer) : this(0, comparer) { }
 
-    public constructor(int! capacity, ref EqualityComparer<TKey> comparer) {
+    public constructor(int! capacity, EqualityComparer<TKey> comparer) {
         if (capacity < 0)
             throw new ArgumentOutOfRangeException();
 
         if (capacity > 0)
             Initialize(capacity);
 
-        this.comparer = comparer ?? EqualityComparer<TKey>.CreateComparer();
+        this.comparer = comparer ?? new EqualityComparer<TKey>();
     }
 
-    public constructor(ref Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
+    public constructor(Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
-    public constructor(ref Dictionary<TKey, TValue> dictionary, ref EqualityComparer<TKey> comparer)
+    public constructor(Dictionary<TKey, TValue> dictionary, EqualityComparer<TKey> comparer)
         : this(dictionary isnt null ? dictionary.Length() : 0, comparer) {
         if (dictionary is null)
             throw new ArgumentNullException();
 
         for (int! i = 0; i < dictionary._count; i++) {
-            Entry! entry = dictionary._entries[i]!;
+            Entry entry = dictionary._entries[i];
 
             if (entry.hashCode >= 0)
                 Add(entry.key, entry.value);
@@ -50,7 +50,7 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
                     return true;
             }
         } else {
-            EqualityComparer<TValue> c = EqualityComparer<TValue>.CreateComparer();
+            EqualityComparer<TValue> c = new EqualityComparer<TValue>();
 
             for (int i = 0; i < _count; i++) {
                 if (_entries[i].hashCode >= 0 && c.Equals(_entries[i].value, value))
@@ -71,7 +71,7 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
 
     public void Clear() {
         if (_count > 0) {
-            for (int i = 0; i < Length(_buckets); i++)
+            for (int i = 0; i < LowLevel.Length<int![]>(_buckets); i++)
                 _buckets[i] = -1;
 
             _freeList = -1;
@@ -86,10 +86,10 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
 
         if (_buckets isnt null) {
             int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int! bucket = hashCode % Length(_buckets!);
+            int! bucket = hashCode % LowLevel.Length<int![]>(_buckets);
             int! last = -1;
 
-            for (int! i = _buckets[bucket]!; i >= 0; last = i) {
+            for (int! i = _buckets[bucket]; i >= 0; last = i) {
                 if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
                     if (last < 0)
                         _buckets[bucket] = _entries[i].next;
@@ -113,18 +113,13 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
         return false;
     }
 
-    public static TValue operator[](Dictionary<TKey, TValue> dictionary, TKey key) {
+    public static ref TValue operator[](Dictionary<TKey, TValue> dictionary, TKey key) {
         int i = dictionary.FindEntry(key);
 
         if (i >= 0)
-            return dictionary._entries[i].value;
+            return ref dictionary._entries[i].value;
 
         throw new KeyNotFoundException();
-    }
-
-    public static TValue operator[](Dictionary<TKey, TValue> dictionary, TKey key, TValue value) {
-        dictionary.Insert(key, value, false);
-        return value;
     }
 
     private const int! FindEntry(TKey key) {
@@ -134,7 +129,7 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
         if (_buckets isnt null) {
             int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
 
-            for (int! i = _buckets[hashCode % Length(_buckets!)]!; i >= 0; i = _entries[i].next) {
+            for (int! i = _buckets[hashCode % LowLevel.Length<int![]>(_buckets)]; i >= 0; i = _entries[i].next) {
                 if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key))
                     return i;
             }
@@ -151,9 +146,9 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
             Initialize(0);
 
         int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-        int! targetBucket = hashCode % Length(_buckets!);
+        int! targetBucket = hashCode % LowLevel.Length<int![]>(_buckets);
 
-        for (int! i = _buckets[targetBucket]!; i >= 0; i = _entries[i].next) {
+        for (int! i = _buckets[targetBucket]; i >= 0; i = _entries[i].next) {
             if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
                 if (add)
                     throw new ArgumentNullException();
@@ -170,9 +165,9 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
             _freeList = _entries[index].next;
             _freeCount--;
         } else {
-            if (_count == Length(_entries)) {
+            if (_count == LowLevel.Length<Entry[]>(_entries)) {
                 Resize();
-                targetBucket = hashCode % Length(_buckets);
+                targetBucket = hashCode % LowLevel.Length<int![]>(_buckets);
             }
 
             index = _count;
@@ -180,24 +175,24 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
         }
 
         _entries[index].hashCode = hashCode;
-        _entries[index].next = _buckets[targetBucket]!;
+        _entries[index].next = _buckets[targetBucket];
         _entries[index].key = key!;
         _entries[index].value = value!;
         _buckets[targetBucket] = index;
     }
 
     private void Resize() {
-        Resize(HashHelpers.ExpandPrime(_count!), false);
+        Resize(HashHelpers.ExpandPrime(_count), false);
     }
 
     private void Resize(int! newSize, bool! forceNewHashCodes) {
-        int[]! newBuckets = new int[newSize]!;
+        int![]! newBuckets = new int![newSize]!;
 
-        for (int! i = 0; i < Length(newBuckets); i++)
+        for (int! i = 0; i < LowLevel.Length<int![]>(newBuckets); i++)
             newBuckets[i] = -1;
 
         Entry[] newEntries = new Entry[newSize];
-        Array<Entry>.Copy(ref newEntries, ref _entries, 0, _count);
+        Array<Entry>.Copy(newEntries, _entries, 0, _count);
 
         if (forceNewHashCodes) {
             for (int! i = 0; i < _count; i++) {
@@ -220,9 +215,9 @@ public lowlevel sealed class Dictionary<type! TKey, type! TValue> {
 
     private void Initialize(int! capacity) {
         int! size = HashHelpers.GetPrime(capacity);
-        _buckets = new int[size]!;
+        _buckets = new int![size];
 
-        for (int! i = 0; i < Length(_buckets); i++)
+        for (int! i = 0; i < LowLevel.Length<int![]>(_buckets); i++)
             _buckets[i] = -1;
 
         _entries = new Entry[size];

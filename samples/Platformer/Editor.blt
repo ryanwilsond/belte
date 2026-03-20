@@ -49,14 +49,14 @@ class Editor {
         var scrollDelta = currentScroll - previousScroll;
 
         if (shift) {
-            var length = LowLevel.Length(textures.everything[tileGroup]);
+            var length = LowLevel.Length<Texture[]>(textures.everything[tileGroup]);
 
             if (scrollDelta > 0)
                 tileVariant = ((tileVariant - 1) % length + length) % length;
             if (scrollDelta < 0)
                 tileVariant = ((tileVariant + 1) % length + length) % length;
         } else {
-            var length = LowLevel.Length(textures.everything);
+            var length = LowLevel.Length<Texture[][]>(textures.everything);
 
             if (scrollDelta > 0) {
                 tileGroup = ((tileGroup - 1) % length + length) % length;

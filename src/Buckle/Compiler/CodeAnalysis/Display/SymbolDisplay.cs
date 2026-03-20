@@ -110,7 +110,7 @@ public static class SymbolDisplay {
             if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
         } else if (type is TemplateParameterSymbol templateParameter) {
-            if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0 &&
+            if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateParameters) != 0 &&
                 !string.IsNullOrEmpty(templateParameter.name)) {
                 text.Write(CreateIdentifier(templateParameter.name));
             }

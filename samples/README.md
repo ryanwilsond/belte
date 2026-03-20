@@ -17,7 +17,7 @@ this is a convention, and not required.)
 | [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | 2D pong game. |
 | [samples/Donut](Donut/Program.blt) | `buckle samples/Donut` | ASCII spinning donut. |
 | [samples/Snake](Snake/Program.blt) | `buckle samples/Snake --type=graphics` | Snake game. |
-| [samples/Platformer](Platformer/Program.blt) | `cd samples/Platformer && buckle . --type=graphics` | Platformer game. |
+| [samples/Platformer](Platformer/Program.blt) | `buckle samples/Platformer --type=graphics` | Platformer game. |
 
 ## Running a Sample Using the Executor or Evaluator
 
@@ -41,8 +41,6 @@ buckle samples/Pong --type=graphics
 
 If something goes wrong, the Evaluator provides much better debug information, at the cost of much worse performance
 (which is why the Executor is the default end point). To use the Evaluator, add the `--evaluate` flag.
-
-> Note: The Platformer game uses relative pathing to resolve assets, which is why you must change into that directory
 
 ## Compiling a Sample
 

@@ -35,7 +35,7 @@ class Program {
         Graphics.LockFramerate(120);
 
         background = Graphics.LoadSprite(
-            "data/images/background.png",
+            "samples/Platformer/data/images/background.png",
             new Vec2(Settings.WindowWidth / 2, Settings.WindowHeight / 2),
             new Vec2(Settings.WindowWidth, Settings.WindowHeight),
             0
@@ -47,11 +47,11 @@ class Program {
         animations = new Animations(textures);
 
         sfx = new Sound[] {
-            Graphics.LoadSound("data/sfx/jump.wav"),
-            Graphics.LoadSound("data/sfx/dash.wav"),
-            Graphics.LoadSound("data/sfx/hit.wav"),
-            Graphics.LoadSound("data/sfx/shoot.wav"),
-            Graphics.LoadSound("data/sfx/ambience.wav")
+            Graphics.LoadSound("samples/Platformer/data/sfx/jump.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/dash.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/hit.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/shoot.wav"),
+            Graphics.LoadSound("samples/Platformer/data/sfx/ambience.wav")
         };
 
         sfx[0].volume = 0.7;
@@ -60,7 +60,7 @@ class Program {
         sfx[3].volume = 0.4;
         sfx[4].volume = 0.2;
 
-        var music = Graphics.LoadSound("data/music.wav")!;
+        var music = Graphics.LoadSound("samples/Platformer/data/music.wav")!;
         music.volume = 0.5;
         music.loop = true;
         sfx[4].loop = true;
@@ -78,10 +78,10 @@ class Program {
 
         mapCount = 4;
         maps = new string[]! {
-            "data/maps/0.txt",
-            "data/maps/1.txt",
-            "data/maps/2.txt",
-            "data/maps/3.txt"
+            "samples/Platformer/data/maps/0.txt",
+            "samples/Platformer/data/maps/1.txt",
+            "samples/Platformer/data/maps/2.txt",
+            "samples/Platformer/data/maps/3.txt"
         };
 
         level = 0;

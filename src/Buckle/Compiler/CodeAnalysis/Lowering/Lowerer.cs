@@ -575,14 +575,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.Type()));
             }
 
-            var binaryOp = expression.isNot ? BinaryOperatorKind.NotEqual : BinaryOperatorKind.Equal;
-            var right = Literal(expression.right.syntax, null, expression.left.Type());
+            var left = (BoundExpression)Visit(expression.left);
 
-            binaryOp |= expression.left.Type().specialType == SpecialType.String
-                ? BinaryOperatorKind.String
-                : BinaryOperatorKind.Object;
-
-            return Visit(Binary(syntax, expression.left, binaryOp, right, expression.Type()));
+            return new BoundIsOperator(
+                syntax,
+                left,
+                expression.right,
+                expression.isNot,
+                expression.constantValue,
+                expression.type
+            );
         }
 
         return base.VisitIsOperator(expression);

@@ -11,7 +11,7 @@ class Clouds {
         for (int! i = 0; i < count; i++)
             depths[i] = Random.Random() * 0.6 + 0.2;
 
-        LowLevel.Sort(depths);
+        LowLevel.Sort<decimal[]>(depths);
 
         for (int! i = 0; i < count; i++) {
             clouds[i] = new Cloud(

@@ -283,6 +283,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReference(sortRef);
     }
 
+    internal MethodReference GetLength(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var lengthRef = new GenericInstanceMethod(NetMethodReference.LowLevel_Length);
+        lengthRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReference(lengthRef);
+    }
+
     internal MethodReference GetNullableHasValue(TypeSymbol genericType) {
         var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
         var genericArgumentType = GetType(genericType);
@@ -1048,6 +1057,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
         NetMethodReference.Array_Sort = ResolveMethod("System.Array", "Sort", ["T[]"]);
+        NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T[]"]);
     }
 
     private void GenerateSTLMap() {

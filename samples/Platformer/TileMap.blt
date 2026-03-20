@@ -91,7 +91,7 @@ class TileMap {
         var lines = String.Split(text!, "\r\n");
         var onGrid = true;
 
-        for (int! i = 0; i < LowLevel.Length(lines) - 1; i++) {
+        for (int! i = 0; i < LowLevel.Length<string[]>(lines) - 1; i++) {
             if (lines[i] == "offGrid") {
                 onGrid = false;
                 continue;

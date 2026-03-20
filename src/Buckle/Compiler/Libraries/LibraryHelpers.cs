@@ -17,6 +17,7 @@ public static class LibraryHelpers {
     private static SynthesizedBelteNamespaceSymbol _lazyBelteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
+    private static SpecialOrKnownType.Boxed _lazyAnyArray;
     private static SpecialOrKnownType.Boxed _lazyCharArray;
 
     internal static NamespaceSymbol BelteNamespace {
@@ -60,6 +61,15 @@ public static class LibraryHelpers {
         }
     }
 
+    internal static SpecialOrKnownType AnyArray {
+        get {
+            if (_lazyAnyArray is null)
+                Interlocked.CompareExchange(ref _lazyAnyArray, GenerateArray(SpecialType.Any), null);
+
+            return _lazyAnyArray.type;
+        }
+    }
+
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
@@ -73,24 +83,6 @@ public static class LibraryHelpers {
 
             if (!libraryName.EndsWith(".blt"))
                 continue;
-
-            // TODO Remove this, temp
-            // if (libraryName == "Compiler.Dictionary.blt")
-            //     continue;
-            if (libraryName != "Compiler.Object.blt" &&
-                libraryName != "Compiler.Vec2.blt" &&
-                libraryName != "Compiler.Text.blt" &&
-                libraryName != "Compiler.Rect.blt" &&
-                libraryName != "Compiler.Texture.blt" &&
-                libraryName != "Compiler.FRect.blt" &&
-                libraryName != "Compiler.Vec4.blt" &&
-                libraryName != "Compiler.Sound.blt" &&
-                libraryName != "Compiler.Sprite.blt" &&
-                // libraryName != "Compiler.List.blt" &&
-                // libraryName != "Compiler.Array.blt" &&
-                libraryName != "Compiler.Exception.blt") {
-                continue;
-            }
 
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);

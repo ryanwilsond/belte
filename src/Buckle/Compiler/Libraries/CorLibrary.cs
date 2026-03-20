@@ -12,7 +12,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 14 - 1; // TODO remove -1 after Dict
+    private const int TotalSpecialTypes = 14;
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
     private const int TotalWellKnownMembers = 3;
 

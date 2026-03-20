@@ -8258,7 +8258,7 @@ internal partial class Binder {
             case TypeKind.Error:
                 LookupMembersInErrorType(
                     result,
-                    (ErrorTypeSymbol)type,
+                    (ErrorTypeSymbol)type.originalDefinition,
                     name,
                     arity,
                     basesBeingResolved,

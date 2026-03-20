@@ -696,7 +696,13 @@ oneMoreTime:
                 if (!operand.type.IsVerifierReference())
                     EmitBox(operand.type);
 
-                _builder.EmitWithSymbolToken(OpCode.Isinst, isOp.right.type);
+                if (isOp.right.IsLiteralNull()) {
+                    _builder.Emit(OpCode.Ldnull);
+                    _builder.Emit(isOp.isNot ? OpCode.Cgt_Un : OpCode.Ceq);
+                } else {
+                    _builder.EmitWithSymbolToken(OpCode.Isinst, isOp.right.type);
+                }
+
                 iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
                 dest ??= new object();
                 _builder.EmitBranch(iLCode, dest);
@@ -1202,19 +1208,32 @@ oneMoreTime:
 
         if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
             switch (method.name) {
-                case "ThrowNullConditionException":
-                    _builder.EmitThrowNullCondition();
-                    return;
-                case "Sort":
-                    var argument = ((BoundCastExpression)arguments[0]).operand;
-                    var refKind = GetArgumentRefKind(arguments, method.parameters, expression.argumentRefKinds, 0);
-                    EmitArgument(argument, refKind);
-
-                    _builder.EmitSort(((ArrayTypeSymbol)argument.StrippedType()).elementType);
-
-                    EmitCallCleanup(method, useKind);
+                case "ThrowNullConditionException": {
+                        _builder.EmitThrowNullCondition();
+                        // This is to balance the stack
+                        EmitDefaultValue(
+                            CorLibrary.GetSpecialType(SpecialType.Exception),
+                            useKind != UseKind.Unused,
+                            expression.syntax
+                        );
+                    }
 
                     return;
+                case "Sort": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitSort(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+                case "Length": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitLength(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+
             }
         }
 
@@ -1857,11 +1876,16 @@ oneMoreTime:
             if (!operand.type.IsVerifierReference())
                 EmitBox(operand.type);
 
-            _builder.EmitWithSymbolToken(OpCode.Isinst, expression.right.type);
-
-            if (!omitBooleanConversion) {
+            if (expression.right.IsLiteralNull()) {
                 _builder.Emit(OpCode.Ldnull);
-                _builder.Emit(OpCode.Cgt_Un);
+                _builder.Emit(expression.isNot ? OpCode.Cgt_Un : OpCode.Ceq);
+            } else {
+                _builder.EmitWithSymbolToken(OpCode.Isinst, expression.right.type);
+
+                if (!omitBooleanConversion) {
+                    _builder.Emit(OpCode.Ldnull);
+                    _builder.Emit(OpCode.Cgt_Un);
+                }
             }
         }
     }

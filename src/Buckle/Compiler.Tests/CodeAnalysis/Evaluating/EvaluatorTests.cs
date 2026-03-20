@@ -345,7 +345,7 @@ public sealed class EvaluatorTests {
     // Libraries
     [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
     [InlineData("class A { public override string ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
-    [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length(a);", 3)]
+    [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length<any[]>(a);", 3)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
     [InlineData("type a = typeof(string);", null)]

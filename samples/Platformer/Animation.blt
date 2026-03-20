@@ -10,7 +10,7 @@ class Animation {
     public bool done;
 
     public constructor(Texture[] textures, int duration = 5, bool loop = true) {
-        length = LowLevel.Length(textures);
+        length = LowLevel.Length<Texture[]>(textures);
         this.textures = textures;
         this.duration = duration / 60.0;
         this.loop = loop;

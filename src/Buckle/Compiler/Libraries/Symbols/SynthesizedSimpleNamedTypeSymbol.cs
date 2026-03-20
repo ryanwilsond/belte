@@ -43,7 +43,7 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+    public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
     public override int arity { get; }
 

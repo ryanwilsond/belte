@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using static Buckle.Libraries.LibraryHelpers;
@@ -137,11 +136,43 @@ internal static class StandardLibrary {
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateLowLevel() {
+        var lengthT = new SynthesizedTemplateParameterSymbol(
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            0
+        );
+
+        var length = new SynthesizedTemplateMethodSymbol(
+            "Length",
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)),
+            [lengthT],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(lengthT), 0, RefKind.None, "arr")],
+            MethodKind.Ordinary,
+            CodeAnalysis.DeclarationModifiers.Static
+        );
+
+        var sortT = new SynthesizedTemplateParameterSymbol(
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            0
+        );
+
+        var sort = new SynthesizedTemplateMethodSymbol(
+            "Sort",
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+            [sortT],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(sortT), 0, RefKind.None, "arr")],
+            MethodKind.Ordinary,
+            CodeAnalysis.DeclarationModifiers.Static
+        );
+
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
-            StaticMethod("Length", SpecialType.Int, [("array", SpecialType.Any, true)]),
-            StaticMethod("Sort", SpecialType.Void, [("array", SpecialType.Any, true)]),
+            length,
+            sort,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
         ]);
     }

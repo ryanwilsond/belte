@@ -142,7 +142,7 @@ internal sealed partial class Executor : ModuleBuilder {
             timer.Stop();
 
             if (verbose) {
-                var assemblyPath = $"{DynamicAssemblyName}.dll";
+                var assemblyPath = $"{DynamicAssemblyName}.g.dll";
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
                 var generator = new Lokad.ILPack.AssemblyGenerator();
                 generator.GenerateAssembly(_programType.Assembly, assemblyPath);
@@ -328,14 +328,22 @@ internal sealed partial class Executor : ModuleBuilder {
         var generic = GetType(type);
         var nullable = typeof(Nullable<>);
         var closedType = nullable.MakeGenericType(generic);
-        return closedType.GetMethod("get_Value", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
+
+        if (closedType.ContainsGenericParameters || generic is TypeBuilder || generic is GenericTypeParameterBuilder)
+            return TypeBuilder.GetMethod(closedType, MethodInfoCache.Nullable_get_Value);
+        else
+            return closedType.GetMethod("get_Value", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
     internal MethodInfo GetNullableHasValue(TypeSymbol type) {
         var generic = GetType(type);
         var nullable = typeof(Nullable<>);
         var closedType = nullable.MakeGenericType(generic);
-        return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
+
+        if (closedType.ContainsGenericParameters || generic is TypeBuilder || generic is GenericTypeParameterBuilder)
+            return TypeBuilder.GetMethod(closedType, MethodInfoCache.Nullable_get_HasValue);
+        else
+            return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
     internal MethodInfo GetSort(TypeSymbol elementType) {
@@ -349,6 +357,13 @@ internal sealed partial class Executor : ModuleBuilder {
                 m.GetParameters()[0].ParameterType.IsArray);
 
         var closedMethod = sort.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
+    internal MethodInfo GetLength(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var length = typeof(Belte.Runtime.Utilities).GetMethod("Length");
+        var closedMethod = length.MakeGenericMethod(generic);
         return closedMethod;
     }
 
@@ -625,6 +640,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private MethodInfo CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
+
+        if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
+            _program.compilation.options.outputKind != OutputKind.GraphicsApplication) {
+            throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
+        }
 
         switch (mapKey) {
             case "Nullable<>_get_Value":
@@ -914,8 +934,6 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Truncate_D", typeof(Math).GetMethod("Truncate", Flags, [typeof(double)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
-            { "LowLevel_Sort_A?", typeof(Belte.Runtime.Utilities).GetMethod("Sort", Flags, [typeof(object[])]) },
-            { "LowLevel_Length_A?", typeof(Belte.Runtime.Utilities).GetMethod("Length", Flags, [typeof(object[])]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
