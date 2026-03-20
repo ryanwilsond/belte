@@ -416,7 +416,7 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement) {
         // TODO Add a way where if _operatorDepth == 0 a temp local isn't made if this is a variable initializer
         var syntax = expression.syntax;
-        var dictionaryType = expression.type as NamedTypeSymbol;
+        var dictionaryType = (NamedTypeSymbol)expression.StrippedType();
         var tempLocal = GenerateTempLocal(expression.Type());
         var statements = new List<BoundStatement>() {
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
@@ -443,7 +443,7 @@ internal sealed class Expander : BoundTreeExpander {
                 new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
                 method,
                 [pair.Item1, pair.Item2],
-                [RefKind.Ref, RefKind.Ref],
+                [RefKind.None, RefKind.None],
                 default,
                 LookupResultKind.Viable,
                 method.returnType

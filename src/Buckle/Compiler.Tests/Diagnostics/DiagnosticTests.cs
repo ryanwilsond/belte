@@ -3387,4 +3387,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0340_InvalidInitializerDictionary() {
+        var text = @"
+            var a = [{3: ""test"", true: ""Test""}];
+        ";
+
+        var diagnostics = @"
+            cannot infer dictionary type from initializer; try using an object creation expression instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

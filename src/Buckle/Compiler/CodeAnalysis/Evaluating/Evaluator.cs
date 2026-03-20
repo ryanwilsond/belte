@@ -183,8 +183,10 @@ internal sealed class Evaluator {
     }
 
     private HeapObject CreateHeapObject(NamedTypeSymbol type) {
-        if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout))
+        if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout)) {
+            _program.TryGetTypeLayoutIncludingParents(type, out _);
             throw new BelteInternalException($"Failed to get type layout ({type})");
+        }
 
         var fields = layout.LocalsInOrder();
         var heapObject = new HeapObject(type, fields.Length);
@@ -398,9 +400,6 @@ internal sealed class Evaluator {
             exceptions.Add(e);
             lastOutputWasPrint = false;
             _hasValue = false;
-
-            if (!_isScript)
-                abort.Value = true;
 
             return EvaluatorValue.None;
         }
@@ -769,7 +768,7 @@ internal sealed class Evaluator {
         if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], used, abort);
 
-        var type = (NamedTypeSymbol)node.type;
+        var type = (NamedTypeSymbol)node.StrippedType();
         var ptr = CreateObject(type);
 
         var temp = AllocateTemp(type);
@@ -1631,7 +1630,7 @@ internal sealed class Evaluator {
 
         var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
 
-        if (useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
+        if (exceptions.Count == 0 && useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
         else
             return value;
@@ -1702,7 +1701,7 @@ internal sealed class Evaluator {
 
         var value = InvokeMethod(method, thisParameter, evaluatedArguments, abort);
 
-        if (useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
+        if (exceptions.Count == 0 && useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
         else
             return value;

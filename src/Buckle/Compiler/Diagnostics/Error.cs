@@ -1638,6 +1638,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_DuplicateConversion, location, message);
     }
 
+    internal static BelteDiagnostic InvalidInitializerDictionary(TextLocation location) {
+        var message = $"cannot infer dictionary type from initializer; try using an object creation expression instead";
+        return CreateError(DiagnosticCode.ERR_InvalidInitializerDictionary, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

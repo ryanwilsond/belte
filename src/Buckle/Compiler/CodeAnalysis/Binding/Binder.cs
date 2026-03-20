@@ -1596,6 +1596,76 @@ internal partial class Binder {
         return CheckValue(result, valueKind, diagnostics);
     }
 
+    private BoundExpression BindInitializerDictionaryExpression(
+        InitializerDictionaryExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        TypeSymbol foundKeyType = null;
+        TypeSymbol foundValueType = null;
+        var failed = false;
+
+        var builder = ArrayBuilder<(BoundExpression, BoundExpression)>.GetInstance();
+
+        foreach (var item in node.items) {
+            var boundKey = BindValue(item.key, diagnostics, BindValueKind.RValue);
+
+            if (foundKeyType is null) {
+                foundKeyType = boundKey.Type();
+            } else {
+                if (!boundKey.Type().Equals(foundKeyType))
+                    failed = true;
+            }
+
+            var boundValue = BindValue(item.value, diagnostics, BindValueKind.RValue);
+
+            if (foundValueType is null) {
+                foundValueType = boundValue.Type();
+            } else {
+                if (!boundValue.Type().Equals(foundValueType))
+                    failed = true;
+            }
+
+            builder.Add((boundKey, boundValue));
+        }
+
+        var foundKeyTypeWithAnnotations = new TypeWithAnnotations(foundKeyType);
+        var foundValueTypeWithAnnotations = new TypeWithAnnotations(foundValueType);
+
+        if (foundKeyType is not null)
+            foundKeyType = foundKeyTypeWithAnnotations.SetIsAnnotated().type;
+
+        if (foundValueType is not null)
+            foundValueType = foundValueTypeWithAnnotations.SetIsAnnotated().type;
+
+        if (!failed) {
+            for (var i = 0; i < builder.Count; i++) {
+                var castedKey = GenerateConversionForAssignment(foundKeyType, builder[i].Item1, diagnostics);
+                var castedValue = GenerateConversionForAssignment(foundValueType, builder[i].Item2, diagnostics);
+                builder[i] = (castedKey, castedValue);
+            }
+        }
+
+        var dictType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Dictionary)
+            .Construct([new TypeOrConstant(foundKeyType), new TypeOrConstant(foundValueType)]))
+            .SetIsAnnotated().type;
+
+        if (failed) {
+            diagnostics.Push(Error.InvalidInitializerDictionary(node.location));
+
+            return new BoundInitializerDictionary(
+                node,
+                builder.ToImmutableAndFree(),
+                dictType,
+                hasErrors: true
+            );
+        }
+
+        return new BoundInitializerDictionary(
+            node,
+            builder.ToImmutableAndFree(),
+            dictType
+        );
+    }
+
     private BoundExpression BindUnexpectedArrayInitializer(
         InitializerListExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
@@ -2640,6 +2710,8 @@ internal partial class Binder {
                 return BindCastExpression((CastExpressionSyntax)node, diagnostics);
             case SyntaxKind.InitializerListExpression:
                 return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
+            case SyntaxKind.InitializerDictionaryExpression:
+                return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)node, diagnostics);
             case SyntaxKind.ReferenceExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)node, diagnostics);
             case SyntaxKind.IndexExpression:
@@ -2648,7 +2720,6 @@ internal partial class Binder {
                 return BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)node, diagnostics);
-            case SyntaxKind.InitializerDictionaryExpression:
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }

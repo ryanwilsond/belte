@@ -348,6 +348,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotReturnFromFinally = 337,
     ERR_StaticConstructorWithAccessModifier = 338,
     ERR_StaticConstructorWithInitializer = 339,
+    ERR_InvalidInitializerDictionary = 340,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
