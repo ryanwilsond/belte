@@ -1499,13 +1499,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UnexpectedArrayInit(TextLocation location) {
-        var message = $"initializer lists can only be used in a data container or field initializer; try using a new expression instead";
+        var message = $"cannot infer array type from initializer list; try using a new expression instead";
         return CreateError(DiagnosticCode.ERR_UnexpectedArrayInit, location, message);
-    }
-
-    internal static BelteDiagnostic ImplicitAssignedInitializerList(TextLocation location) {
-        var message = $"cannot initialize an implicitly-typed data container with an initializer list";
-        return CreateError(DiagnosticCode.ERR_ImplicitAssignedInitializerList, location, message);
     }
 
     internal static BelteDiagnostic GlobalUsingInNamespace(TextLocation location) {

@@ -116,11 +116,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0009_UnexpectedArrayInit() {
         var text = @"
-            int\[\]\[\] a = { [{ 1 }] };
+            var a = [{ null }];
         ";
 
         var diagnostics = @"
-            initializer lists can only be used in a data container or field initializer; try using a new expression instead
+            cannot infer array type from initializer list; try using a new expression instead
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -312,20 +312,7 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0028_NoAliasHere
     // ! Error_BU0029_BadUsingType
-
-    [Fact]
-    public void Reports_Error_BU0030_ImplicitAssignedInitializerList() {
-        var text = @"
-            [var a = {1, 2, 3}];
-        ";
-
-        var diagnostics = @"
-            cannot initialize an implicitly-typed data container with an initializer list
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
+    // ! Error_BU0030
     // ! Error_BU0031_DuplicateUsing
 
     [Fact]

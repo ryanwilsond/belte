@@ -49,40 +49,6 @@ Specifies the project type.
 | `graphics` | An application that creates a window. |
 | `dll` | Builds into a dynamically linked library. |
 
-<!--
-### *-n*
-
-Compile to a native executable (ending in *.exe* by default).
-
-### *-s*
-
-Stop compilation after compiling, resulting in assemble code. File output options are treated normally, and the
-outputted compiled file will be an assembly file (ending in *.s* by default).
-
-This option is only used in junction with the *-n* option.
-
-### *-c*
-
-Stop compilation after assembling, resulting in an byte code. File output options are treated normally, and the
-outputted compiled file will be an object file (ending in *.o* by default).
-
-This option is only used in junction with the *-n* option.
--->
-
-### *--script*
-
-Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
-the program is run immediately. However, unlike the *-i* option, this mode is interpreting meaning the entry point has
-to be the root of the file.
-
-The interpreter compiles the code chunk by chunk (which is not always equivalent to a single line unlike many
-interpreters) and evaluates those chunks before moving on to the next chunk. Because of this, runtime performance is
-slow because the compiler is constantly being called after each chunk. There is no pause before the program starts
-executing.
-
-This script mode only supports one file input at a time, and the entry point is always the start of the file (any other
-entry point that would be used in normal compilation, e.g. `Main`, will be ignored).
-
 ### *--evaluate*
 
 Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
@@ -166,23 +132,9 @@ the standard output however.
 
 This option is mainly used for debugging the functionality of the compiler without having to worry about produced files.
 
-### *--explain*[BU|RE|CL]*\<code>*
+### *--clearsubmissions*
 
-Displays extended information on a specific error. This option requires inputting an error code, not an error name. To
-make it more convenient to use this option, whenever the compiler produces an error the error code is part of the error
-message.
-
-Errors are in the format `buckle: [error location]: error [error code]: [error message]`. To get information on an
-error, call the compiler in this format: `buckle --explain [error code]`.
-
-Note: If no error module prefix (BU, RE, etc.) is provided, the `--explain` option will by default get errors from the
-BU module.
-
-| Module Prefix | Description |
-|-|-|
-| BU | Buckle; diagnostics produced during the actual compilation process. |
-| RE | Repl; diagnostics produced that are unique to the Repl. |
-| CL | Command Line; diagnostics produced that are unique to the command-line interface. |
+Deletes REPL submissions. If used with *-r*, the submissions are deleted before the REPL evaluates them.
 
 ### *-d*, *--dotnet*
 

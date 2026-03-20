@@ -38,7 +38,7 @@ public enum DiagnosticCode : ushort {
     ERR_UnterminatedString = 27,
     ERR_NoAliasHere = 28,
     ERR_BadUsingType = 29,
-    ERR_ImplicitAssignedInitializerList = 30,
+    // ! 30
     ERR_DuplicateUsing = 31,
     ERR_CannotCallNonMethod = 32,
     ERR_InvalidExpressionStatement = 33,

@@ -44,8 +44,8 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Dump](#dump-command) | `#dump <signature>` | Show contents of symbol \<signature> |
 | [Exit](#exit-command) | `#exit` | Exit the Repl |
 | [Help](#help-command) | `#help` | Show this document |
+| [List](#list-command) | `#list <mode>` | List symbols |
 | [Load](#load-command) | `#load <path>` | Load in text from \<path> |
-| [List](#list-command) | `#list` | List all defined symbols |
 | [Reset](#reset-command) | `#reset` | Clear previous submissions |
 | [Save to File](#save-to-file-command) | `#saveToFile <path> <count=1>` | Save previous \<count> submissions to \<path> |
 | [Settings](#settings-command) | `#settings` | Open settings page |
@@ -213,9 +213,15 @@ The Repl:
 
 ### List Command
 
-Usage: `#list`
+Usage: `#list <mode=global>`
 
-The list command lists all user-declared symbols.
+| Mode | |
+|-|-|
+| `global` | User-declared globals |
+| `type` | User-defined and included types |
+| `all` | All |
+
+The list command lists certain symbols.
 
 For example:
 

@@ -1590,7 +1590,7 @@ internal partial class Binder {
             );
         } else {
             diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
-            result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics);
+            result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, false);
         }
 
         return CheckValue(result, valueKind, diagnostics);
@@ -1598,7 +1598,8 @@ internal partial class Binder {
 
     private BoundExpression BindUnexpectedArrayInitializer(
         InitializerListExpressionSyntax node,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        bool inferType) {
         var result = BindArrayInitializerList(
             diagnostics,
             node,
@@ -1608,7 +1609,10 @@ internal partial class Binder {
             false
         );
 
-        if (!result.hasErrors) {
+        if (inferType)
+            return InferTypeOfArrayInitializer(result, diagnostics);
+
+        if (!result.hasErrors && !inferType) {
             result = new BoundInitializerList(
                 node,
                 result.items,
@@ -1618,6 +1622,81 @@ internal partial class Binder {
         }
 
         return result;
+    }
+
+    private BoundExpression InferTypeOfArrayInitializer(
+        BoundInitializerList expression,
+        BelteDiagnosticQueue diagnostics) {
+        var shouldLift = true;
+        TypeSymbol foundElementType = null;
+        TypeWithAnnotations foundTypeWithAnnotations;
+
+        foreach (var item in expression.items) {
+            var operand = item is BoundCastExpression c ? c.operand : item;
+
+            if (foundElementType is null) {
+                foundElementType = operand.Type();
+
+                if (operand.kind != BoundKind.LiteralExpression)
+                    shouldLift = false;
+
+                continue;
+            }
+
+            if (!operand.Type().Equals(foundElementType)) {
+                foundElementType = null;
+                break;
+            }
+        }
+
+        if (foundElementType is null) {
+            if (!expression.hasErrors) {
+                diagnostics.Push(Error.UnexpectedArrayInit(expression.syntax.location));
+
+                expression = new BoundInitializerList(
+                    expression.syntax,
+                    expression.items,
+                    expression.Type(),
+                    hasErrors: true
+                );
+            }
+
+            return expression;
+        }
+
+        foundTypeWithAnnotations = new TypeWithAnnotations(foundElementType);
+
+        if (shouldLift)
+            foundTypeWithAnnotations = foundTypeWithAnnotations.SetIsAnnotated();
+
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+
+        foreach (var item in expression.items) {
+            var operand = item is BoundCastExpression c ? c.operand : item;
+            var casted = GenerateConversionForAssignment(foundTypeWithAnnotations.type, operand, diagnostics);
+            builder.Add(casted);
+        }
+
+        TypeSymbol type = ArrayTypeSymbol.CreateSZArray(foundTypeWithAnnotations);
+
+        expression = new BoundInitializerList(
+            expression.syntax,
+            builder.ToImmutableAndFree(),
+            type
+        );
+
+        type = new TypeWithAnnotations(type).SetIsAnnotated().type;
+
+        return new BoundArrayCreationExpression(
+            expression.syntax,
+            [BoundFactory.Literal(
+                expression.syntax,
+                Convert.ToInt64(expression.items.Length),
+                CorLibrary.GetSpecialType(SpecialType.Int)
+            )],
+            expression,
+            type
+        );
     }
 
     internal static bool IsAnyReadOnly(AddressKind addressKind) => addressKind >= AddressKind.ReadOnly;
@@ -2560,8 +2639,7 @@ internal partial class Binder {
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)node, diagnostics);
             case SyntaxKind.InitializerListExpression:
-                diagnostics.Push(Error.UnexpectedArrayInit(node.location));
-                return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics);
+                return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
             case SyntaxKind.ReferenceExpression:
                 return BindReferenceExpression((ReferenceExpressionSyntax)node, diagnostics);
             case SyntaxKind.IndexExpression:
@@ -3279,7 +3357,7 @@ internal partial class Binder {
         bool isInferred,
         ImmutableArray<BoundExpression> boundInitExprOpt = default) {
         if (boundInitExprOpt.IsDefault)
-            boundInitExprOpt = BindArrayInitializerExpressions(node, diagnostics, dimension, type.rank);
+            boundInitExprOpt = BindArrayInitializerExpressions(node, diagnostics, dimension, type);
 
         var boundInitExprIndex = 0;
 
@@ -3359,9 +3437,9 @@ internal partial class Binder {
         InitializerListExpressionSyntax initializer,
         BelteDiagnosticQueue diagnostics,
         int dimension,
-        int rank) {
+        ArrayTypeSymbol type) {
         var exprBuilder = ArrayBuilder<BoundExpression>.GetInstance();
-        BindArrayInitializerExpressions(initializer, exprBuilder, diagnostics, dimension, rank);
+        BindArrayInitializerExpressions(initializer, exprBuilder, diagnostics, dimension, type);
         return exprBuilder.ToImmutableAndFree();
     }
 
@@ -3370,10 +3448,16 @@ internal partial class Binder {
         ArrayBuilder<BoundExpression> exprBuilder,
         BelteDiagnosticQueue diagnostics,
         int dimension,
-        int rank) {
-        if (dimension == rank) {
+        ArrayTypeSymbol type) {
+        if (dimension == type.rank) {
             foreach (var expression in initializer.items) {
-                var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
+                var boundExpression = BindPossibleArrayInitializer(
+                    expression,
+                    type.elementType,
+                    BindValueKind.RValue,
+                    diagnostics
+                );
+
                 exprBuilder.Add(boundExpression);
             }
         } else {
@@ -3384,7 +3468,7 @@ internal partial class Binder {
                         exprBuilder,
                         diagnostics,
                         dimension + 1,
-                        rank
+                        type
                     );
                 } else {
                     var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
@@ -7594,7 +7678,7 @@ internal partial class Binder {
         var lhsKind = isRef ? BindValueKind.RefAssignable : BindValueKind.Assignable;
         var op1 = BindValue(node.left, diagnostics, lhsKind);
         var rhsKind = isRef ? GetRequiredRHSValueKindForRefAssignment(op1) : BindValueKind.RValue;
-        var op2 = BindValue(rhsExpr, diagnostics, rhsKind);
+        var op2 = BindPossibleArrayInitializer(rhsExpr, op1.Type(), rhsKind, diagnostics);
         return BindAssignment(node, op1, op2, isRef, diagnostics);
     }
 
@@ -9452,8 +9536,12 @@ symIsHidden:;
         }
 
         if (initializer.kind == SyntaxKind.InitializerListExpression) {
-            diagnostics.Push(Error.ImplicitAssignedInitializerList(errorSyntax.location));
-            var result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)initializer, diagnostics);
+            var result = BindUnexpectedArrayInitializer(
+                (InitializerListExpressionSyntax)initializer,
+                diagnostics,
+                true
+            );
+
             return CheckValue(result, valueKind, diagnostics);
         }
 
