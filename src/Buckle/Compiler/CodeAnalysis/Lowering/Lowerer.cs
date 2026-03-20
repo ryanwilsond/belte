@@ -649,6 +649,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (<type>)<operand>
 
+        ----> <op> has a method attached
+
+        <method>(<operand>)
+
         ----> <operand> is nullable and <type> is nullable
 
         (HasValue(<operand>) ? new Nullable( (<type!>)Value(<operand>) ) : null)
@@ -667,6 +671,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         var syntax = expression.syntax;
+
+        if (expression.conversion.method is not null)
+            return Visit(Call(syntax, expression.conversion.method, expression.operand));
+
         var operand = expression.operand;
         var type = expression.Type();
         var operandType = operand.Type();

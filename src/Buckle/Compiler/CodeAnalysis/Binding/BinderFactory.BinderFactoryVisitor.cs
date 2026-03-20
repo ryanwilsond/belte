@@ -387,6 +387,9 @@ internal sealed partial class BinderFactory {
                 case SyntaxKind.OperatorDeclaration:
                     var operatorDeclaration = (OperatorDeclarationSyntax)syntax;
                     return SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+                case SyntaxKind.ConversionDeclaration:
+                    var conversionDeclaration = (ConversionDeclarationSyntax)syntax;
+                    return SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
                 case SyntaxKind.MethodDeclaration:
                     var methodDeclSyntax = (MethodDeclarationSyntax)syntax;
                     return methodDeclSyntax.identifier.text;
@@ -420,6 +423,14 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitOperatorDeclaration(OperatorDeclarationSyntax node) {
+            return VisitOperatorOrConversionDeclaration(node);
+        }
+
+        internal override Binder VisitConversionDeclaration(ConversionDeclarationSyntax node) {
+            return VisitOperatorOrConversionDeclaration(node);
+        }
+
+        private Binder VisitOperatorOrConversionDeclaration(BaseMethodDeclarationSyntax node) {
             if (!LookupPosition.IsInMethodDeclaration(_position, node))
                 return VisitCore(node.parent);
 

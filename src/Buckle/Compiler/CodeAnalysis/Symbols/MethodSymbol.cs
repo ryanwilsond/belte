@@ -217,10 +217,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         switch (kind) {
             case MethodKind.Constructor:
             case MethodKind.StaticConstructor:
-            case MethodKind.Builtin:
                 return false;
             case MethodKind.LocalFunction:
             case MethodKind.Operator:
+            case MethodKind.Conversion:
             case MethodKind.Ordinary:
                 return true;
             default:

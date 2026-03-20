@@ -185,6 +185,8 @@ public static class SyntaxFacts {
             "using" => SyntaxKind.UsingKeyword,
             "namespace" => SyntaxKind.NamespaceKeyword,
             "global" => SyntaxKind.GlobalKeyword,
+            "implicit" => SyntaxKind.ImplicitKeyword,
+            "explicit" => SyntaxKind.ExplicitKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -296,6 +298,8 @@ public static class SyntaxFacts {
             SyntaxKind.UsingKeyword => "using",
             SyntaxKind.NamespaceKeyword => "namespace",
             SyntaxKind.GlobalKeyword => "global",
+            SyntaxKind.ImplicitKeyword => "implicit",
+            SyntaxKind.ExplicitKeyword => "explicit",
             _ => null,
         };
     }
@@ -411,6 +415,15 @@ public static class SyntaxFacts {
     /// </summary>
     internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
         return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+    }
+
+    internal static string GetOperatorMemberName(ConversionDeclarationSyntax syntax) {
+        switch (syntax.implicitOrExplicitKeyword.kind) {
+            case SyntaxKind.ImplicitKeyword:
+                return WellKnownMemberNames.ImplicitConversionName;
+            default:
+                return WellKnownMemberNames.ExplicitConversionName;
+        }
     }
 
     internal static string GetOperatorMemberName(InternalSyntax.OperatorDeclarationSyntax syntax) {

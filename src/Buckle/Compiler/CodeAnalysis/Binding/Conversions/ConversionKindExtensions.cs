@@ -12,6 +12,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.NullLiteral:
             case ConversionKind.ImplicitNullable:
             case ConversionKind.ImplicitReference:
+            case ConversionKind.ImplicitUserDefined:
             case ConversionKind.AnyBoxing:
                 return true;
             default:

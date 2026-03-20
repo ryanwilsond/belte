@@ -1086,6 +1086,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             MemberSignatureComparer.DuplicateSourceComparer
         );
 
+        var conversionsAsMethods = new Dictionary<SourceMemberMethodSymbol, SourceMemberMethodSymbol>(
+            MemberSignatureComparer.DuplicateSourceComparer
+        );
+
+        var conversionsAsConversions = new HashSet<SourceUserDefinedConversionSymbol>(
+            ConversionSignatureComparer.Comparer
+        );
+
         foreach (var pair in membersByName) {
             var name = pair.Key;
             Symbol lastSym = GetTypeMembers(name).FirstOrDefault();
@@ -1107,7 +1115,20 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     lastSym = symbol;
                 }
 
-                if (!(symbol is not SourceMemberMethodSymbol method)) {
+                var conversion = symbol as SourceUserDefinedConversionSymbol;
+                var method = symbol as SourceMemberMethodSymbol;
+
+                if (conversion is { methodKind: MethodKind.Conversion }) {
+                    if (!conversionsAsConversions.Add(conversion)) {
+                        diagnostics.Push(Error.DuplicateConversion(conversion.location, this));
+                    } else {
+                        if (!conversionsAsMethods.ContainsKey(conversion))
+                            conversionsAsMethods.Add(conversion, conversion);
+                    }
+
+                    if (methodsBySignature.TryGetValue(conversion, out var previousMethod))
+                        ReportMethodSignatureCollision(diagnostics, conversion, previousMethod);
+                } else if (method is not null) {
                     if (methodsBySignature.TryGetValue(method, out var previousMethod))
                         ReportMethodSignatureCollision(diagnostics, method, previousMethod);
                     else
@@ -1483,6 +1504,18 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
                             this,
                             operatorSyntax,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(method);
+                    }
+                    break;
+                case SyntaxKind.ConversionDeclaration: {
+                        var conversionSyntax = (ConversionDeclarationSyntax)m;
+
+                        var method = SourceUserDefinedConversionSymbol.CreateUserDefinedConversionSymbol(
+                            this,
+                            conversionSyntax,
                             diagnostics
                         );
 

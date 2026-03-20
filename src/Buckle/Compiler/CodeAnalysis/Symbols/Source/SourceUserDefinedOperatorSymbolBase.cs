@@ -13,6 +13,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         MethodKind methodKind,
         string name,
         SourceMemberContainerTypeSymbol containingType,
+        TextLocation location,
         BelteSyntaxNode syntax,
         RefKind refKind,
         DeclarationModifiers modifiers,
@@ -24,7 +25,6 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             (modifiers, new Flags(methodKind, refKind, modifiers, false, false, hasAnyBody, false))
         ) {
         this.name = name;
-        var location = ((OperatorDeclarationSyntax)syntaxReference.node).operatorToken.location;
 
         if (containingType.isStatic) {
             diagnostics.Push(Error.OperatorInStaticClass(location));
@@ -58,8 +58,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     }
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
-        var syntax = (OperatorDeclarationSyntax)syntaxReference.node;
-        var (returnType, parameters) = MakeParametersAndBindReturnType(syntax, syntax.returnType, diagnostics);
+        var (returnType, parameters) = MakeParametersAndBindReturnType(diagnostics);
 
         MethodChecks(returnType, parameters, diagnostics);
 
@@ -70,6 +69,9 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         CheckValueParameters(diagnostics);
         CheckOperatorSignatures(diagnostics);
     }
+
+    private protected abstract (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
+        MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics);
 
     private void CheckOperatorSignatures(BelteDiagnosticQueue diagnostics) {
         if (!DoesOperatorHaveCorrectArity(name, parameterCount))

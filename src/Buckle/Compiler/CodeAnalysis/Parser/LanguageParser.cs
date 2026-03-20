@@ -74,8 +74,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private bool PeekIsFunctionOrMethodOrOperatorDeclarationCore(bool checkForOperator, bool couldBeInStatement) {
-        if (!PeekIsType(0, out var offset, out var hasName, out _))
-            return false;
+        var offset = 0;
+
+        if (!PeekIsType(0, out var typeOffset, out var hasName, out _)) {
+            if (!checkForOperator || Peek(offset).kind is not SyntaxKind.ImplicitKeyword and not SyntaxKind.ExplicitKeyword)
+                return false;
+            else
+                offset++;
+        } else {
+            offset += typeOffset;
+        }
 
         if (checkForOperator) {
             if (Peek(offset).kind == SyntaxKind.OperatorKeyword)
@@ -91,6 +99,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             }
 
             hasName = true;
+        } else if (checkForOperator && PeekIsType(offset, out typeOffset, out _, out _)) {
+            offset = typeOffset;
         } else if (checkForOperator && Peek(offset).kind != SyntaxKind.OpenParenToken) {
             offset++;
         }
@@ -339,7 +349,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return ParseConstructorDeclaration(attributeLists, modifiers);
 
         if ((_context & ParserContext.InClassDefinition) != 0 && PeekIsOperatorDeclaration())
-            return ParseOperatorDeclaration(attributeLists, modifiers);
+            return ParseOperatorOrConversionDeclaration(attributeLists, modifiers);
 
         if (PeekIsFunctionOrMethodDeclaration(couldBeInStatement: allowGlobalStatements)) {
             if (allowGlobalStatements) {
@@ -599,9 +609,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         );
     }
 
-    private OperatorDeclarationSyntax ParseOperatorDeclaration(
+    private MemberDeclarationSyntax ParseOperatorOrConversionDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
+        if (_currentToken.kind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword)
+            return ParseConversionDeclaration(attributeLists, modifiers);
+
         var type = ParseType();
         var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
         var operatorToken = EatToken();
@@ -666,6 +679,33 @@ internal sealed partial class LanguageParser : SyntaxParser {
             operatorKeyword,
             operatorToken,
             rightOperatorToken,
+            parameterList,
+            body
+        );
+    }
+
+    private ConversionDeclarationSyntax ParseConversionDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var implicitOrExplicitKeyword = MatchTwo(SyntaxKind.ImplicitKeyword, SyntaxKind.ExplicitKeyword);
+        var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
+        var type = ParseType(false);
+        var parameterList = ParseParameterList();
+        var body = (BlockStatementSyntax)ParseBlockStatement();
+
+        if (parameterList.parameters.Count != 1) {
+            operatorKeyword = AddDiagnostic(
+                operatorKeyword,
+                Error.ExpectedOverloadableUnaryOperator()
+            );
+        }
+
+        return SyntaxFactory.ConversionDeclaration(
+            attributeLists,
+            modifiers,
+            implicitOrExplicitKeyword,
+            operatorKeyword,
+            type,
             parameterList,
             body
         );

@@ -444,6 +444,18 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="ConversionDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="ConversionDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="implicitOrExplicitKeyword" Type="SyntaxToken"/>
+    <Field Name="operatorKeyword" Type="SyntaxToken">
+      <Kind Name="OperatorKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+  </Node>
   <Node Name="OperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="OperatorDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>

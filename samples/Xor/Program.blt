@@ -39,5 +39,5 @@ List<int> FindDoubleMissing(List<int> given, List<int> total) {
     return new List<int>(new int[] { u, v });
 }
 
-var result = FindDoubleMissing(new List<int>({ 1, 2, 3, 4, 5, 6 }), new List<int>({ 1, 3, 4, 6 }));
+var result = FindDoubleMissing({ 1, 2, 3, 4, 5, 6 }, { 1, 3, 4, 6 });
 Console.PrintLine(result);

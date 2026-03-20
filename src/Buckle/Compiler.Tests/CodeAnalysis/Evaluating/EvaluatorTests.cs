@@ -381,6 +381,18 @@ public sealed class EvaluatorTests {
         var a = new A();
         a[1]++;
         return a[1] + a[0];", 4)]
+    [InlineData(@"
+        class A {
+            public int a;
+            public static implicit operator A(int b) {
+                var c = new A();
+                c.a = b;
+                return c;
+            }
+        }
+
+        A a = 3;
+        return a.a;", 3)]
     // Overrides
     [InlineData(@"
         class A {
