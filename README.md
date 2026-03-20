@@ -1,4 +1,3 @@
-## Belte is under development! Any language design suggestions or compiler improvements are welcome
 
 <p align="center">
 <img width="300" src="docs/images/BelteCapital.png" alt="Belte Logo">
@@ -6,16 +5,10 @@
 
 <h1 align="center">Best Ever Language To Exist</h1>
 
-## Belte?
+Belte is a programming language heavily inspired by C# that aims to implement aggressive design by contract principles
+into types. Currently, the focus is implementing the basic language constructs.
 
-Belte is the **idea of a better language**, so while the Buckle compiler is being developed in hopes of bringing
-some of Belte's features to fruition, it is unlikely that Belte will ever be implemented in its totality.
-
-To give a brief idea: Belte is a programming language that supports both procedural and object-oriented paradigms that
-aims to match the sleekness of C# and the power of C++ while still being easy to learn and use effectively.
-
-More information about the design principles and language specification for Belte can be read
-[here](docs/README.md).
+> [Belte design principles and language specification](docs/README.md)
 
 ___
 
@@ -23,9 +16,7 @@ ___
 
 Buckle is the open-source implementation of the Belte compiler.
 
-> Belte does not currently have a stable release, so expect bugs if you clone
-
-Instructions on how to use the Buckle command-line utility to run Belte code can be viewed [here](docs/Buckle.md).
+> [Instructions on how to use the Buckle command-line utility](docs/Buckle.md)
 
 ___
 
@@ -40,17 +31,16 @@ ___
 
 There are multiple code samples in the `samples/` folder to show what the language is capable of in its current state.
 
-More information about the samples is [here](samples/README.md).
+> [Samples information](samples/README.md)
 
 ___
 
 ## References
 
+The bulk of the compiler is based on [Roslyn](https://github.com/dotnet/roslyn).
+
 Immo Landwerth's [Building a Compiler](https://www.youtube.com/playlist?list=PLRAdsfhKI4OWNOSfS7EUu5GRAVmze1t2y)
 series is really good for learning the basics of compiler implementation.
-
-[Roslyn on GitHub](https://github.com/dotnet/roslyn) is another really good place to learn about the implementation of a
-compiler.
 
 ___
 
