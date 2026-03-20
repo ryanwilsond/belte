@@ -50,6 +50,10 @@ public sealed class TextSpan {
         return start < span.end && end > span.start;
     }
 
+    public bool IntersectsWith(TextSpan span) {
+        return span.start <= end && span.end >= start;
+    }
+
     /// <summary>
     /// Determines whether the position lies within the span.
     /// </summary>
@@ -60,6 +64,10 @@ public sealed class TextSpan {
     /// </returns>
     internal bool Contains(int position) {
         return unchecked((uint)(position - start) < (uint)length);
+    }
+
+    internal bool Contains(TextSpan span) {
+        return span.start >= start && span.end <= end;
     }
 
     public override string ToString() => $"{start}..{end}";

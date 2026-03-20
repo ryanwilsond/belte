@@ -13,7 +13,7 @@ namespace Buckle.Tests.CodeAnalysis.Syntax.InternalSyntax;
 public sealed class LexerTests {
     [Fact]
     public void Lexer_Lexes_UnterminatedString() {
-        const string text = "\"test";
+        var text = "\"test";
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
         Assert.Equal(1, tokens.Count);
         var token = tokens[0];
@@ -39,6 +39,11 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.EndOfFileToken);
         untestedTokenTypes.Remove(SyntaxKind.SingleLineCommentTrivia);
         untestedTokenTypes.Remove(SyntaxKind.MultiLineCommentTrivia);
+        untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanToken);
+        untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanGreaterThanToken);
+        untestedTokenTypes.Remove(SyntaxKind.HashToken);
+        untestedTokenTypes.Remove(SyntaxKind.EndOfDirectiveToken);
+        untestedTokenTypes.Remove(SyntaxKind.OmittedArgumentToken);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -140,9 +145,12 @@ public sealed class LexerTests {
 
     private static IEnumerable<(SyntaxKind kind, string text)> GetTokens() {
         var fixedTokens = Enum.GetValues(typeof(SyntaxKind))
-                                .Cast<SyntaxKind>()
-                                .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
-                                .Where(t => t.text != null);
+            .Cast<SyntaxKind>()
+            .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
+                         and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
+                         and not SyntaxKind.HashToken)
+            .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
+            .Where(t => t.text is not null);
 
         var dynamicTokens = new[] {
             (SyntaxKind.NumericLiteralToken, "1"),
@@ -151,6 +159,7 @@ public sealed class LexerTests {
             (SyntaxKind.IdentifierToken, "abc"),
             (SyntaxKind.StringLiteralToken, "\"Test\""),
             (SyntaxKind.StringLiteralToken, "\"Te\"\"st\""),
+            (SyntaxKind.CharacterLiteralToken, "\'H\'")
         };
 
         return fixedTokens.Concat(dynamicTokens);
@@ -225,12 +234,6 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.LessThanToken)
             return true;
         if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanToken)
             return true;
         if (t1Kind == SyntaxKind.StringLiteralToken && t2Kind == SyntaxKind.StringLiteralToken)
             return true;
@@ -308,11 +311,7 @@ public sealed class LexerTests {
             return true;
         if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsToken)
-            return true;
         if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
         if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.LessThanLessThanEqualsToken)
             return true;
@@ -320,33 +319,9 @@ public sealed class LexerTests {
             return true;
         if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken)
             return true;
-        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind ==
-            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken) {
-            return true;
-        }
-
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind ==
-            SyntaxKind.GreaterThanGreaterThanGreaterThanToken) {
-            return true;
-        }
-
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanEqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanEqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanToken && t2Kind == SyntaxKind.GreaterThanGreaterThanToken)
-            return true;
         if (t1Kind == SyntaxKind.PercentToken && t2Kind == SyntaxKind.EqualsEqualsToken)
             return true;
         if (t1Kind == SyntaxKind.PercentToken && t2Kind == SyntaxKind.EqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsEqualsToken)
-            return true;
-        if (t1Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
         if (t1Kind == SyntaxKind.QuestionQuestionToken && t2Kind == SyntaxKind.EqualsToken)
             return true;
@@ -367,6 +342,10 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionOpenBracketToken)
             return true;
         if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.PeriodToken)
+            return true;
+        if (t1Kind == SyntaxKind.ColonToken && t2Kind == SyntaxKind.ColonToken)
+            return true;
+        if (t1Kind == SyntaxKind.ColonToken && t2Kind == SyntaxKind.ColonColonToken)
             return true;
 
         return false;

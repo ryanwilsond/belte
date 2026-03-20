@@ -33,7 +33,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     /// <summary>
     /// The parent of the child list.
     /// </summary>
-    internal SyntaxNode node { get; }
+    public SyntaxNode node { get; }
 
     public Enumerator GetEnumerator() {
         return new Enumerator(node, Count);
@@ -53,21 +53,26 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new EnumeratorImpl(node, Count);
     }
 
+    internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index) {
+        var slotData = new SlotData(node);
+        return ItemInternal(node, index, ref slotData);
+    }
+
     /// <summary>
     /// Gets the node or token at the given index from the given node. Unlike <see cref="SyntaxNode.GetNodeSlot" />,
     /// it uses the underlying node to get tokens as well.
     /// </summary>
-    internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index) {
+    internal static SyntaxNodeOrToken ItemInternal(SyntaxNode node, int index, ref SlotData slotData) {
         GreenNode greenChild;
         var green = node.green;
-        var idx = index;
-        var slotIndex = 0;
-        var position = node.position;
+        var idx = index - slotData.precedingOccupantSlotCount;
+        var slotIndex = slotData.slotIndex;
+        var position = slotData.positionAtSlotIndex;
 
         while (true) {
             greenChild = green.GetSlot(slotIndex);
 
-            if (greenChild != null) {
+            if (greenChild is not null) {
                 var currentOccupancy = Occupancy(greenChild);
 
                 if (idx < currentOccupancy)
@@ -80,15 +85,18 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
             slotIndex++;
         }
 
+        if (slotIndex != slotData.slotIndex)
+            slotData = new SlotData(slotIndex, index - idx, position);
+
         var red = node.GetNodeSlot(slotIndex);
 
         if (!greenChild.isList) {
-            if (red != null)
+            if (red is not null)
                 return red;
-        } else if (red != null) {
+        } else if (red is not null) {
             var redChild = red.GetNodeSlot(idx);
 
-            if (redChild != null)
+            if (redChild is not null)
                 return redChild;
 
             greenChild = greenChild.GetSlot(idx);
@@ -104,7 +112,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
     /// <summary>
     /// Returns the child node or token of the given node whose span contains the target position.
     /// </summary>
-    internal static SyntaxNodeOrToken ChildThatContainsPosition(SyntaxNode node, int targetPosition) {
+    public static SyntaxNodeOrToken ChildThatContainsPosition(SyntaxNode node, int targetPosition) {
         var green = node.green;
         var position = node.position;
         var index = 0;
@@ -114,7 +122,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         for (slot = 0; ; slot++) {
             var greenChild = green.GetSlot(slot);
 
-            if (greenChild != null) {
+            if (greenChild is not null) {
                 var endPosition = position + greenChild.fullWidth;
 
                 if (targetPosition < endPosition) {
@@ -130,15 +138,15 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         var red = node.GetNodeSlot(slot);
 
         if (!green.isList) {
-            if (red != null)
+            if (red is not null)
                 return red;
         } else {
             slot = green.FindSlotIndexContainingOffset(targetPosition - position);
 
-            if (red != null) {
+            if (red is not null) {
                 red = red.GetNodeSlot(slot);
 
-                if (red != null)
+                if (red is not null)
                     return red;
             }
 
@@ -150,22 +158,22 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         return new SyntaxNodeOrToken(node, green, position, index);
     }
 
-    internal Reversed Reverse() {
+    public Reversed Reverse() {
         return new Reversed(node, Count);
     }
 
-    internal bool Any() {
+    public bool Any() {
         return Count != 0;
     }
 
-    internal SyntaxNodeOrToken First() {
+    public SyntaxNodeOrToken First() {
         if (Any())
             return this[0];
 
         throw new InvalidOperationException();
     }
 
-    internal SyntaxNodeOrToken Last() {
+    public SyntaxNodeOrToken Last() {
         if (Any())
             return this[Count - 1];
 
@@ -178,7 +186,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         for (int i = 0, s = green.slotCount; i < s; i++) {
             var child = green.GetSlot(i);
 
-            if (child != null) {
+            if (child is not null) {
                 if (!child.isList)
                     n++;
                 else
@@ -198,7 +206,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
         while (true) {
             greenChild = green.GetSlot(slotIndex);
 
-            if (greenChild != null) {
+            if (greenChild is not null) {
                 var currentOccupancy = Occupancy(greenChild);
 
                 if (idx < currentOccupancy)
@@ -212,7 +220,7 @@ public sealed partial class ChildSyntaxList : IReadOnlyList<SyntaxNodeOrToken> {
 
         var red = node.GetNodeSlot(slotIndex);
 
-        if (greenChild.isList && red != null)
+        if (greenChild.isList && red is not null)
             return red.GetNodeSlot(idx);
 
         return red;

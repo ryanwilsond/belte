@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// <summary>
 /// All types of things to be found in a source file.
 /// </summary>
-public enum SyntaxKind {
+public enum SyntaxKind : ushort {
     None = 0,
     List = GreenNode.ListKind,
 
@@ -32,7 +32,9 @@ public enum SyntaxKind {
     SlashToken,
     QuestionToken,
     ColonToken,
+    ColonColonToken,
     PeriodToken,
+    HashToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -66,6 +68,7 @@ public enum SyntaxKind {
 
     // Keywords
     TypeOfKeyword,
+    NameOfKeyword,
     NullKeyword,
     TrueKeyword,
     FalseKeyword,
@@ -81,35 +84,59 @@ public enum SyntaxKind {
     ContinueKeyword,
     ReturnKeyword,
     ConstKeyword,
+    ConstexprKeyword,
     RefKeyword,
     IsKeyword,
     IsntKeyword,
     StructKeyword,
     ClassKeyword,
-    VarKeyword,
     NewKeyword,
     ThisKeyword,
+    BaseKeyword,
     StaticKeyword,
+    OperatorKeyword,
+    LowlevelKeyword,
+    ExtendsKeyword,
+    PublicKeyword,
+    PrivateKeyword,
+    ProtectedKeyword,
+    SealedKeyword,
+    AbstractKeyword,
+    VirtualKeyword,
+    OverrideKeyword,
+    ConstructorKeyword,
+    AsKeyword,
+    WhereKeyword,
+    ThrowKeyword,
+    PrimitiveKeyword,
+    NotnullKeyword,
+    UsingKeyword,
+    NamespaceKeyword,
+    GlobalKeyword,
+    ImplicitKeyword,
+    ExplicitKeyword,
 
     // Tokens with text
     BadToken,
     IdentifierToken,
     NumericLiteralToken,
     StringLiteralToken,
+    CharacterLiteralToken,
 
     // Trivia
     EndOfLineTrivia,
     WhitespaceTrivia,
     SingleLineCommentTrivia,
     MultiLineCommentTrivia,
-    SkippedTokenTrivia,
+    SkippedTokensTrivia,
+    BadDirectiveTrivia,
 
     // Expressions
     ParenthesizedExpression,
     CastExpression,
-    TypeExpression,
     ThisExpression,
-    EmptyExpression,
+    BaseExpression,
+    ThrowExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -119,24 +146,23 @@ public enum SyntaxKind {
     PrefixExpression,
     PostfixExpression,
     AssignmentExpression,
-    CompoundAssignmentExpression,
 
     // Primary expressions
     LiteralExpression,
     TypeOfExpression,
-    IdentifierNameExpression,
-    TemplateNameExpression,
+    NameOfExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,
     ObjectCreationExpression,
+    ArrayCreationExpression,
 
     // Statements
-    BlockStatement,
-    VariableDeclarationStatement,
-    ExpressionStatement,
-    LocalFunctionStatement,
     EmptyStatement,
+    BlockStatement,
+    ExpressionStatement,
+    LocalDeclarationStatement,
+    LocalFunctionStatement,
 
     // Jump statements
     BreakStatement,
@@ -153,28 +179,59 @@ public enum SyntaxKind {
     CatchClause,
     FinallyClause,
 
+    // Directives
+    UsingDirective,
+
     // Declarations
     CompilationUnit,
     GlobalStatement,
-
-    // Attributes
-    Attribute,
-
-    // Type declarations
+    NamespaceDeclaration,
+    FileScopedNamespaceDeclaration,
+    VariableDeclaration,
+    EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
     FieldDeclaration,
-    Type,
-    ArrayRankSpecifier,
-    Parameter,
-    ParameterList,
-    TemplateParameterList,
-    TemplateArgumentList,
     MethodDeclaration,
     ConstructorDeclaration,
+    ConstructorInitializer,
+    OperatorDeclaration,
+    ConversionDeclaration,
+
+    // Names
+    IdentifierName,
+    TemplateName,
+    QualifiedName,
+    AliasQualifiedName,
+    EmptyName,
+    ArrayType,
+    NonNullableType,
+    ReferenceType,
+    BaseType,
+    NameEquals,
+
+    // Lists
+    Argument,
+    OmittedArgument,
+    OmittedArgumentToken,
+    ArgumentList,
+    BracketedArgumentList,
+    Parameter,
+    ParameterList,
+    ArrayRankSpecifier,
+    TemplateParameterList,
+    TemplateArgumentList,
+    Attribute,
+    AttributeList,
+    TemplateConstraintClause,
+    TemplateExtendsConstraintClause,
+    TemplateIsConstraintClause,
+    TemplateConstraintClauseList,
+    InitializerListExpression,
+    KeyValuePair,
+    InitializerDictionaryExpression,
 
     // Other
-    Argument,
-    ArgumentList,
     EndOfFileToken,
+    EndOfDirectiveToken,
 }

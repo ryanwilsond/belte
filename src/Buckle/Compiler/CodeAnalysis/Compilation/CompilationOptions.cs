@@ -1,27 +1,24 @@
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
 
-/// <summary>
-/// Options and flags specific to a compilation.
-/// </summary>
 public struct CompilationOptions {
-    /// <summary>
-    /// Specifies options and flags to a housing <see cref="Compilation" />.
-    /// </summary>
-    /// <param name="buildMode">Build mode of the housing <see cref="Compilation" />.</param>
-    /// <param name="arguments">Arguments to be passed to the program at runtime.</param>
-    /// <param name="isScript">
-    /// If the housing <see cref="Compilation" /> is a partial compilation, that will not be emitted.
-    /// </param>
-    /// <param name="enableOutput">If output is enabled, otherwise only code checking is performed.</param>
-    public CompilationOptions(BuildMode buildMode, string[] arguments, bool isScript, bool enableOutput) {
+    public CompilationOptions(
+        BuildMode buildMode,
+        OutputKind outputKind = OutputKind.ConsoleApplication,
+        string[] arguments = null,
+        bool isScript = false,
+        bool enableOutput = true,
+        string[] references = null) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
-        this.arguments = arguments;
+        this.outputKind = outputKind;
+        this.arguments = arguments ?? [];
         this.isScript = isScript;
         isTranspiling = buildMode == BuildMode.CSharpTranspile;
         this.enableOutput = enableOutput;
+        this.references = references ?? [];
     }
 
     /// <summary>
@@ -30,9 +27,14 @@ public struct CompilationOptions {
     internal BinderFlags topLevelBinderFlags { get; }
 
     /// <summary>
-    /// Build mode of the housing <see cref="Compilation" />.
+    /// See <see cref="BuildMode" />.
     /// </summary>
     internal BuildMode buildMode { get; }
+
+    /// <summary>
+    /// See <see cref="OutputKind" />.
+    /// </summary>
+    internal OutputKind outputKind { get; }
 
     /// <summary>
     /// Arguments to be passed to the program at runtime.
@@ -53,4 +55,14 @@ public struct CompilationOptions {
     /// If output should be produced.
     /// </summary>
     internal bool enableOutput { get; }
+
+    internal string[] references { get; }
+
+    internal string cryptoKeyFile { get; }
+
+    internal string cryptoKeyContainer { get; }
+
+    internal bool publicSign { get; }
+
+    internal StrongNameProvider strongNameProvider { get; }
 }

@@ -1,9 +1,11 @@
+using System.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Text;
 
 /// <summary>
 /// Describes a single change when a particular span is replaced with new text.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public readonly struct TextChange {
     /// <summary>
     /// Creates a new instance of <see cref="TextChange" />.
@@ -24,4 +26,14 @@ public readonly struct TextChange {
     /// The new text.
     /// </summary>
     public string newText { get; }
+
+    private string GetDebuggerDisplay() {
+        var newTextDisplay = newText switch {
+            null => "null",
+            { Length: < 10 } => $"\"{newText}\"",
+            { Length: var length } => $"(NewLength = {length})"
+        };
+
+        return $"new TextChange(new TextSpan({span.start}, {span.length}), {newTextDisplay})";
+    }
 }

@@ -64,6 +64,18 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "label": "build boundtree generator debug",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/Buckle/SourceGenerators/BoundTreeGenerator/BoundTreeGenerator.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
             "label": "belte run",
             "command": "buckle",
             "type": "process",
@@ -90,6 +102,18 @@
                     }
                 ]
             }
+        },
+        {
+            "label": "build profiler debug",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/src/Tools/Profiler/Profiler.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
         }
     ]
 }

@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
-using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle;
@@ -21,18 +21,24 @@ public sealed class Compiler {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
-    // Eventually have these automatically calculated to be optimal
-    private const int InterpreterMaxTextLength = 4096;
-    private const int EvaluatorMaxTextLength = 4096 * 4;
 
-    private CompilationOptions _options =>
-        new CompilationOptions(state.buildMode, state.arguments, false, !state.noOut);
+    private Compilation _lazyCorLibrary;
+    private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
+
+    private CompilationOptions _options => new CompilationOptions(
+        state.buildMode,
+        state.projectType,
+        state.arguments,
+        false,
+        !state.noOut,
+        state.references
+    );
 
     /// <summary>
     /// Creates a new <see cref="Compiler" />, state needs to be set separately.
     /// </summary>
-    public Compiler() {
-        diagnostics = new BelteDiagnosticQueue();
+    public Compiler(CompilerState state) {
+        this.state = state;
     }
 
     /// <summary>
@@ -47,24 +53,33 @@ public sealed class Compiler {
     public string me { get; set; }
 
     /// <summary>
-    /// Where the diagnostics are stored for the compiler before being displayed or logged.
+    /// The diagnostics from the most recent compiler operation.
     /// </summary>
-    public BelteDiagnosticQueue diagnostics { get; set; }
+    public BelteDiagnosticQueue diagnostics { get; private set; } = new BelteDiagnosticQueue();
+
+    /// <summary>
+    /// The exceptions from the most recent evaluation.
+    /// </summary>
+    public List<Exception> exceptions { get; private set; } = [];
 
     /// <summary>
     /// Handles compiling, assembling, and linking of a set of files.
     /// </summary>
     /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
-        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
-            InternalInterpreter();
-        else
-            InternalCompiler();
+        lock (state) lock (me) {
+            diagnostics.Clear();
 
-        return CheckErrors();
+            if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+                InternalInterpreter();
+            else
+                InternalCompiler();
+
+            return CalculateExitCode(diagnostics);
+        }
     }
 
-    private int CheckErrors() {
+    private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
         foreach (Diagnostic diagnostic in diagnostics) {
@@ -75,123 +90,199 @@ public sealed class Compiler {
         return worst;
     }
 
+    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
+        diagnostics.PushRange(libraryDiagnostics.Errors());
+        diagnostics.Push(Fatal.LibraryError());
+    }
+
+    private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
+        if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
+            var corLibrary = LibraryHelpers.LoadLibraries(_options.buildMode);
+            var corLibraryDiagnostics = corLibrary.GetDiagnostics();
+            Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
+            Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);
+        }
+
+        compilation = _lazyCorLibrary;
+        return _lazyCorLibraryDiagnostics;
+    }
+
+    private void ReportAndReturnLibraryErrors() {
+        diagnostics.PushRange(_lazyCorLibraryDiagnostics);
+        diagnostics.Push(Fatal.LibraryError());
+    }
+
     private void InternalInterpreter() {
+        var timer = state.time ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
 
         foreach (var task in state.tasks) {
-            if (task.fileContent.text != null) {
+            if (task.fileContent.text is not null) {
                 textLength += task.fileContent.text.Length;
                 textsCount++;
             }
         }
 
-        var buildMode = state.buildMode == BuildMode.AutoRun ? textLength switch {
-            // ! Temporary, `-i` will not use `--script` until it allows entry points such as `Main`
-            // <= InterpreterMaxTextLength when textsCount == 1 => BuildMode.Interpret,
-            <= EvaluatorMaxTextLength => BuildMode.Evaluate,
-            // ! Temporary, `-i` will not use `--execute` until it is implemented
-            // _ => BuildMode.Execute
-            _ => BuildMode.Evaluate,
-        } : state.buildMode;
+        // From profiling we found:
+        //      1) Interpreter is almost always the slowest option
+        //      2) Evaluator is only better than Executor for trivially simple programs
+        var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
-            var syntaxTrees = new List<SyntaxTree>();
-
-            for (var i = 0; i < state.tasks.Length; i++) {
-                ref var task = ref state.tasks[i];
-
-                if (task.stage == CompilerStage.Raw) {
-                    var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
-                    syntaxTrees.Add(syntaxTree);
-                    task.stage = CompilerStage.Finished;
-                }
+            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+                ReportAndReturnLibraryErrors();
+                return;
             }
 
-            var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
-            diagnostics.Move(compilation.diagnostics);
+            var libTime = LogLibraryLoadTime(timer);
 
-            if (diagnostics.Errors().Any())
+            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
+            var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
+
+            var parseDiagnostics = compilation.GetParseDiagnostics();
+
+            if (state.noOut || parseDiagnostics.AnyErrors()) {
+                diagnostics.PushRange(parseDiagnostics);
                 return;
+            }
 
-            if (state.noOut)
-                return;
-
-            EvaluationResult result = null;
+            LogParseTime(timer, libTime, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    result = compilation.Evaluate(
-                        new Dictionary<IVariableSymbol, IEvaluatorObject>(),
-                        (ValueWrapper<bool>)parameter
-                    );
+                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode, state.time);
+                    exceptions = result.exceptions;
+                    diagnostics.PushRange(result.diagnostics);
                 } else {
-                    compilation.Execute();
+                    diagnostics.PushRange(compilation.Execute(state.verboseMode, state.time));
                 }
             }
 
-            InternalInterpreterStart(Wrapper);
-
-            diagnostics.Move(result?.diagnostics);
+            if (buildMode == BuildMode.Execute)
+                Wrapper(false);
+            else
+                InternalInterpreterStart(Wrapper);
         } else {
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
-            var sourceText = new StringText(state.tasks[0].inputFileName, state.tasks[0].fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText);
+            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+                ReportAndReturnLibraryErrors();
+                return;
+            }
 
-            state.tasks[0].stage = CompilerStage.Finished;
+            var libTime = LogLibraryLoadTime(timer);
 
-            var options = _options;
-            options.isScript = true;
-            var compilation = Compilation.Create(options, syntaxTree);
-            EvaluationResult result = null;
+            ref var task = ref state.tasks[0];
+            var sourceText = new StringText(task.inputFileName, task.fileContent.text);
+            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
+            task.stage = CompilerStage.Finished;
+
+            var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree, corLibrary);
+
+            var parseDiagnostics = compilation.GetParseDiagnostics();
+
+            if (state.noOut || parseDiagnostics.AnyErrors()) {
+                diagnostics.PushRange(compilation.GetParseDiagnostics());
+                return;
+            }
+
+            LogParseTime(timer, libTime, 1);
 
             void Wrapper(object parameter) {
-                result = compilation.Interpret(
-                    new Dictionary<IVariableSymbol, IEvaluatorObject>(),
-                    (ValueWrapper<bool>)parameter
-                );
+                var result = compilation.Interpret((ValueWrapper<bool>)parameter, state.time);
+                diagnostics.PushRange(result.diagnostics);
             }
 
             InternalInterpreterStart(Wrapper);
-
-            diagnostics.Move(result?.diagnostics);
         }
+
+        LogCompilationTime(timer);
     }
 
     private void InternalCompiler() {
-        var syntaxTrees = new List<SyntaxTree>();
+        var timer = state.time ? Stopwatch.StartNew() : null;
 
-        for (var i = 0; i < state.tasks.Length; i++) {
-            ref var task = ref state.tasks[i];
+        if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+            ReportAndReturnLibraryErrors();
+            return;
+        }
+
+        var libTime = LogLibraryLoadTime(timer);
+
+        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
+        var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
+
+        var parseDiagnostics = compilation.GetParseDiagnostics();
+
+        if (state.noOut || parseDiagnostics.AnyErrors()) {
+            diagnostics.PushRange(parseDiagnostics);
+            return;
+        }
+
+        LogParseTime(timer, libTime, syntaxTrees.Length);
+
+        diagnostics.PushRange(compilation.Emit(state.outputFilename, state.time));
+
+        LogCompilationTime(timer);
+    }
+
+    private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
+        var builder = ArrayBuilder<SyntaxTree>.GetInstance();
+        var tasks = state.tasks;
+
+        for (var i = 0; i < tasks.Length; i++) {
+            ref var task = ref tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
                 var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
-                syntaxTrees.Add(syntaxTree);
-                task.stage = CompilerStage.Compiled;
+                builder.Add(syntaxTree);
+                task.stage = stageToSet;
             }
         }
 
-        var compilation = Compilation.Create(_options, syntaxTrees.ToArray());
+        return builder.ToArrayAndFree();
+    }
 
-        if (state.noOut)
+    private void LogParseTime(Stopwatch timer, long libTime, int count) {
+        if (timer is null)
             return;
 
-        var result = compilation.Emit(
-            state.buildMode, state.moduleName, state.references, state.outputFilename, state.finishStage
-        );
+        Log(timer, $"Loaded {count} syntax tree in {timer.ElapsedMilliseconds - libTime} ms");
+    }
 
-        diagnostics.Move(result);
+    private long LogLibraryLoadTime(Stopwatch timer) {
+        if (timer is null)
+            return 0;
+
+        var libTime = timer.ElapsedMilliseconds;
+
+        Log(timer, $"Loaded the Standard Library in {libTime} ms");
+
+        return libTime;
+    }
+
+    private void LogCompilationTime(Stopwatch timer) {
+        if (timer is null)
+            return;
+
+        Log(timer, $"Total compilation time: {timer.ElapsedMilliseconds} ms");
+    }
+
+    private void Log(Stopwatch timer, string message) {
+        if (state.time) {
+            timer.Stop();
+            diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
+            timer.Start();
+        }
     }
 
     private void InternalInterpreterStart(Action<object> wrapper) {
         ValueWrapper<bool> abort = false;
 
         void CtrlCHandler(object sender, ConsoleCancelEventArgs args) {
-            if (state.buildMode != BuildMode.Execute) {
-                abort.Value = true;
-                args.Cancel = true;
-            }
+            abort.Value = true;
+            args.Cancel = true;
         }
 
         Console.CancelKeyPress += new ConsoleCancelEventHandler(CtrlCHandler);
@@ -202,8 +293,6 @@ public sealed class Compiler {
         };
 
         wrapperThread.Start(abort);
-
-        while (wrapperThread.IsAlive)
-            ;
+        wrapperThread.Join();
     }
 }

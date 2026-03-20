@@ -1,17 +1,17 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Threading;
-using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Diagnostics;
-using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Base building block of all things on the syntax trees.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public abstract partial class SyntaxNode {
-    protected SyntaxTree _syntaxTree;
+    private protected SyntaxTree _syntaxTree;
 
     /// <summary>
     /// Creates a new <see cref="SyntaxNode" /> from an underlying <see cref="GreenNode" />.
@@ -31,6 +31,10 @@ public abstract partial class SyntaxNode {
         this.parent = parent;
     }
 
+    internal SyntaxNode(GreenNode node, int position, SyntaxTree syntaxTree) : this(null, node, position) {
+        _syntaxTree = syntaxTree;
+    }
+
     /// <summary>
     /// Type of <see cref="SyntaxNode" /> (see <see cref="SyntaxKind" />).
     /// </summary>
@@ -44,13 +48,13 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// <see cref="SyntaxTree" /> this <see cref="SyntaxNode" /> resides in.
     /// </summary>
-    internal abstract SyntaxTree syntaxTree { get; }
+    public abstract SyntaxTree syntaxTree { get; }
 
     /// <summary>
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
     /// (not including line break).
     /// </summary>
-    internal virtual TextSpan span {
+    public virtual TextSpan span {
         get {
             var start = position;
             var width = green.fullWidth;
@@ -69,12 +73,7 @@ public abstract partial class SyntaxNode {
     /// <see cref="TextSpan" /> of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />
     /// (including line break).
     /// </summary>
-    internal virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
-
-    /// <summary>
-    /// The underlying basic node information.
-    /// </summary>
-    internal GreenNode green { get; }
+    public virtual TextSpan fullSpan => new TextSpan(position, green.fullWidth);
 
     /// <summary>
     /// The absolute position of this <see cref="SyntaxNode" /> in the <see cref="SourceText" /> it came from.
@@ -84,52 +83,52 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// The position of the very end of this <see cref="SyntaxNode" />.
     /// </summary>
-    internal int endPosition => position + green.fullWidth;
+    public int endPosition => position + green.fullWidth;
 
     /// <summary>
     /// The number of children.
     /// </summary>
-    internal int slotCount => green.slotCount;
+    public int slotCount => green.slotCount;
 
     /// <summary>
     /// The width of this <see cref="SyntaxNode" /> including all trivia.
     /// </summary>
-    internal int fullWidth => green.fullWidth;
+    public int fullWidth => green.fullWidth;
 
     /// <summary>
     /// The width of this <see cref="SyntaxNode" /> excluding all trivia.
     /// </summary>
-    internal int width => green.width;
+    public int width => green.width;
 
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
     /// </summary>
-    internal TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span);
+    public TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span, syntaxTree);
 
     /// <summary>
     /// If any diagnostics have spans that overlap with this node.
     /// Aka this node produced any diagnostics.
     /// </summary>
-    internal bool containsDiagnostics => green.containsDiagnostics;
+    public bool containsDiagnostics => green.containsDiagnostics;
 
     /// <summary>
     /// If this node is a list.
     /// </summary>
-    internal bool isList => green.isList;
+    public bool isList => green.isList;
 
-    public override string ToString() {
-        var text = new DisplayText();
-        PrettyPrint(text, this);
-
-        return text.ToString();
-    }
+    public bool isFabricated => green.isFabricated;
 
     /// <summary>
-    /// Write a pretty-print text representation of this <see cref="SyntaxNode" /> to an out.
+    /// The underlying basic node information.
     /// </summary>
-    /// <param name="text">Out.</param>
-    public void WriteTo(DisplayText text) {
-        PrettyPrint(text, this);
+    internal GreenNode green { get; }
+
+    public override string ToString() {
+        return green.ToString();
+    }
+
+    public virtual void WriteTo(TextWriter writer) {
+        green.WriteTo(writer, true, true);
     }
 
     /// <summary>
@@ -153,6 +152,23 @@ public abstract partial class SyntaxNode {
     /// <returns>Last <see cref="SyntaxToken" />.</returns>
     public SyntaxToken GetFirstToken(bool includeZeroWidth = false, bool includeSkipped = false) {
         return SyntaxNavigator.Instance.GetFirstToken(this, includeZeroWidth, includeSkipped);
+    }
+
+    public bool Contains(SyntaxNode node) {
+        if (node is null || !fullSpan.Contains(node.fullSpan))
+            return false;
+
+        while (node is not null) {
+            if (node == this)
+                return true;
+
+            if (node.parent is not null)
+                node = node.parent;
+            else
+                node = null;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -188,12 +204,12 @@ public abstract partial class SyntaxNode {
             index--;
             var prevSibling = GetCachedSlot(index);
 
-            if (prevSibling != null)
+            if (prevSibling is not null)
                 return prevSibling.endPosition + offset;
 
             var greenChild = green.GetSlot(index);
 
-            if (greenChild != null)
+            if (greenChild is not null)
                 offset += greenChild.fullWidth;
         }
 
@@ -223,14 +239,14 @@ public abstract partial class SyntaxNode {
             return endOfFile;
 
         if (!fullSpan.Contains(position))
-            throw new BelteInternalException("FindToken", new ArgumentOutOfRangeException(nameof(position)));
+            throw new ArgumentOutOfRangeException(nameof(position));
 
         SyntaxNodeOrToken currentNode = this;
 
         while (true) {
             var node = currentNode.AsNode();
 
-            if (node != null)
+            if (node is not null)
                 currentNode = node.ChildThatContainsPosition(position);
             else
                 return currentNode.AsToken();
@@ -252,12 +268,12 @@ public abstract partial class SyntaxNode {
             index++;
             var nextSibling = GetCachedSlot(index);
 
-            if (nextSibling != null)
+            if (nextSibling is not null)
                 return nextSibling.position - offset;
 
             var greenChild = green.GetSlot(index);
 
-            if (greenChild != null)
+            if (greenChild is not null)
                 offset += greenChild.fullWidth;
         }
 
@@ -273,7 +289,7 @@ public abstract partial class SyntaxNode {
         for (var i = 0; i < slot; i++) {
             var item = green.GetSlot(i);
 
-            if (item != null) {
+            if (item is not null) {
                 if (item.isList)
                     index += item.slotCount;
                 else
@@ -329,7 +345,7 @@ public abstract partial class SyntaxNode {
         if (result is null) {
             var green = this.green.GetSlot(slot);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, green.CreateRed(this, GetChildPosition(slot)), null);
                 result = field;
             }
@@ -349,7 +365,7 @@ public abstract partial class SyntaxNode {
         if (result is null) {
             var green = this.green.GetSlot(0);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, green.CreateRed(this, position), null);
                 result = field;
             }
@@ -358,13 +374,34 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
-    protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
+    internal TNode FirstAncestorOrSelf<TNode>(Func<TNode, bool> predicate = null, bool ascendOutOfTrivia = true)
+        where TNode : SyntaxNode {
+        for (var node = this; node is not null; node = GetParent(node, ascendOutOfTrivia)) {
+            if (node is TNode tNode && (predicate == null || predicate(tNode)))
+                return tNode;
+        }
+
+        return null;
+    }
+
+    private static SyntaxNode GetParent(SyntaxNode node, bool ascendOutOfTrivia) {
+        var parent = node.parent;
+
+        if (parent is null && ascendOutOfTrivia) {
+            if (node is StructuredTriviaSyntax structuredTrivia)
+                parent = structuredTrivia.parentTrivia.token.parent;
+        }
+
+        return parent;
+    }
+
+    private protected T GetRed<T>(ref T field, int slot) where T : SyntaxNode {
         var result = field;
 
         if (result is null) {
             var green = this.green.GetSlot(slot);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, (T)green.CreateRed(this, GetChildPosition(slot)), null);
                 result = field;
             }
@@ -374,13 +411,13 @@ public abstract partial class SyntaxNode {
     }
 
     // special case of above function where slot = 0, does not need GetChildPosition
-    protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
+    private protected T? GetRedAtZero<T>(ref T? field) where T : SyntaxNode {
         var result = field;
 
         if (result is null) {
             var green = this.green.GetSlot(0);
 
-            if (green != null) {
+            if (green is not null) {
                 Interlocked.CompareExchange(ref field, (T)green.CreateRed(this, position), null);
                 result = field;
             }
@@ -409,60 +446,7 @@ public abstract partial class SyntaxNode {
         return false;
     }
 
-    private void PrettyPrint(DisplayText text, SyntaxNodeOrToken node, string indent = "", bool isLast = true) {
-        var token = node.AsToken();
-
-        if (token != null) {
-            foreach (var trivia in token.leadingTrivia) {
-                text.Write(CreatePunctuation(indent));
-                text.Write(CreatePunctuation("├─"));
-                text.Write(CreateRedNode($"Lead: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
-                text.Write(CreateLine());
-            }
-        }
-
-        var hasTrailingTrivia = token != null && token.trailingTrivia.Any();
-        var tokenMarker = !hasTrailingTrivia && isLast ? "└─" : "├─";
-
-        text.Write(CreatePunctuation($"{indent}{tokenMarker}"));
-
-        if (node.isToken)
-            text.Write(CreateGreenNode(node.AsToken().kind.ToString()));
-        else
-            text.Write(CreateBlueNode(node.AsNode().kind.ToString()));
-
-        if (node.AsToken(out var t) && t.text != null)
-            text.Write(CreatePunctuation($" {t.text}"));
-
-        if (node.isToken) {
-            text.Write(CreateGreenNode($" [{node.span.start}..{node.span.end})"));
-            text.Write(CreateLine());
-        } else {
-            text.Write(CreateBlueNode($" [{node.span.start}..{node.span.end})"));
-            text.Write(CreateLine());
-        }
-
-        if (token != null) {
-            foreach (var trivia in token.trailingTrivia) {
-                var isLastTrailingTrivia = trivia.index == token.trailingTrivia.Count - 1;
-                var triviaMarker = isLast && isLastTrailingTrivia ? "└─" : "├─";
-
-                text.Write(CreatePunctuation(indent));
-                text.Write(CreatePunctuation(triviaMarker));
-                text.Write(CreateRedNode($"Trail: {trivia.kind} [{trivia.span.start}..{trivia.span.end})"));
-                text.Write(CreateLine());
-            }
-        }
-
-        indent += isLast ? "  " : "│ ";
-
-        if (node.isToken)
-            return;
-
-        var children = node.AsNode().ChildNodesAndTokens();
-        var lastChild = children.Last();
-
-        foreach (var child in children)
-            PrettyPrint(text, child, indent, child == lastChild);
+    private string GetDebuggerDisplay() {
+        return GetType().Name + " " + kind + " " + ToString();
     }
 }

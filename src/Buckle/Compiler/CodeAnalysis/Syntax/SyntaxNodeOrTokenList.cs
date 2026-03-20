@@ -17,7 +17,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     /// <see cref="SyntaxNodeOrTokenList" />.
     /// </summary>
     internal SyntaxNodeOrTokenList(SyntaxNode node, int index) {
-        if (node != null) {
+        if (node is not null) {
             this.node = node;
             this.index = index;
         }
@@ -39,7 +39,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     /// </summary>
     public SyntaxNodeOrToken this[int index] {
         get {
-            if (node != null) {
+            if (node is not null) {
                 if (!node.isList) {
                     if (index == 0)
                         return node;
@@ -105,7 +105,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     internal bool Any() {
-        return node != null;
+        return node is not null;
     }
 
     internal void CopyTo(int offset, GreenNode[] array, int arrayOffset, int count) {
@@ -130,9 +130,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     }
 
     private static SyntaxNode CreateNode(IEnumerable<SyntaxNodeOrToken> nodesAndTokens) {
-        if (nodesAndTokens is null)
-            throw new ArgumentNullException(nameof(nodesAndTokens));
-
+        ArgumentNullException.ThrowIfNull(nodesAndTokens, nameof(nodesAndTokens));
         var builder = new SyntaxNodeOrTokenListBuilder(8);
         builder.Add(nodesAndTokens);
         return builder.ToList().node;

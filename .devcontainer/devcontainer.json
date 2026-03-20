@@ -1,0 +1,39 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.140.1/containers/dotnetcore
+{
+    "name": "C# (.NET 9)",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "files.associations": {
+                    "*.csproj": "msbuild"
+                },
+                "files.exclude": {
+                    "**/bin": true,
+                    "**/obj": true,
+                    "**/.vs": true
+                },
+                "editor.rulers": [
+                    80,
+                    120
+                ],
+                "omnisharp.disableMSBuildDiagnosticWarning": true,
+                "omnisharp.enableEditorConfigSupport": true,
+                "files.insertFinalNewline": true,
+                "files.trimFinalNewlines": true,
+                "editor.formatOnSave": true,
+                "dotnet.defaultSolution": "Belte.sln"
+            },
+            "extensions": [
+                "ms-dotnettools.csharp",
+                "EditorConfig.EditorConfig",
+                "tintoy.msbuild-project-tools"
+            ]
+        }
+    },
+    "postCreateCommand": "make setup"
+}

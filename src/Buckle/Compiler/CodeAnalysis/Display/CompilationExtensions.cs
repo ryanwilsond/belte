@@ -1,9 +1,10 @@
+using System.Collections.Immutable;
 using System.Linq;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
-using static Buckle.Utilities.MethodUtilities;
 
 namespace Buckle.CodeAnalysis.Display;
 
@@ -15,32 +16,38 @@ public static class CompilationExtensions {
     /// Emits the parse tree of the compilation.
     /// </summary>
     /// <param name="text">Out.</param>
-    public static void EmitTree(this Compilation self, DisplayText text) {
-        if (self.globalScope.entryPoint != null) {
-            EmitTree(self, self.globalScope.entryPoint, text);
-        } else {
-            var program = self.GetProgram();
+    public static void EmitTree(this Compilation compilation, DisplayText text) {
+        var program = compilation.boundProgram;
+        var isFirst = true;
 
-            foreach (var pair in program.methodBodies.OrderBy(p => p.Key.name))
-                EmitTree(self, pair.Key, text);
+        foreach (var type in program.types) {
+            if (isFirst)
+                isFirst = false;
+            else
+                text.WriteLine();
+
+            EmitTree(compilation, type, text);
         }
-    }
 
-    /// <summary>
-    /// Emits the parse tree of a single <see cref="MethodSymbol" /> after attempting to find it based on name.
-    /// Note: this only searches for methods, so if the name of another type of <see cref="Symbol" /> is passed it
-    /// will not be found.
-    /// </summary>
-    /// <param name="name">
-    /// The name of the <see cref="MethodSymbol" /> to search for and then print. If not found, throws.
-    /// </param>
-    /// <param name="text">Out.</param>
-    public static void EmitTree(this Compilation self, string name, DisplayText text) {
-        var program = self.GetProgram();
-        var pair = LookupMethodFromParentsFromName(program, name);
-        SymbolDisplay.DisplaySymbol(text, pair.Item1);
-        text.Write(CreateSpace());
-        DisplayText.DisplayNode(text, pair.Item2);
+        foreach (var type in program.nestedTypes) {
+            foreach (var nestedType in type.Value) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    text.WriteLine();
+
+                EmitTree(compilation, nestedType, text);
+            }
+        }
+
+        foreach (var pair in program.methodBodies) {
+            if (isFirst)
+                isFirst = false;
+            else
+                text.WriteLine();
+
+            EmitTree(compilation, pair.Key, text);
+        }
     }
 
     /// <summary>
@@ -48,72 +55,94 @@ public static class CompilationExtensions {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to be the root of the <see cref="SyntaxTree" /> displayed.</param>
     /// <param name="text">Out.</param>
-    public static void EmitTree(this Compilation self, ISymbol symbol, DisplayText text) {
-        var program = self.GetProgram();
+    public static void EmitTree(this Compilation compilation, ISymbol symbol, DisplayText text) {
+        var program = compilation.boundProgram;
+        EmitTree(symbol, text, program);
+    }
 
-        void WriteTypeMembers(ITypeSymbolWithMembers type, bool writeEnding = true) {
-            try {
-                var members = type.members;
+    public static ImmutableArray<IDataContainerSymbol> GetMethodLocals(IMethodSymbol method) {
+        if (method is SourceMemberMethodSymbol s) {
+            return s.TryGetBodyBinder().next.locals.Where((x, i) => i % 2 == 0)
+                .ToImmutableArray().CastArray<IDataContainerSymbol>();
+        } else {
+            return [];
+        }
+    }
 
-                text.Write(CreateSpace());
-                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-                text.Write(CreateSpace());
-                text.indent++;
-
-                foreach (var field in members.OfType<FieldSymbol>()) {
-                    text.Write(CreateLine());
-                    SymbolDisplay.DisplaySymbol(text, field);
+    internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
+        switch (symbol.kind) {
+            case SymbolKind.Namespace: {
+                    var ns = (NamespaceSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
+                    WriteMembers(ns);
                 }
 
-                if (members.OfType<FieldSymbol>().Any())
-                    text.Write(CreateLine());
-
-                foreach (var method in members.OfType<MethodSymbol>()) {
-                    text.Write(CreateLine());
-                    SymbolDisplay.DisplaySymbol(text, method);
-                    text.Write(CreateLine());
+                break;
+            case SymbolKind.NamedType: {
+                    var type = (NamedTypeSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
+                    WriteMembers(type);
                 }
 
-                foreach (var typeMember in members.OfType<TypeSymbol>()) {
-                    text.Write(CreateLine());
-                    SymbolDisplay.DisplaySymbol(text, typeMember);
-                    text.Write(CreateLine());
-                }
+                break;
+            case SymbolKind.Method:
+                var method = (MethodSymbol)symbol;
+                SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.BoundDisplayFormat);
 
-                text.indent--;
-                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
-                text.Write(CreateLine());
-            } catch (BelteInternalException) {
-                if (writeEnding) {
+                if (program.TryGetMethodBodyIncludingParents(method, out var body, useOriginalDefinitions: true)) {
+                    text.Write(CreateSpace());
+                    DisplayText.DisplayNode(text, body);
+                } else {
                     text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                    text.Write(CreateLine());
+                    text.WriteLine();
                 }
-            }
+
+                break;
+            case SymbolKind.Field: {
+                    var field = (FieldSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, field, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = field.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
+            case SymbolKind.Local: {
+                    var local = (DataContainerSymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, local, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = local.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
 
-        if (symbol is MethodSymbol f) {
-            SymbolDisplay.DisplaySymbol(text, f);
+        void WriteMembers(NamespaceOrTypeSymbol typeOrNamespace) {
+            var members = typeOrNamespace.GetMembers();
 
-            try {
-                var body = LookupMethodFromParents(program, f);
-                text.Write(CreateSpace());
-                DisplayText.DisplayNode(text, body);
-            } catch (BelteInternalException) {
-                // If the body could not be found, it probably means it is a builtin
-                // In that case only showing the signature is what we want
-                text.Write(CreatePunctuation(SyntaxKind.SemicolonToken));
-                text.Write(CreateLine());
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.Write(CreateSpace());
+            text.indent++;
+
+            foreach (var member in members) {
+                text.WriteLine();
+                SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.BoundDisplayFormat);
+                text.WriteLine();
             }
-        } else if (symbol is ITypeSymbolWithMembers t) {
-            SymbolDisplay.DisplaySymbol(text, symbol);
-            WriteTypeMembers(t);
-        } else if (symbol is VariableSymbol v) {
-            SymbolDisplay.DisplaySymbol(text, v);
 
-            if (v.type.typeSymbol is ITypeSymbolWithMembers s && v.type.dimensions == 0)
-                WriteTypeMembers(s);
-            else
-                text.Write(CreateLine());
+            text.indent--;
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+            text.WriteLine();
         }
     }
 }

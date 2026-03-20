@@ -12,7 +12,7 @@ internal class DarkTheme : ColorTheme {
     internal override ConsoleColor result => ConsoleColor.White;
     internal override ConsoleColor background => ConsoleColor.Black;
     internal override ConsoleColor identifier => ConsoleColor.White;
-    internal override ConsoleColor number => ConsoleColor.Cyan;
+    internal override ConsoleColor literal => ConsoleColor.Cyan;
     internal override ConsoleColor @string => ConsoleColor.Yellow;
     internal override ConsoleColor comment => ConsoleColor.DarkGray;
     internal override ConsoleColor keyword => ConsoleColor.Blue;

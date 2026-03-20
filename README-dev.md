@@ -14,7 +14,7 @@ developers or for those who want to contribute.
 ## Tools Needed for Building
 
 - [GNU Make](https://gnuwin32.sourceforge.net/packages/make.htm)
-- [.NET SDK 8.0 and .NET Runtime 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [.NET SDK 10.0 and .NET Runtime 10.0](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 Visual Studio Code is strongly recommended, but not required.
 
@@ -49,7 +49,8 @@ All debug files are put into `.\bin\debug\` and the final executable is put into
 Run `$ make generate` to generate source files.
 
 This is only required when changes are made to the source generators themselves,
-or the files the source generators use (currently only [Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml)).
+or the files the source generators use (currently only
+[Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml)).
 
 ### Testing
 

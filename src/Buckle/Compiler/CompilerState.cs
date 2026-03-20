@@ -5,7 +5,7 @@ namespace Buckle;
 /// <summary>
 /// State of a single <see cref="Compiler" />.
 /// </summary>
-public struct CompilerState {
+public class CompilerState {
     /// <summary>
     /// What the <see cref="Compiler" /> will target.
     /// </summary>
@@ -65,4 +65,20 @@ public struct CompilerState {
     /// Provided arguments for the program, such as command-line arguments, that are given to the program.
     /// </summary>
     public string[] arguments;
+
+    /// <summary>
+    /// The type of Belte project.
+    /// </summary>
+    public OutputKind projectType;
+
+    /// <summary>
+    /// Whether or not the compilation is in "verbose" mode, meaning it will log additional information about the
+    /// compilation process.
+    /// </summary>
+    public bool verboseMode;
+
+    /// <summary>
+    /// Whether or not the compiler will log timing data about each stage of compilation.
+    /// </summary>
+    public bool time;
 }

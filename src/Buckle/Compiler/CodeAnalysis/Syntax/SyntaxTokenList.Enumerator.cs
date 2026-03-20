@@ -32,7 +32,7 @@ public sealed partial class SyntaxTokenList {
 
             _index++;
 
-            if (_current != null)
+            if (_current is not null)
                 _position += _current.fullWidth;
 
             _current = GetGreenNodeAt(_singleNodeOrList, _index);

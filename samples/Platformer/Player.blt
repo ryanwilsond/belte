@@ -1,0 +1,171 @@
+
+class Player extends PhysicsEntity {
+    constexpr int! JumpAction = 2;
+    constexpr int! RunAction = 1;
+    constexpr int! IdleAction = 0;
+    constexpr int! WallSlideAction = 4;
+
+    int! jumps;
+    bool wallSlide;
+    decimal! particleTimer;
+    bool dashHit51;
+    bool dashHit50;
+    bool resolved51;
+    bool resolved50;
+
+    public decimal! dashing;
+
+    public constructor(Program game, Vec2 position) : base(game, position, 0) {
+        jumps = Settings.MaxJumps;
+        wallSlide = false;
+        dashing = 0;
+        particleTimer = 0;
+        dashHit51 = false;
+        dashHit50 = false;
+        resolved51 = false;
+        resolved50 = false;
+    }
+
+    public override bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+        if (Math.Abs(dashing) >= 50)
+            velocity.y = 0;
+
+        base.Update(deltaTime, tileMap, movement);
+        particleTimer += deltaTime;
+
+        if (box.y > tileMap.lowestY + Settings.TileSize * 10)
+            game.dead++;
+
+        if (grounded)
+            jumps = Settings.MaxJumps;
+
+        wallSlide = false;
+        if ((collisions[LeftCollide] || collisions[RightCollide]) && !grounded) {
+            wallSlide = true;
+
+            if (game.wallSlideResetsJumps)
+                jumps = Settings.MaxJumps;
+
+            velocity.y = Math.Min(velocity.y, Settings.WallSlideSpeed);
+
+            if (collisions[RightCollide])
+                flip = false;
+            else
+                flip = true;
+
+            SetAction(WallSlideAction);
+        }
+
+        if (!wallSlide) {
+            if (!grounded)
+                SetAction(JumpAction);
+            else if (movement.x != 0)
+                SetAction(RunAction);
+            else
+                SetAction(IdleAction);
+        }
+
+        if (Math.Abs(dashing) > 50) {
+            velocity.x = Math.Abs(dashing) / dashing * Settings.DashSpeed;
+
+            if (dashHit51 && !resolved51) {
+                velocity.x *= 0.1;
+                resolved51 = true;
+            }
+
+            if (particleTimer > 0.1) {
+                game.particles[game.particleCount++] = new Particle(
+                    new Vec2(box.x + (box.w / 2), box.y + (box.h / 2)),
+                    new Vec2(Math.Abs(dashing) / dashing * Random.Random() * 12 * 60, 0),
+                    game.animations.GetParticleAnimation("particle"),
+                    "particle",
+                    Random.RandInt(1)
+                );
+
+                particleTimer -= 0.1;
+            }
+        }
+
+        if (dashHit50 && !resolved50) {
+            resolved50 = true;
+
+            for (int! i = 0; i < 20; i++) {
+                var angle = Random.Random() * Math.PI * 2;
+                var speed = Random.Random() * 3 * 60 + 3 * 60;
+                game.particles[game.particleCount++] = new Particle(
+                    new Vec2(box.x + box.w / 2, box.y + (box.h / 2)),
+                    new Vec2(Math.Cos(angle) * speed, Math.Sin(angle) * speed),
+                    game.animations.GetParticleAnimation("particle"),
+                    "particle",
+                    Random.RandInt(1)
+                );
+            }
+        }
+
+        if (dashing != 0 && Math.Abs(dashing) <= 51)
+            dashHit51 = true;
+
+        if (dashing != 0 && Math.Abs(dashing) <= 50)
+            dashHit50 = true;
+
+        if (dashing > 0)
+            dashing = Math.Max(0, dashing - 60 * deltaTime);
+        else if (dashing < 0)
+            dashing = Math.Min(0, dashing + 60 * deltaTime);
+
+        if (dashHit50 && !resolved50)
+            velocity.x = 0;
+        else if (velocity.x > 0)
+            velocity.x = Math.Max(velocity.x - 24 * deltaTime, 0);
+        else
+            velocity.x = Math.Min(velocity.x + 24 * deltaTime, 0);
+
+        return false;
+    }
+
+    public override void Render(Vec2 offset) {
+        if (Math.Abs(dashing) < 50)
+            base.Render(offset);
+    }
+
+    public bool! Jump() {
+        if (wallSlide) {
+            if (flip && lastMovement.x < 0) {
+                velocity.x = 3.5 * 3;
+                velocity.y = -2.5 * 5;
+                grounded = false;
+                jumps = Math.Max(0, jumps - 1);
+                return true;
+            } else if (!flip && lastMovement.x > 0) {
+                velocity.x = -3.5 * 3;
+                velocity.y = -2.5 * 5;
+                grounded = false;
+                jumps = Math.Max(0, jumps - 1);
+                return true;
+            }
+        } else if (jumps > 0) {
+            velocity.y = -Settings.JumpSpeed;
+            jumps--;
+            grounded = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    public void Dash() {
+        if (dashing == 0) {
+            Graphics.PlaySound(game.sfx[1]!);
+            dashHit51 = false;
+            dashHit50 = false;
+            resolved51 = false;
+            resolved50 = false;
+
+            // Higher number = longer dash time, Settings.DashSpeed effects velocity of dash
+            if (flip)
+                dashing = -60;
+            else
+                dashing = 60;
+        }
+    }
+}

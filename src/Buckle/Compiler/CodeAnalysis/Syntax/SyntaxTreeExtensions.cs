@@ -13,7 +13,9 @@ public static class SyntaxTreeExtensions {
     /// <param name="text">Text to parse.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(string text, bool includeEOF = false) {
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
+        string text,
+        bool includeEOF = false) {
         var sourceText = SourceText.From(text);
 
         return ParseTokens(sourceText, includeEOF);
@@ -25,25 +27,21 @@ public static class SyntaxTreeExtensions {
     /// <param name="text">Text to parse.</param>
     /// <param name="includeEOF">If to include the EOF <see cref="SyntaxToken" /> at the end.</param>
     /// <returns>SyntaxTokens in order.</returns>
-    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(SourceText text, bool includeEOF = false) {
-        var tokens = new SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
+    internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
+        SourceText text,
+        bool includeEOF = false) {
+        var tokens = new InternalSyntax.SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
+        var lexer = new Lexer(text, true);
 
-        void ParseTokens(SyntaxTree syntaxTree) {
-            var lexer = new Lexer(syntaxTree);
+        while (true) {
+            var token = lexer.LexNext(LexerMode.Syntax);
 
-            while (true) {
-                var token = lexer.LexNext();
+            if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
+                tokens.Add(token);
 
-                if (token.kind != SyntaxKind.EndOfFileToken || includeEOF)
-                    tokens.Add(token);
-
-                if (token.kind == SyntaxKind.EndOfFileToken)
-                    break;
-            }
+            if (token.kind == SyntaxKind.EndOfFileToken)
+                break;
         }
-
-        var syntaxTree = new SyntaxTree(text);
-        ParseTokens(syntaxTree);
 
         return tokens.ToList();
     }

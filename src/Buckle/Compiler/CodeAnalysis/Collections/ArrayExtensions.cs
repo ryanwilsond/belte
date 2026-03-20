@@ -26,4 +26,18 @@ internal static class ArrayExtensions {
 
         return ~low;
     }
+
+    internal static void ReverseContents<T>(this T[] array) {
+        ReverseContents(array, 0, array.Length);
+    }
+
+    internal static void ReverseContents<T>(this T[] array, int start, int count) {
+        var end = start + count - 1;
+
+        for (int i = start, j = end; i < j; i++, j--) {
+            var tmp = array[i];
+            array[i] = array[j];
+            array[j] = tmp;
+        }
+    }
 }

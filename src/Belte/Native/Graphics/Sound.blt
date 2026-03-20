@@ -1,0 +1,6 @@
+
+public class Sound {
+    private int ptr;
+    public decimal volume;
+    public bool loop;
+}

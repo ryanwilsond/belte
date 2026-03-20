@@ -6,7 +6,8 @@ public partial class SyntaxTree {
     private class ParsedSyntaxTree : SyntaxTree {
         private readonly BelteSyntaxNode _root;
 
-        internal ParsedSyntaxTree(SourceText text, BelteSyntaxNode root, bool cloneRoot) : base(text) {
+        internal ParsedSyntaxTree(SourceText text, BelteSyntaxNode root, bool cloneRoot, SourceCodeKind kind)
+            : base(text, kind) {
             _root = cloneRoot ? CloneNodeAsRoot(root) : root;
             endOfFile = _root.GetLastToken(true);
         }
@@ -15,6 +16,6 @@ public partial class SyntaxTree {
 
         internal override SyntaxToken endOfFile { get; }
 
-        protected override int _length => _root?.fullSpan?.length ?? base._length;
+        private protected override int _length => _root?.fullSpan?.length ?? base._length;
     }
 }

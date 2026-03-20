@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Repl.Themes;
 
@@ -33,6 +31,11 @@ public sealed partial class BelteRepl {
         internal bool showIL = false;
 
         /// <summary>
+        /// Show the C# code after a submission.
+        /// </summary>
+        internal bool showCS = false;
+
+        /// <summary>
         /// Show compiler produced warnings.
         /// </summary>
         internal bool showWarnings = false;
@@ -57,15 +60,16 @@ public sealed partial class BelteRepl {
         /// </summary>
         internal Compilation previous;
 
+        internal Compilation baseCompilation;
+
         /// <summary>
         /// Current tree representation of the most recent submission.
         /// </summary>
         internal SyntaxTree tree;
 
         /// <summary>
-        /// Current defined variables.
-        /// Not tracked after Repl instance is over, instead previous submissions are reevaluated.
+        /// Tracks Evaluator information (like symbols) across submissions.
         /// </summary>
-        internal Dictionary<IVariableSymbol, IEvaluatorObject> variables;
+        internal EvaluatorContext context;
     }
 }

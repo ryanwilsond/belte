@@ -30,9 +30,6 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     /// The given index represents which child of the given node to treat as the beginning of the created
     /// <see cref="SeparatedSyntaxList<T>" />.
     /// </summary>
-    /// <param name="node"></param>
-    /// <param name="index"></param>
-    /// <returns></returns>
     internal SeparatedSyntaxList(SyntaxNode node, int index) : this(new SyntaxNodeOrTokenList(node, index)) { }
 
     /// <summary>
@@ -42,7 +39,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         get {
             var node = _list.node;
 
-            if (node != null) {
+            if (node is not null) {
                 if (!node.isList) {
                     if (index == 0)
                         return (T)node;
@@ -84,7 +81,7 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     internal SyntaxToken GetSeparator(int index) {
         var node = _list.node;
 
-        if (node != null) {
+        if (node is not null) {
             if (unchecked((uint)index < (uint)_separatorCount)) {
                 index = (index << 1) + 1;
                 var green = node.green.GetSlot(index);
@@ -104,6 +101,19 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
 
     internal bool Any() {
         return _list.Any();
+    }
+
+    internal bool Any(SyntaxKind kind) {
+        return IndexOf(kind) >= 0;
+    }
+
+    internal int IndexOf(SyntaxKind kind) {
+        for (int i = 0, n = Count; i < n; i++) {
+            if (this[i].kind == kind)
+                return i;
+        }
+
+        return -1;
     }
 
     public Enumerator GetEnumerator() {

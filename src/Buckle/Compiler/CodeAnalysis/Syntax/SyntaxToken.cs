@@ -1,13 +1,15 @@
 using System;
-using Buckle.CodeAnalysis.Display;
-using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
+using System.Diagnostics;
+using System.IO;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
 /// Represents a token in the syntax tree.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed class SyntaxToken {
     /// <summary>
     /// A predicate function that checks if the passed <see cref="SyntaxToken" /> has a width greater than zero.
@@ -30,6 +32,13 @@ public sealed class SyntaxToken {
     }
 
     /// <summary>
+    /// Creates a new <see cref="SyntaxToken"/> from an underlying token.
+    /// </summary>
+    internal SyntaxToken(GreenNode token) {
+        node = token;
+    }
+
+    /// <summary>
     /// If the token has been fabricated by the compiler.
     /// </summary>
     public bool isFabricated => node?.isFabricated ?? false;
@@ -37,7 +46,7 @@ public sealed class SyntaxToken {
     /// <summary>
     /// The parent of this token.
     /// </summary>
-    internal SyntaxNode parent { get; }
+    public SyntaxNode parent { get; }
 
     /// <summary>
     /// The underlying token node.
@@ -47,73 +56,83 @@ public sealed class SyntaxToken {
     /// <summary>
     /// The absolute start position of this token in relation to a <see cref="SourceText" />.
     /// </summary>
-    internal int position { get; }
+    public int position { get; }
 
     /// <summary>
     /// The slot index of this token in relation to the parent.
     /// </summary>
-    internal int index { get; }
+    public int index { get; }
 
     /// <summary>
     /// The kind of token.
     /// </summary>
-    internal SyntaxKind kind => node.kind;
+    public SyntaxKind kind => node.kind;
 
     /// <summary>
     /// The value of the token, if any value exists.
     /// </summary>
     /// <returns></returns>
-    internal object value => node.GetValue();
+    public object value => node.GetValue();
 
     /// <summary>
     /// The text of the token, if any text exists.
     /// </summary>
     /// <returns></returns>
-    internal string text => ToString();
+    public string text => ToString();
 
     /// <summary>
     /// The width of the token, excluding any trivia.
     /// </summary>
-    internal int width => node?.width ?? 0;
+    public int width => node?.width ?? 0;
 
     /// <summary>
     /// The full width of the token, including any trivia.
     /// </summary>
-    internal int fullWidth => node?.fullWidth ?? 0;
+    public int fullWidth => node?.fullWidth ?? 0;
 
     /// <summary>
     /// The span of the token, excluding any trivia.
     /// </summary>
-    internal TextSpan span => node != null ? new TextSpan(position + node.GetLeadingTriviaWidth(), node.width) : null;
+    public TextSpan span => node is not null ? new TextSpan(position + node.GetLeadingTriviaWidth(), node.width) : null;
 
     /// <summary>
     /// The full span of the token, including any trivia.
     /// </summary>
     /// <returns></returns>
-    internal TextSpan fullSpan => new TextSpan(position, fullWidth);
+    public TextSpan fullSpan => new TextSpan(position, fullWidth);
 
     /// <summary>
     /// The <see cref="SyntaxTree" /> that contains this token.
     /// </summary>
-    internal SyntaxTree syntaxTree => parent?.syntaxTree;
+    public SyntaxTree syntaxTree => parent?.syntaxTree;
 
     /// <summary>
     /// The absolute location of this token in the
     /// <see cref="SyntaxTree.text" /> of the <see cref="SyntaxTree" /> that contains this token.
     /// </summary>
-    internal TextLocation location => syntaxTree != null ? new TextLocation(syntaxTree.text, span) : null;
+    public TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span, syntaxTree) : null;
+
+    /// <summary>
+    /// Determines whether this token has any leading trivia.
+    /// </summary>
+    public bool hasLeadingTrivia => leadingTrivia.Count > 0;
+
+    /// <summary>
+    /// Determines whether this token has any trailing trivia.
+    /// </summary>
+    public bool hasTrailingTrivia => trailingTrivia.Count > 0;
 
     /// <summary>
     /// The leading trivia of this token, if any.
     /// </summary>
-    internal SyntaxTriviaList leadingTrivia => node != null ?
+    public SyntaxTriviaList leadingTrivia => node is not null ?
         new SyntaxTriviaList(this, node.GetLeadingTrivia(), position)
         : null;
 
     /// <summary>
     /// The trailing trivia of this token, if any.
     /// </summary>
-    internal SyntaxTriviaList trailingTrivia {
+    public SyntaxTriviaList trailingTrivia {
         get {
             if (node is null)
                 return null;
@@ -121,37 +140,61 @@ public sealed class SyntaxToken {
             var leading = node.GetLeadingTrivia();
             var index = 0;
 
-            if (leading != null)
+            if (leading is not null)
                 index = leading.isList ? leading.slotCount : 1;
 
             var trailingGreen = node.GetTrailingTrivia();
             var trailingPosition = position + fullWidth;
 
-            if (trailingGreen != null)
+            if (trailingGreen is not null)
                 trailingPosition -= trailingGreen.fullWidth;
 
             return new SyntaxTriviaList(this, trailingGreen, trailingPosition, index);
         }
     }
 
-    public override string ToString() {
-        return node != null ? node.ToString() : string.Empty;
+    public SyntaxToken GetNextToken(bool includeZeroWidth = false, bool includeSkipped = false) {
+        if (node is null)
+            return default;
+
+        return SyntaxNavigator.Instance.GetNextToken(this, includeZeroWidth, includeSkipped);
     }
 
-    /// <summary>
-    /// Write a pretty-print text representation of this <see cref="SyntaxToken" /> to an out.
-    /// </summary>
-    /// <param name="text">Out.</param>
-    public void WriteTo(DisplayText text) {
-        text.Write(CreatePunctuation("⟨"));
-        // All tokens are tokens, so we don't need to display token every time
-        text.Write(CreateIdentifier(kind.ToString().Replace("Token", "")));
+    public override string ToString() {
+        return node is not null ? node.ToString() : "";
+    }
 
-        if (this.text != null) {
-            text.Write(CreatePunctuation(", "));
-            text.Write(CreateString($"\"{this.text}\""));
-        }
+    public void WriteTo(TextWriter writer) {
+        node?.WriteTo(writer);
+    }
 
-        text.Write(CreatePunctuation("⟩"));
+    public static bool operator ==(SyntaxToken left, SyntaxToken right) {
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(SyntaxToken left, SyntaxToken right) {
+        return !left.Equals(right);
+    }
+
+    public bool Equals(SyntaxToken other) {
+        if (other is null)
+            return false;
+
+        return parent == other.parent &&
+               node == other.node &&
+               position == other.position &&
+               index == other.index;
+    }
+
+    public override bool Equals(object obj) {
+        return obj is SyntaxToken token && Equals(token);
+    }
+
+    public override int GetHashCode() {
+        return Hash.Combine(parent, Hash.Combine(node, Hash.Combine(position, index)));
+    }
+
+    private string GetDebuggerDisplay() {
+        return GetType().Name + " " + (node is not null ? node.kind : "None") + " " + ToString();
     }
 }

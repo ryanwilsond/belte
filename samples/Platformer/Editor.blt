@@ -1,0 +1,186 @@
+
+class Editor {
+    Vec2 scroll;
+    TileMap tileMap;
+    Textures textures;
+    int tileGroup;
+    int tileVariant;
+    bool previousLC;
+    bool previousRC;
+    int previousScroll;
+    int currentScroll;
+    bool shift;
+    bool onGrid;
+    bool previousG;
+    bool previousO;
+    bool previousT;
+
+    public void EMain() {
+        Graphics.Initialize("Editor", Settings.WindowWidth, Settings.WindowHeight, true);
+
+        textures = new Textures();
+        tileMap = new TileMap(textures, Settings.TileSize);
+        tileMap.Load("map.txt");
+
+        scroll = new Vec2(0, 0);
+        tileGroup = 0;
+        tileVariant = 0;
+        previousLC = false;
+        previousRC = false;
+        previousScroll = 0;
+        currentScroll = 0;
+        shift = false;
+        onGrid = true;
+        previousG = false;
+        previousO = false;
+        previousT = false;
+    }
+
+    public void Update(decimal! deltaTime) {
+        var currentTileTexture = textures.GetTexture(tileGroup, tileVariant);
+        var currentTileKey = textures.GetTextureKey(tileGroup, tileVariant);
+
+        shift = Graphics.GetKey("LeftShift");
+        var leftClick = Graphics.GetMouseButton("left") && (onGrid || !previousLC);
+        var rightClick = Graphics.GetMouseButton("right")/* && !previousRC */;
+
+        previousScroll = currentScroll;
+        currentScroll = Graphics.GetScroll();
+        var scrollDelta = currentScroll - previousScroll;
+
+        if (shift) {
+            var length = LowLevel.Length<Texture[]>(textures.everything[tileGroup]);
+
+            if (scrollDelta > 0)
+                tileVariant = ((tileVariant - 1) % length + length) % length;
+            if (scrollDelta < 0)
+                tileVariant = ((tileVariant + 1) % length + length) % length;
+        } else {
+            var length = LowLevel.Length<Texture[][]>(textures.everything);
+
+            if (scrollDelta > 0) {
+                tileGroup = ((tileGroup - 1) % length + length) % length;
+                tileVariant = 0;
+            } if (scrollDelta < 0) {
+                tileGroup = ((tileGroup + 1) % length + length) % length;
+                tileVariant = 0;
+            }
+        }
+
+        if (Graphics.GetKey("W"))
+            scroll.y -= 500 * deltaTime;
+        if (Graphics.GetKey("A"))
+            scroll.x -= 500 * deltaTime;
+        if (Graphics.GetKey("S"))
+            scroll.y += 500 * deltaTime;
+        if (Graphics.GetKey("D"))
+            scroll.x += 500 * deltaTime;
+
+        if (Graphics.GetKey("G") && !previousG) {
+            onGrid = !onGrid;
+            Console.PrintLine("Current placement mode: " + (onGrid ? "onGrid" : "offGrid"));
+        }
+
+        if (Graphics.GetKey("T") && !previousT) {
+            tileMap.AutoTile();
+            Console.PrintLine("Auto-tile complete");
+        }
+
+        if (Graphics.GetKey("O") && !previousO) {
+            tileMap.Save("map.txt");
+            Console.PrintLine("Saved to map.txt");
+        }
+
+        var mousePosition = Graphics.GetMousePosition();
+        Vec2 tilePosition;
+
+        if (onGrid) {
+            tilePosition = new Vec2(
+                (int!)((mousePosition.x + scroll.x) / Settings.TileSize),
+                (int!)((mousePosition.y + scroll.y) / Settings.TileSize)
+            );
+        } else {
+            tilePosition = new Vec2(
+                mousePosition.x + scroll.x - Settings.TileSize / 2,
+                mousePosition.y + scroll.y - Settings.TileSize / 2
+            );
+        }
+
+        if (leftClick) {
+            // Console.PrintLine(((string)tilePosition.x) + ";" + ((string)tilePosition.y) + ";" + currentTileKey);
+
+            if (onGrid)
+                tileMap.AddGridTile((int!)tilePosition.x, (int!)tilePosition.y, currentTileTexture, currentTileKey);
+            else
+                tileMap.AddOffGridTile((int!)tilePosition.x, (int!)tilePosition.y, currentTileTexture, currentTileKey);
+        }
+
+        if (rightClick) {
+            if (onGrid)
+                tileMap.RemoveGridTile((int!)tilePosition.x, (int!)tilePosition.y);
+            else
+                tileMap.RemoveOffGridTile((int!)(tilePosition.x + Settings.TileSize / 2), (int!)(tilePosition.y + Settings.TileSize / 2));
+        }
+
+        Graphics.Fill(0, 0, 0);
+        tileMap.Render(scroll);
+
+        if (onGrid) {
+            Graphics.Draw(
+                currentTileTexture,
+                null,
+                new Rect(
+                    (int!)((tilePosition.x * Settings.TileSize) - scroll.x),
+                    (int!)((tilePosition.y * Settings.TileSize) - scroll.y),
+                    currentTileTexture.width * 4,
+                    currentTileTexture.height * 4
+                ),
+                0,
+                false,
+                0.4
+            );
+        } else {
+            Graphics.Draw(
+                currentTileTexture,
+                null,
+                new Rect(
+                    (int!)(tilePosition.x - scroll.x),
+                    (int!)(tilePosition.y - scroll.y),
+                    currentTileTexture.width * 4,
+                    currentTileTexture.height * 4
+                ),
+                0,
+                false,
+                0.4
+            );
+        }
+
+        // Player ghost
+        // Graphics.DrawRect(
+        //     new Rect(
+        //         (int!)(Settings.TileSize * 15 + 4 - scroll.x),
+        //         (int!)(Settings.TileSize * 8 - scroll.y),
+        //         14 * 4,
+        //         18 * 4
+        //     ),
+        //     255, 0, 0, 100
+        // );
+
+        // Top left
+        Graphics.DrawRect(
+            new Rect(
+                (int!)(-scroll.x),
+                (int!)(-scroll.y),
+                Settings.TileSize,
+                Settings.TileSize
+            ),
+            100, 100, 100, 100
+        );
+
+        previousLC = Graphics.GetMouseButton("left");
+        previousRC = Graphics.GetMouseButton("right");
+        previousG = Graphics.GetKey("G");
+        previousO = Graphics.GetKey("O");
+        previousT = Graphics.GetKey("T");
+    }
+}

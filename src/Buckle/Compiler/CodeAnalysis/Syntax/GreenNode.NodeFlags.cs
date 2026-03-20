@@ -11,7 +11,9 @@ internal abstract partial class GreenNode {
     internal enum NodeFlags : byte {
         None = 0,
         ContainsDiagnostics = 1 << 0,
-        ContainsSkippedText = 1 << 1,
-        IsMissing = 1 << 2,
+        ContainsStructuredTrivia = 1 << 1,
+        ContainsDirectives = 1 << 2,
+        ContainsSkippedText = 1 << 3,
+        IsMissing = 1 << 4,
     }
 }

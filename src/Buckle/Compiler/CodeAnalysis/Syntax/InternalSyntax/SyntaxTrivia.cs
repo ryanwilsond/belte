@@ -1,3 +1,4 @@
+using System.IO;
 using Buckle.Utilities;
 using Diagnostics;
 
@@ -6,7 +7,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// <summary>
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
-internal sealed class SyntaxTrivia : BelteSyntaxNode {
+internal class SyntaxTrivia : BelteSyntaxNode {
     /// <summary>
     /// Creates a new <see cref="SyntaxTrivia" />.
     /// </summary>
@@ -14,7 +15,7 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
     internal SyntaxTrivia(SyntaxKind kind, string text) : base(kind, text.Length) {
         this.text = text;
 
-        if (kind == SyntaxKind.SkippedTokenTrivia)
+        if (kind == SyntaxKind.SkippedTokensTrivia)
             _flags |= NodeFlags.ContainsSkippedText;
     }
 
@@ -25,7 +26,7 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
         : base(kind, text.Length, diagnostics) {
         this.text = text;
 
-        if (kind == SyntaxKind.SkippedTokenTrivia)
+        if (kind == SyntaxKind.SkippedTokensTrivia)
             _flags |= NodeFlags.ContainsSkippedText;
     }
 
@@ -68,5 +69,9 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
 
     internal override void Accept(SyntaxVisitor visitor) {
         visitor.VisitTrivia(this);
+    }
+
+    private protected override void WriteTriviaTo(TextWriter writer) {
+        writer.Write(text);
     }
 }

@@ -147,6 +147,22 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CodeIsNotWarning), message);
     }
 
+    /// <summary>
+    /// CL0029. Run `buckle --explain CL0029` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic MissingType(string arg) {
+        var message = $"missing project type after '{arg}' (usage: '--type=[console|graphics|...]')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingType), message);
+    }
+
+    /// <summary>
+    /// CL0030. Run `buckle --explain CL0030` on the command line for more info.
+    /// </summary>
+    internal static Diagnostic UnrecognizedType(string type) {
+        var message = $"unrecognized project type '{type}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedType), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

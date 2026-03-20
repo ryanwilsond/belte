@@ -1,0 +1,20 @@
+
+public class Object {
+    public constructor() { }
+
+    public virtual string ToString() {
+        return LowLevel.GetTypeName(this);
+    }
+
+    public virtual bool! Equals(Object object) {
+        return object is null ? false : this == object!;
+    }
+
+    public bool! ReferenceEquals(Object object) {
+        return object is null ? false : this == object!;
+    }
+
+    public virtual int! GetHashCode() {
+        return LowLevel.GetHashCode(this);
+    }
+}

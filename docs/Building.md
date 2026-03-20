@@ -6,7 +6,7 @@
 **Required Tools**
 
 - [GNU Make](https://gnuwin32.sourceforge.net/packages/make.htm)
-- [.NET SDK 8.0 and .NET Runtime 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- [.NET SDK 10.0 and .NET Runtime 10.0](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
 
 ___
 

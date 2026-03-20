@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -10,23 +12,51 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Optimizes BoundExpressions and BoundStatements.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriter {
-    /// <summary>
-    /// Optimizes a <see cref="BoundStatement" />.
-    /// </summary>
-    /// <param name="statement"><see cref="BoundStatement" /> to optimize.</param>
-    /// <param name="transpilerMode">If the compiler is transpiling, if true skips part of optimizing.</param>
-    /// <returns>Optimized <param name="statement" />.</returns>
-    internal static BoundStatement Optimize(BoundStatement statement, bool transpilerMode) {
-        var optimizer = new Optimizer();
-        var optimizedStatement = optimizer.RewriteStatement(statement);
+    private Optimizer() { }
 
-        if (statement is BoundBlockStatement && !transpilerMode)
-            return RemoveDeadCode(optimizedStatement as BoundBlockStatement);
-        else
-            return optimizedStatement;
+    internal static BoundStatement Optimize(BoundStatement statement) {
+        var optimizer = new Optimizer();
+        return (BoundStatement)optimizer.Visit(statement);
     }
 
-    protected override BoundStatement RewriteConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+    internal static BoundBlockStatement RemoveDeadCode(BoundBlockStatement block, BelteDiagnosticQueue diagnostics) {
+        var controlFlow = ControlFlowGraph.Create(block);
+        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
+
+        var builder = block.statements.ToBuilder();
+        var seenScopes = new HashSet<SyntaxNode>();
+
+        for (var i = 0; i < builder.Count; i++) {
+            var statement = builder[i];
+
+            // TODO This only works on surface level and breaks on nested trys
+            // TODO Will have to rewrite the CFG builder from scratch fix trys later
+            if (!reachableStatements.Contains(statement) && statement.kind != BoundKind.TryStatement) {
+                var statementToRemove = statement;
+                PotentiallyReportDeadCode(statementToRemove);
+                builder.RemoveAt(i);
+                i--;
+            }
+        }
+
+        return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
+
+        void PotentiallyReportDeadCode(BoundNode node) {
+            var syntax = node.syntax;
+
+            if (syntax.kind == SyntaxKind.LocalFunctionStatement)
+                return;
+
+            // TODO Eventually replace this with a proper FlowAnalysisPass on BoundNode.WasCompilerGenerated
+            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
+                return;
+
+            if (seenScopes.Add(syntax.parent))
+                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+        }
+    }
+
+    internal override BoundNode VisitConditionalGotoStatement(BoundConditionalGotoStatement statement) {
         /*
 
         goto <label> if <condition>
@@ -40,54 +70,118 @@ internal sealed class Optimizer : BoundTreeRewriter {
         ;
 
         */
-        if (BoundConstant.IsNotNull(statement.condition.constantValue)) {
-            var condition = (bool)statement.condition.constantValue.value;
+        var constantValue = statement.condition.constantValue;
+
+        if (statement.condition is BoundObjectCreationExpression { type.specialType: Symbols.SpecialType.Nullable } o)
+            constantValue = o.arguments[0].constantValue;
+
+        if (ConstantValue.IsNotNull(constantValue)) {
+            var condition = (bool)constantValue.value;
             condition = statement.jumpIfTrue ? condition : !condition;
 
             if (condition)
-                return RewriteStatement(Goto(statement.label));
+                return Visit(Goto(statement.syntax, statement.label));
             else
-                return RewriteStatement(Nop());
+                return Visit(Nop());
         }
 
-        return base.RewriteConditionalGotoStatement(statement);
+        return base.VisitConditionalGotoStatement(statement);
     }
 
-    protected override BoundExpression RewriteTernaryExpression(BoundTernaryExpression expression) {
+    internal override BoundNode VisitConditionalOperator(BoundConditionalOperator expression) {
         /*
 
         <left> <op> <center> <op> <right>
 
-        ----> <op> is '?:' and <left> is constant true
+        ----> <left> is constant true
 
         (<center>)
 
-        ----> <op> is '?:' and <left> is constant false
+        ----> <left> is constant false
 
        (<right>)
 
         */
-        if (expression.op.opKind == BoundTernaryOperatorKind.Conditional) {
-            if (BoundConstant.IsNotNull(expression.left.constantValue) && (bool)expression.left.constantValue.value)
-                return RewriteExpression(expression.center);
+        var condition = expression.condition;
 
-            if (BoundConstant.IsNotNull(expression.left.constantValue) && !(bool)expression.left.constantValue.value)
-                return RewriteExpression(expression.right);
-        }
+        if (ConstantValue.IsNotNull(condition.constantValue) && (bool)condition.constantValue.value)
+            return Visit(expression.trueExpression);
 
-        return base.RewriteTernaryExpression(expression);
+        if (ConstantValue.IsNotNull(condition.constantValue) && !(bool)condition.constantValue.value)
+            return Visit(expression.falseExpression);
+
+        return base.VisitConditionalOperator(expression);
     }
 
-    private static BoundBlockStatement RemoveDeadCode(BoundBlockStatement statement) {
-        var controlFlow = ControlFlowGraph.Create(statement);
-        var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
+    internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
+        /*
 
-        var builder = statement.statements.ToBuilder();
-        for (var i = builder.Count - 1; i >= 0; i--) {
-            if (!reachableStatements.Contains(builder[i]))
-                builder.RemoveAt(i);
-        }
+        <left> = <right>
 
-        return new BoundBlockStatement(builder.ToImmutable());
+        ----> <right> is ref <left>
+
+        <left>
+
+        ----> <right> is the same as <left>
+
+        <left>
+
+        */
+        var left = expression.left;
+        var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
+        // TODO Expand this to cover more cases
+        var canSimplify = left is BoundDataContainerExpression ld &&
+            right is BoundDataContainerExpression rd &&
+            ld.dataContainer.Equals(rd.dataContainer);
+
+        if (canSimplify)
+            return Visit(left);
+
+        return base.VisitAssignmentOperator(expression);
+    }
+
+    internal override BoundNode VisitNullCoalescingAssignmentOperator(
+        BoundNullCoalescingAssignmentOperator expression) {
+        /*
+
+        <left> = <right>
+
+        ----> <right> is ref <left>
+
+        <left>
+
+        ----> <right> is the same as <left>
+
+        <left>
+
+        */
+        var left = expression.left;
+        var right = expression.right is BoundReferenceExpression r ? r.expression : expression.right;
+        // TODO Expand this to cover more cases
+        var canSimplify = left is BoundDataContainerExpression ld &&
+            right is BoundDataContainerExpression rd &&
+            ld.dataContainer.Equals(rd.dataContainer);
+
+        if (canSimplify)
+            return Visit(left);
+
+        return base.VisitNullCoalescingAssignmentOperator(expression);
+    }
+
+    internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
+        /*
+
+        <expression>[<index>]
+
+        ----> <index> is constant, return item directly
+
+        (<expression>[<index>])
+
+        */
+        if (expression.index.constantValue is null || expression.receiver is not BoundInitializerList i)
+            return base.VisitArrayAccessExpression(expression);
+
+        var index = (int)expression.index.constantValue.value;
+        return Visit(i.items[index]);
     }
 }

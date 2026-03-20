@@ -1,13 +1,75 @@
+using Buckle.CodeAnalysis.Symbols;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-/// <summary>
-/// A bound expression, bound from a <see cref="Syntax.ExpressionSyntax" />.
-/// All Expressions have a possible constant value, used for <see cref="ConstantFolding" />.
-/// If folding is not possible, <see cref="constantValue" /> is null.
-/// </summary>
-internal abstract class BoundExpression : BoundNode {
-    internal abstract BoundType type { get; }
+internal abstract partial class BoundExpression : BoundNode {
+    internal virtual ConstantValue constantValue => null;
 
-    internal virtual BoundConstant constantValue => null;
+    internal virtual LookupResultKind resultKind => LookupResultKind.Viable;
+
+    internal virtual Symbol expressionSymbol => null;
+
+    internal virtual bool suppressVirtualCalls => false;
+
+    internal RefKind GetRefKind() {
+        return kind switch {
+            BoundKind.DataContainerExpression => ((BoundDataContainerExpression)this).dataContainer.refKind,
+            BoundKind.ParameterExpression => ((BoundParameterExpression)this).parameter.refKind,
+            BoundKind.FieldAccessExpression => ((BoundFieldAccessExpression)this).field.refKind,
+            BoundKind.CallExpression => ((BoundCallExpression)this).method.refKind,
+            _ => RefKind.None,
+        };
+    }
+
+    internal TypeSymbol Type() {
+        if (type is null)
+            return null;
+
+        return type.UnderlyingTemplateTypeOrSelf();
+    }
+
+    internal TypeSymbol StrippedType() {
+        if (type is null)
+            return null;
+
+        return type.StrippedType().UnderlyingTemplateTypeOrSelf().StrippedType();
+    }
+
+    internal bool IsLiteralNull() {
+        return kind == BoundKind.LiteralExpression && ConstantValue.IsNull(constantValue);
+    }
+
+    internal bool NeedsToBeConverted() {
+        switch (kind) {
+            case BoundKind.UnconvertedInitializerList:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal bool HasExpressionType() {
+        return type is not null;
+    }
+
+    internal void GetExpressionSymbols(ArrayBuilder<Symbol> symbols) {
+        switch (kind) {
+            case BoundKind.MethodGroup:
+                symbols.AddRange(((BoundMethodGroup)this).methods);
+                break;
+            case BoundKind.ErrorExpression:
+                foreach (var s in ((BoundErrorExpression)this).symbols) {
+                    if (s is not null)
+                        symbols.Add(s);
+                }
+
+                break;
+            default:
+                if (expressionSymbol is not null)
+                    symbols.Add(expressionSymbol);
+
+                break;
+        }
+    }
 }

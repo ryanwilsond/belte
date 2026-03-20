@@ -1,14 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-   <Content Remove="Resources/ErrorDescriptionsRE.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Resources/ErrorDescriptionsRE.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />
     <ProjectReference Include="..\Compiler\Compiler.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />

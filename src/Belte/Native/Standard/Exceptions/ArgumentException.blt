@@ -1,0 +1,4 @@
+
+public sealed class ArgumentException extends Exception {
+    public constructor() : base("Value does not fall within the expected range.") { }
+}

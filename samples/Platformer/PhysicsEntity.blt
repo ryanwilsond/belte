@@ -1,0 +1,149 @@
+
+class PhysicsEntity {
+    protected constexpr int! UpCollide = 0;
+    protected constexpr int! DownCollide = 1;
+    protected constexpr int! LeftCollide = 2;
+    protected constexpr int! RightCollide = 3;
+
+    protected bool flip;
+    protected Vec2 lastMovement;
+    protected Program game;
+    protected bool[] collisions;
+    protected bool! grounded;
+
+    Vec2 animOffset;
+    int action = 10;
+    Animation animation;
+    int kind;
+
+    public Vec2 pos;
+    public Rect box;
+    public Vec2 velocity;
+
+    public constructor(Program game, Vec2 position, int kind) {
+        this.game = game;
+        pos = position;
+        this.kind = kind;
+
+        SetAction(0);
+        var texture = animation.GetTexture();
+
+        box = new Rect((int!)position.x, (int!)position.y, texture.width * 4, texture.height * 4);
+        velocity = new Vec2(0, 0);
+
+        animOffset = new Vec2(12, 0);
+        flip = false;
+        lastMovement = new Vec2(0, 0);
+    }
+
+    public virtual bool! Update(decimal! deltaTime, TileMap tileMap, Vec2 movement) {
+        collisions = new bool[] { false, false, false, false };
+        grounded = false;
+        var frameMovement = new Vec2(movement.x + velocity.x, movement.y + velocity.y);
+
+        pos.x += frameMovement.x * 60 * deltaTime;
+        box.x = (int!)pos.x;
+
+        var nearTiles = tileMap.GetNearTiles(box.x, box.y);
+
+        for (int! i = 0; i < LowLevel.Length<Tile[]>(nearTiles); i++) {
+            var tile = nearTiles[i];
+
+            if (tile is null)
+                break;
+
+            if (Colliding(new Rect(box.x, box.y, box.w + 1, box.h), tile.sprite.dst)) {
+                if (frameMovement.x > 0) {
+                    box.x = tile.sprite.dst.x - box.w;
+                    collisions[RightCollide] = true;
+                }
+
+                if (frameMovement.x < 0) {
+                    box.x = tile.sprite.dst.x + tile.sprite.dst.w;
+                    collisions[LeftCollide] = true;
+                }
+
+                pos.x = box.x;
+            }
+        }
+
+        pos.y += frameMovement.y * 60 * deltaTime;
+        box.y = (int!)pos.y;
+
+        nearTiles = tileMap.GetNearTiles(box.x, box.y);
+
+        for (int! i = 0; i < LowLevel.Length<Tile[]>(nearTiles); i++) {
+            var tile = nearTiles[i];
+
+            if (tile is null)
+                break;
+
+            if (Colliding(box, tile.sprite.dst)) {
+                if (frameMovement.y > 0) {
+                    box.y = tile.sprite.dst.y - box.h;
+                    collisions[DownCollide] = true;
+                    grounded = true;
+                }
+
+                if (frameMovement.y < 0) {
+                    box.y = tile.sprite.dst.y + tile.sprite.dst.h;
+                    collisions[UpCollide] = true;
+                }
+
+                pos.y = box.y;
+            } else if (Colliding(new Rect(box.x, box.y + 1, box.w, box.h), tile.sprite.dst)) {
+                grounded = true;
+            }
+        }
+
+        if (movement.x > 0)
+            flip = false;
+        if (movement.x < 0)
+            flip = true;
+
+        lastMovement = movement;
+
+        if (collisions[UpCollide] || grounded)
+            velocity.y = 0;
+        else
+            velocity.y = Math.Min(Settings.TerminalVelocity, velocity.y + Settings.Gravity * deltaTime);
+
+        animation.Update(deltaTime);
+
+        return false;
+    }
+
+    public virtual void Render(Vec2 offset) {
+        var dst = new Rect(
+            (int!)Math.Round(box.x - offset.x),
+            (int!)Math.Round(box.y - offset.y),
+            box.w,
+            box.h
+        );
+
+        if (flip)
+            dst.x -= (int!)animOffset.x;
+        else
+            dst.x += (int!)animOffset.x;
+
+        Graphics.Draw(animation.GetTexture(), null, dst, 0, flip, 1);
+    }
+
+    protected void SetAction(int action) {
+        // Consider making SetAction abstract and implementing it in the subclasses
+        if (action != this.action) {
+            this.action = action;
+
+            if (kind == 0)
+                animation = game.animations.GetPlayerAction(action);
+            if (kind == 1)
+                animation = game.animations.GetEnemyAction(action);
+        }
+    }
+
+    public static bool! Colliding(Rect a, Rect b) {
+        var collisionX = a.x + a.w > b.x && b.x + b.w > a.x;
+        var collisionY = a.y + a.h > b.y && b.y + b.h > a.y;
+        return collisionX && collisionY;
+    }
+}

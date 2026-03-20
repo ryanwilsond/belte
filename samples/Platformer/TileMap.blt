@@ -1,0 +1,298 @@
+
+class TileMap {
+    private int! tileSize;
+    private int! tileCount;
+    private Tile[] offGridTiles;
+    private int! offGridCount;
+    private Textures textures;
+
+    public Tile[] tiles;
+    public decimal! lowestY;
+
+    public constructor(Textures textures, int! tileSize = 64) {
+        this.tileSize = tileSize;
+        this.textures = textures;
+        tileCount = 0;
+        offGridCount = 0;
+        lowestY = 0;
+
+        // Arbitrary sizes, probably good enough
+        tiles = new Tile[512];
+        offGridTiles = new Tile[128];
+    }
+
+    public Tile[] Extract(string! key, bool! keep) {
+        var count = 0;
+        var matches = new Tile[20];
+
+        for (int! i = 0; i < offGridCount; i++) {
+            var tile = offGridTiles[i];
+
+            if (tile.key == key) {
+                matches[count++] = tile;
+
+                if (!keep) {
+                    for (int! j = i; j < offGridCount - 1; j++)
+                        offGridTiles[j] = offGridTiles[j + 1];
+
+                    offGridTiles[offGridCount - 1] = null;
+                    offGridCount--;
+                    i--;
+                }
+            }
+        }
+
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.key == key) {
+                matches[count++] = tile;
+
+                if (!keep) {
+                    for (int! j = i; j < tileCount - 1; j++)
+                        tiles[j] = tiles[j + 1];
+
+                    tiles[tileCount - 1] = null;
+                    tileCount--;
+                    i--;
+                }
+            }
+        }
+
+        return matches;
+    }
+
+    public void Save(string! path) {
+        string! text = "";
+
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+            text += ((string!)tile.x) + ";" + ((string!)tile.y) + ";" + tile.key + "\r\n";
+        }
+
+        if (offGridCount > 0) {
+            text += "offGrid\r\n";
+
+            for (int! i = 0; i < offGridCount; i++) {
+                var tile = offGridTiles[i];
+                text += ((string!)tile.x) + ";" + ((string!)tile.y) + ";" + tile.key + "\r\n";
+            }
+        }
+
+        File.WriteText(path, text);
+    }
+
+    public void Load(string! path) {
+        tileCount = 0;
+        offGridCount = 0;
+        lowestY = 0;
+
+        var text = File.ReadText(path);
+        var lines = String.Split(text!, "\r\n");
+        var onGrid = true;
+
+        for (int! i = 0; i < LowLevel.Length<string[]>(lines) - 1; i++) {
+            if (lines[i] == "offGrid") {
+                onGrid = false;
+                continue;
+            }
+
+            var parts = String.Split(lines[i], ";");
+            var x = (int!)parts[0];
+            var y = (int!)parts[1];
+            var v = (int!)parts[3];
+            var texture = textures.GetTextureStr(parts[2], v);
+            string! key = (string!)(parts[2] + ";" + parts[3]);
+
+            lowestY = Math.Max(lowestY, y * (onGrid ? tileSize : 1));
+
+            if (onGrid)
+                tiles[tileCount++] = new Tile(x, y, texture, key, tileSize, true);
+            else
+                offGridTiles[offGridCount++] = new Tile(x, y, texture, key, tileSize, false);
+        }
+    }
+
+    public void AutoTile() {
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.kind != "grass" && tile.kind != "stone")
+                continue;
+
+            var neighbors = GetSortedNearTilesG(tile.x, tile.y);
+
+            var hasTop = neighbors[1] isnt null;
+            var hasBottom = neighbors[7] isnt null;
+            var hasLeft = neighbors[3] isnt null;
+            var hasRight = neighbors[5] isnt null;
+
+            if (!hasTop && !hasLeft && hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 0), tile.kind + ";0", tileSize);
+            else if (!hasTop && hasLeft && hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 1), tile.kind + ";1", tileSize);
+            else if (!hasTop && hasLeft && hasBottom && !hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 2), tile.kind + ";2", tileSize);
+            else if (hasTop && hasLeft && hasBottom && !hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 3), tile.kind + ";3", tileSize);
+            else if (hasTop && hasLeft && !hasBottom && !hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 4), tile.kind + ";4", tileSize);
+            else if (hasTop && hasLeft && hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 5), tile.kind + ";5", tileSize);
+            else if (hasTop && !hasLeft && !hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 6), tile.kind + ";6", tileSize);
+            else if (hasTop && !hasLeft && hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 7), tile.kind + ";7", tileSize);
+            else if (hasTop && hasLeft && !hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 8), tile.kind + ";8", tileSize);
+            else if (!hasTop && hasLeft && !hasBottom && !hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 2), tile.kind + ";2", tileSize);
+            else if (!hasTop && !hasLeft && !hasBottom && hasRight)
+                tiles[i] = new Tile(tile.x, tile.y, textures.GetTextureStr(tile.kind, 0), tile.kind + ";0", tileSize);
+        }
+    }
+
+    public void AddGridTile(int! x, int! y, Texture texture, string! key) {
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.x == x && tile.y == y) {
+                tiles[i] = new Tile(x, y, texture, key, tileSize);
+                return;
+            }
+        }
+
+        tiles[tileCount++] = new Tile(x, y, texture, key, tileSize);
+    }
+
+    public void AddOffGridTile(int! x, int! y, Texture texture, string! key) {
+        offGridTiles[offGridCount++] = new Tile(x, y, texture, key, tileSize, false);
+    }
+
+    public void RemoveGridTile(int! x, int! y) {
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (tile.x == x && tile.y == y) {
+                for (int! j = i; j < tileCount - 1; j++)
+                    tiles[j] = tiles[j + 1];
+
+                tiles[tileCount - 1] = null;
+                tileCount--;
+                return;
+            }
+        }
+    }
+
+    public void RemoveOffGridTile(int! x, int! y) {
+        for (int! i = 0; i < offGridCount; i++) {
+            var tile = offGridTiles[i];
+
+            if (PointInsideTile(x, y, tile)) {
+                for (int! j = i; j < offGridCount - 1; j++)
+                    offGridTiles[j] = offGridTiles[j + 1];
+
+                offGridTiles[offGridCount - 1] = null;
+                offGridCount--;
+                return;
+            }
+        }
+    }
+
+    public Tile[] GetNearTiles(int! x, int! y) {
+        var gx = Math.Round(x / (decimal)tileSize);
+        var gy = Math.Round(y / (decimal)tileSize);
+        var nearTileCount = 0;
+        var nearTiles = new Tile[9];
+
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if ((tile.kind == "grass" || tile.kind == "stone") &&
+                tile.x >= gx - 1 && tile.x <= gx + 1 && tile.y >= gy - 1 && tile.y <= gy + 1) {
+                nearTiles[nearTileCount++] = tile;
+            }
+        }
+
+        return nearTiles;
+    }
+
+    public Tile[] GetSortedNearTilesG(int! gx, int! gy) {
+        var unsorted = GetNearTiles(gx * tileSize, gy * tileSize);
+        var sorted = new Tile[9];
+
+        for (int! i = 0; i < 9; i++) {
+            var tile = unsorted[i];
+
+            if (tile is null)
+                break;
+
+            var dx = tile.x - gx;
+            var dy = tile.y - gy;
+
+            if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
+                var index = (dy + 1) * 3 + (dx + 1);
+                sorted[index] = tile;
+            }
+        }
+
+        return sorted;
+    }
+
+    public Tile[] GetSortedNearTiles(int! x, int! y) {
+        var gx = Math.Round(x / (decimal)tileSize);
+        var gy = Math.Round(y / (decimal)tileSize);
+        var unsorted = GetNearTiles(x, y);
+        var sorted = new Tile[9];
+
+        for (int! i = 0; i < 9; i++) {
+            var tile = unsorted[i];
+
+            if (tile is null)
+                break;
+
+            var dx = tile.x - gx;
+            var dy = tile.y - gy;
+
+            if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1) {
+                var index = (int)((dy + 1) * 3 + (dx + 1));
+                sorted[index] = tile;
+            }
+        }
+
+        return sorted;
+    }
+
+    public void Render(Vec2 offset) {
+        for (int! i = 0; i < offGridCount; i++) {
+            var tile = offGridTiles[i];
+
+            if (!TileOffScreen(tile, offset))
+                Graphics.DrawSprite(tile.sprite, offset);
+        }
+
+        for (int! i = 0; i < tileCount; i++) {
+            var tile = tiles[i];
+
+            if (!TileOffScreen(tile, offset))
+                Graphics.DrawSprite(tile.sprite, offset);
+        }
+    }
+
+    private bool TileOffScreen(Tile tile, Vec2 offset) {
+        if ((tile.sprite.dst.x + tile.sprite.dst.w - offset.x < 0) ||
+            (tile.sprite.dst.x - offset.x > Settings.WindowWidth) ||
+            (tile.sprite.dst.y + tile.sprite.dst.h - offset.y < 0) ||
+            (tile.sprite.dst.y - offset.y > Settings.WindowHeight)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool PointInsideTile(int! x, int! y, Tile tile) {
+        var collidingX = x > tile.x && x < tile.x + tile.sprite.dst.w;
+        var collidingY = y > tile.y && y < tile.y + tile.sprite.dst.h;
+        return collidingX && collidingY;
+    }
+}

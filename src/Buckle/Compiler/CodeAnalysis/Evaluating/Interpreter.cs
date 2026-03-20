@@ -1,7 +1,8 @@
-using System.Collections.Generic;
-using Buckle.CodeAnalysis.Symbols;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
+using Diagnostics;
 using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -24,8 +25,10 @@ internal sealed class Interpreter {
     /// <param name="abort">Flag that tells the interpreter to abort and safely exit as soon as possible.</param>
     /// <returns>The result of the last evaluated member.</returns>
     internal static EvaluationResult Interpret(
-        SyntaxTree syntaxTree, CompilationOptions options,
-        Dictionary<IVariableSymbol, IEvaluatorObject> variables, ValueWrapper<bool> abort) {
+        SyntaxTree syntaxTree,
+        CompilationOptions options,
+        ValueWrapper<bool> abort,
+        bool logTime) {
         // This pseudo interpreter parses all of the source files at once, so there is a short delay before running the
         // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the
         // parser would have to be written to support partial parsing. This would be a large undertaking, but maybe
@@ -35,26 +38,40 @@ internal sealed class Interpreter {
         // compilation needs to have a copy of the text starting at this index.
         var textOffset = 0;
 
+        var context = new EvaluatorContext(options);
+
         EvaluationResult result = null;
         Compilation previous = null;
+        var root = parsedSyntaxTree.GetCompilationUnitRoot();
 
-        foreach (var member in parsedSyntaxTree.GetCompilationUnitRoot().members) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+
+        foreach (var member in root.members) {
             textOffset += member.position;
 
             var newSyntaxTree = SyntaxTree.Create(
                 syntaxTree.text.GetSubText(new TextSpan(textOffset, syntaxTree.text.length - textOffset)),
                 SyntaxFactory.CompilationUnit(
-                    new SyntaxList<MemberSyntax>(member),
+                    root.attributeLists,
+                    root.usings,
+                    new SyntaxList<MemberDeclarationSyntax>(member),
                     parsedSyntaxTree.endOfFile
                 )
             );
 
-            previous = Compilation.CreateScript(options, previous, newSyntaxTree);
-            result = previous.Evaluate(variables, abort);
+            previous = Compilation.CreateScript("interpreter", options, newSyntaxTree, previous);
+            previous.Evaluate(context, abort, ref result);
 
-            // ? If any diagnostics are found, we quit early. Is this what we want though?
-            if (result.diagnostics.Errors().Any())
+            if (result.diagnostics.AnyErrors() || result.exceptions.Count > 0)
                 break;
+        }
+
+        if (logTime) {
+            timer.Stop();
+            result.diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"Interpreted the program in {timer.ElapsedMilliseconds} ms"
+            ));
         }
 
         return result;

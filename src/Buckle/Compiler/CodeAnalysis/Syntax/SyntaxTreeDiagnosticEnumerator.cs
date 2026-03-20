@@ -24,7 +24,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
         _current = null;
         _position = position;
 
-        if (node != null && node.containsDiagnostics) {
+        if (node is not null && node.containsDiagnostics) {
             _syntaxTree = syntaxTree;
             _stack = new NodeIterationStack(DefaultStackCapacity);
             _stack.PushNodeOrToken(node);
@@ -57,7 +57,7 @@ internal partial struct SyntaxTreeDiagnosticEnumerator {
 
                     _current = new BelteDiagnostic(
                         sd.info,
-                        new TextLocation(_syntaxTree.text, new TextSpan(spanStart, spanWidth)),
+                        new TextLocation(_syntaxTree.text, new TextSpan(spanStart, spanWidth), _syntaxTree),
                         sd.message,
                         sd.suggestions
                     );

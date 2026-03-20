@@ -10,7 +10,7 @@ internal static partial class SyntaxFactory {
     /// Creates a <see cref="SyntaxToken" />.
     /// </summary>
     internal static SyntaxToken Token(SyntaxKind kind) {
-        return new SyntaxToken(kind, null, null);
+        return new SyntaxToken.MissingToken(kind, null, null);
     }
 
     /// <summary>
@@ -18,6 +18,20 @@ internal static partial class SyntaxFactory {
     /// </summary>
     internal static SyntaxToken Token(SyntaxKind kind, string text) {
         return new SyntaxToken(kind, text, null);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="SyntaxToken" /> with text and value.
+    /// </summary>
+    internal static SyntaxToken Token(SyntaxKind kind, string text, object value) {
+        return new SyntaxToken(kind, text, value);
+    }
+
+    /// <summary>
+    /// Creates a <see cref="SyntaxKind"/> with trivia.
+    /// </summary>
+    internal static SyntaxToken Token(GreenNode leadingTrivia, SyntaxKind kind, GreenNode trailingTrivia) {
+        return new SyntaxToken(kind, SyntaxFacts.GetText(kind), null, leadingTrivia, trailingTrivia);
     }
 
     /// <summary>
@@ -45,13 +59,6 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a skipped token trivia.
-    /// </summary>
-    internal static SyntaxTrivia Skipped(SyntaxToken token) {
-        return new SyntaxTrivia(SyntaxKind.SkippedTokenTrivia, token.text, token.GetDiagnostics());
-    }
-
-    /// <summary>
     /// Creates a missing <see cref="SyntaxToken" />.
     /// </summary>
     internal static SyntaxToken Missing(SyntaxKind kind) {
@@ -73,7 +80,16 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="EmptyExpressionSyntax" />.
+    /// Creates an empty syntax list.
     /// </summary>
-    internal static EmptyExpressionSyntax Empty() => EmptyExpression();
+    public static SyntaxList<T> List<T>() where T : GreenNode {
+        return new SyntaxList<T>(null);
+    }
+
+    /// <summary>
+    /// Creates a syntax list.
+    /// </summary>
+    public static SyntaxList<T> List<T>(params T[] nodes) where T : GreenNode {
+        return new SyntaxList<T>(SyntaxList.List(nodes));
+    }
 }

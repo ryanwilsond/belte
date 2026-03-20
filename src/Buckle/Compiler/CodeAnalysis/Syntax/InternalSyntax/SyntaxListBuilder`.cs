@@ -19,6 +19,8 @@ internal sealed class SyntaxListBuilder<T> where T : GreenNode {
         _builder = builder;
     }
 
+    internal SyntaxListBuilder() { }
+
     /// <summary>
     /// Creates a <see cref="SyntaxListBuilder<T>" /> with the default starting size of 8.
     /// </summary>
@@ -115,7 +117,7 @@ internal sealed class SyntaxListBuilder<T> where T : GreenNode {
     }
 
     public static implicit operator SyntaxList<T>(SyntaxListBuilder<T> builder) {
-        if (builder._builder != null) {
+        if (builder._builder is not null) {
             return builder.ToList();
         }
 
