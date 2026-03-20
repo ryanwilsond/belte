@@ -1633,6 +1633,10 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_StaticConstructorWithInitializer, location, message);
     }
 
+    internal static BelteDiagnostic DuplicateConversion(TextLocation location, TypeSymbol type) {
+        var message = $"duplicate user-defined conversion in type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateConversion, location, message);
+    }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);

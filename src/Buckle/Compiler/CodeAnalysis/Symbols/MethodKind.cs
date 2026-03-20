@@ -3,9 +3,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 public enum MethodKind : byte {
     Constructor,
+    StaticConstructor,
     Ordinary,
-    Builtin,
     LocalFunction,
     Operator,
-    StaticConstructor,
+    Conversion,
 }

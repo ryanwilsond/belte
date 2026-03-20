@@ -3243,7 +3243,6 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var targetType = targetTypeWithAnnotations.type;
         var conversion = conversions.ClassifyConversionFromExpression(operand, targetType);
-        // var conversionGroup = new ConversionGroup(conversion, targetTypeWithAnnotations);
         var suppressErrors = operand.hasErrors || targetType.IsErrorType();
         var hasErrors = !conversion.exists || targetType.isStatic;
 
@@ -10301,10 +10300,6 @@ symIsHidden:;
             }
         }
 
-        // TODO method group conversion
-        // if (conversion.isMethodGroup)
-        //     return CreateMethodGroupConversion(node, source, conversion, isCast, destination, diagnostics);
-
         if (source.kind == BoundKind.UnconvertedInitializerList) {
             var listExpression = ConvertListExpression(
                 (BoundUnconvertedInitializerList)source,
@@ -10322,7 +10317,15 @@ symIsHidden:;
             );
         }
 
-        var constantValue = ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination));
+        var constantValue = conversion.method is null
+            ? ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination))
+            : null;
+
+        if (conversion.method is not null) {
+            var targetType = conversion.method.GetParameterTypes()[0].type;
+            var argumentConversion = conversions.ClassifyConversionFromExpression(source, targetType);
+            source = CreateConversion(source, argumentConversion, targetType, diagnostics);
+        }
 
         return new BoundCastExpression(
             node,

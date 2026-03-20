@@ -30,6 +30,10 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    internal static bool IsValidNullableTypeArgument(this TypeSymbol type) {
+        return type is { isPrimitiveType: true } && !type.IsNullableType();
+    }
+
     public static bool IsNullableType(this TypeSymbol type, out TypeSymbol underlyingType) {
         if (type is NamedTypeSymbol nt
             && nt.originalDefinition.specialType == SpecialType.Nullable) {

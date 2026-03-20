@@ -144,6 +144,10 @@ public lowlevel sealed class List<type T> {
         return ref list._array[index];
     }
 
+    public static implicit operator List<T>(T[] array) {
+        return new List<T>(array);
+    }
+
     private const int! PosIndex(int! index) {
         if (index < 0)
             index += _length;

@@ -312,7 +312,23 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0028_NoAliasHere
     // ! Error_BU0029_BadUsingType
-    // ! Error_BU0030
+
+    [Fact]
+    public void Reports_Error_BU0030_DuplicateConversion() {
+        var text = @"
+            class A {
+                public static implicit operator int(A a) { return 1; }
+                public static implicit [operator] int(A a) { return 1; }
+            }
+        ";
+
+        var diagnostics = @"
+            duplicate user-defined conversion in type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0031_DuplicateUsing
 
     [Fact]

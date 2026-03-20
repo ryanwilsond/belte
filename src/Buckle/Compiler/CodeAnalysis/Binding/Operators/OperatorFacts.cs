@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 using Buckle.Utilities;
 
@@ -56,6 +57,13 @@ internal static class OperatorFacts {
             return true;
 
         return false;
+    }
+
+    internal static string OperatorNameFromDeclaration(ConversionDeclarationSyntax declaration) {
+        return declaration.implicitOrExplicitKeyword.kind switch {
+            SyntaxKind.ImplicitKeyword => WellKnownMemberNames.ImplicitConversionName,
+            _ => WellKnownMemberNames.ExplicitConversionName,
+        };
     }
 
     internal static string GetBinaryOperatorNameFromKind(BinaryOperatorKind kind) {

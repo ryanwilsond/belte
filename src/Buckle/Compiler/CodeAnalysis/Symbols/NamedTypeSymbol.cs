@@ -144,7 +144,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         var operators = ArrayBuilder<MethodSymbol>.GetInstance(candidates.Length);
 
         foreach (var candidate in candidates) {
-            if (candidate is MethodSymbol { methodKind: MethodKind.Operator } method)
+            if (candidate is MethodSymbol { methodKind: MethodKind.Operator or MethodKind.Conversion } method)
                 operators.Add(method);
         }
 

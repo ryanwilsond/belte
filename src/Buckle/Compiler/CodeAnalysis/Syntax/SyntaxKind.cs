@@ -113,6 +113,8 @@ public enum SyntaxKind : ushort {
     UsingKeyword,
     NamespaceKeyword,
     GlobalKeyword,
+    ImplicitKeyword,
+    ExplicitKeyword,
 
     // Tokens with text
     BadToken,
@@ -194,6 +196,7 @@ public enum SyntaxKind : ushort {
     ConstructorDeclaration,
     ConstructorInitializer,
     OperatorDeclaration,
+    ConversionDeclaration,
 
     // Names
     IdentifierName,

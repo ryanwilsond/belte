@@ -43,6 +43,20 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         _uncommonData = new NestedUncommonData(nestedConversions);
     }
 
+    internal Conversion(UserDefinedConversionResult conversionResult, bool isImplicit) {
+        kind = conversionResult.kind == UserDefinedConversionResultKind.NoApplicableOperators
+            ? ConversionKind.None
+            : isImplicit ? ConversionKind.ImplicitUserDefined : ConversionKind.ExplicitUserDefined;
+
+        _uncommonData = conversionResult.kind == UserDefinedConversionResultKind.NoApplicableOperators &&
+            conversionResult.results.IsEmpty
+            ? MethodUncommonData.NoApplicableOperators
+            : new MethodUncommonData(
+                conversionResult: conversionResult,
+                conversionMethod: null
+            );
+    }
+
     private Conversion(ConversionKind kind, UncommonData uncommonData = null) {
         this.kind = kind;
         _uncommonData = uncommonData;
@@ -81,6 +95,27 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal bool isBoxing => kind.IsBoxingCast();
 
     internal bool isUnboxing => kind.IsUnboxingCast();
+
+    internal MethodSymbol method {
+        get {
+            switch (_uncommonData) {
+                case MethodUncommonData methodUncommonData:
+                    if (methodUncommonData.conversionMethod is not null)
+                        return methodUncommonData.conversionMethod;
+
+                    var conversionResult = methodUncommonData.conversionResult;
+
+                    if (conversionResult.kind == UserDefinedConversionResultKind.Valid) {
+                        var analysis = conversionResult.results[conversionResult.best];
+                        return analysis.@operator;
+                    }
+
+                    break;
+            }
+
+            return null;
+        }
+    }
 
     public override bool Equals(object obj) {
         return obj is Conversion conversion && Equals(conversion);
