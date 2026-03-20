@@ -13,44 +13,44 @@ internal sealed partial class OverloadResolution {
         private const UnaryOperatorKind LBO = UnaryOperatorKind.Lifted | UnaryOperatorKind.Bool;
 
         private static readonly UnaryOperatorKind[] Increment = [
-            //  any  str  bool chr  int  dec  type obj
+        //  any  str  bool chr  int  dec  type obj
             ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR,
-        ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
+            ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
         ];
 
         private static readonly UnaryOperatorKind[] NumericalIdentity = [
-            //  any  str  bool chr  int  dec  type obj
+        //  any  str  bool chr  int  dec  type obj
             ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR,
-        ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
+            ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
         ];
 
         private static readonly UnaryOperatorKind[] NumericalNegation = [
-            //  any  str  bool chr  int  dec  type obj
+        //  any  str  bool chr  int  dec  type obj
             ERR, ERR, ERR, ERR, INT, DEC, ERR, ERR,
-        ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
+            ERR, ERR, ERR, ERR, LIN, LDE, ERR, ERR // lifted
         ];
 
         private static readonly UnaryOperatorKind[] BooleanNegation = [
-            //  any  str  bool chr  int  dec  type obj
+        //  any  str  bool chr  int  dec  type obj
             ERR, ERR, BOL, ERR, ERR, ERR, ERR, ERR,
-        ERR, ERR, LBO, ERR, ERR, ERR, ERR, ERR // lifted
+            ERR, ERR, LBO, ERR, ERR, ERR, ERR, ERR // lifted
         ];
 
         private static readonly UnaryOperatorKind[] BitwiseCompliment = [
-            //  any  str  bool chr  int  dec  type obj
+        //  any  str  bool chr  int  dec  type obj
             ERR, ERR, ERR, ERR, INT, ERR, ERR, ERR,
-        ERR, ERR, ERR, ERR, LIN, ERR, ERR, ERR // lifted
+            ERR, ERR, ERR, ERR, LIN, ERR, ERR, ERR // lifted
         ];
 
         private static readonly UnaryOperatorKind[][] Operators = [
             Increment,
-        Increment,
-        Increment,
-        Increment,
-        NumericalIdentity,
-        NumericalNegation,
-        BooleanNegation,
-        BitwiseCompliment
+            Increment,
+            Increment,
+            Increment,
+            NumericalIdentity,
+            NumericalNegation,
+            BooleanNegation,
+            BitwiseCompliment
         ];
 
         internal static UnaryOperatorKind OpKind(UnaryOperatorKind kind, TypeSymbol operand) {
