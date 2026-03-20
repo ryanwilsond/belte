@@ -610,7 +610,14 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.index, out var newIndex));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newOperand, newIndex, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newOperand,
+                newIndex,
+                expression.method,
+                expression.constantValue,
+                expression.type
+            );
+
             return statements;
         }
 
@@ -717,11 +724,13 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandFieldAccessExpression(
         BoundFieldAccessExpression expression,
         out BoundExpression replacement) {
-        var statements = ExpandExpression(expression.receiver, out var newReceiver);
+        if (!expression.field.isStatic) {
+            var statements = ExpandExpression(expression.receiver, out var newReceiver);
 
-        if (statements.Count != 0) {
-            replacement = expression.Update(newReceiver, expression.field, expression.constantValue, expression.type);
-            return statements;
+            if (statements.Count != 0) {
+                replacement = expression.Update(newReceiver, expression.field, expression.constantValue, expression.type);
+                return statements;
+            }
         }
 
         replacement = expression;

@@ -2,23 +2,28 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SynthesizedTemplateMethodSymbol : SynthesizedInstanceMethodSymbol {
+internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
+    private readonly DeclarationModifiers _modifiers;
+
     internal SynthesizedTemplateMethodSymbol(
         string name,
         NamedTypeSymbol containingType,
         TypeWithAnnotations returnType,
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<ParameterSymbol> parameters,
-        MethodKind methodKind) {
+        MethodKind methodKind,
+        DeclarationModifiers modifiers) {
         this.name = name;
         returnTypeWithAnnotations = returnType;
         this.parameters = parameters;
         this.templateParameters = templateParameters;
         this.containingType = containingType;
         this.methodKind = methodKind;
+        _modifiers = modifiers;
     }
 
     public override string name { get; }
@@ -27,7 +32,7 @@ internal sealed class SynthesizedTemplateMethodSymbol : SynthesizedInstanceMetho
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+    public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
     public override MethodKind methodKind { get; }
 
@@ -45,15 +50,15 @@ internal sealed class SynthesizedTemplateMethodSymbol : SynthesizedInstanceMetho
 
     internal override Symbol containingSymbol => containingType;
 
-    internal override bool isAbstract => false;
+    internal override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
 
-    internal override bool isOverride => false;
+    internal override bool isVirtual => (_modifiers & DeclarationModifiers.Virtual) != 0;
 
-    internal override bool isStatic => false;
+    internal override bool isAbstract => (_modifiers & DeclarationModifiers.Abstract) != 0;
 
-    internal override bool isSealed => false;
+    internal override bool isOverride => (_modifiers & DeclarationModifiers.Override) != 0;
 
-    internal override bool isVirtual => false;
+    internal override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
 
     internal override Accessibility declaredAccessibility => Accessibility.Public;
 
@@ -72,4 +77,8 @@ internal sealed class SynthesizedTemplateMethodSymbol : SynthesizedInstanceMetho
     internal override CallingConvention callingConvention => CallingConvention.Template;
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

@@ -46,7 +46,7 @@ class PhysicsEntity {
 
         var nearTiles = tileMap.GetNearTiles(box.x, box.y);
 
-        for (int! i = 0; i < LowLevel.Length(nearTiles); i++) {
+        for (int! i = 0; i < LowLevel.Length<Tile[]>(nearTiles); i++) {
             var tile = nearTiles[i];
 
             if (tile is null)
@@ -72,7 +72,7 @@ class PhysicsEntity {
 
         nearTiles = tileMap.GetNearTiles(box.x, box.y);
 
-        for (int! i = 0; i < LowLevel.Length(nearTiles); i++) {
+        for (int! i = 0; i < LowLevel.Length<Tile[]>(nearTiles); i++) {
             var tile = nearTiles[i];
 
             if (tile is null)

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -46,6 +47,9 @@ internal sealed class Expander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandFieldAccessExpression(
         BoundFieldAccessExpression expression,
         out BoundExpression replacement) {
+        if (expression.field.isStatic || expression.field.type.IsVerifierValue())
+            return base.ExpandFieldAccessExpression(expression, out replacement);
+
         var type = expression.receiver.Type();
         var syntax = expression.syntax;
 
@@ -420,7 +424,7 @@ internal sealed class Expander : BoundTreeExpander {
                 tempLocal,
                 new BoundObjectCreationExpression(
                     syntax,
-                    dictionaryType.constructors[0],
+                    dictionaryType.instanceConstructors[0],
                     [],
                     [],
                     [],

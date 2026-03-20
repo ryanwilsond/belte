@@ -15,54 +15,54 @@ class Textures {
     public Texture[][] everything;
 
     public constructor() {
-        gun = Graphics.LoadTexture("data/images/gun.png", 0, 0, 0);
-        projectile = Graphics.LoadTexture("data/images/projectile.png", 0, 0, 0);
+        gun = Graphics.LoadTexture("samples/Platformer/data/images/gun.png", 0, 0, 0);
+        projectile = Graphics.LoadTexture("samples/Platformer/data/images/projectile.png", 0, 0, 0);
 
         grass = new Texture[]! {
-            Graphics.LoadTexture("data/images/tiles/grass/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/2.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/3.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/4.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/5.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/6.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/7.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/grass/8.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/7.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/grass/8.png", 0, 0, 0)
         };
 
         stone = new Texture[]! {
-            Graphics.LoadTexture("data/images/tiles/stone/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/2.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/3.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/4.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/5.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/6.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/7.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/stone/8.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/7.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/stone/8.png", 0, 0, 0)
         };
 
         cloud = new Texture[]! {
-            Graphics.LoadTexture("data/images/clouds/cloud_1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/clouds/cloud_2.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/clouds/cloud_2.png", 0, 0, 0)
         };
 
         decor = new Texture[]! {
-            Graphics.LoadTexture("data/images/tiles/decor/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/decor/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/decor/2.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/decor/3.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/decor/3.png", 0, 0, 0)
         };
 
         largeDecor = new Texture[]! {
-            Graphics.LoadTexture("data/images/tiles/large_decor/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/large_decor/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/large_decor/2.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/large_decor/2.png", 0, 0, 0)
         };
 
         spawners = new Texture[]! {
-            Graphics.LoadTexture("data/images/tiles/spawners/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/tiles/spawners/1.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/spawners/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/tiles/spawners/1.png", 0, 0, 0)
         };
 
         everything = new Texture[][] { decor, grass, largeDecor, stone, spawners };
@@ -94,125 +94,125 @@ class Textures {
 
     public Texture[] PlayerIdleTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/player/idle/00.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/01.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/02.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/03.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/04.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/05.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/06.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/07.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/08.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/09.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/10.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/11.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/12.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/13.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/14.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/15.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/16.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/17.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/18.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/19.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/20.png"),
-            Graphics.LoadTexture("data/images/entities/player/idle/21.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/00.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/01.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/02.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/03.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/04.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/05.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/06.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/07.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/08.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/09.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/10.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/11.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/12.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/13.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/14.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/15.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/16.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/17.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/18.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/19.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/20.png"),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/idle/21.png"),
         };
     }
 
     public Texture[] PlayerRunTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/player/run/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/2.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/3.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/4.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/5.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/6.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/player/run/7.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/run/7.png", 0, 0, 0),
         };
     }
 
     public Texture[] PlayerSlideTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/player/slide/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/slide/0.png", 0, 0, 0),
         };
     }
 
     public Texture[] PlayerJumpTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/player/jump/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/jump/0.png", 0, 0, 0),
         };
     }
 
     public Texture[] PlayerWallSlideTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/player/wall_slide/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/player/wall_slide/0.png", 0, 0, 0),
         };
     }
 
     public Texture[] LeafTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/particles/leaf/00.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/01.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/02.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/03.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/04.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/05.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/06.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/07.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/08.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/09.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/10.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/11.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/12.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/13.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/14.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/15.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/16.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/leaf/17.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/00.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/01.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/02.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/03.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/04.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/05.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/06.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/07.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/08.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/09.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/10.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/11.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/12.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/13.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/14.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/15.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/16.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/leaf/17.png", 0, 0, 0)
         };
     }
 
     public Texture[] ParticleTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/particles/particle/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/particle/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/particle/2.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/particles/particle/3.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/particles/particle/3.png", 0, 0, 0)
         };
     }
 
     public Texture[] EnemyIdleTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/enemy/idle/00.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/01.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/02.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/03.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/04.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/05.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/06.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/07.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/08.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/09.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/10.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/11.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/12.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/13.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/14.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/idle/15.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/00.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/01.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/02.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/03.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/04.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/05.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/06.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/07.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/08.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/09.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/10.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/11.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/12.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/13.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/14.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/idle/15.png", 0, 0, 0)
         };
     }
 
     public Texture[] EnemyRunTextures() {
         return new Texture[] {
-            Graphics.LoadTexture("data/images/entities/enemy/run/0.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/1.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/2.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/3.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/4.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/5.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/6.png", 0, 0, 0),
-            Graphics.LoadTexture("data/images/entities/enemy/run/7.png", 0, 0, 0)
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/0.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/1.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/2.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/3.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/4.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/5.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/6.png", 0, 0, 0),
+            Graphics.LoadTexture("samples/Platformer/data/images/entities/enemy/run/7.png", 0, 0, 0)
         };
     }
 }

@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -21,12 +22,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         _expander = new Expander(container);
     }
 
-    internal static BoundBlockStatement Lower(MethodSymbol method, BoundStatement statement) {
+    internal static BoundBlockStatement Lower(
+        MethodSymbol method,
+        BoundStatement statement,
+        BelteDiagnosticQueue diagnostics) {
         var lowerer = new Lowerer(method);
 
         var rewrittenStatement = Optimizer.Optimize(statement);
 
-        rewrittenStatement = FlowLowerer.Lower(rewrittenStatement);
+        rewrittenStatement = FlowLowerer.Lower(rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, rewrittenStatement);
@@ -178,6 +182,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.VisitConditionalGotoStatement(statement);
+    }
+
+    internal override BoundNode VisitIndexerAccessExpression(BoundIndexerAccessExpression node) {
+        /*
+
+        <receiver>[<index>]
+
+        ----> node has a method attached
+
+        <method>(<receiver>, <index>)
+
+        */
+        var syntax = node.syntax;
+
+        if (node.method is not null)
+            return Visit(Call(syntax, node.method, node.receiver, node.index));
+
+        return base.VisitIndexerAccessExpression(node);
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {
@@ -553,14 +575,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 return Visit(Unary(syntax, UnaryOperatorKind.BoolLogicalNegation, call, call.Type()));
             }
 
-            var binaryOp = expression.isNot ? BinaryOperatorKind.NotEqual : BinaryOperatorKind.Equal;
-            var right = Literal(expression.right.syntax, null, expression.left.Type());
+            var left = (BoundExpression)Visit(expression.left);
 
-            binaryOp |= expression.left.Type().specialType == SpecialType.String
-                ? BinaryOperatorKind.String
-                : BinaryOperatorKind.Object;
-
-            return Visit(Binary(syntax, expression.left, binaryOp, right, expression.Type()));
+            return new BoundIsOperator(
+                syntax,
+                left,
+                expression.right,
+                expression.isNot,
+                expression.constantValue,
+                expression.type
+            );
         }
 
         return base.VisitIsOperator(expression);

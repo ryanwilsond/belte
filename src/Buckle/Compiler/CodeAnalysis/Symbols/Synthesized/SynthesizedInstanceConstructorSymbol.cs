@@ -6,8 +6,8 @@ using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
-    internal SynthesizedConstructorSymbol(NamedTypeSymbol containingType) {
+internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodSymbol {
+    internal SynthesizedInstanceConstructorSymbol(NamedTypeSymbol containingType) {
         this.containingType = containingType;
     }
 
@@ -77,6 +77,6 @@ internal class SynthesizedConstructorSymbol : SynthesizedInstanceMethodSymbol {
 
     internal sealed override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
-        return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree);
+        return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree, false);
     }
 }

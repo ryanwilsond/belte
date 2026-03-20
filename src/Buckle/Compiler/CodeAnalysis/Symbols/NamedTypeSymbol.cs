@@ -15,7 +15,7 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
     public abstract override string name { get; }
 
     public override string metadataName
-        => mangleName ? MetadataHelpers.ComposeSuffixedMetadataName(name, templateParameters) : name;
+        => mangleName ? MetadataHelpers.ComposeSuffixedMetadataName(name, arity) : name;
 
     public override SymbolKind kind => SymbolKind.NamedType;
 
@@ -52,7 +52,9 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal abstract override Accessibility declaredAccessibility { get; }
 
-    internal ImmutableArray<MethodSymbol> constructors => GetConstructors();
+    internal ImmutableArray<MethodSymbol> instanceConstructors => GetConstructors(true, false);
+
+    internal ImmutableArray<MethodSymbol> staticConstructors => GetConstructors(false, true);
 
     internal virtual bool isUnboundTemplateType => false;
 
@@ -315,15 +317,21 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return RuntimeHelpers.GetHashCode(originalDefinition);
     }
 
-    private ImmutableArray<MethodSymbol> GetConstructors() {
-        var candidates = GetMembers(WellKnownMemberNames.InstanceConstructorName);
+    private ImmutableArray<MethodSymbol> GetConstructors(bool includeInstance, bool includeStatic) {
+        var instanceCandidates = includeInstance ? GetMembers(WellKnownMemberNames.InstanceConstructorName) : [];
+        var staticCandidates = includeStatic ? GetMembers(WellKnownMemberNames.StaticConstructorName) : [];
 
-        if (candidates.IsEmpty)
+        if (instanceCandidates.IsEmpty && staticCandidates.IsEmpty)
             return [];
 
         var constructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
-        foreach (var candidate in candidates) {
+        foreach (var candidate in instanceCandidates) {
+            if (candidate is MethodSymbol method)
+                constructors.Add(method);
+        }
+
+        foreach (var candidate in staticCandidates) {
             if (candidate is MethodSymbol method)
                 constructors.Add(method);
         }
@@ -366,5 +374,6 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return true;
     }
 
-    ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors => constructors.Cast<MethodSymbol, IMethodSymbol>();
+    ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors
+        => GetConstructors(true, true).Cast<MethodSymbol, IMethodSymbol>();
 }

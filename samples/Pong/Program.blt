@@ -4,6 +4,8 @@
 
     This program uses the built-in graphics library to make an intractable, 2D pong game.
 
+    Based on AstroSam's implementation: https://github.com/sam-astro/Z-Sharp/tree/master/examples/Pong-Example-Project
+
 */
 
 // When `Main` is present in a non-static class, a single instance of that class is automatically created and managed
@@ -52,24 +54,24 @@ class Program {
         var netScale = new Vec2(3, Settings.ScreenHeight)!;
 
         // `Graphics.LoadSprite` loads an image file with a position, size, and rotation
-        ball = Graphics.LoadSprite("samples/Assets/ball.png", ballPosition, ballScale, 0);
-        lPaddle = Graphics.LoadSprite("samples/Assets/square.png", lPaddlePosition, paddleScale, 0);
-        rPaddle = Graphics.LoadSprite("samples/Assets/square.png", rPaddlePosition, paddleScale, 0);
-        net = Graphics.LoadSprite("samples/Assets/net.png", centerOfScreen, netScale, 0);
+        ball = Graphics.LoadSprite("samples/Pong/Assets/ball.png", ballPosition, ballScale, 0);
+        lPaddle = Graphics.LoadSprite("samples/Pong/Assets/square.png", lPaddlePosition, paddleScale, 0);
+        rPaddle = Graphics.LoadSprite("samples/Pong/Assets/square.png", rPaddlePosition, paddleScale, 0);
+        net = Graphics.LoadSprite("samples/Pong/Assets/net.png", centerOfScreen, netScale, 0);
 
         var leftOffset = Settings.ScreenWidth / 4;
         var scoreOnePosition = new Vec2(leftOffset, 40);
-        scoreOne = Graphics.LoadText("0", "samples/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
+        scoreOne = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
 
         var rightOffset = Settings.ScreenWidth - (Settings.ScreenWidth / 4);
         var scoreTwoPosition = new Vec2(rightOffset, 40);
         // `Graphics.LoadText` renders a string using a given font, position, font size, angle, and color values
-        scoreTwo = Graphics.LoadText("0", "samples/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
+        scoreTwo = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
 
         var infoPosition = new Vec2(centerOfScreen.x, Settings.ScreenHeight - 60);
         info = Graphics.LoadText(
             "Use 'W' and 'S' or 'UP' and 'DOWN' arrows to control or press 'ENTER' to toggle AI",
-            "samples/Assets/arial.ttf",
+            "samples/Pong/Assets/arial.ttf",
             infoPosition,
             15, 0, 255, 255, 255
         );

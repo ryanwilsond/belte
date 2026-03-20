@@ -191,7 +191,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     }
 
     internal bool IncludeFieldInitializersInBody() {
-        return methodKind == MethodKind.Constructor && !HasThisConstructorInitializer();
+        return this.IsConstructor() && !HasThisConstructorInitializer();
     }
 
     internal bool HasThisConstructorInitializer() {
@@ -216,6 +216,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal static bool CanOverrideOrHide(MethodKind kind) {
         switch (kind) {
             case MethodKind.Constructor:
+            case MethodKind.StaticConstructor:
             case MethodKind.Builtin:
                 return false;
             case MethodKind.LocalFunction:

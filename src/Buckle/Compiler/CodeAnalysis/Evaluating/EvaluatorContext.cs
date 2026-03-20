@@ -19,11 +19,13 @@ public sealed class EvaluatorContext : IDisposable {
     internal EvaluatorValue[] globalSlots;
 
     private Dictionary<string, (DataContainerSymbol, int)> _globals;
+    private Dictionary<NamedTypeSymbol, int> _staticTypes;
     private int _bumpPointer;
 
     public EvaluatorContext(CompilationOptions options) {
         _globals = new Dictionary<string, (DataContainerSymbol, int)>(32);
-        globalSlots = new EvaluatorValue[32];
+        _staticTypes = new Dictionary<NamedTypeSymbol, int>(16);
+        globalSlots = new EvaluatorValue[48];
         heap = new Heap();
         this.options = options;
     }
@@ -84,6 +86,27 @@ public sealed class EvaluatorContext : IDisposable {
             globalSlots[index] = value;
             _globals.Add(symbol.name, (symbol, index));
         }
+    }
+
+    internal void AddStaticType(NamedTypeSymbol type, EvaluatorValue value) {
+        var index = _bumpPointer++;
+        EnsureCapacity(_bumpPointer);
+        globalSlots[index] = value;
+        _staticTypes.Add(type, index);
+    }
+
+    internal EvaluatorValue GetStaticType(NamedTypeSymbol type) {
+        return globalSlots[_staticTypes[type]];
+    }
+
+    internal bool TryGetStaticType(NamedTypeSymbol type, out EvaluatorValue value) {
+        if (_staticTypes.TryGetValue(type, out var slot)) {
+            value = globalSlots[slot];
+            return true;
+        }
+
+        value = EvaluatorValue.None;
+        return false;
     }
 
     private void EnsureCapacity(int required) {

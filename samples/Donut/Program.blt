@@ -3,9 +3,8 @@
     Donut
 
     Belte implementation of Andy Sloane's ASCII spinning donut.
-    This script is not meant to be pretty, for a better explanation read Sloane's original article:
 
-        https://www.a1k0n.net/2011/07/20/donut-math.html
+    Andy Sloane's article: https://www.a1k0n.net/2011/07/20/donut-math.html
 
 */
 

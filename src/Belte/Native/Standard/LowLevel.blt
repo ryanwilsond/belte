@@ -4,7 +4,7 @@ public static class LowLevel {
 
     public static string! GetTypeName(Object! object);
 
-    public static int Length(any array);
+    public static int! Length<type T>(T! array);
 
-    public static void Sort(any array);
+    public static void Sort<type T>(T! array);
 }

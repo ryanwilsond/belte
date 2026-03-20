@@ -36,10 +36,10 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat FullyQualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.Everything,
-        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
+        templateOptions: SymbolDisplayTemplateOptions.None,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
 
     public static readonly SymbolDisplayFormat ToStringNameFormat = new SymbolDisplayFormat(

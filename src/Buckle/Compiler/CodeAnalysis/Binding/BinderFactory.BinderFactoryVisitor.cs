@@ -362,9 +362,9 @@ internal sealed partial class BinderFactory {
 
                 if (kind is SymbolKind.Method) {
 
-                    if (InSpan(syntaxReference.location, syntaxReference.syntaxTree, _syntaxTree, memberSpan))
+                    if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan))
                         return true;
-                } else if (InSpan(syntaxReference.location, syntaxReference.syntaxTree, _syntaxTree, memberSpan)) {
+                } else if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan)) {
                     return true;
                 }
 

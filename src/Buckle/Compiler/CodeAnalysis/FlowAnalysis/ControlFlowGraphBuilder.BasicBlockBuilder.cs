@@ -10,10 +10,20 @@ internal sealed partial class ControlFlowGraphBuilder {
     /// Builds BasicBlocks from BoundStatements.
     /// </summary>
     internal sealed class BasicBlockBuilder {
+        internal readonly List<TryRegion> regions = [];
+
         private readonly List<BasicBlock> _blocks = [];
         private readonly List<BoundStatement> _statements = [];
+        private BasicBlock _currentBlock;
 
         internal List<BasicBlock> Build(BoundBlockStatement block) {
+            _currentBlock = new BasicBlock();
+            VisitBlock(block);
+            EndBlock();
+            return _blocks.ToList();
+        }
+
+        private void VisitBlock(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
                 switch (statement.kind) {
                     case BoundKind.LabelStatement:
@@ -31,26 +41,58 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
                     case BoundKind.LocalDeclarationStatement:
-                    case BoundKind.TryStatement:
                     case BoundKind.LocalFunctionStatement:
                         _statements.Add(statement);
+                        break;
+                    case BoundKind.TryStatement:
+                        BuildTryRegion((BoundTryStatement)statement);
                         break;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(statement.kind);
                 }
             }
+        }
 
-            EndBlock();
+        private void BuildTryRegion(BoundTryStatement node) {
+            StartBlock();
 
-            return _blocks.ToList();
+            var tryStartBlock = _currentBlock;
+
+            VisitBlock((BoundBlockStatement)node.body);
+
+            StartBlock();
+
+            var tryRegion = new TryRegion() {
+                tryStart = tryStartBlock
+            };
+
+            if (node.catchBody is not null) {
+                tryRegion.catchBlock = _currentBlock;
+                VisitBlock((BoundBlockStatement)node.catchBody);
+                StartBlock();
+            }
+
+            if (node.finallyBody is not null) {
+                tryRegion.finallyBlock = _currentBlock;
+                VisitBlock((BoundBlockStatement)node.finallyBody);
+                StartBlock();
+            }
+
+            tryRegion.tryEnd = _currentBlock;
+            // Needs to be somewhere between the end of the finally and the end of the program if the finally is the last statement
+            _statements.Add(new BoundNopStatement(node.syntax));
+
+            StartBlock();
+
+            regions.Add(tryRegion);
         }
 
         private void EndBlock() {
             if (_statements.Count > 0) {
-                var block = new BasicBlock();
-                block.statements.AddRange(_statements);
-                _blocks.Add(block);
+                _currentBlock.statements.AddRange(_statements);
+                _blocks.Add(_currentBlock);
                 _statements.Clear();
+                _currentBlock = new BasicBlock();
             }
         }
 

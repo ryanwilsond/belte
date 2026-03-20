@@ -12,13 +12,18 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
-    public static object[] Sort(object[] array) {
-        Array.Sort(array);
-        return array;
+    public static void Sort<T>(T array) {
+        if (array is null)
+            return;
+
+        Array.Sort((Array)(object)array);
     }
 
-    public static long? Length(object[] array) {
-        return array?.LongLength;
+    public static long Length<T>(T array) {
+        if (array is null)
+            return 0;
+
+        return ((Array)(object)array).LongLength;
     }
 
     public static long TimeNow() {

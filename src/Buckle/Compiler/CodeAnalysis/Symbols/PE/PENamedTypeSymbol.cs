@@ -493,7 +493,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 }
 
                 if (!haveParameterlessConstructor)
-                    nonFieldMembers.Insert(0, new SynthesizedConstructorSymbol(this));
+                    nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
             }
 
             foreach (var field in fieldMembers)

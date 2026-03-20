@@ -8,4 +8,14 @@ internal static class MethodSymbolExtensions {
 
         return method.hasUnscopedRefAttribute;
     }
+
+    internal static bool IsConstructor(this MethodSymbol method) {
+        switch (method.methodKind) {
+            case MethodKind.Constructor:
+            case MethodKind.StaticConstructor:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

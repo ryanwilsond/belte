@@ -971,22 +971,22 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0083
-
     [Fact]
-    public void Reports_Error_BU0084_CannotUseStruct() {
+    public void Reports_Error_BU0083_OperatorRefParameter() {
         var text = @"
-            struct MyStruct { }
-            var a = new [MyStruct]();
+            class A {
+                public static A [operator]+(ref A a, A b) { return a; }
+            }
         ";
 
         var diagnostics = @"
-            cannot use structs outside of low-level contexts
+            operators cannot have ref parameters
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // ! Error_BU0084_CannotUseStruct
     // ! Error_BU0085_CannotUseThis
 
     [Fact]
@@ -1026,12 +1026,12 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0088_InvalidModifier() {
         var text = @"
             class MyClass {
-                static int [a];
+                const static [constructor]() { }
             }
         ";
 
         var diagnostics = @"
-            modifier 'static' is not valid for this item
+            modifier 'const' is not valid for this item
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1120,21 +1120,47 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0094_TemplateNotExpected
-    // ! Error_BU0095_TemplateMustBeConstant
-    // ! Error_BU0096_RefReturnOnlyParameter2
-    // ! Error_BU0097_DottedTypeNamesNotFound
-
     [Fact]
-    public void Reports_Error_BU0098_ConstructorInStaticClass() {
+    public void Reports_Error_BU0094_OperatorRefReturn() {
         var text = @"
-            static class A {
-                [constructor]() { }
+            class A {
+                public static ref A [operator]+(A a, A b) { return null; }
             }
         ";
 
         var diagnostics = @"
-            static classes cannot have constructors
+            non-indexing operators cannot return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0095_RefReturnGlobal() {
+        var text = @"
+            int a = 3; ref int b = ref a; ref int F() { return ref [b]; }
+        ";
+
+        var diagnostics = @"
+            cannot return a global by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0096_RefReturnOnlyParameter2
+    // ! Error_BU0097_DottedTypeNamesNotFound
+
+    [Fact]
+    public void Reports_Error_BU0098_StaticConstructorParameter() {
+        var text = @"
+            static class A {
+                static [constructor](int a) { }
+            }
+        ";
+
+        var diagnostics = @"
+            static constructors must be parameterless
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3281,6 +3307,79 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             template 'T' is not a type; cannot is check a non-type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0335_CannotPassGlobalByRef() {
+        var text = @"
+            ref int F(ref int a) { return ref a; } int b = 3; F([ref b]) = 6; return b;
+        ";
+
+        var diagnostics = @"
+            cannot pass a global by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0336_ThrowMisplaced() {
+        var text = @"
+            3 + [throw] new Exception();
+        ";
+
+        var diagnostics = @"
+            a throw expression is not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0337_CannotReturnFromFinally() {
+        var text = @"
+            try {
+                return 4;
+            } finally {
+                [return 6;]
+            }
+        ";
+
+        var diagnostics = @"
+            control cannot leave the body of a finally clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0338_StaticConstructorWithAccessModifier() {
+        var text = @"
+            static class A {
+                public static [constructor]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            access modifiers are not allowed on static constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0339_StaticConstructorWithInitializer() {
+        var text = @"
+            static class A {
+                static constructor() : [base]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            static constructor cannot have an explicit 'this' or 'base' constructor call
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

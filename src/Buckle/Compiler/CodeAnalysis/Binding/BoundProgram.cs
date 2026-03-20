@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -109,6 +110,24 @@ internal sealed partial class BoundProgram {
 
         layout = null;
         return false;
+    }
+
+    internal ImmutableArray<TypeSymbol> GetAllTypes() {
+        var builder = ArrayBuilder<TypeSymbol>.GetInstance();
+
+        for (var current = this; current is not null; current = current.previous)
+            builder.AddRange(current.types);
+
+        return builder.ToImmutableAndFree();
+    }
+
+    internal ImmutableArray<(MethodSymbol, BoundBlockStatement)> GetAllMethodBodies() {
+        var builder = ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance();
+
+        for (var current = this; current is not null; current = current.previous)
+            builder.AddRange(current.methodBodies.Select(p => (p.Key, p.Value)));
+
+        return builder.ToImmutableAndFree();
     }
 
     private bool MethodBodyLookupUsingOriginals(MethodSymbol method, out BoundBlockStatement body) {

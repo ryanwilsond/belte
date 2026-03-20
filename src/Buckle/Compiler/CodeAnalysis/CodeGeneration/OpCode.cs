@@ -26,6 +26,7 @@ internal enum OpCode : byte {
     Brfalse_S,
     Ldelema,
     Ldc_I4,
+    Leave,
     Leave_S,
     Conv_Ovf_I,
     Ldsflda,
@@ -106,4 +107,5 @@ internal enum OpCode : byte {
     Ldtoken,
     Conv_I4,
     Throw,
+    Rethrow,
 }

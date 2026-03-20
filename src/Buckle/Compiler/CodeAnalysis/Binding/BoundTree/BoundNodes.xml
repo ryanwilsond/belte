@@ -73,6 +73,7 @@
   <Node Name="BoundIndexerAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="index" Type="BoundExpression"/>
+    <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
@@ -296,8 +297,8 @@
   </Node>
   <Node Name="BoundTryStatement" Base="BoundStatement">
     <Field Name="body" Type="BoundStatement"/>
-    <Field Name="catchBody" Type="BoundStatement"/>
-    <Field Name="finallyBody" Type="BoundStatement"/>
+    <Field Name="catchBody" Type="BoundStatement?"/>
+    <Field Name="finallyBody" Type="BoundStatement?"/>
   </Node>
   <Node Name="BoundWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

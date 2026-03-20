@@ -4,6 +4,8 @@
 
     This program uses the built-in graphics library to make a simple snake game.
 
+    Based on Bro Code's tutorial: https://youtu.be/bfRwxS5d0SI
+
 */
 
 class Program {

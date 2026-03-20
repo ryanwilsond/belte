@@ -109,6 +109,10 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
         return node is not null;
     }
 
+    public bool Any(SyntaxKind kind) {
+        return IndexOf(kind) >= 0;
+    }
+
     internal void CopyTo(int offset, GreenNode[] array, int arrayOffset, int count) {
         for (var i = 0; i < count; i++)
             array[arrayOffset + i] = GetGreenNodeAt(offset + i);

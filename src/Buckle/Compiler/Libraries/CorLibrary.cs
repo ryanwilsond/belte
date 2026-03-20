@@ -12,7 +12,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 13 - 2; // TODO remove -2 after adding List and Dict
+    private const int TotalSpecialTypes = 14;
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
     private const int TotalWellKnownMembers = 3;
 
@@ -168,7 +168,7 @@ internal sealed class CorLibrary {
     private void RegisterWellKnownMembers() {
         var nullableType = GetSpecialTypeCore(SpecialType.Nullable);
 
-        RegisterWellKnownMember(WellKnownMembers.Nullable_ctor, new SynthesizedConstructorSymbol(nullableType));
+        RegisterWellKnownMember(WellKnownMembers.Nullable_ctor, new SynthesizedInstanceConstructorSymbol(nullableType));
 
         RegisterWellKnownMember(WellKnownMembers.Nullable_getValue,
             new SynthesizedFinishedMethodSymbol(

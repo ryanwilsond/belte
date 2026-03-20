@@ -31,6 +31,8 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override LocalSlotManager localSlotManager => _localSlotManager;
 
+    internal override int tryNestingLevel => throw new NotImplementedException();
+
     internal override void Finish() {
         foreach (var (instructionIndex, target) in _unhandledGotos) {
             var targetLabel = target;
@@ -93,6 +95,26 @@ internal sealed class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(ConvertToCil(opCode), _module.GetMethod(method));
     }
 
+    internal override void BeginTry() {
+        throw new NotImplementedException();
+    }
+
+    internal override void BeginCatch() {
+        throw new NotImplementedException();
+    }
+
+    internal override void BeginFinally() {
+        throw new NotImplementedException();
+    }
+
+    internal override void EndTry() {
+        throw new NotImplementedException();
+    }
+
+    internal override void EmitReturn() {
+        throw new NotImplementedException();
+    }
+
     internal override void EmitLocalAddress(DataContainerSymbol local) {
         if (local.isRef)
             EmitLocalLoad(local);
@@ -136,12 +158,8 @@ internal sealed class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Type_GetTypeFromHandle);
     }
 
-    internal override void EmitNullAssertObject(TypeSymbol type) {
-        iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertObject(type));
-    }
-
-    internal override void EmitNullAssertValue(TypeSymbol type) {
-        iLProcessor.Emit(OpCodes.Call, _module.GetNullAssertValue(type));
+    internal override void EmitNullAssert(TypeSymbol type) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetNullAssert(type));
     }
 
     internal override void EmitNullValue(TypeSymbol type) {
@@ -150,6 +168,10 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override void EmitSort(TypeSymbol elementType) {
         iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
+    }
+
+    internal override void EmitLength(TypeSymbol elementType) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetLength(elementType));
     }
 
     internal override void EmitStringConcat2() {
@@ -325,6 +347,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Brfalse => OpCodes.Brfalse,
             CodeGeneration.OpCode.Brfalse_S => OpCodes.Brfalse_S,
             CodeGeneration.OpCode.Ldelema => OpCodes.Ldelema,
+            CodeGeneration.OpCode.Leave => OpCodes.Leave,
             CodeGeneration.OpCode.Leave_S => OpCodes.Leave_S,
             CodeGeneration.OpCode.Ldc_I4 => OpCodes.Ldc_I4,
             CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
@@ -406,6 +429,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
             CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
+            CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
             _ => throw new NotImplementedException()
         };
     }

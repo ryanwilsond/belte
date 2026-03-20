@@ -400,11 +400,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidAttributes, location, message);
     }
 
-    internal static BelteDiagnostic ConstructorInStaticClass(TextLocation location) {
-        var message = $"static classes cannot have constructors";
-        return CreateError(DiagnosticCode.ERR_ConstructorInStaticClass, location, message);
-    }
-
     internal static BelteDiagnostic StaticDataContainer(TextLocation location) {
         var message = $"cannot declare a field or data container with a static type";
         return CreateError(DiagnosticCode.ERR_StaticDataContainer, location, message);
@@ -1597,6 +1592,52 @@ internal static class Error {
         var message = $"template '{name}' is not a type; cannot is check a non-type";
         return CreateError(DiagnosticCode.ERR_CannotIsCheckNonType, location, message);
     }
+
+    internal static BelteDiagnostic OperatorRefParameter(TextLocation location) {
+        var message = $"operators cannot have ref parameters";
+        return CreateError(DiagnosticCode.ERR_OperatorRefParameter, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorRefReturn(TextLocation location) {
+        var message = $"non-indexing operators cannot return by reference";
+        return CreateError(DiagnosticCode.ERR_OperatorRefReturn, location, message);
+    }
+
+    internal static BelteDiagnostic RefReturnGlobal(TextLocation location) {
+        var message = $"cannot return a global by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnGlobal, location, message);
+    }
+
+    internal static BelteDiagnostic CannotPassGlobalByRef(TextLocation location) {
+        var message = $"cannot pass a global by reference";
+        return CreateError(DiagnosticCode.ERR_CannotPassGlobalByRef, location, message);
+    }
+
+    internal static BelteDiagnostic ThrowMisplaced(TextLocation location) {
+        var message = $"a throw expression is not valid in this context";
+        return CreateError(DiagnosticCode.ERR_ThrowMisplaced, location, message);
+    }
+
+    internal static BelteDiagnostic CannotReturnFromFinally(TextLocation location) {
+        var message = $"control cannot leave the body of a finally clause";
+        return CreateError(DiagnosticCode.ERR_CannotReturnFromFinally, location, message);
+    }
+
+    internal static BelteDiagnostic StaticConstructorWithAccessModifier(TextLocation location) {
+        var message = $"access modifiers are not allowed on static constructors";
+        return CreateError(DiagnosticCode.ERR_StaticConstructorWithAccessModifier, location, message);
+    }
+
+    internal static BelteDiagnostic StaticConstructorParameter(TextLocation location) {
+        var message = $"static constructors must be parameterless";
+        return CreateError(DiagnosticCode.ERR_StaticConstructorParameter, location, message);
+    }
+
+    internal static BelteDiagnostic StaticConstructorWithInitializer(TextLocation location) {
+        var message = $"static constructor cannot have an explicit 'this' or 'base' constructor call";
+        return CreateError(DiagnosticCode.ERR_StaticConstructorWithInitializer, location, message);
+    }
+
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);

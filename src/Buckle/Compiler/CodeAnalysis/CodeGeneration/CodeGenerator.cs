@@ -43,8 +43,6 @@ internal sealed partial class CodeGenerator {
     private readonly ILEmitStyle _ilEmitStyle;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
-    private VariableDefinition _returnTemp;
-    private int _tryNestingLevel = 0;
 
     internal CodeGenerator(
         ModuleBuilder module,
@@ -63,48 +61,8 @@ internal sealed partial class CodeGenerator {
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
     }
 
-    private VariableDefinition _lazyReturnTemp {
-        get {
-            var result = _returnTemp;
-
-            if (result is null) {
-                var slotConstraints = _method.refKind == RefKind.None
-                    ? LocalSlotConstraints.None
-                    : LocalSlotConstraints.ByRef;
-
-                var bodySyntax = _methodBodySyntax;
-
-                if (_ilEmitStyle == ILEmitStyle.Debug && bodySyntax is not null) {
-                    var localSymbol = new SynthesizedDataContainerSymbol(
-                        _method,
-                        _method.returnTypeWithAnnotations,
-                        SynthesizedLocalKind.EmitterTemp,
-                        bodySyntax
-                    );
-
-                    result = _builder.DeclareLocal(
-                        localSymbol.type,
-                        localSymbol,
-                        null,
-                        localSymbol.synthesizedKind,
-                        slotConstraints,
-                        false
-                    );
-                } else {
-                    result = AllocateTemp(_method.returnType, slotConstraints);
-                }
-
-                _returnTemp = result;
-            }
-
-            return result;
-        }
-    }
-
     internal void Generate() {
-        foreach (var statement in _body.statements)
-            EmitStatement(statement);
-
+        EmitBlock(_body);
         _builder.Finish();
         _expressionTemps?.Free();
     }
@@ -572,6 +530,11 @@ internal sealed partial class CodeGenerator {
 
     #region Statements
 
+    private void EmitBlock(BoundBlockStatement block) {
+        foreach (var statement in block.statements)
+            EmitStatement(statement);
+    }
+
     private void EmitStatement(BoundStatement statement) {
         switch (statement.kind) {
             case BoundKind.NopStatement:
@@ -733,7 +696,13 @@ oneMoreTime:
                 if (!operand.type.IsVerifierReference())
                     EmitBox(operand.type);
 
-                _builder.EmitWithSymbolToken(OpCode.Isinst, isOp.right.type);
+                if (isOp.right.IsLiteralNull()) {
+                    _builder.Emit(OpCode.Ldnull);
+                    _builder.Emit(isOp.isNot ? OpCode.Cgt_Un : OpCode.Ceq);
+                } else {
+                    _builder.EmitWithSymbolToken(OpCode.Isinst, isOp.right.type);
+                }
+
                 iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
                 dest ??= new object();
                 _builder.EmitBranch(iLCode, dest);
@@ -854,28 +823,25 @@ oneMoreTime:
             );
         }
 
-        if (ShouldUseIndirectReturn()) {
-            if (expression is not null)
-                _builder.EmitLocalStore(_lazyReturnTemp);
-
-            // TODO fill this out when Try is added
-        } else {
-            EmitRet(expression is null);
-        }
-    }
-
-    private void EmitRet(bool isVoid) {
-        // TODO Gets more complicated with blocks
-        _builder.Emit(OpCode.Ret);
-    }
-
-    private bool ShouldUseIndirectReturn() {
-        // TODO return in exception handler
-        return false;
+        _builder.EmitReturn();
     }
 
     private void EmitTryStatement(BoundTryStatement statement) {
-        // TODO
+        _builder.BeginTry();
+
+        EmitBlock((BoundBlockStatement)statement.body);
+
+        if (statement.catchBody is not null) {
+            _builder.BeginCatch();
+            EmitBlock((BoundBlockStatement)statement.catchBody);
+        }
+
+        if (statement.finallyBody is not null) {
+            _builder.BeginFinally();
+            EmitBlock((BoundBlockStatement)statement.finallyBody);
+        }
+
+        _builder.EndTry();
     }
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -995,6 +961,9 @@ oneMoreTime:
             case BoundKind.MethodGroup:
                 EmitMethodGroup((BoundMethodGroup)expression);
                 break;
+            case BoundKind.ThrowExpression:
+                EmitThrowExpression((BoundThrowExpression)expression, used);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
@@ -1025,6 +994,23 @@ oneMoreTime:
         var type = expression.sourceType.type;
         _builder.EmitWithSymbolToken(OpCode.Ldtoken, type);
         _builder.EmitGetTypeFromHandle(type);
+    }
+
+    private void EmitThrowExpression(BoundThrowExpression expression, bool used) {
+        var thrown = expression.expression;
+
+        if (thrown is not null) {
+            EmitExpression(thrown, true);
+
+            var exprType = thrown.type;
+
+            if (exprType?.typeKind == TypeKind.TemplateParameter)
+                EmitBox(exprType);
+        }
+
+        _builder.Emit(thrown is null ? OpCode.Rethrow : OpCode.Throw);
+
+        EmitDefaultValue(expression.type, used, expression.syntax);
     }
 
     private void EmitArrayElementLoad(BoundArrayAccessExpression expression, bool used) {
@@ -1222,19 +1208,32 @@ oneMoreTime:
 
         if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
             switch (method.name) {
-                case "ThrowNullConditionException":
-                    _builder.EmitThrowNullCondition();
-                    return;
-                case "Sort":
-                    var argument = ((BoundCastExpression)arguments[0]).operand;
-                    var refKind = GetArgumentRefKind(arguments, method.parameters, expression.argumentRefKinds, 0);
-                    EmitArgument(argument, refKind);
-
-                    _builder.EmitSort(((ArrayTypeSymbol)argument.StrippedType()).elementType);
-
-                    EmitCallCleanup(method, useKind);
+                case "ThrowNullConditionException": {
+                        _builder.EmitThrowNullCondition();
+                        // This is to balance the stack
+                        EmitDefaultValue(
+                            CorLibrary.GetSpecialType(SpecialType.Exception),
+                            useKind != UseKind.Unused,
+                            expression.syntax
+                        );
+                    }
 
                     return;
+                case "Sort": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitSort(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+                case "Length": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitLength(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+
             }
         }
 
@@ -1877,11 +1876,16 @@ oneMoreTime:
             if (!operand.type.IsVerifierReference())
                 EmitBox(operand.type);
 
-            _builder.EmitWithSymbolToken(OpCode.Isinst, expression.right.type);
-
-            if (!omitBooleanConversion) {
+            if (expression.right.IsLiteralNull()) {
                 _builder.Emit(OpCode.Ldnull);
-                _builder.Emit(OpCode.Cgt_Un);
+                _builder.Emit(expression.isNot ? OpCode.Cgt_Un : OpCode.Ceq);
+            } else {
+                _builder.EmitWithSymbolToken(OpCode.Isinst, expression.right.type);
+
+                if (!omitBooleanConversion) {
+                    _builder.Emit(OpCode.Ldnull);
+                    _builder.Emit(OpCode.Cgt_Un);
+                }
             }
         }
     }
@@ -1916,10 +1920,7 @@ oneMoreTime:
         var operand = expression.operand;
         EmitExpression(operand, true);
 
-        if (operand.type.IsVerifierValue())
-            _builder.EmitNullAssertValue(expression.type);
-        else
-            _builder.EmitNullAssertObject(expression.type);
+        _builder.EmitNullAssert(expression.type);
 
         EmitPopIfUnused(used);
     }
@@ -2617,7 +2618,7 @@ oneMoreTime:
 
     private bool PartialCtorResultCannotEscape(BoundExpression left) {
         if (TargetIsNotOnHeap(left)) {
-            if (_tryNestingLevel != 0)
+            if (_builder.tryNestingLevel != 0)
                 return false;
 
             return true;

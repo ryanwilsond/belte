@@ -16,11 +16,11 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
         this.parameters = parameters ?? underlyingMethod.parameters;
     }
 
-    public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters => underlyingMethod.templateParameters;
 
-    public override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints => underlyingMethod.templateConstraints;
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+    public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
     internal override TypeWithAnnotations returnTypeWithAnnotations => underlyingMethod.returnTypeWithAnnotations;
 

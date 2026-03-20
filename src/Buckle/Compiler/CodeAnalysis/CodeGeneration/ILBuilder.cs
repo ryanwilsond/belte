@@ -6,6 +6,8 @@ namespace Buckle.CodeAnalysis.CodeGeneration;
 internal abstract class ILBuilder {
     private protected readonly Dictionary<object, LabelInfo> _labels = [];
 
+    internal abstract int tryNestingLevel { get; }
+
     internal abstract LocalSlotManager localSlotManager { get; }
 
     internal abstract void Finish();
@@ -32,6 +34,16 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitWithSymbolToken(OpCode opCode, MethodSymbol type);
 
+    internal abstract void BeginTry();
+
+    internal abstract void BeginCatch();
+
+    internal abstract void BeginFinally();
+
+    internal abstract void EndTry();
+
+    internal abstract void EmitReturn();
+
     internal abstract void EmitLocalAddress(DataContainerSymbol local);
 
     internal abstract void EmitLocalAddress(VariableDefinition local);
@@ -54,11 +66,11 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitGetTypeFromHandle(TypeSymbol type);
 
-    internal abstract void EmitNullAssertObject(TypeSymbol type);
-
-    internal abstract void EmitNullAssertValue(TypeSymbol type);
+    internal abstract void EmitNullAssert(TypeSymbol type);
 
     internal abstract void EmitSort(TypeSymbol elementType);
+
+    internal abstract void EmitLength(TypeSymbol elementType);
 
     internal abstract void EmitStringConcat2();
 

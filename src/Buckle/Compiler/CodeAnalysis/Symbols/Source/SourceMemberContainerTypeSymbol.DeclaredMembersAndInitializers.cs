@@ -8,7 +8,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol {
         internal static readonly DeclaredMembersAndInitializers UninitializedSentinel = new DeclaredMembersAndInitializers();
 
         internal readonly ImmutableArray<Symbol> nonTypeMembers;
-        internal readonly ImmutableArray<ImmutableArray<FieldInitializer>> fieldInitializers;
+        internal readonly ImmutableArray<ImmutableArray<FieldInitializer>> instanceInitializers;
+        internal readonly ImmutableArray<ImmutableArray<FieldInitializer>> staticInitializers;
         internal readonly TypeDeclarationSyntax declarationWithParameters;
         internal readonly Compilation compilation;
 
@@ -16,11 +17,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol {
 
         internal DeclaredMembersAndInitializers(
             ImmutableArray<Symbol> nonTypeMembers,
-            ImmutableArray<ImmutableArray<FieldInitializer>> fieldInitializers,
+            ImmutableArray<ImmutableArray<FieldInitializer>> instanceInitializers,
+            ImmutableArray<ImmutableArray<FieldInitializer>> staticInitializers,
             TypeDeclarationSyntax declarationWithParameters,
             Compilation compilation) {
             this.nonTypeMembers = nonTypeMembers;
-            this.fieldInitializers = fieldInitializers;
+            this.instanceInitializers = instanceInitializers;
+            this.staticInitializers = staticInitializers;
             this.declarationWithParameters = declarationWithParameters;
             this.compilation = compilation;
         }

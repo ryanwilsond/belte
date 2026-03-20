@@ -28,6 +28,7 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     public override MethodKind methodKind => name switch {
         WellKnownMemberNames.InstanceConstructorName => MethodKind.Constructor,
+        WellKnownMemberNames.StaticConstructorName => MethodKind.StaticConstructor,
         _ => MethodKind.Ordinary,
     };
 

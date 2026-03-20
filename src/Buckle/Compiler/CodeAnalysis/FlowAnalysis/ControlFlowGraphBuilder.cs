@@ -16,9 +16,11 @@ internal sealed partial class ControlFlowGraphBuilder {
     private readonly List<ControlFlowBranch> _branches = [];
     private readonly BasicBlock _start = new BasicBlock(true);
     private readonly BasicBlock _end = new BasicBlock(false);
+    private List<BasicBlock> _blocks = [];
+    private readonly Dictionary<BasicBlock, List<TryRegion>> _regionsByBlock = [];
 
-    internal ControlFlowGraph Build(List<BasicBlock> blocks) {
-        var basicBlockBuilder = new BasicBlockBuilder();
+    internal ControlFlowGraph Build(List<BasicBlock> blocks, List<TryRegion> regions) {
+        _blocks = blocks;
 
         if (blocks.Count == 0)
             Connect(_start, _end);
@@ -31,6 +33,13 @@ internal sealed partial class ControlFlowGraphBuilder {
 
                 if (statement is BoundLabelStatement labelStatement)
                     _blockFromLabel.Add(labelStatement.label, block);
+            }
+        }
+
+        foreach (var region in regions) {
+            foreach (var block in blocks) {
+                if (IsInRange(block, region))
+                    _regionsByBlock.GetOrAdd(block, () => []).Add(region);
             }
         }
 
@@ -62,15 +71,17 @@ internal sealed partial class ControlFlowGraphBuilder {
 
                         break;
                     case BoundKind.ReturnStatement:
-                    case BoundKind.ExpressionStatement
-                        when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
                         Connect(current, _end);
+                        break;
+                    case BoundKind.ExpressionStatement when
+                        ((BoundExpressionStatement)statement).expression is BoundThrowExpression:
+                        AddThrowEdges(current);
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
                     case BoundKind.LocalDeclarationStatement:
-                    case BoundKind.TryStatement:
                     case BoundKind.LabelStatement:
+                    case BoundKind.TryStatement:
                     case BoundKind.LocalFunctionStatement:
                         if (isLastStatement)
                             Connect(current, next);
@@ -78,6 +89,22 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(statement.kind);
+                }
+            }
+
+            var last = current.statements.LastOrDefault();
+
+            if (last is null || !IsTerminal(last)) {
+                foreach (var region in GetActiveRegions(current)) {
+                    if (current == region.tryStart)
+                        ConnectDirect(current, region.tryEnd);
+
+                    if (region.catchBlock is not null)
+                        ConnectDirect(current, region.catchBlock);
+
+                    // TODO Do finallys ever effect flow analysis?
+                    // if (region.finallyBlock is not null)
+                    //     ConnectDirect(current, region.finallyBlock);
                 }
             }
         }
@@ -94,6 +121,35 @@ again:
         blocks.Add(_end);
 
         return new ControlFlowGraph(_start, _end, blocks, _branches);
+    }
+
+    private void AddThrowEdges(BasicBlock block) {
+        var regions = GetActiveRegions(block);
+
+        for (var i = regions.Count - 1; i >= 0; i--) {
+            var region = regions[i];
+
+            if (region.catchBlock is not null) {
+                ConnectDirect(block, region.catchBlock);
+                return;
+            }
+
+            // TODO Do finallys ever effect flow analysis?
+            // if (region.finallyBlock is not null) {
+            //     ConnectDirect(block, region.finallyBlock);
+            //     return;
+            // }
+        }
+
+        ConnectDirect(block, _end);
+    }
+
+    private bool IsInRange(BasicBlock block, TryRegion region) {
+        var index = _blocks.IndexOf(block);
+        var start = _blocks.IndexOf(region.tryStart);
+        var end = _blocks.IndexOf(region.tryEnd);
+        // If end is not in the block list it refers to the end of the graph which hasn't been added yet
+        return end == -1 || (index >= start && index <= end);
     }
 
     private void RemoveBlock(List<BasicBlock> blocks, BasicBlock block) {
@@ -128,7 +184,62 @@ again:
         return new BoundUnaryOperator(syntax, condition, opKind, null, null, boolType);
     }
 
+    private bool IsTerminal(BoundStatement statement) {
+        return statement.kind is BoundKind.ReturnStatement
+            || (statement is BoundExpressionStatement es && es.expression is BoundThrowExpression);
+    }
+
     private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
+        if (ConstantValue.IsNull(condition?.constantValue))
+            return;
+
+        if (condition is BoundLiteralExpression l) {
+            var value = (bool)l.constantValue.value;
+
+            if (value)
+                condition = null;
+            else
+                return;
+        }
+
+        ConnectDirect(from, to, condition);
+    }
+
+    private List<TryRegion> GetActiveRegions(BasicBlock block) {
+        if (_regionsByBlock.TryGetValue(block, out var value))
+            return value;
+
+        return [];
+    }
+
+    // TODO With our current strategy of ignoring finallys, we don't need this
+    // But we probably will later
+    private void RewriteAndConnect(BasicBlock from, BasicBlock to, BoundExpression condition) {
+        var regions = GetActiveRegions(from);
+
+        for (var i = regions.Count - 1; i >= 0; i--) {
+            var region = regions[i];
+
+            if (region.finallyBlock is null)
+                continue;
+
+            if (IsLeavingRegion(from, to, region)) {
+                ConnectDirect(from, region.finallyBlock);
+                RewriteAndConnect(region.finallyBlock, to, condition);
+                return;
+            }
+        }
+
+        ConnectDirect(from, to, condition);
+    }
+
+    private bool IsLeavingRegion(BasicBlock from, BasicBlock to, TryRegion region) {
+        var fromRegions = GetActiveRegions(from);
+        var toRegions = GetActiveRegions(to);
+        return fromRegions.Contains(region) && !toRegions.Contains(region);
+    }
+
+    private void ConnectDirect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
         if (ConstantValue.IsNull(condition?.constantValue))
             return;
 

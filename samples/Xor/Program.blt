@@ -1,0 +1,43 @@
+/*
+
+    That Xor Trick
+
+    https://florian.github.io//xor-trick/
+
+    This sample doesn't really highlight anything in the language in particular, I just wanted to implement it,
+    which is why I didn't include this in the sample list.
+
+*/
+
+int XorList(List<int> arr) {
+    var result = 0;
+
+    for (var i = 0; i < arr.Length(); i++)
+        result ^= arr[i];
+
+    return result;
+}
+
+List<int> PartitionList(List<int> list, int lsb) {
+    var result = new List<int>();
+
+    for (var i = 0; i < list.Length(); i++) {
+        if ((list[i] & lsb) == 0)
+            result.Append(list[i]);
+    }
+
+    return result;
+}
+
+List<int> FindDoubleMissing(List<int> given, List<int> total) {
+    var uv = XorList(given) ^ XorList(total);
+    var lsb = uv & ~(uv - 1);
+    var par0 = PartitionList(given, lsb);
+    var par1 = PartitionList(total, lsb);
+    var u = XorList(par0) ^ XorList(par1);
+    var v = uv ^ u;
+    return new List<int>(new int[] { u, v });
+}
+
+var result = FindDoubleMissing(new List<int>(new int[] { 1, 2, 3, 4, 5, 6 }), new List<int>(new int[] { 1, 3, 4, 6 }));
+Console.PrintLine(result);

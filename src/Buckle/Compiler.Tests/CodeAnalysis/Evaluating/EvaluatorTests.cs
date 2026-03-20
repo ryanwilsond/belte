@@ -251,6 +251,7 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; ref int y = ref x; y++; return x;", 5)]
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("lowlevel { int[] a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
+    [InlineData("int M() { ref int F(ref int a) { return ref a; } int b = 3; F(ref b) = 6; return b; } return M();", 6)]
     // Initializer list expressions and index expressions
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]
@@ -280,6 +281,9 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int a; public int b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
     [InlineData("class A { public int num; } A myVar; int a = myVar?.num; return a;", null)]
     [InlineData("class A { public int num; } A myVar = new A(); myVar.num = 7; int a = myVar?.num; return a;", 7)]
+    [InlineData("class A { public static int a = 3; } return A.a;", 3)]
+    [InlineData("class A { public static int a = 3; static constructor() { a = 10; } } return A.a;", 10)]
+    [InlineData("class A { public static int a = 3; } A.a = 20; return A.a;", 20)]
     // This expression
     [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; this.a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
     [InlineData("class A { public int a; public void SetA(int a) { this.a = 1; a = a; } public int GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
@@ -290,6 +294,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public constexpr int a; } return A.a;", null)]
     [InlineData("class A { public static int B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { public static int B(int a) { return a + 3; } } return A.B(4);", 7)]
+    // Structs
+    [InlineData("struct A { public int! a; } var a = new A(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
     // If statements
     [InlineData("int a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
@@ -339,7 +345,7 @@ public sealed class EvaluatorTests {
     // Libraries
     [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
     [InlineData("class A { public override string ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
-    [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length(a);", 3)]
+    [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length<any[]>(a);", 3)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
     [InlineData("type a = typeof(string);", null)]
@@ -363,6 +369,17 @@ public sealed class EvaluatorTests {
 
         var a = new A(3);
         return a + 5;", 8)]
+    [InlineData(@"
+        class A {
+            public int[] a = { 1, 2, 3 };
+            public static ref int operator[](A a, int b) {
+                return ref a.a[b];
+            }
+        }
+
+        var a = new A();
+        a[1]++;
+        return a[1] + a[0];", 4)]
     // Overrides
     [InlineData(@"
         class A {
@@ -377,13 +394,11 @@ public sealed class EvaluatorTests {
         var b = new B();
         return b.T();", "B")]
     [InlineData("lowlevel class A { public int[] b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r[0]++; return a.b[0];", 2)]
-    /*
     // Try statements
     [InlineData("try { int x = 0; int a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
-    [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; } catch { a += 3; } finally { return a; }", 6)]
-    [InlineData("int a = 3; try { int b = 56/1; a += b; } catch { a += 3; } finally { return a; }", 59)]
-    */
+    [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 6)]
+    [InlineData("int a = 3; try { int b = 56/1; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 59)]
     // Templates
     // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
     // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]

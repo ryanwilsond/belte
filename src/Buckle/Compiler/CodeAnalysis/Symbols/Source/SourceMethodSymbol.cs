@@ -19,6 +19,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
 
     internal override bool hasSpecialName => methodKind switch {
         MethodKind.Constructor => true,
+        MethodKind.StaticConstructor => true,
         _ => false,
     };
 

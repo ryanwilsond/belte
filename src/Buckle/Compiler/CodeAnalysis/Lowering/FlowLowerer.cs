@@ -1,16 +1,35 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class FlowLowerer : BoundTreeRewriter {
+    private readonly BelteDiagnosticQueue _diagnostics;
     private int _labelCount;
 
-    internal static BoundStatement Lower(BoundStatement statement) {
-        var lowerer = new FlowLowerer();
+    private FlowLowerer(BelteDiagnosticQueue diagnostics) {
+        _diagnostics = diagnostics;
+    }
+
+    internal static BoundStatement Lower(BoundStatement statement, BelteDiagnosticQueue diagnostics) {
+        var lowerer = new FlowLowerer(diagnostics);
         return (BoundStatement)lowerer.Visit(statement);
+    }
+
+    internal override BoundNode VisitTryStatement(BoundTryStatement node) {
+        if (node.finallyBody is not null) {
+            foreach (var statement in ((BoundBlockStatement)node.finallyBody).statements) {
+                if (statement.kind == BoundKind.ReturnStatement) {
+                    _diagnostics.Push(Error.CannotReturnFromFinally(statement.syntax.location));
+                    break;
+                }
+            }
+        }
+
+        return base.VisitTryStatement(node);
     }
 
     internal override BoundNode VisitIfStatement(BoundIfStatement statement) {

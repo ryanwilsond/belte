@@ -26,11 +26,12 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         _allMembers = members ?? underlyingType.GetMembers();
     }
 
-    public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters
+        => underlyingNamedType.templateParameters;
 
-    public override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints => underlyingNamedType.templateConstraints;
 
-    public override ImmutableArray<TypeOrConstant> templateArguments => [];
+    public override ImmutableArray<TypeOrConstant> templateArguments => underlyingNamedType.templateArguments;
 
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
