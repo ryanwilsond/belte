@@ -349,6 +349,9 @@ public enum DiagnosticCode : ushort {
     ERR_StaticConstructorWithAccessModifier = 338,
     ERR_StaticConstructorWithInitializer = 339,
     ERR_InvalidInitializerDictionary = 340,
+    ERR_InvalidAddrOp = 341,
+    ERR_PtrExpected = 342,
+    ERR_VoidPtr = 343,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

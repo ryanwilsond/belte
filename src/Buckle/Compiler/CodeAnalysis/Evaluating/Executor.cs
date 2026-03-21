@@ -202,6 +202,11 @@ internal sealed partial class Executor : ModuleBuilder {
                 return elementType.MakeArrayType(array.rank);
             }
 
+            if (type is PointerTypeSymbol pointer) {
+                var elementType = GetType(pointer.pointedAtType);
+                return elementType.MakePointerType();
+            }
+
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 

@@ -407,6 +407,7 @@ internal sealed class Lexer : IDisposable {
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.MinusEqualsToken;
                 else if (AdvanceIfMatches('-')) _kind = SyntaxKind.MinusMinusToken;
+                else if (AdvanceIfMatches('>')) _kind = SyntaxKind.MinusGreaterThanToken;
                 else _kind = SyntaxKind.MinusToken;
                 break;
             case '/':

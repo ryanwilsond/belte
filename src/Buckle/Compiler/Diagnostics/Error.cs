@@ -1643,6 +1643,21 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidInitializerDictionary, location, message);
     }
 
+    internal static BelteDiagnostic InvalidAddrOp(TextLocation location) {
+        var message = $"cannot take the address of the given expression";
+        return CreateError(DiagnosticCode.ERR_InvalidAddrOp, location, message);
+    }
+
+    internal static BelteDiagnostic PtrExpected(TextLocation location) {
+        var message = $"cannot dereference a non-pointer";
+        return CreateError(DiagnosticCode.ERR_PtrExpected, location, message);
+    }
+
+    internal static BelteDiagnostic VoidPtr(TextLocation location) {
+        var message = $"must cast a void pointer before dereferencing";
+        return CreateError(DiagnosticCode.ERR_VoidPtr, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

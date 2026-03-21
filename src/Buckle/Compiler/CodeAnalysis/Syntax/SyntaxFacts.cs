@@ -72,6 +72,7 @@ public static class SyntaxFacts {
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.PeriodToken:
             case SyntaxKind.QuestionPeriodToken:
+            case SyntaxKind.MinusGreaterThanToken:
             case SyntaxKind.QuestionOpenBracketToken:
             case SyntaxKind.PlusPlusToken:
             case SyntaxKind.MinusMinusToken:
@@ -96,6 +97,8 @@ public static class SyntaxFacts {
             case SyntaxKind.MinusToken:
             case SyntaxKind.ExclamationToken:
             case SyntaxKind.TildeToken:
+            case SyntaxKind.AmpersandToken:
+            case SyntaxKind.AsteriskToken:
                 return 17;
             default:
                 return 0;
@@ -252,6 +255,7 @@ public static class SyntaxFacts {
             SyntaxKind.QuestionPeriodToken => "?.",
             SyntaxKind.QuestionOpenBracketToken => "?[",
             SyntaxKind.HashToken => "#",
+            SyntaxKind.MinusGreaterThanToken => "->",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",

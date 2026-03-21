@@ -196,6 +196,10 @@ internal sealed partial class CodeGenerator {
             case BoundKind.ThrowExpression:
                 EmitExpression(expression, used: true);
                 return null;
+            case BoundKind.PointerIndirectionOperator:
+                var operand = ((BoundPointerIndirectionOperator)expression).operand;
+                EmitExpression(operand, used: true);
+                break;
             default:
                 return EmitAddressOfTempClone(expression);
         }
@@ -929,6 +933,12 @@ oneMoreTime:
             case BoundKind.IsOperator:
                 EmitIsOperator((BoundIsOperator)expression, used, false);
                 break;
+            case BoundKind.AddressOfOperator:
+                EmitAddressOfOperator((BoundAddressOfOperator)expression, used);
+                break;
+            case BoundKind.PointerIndirectionOperator:
+                EmitPointerIndirectionOperator((BoundPointerIndirectionOperator)expression, used);
+                break;
             case BoundKind.ConditionalOperator:
                 EmitConditionalOperator((BoundConditionalOperator)expression, used);
                 break;
@@ -988,6 +998,24 @@ oneMoreTime:
         // Isolated type expressions are only legal in scripts where the Evaluator returns something
         // Has no semantic meaning
         _builder.Emit(OpCode.Nop);
+    }
+
+    private void EmitAddressOfOperator(BoundAddressOfOperator expression, bool used) {
+        var temp = EmitAddress(expression.operand, AddressKind.ReadOnlyStrict);
+
+        if (used)
+            _builder.Emit(OpCode.Conv_U);
+
+        EmitPopIfUnused(used);
+    }
+
+    private void EmitPointerIndirectionOperator(BoundPointerIndirectionOperator expression, bool used) {
+        EmitExpression(expression.operand, used: true);
+
+        if (!expression.refersToLocation)
+            EmitLoadIndirect(expression.type);
+
+        EmitPopIfUnused(used);
     }
 
     private void EmitTypeOfExpression(BoundTypeOfExpression expression) {
@@ -1592,7 +1620,12 @@ oneMoreTime:
                 }
             }
 
-            EmitInitObj(type, true);
+            if (type is PointerTypeSymbol) {
+                _builder.Emit(OpCode.Ldc_I4_0);
+                _builder.Emit(OpCode.Conv_U);
+            } else {
+                EmitInitObj(type, true);
+            }
         }
     }
 
@@ -2384,6 +2417,9 @@ oneMoreTime:
             case BoundKind.CallExpression:
                 EmitIndirectStore(expression.type);
                 break;
+            case BoundKind.PointerIndirectionOperator:
+                EmitIndirectStore(expression.type);
+                break;
             case BoundKind.AssignmentOperator:
                 var nested = (BoundAssignmentOperator)expression;
 
@@ -2421,7 +2457,9 @@ oneMoreTime:
             case SpecialType.Decimal:
                 _builder.Emit(OpCode.Stelem_R8);
                 break;
-
+            case SpecialType.None when elementType is PointerTypeSymbol:
+                _builder.Emit(OpCode.Stelem_I);
+                break;
             default:
                 if (elementType.IsVerifierReference()) {
                     _builder.Emit(OpCode.Stelem_Ref);
@@ -2462,6 +2500,9 @@ oneMoreTime:
                 break;
             case SpecialType.Decimal:
                 _builder.Emit(OpCode.Stind_R8);
+                break;
+            case SpecialType.None when type is PointerTypeSymbol:
+                _builder.Emit(OpCode.Stind_I);
                 break;
             default:
                 if (type.IsVerifierReference()) {
@@ -2574,6 +2615,13 @@ oneMoreTime:
 
                 EmitAssignmentOperator(assignment, UseKind.UsedAsAddress);
                 break;
+            case BoundKind.PointerIndirectionOperator: {
+                    var left = (BoundPointerIndirectionOperator)assignmentTarget;
+                    EmitExpression(left.operand, used: true);
+                    lhsUsesStack = true;
+                }
+
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(assignmentTarget.kind);
         }
@@ -2587,9 +2635,8 @@ oneMoreTime:
 
         var left = assignmentOperator.left;
 
-        if (used && !TargetIsNotOnHeap(left)) {
+        if (used && !TargetIsNotOnHeap(left))
             return false;
-        }
 
         if (!SafeToGetWriteableReference(left))
             return false;
@@ -2820,6 +2867,14 @@ oneMoreTime:
     }
 
     private void EmitCastExpression(BoundCastExpression expression, bool used) {
+        switch (expression.conversion.kind) {
+            case ConversionKind.ImplicitNullToPointer:
+                EmitIntConstant(0);
+                _builder.Emit(OpCode.Conv_U);
+                EmitPopIfUnused(used);
+                return;
+        }
+
         var operand = expression.operand;
 
         if (!used && !expression.ConversionHasSideEffects()) {
@@ -2866,6 +2921,9 @@ oneMoreTime:
             case ConversionKind.Explicit:
                 EmitConvertCallOrNumericConversion(cast);
                 break;
+            case ConversionKind.ExplicitPointerToPointer:
+            case ConversionKind.ImplicitPointerToVoid:
+                return;
             default:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
         }
@@ -2966,6 +3024,9 @@ oneMoreTime:
                 break;
             case SpecialType.Decimal:
                 _builder.Emit(OpCode.Ldind_R8);
+                break;
+            case SpecialType.None when type is PointerTypeSymbol:
+                _builder.Emit(OpCode.Ldind_I);
                 break;
             default:
                 if (type.IsVerifierReference())

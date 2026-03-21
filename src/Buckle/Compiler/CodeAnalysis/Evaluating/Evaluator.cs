@@ -436,6 +436,8 @@ internal sealed class Evaluator {
             BoundKind.BinaryOperator => EvaluateBinaryOperator((BoundBinaryOperator)node, used, abort),
             BoundKind.AsOperator => EvaluateAsOperator((BoundAsOperator)node, used, abort),
             BoundKind.IsOperator => EvaluateIsOperator((BoundIsOperator)node, used, abort),
+            BoundKind.AddressOfOperator => EvaluateAddressOfOperator((BoundAddressOfOperator)node, used, abort),
+            BoundKind.PointerIndirectionOperator => EvaluatePointerIndirectionOperator((BoundPointerIndirectionOperator)node, used, abort),
             BoundKind.ConditionalOperator => EvaluateConditionalOperator((BoundConditionalOperator)node, used, abort),
             BoundKind.NullAssertOperator => EvaluateNullAssertOperator((BoundNullAssertOperator)node, used, abort),
             BoundKind.CallExpression => EvaluateCallExpression((BoundCallExpression)node, used ? UseKind.UsedAsValue : UseKind.Unused, abort),
@@ -701,6 +703,9 @@ internal sealed class Evaluator {
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
                 return EvaluateConvertCallOrNumericConversion(node, value);
+            case ConversionKind.ExplicitPointerToPointer:
+            case ConversionKind.ImplicitPointerToVoid:
+                return value;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.conversion.kind);
         }
@@ -882,6 +887,9 @@ internal sealed class Evaluator {
         if (type.IsStructType())
             return CreateStruct((NamedTypeSymbol)type);
 
+        if (type is PointerTypeSymbol)
+            return EvaluatorValue.Literal(0);
+
         return (!type.IsNullableType() && type.IsVerifierValue())
             ? EvaluatorValue.Literal(LiteralUtilities.GetDefaultValue(type.specialType), type.specialType)
             : EvaluatorValue.Null;
@@ -988,6 +996,43 @@ internal sealed class Evaluator {
         return EvaluatorValue.Null;
     }
 
+    private EvaluatorValue EvaluateAddressOfOperator(BoundAddressOfOperator node, bool used, ValueWrapper<bool> abort) {
+        var address = EvaluateAddress(node.operand, AddressKind.ReadOnlyStrict, abort);
+
+        if (used)
+            return address;
+        else
+            return EvaluatorValue.None;
+    }
+
+    private EvaluatorValue EvaluatePointerIndirectionOperator(
+        BoundPointerIndirectionOperator node,
+        bool used,
+        ValueWrapper<bool> abort) {
+        var value = EvaluateExpression(node.operand, true, abort);
+
+        if (!node.refersToLocation) {
+            if (value.kind == ValueKind.Ref)
+                value = value.loc[value.ptr];
+            else
+                throw ExceptionUtilities.UnexpectedValue(value.kind);
+        }
+
+        if (!used)
+            return EvaluatorValue.None;
+
+        value.kind = node.StrippedType().specialType switch {
+            SpecialType.Int => ValueKind.Int64,
+            SpecialType.Decimal => ValueKind.Double,
+            SpecialType.Bool => ValueKind.Bool,
+            SpecialType.String => ValueKind.String,
+            SpecialType.Char => ValueKind.Char,
+            _ => value.kind,
+        };
+
+        return value;
+    }
+
     private EvaluatorValue EvaluateAssignmentOperator(
         BoundAssignmentOperator node,
         UseKind useKind,
@@ -1054,6 +1099,7 @@ internal sealed class Evaluator {
             case BoundKind.ArrayAccessExpression:
             case BoundKind.CallExpression:
             case BoundKind.ConditionalOperator:
+            case BoundKind.PointerIndirectionOperator:
                 IndirectStore(location, lhs, value);
                 break;
             case BoundKind.ThisExpression:
@@ -1128,6 +1174,15 @@ internal sealed class Evaluator {
             case BoundKind.StackSlotExpression: {
                     var left = (BoundStackSlotExpression)assignmentTarget;
                     expr = EvaluatorValue.Ref(_stack.Peek().values, left.slot);
+                }
+
+                break;
+            case BoundKind.PointerIndirectionOperator: {
+                    expr = EvaluatePointerIndirectionOperator(
+                        (BoundPointerIndirectionOperator)assignmentTarget,
+                        true,
+                        abort
+                    );
                 }
 
                 break;
@@ -1472,6 +1527,9 @@ internal sealed class Evaluator {
                 return EvaluateConditionalOperatorAddress((BoundConditionalOperator)node, addressKind, abort);
             case BoundKind.ThrowExpression:
                 return EvaluateExpression(node, true, abort);
+            case BoundKind.PointerIndirectionOperator:
+                var operand = ((BoundPointerIndirectionOperator)node).operand;
+                return EvaluateExpression(operand, true, abort);
             default:
                 return EvaluateAddressOfTempClone(node, abort);
         }

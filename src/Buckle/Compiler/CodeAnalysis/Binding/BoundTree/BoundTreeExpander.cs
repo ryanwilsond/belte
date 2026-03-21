@@ -227,6 +227,8 @@ internal abstract class BoundTreeExpander {
             BoundKind.NullCoalescingOperator => ExpandNullCoalescingOperator((BoundNullCoalescingOperator)expression, out replacement),
             BoundKind.NullCoalescingAssignmentOperator => ExpandNullCoalescingAssignmentOperator((BoundNullCoalescingAssignmentOperator)expression, out replacement),
             BoundKind.NullAssertOperator => ExpandNullAssertOperator((BoundNullAssertOperator)expression, out replacement),
+            BoundKind.AddressOfOperator => ExpandAddressOfOperator((BoundAddressOfOperator)expression, out replacement),
+            BoundKind.PointerIndirectionOperator => ExpandPointerIndirectionOperator((BoundPointerIndirectionOperator)expression, out replacement),
             BoundKind.ErrorExpression => ExpandErrorExpression((BoundErrorExpression)expression, out replacement),
             BoundKind.CallExpression => ExpandCallExpression((BoundCallExpression)expression, out replacement),
             BoundKind.CastExpression => ExpandCastExpression((BoundCastExpression)expression, out replacement),
@@ -516,6 +518,20 @@ internal abstract class BoundTreeExpander {
             return statements;
         }
 
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandAddressOfOperator(
+        BoundAddressOfOperator expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandPointerIndirectionOperator(
+        BoundPointerIndirectionOperator expression,
+        out BoundExpression replacement) {
         replacement = expression;
         return [];
     }

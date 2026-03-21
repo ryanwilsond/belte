@@ -270,6 +270,13 @@
       <Kind Name="ExclamationToken"/>
     </Field>
   </Node>
+  <Node Name="PointerTypeSyntax" Base="TypeSyntax">
+    <Kind Name="PointerType"/>
+    <Field Name="elementType" Type="TypeSyntax"/>
+    <Field Name="asterisk" Type="SyntaxToken">
+      <Kind Name="AsteriskToken"/>
+    </Field>
+  </Node>
   <Node Name="ReferenceTypeSyntax" Base="TypeSyntax">
     <Kind Name="ReferenceType"/>
     <Field Name="refKeyword" Type="SyntaxToken">

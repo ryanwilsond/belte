@@ -37,6 +37,10 @@ internal static class SyntaxNodeExtensions {
                     var nullableTypeSyntax = (NonNullableTypeSyntax)type;
                     stack.Push(nullableTypeSyntax.type);
                     break;
+                case SyntaxKind.PointerType:
+                    var pointerTypeSyntax = (PointerTypeSyntax)type;
+                    stack.Push(pointerTypeSyntax.elementType);
+                    break;
                 case SyntaxKind.ReferenceType:
                     var referenceTypeSyntax = (ReferenceTypeSyntax)type;
                     stack.Push(referenceTypeSyntax.type);

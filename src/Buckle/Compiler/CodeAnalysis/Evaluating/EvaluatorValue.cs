@@ -100,6 +100,10 @@ public struct EvaluatorValue {
         return new EvaluatorValue() { kind = ValueKind.Double, @double = value };
     }
 
+    internal static EvaluatorValue Literal(long value) {
+        return new EvaluatorValue() { kind = ValueKind.Int64, int64 = value };
+    }
+
     public static Dictionary<ISymbol, EvaluatorValue> GetFieldsFromPtr(EvaluatorValue value, EvaluatorContext context) {
         var heapObject = context.heap[value.ptr];
 

@@ -19,5 +19,6 @@ internal partial class Binder {
         RefOrOut = RefersToLocation | RValue | Assignable,
         RefReturn = RefOrOut + 1,
         RefConst = RefersToLocation | RValue,
+        AddressOf = RefConst + 1,
     }
 }

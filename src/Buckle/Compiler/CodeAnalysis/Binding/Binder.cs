@@ -550,6 +550,11 @@ internal partial class Binder {
                     diagnostics.Push(Error.UnexpectedToken(refToken.location, refToken.kind));
                     return BindType(referenceTypeSyntax.type, diagnostics, basesBeingResolved);
                 }
+            case SyntaxKind.PointerType: {
+                    var node = (PointerTypeSyntax)syntax;
+                    var elementType = BindType(node.elementType, diagnostics, basesBeingResolved);
+                    return new TypeWithAnnotations(new PointerTypeSymbol(elementType));
+                }
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }
@@ -2000,6 +2005,8 @@ internal partial class Binder {
             case BindValueKind.RefReturn:
             case BindValueKind.RefConst:
                 return Error.RefReturnLValueExpected(location);
+            case BindValueKind.AddressOf:
+                return Error.InvalidAddrOp(location);
             case BindValueKind.RefAssignable:
                 return Error.RefLocalOrParameterExpected(location);
         }
@@ -2017,6 +2024,8 @@ internal partial class Binder {
                 return Error.ConstantAssignmentThis(location);
             case BindValueKind.RefOrOut:
                 return Error.RefConstThis(location);
+            case BindValueKind.AddressOf:
+                return Error.InvalidAddrOp(location);
             case BindValueKind.IncrementDecrement:
                 return isValueType
                     ? Error.ConstantAssignmentThis(location)
@@ -4457,7 +4466,34 @@ internal partial class Binder {
         bool called,
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
-        var boundLeft = BindExpression(node.expression, diagnostics);
+        BoundExpression boundLeft;
+
+        if (node.operatorToken.kind == SyntaxKind.MinusGreaterThanToken) {
+            boundLeft = BindRValueWithoutTargetType(node.expression, diagnostics);
+
+            BindPointerIndirectionExpressionInternal(
+                node,
+                diagnostics,
+                boundLeft,
+                out var pointedAtType,
+                out var hasErrors
+            );
+
+            if (pointedAtType is null) {
+                boundLeft = ToErrorExpression(boundLeft);
+            } else {
+                boundLeft = new BoundPointerIndirectionOperator(
+                    node.expression,
+                    boundLeft,
+                    false,
+                    pointedAtType,
+                    hasErrors
+                );
+            }
+        } else {
+            boundLeft = BindExpression(node.expression, diagnostics);
+        }
+
         return BindMemberAccessWithBoundLeft(
             node,
             boundLeft,
@@ -7512,7 +7548,54 @@ internal partial class Binder {
         );
     }
 
+    private BoundExpression BindAddressOfExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindToNaturalType(BindValue(node.operand, diagnostics, BindValueKind.AddressOf), diagnostics);
+        var operandType = operand.Type();
+        var pointerType = new PointerTypeSymbol(new TypeWithAnnotations(operandType));
+        return new BoundAddressOfOperator(node, operand, pointerType, operand.hasErrors);
+    }
+
+    private BoundExpression BindPointerIndirectionExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindToNaturalType(BindValue(node.operand, diagnostics, BindValueKind.RValue), diagnostics);
+        BindPointerIndirectionExpressionInternal(node, diagnostics, operand, out var pointedAtType, out var hasErrors);
+        return new BoundPointerIndirectionOperator(node, operand, false, pointedAtType ?? CreateErrorType(), hasErrors);
+    }
+
+    private static void BindPointerIndirectionExpressionInternal(
+        ExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression operand,
+        out TypeSymbol pointedAtType,
+        out bool hasErrors) {
+        hasErrors = operand.hasErrors;
+        if (operand.Type() is not PointerTypeSymbol operandType) {
+            pointedAtType = null;
+
+            if (!hasErrors) {
+                diagnostics.Push(Error.PtrExpected(node.location));
+                hasErrors = true;
+            }
+        } else {
+            pointedAtType = operandType.pointedAtType;
+
+            if (pointedAtType.IsVoidType()) {
+                pointedAtType = null;
+
+                if (!hasErrors) {
+                    diagnostics.Push(Error.VoidPtr(node.location));
+                    hasErrors = true;
+                }
+            }
+        }
+    }
+
     private BoundExpression BindUnaryExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        if (node.operatorToken.kind == SyntaxKind.AmpersandToken)
+            return BindAddressOfExpression(node, diagnostics);
+
+        if (node.operatorToken.kind == SyntaxKind.AsteriskToken)
+            return BindPointerIndirectionExpression(node, diagnostics);
+
         var operatorText = node.operatorToken.text;
         var operand = BindToNaturalType(BindValue(node.operand, diagnostics, BindValueKind.RValue), diagnostics);
         var kind = SyntaxKindToUnaryOperatorKind(node.operatorToken.kind);
@@ -9504,8 +9587,8 @@ symIsHidden:;
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
-                    if (initializer.kind == BoundKind.ObjectCreationExpression ||
-                        initializer.constantValue is not null) {
+                    if (!initializer.type.IsStructType() && (initializer.kind == BoundKind.ObjectCreationExpression ||
+                        initializer.constantValue is not null)) {
                         declarationType = declarationType.SetIsAnnotated();
                         initializer = GenerateConversionForAssignment(declarationType.type, initializer, diagnostics);
                     }
