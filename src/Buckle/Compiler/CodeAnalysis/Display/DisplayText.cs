@@ -252,6 +252,12 @@ public sealed class DisplayText {
             case BoundKind.ConditionalOperator:
                 DisplayConditionalOperator(text, (BoundConditionalOperator)node);
                 break;
+            case BoundKind.AddressOfOperator:
+                DisplayAddressOfOperator(text, (BoundAddressOfOperator)node);
+                break;
+            case BoundKind.PointerIndirectionOperator:
+                DisplayPointerIndirectionOperator(text, (BoundPointerIndirectionOperator)node);
+                break;
             case BoundKind.DataContainerDeclaration:
                 DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
                 break;
@@ -728,6 +734,16 @@ public sealed class DisplayText {
 
         DisplayNode(text, node.falseExpression);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayAddressOfOperator(DisplayText text, BoundAddressOfOperator node) {
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+        DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {
+        text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
+        DisplayNode(text, node.operand);
     }
 
     private static void DisplayTypeOfExpression(DisplayText text, BoundTypeOfExpression node) {

@@ -60,6 +60,7 @@ public static class SymbolDisplay {
                 DisplayTemplateParameter(text, (TemplateParameterSymbol)symbol, format);
                 break;
             case SymbolKind.ArrayType:
+            case SymbolKind.PointerType:
             case SymbolKind.ErrorType:
                 DisplayType(text, (TypeSymbol)symbol, format);
                 break;
@@ -114,6 +115,9 @@ public static class SymbolDisplay {
                 !string.IsNullOrEmpty(templateParameter.name)) {
                 text.Write(CreateIdentifier(templateParameter.name));
             }
+        } else if (type is PointerTypeSymbol pointerType) {
+            DisplayType(text, pointerType.pointedAtType, format);
+            text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
         }
     }
 

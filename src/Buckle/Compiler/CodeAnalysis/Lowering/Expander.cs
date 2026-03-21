@@ -47,7 +47,7 @@ internal sealed class Expander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandFieldAccessExpression(
         BoundFieldAccessExpression expression,
         out BoundExpression replacement) {
-        if (expression.field.isStatic || expression.field.type.IsVerifierValue())
+        if (expression.field.isStatic || expression.receiver.type.IsVerifierValue())
             return base.ExpandFieldAccessExpression(expression, out replacement);
 
         var type = expression.receiver.Type();

@@ -82,6 +82,9 @@ internal static class TypeWithAnnotationsExtensions {
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
                     break;
+                case TypeKind.Pointer:
+                    next = ((PointerTypeSymbol)current).pointedAtTypeWithAnnotations;
+                    break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(current.typeKind);
             }

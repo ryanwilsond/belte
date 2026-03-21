@@ -228,6 +228,15 @@
     <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundAddressOfOperator" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="operand" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundPointerIndirectionOperator" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="refersToLocation" Type="bool"/>
+  </Node>
   <Node Name="BoundIncrementOperator" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="operatorKind" Type="UnaryOperatorKind"/>

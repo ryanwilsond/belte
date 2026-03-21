@@ -65,6 +65,7 @@ public enum SyntaxKind : ushort {
     GreaterThanGreaterThanGreaterThanEqualsToken,
     QuestionPeriodToken,
     QuestionOpenBracketToken,
+    MinusGreaterThanToken,
 
     // Keywords
     TypeOfKeyword,
@@ -206,6 +207,7 @@ public enum SyntaxKind : ushort {
     EmptyName,
     ArrayType,
     NonNullableType,
+    PointerType,
     ReferenceType,
     BaseType,
     NameEquals,

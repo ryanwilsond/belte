@@ -9,6 +9,7 @@ public enum SymbolKind : byte {
     NamedType,
     ArrayType,
     ErrorType,
+    PointerType,
     Method,
     Parameter,
     TemplateParameter,

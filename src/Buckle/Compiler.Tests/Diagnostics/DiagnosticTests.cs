@@ -3400,4 +3400,46 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0341_InvalidAddrOp() {
+        var text = @"
+            void* ptr = &[null];
+        ";
+
+        var diagnostics = @"
+            cannot take the address of the given expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0342_PtrExpected() {
+        var text = @"
+            int a = 3;
+            int b = [*a];
+        ";
+
+        var diagnostics = @"
+            cannot dereference a non-pointer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0343_VoidPtr() {
+        var text = @"
+            int a = 3;
+            void* ptr = &a;
+            int b = [*ptr];
+        ";
+
+        var diagnostics = @"
+            must cast a void pointer before dereferencing
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

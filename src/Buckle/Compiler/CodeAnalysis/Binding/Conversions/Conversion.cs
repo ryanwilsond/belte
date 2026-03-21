@@ -19,6 +19,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion Explicit => new Conversion(ConversionKind.Explicit);
     internal static Conversion ExplicitNullable => new Conversion(ConversionKind.ExplicitNullable);
     internal static Conversion ExplicitReference => new Conversion(ConversionKind.ExplicitReference);
+    internal static Conversion ExplicitPointerToPointer => new Conversion(ConversionKind.ExplicitPointerToPointer);
+    internal static Conversion ImplicitPointerToVoid => new Conversion(ConversionKind.ImplicitPointerToVoid);
+    internal static Conversion ImplicitNullToPointer => new Conversion(ConversionKind.ImplicitNullToPointer);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
@@ -195,9 +198,15 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)
             return None;
 
-        // Finally we have some simple (to be expanded later) Object conversions
         if (source.Equals(target))
             return Identity;
+
+        if (source.typeKind == TypeKind.Pointer && target.typeKind == TypeKind.Pointer) {
+            if (((PointerTypeSymbol)target).pointedAtType.specialType == SpecialType.Void)
+                return ImplicitPointerToVoid;
+
+            return ExplicitPointerToPointer;
+        }
 
         if (target.isStatic)
             return None;

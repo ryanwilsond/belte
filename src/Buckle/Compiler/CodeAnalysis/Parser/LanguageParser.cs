@@ -199,6 +199,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var hasBrackets = false;
         var bracketsBeenClosed = true;
 
+        if (Peek(finalOffset).kind is SyntaxKind.AsteriskToken)
+            finalOffset++;
+
         if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
             finalOffset++;
 
@@ -1420,14 +1423,23 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return left;
 
         ExpressionSyntax ParseCorrectPrimaryOperator(ExpressionSyntax expression) {
-            return currentToken.kind switch {
-                SyntaxKind.OpenParenToken => ParseCallExpression(expression),
-                SyntaxKind.OpenBracketToken or SyntaxKind.QuestionOpenBracketToken => ParseIndexExpression(expression),
-                SyntaxKind.PeriodToken or SyntaxKind.QuestionPeriodToken => ParseMemberAccessExpression(expression),
-                SyntaxKind.MinusMinusToken or SyntaxKind.PlusPlusToken or SyntaxKind.ExclamationToken
-                    => ParsePostfixExpression(expression),
-                _ => expression,
-            };
+            switch (currentToken.kind) {
+                case SyntaxKind.OpenParenToken:
+                    return ParseCallExpression(expression);
+                case SyntaxKind.OpenBracketToken:
+                case SyntaxKind.QuestionOpenBracketToken:
+                    return ParseIndexExpression(expression);
+                case SyntaxKind.PeriodToken:
+                case SyntaxKind.QuestionPeriodToken:
+                case SyntaxKind.MinusGreaterThanToken:
+                    return ParseMemberAccessExpression(expression);
+                case SyntaxKind.MinusMinusToken:
+                case SyntaxKind.PlusPlusToken:
+                case SyntaxKind.ExclamationToken:
+                    return ParsePostfixExpression(expression);
+                default:
+                    return expression;
+            }
         }
     }
 
@@ -1898,6 +1910,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     } while (currentToken.kind == SyntaxKind.OpenBracketToken);
 
                     type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
+                    continue;
+                case SyntaxKind.AsteriskToken:
+                    var asteriskToken = EatToken();
+                    type = SyntaxFactory.PointerType(type, asteriskToken);
                     continue;
             }
         }
