@@ -148,11 +148,13 @@ internal static class OperatorFacts {
 
     internal static UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
         var opType = kind.OperandTypes() switch {
-            UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
+            // UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
+            UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int),
             UnaryOperatorKind.UInt => CorLibrary.GetSpecialType(SpecialType.UInt64),
             UnaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
             UnaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-            UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
+            // UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
+            UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),
             UnaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
             _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
         };
@@ -165,10 +167,12 @@ internal static class OperatorFacts {
 
     internal static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
         var type = kind.OperandTypes() switch {
-            BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
+            // BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
+            BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int),
             BinaryOperatorKind.UInt => CorLibrary.GetSpecialType(SpecialType.UInt64),
             BinaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-            BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
+            // BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
+            BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),
             BinaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
             BinaryOperatorKind.Object => CorLibrary.GetSpecialType(SpecialType.Object),
             BinaryOperatorKind.String => CorLibrary.GetSpecialType(SpecialType.String),

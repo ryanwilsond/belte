@@ -746,6 +746,8 @@ internal sealed class Evaluator {
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 return value;
+            case ConversionKind.Implicit:
+            case ConversionKind.Explicit:
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ExplicitNumeric:
                 return EvaluateConvertCallOrNumericConversion(node, value);
@@ -1165,11 +1167,11 @@ internal sealed class Evaluator {
         if (!used)
             return EvaluatorValue.None;
 
-        var targetType = node.right.StrippedType();
-        var targetSpecialType = NormalizeNumericType(targetType.specialType);
-
         if (node.right.IsLiteralNull())
             return EvaluatorValue.Literal(value.kind == ValueKind.Null == (!node.isNot));
+
+        var targetType = node.right.StrippedType();
+        var targetSpecialType = NormalizeNumericType(targetType.specialType);
 
         if (value.kind == ValueKind.Null) {
             value.@bool = node.isNot;

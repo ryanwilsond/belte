@@ -2952,6 +2952,8 @@ oneMoreTime:
             case ConversionKind.AnyUnboxing:
                 EmitExplicitReferenceConversion(cast);
                 break;
+            case ConversionKind.Implicit:
+            case ConversionKind.Explicit:
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ExplicitNumeric:
                 EmitConvertCallOrNumericConversion(cast);

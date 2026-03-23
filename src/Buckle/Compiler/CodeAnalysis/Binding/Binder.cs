@@ -6470,18 +6470,17 @@ internal partial class Binder {
         var specialType = CodeGenerator.NormalizeNumericType(node.Type().specialType);
 
         switch (specialType) {
-            case SpecialType.Int64:
-            case SpecialType.Float64:
-                return node;
             case SpecialType.Int8:
             case SpecialType.Int16:
             case SpecialType.Int32:
+            case SpecialType.Int64:
                 return BoundFactory.Literal(
                     node.syntax,
                     Convert.ToInt64(node.constantValue.value),
                     CorLibrary.GetSpecialType(SpecialType.Int)
                 );
             case SpecialType.Float32:
+            case SpecialType.Float64:
                 return BoundFactory.Literal(
                     node.syntax,
                     Convert.ToDouble(node.constantValue.value),

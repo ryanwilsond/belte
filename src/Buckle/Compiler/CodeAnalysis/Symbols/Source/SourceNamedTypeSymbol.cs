@@ -298,12 +298,20 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
         return localBase;
 
         static bool IsRestrictedBaseType(SpecialType specialType) {
-            return specialType switch {
-                SpecialType.Array or SpecialType.Any or SpecialType.String or
-                SpecialType.Bool or SpecialType.Char or SpecialType.Int or
-                SpecialType.Decimal or SpecialType.Type or SpecialType.Void => true,
-                _ => false,
-            };
+            if (specialType.IsNumeric())
+                return true;
+
+            switch (specialType) {
+                case SpecialType.Array:
+                case SpecialType.Any:
+                case SpecialType.String:
+                case SpecialType.Bool:
+                case SpecialType.Type:
+                case SpecialType.Void:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 
