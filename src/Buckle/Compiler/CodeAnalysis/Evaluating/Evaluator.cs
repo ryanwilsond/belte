@@ -281,11 +281,9 @@ internal sealed class Evaluator {
 
                 var s = block.statements[index];
 
-                if (s.kind is not BoundKind.ReturnStatement)
-                    _lastValue = EvaluatorValue.None;
-
                 switch (s.kind) {
                     case BoundKind.NopStatement:
+                        _lastValue = EvaluatorValue.None;
                         index++;
                         break;
                     case BoundKind.TryStatement:
@@ -336,17 +334,21 @@ internal sealed class Evaluator {
 
                         break;
                     case BoundKind.ExpressionStatement:
+                        _lastValue = EvaluatorValue.None;
                         EvaluateExpressionStatement((BoundExpressionStatement)s, abort);
                         index++;
                         break;
                     case BoundKind.LabelStatement:
+                        _lastValue = EvaluatorValue.None;
                         index++;
                         break;
                     case BoundKind.GotoStatement:
+                        _lastValue = EvaluatorValue.None;
                         var gs = (BoundGotoStatement)s;
                         index = labelToIndex[gs.label];
                         break;
                     case BoundKind.ConditionalGotoStatement:
+                        _lastValue = EvaluatorValue.None;
                         var cgs = (BoundConditionalGotoStatement)s;
                         var condition = EvaluateExpression(cgs.condition, true, abort);
 
@@ -418,7 +420,7 @@ internal sealed class Evaluator {
     #region Expressions
 
     private EvaluatorValue EvaluateExpression(BoundExpression node, bool used, ValueWrapper<bool> abort) {
-        if (abort)
+        if (abort.Value)
             throw new BelteThreadException();
 
         if (node.constantValue is not null)
@@ -1894,35 +1896,18 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
+        if ((object)method.containingNamespace != LibraryHelpers.BelteNamespace.originalDefinition) {
+            if (method.containingType.specialType != SpecialType.Nullable &&
+                method.containingType.specialType != SpecialType.Object) {
+                return false;
+            }
+        }
+
         if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType)
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
         var mapKey = LibraryHelpers.BuildMapKey(method);
-
-        if (mapKey == "Nullable<>_get_Value") {
-            result = NullAssertValue(receiver, abort);
-            return true;
-        }
-
-        if (mapKey == "Nullable<>_get_HasValue") {
-            var receiverValue = EvaluateExpression(receiver, true, abort);
-            result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
-            return true;
-        }
-
-        if (mapKey == "Object<>_ToString") {
-            var thisParameter = EvaluateExpression(receiver, true, abort);
-
-            if (thisParameter.kind == ValueKind.Null)
-                throw new BelteNullReferenceException(receiver.syntax.location);
-
-            result = thisParameter.kind == ValueKind.HeapPtr
-                ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
-                : EvaluatorValue.Format(thisParameter, _context);
-
-            return true;
-        }
 
         if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
             switch (mapKey) {
@@ -2092,6 +2077,30 @@ internal sealed class Evaluator {
 
             return true;
         } else {
+            if (mapKey == "Nullable<>_get_Value") {
+                result = NullAssertValue(receiver, abort);
+                return true;
+            }
+
+            if (mapKey == "Nullable<>_get_HasValue") {
+                var receiverValue = EvaluateExpression(receiver, true, abort);
+                result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
+                return true;
+            }
+
+            if (mapKey == "Object<>_ToString") {
+                var thisParameter = EvaluateExpression(receiver, true, abort);
+
+                if (thisParameter.kind == ValueKind.Null)
+                    throw new BelteNullReferenceException(receiver.syntax.location);
+
+                result = thisParameter.kind == ValueKind.HeapPtr
+                    ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
+                    : EvaluatorValue.Format(thisParameter, _context);
+
+                return true;
+            }
+
             return false;
         }
     }
@@ -2312,6 +2321,9 @@ internal sealed class Evaluator {
 
                     text[0].data = _context.graphicsHandler.LoadText(path, fontSize);
 
+                    if (text[0].data is not DynamicSpriteFont spriteFont)
+                        throw new BelteEvaluatorException("Failed to create text object", location);
+
                     result = textPtr;
                 }
 
@@ -2333,8 +2345,7 @@ internal sealed class Evaluator {
                     long? g = fields[7].kind == ValueKind.Null ? null : fields[7].int64;
                     long? b = fields[8].kind == ValueKind.Null ? null : fields[8].int64;
 
-                    if (fields[0].data is not DynamicSpriteFont spriteFont)
-                        throw new BelteEvaluatorException("Cannot draw text: invalid text object", location);
+                    var spriteFont = (DynamicSpriteFont)fields[0].data;
 
                     if (_isScript) {
                         result = _context.graphicsHandler.AddAction(
@@ -2414,8 +2425,7 @@ internal sealed class Evaluator {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var texturePtr = evaluatedArguments[0];
 
-                    if (H(texturePtr)[0].data is not Texture2D texture2D)
-                        throw new BelteEvaluatorException("Cannot draw: null texture", location);
+                    var texture2D = (Texture2D)H(texturePtr)[0].data;
 
                     var srcRect = evaluatedArguments[1];
                     var dstRect = evaluatedArguments[2];
@@ -2530,7 +2540,8 @@ internal sealed class Evaluator {
             var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
             var texturePointer = CreateObject(textureType);
             var texture = _context.heap[texturePointer.ptr];
-            var texture2D = _context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b);
+            var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))
+                ?? throw new BelteEvaluatorException("Failed to load texture", location);
 
             texture.fields[0].data = texture2D;
             texture.fields[1].int64 = texture2D.Width;
@@ -2547,8 +2558,7 @@ internal sealed class Evaluator {
             var (dx, dy, dw, dh) = ExtRect(fields[3]);
             long? rotation = fields[1].kind == ValueKind.Null ? null : fields[1].int64;
 
-            if (H(fields[4])[0].data is not Texture2D texture)
-                throw new BelteEvaluatorException("Cannot draw sprite: it has a null texture", location);
+            var texture = (Texture2D)H(fields[4])[0].data;
 
             if (!offsetVec.Equals(EvaluatorValue.None)) {
                 dx -= (int)H(offsetVec)[0].@double;

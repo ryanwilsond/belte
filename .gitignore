@@ -17,5 +17,6 @@
 *.g.dll
 *.Generated.cs
 *.log
+*.etl
 
 */project-words

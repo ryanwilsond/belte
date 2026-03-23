@@ -81,6 +81,7 @@ internal sealed partial class CodeGenerator {
                type != SpecialType.Type;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsReferenceType(TypeSymbol type) {
         var isReferenceType = (type.isObjectType && !type.IsStructType() &&
                               !IsTrueNullable(type)) || IsReferenceType(type.specialType);
@@ -91,6 +92,7 @@ internal sealed partial class CodeGenerator {
         return isReferenceType;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsValueType(TypeSymbol type) {
         var isValueType = (type.isPrimitiveType || type.IsStructType() ||
                            IsTrueNullable(type)) && IsValueType(type.specialType);
