@@ -260,6 +260,9 @@ internal sealed partial class OverloadResolution {
             if (rightIndex < 0)
                 return BinaryOperatorKind.Error;
 
+            leftIndex = EnlargeNumericType(leftIndex);
+            rightIndex = EnlargeNumericType(rightIndex);
+
             var result = BinaryOperatorKind.Error;
 
             if (!kind.IsConditional() ||
@@ -296,5 +299,36 @@ internal sealed partial class OverloadResolution {
         var rightConversion = Conversions.FastClassifyConversion(rightType, signature.rightType);
 
         result.results.Add(BinaryOperatorAnalysisResult.Applicable(signature, leftConversion, rightConversion));
+    }
+
+    private static int EnlargeNumericType(int index) {
+        switch (index) {
+            case 7:
+            case 8:
+            case 9:
+            case 10:
+            case 11:
+            case 12:
+            case 13:
+            case 14:
+                return 4;
+            case 15:
+            case 16:
+                return 5;
+            case 25:
+            case 26:
+            case 27:
+            case 28:
+            case 29:
+            case 30:
+            case 31:
+            case 32:
+                return 22;
+            case 33:
+            case 34:
+                return 23;
+            default:
+                return index;
+        }
     }
 }

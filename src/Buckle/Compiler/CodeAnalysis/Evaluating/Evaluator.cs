@@ -1556,8 +1556,14 @@ internal sealed class Evaluator {
                 case BinaryOperatorKind.Int:
                     left.@bool = left.int64 == right.int64;
                     break;
+                case BinaryOperatorKind.UInt:
+                    left.@bool = left.uint64 == right.uint64;
+                    break;
                 case BinaryOperatorKind.Float64:
                     left.@bool = left.@double == right.@double;
+                    break;
+                case BinaryOperatorKind.Float32:
+                    left.@bool = left.@single == right.@single;
                     break;
                 case BinaryOperatorKind.Bool:
                     left.@bool = left.@bool == right.@bool;
@@ -1586,131 +1592,315 @@ internal sealed class Evaluator {
 
         switch (op) {
             case BinaryOperatorKind.Addition:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 += right.int64;
-                else if (operandType == BinaryOperatorKind.String)
-                    left.@string += right.@string;
-                else
-                    left.@double += right.@double;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 += right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 += right.uint64;
+                        break;
+                    case BinaryOperatorKind.String:
+                        left.@string += right.@string;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single += right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double += right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Subtraction:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 -= right.int64;
-                else
-                    left.@double -= right.@double;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 -= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 -= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single -= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double -= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Multiplication:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 *= right.int64;
-                else
-                    left.@double *= right.@double;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 *= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 *= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single *= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double *= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Division:
-                if (operandType == BinaryOperatorKind.Int) {
-                    if (right.int64 == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        if (right.int64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.int64 /= right.int64;
-                } else {
-                    if (right.@double == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                        left.int64 /= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        if (right.uint64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.@double /= right.@double;
+                        left.uint64 /= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        if (right.single == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.single /= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        if (right.@double == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.@double /= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.LessThan:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 < right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double < right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 < right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 < right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single < right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double < right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.GreaterThan:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 > right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double > right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 > right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 > right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single > right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double > right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.LessThanOrEqual:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 <= right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double <= right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 <= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 <= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single <= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double <= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.GreaterThanOrEqual:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 >= right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double >= right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 >= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 >= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single >= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double >= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.And:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 &= right.int64;
-                else
-                    left.@bool &= right.@bool;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 &= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 &= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Bool:
+                        left.@bool &= right.@bool;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Or:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 |= right.int64;
-                else
-                    left.@bool |= right.@bool;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 |= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 |= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Bool:
+                        left.@bool |= right.@bool;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Xor:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 ^= right.int64;
-                else
-                    left.@bool ^= right.@bool;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 ^= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 ^= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Bool:
+                        left.@bool ^= right.@bool;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.LeftShift:
-                left.int64 <<= (int)right.int64;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 <<= Convert.ToInt32(right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 <<= Convert.ToInt32(right.uint64);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
+
                 break;
             case BinaryOperatorKind.RightShift:
-                left.int64 >>= (int)right.int64;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 >>= Convert.ToInt32(right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 >>= Convert.ToInt32(right.uint64);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
+
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
-                left.int64 >>>= (int)right.int64;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 >>>= Convert.ToInt32(right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 >>>= Convert.ToInt32(right.uint64);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
+
                 break;
             case BinaryOperatorKind.Modulo:
-                if (operandType == BinaryOperatorKind.Int) {
-                    if (right.int64 == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        if (right.int64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.int64 %= right.int64;
-                } else {
-                    if (right.@double == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                        left.int64 %= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        if (right.uint64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.@double %= right.@double;
+                        left.uint64 %= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        if (right.single == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.single %= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        if (right.@double == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.@double %= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.Power:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 = (long)Math.Pow(left.int64, right.int64);
-                else
-                    left.@double = Math.Pow(left.@double, right.@double);
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 = (long)Math.Pow(left.int64, right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 = (ulong)Math.Pow(left.uint64, right.uint64);
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single = (float)Math.Pow(left.single, right.single);
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double = Math.Pow(left.@double, right.@double);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             default:

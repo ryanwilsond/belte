@@ -93,12 +93,10 @@ internal enum UnaryOperatorKind : int {
     LiftedUserDefinedUnaryPlus = Lifted | UserDefined | UnaryPlus,
 
     IntUnaryMinus = Int | UnaryMinus,
-    UIntUnaryMinus = UInt | UnaryMinus,
     Float32UnaryMinus = Float32 | UnaryMinus,
     Float64UnaryMinus = Float64 | UnaryMinus,
     UserDefinedUnaryMinus = UserDefined | UnaryMinus,
     LiftedIntUnaryMinus = Lifted | Int | UnaryMinus,
-    LiftedUIntUnaryMinus = Lifted | UInt | UnaryMinus,
     LiftedFloat32UnaryMinus = Lifted | Float32 | UnaryMinus,
     LiftedFloat64UnaryMinus = Lifted | Float64 | UnaryMinus,
     LiftedUserDefinedUnaryMinus = Lifted | UserDefined | UnaryMinus,

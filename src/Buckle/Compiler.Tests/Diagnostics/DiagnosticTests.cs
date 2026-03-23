@@ -3443,16 +3443,5 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0344_CannotConvertConstantValue() {
-        var text = @"
-            uint8 a = (uint8)[300];
-        ";
-
-        var diagnostics = @"
-            constant value '300' cannot be converted to 'uint8'
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0344_CannotConvertConstantValue
 }

@@ -18,12 +18,14 @@ internal static class ConstantFolding {
         BoundExpression right,
         BinaryOperatorKind opKind,
         TypeSymbol type) {
-        return FoldBinary(left.constantValue, right.constantValue, opKind, type);
+        return FoldBinary(left.constantValue, left.type, right.constantValue, right.type, opKind, type);
     }
 
     internal static ConstantValue FoldBinary(
         ConstantValue left,
+        TypeSymbol leftType,
         ConstantValue right,
+        TypeSymbol rightType,
         BinaryOperatorKind opKind,
         TypeSymbol type) {
         if (opKind == BinaryOperatorKind.Error)
@@ -63,8 +65,8 @@ internal static class ConstantFolding {
         if (opKind is BinaryOperatorKind.NotEqual)
             return new ConstantValue(!Equals(leftValue, rightValue), SpecialType.Bool);
 
-        if (!LiteralUtilities.TryCast(leftValue, type, out leftValue) ||
-            !LiteralUtilities.TryCast(rightValue, type, out rightValue)) {
+        if (!LiteralUtilities.TryCast(leftValue, leftType, type, out leftValue) ||
+            !LiteralUtilities.TryCast(rightValue, rightType, type, out rightValue)) {
             return null;
         }
 
@@ -449,31 +451,32 @@ internal static class ConstantFolding {
         BoundExpression expression,
         TypeWithAnnotations type,
         BelteDiagnosticQueue diagnostics) {
-        return FoldCast(expression.constantValue, expression.syntax.location, type, diagnostics);
+        return FoldCast(expression.constantValue, expression.syntax.location, expression.type, type, diagnostics);
     }
 
     internal static ConstantValue FoldCast(
-        ConstantValue expression,
+        ConstantValue constantValue,
         TextLocation location,
-        TypeWithAnnotations type,
+        TypeSymbol source,
+        TypeWithAnnotations target,
         BelteDiagnosticQueue diagnostics) {
-        if (expression is null)
+        if (constantValue is null)
             return null;
 
-        if (expression.value is null && !type.isNullable)
+        if (constantValue.value is null && !target.isNullable)
             return null;
 
-        var specialType = type.type.StrippedType().specialType;
+        var specialType = target.type.StrippedType().specialType;
 
         // Preserve "actual" type
         if (specialType == SpecialType.Any)
-            return expression;
+            return constantValue;
 
         try {
-            if (LiteralUtilities.TryCast(expression.value, type, out var castedValue))
+            if (LiteralUtilities.TryCast(constantValue.value, source, target, out var castedValue))
                 return new ConstantValue(castedValue, specialType);
-        } catch (OverflowException) {
-            diagnostics.Push(Error.CannotConvertConstantValue(location, expression.value, type.type));
+        } catch (Exception e) when (e is OverflowException or InvalidCastException) {
+            diagnostics.Push(Error.CannotConvertConstantValue(location, constantValue.value, target.type));
         }
 
         return null;

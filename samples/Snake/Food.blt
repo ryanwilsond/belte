@@ -6,7 +6,7 @@ class Food {
 
     public constructor() {
         sprite = Graphics.LoadSprite(
-            "samples/Assets/ball.png",
+            "samples/Snake/Assets/ball.png",
             new Vec2(0, 0),
             new Vec2(Settings.SpaceSize - 10, Settings.SpaceSize - 10),
             0

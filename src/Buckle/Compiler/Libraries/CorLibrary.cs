@@ -273,11 +273,9 @@ internal sealed class CorLibrary {
                 ]),
                 GetSignaturesFromUnaryOperatorKinds([
                     (int)UnaryOperatorKind.IntUnaryMinus,
-                    (int)UnaryOperatorKind.UIntUnaryMinus,
                     (int)UnaryOperatorKind.Float32UnaryMinus,
                     (int)UnaryOperatorKind.Float64UnaryMinus,
                     (int)UnaryOperatorKind.LiftedIntUnaryMinus,
-                    (int)UnaryOperatorKind.LiftedUIntUnaryMinus,
                     (int)UnaryOperatorKind.LiftedFloat32UnaryMinus,
                     (int)UnaryOperatorKind.LiftedFloat64UnaryMinus,
                 ]),

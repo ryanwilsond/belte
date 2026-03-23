@@ -59,6 +59,14 @@ internal static class Assertions {
             expectedValue = Convert.ToInt16(expectedValue);
         else if (evalResult.value is sbyte && Convert.ToSByte(expectedValue).CompareTo(evalResult.value) == 0)
             expectedValue = Convert.ToSByte(expectedValue);
+        else if (evalResult.value is ushort && Convert.ToUInt16(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToUInt16(expectedValue);
+        else if (evalResult.value is byte && Convert.ToByte(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToByte(expectedValue);
+        else if (evalResult.value is uint && Convert.ToUInt32(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToUInt32(expectedValue);
+        else if (evalResult.value is ulong && Convert.ToUInt64(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToUInt64(expectedValue);
 
         Assert.Empty(evalResult.diagnostics.Errors().ToArray());
         Assert.Equal(expectedValue, evalResult.value);

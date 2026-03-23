@@ -427,6 +427,12 @@ public sealed partial class BelteRepl : Repl {
 
     private void RenderResultType(ITypeSymbol type) {
         Console.ForegroundColor = state.colorTheme.comment;
+
+        if (type is null) {
+            writer.Write("<null>");
+            return;
+        }
+
         var displayText = new DisplayText();
         SymbolDisplay.AppendToDisplayText(displayText, type);
         writer.Write(displayText.ToString());

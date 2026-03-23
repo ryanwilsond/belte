@@ -423,7 +423,9 @@ internal static partial class ConstraintsHelpers {
                     var binary = (BoundBinaryOperator)expression;
                     return ConstantFolding.FoldBinary(
                         EvaluateConstraintCore(binary.left, names, templateArguments, diagnostics),
+                        binary.left.type,
                         EvaluateConstraintCore(binary.right, names, templateArguments, diagnostics),
+                        binary.right.type,
                         binary.operatorKind, binary.left.Type());
                 case BoundKind.IsOperator:
                     var isOperator = (BoundIsOperator)expression;
@@ -446,6 +448,7 @@ internal static partial class ConstraintsHelpers {
                     return ConstantFolding.FoldCast(
                         EvaluateConstraintCore(cast.operand, names, templateArguments, diagnostics),
                         expression.syntax.location,
+                        cast.operand.type,
                         new TypeWithAnnotations(cast.type),
                         diagnostics);
                 case BoundKind.ConditionalOperator:

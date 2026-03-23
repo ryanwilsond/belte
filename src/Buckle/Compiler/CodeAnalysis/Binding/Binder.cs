@@ -6456,20 +6456,19 @@ internal partial class Binder {
         if (value is null)
             return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
 
-        value = LiteralUtilities.ReduceNumeric(value);
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         var constantValue = new ConstantValue(value, specialType);
         var type = CorLibrary.GetSpecialType(specialType);
-        var literal = new BoundLiteralExpression(node, constantValue, type);
-
-        // TODO We do this right now to ensure perfect parity with the older compiler with only 1 int/float type
-        return ExpandLiteralToLargerNumeric(literal);
+        return new BoundLiteralExpression(node, constantValue, type);
     }
 
     private BoundLiteralExpression ExpandLiteralToLargerNumeric(BoundLiteralExpression node) {
         var specialType = CodeGenerator.NormalizeNumericType(node.Type().specialType);
 
         switch (specialType) {
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
             case SpecialType.Int8:
             case SpecialType.Int16:
             case SpecialType.Int32:
@@ -9620,16 +9619,13 @@ symIsHidden:;
 
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
-                } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
-                    if (initializer.kind == BoundKind.LiteralExpression && initializer.Type().specialType.IsNumeric()) {
-                        initializer = ExpandLiteralToLargerNumeric((BoundLiteralExpression)initializer);
-                        declarationType = new TypeWithAnnotations(initializer.Type());
-                    }
-
-                    if (!initializer.type.IsStructType() && (initializer.kind == BoundKind.ObjectCreationExpression ||
-                        initializer.constantValue is not null)) {
-                        declarationType = declarationType.SetIsAnnotated();
-                        initializer = GenerateConversionForAssignment(declarationType.type, initializer, diagnostics);
+                } else {
+                    if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
+                        if (!initializer.type.IsStructType() && (initializer.kind == BoundKind.ObjectCreationExpression ||
+                            initializer.constantValue is not null)) {
+                            declarationType = declarationType.SetIsAnnotated();
+                            initializer = GenerateConversionForAssignment(declarationType.type, initializer, diagnostics);
+                        }
                     }
                 }
 
@@ -9662,6 +9658,16 @@ symIsHidden:;
                 }
             } else {
                 initializer = BindPossibleArrayInitializer(value, declarationType.type, valueKind, diagnostics);
+
+                if (initializer is BoundLiteralExpression l && l.type is not null && l.type.specialType.IsNumeric() &&
+                    declarationType.specialType.IsNumeric()) {
+                    var literalValue = LiteralUtilities.ReduceNumeric(l.constantValue.value);
+                    var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(literalValue);
+                    var constantValue = new ConstantValue(literalValue, specialType);
+                    var type = CorLibrary.GetSpecialType(specialType);
+                    initializer = new BoundLiteralExpression(initializer.syntax, constantValue, type);
+                }
+
                 initializer = GenerateConversionForAssignment(
                     declarationType.type,
                     initializer,

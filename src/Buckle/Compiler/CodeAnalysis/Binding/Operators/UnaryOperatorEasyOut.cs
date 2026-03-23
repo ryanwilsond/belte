@@ -63,6 +63,8 @@ internal sealed partial class OverloadResolution {
             if (index < 0)
                 return UnaryOperatorKind.Error;
 
+            index = EnlargeNumericType(index);
+
             var kindIndex = kind.OperatorIndex();
             var result = (kindIndex >= Operators.Length) ? UnaryOperatorKind.Error : Operators[kindIndex][index];
 
