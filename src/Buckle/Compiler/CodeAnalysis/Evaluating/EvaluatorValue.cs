@@ -17,7 +17,31 @@ public struct EvaluatorValue {
     public ValueKind kind;
 
     [FieldOffset(8)]
+    public sbyte int8;
+
+    [FieldOffset(8)]
+    public byte uint8;
+
+    [FieldOffset(8)]
+    public short int16;
+
+    [FieldOffset(8)]
+    public ushort uint16;
+
+    [FieldOffset(8)]
+    public int int32;
+
+    [FieldOffset(8)]
+    public uint uint32;
+
+    [FieldOffset(8)]
     public long int64;
+
+    [FieldOffset(8)]
+    public ulong uint64;
+
+    [FieldOffset(8)]
+    public float @single;
 
     [FieldOffset(8)]
     public double @double;
@@ -69,13 +93,27 @@ public struct EvaluatorValue {
         return new EvaluatorValue() { kind = ValueKind.Struct, @struct = structValue };
     }
 
+    internal static EvaluatorValue Literal(SpecialType specialType) {
+        return new EvaluatorValue() { kind = ValueKindExtensions.FromSpecialType(specialType), int64 = 0 };
+    }
+
     internal static EvaluatorValue Literal(object value, SpecialType specialType) {
         if (value is null)
             return Null;
 
         return specialType switch {
+            SpecialType.Int8 => new EvaluatorValue() { kind = ValueKind.Int8, int8 = Convert.ToSByte(value) },
+            SpecialType.Int16 => new EvaluatorValue() { kind = ValueKind.Int16, int16 = Convert.ToInt16(value) },
+            SpecialType.Int32 => new EvaluatorValue() { kind = ValueKind.Int32, int32 = Convert.ToInt32(value) },
+            SpecialType.Int64 => new EvaluatorValue() { kind = ValueKind.Int64, int64 = Convert.ToInt64(value) },
+            SpecialType.UInt8 => new EvaluatorValue() { kind = ValueKind.UInt8, uint8 = Convert.ToByte(value) },
+            SpecialType.UInt16 => new EvaluatorValue() { kind = ValueKind.UInt16, uint16 = Convert.ToUInt16(value) },
+            SpecialType.UInt32 => new EvaluatorValue() { kind = ValueKind.UInt32, uint32 = Convert.ToUInt32(value) },
+            SpecialType.UInt64 => new EvaluatorValue() { kind = ValueKind.UInt64, uint64 = Convert.ToUInt64(value) },
+            SpecialType.Float32 => new EvaluatorValue() { kind = ValueKind.Float32, @single = Convert.ToSingle(value) },
+            SpecialType.Float64 => new EvaluatorValue() { kind = ValueKind.Float64, @double = Convert.ToDouble(value) },
             SpecialType.Int => new EvaluatorValue() { kind = ValueKind.Int64, int64 = Convert.ToInt64(value) },
-            SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Double, @double = Convert.ToDouble(value) },
+            SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Float64, @double = Convert.ToDouble(value) },
             SpecialType.Bool => new EvaluatorValue() { kind = ValueKind.Bool, @bool = Convert.ToBoolean(value) },
             SpecialType.String => new EvaluatorValue() { kind = ValueKind.String, @string = Convert.ToString(value) },
             SpecialType.Char => new EvaluatorValue() { kind = ValueKind.Char, @char = Convert.ToChar(value) },
@@ -97,7 +135,7 @@ public struct EvaluatorValue {
     }
 
     internal static EvaluatorValue Literal(double value) {
-        return new EvaluatorValue() { kind = ValueKind.Double, @double = value };
+        return new EvaluatorValue() { kind = ValueKind.Float64, @double = value };
     }
 
     internal static EvaluatorValue Literal(long value) {
@@ -125,14 +163,30 @@ public struct EvaluatorValue {
         switch (value.kind) {
             case ValueKind.Null:
                 return null;
+            case ValueKind.Int8:
+                return value.int8;
+            case ValueKind.Int16:
+                return value.int16;
+            case ValueKind.Int32:
+                return value.int32;
             case ValueKind.Int64:
                 return value.int64;
+            case ValueKind.UInt8:
+                return value.uint8;
+            case ValueKind.UInt16:
+                return value.uint16;
+            case ValueKind.UInt32:
+                return value.uint32;
+            case ValueKind.UInt64:
+                return value.uint64;
+            case ValueKind.Float32:
+                return value.@single;
+            case ValueKind.Float64:
+                return value.@double;
             case ValueKind.Bool:
                 return value.@bool;
             case ValueKind.Char:
                 return value.@char;
-            case ValueKind.Double:
-                return value.@double;
             case ValueKind.String:
                 return value.@string;
             case ValueKind.Type:

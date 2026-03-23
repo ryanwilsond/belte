@@ -1658,6 +1658,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_VoidPtr, location, message);
     }
 
+    internal static BelteDiagnostic CannotConvertConstantValue(TextLocation location, object value, TypeSymbol type) {
+        var message = $"constant value '{value}' cannot be converted to '{type}'";
+        return CreateError(DiagnosticCode.ERR_CannotConvertConstantValue, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

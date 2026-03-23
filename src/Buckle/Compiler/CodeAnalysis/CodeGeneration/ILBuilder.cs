@@ -26,6 +26,8 @@ internal abstract class ILBuilder {
 
     internal abstract void Emit(OpCode opCode, double value);
 
+    internal abstract void Emit(OpCode opCode, float value);
+
     internal abstract void Emit(OpCode opCode, string value);
 
     internal abstract void EmitWithSymbolToken(OpCode opCode, TypeSymbol type);

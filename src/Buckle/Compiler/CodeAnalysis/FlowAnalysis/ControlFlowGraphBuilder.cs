@@ -169,16 +169,10 @@ again:
     private BoundExpression Negate(BoundExpression condition) {
         var syntax = condition.syntax;
 
-        if (ConstantValue.IsNull(condition.constantValue))
+        if (condition.constantValue is not null)
             return condition;
 
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
-
-        if (condition is BoundLiteralExpression literal) {
-            var value = (bool)literal.constantValue.value;
-            return new BoundLiteralExpression(syntax, new ConstantValue(value), boolType);
-        }
-
         var opKind = OverloadResolution.UnOpEasyOut.OpKind(UnaryOperatorKind.LogicalNegation, boolType);
 
         return new BoundUnaryOperator(syntax, condition, opKind, null, null, boolType);

@@ -19,6 +19,8 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
 
     internal override bool isSealed => false;
 
+    public override SpecialType specialType => SpecialType.Pointer;
+
     internal TypeWithAnnotations pointedAtTypeWithAnnotations { get; }
 
     internal TypeSymbol pointedAtType => pointedAtTypeWithAnnotations.type;

@@ -119,6 +119,10 @@ internal sealed class RefILBuilder : ILBuilder {
         Emit(ConvertToRef(opCode), value);
     }
 
+    internal override void Emit(CodeGeneration.OpCode opCode, float value) {
+        Emit(ConvertToRef(opCode), value);
+    }
+
     internal override void Emit(CodeGeneration.OpCode opCode, string value) {
         Emit(ConvertToRef(opCode), value);
     }
@@ -421,6 +425,11 @@ internal sealed class RefILBuilder : ILBuilder {
         _iLGenerator.Emit(opCode, value);
     }
 
+    private void Emit(System.Reflection.Emit.OpCode opCode, float value) {
+        Log(opCode, value);
+        _iLGenerator.Emit(opCode, value);
+    }
+
     private void Emit(System.Reflection.Emit.OpCode opCode, string value) {
         Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
@@ -517,15 +526,11 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Brfalse => OpCodes.Brfalse,
             CodeGeneration.OpCode.Ldelema => OpCodes.Ldelema,
             CodeGeneration.OpCode.Ldc_I4 => OpCodes.Ldc_I4,
-            CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
             CodeGeneration.OpCode.Ldsflda => OpCodes.Ldsflda,
             CodeGeneration.OpCode.Ldflda => OpCodes.Ldflda,
             CodeGeneration.OpCode.Ldfld => OpCodes.Ldfld,
             CodeGeneration.OpCode.Initobj => OpCodes.Initobj,
             CodeGeneration.OpCode.Ldnull => OpCodes.Ldnull,
-            CodeGeneration.OpCode.Conv_U => OpCodes.Conv_U,
-            CodeGeneration.OpCode.Conv_I8 => OpCodes.Conv_I8,
-            CodeGeneration.OpCode.Conv_U8 => OpCodes.Conv_U8,
             CodeGeneration.OpCode.Ldc_I8 => OpCodes.Ldc_I8,
             CodeGeneration.OpCode.Ldc_I4_S => OpCodes.Ldc_I4_S,
             CodeGeneration.OpCode.Ldc_I4_M1 => OpCodes.Ldc_I4_M1,
@@ -539,6 +544,7 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldc_I4_7 => OpCodes.Ldc_I4_7,
             CodeGeneration.OpCode.Ldc_I4_8 => OpCodes.Ldc_I4_8,
             CodeGeneration.OpCode.Ldc_R8 => OpCodes.Ldc_R8,
+            CodeGeneration.OpCode.Ldc_R4 => OpCodes.Ldc_R4,
             CodeGeneration.OpCode.Ldstr => OpCodes.Ldstr,
             CodeGeneration.OpCode.Beq => OpCodes.Beq,
             CodeGeneration.OpCode.Bne_Un => OpCodes.Bne_Un,
@@ -586,8 +592,20 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Dup => OpCodes.Dup,
             CodeGeneration.OpCode.Ldsfld => OpCodes.Ldsfld,
             CodeGeneration.OpCode.Unbox => OpCodes.Unbox,
-            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Conv_I => OpCodes.Conv_I,
+            CodeGeneration.OpCode.Conv_I1 => OpCodes.Conv_I1,
+            CodeGeneration.OpCode.Conv_I2 => OpCodes.Conv_I2,
+            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
+            CodeGeneration.OpCode.Conv_I8 => OpCodes.Conv_I8,
+            CodeGeneration.OpCode.Conv_U => OpCodes.Conv_U,
+            CodeGeneration.OpCode.Conv_U1 => OpCodes.Conv_U1,
             CodeGeneration.OpCode.Conv_U2 => OpCodes.Conv_U2,
+            CodeGeneration.OpCode.Conv_U4 => OpCodes.Conv_U4,
+            CodeGeneration.OpCode.Conv_U8 => OpCodes.Conv_U8,
+            CodeGeneration.OpCode.Conv_R4 => OpCodes.Conv_R4,
+            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
+            CodeGeneration.OpCode.Conv_R_Un => OpCodes.Conv_R_Un,
             CodeGeneration.OpCode.Castclass => OpCodes.Castclass,
             CodeGeneration.OpCode.Ldind_I => OpCodes.Ldind_I,
             CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
@@ -598,7 +616,6 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Box => OpCodes.Box,
             CodeGeneration.OpCode.Pop => OpCodes.Pop,
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
-            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
             _ => throw new NotImplementedException()

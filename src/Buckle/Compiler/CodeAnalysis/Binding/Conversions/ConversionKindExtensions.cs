@@ -14,6 +14,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitReference:
             case ConversionKind.ImplicitUserDefined:
             case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ImplicitNumeric:
             case ConversionKind.AnyBoxing:
                 return true;
             default:

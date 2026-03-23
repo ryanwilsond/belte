@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -52,12 +55,13 @@ internal static class ConstantFolding {
         var leftValue = left.value;
         var rightValue = right.value;
         var specialType = type.StrippedType().specialType;
+        var normalizedType = CodeGenerator.NormalizeNumericType(specialType);
 
         if (opKind is BinaryOperatorKind.Equal)
-            return new ConstantValue(Equals(leftValue, rightValue));
+            return new ConstantValue(Equals(leftValue, rightValue), SpecialType.Bool);
 
         if (opKind is BinaryOperatorKind.NotEqual)
-            return new ConstantValue(!Equals(leftValue, rightValue));
+            return new ConstantValue(!Equals(leftValue, rightValue), SpecialType.Bool);
 
         if (!LiteralUtilities.TryCast(leftValue, type, out leftValue) ||
             !LiteralUtilities.TryCast(rightValue, type, out rightValue)) {
@@ -66,91 +70,233 @@ internal static class ConstantFolding {
 
         switch (opKind) {
             case BinaryOperatorKind.Addition:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue + (long)rightValue, specialType);
-                else if (specialType == SpecialType.String)
-                    return new ConstantValue((string)leftValue + (string)rightValue, specialType);
-                else
-                    return new ConstantValue((double)leftValue + (double)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue + (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue + (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue + (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue + (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue + (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue + (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue + (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue + (ulong)rightValue, specialType),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue + (float)rightValue, specialType),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue + (double)rightValue, specialType),
+                    SpecialType.String => new ConstantValue((string)leftValue + (string)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Subtraction:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue - (long)rightValue, specialType);
-                else
-                    return new ConstantValue((double)leftValue - (double)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue - (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue - (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue - (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue - (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue - (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue - (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue - (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue - (ulong)rightValue, specialType),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue - (float)rightValue, specialType),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue - (double)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Multiplication:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue * (long)rightValue, specialType);
-                else
-                    return new ConstantValue((double)leftValue * (double)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue * (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue * (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue * (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue * (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue * (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue * (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue * (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue * (ulong)rightValue, specialType),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue * (float)rightValue, specialType),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue * (double)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Division:
-                if (specialType == SpecialType.Int) {
-                    if ((long)rightValue != 0)
-                        return new ConstantValue((long)leftValue / (long)rightValue, specialType);
-                } else {
-                    if ((double)rightValue != 0)
-                        return new ConstantValue((double)leftValue / (double)rightValue, specialType);
-                }
+                if (Convert.ToByte(rightValue) == 0)
+                    return null;
 
-                return null;
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue / (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue / (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue / (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue / (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue / (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue / (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue / (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue / (ulong)rightValue, specialType),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue / (float)rightValue, specialType),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue / (double)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Power:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)Math.Pow((long)leftValue, (long)rightValue), specialType);
-                else
-                    return new ConstantValue(Math.Pow((double)leftValue, (double)rightValue), specialType);
+                // TODO We should reconsider if we want to always expand to int64 here
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue(Convert.ToInt64(Math.Pow((sbyte)leftValue, (sbyte)rightValue)), specialType),
+                    SpecialType.Int16 => new ConstantValue(Convert.ToInt64(Math.Pow((short)leftValue, (short)rightValue)), specialType),
+                    SpecialType.Int32 => new ConstantValue(Convert.ToInt64(Math.Pow((int)leftValue, (int)rightValue)), specialType),
+                    SpecialType.Int64 => new ConstantValue(Convert.ToInt64(Math.Pow((long)leftValue, (long)rightValue)), specialType),
+                    SpecialType.UInt8 => new ConstantValue(Convert.ToInt64(Math.Pow((byte)leftValue, (byte)rightValue)), specialType),
+                    SpecialType.UInt16 => new ConstantValue(Convert.ToInt64(Math.Pow((ushort)leftValue, (ushort)rightValue)), specialType),
+                    SpecialType.UInt32 => new ConstantValue(Convert.ToInt64(Math.Pow((uint)leftValue, (uint)rightValue)), specialType),
+                    SpecialType.UInt64 => new ConstantValue(Convert.ToInt64(Math.Pow((ulong)leftValue, (ulong)rightValue)), specialType),
+                    SpecialType.Float32 => new ConstantValue(Math.Pow((float)leftValue, (float)rightValue), specialType),
+                    SpecialType.Float64 => new ConstantValue(Math.Pow((double)leftValue, (double)rightValue), specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.ConditionalAnd:
                 return new ConstantValue((bool)leftValue && (bool)rightValue, specialType);
             case BinaryOperatorKind.ConditionalOr:
                 return new ConstantValue((bool)leftValue || (bool)rightValue, specialType);
             case BinaryOperatorKind.Equal:
-                return new ConstantValue(Equals(leftValue, rightValue), specialType);
+                return new ConstantValue(Equals(leftValue, rightValue), SpecialType.Bool);
             case BinaryOperatorKind.NotEqual:
-                return new ConstantValue(!Equals(leftValue, rightValue), specialType);
+                return new ConstantValue(!Equals(leftValue, rightValue), SpecialType.Bool);
             case BinaryOperatorKind.LessThan:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue < (long)rightValue, SpecialType.Bool);
-                else
-                    return new ConstantValue((double)leftValue < (double)rightValue, SpecialType.Bool);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue < (sbyte)rightValue, SpecialType.Bool),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue < (short)rightValue, SpecialType.Bool),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue < (int)rightValue, SpecialType.Bool),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue < (long)rightValue, SpecialType.Bool),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue < (byte)rightValue, SpecialType.Bool),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue < (ushort)rightValue, SpecialType.Bool),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue < (uint)rightValue, SpecialType.Bool),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue < (ulong)rightValue, SpecialType.Bool),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue < (float)rightValue, SpecialType.Bool),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue < (double)rightValue, SpecialType.Bool),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.GreaterThan:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue > (long)rightValue, SpecialType.Bool);
-                else
-                    return new ConstantValue((double)leftValue > (double)rightValue, SpecialType.Bool);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue > (sbyte)rightValue, SpecialType.Bool),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue > (short)rightValue, SpecialType.Bool),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue > (int)rightValue, SpecialType.Bool),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue > (long)rightValue, SpecialType.Bool),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue > (byte)rightValue, SpecialType.Bool),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue > (ushort)rightValue, SpecialType.Bool),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue > (uint)rightValue, SpecialType.Bool),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue > (ulong)rightValue, SpecialType.Bool),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue > (float)rightValue, SpecialType.Bool),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue > (double)rightValue, SpecialType.Bool),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.LessThanOrEqual:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue <= (long)rightValue, SpecialType.Bool);
-                else
-                    return new ConstantValue((double)leftValue <= (double)rightValue, SpecialType.Bool);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue <= (sbyte)rightValue, SpecialType.Bool),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue <= (short)rightValue, SpecialType.Bool),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue <= (int)rightValue, SpecialType.Bool),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue <= (long)rightValue, SpecialType.Bool),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue <= (byte)rightValue, SpecialType.Bool),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue <= (ushort)rightValue, SpecialType.Bool),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue <= (uint)rightValue, SpecialType.Bool),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue <= (ulong)rightValue, SpecialType.Bool),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue <= (float)rightValue, SpecialType.Bool),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue <= (double)rightValue, SpecialType.Bool),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.GreaterThanOrEqual:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue >= (long)rightValue, SpecialType.Bool);
-                else
-                    return new ConstantValue((double)leftValue >= (double)rightValue, SpecialType.Bool);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue >= (sbyte)rightValue, SpecialType.Bool),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue >= (short)rightValue, SpecialType.Bool),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue >= (int)rightValue, SpecialType.Bool),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue >= (long)rightValue, SpecialType.Bool),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue >= (byte)rightValue, SpecialType.Bool),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue >= (ushort)rightValue, SpecialType.Bool),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue >= (uint)rightValue, SpecialType.Bool),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue >= (ulong)rightValue, SpecialType.Bool),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue >= (float)rightValue, SpecialType.Bool),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue >= (double)rightValue, SpecialType.Bool),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.And:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue & (long)rightValue, specialType);
-                else
-                    return new ConstantValue((bool)leftValue & (bool)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue & (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue & (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue & (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue & (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue & (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue & (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue & (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue & (ulong)rightValue, specialType),
+                    SpecialType.Bool => new ConstantValue((bool)leftValue & (bool)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Or:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue | (long)rightValue, specialType);
-                else
-                    return new ConstantValue((bool)leftValue | (bool)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue | (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue | (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue | (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue | (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue | (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue | (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue | (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue | (ulong)rightValue, specialType),
+                    SpecialType.Bool => new ConstantValue((bool)leftValue | (bool)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Xor:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue ^ (long)rightValue, specialType);
-                else
-                    return new ConstantValue((bool)leftValue ^ (bool)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue ^ (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue ^ (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue ^ (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue ^ (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue ^ (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue ^ (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue ^ (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue ^ (ulong)rightValue, specialType),
+                    SpecialType.Bool => new ConstantValue((bool)leftValue ^ (bool)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.LeftShift:
-                return new ConstantValue((long)leftValue << Convert.ToInt32(rightValue), specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue << (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue << (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue << (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue << Convert.ToInt32(rightValue), specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue << (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue << (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue << Convert.ToInt32(rightValue), specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue << Convert.ToInt32(rightValue), specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.RightShift:
-                return new ConstantValue((long)leftValue >> Convert.ToInt32(rightValue), specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue >> (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue >> (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue >> (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue >> Convert.ToInt32(rightValue), specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue >> (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue >> (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue >> Convert.ToInt32(rightValue), specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue >> Convert.ToInt32(rightValue), specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.UnsignedRightShift:
-                return new ConstantValue((long)leftValue >>> Convert.ToInt32(rightValue), specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue >>> (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue >>> (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue >>> (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue >>> Convert.ToInt32(rightValue), specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue >>> (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue >>> (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue >>> Convert.ToInt32(rightValue), specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue >>> Convert.ToInt32(rightValue), specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.Modulo:
-                if (specialType == SpecialType.Int)
-                    return new ConstantValue((long)leftValue % (long)rightValue, specialType);
-                else
-                    return new ConstantValue((double)leftValue % (double)rightValue, specialType);
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue((sbyte)leftValue % (sbyte)rightValue, specialType),
+                    SpecialType.Int16 => new ConstantValue((short)leftValue % (short)rightValue, specialType),
+                    SpecialType.Int32 => new ConstantValue((int)leftValue % (int)rightValue, specialType),
+                    SpecialType.Int64 => new ConstantValue((long)leftValue % (long)rightValue, specialType),
+                    SpecialType.UInt8 => new ConstantValue((byte)leftValue % (byte)rightValue, specialType),
+                    SpecialType.UInt16 => new ConstantValue((ushort)leftValue % (ushort)rightValue, specialType),
+                    SpecialType.UInt32 => new ConstantValue((uint)leftValue % (uint)rightValue, specialType),
+                    SpecialType.UInt64 => new ConstantValue((ulong)leftValue % (ulong)rightValue, specialType),
+                    SpecialType.Float32 => new ConstantValue((float)leftValue % (float)rightValue, specialType),
+                    SpecialType.Float64 => new ConstantValue((double)leftValue % (double)rightValue, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             default:
                 throw ExceptionUtilities.UnexpectedValue(opKind);
         }
@@ -209,7 +355,7 @@ internal static class ConstantFolding {
 
         opKind &= UnaryOperatorKind.OpMask;
 
-        var operandSpecialType = type.UnderlyingTemplateTypeOrSelf().specialType;
+        var operandSpecialType = CodeGenerator.NormalizeNumericType(type.UnderlyingTemplateTypeOrSelf().specialType);
 
         if (operand is null || opKind == UnaryOperatorKind.Error)
             return null;
@@ -224,14 +370,33 @@ internal static class ConstantFolding {
             case UnaryOperatorKind.UnaryPlus:
                 return operand;
             case UnaryOperatorKind.UnaryMinus:
-                if (operandSpecialType == SpecialType.Int)
-                    return new ConstantValue(-(long)operand.value, specialType);
-                else
-                    return new ConstantValue(-(double)operand.value, specialType);
+                return operandSpecialType switch {
+                    SpecialType.Int8 => new ConstantValue(-(sbyte)value, specialType),
+                    SpecialType.Int16 => new ConstantValue(-(short)value, specialType),
+                    SpecialType.Int32 => new ConstantValue(-(int)value, specialType),
+                    SpecialType.Int64 => new ConstantValue(-(long)value, specialType),
+                    SpecialType.UInt8 => new ConstantValue(-(byte)value, specialType),
+                    SpecialType.UInt16 => new ConstantValue(-(ushort)value, specialType),
+                    SpecialType.UInt32 => new ConstantValue(-(uint)value, specialType),
+                    SpecialType.UInt64 => new ConstantValue(-Convert.ToInt64(value), specialType),
+                    SpecialType.Float32 => new ConstantValue(-(float)value, specialType),
+                    SpecialType.Float64 => new ConstantValue(-(double)value, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case UnaryOperatorKind.LogicalNegation:
                 return new ConstantValue(!(bool)operand.value, specialType);
             case UnaryOperatorKind.BitwiseComplement:
-                return new ConstantValue(~(long)operand.value, specialType);
+                return operandSpecialType switch {
+                    SpecialType.Int8 => new ConstantValue(~(sbyte)value, specialType),
+                    SpecialType.Int16 => new ConstantValue(~(short)value, specialType),
+                    SpecialType.Int32 => new ConstantValue(~(int)value, specialType),
+                    SpecialType.Int64 => new ConstantValue(~(long)value, specialType),
+                    SpecialType.UInt8 => new ConstantValue(~(byte)value, specialType),
+                    SpecialType.UInt16 => new ConstantValue(~(ushort)value, specialType),
+                    SpecialType.UInt32 => new ConstantValue(~(uint)value, specialType),
+                    SpecialType.UInt64 => new ConstantValue(~(long)value, specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             default:
                 throw ExceptionUtilities.UnexpectedValue(opKind);
         }
@@ -280,11 +445,18 @@ internal static class ConstantFolding {
     /// <param name="expression">Expression operand.</param>
     /// <param name="type">Casting to type.</param>
     /// <returns><see cref="ConstantValue" />, returns null if folding is not possible.</returns>
-    internal static ConstantValue FoldCast(BoundExpression expression, TypeWithAnnotations type) {
-        return FoldCast(expression.constantValue, type);
+    internal static ConstantValue FoldCast(
+        BoundExpression expression,
+        TypeWithAnnotations type,
+        BelteDiagnosticQueue diagnostics) {
+        return FoldCast(expression.constantValue, expression.syntax.location, type, diagnostics);
     }
 
-    internal static ConstantValue FoldCast(ConstantValue expression, TypeWithAnnotations type) {
+    internal static ConstantValue FoldCast(
+        ConstantValue expression,
+        TextLocation location,
+        TypeWithAnnotations type,
+        BelteDiagnosticQueue diagnostics) {
         if (expression is null)
             return null;
 
@@ -297,8 +469,12 @@ internal static class ConstantFolding {
         if (specialType == SpecialType.Any)
             return expression;
 
-        if (LiteralUtilities.TryCast(expression.value, type, out var castedValue))
-            return new ConstantValue(castedValue, specialType);
+        try {
+            if (LiteralUtilities.TryCast(expression.value, type, out var castedValue))
+                return new ConstantValue(castedValue, specialType);
+        } catch (OverflowException) {
+            diagnostics.Push(Error.CannotConvertConstantValue(location, expression.value, type.type));
+        }
 
         return null;
     }

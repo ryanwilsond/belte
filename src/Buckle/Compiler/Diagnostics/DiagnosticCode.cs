@@ -352,6 +352,7 @@ public enum DiagnosticCode : ushort {
     ERR_InvalidAddrOp = 341,
     ERR_PtrExpected = 342,
     ERR_VoidPtr = 343,
+    ERR_CannotConvertConstantValue = 344,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

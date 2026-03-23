@@ -3576,6 +3576,7 @@ internal partial class Binder {
         var type = (ArrayTypeSymbol)BindArrayType(node.type, diagnostics, true, null).type;
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
         var hasErrors = false;
+        var indexType = CorLibrary.GetSpecialType(SpecialType.Int);
 
         for (var i = 0; i < type.rank; i++) {
             var rankSpecifier = node.type.rankSpecifiers[i];
@@ -3583,9 +3584,12 @@ internal partial class Binder {
 
             if (size is not null) {
                 var boundSize = BindExpression(size, diagnostics);
+                var sizeConversion = conversions.ClassifyImplicitConversionFromExpression(boundSize, indexType);
 
-                if (boundSize.Type().specialType != SpecialType.Int)
+                if (!sizeConversion.exists)
                     diagnostics.Push(Error.NonIntArraySize(rankSpecifier.location));
+                else
+                    boundSize = CreateConversion(boundSize, sizeConversion, indexType, diagnostics);
 
                 sizes.Add(boundSize);
             } else if (node.initializer is null && i == 0) {
@@ -6316,7 +6320,7 @@ internal partial class Binder {
         if (argumentSyntax is OmittedArgumentSyntax omitted) {
             refKind = RefKind.None;
             identifier = null;
-            boundArgument = new BoundLiteralExpression(omitted, new ConstantValue(null), null);
+            boundArgument = new BoundLiteralExpression(omitted, ConstantValue.Null, null);
         } else if (argumentSyntax is ArgumentSyntax normal) {
             refKind = normal.refKeyword is null ? RefKind.None : RefKind.Ref;
             identifier = normal.identifier;
@@ -6452,10 +6456,40 @@ internal partial class Binder {
         if (value is null)
             return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
 
+        value = LiteralUtilities.ReduceNumeric(value);
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         var constantValue = new ConstantValue(value, specialType);
         var type = CorLibrary.GetSpecialType(specialType);
-        return new BoundLiteralExpression(node, constantValue, type);
+        var literal = new BoundLiteralExpression(node, constantValue, type);
+
+        // TODO We do this right now to ensure perfect parity with the older compiler with only 1 int/float type
+        return ExpandLiteralToLargerNumeric(literal);
+    }
+
+    private BoundLiteralExpression ExpandLiteralToLargerNumeric(BoundLiteralExpression node) {
+        var specialType = CodeGenerator.NormalizeNumericType(node.Type().specialType);
+
+        switch (specialType) {
+            case SpecialType.Int64:
+            case SpecialType.Float64:
+                return node;
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+                return BoundFactory.Literal(
+                    node.syntax,
+                    Convert.ToInt64(node.constantValue.value),
+                    CorLibrary.GetSpecialType(SpecialType.Int)
+                );
+            case SpecialType.Float32:
+                return BoundFactory.Literal(
+                    node.syntax,
+                    Convert.ToDouble(node.constantValue.value),
+                    CorLibrary.GetSpecialType(SpecialType.Decimal)
+                );
+            default:
+                return node;
+        }
     }
 
     private BoundThisExpression BindThisExpression(ThisExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -7176,8 +7210,9 @@ internal partial class Binder {
         BoundExpression resultRight,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        if (resultRight.constantValue?.specialType == SpecialType.Int &&
-            (long)resultRight.constantValue.value == 0 &&
+        if (resultRight.constantValue is not null &&
+            resultRight.constantValue.specialType.IsNumeric() &&
+            Convert.ToDouble(resultRight.constantValue.value) == 0 &&
             resultOperatorKind.Operator() == BinaryOperatorKind.Division) {
             diagnostics.Push(Error.DivideByZero(location));
             return null;
@@ -9587,6 +9622,11 @@ symIsHidden:;
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
+                    if (initializer.kind == BoundKind.LiteralExpression && initializer.Type().specialType.IsNumeric()) {
+                        initializer = ExpandLiteralToLargerNumeric((BoundLiteralExpression)initializer);
+                        declarationType = new TypeWithAnnotations(initializer.Type());
+                    }
+
                     if (!initializer.type.IsStructType() && (initializer.kind == BoundKind.ObjectCreationExpression ||
                         initializer.constantValue is not null)) {
                         declarationType = declarationType.SetIsAnnotated();
@@ -9613,7 +9653,7 @@ symIsHidden:;
                 if (declarationType.IsNullableType() || declarationType.IsVoidType()) {
                     initializer = new BoundLiteralExpression(
                         declaration,
-                        new ConstantValue(null),
+                        ConstantValue.Null,
                         declarationType.type
                     );
                 } else {
@@ -10472,7 +10512,7 @@ symIsHidden:;
         }
 
         var constantValue = conversion.method is null
-            ? ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination))
+            ? ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination), diagnostics)
             : null;
 
         if (conversion.method is not null) {

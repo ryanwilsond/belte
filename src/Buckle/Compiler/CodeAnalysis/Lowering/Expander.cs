@@ -485,7 +485,7 @@ internal sealed class Expander : BoundTreeExpander {
             HasValue(syntax, receiverLocal),
             false,
             newAccess,
-            new BoundLiteralExpression(syntax, new ConstantValue(null), access.Type()),
+            new BoundLiteralExpression(syntax, ConstantValue.Null, access.Type()),
             null,
             access.Type()
         );

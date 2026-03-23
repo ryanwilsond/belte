@@ -148,9 +148,11 @@ internal static class OperatorFacts {
 
     internal static UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
         var opType = kind.OperandTypes() switch {
-            UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int),
+            UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
+            UnaryOperatorKind.UInt => CorLibrary.GetSpecialType(SpecialType.UInt64),
             UnaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-            UnaryOperatorKind.Decimal => CorLibrary.GetSpecialType(SpecialType.Decimal),
+            UnaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
+            UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
             UnaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
             _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
         };
@@ -161,10 +163,12 @@ internal static class OperatorFacts {
         return new UnaryOperatorSignature(kind, opType, opType);
     }
 
-    private static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
+    internal static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
         var type = kind.OperandTypes() switch {
-            BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int),
-            BinaryOperatorKind.Decimal => CorLibrary.GetSpecialType(SpecialType.Decimal),
+            BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
+            BinaryOperatorKind.UInt => CorLibrary.GetSpecialType(SpecialType.UInt64),
+            BinaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
+            BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
             BinaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
             BinaryOperatorKind.Object => CorLibrary.GetSpecialType(SpecialType.Object),
             BinaryOperatorKind.String => CorLibrary.GetSpecialType(SpecialType.String),

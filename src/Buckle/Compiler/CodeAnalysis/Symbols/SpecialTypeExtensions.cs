@@ -12,6 +12,18 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Type:
             case SpecialType.Char:
             case SpecialType.Array:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
                 return true;
             default:
                 return false;
@@ -35,6 +47,11 @@ internal static class SpecialTypeExtensions {
     internal static bool IsUnsigned(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Char:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.UIntPtr:
                 return true;
             default:
                 return false;
@@ -45,21 +62,43 @@ internal static class SpecialTypeExtensions {
         if (value is null)
             return SpecialType.None;
 
-        if (value.GetType() == typeof(long))
-            return SpecialType.Int;
+        return value switch {
+            sbyte => SpecialType.Int8,
+            byte => SpecialType.UInt8,
+            short => SpecialType.Int16,
+            ushort => SpecialType.UInt16,
+            int => SpecialType.Int32,
+            uint => SpecialType.UInt32,
+            long => SpecialType.Int64,
+            ulong => SpecialType.UInt64,
+            float => SpecialType.Float32,
+            double => SpecialType.Float64,
+            string => SpecialType.String,
+            bool => SpecialType.Bool,
+            char => SpecialType.Char,
+            TypeSymbol => SpecialType.Type,
+            _ => SpecialType.None,
+        };
+    }
 
-        if (value.GetType() == typeof(string))
-            return SpecialType.String;
-
-        if (value.GetType() == typeof(bool))
-            return SpecialType.Bool;
-
-        if (value.GetType() == typeof(char))
-            return SpecialType.Char;
-
-        if (value.GetType() == typeof(double))
-            return SpecialType.Decimal;
-
-        return SpecialType.None;
+    internal static bool IsNumeric(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Char:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+                return true;
+            default:
+                return false;
+        }
     }
 }

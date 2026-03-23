@@ -317,7 +317,7 @@ public sealed partial class Compilation {
         }
 
         var evaluator = new Evaluator(program, context, options.arguments);
-        var evalResult = evaluator.Evaluate(abort, out var hasValue);
+        var evalResult = evaluator.Evaluate(abort, out var hasValue, out var resultType);
 
         Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
@@ -327,6 +327,7 @@ public sealed partial class Compilation {
         if (rollingResult is null) {
             rollingResult = new EvaluationResult(
                 evalResult,
+                resultType,
                 hasValue,
                 diagnostics,
                 evaluator.exceptions,
@@ -337,6 +338,7 @@ public sealed partial class Compilation {
         } else {
             rollingResult.Update(
                 evalResult,
+                resultType,
                 hasValue,
                 diagnostics,
                 evaluator.exceptions,

@@ -15,7 +15,7 @@ internal static partial class BoundFactory {
         if (type is not null)
             return new BoundLiteralExpression(syntax, new ConstantValue(value, type.StrippedType().specialType), type);
 
-        var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
+        var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         return new BoundLiteralExpression(
             syntax,
             new ConstantValue(value, specialType),

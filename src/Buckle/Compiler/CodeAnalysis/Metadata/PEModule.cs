@@ -1054,42 +1054,42 @@ internal sealed partial class PEModule : IDisposable {
             return null;
         }
     }
+
     private ConstantValue GetConstantValueOrThrow(ConstantHandle handle) {
         var constantRow = metadataReader.GetConstant(handle);
         var reader = metadataReader.GetBlobReader(constantRow.Value);
 
         switch (constantRow.TypeCode) {
             case ConstantTypeCode.Boolean:
-                return new ConstantValue(reader.ReadBoolean());
+                return new ConstantValue(reader.ReadBoolean(), SpecialType.Bool);
             case ConstantTypeCode.Char:
-                return new ConstantValue(reader.ReadChar());
+                return new ConstantValue(reader.ReadChar(), SpecialType.Char);
             case ConstantTypeCode.SByte:
-                return new ConstantValue(reader.ReadSByte());
+                return new ConstantValue(reader.ReadSByte(), SpecialType.Int8);
             case ConstantTypeCode.Int16:
-                return new ConstantValue(reader.ReadInt16());
+                return new ConstantValue(reader.ReadInt16(), SpecialType.Int16);
             case ConstantTypeCode.Int32:
-                return new ConstantValue(reader.ReadInt32());
+                return new ConstantValue(reader.ReadInt32(), SpecialType.Int32);
             case ConstantTypeCode.Int64:
-                return new ConstantValue(reader.ReadInt64());
+                return new ConstantValue(reader.ReadInt64(), SpecialType.Int64);
             case ConstantTypeCode.Byte:
-                return new ConstantValue(reader.ReadByte());
+                return new ConstantValue(reader.ReadByte(), SpecialType.UInt8);
             case ConstantTypeCode.UInt16:
-                return new ConstantValue(reader.ReadUInt16());
+                return new ConstantValue(reader.ReadUInt16(), SpecialType.UInt16);
             case ConstantTypeCode.UInt32:
-                return new ConstantValue(reader.ReadUInt32());
+                return new ConstantValue(reader.ReadUInt32(), SpecialType.UInt32);
             case ConstantTypeCode.UInt64:
-                return new ConstantValue(reader.ReadUInt64());
+                return new ConstantValue(reader.ReadUInt64(), SpecialType.UInt64);
             case ConstantTypeCode.Single:
-                return new ConstantValue(reader.ReadSingle());
+                return new ConstantValue(reader.ReadSingle(), SpecialType.Float32);
             case ConstantTypeCode.Double:
-                return new ConstantValue(reader.ReadDouble());
+                return new ConstantValue(reader.ReadDouble(), SpecialType.Float64);
             case ConstantTypeCode.String:
-                return new ConstantValue(reader.ReadUTF16(reader.Length));
+                return new ConstantValue(reader.ReadUTF16(reader.Length), SpecialType.String);
             case ConstantTypeCode.NullReference:
                 if (reader.ReadUInt32() == 0) {
                     // TODO Correct equivalency?
-                    // return ConstantValue.Null;
-                    return new ConstantValue(null);
+                    return ConstantValue.Null;
                 }
 
                 break;

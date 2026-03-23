@@ -328,7 +328,7 @@ public sealed class DisplayText {
             return;
         }
 
-        var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
+        var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
 
         if (specialType == SpecialType.String)
             DisplayStringLiteral(value.ToString(), false);

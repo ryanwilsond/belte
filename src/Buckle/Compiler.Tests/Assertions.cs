@@ -55,6 +55,10 @@ internal static class Assertions {
             expectedValue = Convert.ToDouble(expectedValue);
         else if (evalResult.value is long && Convert.ToInt64(expectedValue).CompareTo(evalResult.value) == 0)
             expectedValue = Convert.ToInt64(expectedValue);
+        else if (evalResult.value is short && Convert.ToInt16(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToInt16(expectedValue);
+        else if (evalResult.value is sbyte && Convert.ToSByte(expectedValue).CompareTo(evalResult.value) == 0)
+            expectedValue = Convert.ToSByte(expectedValue);
 
         Assert.Empty(evalResult.diagnostics.Errors().ToArray());
         Assert.Equal(expectedValue, evalResult.value);
