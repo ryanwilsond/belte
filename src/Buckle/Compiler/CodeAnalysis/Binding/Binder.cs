@@ -554,7 +554,10 @@ internal partial class Binder {
                 }
             case SyntaxKind.PointerType: {
                     var node = (PointerTypeSyntax)syntax;
-                    var elementType = BindType(node.elementType, diagnostics, basesBeingResolved);
+
+                    var elementType = new TypeWithAnnotations(BindType(node.elementType, diagnostics, basesBeingResolved)
+                        .nullableUnderlyingTypeOrSelf);
+
                     return new TypeWithAnnotations(new PointerTypeSymbol(elementType));
                 }
             case SyntaxKind.FunctionPointerType:
@@ -9764,7 +9767,9 @@ symIsHidden:;
                     hasErrors = true;
                 } else {
                     if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
-                        if (!initializer.type.IsStructType() && (initializer.kind == BoundKind.ObjectCreationExpression ||
+                        if (!initializer.type.IsStructType() && initializer.type.typeKind != TypeKind.FunctionPointer &&
+                            initializer.type.typeKind != TypeKind.Pointer &&
+                            (initializer.kind == BoundKind.ObjectCreationExpression ||
                             initializer.constantValue is not null)) {
                             declarationType = declarationType.SetIsAnnotated();
                             initializer = GenerateConversionForAssignment(declarationType.type, initializer, diagnostics);

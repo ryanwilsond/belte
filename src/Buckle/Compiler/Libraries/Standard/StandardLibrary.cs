@@ -184,6 +184,30 @@ internal static class StandardLibrary {
             CodeAnalysis.DeclarationModifiers.Static
         );
 
+        var createCharPtrString =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "CreateCharPtrString",
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+            null,
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
+        );
+
+        var freeCharPtrString =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "FreeCharPtrString",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "str")]
+        );
+
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
@@ -191,6 +215,8 @@ internal static class StandardLibrary {
             sort,
             sizeOf,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
+            createCharPtrString,
+            freeCharPtrString
         ]);
     }
 

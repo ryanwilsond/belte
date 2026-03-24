@@ -7,4 +7,10 @@ public static class LowLevel {
     public static int! Length<type T>(T! array);
 
     public static void Sort<type T>(T! array);
+
+    public static int32! SizeOf<type T>();
+
+    public static char* CreateCharPtrString(string! str);
+
+    public static void FreeCharPtrString(char* str);
 }

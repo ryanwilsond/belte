@@ -344,12 +344,11 @@ internal sealed class RefILBuilder : ILBuilder {
         SynthesizedLocalKind kind,
         LocalSlotConstraints constraints,
         bool isSlotReusable) {
-        var typeBuilder = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+        var typeBuilder = (type.typeKind == TypeKind.FunctionPointer)
+            ? typeof(IntPtr)
+            : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+
         LogLocal(typeBuilder);
-
-        if (type.typeKind == TypeKind.FunctionPointer)
-            typeBuilder = typeof(IntPtr);
-
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
 
         return _localSlotManager.DeclareLocal(localBuilder, type, symbol, name, kind, constraints, isSlotReusable);

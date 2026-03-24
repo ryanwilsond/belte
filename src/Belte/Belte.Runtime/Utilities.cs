@@ -45,4 +45,12 @@ public static class Utilities {
     public static string[] Split(string text, string separator) {
         return text.Split(separator);
     }
+
+    public unsafe static char* CreateCharPtrString(string str) {
+        return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(str);
+    }
+
+    public unsafe static void FreeCharPtrString(char* str) {
+        System.Runtime.InteropServices.Marshal.FreeHGlobal((IntPtr)str);
+    }
 }

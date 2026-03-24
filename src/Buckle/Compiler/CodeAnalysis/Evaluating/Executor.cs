@@ -217,15 +217,16 @@ internal sealed partial class Executor : ModuleBuilder {
                 return elementType.MakePointerType();
             }
 
-            if (type is FunctionPointerTypeSymbol functionPointer) {
-                var args = functionPointer.signature.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
+            if (type is FunctionPointerTypeSymbol) {
+                throw ExceptionUtilities.Unreachable();
+                // var args = functionPointer.signature.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
 
-                if (functionPointer.signature.returnsVoid) {
-                    return args.MakeGenericManagedCallVoidFunctionPointerType();
-                } else {
-                    var returnType = GetType(functionPointer.signature.returnType);
-                    return (returnType, args).MakeGenericManagedCallFunctionPointerType();
-                }
+                // if (functionPointer.signature.returnsVoid) {
+                //     return args.MakeGenericManagedCallVoidFunctionPointerType();
+                // } else {
+                //     var returnType = GetType(functionPointer.signature.returnType);
+                //     return (returnType, args).MakeGenericManagedCallFunctionPointerType();
+                // }
             }
 
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
@@ -575,10 +576,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
-                var fieldType = GetType(f.type, f.refKind != RefKind.None);
-
-                if (f.type.typeKind == TypeKind.FunctionPointer)
-                    fieldType = typeof(IntPtr);
+                var fieldType = (f.type.typeKind == TypeKind.FunctionPointer)
+                    ? typeof(IntPtr)
+                    : GetType(f.type, f.refKind != RefKind.None);
 
                 var fieldBuilder = typeBuilder.DefineField(
                     f.name,
@@ -1005,6 +1005,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
+            { "LowLevel_CreateCharPtrString_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateCharPtrString", Flags, [typeof(string)]) },
+            { "LowLevel_FreeCharPtrString_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeCharPtrString", Flags, [typeof(char*)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },
