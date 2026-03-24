@@ -249,12 +249,28 @@ internal abstract class BoundTreeExpander {
             BoundKind.NamespaceExpression => ExpandNamespaceExpression((BoundNamespaceExpression)expression, out replacement),
             BoundKind.ParameterExpression => ExpandParameterExpression((BoundParameterExpression)expression, out replacement),
             BoundKind.MethodGroup => ExpandMethodGroup((BoundMethodGroup)expression, out replacement),
+            BoundKind.FunctionPointerLoad => ExpandFunctionPointerLoad((BoundFunctionPointerLoad)expression, out replacement),
+            BoundKind.FunctionPointerCallExpression => ExpandFunctionPointerCallExpression((BoundFunctionPointerCallExpression)expression, out replacement),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
 
     private protected virtual List<BoundStatement> ExpandMethodGroup(
         BoundMethodGroup expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandFunctionPointerLoad(
+        BoundFunctionPointerLoad expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandFunctionPointerCallExpression(
+        BoundFunctionPointerCallExpression expression,
         out BoundExpression replacement) {
         replacement = expression;
         return [];

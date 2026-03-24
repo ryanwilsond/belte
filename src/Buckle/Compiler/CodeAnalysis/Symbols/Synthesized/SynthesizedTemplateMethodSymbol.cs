@@ -60,6 +60,8 @@ internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
 
     internal override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
 
+    internal override bool isExtern => (_modifiers & DeclarationModifiers.Extern) != 0;
+
     internal override Accessibility declaredAccessibility => Accessibility.Public;
 
     internal override bool isDeclaredConst => false;
@@ -80,5 +82,9 @@ internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override DllImportData GetDllImportData() {
+        return null;
     }
 }

@@ -45,6 +45,15 @@ internal static class SyntaxNodeExtensions {
                     var referenceTypeSyntax = (ReferenceTypeSyntax)type;
                     stack.Push(referenceTypeSyntax.type);
                     break;
+                case SyntaxKind.FunctionPointerType:
+                    var functionPointerTypeSyntax = (FunctionPointerSyntax)type;
+
+                    for (var i = functionPointerTypeSyntax.parameterList.parameters.Count - 1; i >= 0; i--) {
+                        var paramType = functionPointerTypeSyntax.parameterList.parameters[i].type;
+                        stack.Push(paramType);
+                    }
+
+                    break;
                 case SyntaxKind.TemplateName:
                     var templateNameSyntax = (TemplateNameSyntax)type;
 

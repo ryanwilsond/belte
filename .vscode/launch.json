@@ -10,6 +10,8 @@
             "args": [
                 "-r",
                 "--clearsubmissions",
+                // "samples/Win32",
+                // "--verbose"
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

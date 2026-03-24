@@ -46,6 +46,13 @@ internal static class AccessCheck {
                     null,
                     out failedThroughTypeCheck
                 );
+            case SymbolKind.PointerType:
+                return IsSymbolAccessibleCore(
+                    ((PointerTypeSymbol)symbol).pointedAtType,
+                    within,
+                    null,
+                    out failedThroughTypeCheck
+                );
             case SymbolKind.NamedType:
                 return IsNamedTypeAccessible((NamedTypeSymbol)symbol, within);
             case SymbolKind.Local:

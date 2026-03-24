@@ -20,9 +20,8 @@
   </Node>
   <Node Name="AttributeSyntax" Base="SyntaxNode">
     <Kind Name="Attribute"/>
-    <Field Name="identifier" Type="SyntaxToken">
-      <Kind Name="IdentifierToken"/>
-    </Field>
+    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="argumentList" Type="ArgumentListSyntax" Optional="true"/>
   </Node>
   <Node Name="NameEqualsSyntax" Base="SyntaxNode">
     <Kind Name="NameEquals"/>
@@ -273,9 +272,13 @@
   <Node Name="PointerTypeSyntax" Base="TypeSyntax">
     <Kind Name="PointerType"/>
     <Field Name="elementType" Type="TypeSyntax"/>
-    <Field Name="asterisk" Type="SyntaxToken">
-      <Kind Name="AsteriskToken"/>
-    </Field>
+    <Field Name="asterisk" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="FunctionPointerSyntax" Base="TypeSyntax">
+    <Kind Name="FunctionPointerType"/>
+    <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="asterisk" Type="SyntaxToken"/>
   </Node>
   <Node Name="ReferenceTypeSyntax" Base="TypeSyntax">
     <Kind Name="ReferenceType"/>
@@ -365,6 +368,7 @@
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
+    <Field Name="argumentList" Type="BracketedArgumentListSyntax" Optional="true"/>
     <Field Name="initializer" Type="EqualsValueClauseSyntax" Optional="true"/>
   </Node>
   <Node Name="EqualsValueClauseSyntax" Base="SyntaxNode">

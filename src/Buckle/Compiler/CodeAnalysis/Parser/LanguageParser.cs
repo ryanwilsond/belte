@@ -196,11 +196,33 @@ internal sealed partial class LanguageParser : SyntaxParser {
             finalOffset++;
         }
 
+        if (Peek(finalOffset).kind == SyntaxKind.OpenParenToken) {
+            var parenthesisStack = 0;
+            var parenOffset = finalOffset;
+
+            while (Peek(parenOffset).kind != SyntaxKind.EndOfFileToken) {
+                if (Peek(parenOffset).kind == SyntaxKind.OpenParenToken)
+                    parenthesisStack++;
+                else if (Peek(parenOffset).kind == SyntaxKind.CloseParenToken)
+                    parenthesisStack--;
+
+                if (Peek(parenOffset).kind == SyntaxKind.CloseParenToken && parenthesisStack == 0) {
+                    parenOffset++;
+                    break;
+                } else {
+                    parenOffset++;
+                }
+            }
+
+            if (Peek(parenOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
+                finalOffset = parenOffset;
+        }
+
+        while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
+            finalOffset++;
+
         var hasBrackets = false;
         var bracketsBeenClosed = true;
-
-        if (Peek(finalOffset).kind is SyntaxKind.AsteriskToken)
-            finalOffset++;
 
         if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
             finalOffset++;
@@ -757,6 +779,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.OverrideKeyword => DeclarationModifiers.Override,
             SyntaxKind.NewKeyword => DeclarationModifiers.New,
             SyntaxKind.RefKeyword => DeclarationModifiers.Ref,
+            SyntaxKind.ExternKeyword => DeclarationModifiers.Extern,
             _ => DeclarationModifiers.None,
         };
     }
@@ -920,13 +943,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private VariableDeclarationSyntax ParseVariableDeclaration() {
         var inStruct = (_context & ParserContext.InStructDefinition) != 0;
-        var type = ParseType();
+        var type = ParseType(allowArraySize: true);
         var identifier = Match(SyntaxKind.IdentifierToken);
+        BracketedArgumentListSyntax argumentList = null;
+
+        if (currentToken.kind == SyntaxKind.OpenBracketToken)
+            argumentList = ParseBracketedArgumentList();
+
         var initializer = currentToken.kind == SyntaxKind.EqualsToken
             ? ParseEqualsValueClause(inStruct)
             : null;
 
-        return SyntaxFactory.VariableDeclaration(type, identifier, initializer);
+        return SyntaxFactory.VariableDeclaration(type, identifier, argumentList, initializer);
     }
 
     private EqualsValueClauseSyntax ParseEqualsValueClause(bool inStruct) {
@@ -1773,8 +1801,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private AttributeSyntax ParseAttribute() {
-        var identifier = Match(SyntaxKind.IdentifierToken);
-        return SyntaxFactory.Attribute(identifier);
+        var name = ParseQualifiedName();
+        var arguments = ParseArgumentList();
+        return SyntaxFactory.Attribute(name, arguments);
     }
 
     private ExpressionSyntax ParseNullLiteral() {
@@ -1914,6 +1943,38 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 case SyntaxKind.AsteriskToken:
                     var asteriskToken = EatToken();
                     type = SyntaxFactory.PointerType(type, asteriskToken);
+                    continue;
+                case SyntaxKind.AsteriskAsteriskToken:
+                    EatToken();
+                    type = SyntaxFactory.PointerType(type, SyntaxFactory.Token(SyntaxKind.AsteriskToken));
+                    type = SyntaxFactory.PointerType(type, SyntaxFactory.Token(SyntaxKind.AsteriskToken));
+                    continue;
+                case SyntaxKind.OpenParenToken: {
+                        var parenthesisStack = 0;
+                        var parenOffset = 0;
+
+                        while (Peek(parenOffset).kind != SyntaxKind.EndOfFileToken) {
+                            if (Peek(parenOffset).kind == SyntaxKind.OpenParenToken)
+                                parenthesisStack++;
+                            else if (Peek(parenOffset).kind == SyntaxKind.CloseParenToken)
+                                parenthesisStack--;
+
+                            if (Peek(parenOffset).kind == SyntaxKind.CloseParenToken && parenthesisStack == 0) {
+                                parenOffset++;
+                                break;
+                            } else {
+                                parenOffset++;
+                            }
+                        }
+
+                        if (Peek(parenOffset).kind is not SyntaxKind.AsteriskToken)
+                            continue;
+
+                        var paramList = ParseParameterList();
+                        var asterisk = Match(SyntaxKind.AsteriskToken);
+                        type = SyntaxFactory.FunctionPointer(type, paramList, asterisk);
+                    }
+
                     continue;
             }
         }

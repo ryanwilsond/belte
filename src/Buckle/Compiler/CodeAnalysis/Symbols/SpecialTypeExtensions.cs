@@ -103,4 +103,41 @@ internal static class SpecialTypeExtensions {
                 return false;
         }
     }
+
+    internal static int FixedBufferElementSizeInBytes(this SpecialType specialType) {
+        return specialType.SizeInBytes();
+    }
+
+    internal static int SizeInBytes(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Int8:
+                return sizeof(sbyte);
+            case SpecialType.UInt8:
+                return sizeof(byte);
+            case SpecialType.Int16:
+                return sizeof(short);
+            case SpecialType.UInt16:
+                return sizeof(ushort);
+            case SpecialType.Int32:
+                return sizeof(int);
+            case SpecialType.UInt32:
+                return sizeof(uint);
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return sizeof(long);
+            case SpecialType.UInt64:
+                return sizeof(ulong);
+            case SpecialType.Char:
+                return sizeof(char);
+            case SpecialType.Float32:
+                return sizeof(float);
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return sizeof(double);
+            case SpecialType.Bool:
+                return sizeof(bool);
+            default:
+                return 0;
+        }
+    }
 }

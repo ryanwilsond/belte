@@ -85,12 +85,81 @@ internal static class TypeWithAnnotationsExtensions {
                 case TypeKind.Pointer:
                     next = ((PointerTypeSymbol)current).pointedAtTypeWithAnnotations;
                     break;
+                case TypeKind.FunctionPointer: {
+                        var result = VisitFunctionPointerType(
+                            (FunctionPointerTypeSymbol)current,
+                            typeWithAnnotationsPredicate,
+                            typePredicate,
+                            arg,
+                            canDigThroughNullable,
+                            out next
+                        );
+
+                        if (result is object)
+                            return result;
+
+                        break;
+                    }
                 default:
                     throw ExceptionUtilities.UnexpectedValue(current.typeKind);
             }
 
             typeWithAnnotationsOpt = canDigThroughNullable ? null : next;
             type = canDigThroughNullable ? next.nullableUnderlyingTypeOrSelf : null;
+
+            static TypeSymbol VisitFunctionPointerType(
+                FunctionPointerTypeSymbol type,
+                Func<TypeWithAnnotations, T, bool, bool>? typeWithAnnotationsPredicate,
+                Func<TypeSymbol, T, bool, bool>? typePredicate,
+                T arg,
+                bool canDigThroughNullable,
+                out TypeWithAnnotations next) {
+                MethodSymbol currentPointer = type.signature;
+
+                if (currentPointer.parameterCount == 0) {
+                    next = currentPointer.returnTypeWithAnnotations;
+                    return null;
+                }
+
+                var result = VisitType(
+                    typeWithAnnotationsOpt: canDigThroughNullable ? default : currentPointer.returnTypeWithAnnotations,
+                    type: canDigThroughNullable ? currentPointer.returnTypeWithAnnotations.nullableUnderlyingTypeOrSelf : null,
+                    typeWithAnnotationsPredicate,
+                    typePredicate,
+                    arg,
+                    canDigThroughNullable
+                );
+
+                if (result is not null) {
+                    next = default;
+                    return result;
+                }
+
+                int i;
+                for (i = 0; i < currentPointer.parameterCount - 1; i++) {
+                    (var nextTypeWithAnnotations, var nextType) = GetNextIterationElements(
+                        currentPointer.parameters[i].typeWithAnnotations,
+                        canDigThroughNullable
+                    );
+
+                    result = VisitType(
+                        typeWithAnnotationsOpt: nextTypeWithAnnotations,
+                        type: nextType,
+                        typeWithAnnotationsPredicate,
+                        typePredicate,
+                        arg,
+                        canDigThroughNullable
+                    );
+
+                    if (result is not null) {
+                        next = default;
+                        return result;
+                    }
+                }
+
+                next = currentPointer.parameters[i].typeWithAnnotations;
+                return null;
+            }
         }
 
         static (TypeWithAnnotations, TypeSymbol) GetNextIterationElements(

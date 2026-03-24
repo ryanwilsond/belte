@@ -44,6 +44,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override bool isSealed => underlyingMethod.isSealed;
 
+    internal override bool isExtern => underlyingMethod.isExtern;
+
     internal override bool isImplicitlyDeclared => underlyingMethod.isImplicitlyDeclared;
 
     internal override bool hasSpecialName => underlyingMethod.hasSpecialName;
@@ -58,4 +60,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override bool IsMetadataVirtual(bool forceComplete = false)
         => underlyingMethod.IsMetadataVirtual(forceComplete);
+
+    internal override DllImportData GetDllImportData() {
+        return underlyingMethod.GetDllImportData();
+    }
 }

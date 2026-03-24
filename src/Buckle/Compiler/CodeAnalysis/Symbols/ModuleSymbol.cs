@@ -36,6 +36,8 @@ internal abstract class ModuleSymbol : Symbol {
 
     internal sealed override bool isSealed => false;
 
+    internal sealed override bool isExtern => false;
+
     internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
 
     internal override SyntaxReference syntaxReference => null;

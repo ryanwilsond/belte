@@ -279,6 +279,12 @@ public sealed class DisplayText {
             case BoundKind.LocalFunctionStatement:
                 DisplayLocalFunctionStatement(text, (BoundLocalFunctionStatement)node);
                 break;
+            case BoundKind.FunctionPointerLoad:
+                DisplayFunctionPointerLoad(text, (BoundFunctionPointerLoad)node);
+                break;
+            case BoundKind.FunctionPointerCallExpression:
+                DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -739,6 +745,18 @@ public sealed class DisplayText {
     private static void DisplayAddressOfOperator(DisplayText text, BoundAddressOfOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayFunctionPointerLoad(DisplayText text, BoundFunctionPointerLoad node) {
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+        SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
+    }
+
+    private static void DisplayFunctionPointerCallExpression(
+        DisplayText text,
+        BoundFunctionPointerCallExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.functionPointer.signature, SymbolDisplayFormat.QualifiedNameFormat);
+        DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {

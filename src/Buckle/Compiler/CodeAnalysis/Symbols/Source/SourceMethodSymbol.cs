@@ -1,11 +1,13 @@
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class SourceMethodSymbol : MethodSymbol {
+internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbol {
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private CustomAttributesBag<AttributeData> _lazyReturnTypeAttributesBag;
 
@@ -58,6 +60,24 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
             return bag;
 
         return GetAttributesBag(ref _lazyReturnTypeAttributesBag, forReturnType: true);
+    }
+
+    private protected virtual IAttributeTargetSymbol _attributeOwner => this;
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => _attributeOwner;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Method;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations {
+        get {
+            switch (methodKind) {
+                case MethodKind.Constructor:
+                case MethodKind.StaticConstructor:
+                    return AttributeLocation.Method;
+                default:
+                    return AttributeLocation.Method | AttributeLocation.Return;
+            }
+        }
     }
 
     internal static void ReportErrorIfHasConstraints(
@@ -121,5 +141,154 @@ internal abstract class SourceMethodSymbol : MethodSymbol {
             ClassDeclarationSyntax classDeclaration => classDeclaration,
             _ => null,
         };
+    }
+
+    internal override DllImportData? GetDllImportData() {
+        var data = GetDecodedWellKnownAttributeData();
+        return data?.dllImportPlatformInvokeData;
+    }
+
+    private protected override void DecodeWellKnownAttributeImpl(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        if (arguments.symbolPart == AttributeLocation.None) {
+            DecodeWellKnownAttributeAppliedToMethod(ref arguments);
+        } else {
+            // DecodeWellKnownAttributeAppliedToReturnValue(ref arguments);
+            throw ExceptionUtilities.Unreachable();
+        }
+    }
+
+    private protected MethodWellKnownAttributeData GetDecodedWellKnownAttributeData() {
+        var attributesBag = _lazyAttributesBag;
+
+        if (attributesBag is null || !attributesBag.isDecodedWellKnownAttributeDataComputed)
+            attributesBag = GetAttributesBag();
+
+        return (MethodWellKnownAttributeData)attributesBag.decodedWellKnownAttributeData;
+    }
+
+    private void DecodeWellKnownAttributeAppliedToMethod(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var attribute = arguments.attribute;
+
+        if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute))
+            DecodeDllImportAttribute(ref arguments);
+    }
+
+    private void DecodeDllImportAttribute(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var attribute = arguments.attribute;
+        var diagnostics = (BelteDiagnosticQueue)arguments.diagnostics;
+        var hasErrors = false;
+
+        var implementationPart = this;
+
+        if (!isExtern || !isStatic) {
+            diagnostics.Push(Error.DllImportOnInvalidMethod(arguments.attributeSyntax.name.location));
+            hasErrors = true;
+        }
+
+        var isAnyNestedMethodGeneric = false;
+
+        for (MethodSymbol current = this; current is not null; current = current.containingSymbol as MethodSymbol) {
+            if (current.isTemplateMethod) {
+                isAnyNestedMethodGeneric = true;
+                break;
+            }
+        }
+
+        if (isAnyNestedMethodGeneric || containingType?.isTemplateType == true) {
+            diagnostics.Push(Error.DllImportOnTemplateMethod(arguments.attributeSyntax.name.location));
+            hasErrors = true;
+        }
+
+        var moduleName = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+        if (!MetadataHelpers.IsValidMetadataIdentifier(moduleName)) {
+            diagnostics.Push(Error.InvalidAttributeArgument(
+                attribute.GetAttributeArgumentLocation(0),
+                arguments.attributeSyntax.name.ErrorDisplayName()
+            ));
+
+            hasErrors = true;
+            moduleName = null;
+        }
+
+        var charSet = GetEffectiveDefaultMarshallingCharSet() ?? (CharSet)1;
+
+        string importName = null;
+        var preserveSig = true;
+        var callingConvention = CallingConvention.Winapi;
+        var setLastError = false;
+        var exactSpelling = false;
+        bool? bestFitMapping = null;
+        bool? throwOnUnmappable = null;
+
+        // var position = 1;
+        // TODO Maybe handle this if we need it for DllImport later
+        // foreach (var namedArg in attribute._commonNamedArguments) {
+        //     switch (namedArg.Key) {
+        //         case "EntryPoint":
+        //             importName = namedArg.Value.ValueInternal as string;
+        //             if (!MetadataHelpers.IsValidMetadataIdentifier(importName)) {
+        //                 // Dev10 reports CS0647: "Error emitting attribute ..."
+        //                 diagnostics.Add(ErrorCode.ERR_InvalidNamedArgument, arguments.AttributeSyntaxOpt.ArgumentList.Arguments[position].Location, namedArg.Key);
+        //                 hasErrors = true;
+        //                 importName = null;
+        //             }
+
+        //             break;
+
+        //         case "CharSet":
+        //             // invalid values will be ignored
+        //             charSet = namedArg.Value.DecodeValue<CharSet>(SpecialType.System_Enum);
+        //             break;
+
+        //         case "SetLastError":
+        //             // invalid values will be ignored
+        //             setLastError = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+        //             break;
+
+        //         case "ExactSpelling":
+        //             // invalid values will be ignored
+        //             exactSpelling = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+        //             break;
+
+        //         case "PreserveSig":
+        //             preserveSig = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+        //             break;
+
+        //         case "CallingConvention":
+        //             // invalid values will be ignored
+        //             callingConvention = namedArg.Value.DecodeValue<CallingConvention>(SpecialType.System_Enum);
+        //             break;
+
+        //         case "BestFitMapping":
+        //             bestFitMapping = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+        //             break;
+
+        //         case "ThrowOnUnmappableChar":
+        //             throwOnUnmappable = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+        //             break;
+        //     }
+
+        //     position++;
+        // }
+
+        if (!hasErrors) {
+            arguments.GetOrCreateData<MethodWellKnownAttributeData>().SetDllImport(
+                arguments.index,
+                moduleName,
+                importName ?? name,
+                DllImportData.MakeFlags(
+                    exactSpelling,
+                    charSet,
+                    setLastError,
+                    callingConvention,
+                    bestFitMapping,
+                    throwOnUnmappable),
+                preserveSig
+            );
+        }
     }
 }

@@ -140,6 +140,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         return visitor.VisitMethod(this, argument);
     }
 
+    internal abstract DllImportData GetDllImportData();
+
     internal virtual void GenerateMethodBody(TypeCompilationState compilationState, BelteDiagnosticQueue diagnostics) {
         throw ExceptionUtilities.Unreachable();
     }

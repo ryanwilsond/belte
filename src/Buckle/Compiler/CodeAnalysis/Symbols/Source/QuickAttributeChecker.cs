@@ -80,7 +80,7 @@ internal sealed class QuickAttributeChecker {
 
     public bool IsPossibleMatch(AttributeSyntax attr, QuickAttributes pattern) {
         // string name = attr.identifier.GetUnqualifiedName().Identifier.ValueText;
-        var name = attr.identifier.text;
+        var name = attr.name.GetUnqualifiedName().identifier.text;
 
         if (_nameToAttributeMap.TryGetValue(name, out var foundAttributes) ||
             _nameToAttributeMap.TryGetValue(name + "Attribute", out foundAttributes)) {

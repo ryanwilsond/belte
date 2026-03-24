@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
+internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, IAttributeTargetSymbol {
     private ImmutableArray<ExpressionSyntax> _unboundConstraints;
     private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
@@ -73,6 +73,22 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments
         => GetTemplateParametersAsTemplateArguments();
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => this;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Type;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations {
+        get {
+            switch (typeKind) {
+                case TypeKind.Struct:
+                case TypeKind.Class:
+                    return AttributeLocation.Type;
+                default:
+                    return AttributeLocation.None;
+            }
+        }
+    }
 
     internal override NamedTypeSymbol baseType {
         get {

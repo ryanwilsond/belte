@@ -15,7 +15,7 @@ using CommonAssemblyWellKnownAttributeData = Buckle.CodeAnalysis.Symbols.CommonA
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
+internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol, IAttributeTargetSymbol {
     [ThreadStatic]
     private static AssemblySymbol AssemblyForWhichCurrentThreadIsComputingKeys;
 
@@ -75,6 +75,13 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol {
             return _lazyInternalsVisibleToMap is not null;
         }
     }
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => this;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Assembly;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations
+        => AttributeLocation.Assembly | AttributeLocation.Module;
 
     internal override bool isLinked => false;
 

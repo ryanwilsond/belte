@@ -190,6 +190,7 @@ public static class SyntaxFacts {
             "global" => SyntaxKind.GlobalKeyword,
             "implicit" => SyntaxKind.ImplicitKeyword,
             "explicit" => SyntaxKind.ExplicitKeyword,
+            "extern" => SyntaxKind.ExternKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -304,6 +305,7 @@ public static class SyntaxFacts {
             SyntaxKind.GlobalKeyword => "global",
             SyntaxKind.ImplicitKeyword => "implicit",
             SyntaxKind.ExplicitKeyword => "explicit",
+            SyntaxKind.ExternKeyword => "extern",
             _ => null,
         };
     }

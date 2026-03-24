@@ -31,6 +31,8 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     internal override bool isStatic => underlyingField.isStatic;
 
+    internal override bool isFixedSizeBuffer => underlyingField.isFixedSizeBuffer;
+
     internal override ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress) {
         return underlyingField.GetConstantValue(inProgress);
     }

@@ -46,8 +46,9 @@ internal enum CompletionParts : ushort {
     NamespaceSymbolAll = NameToMembersMap | MembersCompleted,
 
     // For fields
-    ConstantValue = 1 << 8,
-    FieldSymbolAll = Attributes | Type | ConstantValue,
+    FixedSize = 1 << 8,
+    ConstantValue = 1 << 9,
+    FieldSymbolAll = Attributes | Type | FixedSize | ConstantValue,
 
     // For methods
     StartMethodChecks = 1 << 8,

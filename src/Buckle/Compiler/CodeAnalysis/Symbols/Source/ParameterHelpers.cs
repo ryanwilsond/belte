@@ -40,6 +40,39 @@ internal static class ParameterHelpers {
                                     });
     }
 
+    internal static ImmutableArray<FunctionPointerParameterSymbol> MakeFunctionPointerParameters(
+        Binder binder,
+        FunctionPointerMethodSymbol owner,
+        SeparatedSyntaxList<ParameterSyntax> parametersList,
+        BelteDiagnosticQueue diagnostics) {
+        return MakeParameters<FunctionPointerParameterSymbol, FunctionPointerMethodSymbol>(
+            binder,
+            owner,
+            parametersList,
+            diagnostics,
+            true,
+            true,
+            parametersList.Count - 1,
+            parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
+                                    ParameterSyntax syntax, RefKind refKind, int ordinal,
+                                    bool addRefReadOnlyModifier, ScopedKind scope) => {
+                                        if (parameterType.IsVoidType()) {
+                                            // TODO
+                                            // diagnostics.Push(Error.)
+                                            // diagnostics.Add(ErrorCode.ERR_NoVoidParameter, syntax.Type.Location);
+                                        }
+
+                                        return new FunctionPointerParameterSymbol(
+                                            parameterType,
+                                            refKind,
+                                            ordinal,
+                                            owner
+                                        );
+                                    },
+            parsingFunctionPointer: true
+        );
+    }
+
     internal static bool ReportDefaultParameterErrors(
         Binder binder,
         Symbol owner,
@@ -183,7 +216,8 @@ internal static class ParameterHelpers {
         bool allowRef,
         bool addRefConstModifier,
         int lastIndex,
-        Func<TOwningSymbol, TypeWithAnnotations, ParameterSyntax, RefKind, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc)
+        Func<TOwningSymbol, TypeWithAnnotations, ParameterSyntax, RefKind, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
+        bool parsingFunctionPointer = false)
         where TParameterSymbol : ParameterSymbol
         where TOwningSymbol : Symbol {
 

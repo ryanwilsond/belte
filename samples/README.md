@@ -18,6 +18,7 @@ this is a convention, and not required.)
 | [samples/Donut](Donut/Program.blt) | `buckle samples/Donut` | ASCII spinning donut. |
 | [samples/Snake](Snake/Program.blt) | `buckle samples/Snake --type=graphics` | Snake game. |
 | [samples/Platformer](Platformer/Program.blt) | `buckle samples/Platformer --type=graphics` | Platformer game. |
+| [samples/Win32](Win32/Program.blt) | `buckle samples/Win32` | Win32 api window. |
 
 ## Running a Sample Using the Executor or Evaluator
 

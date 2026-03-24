@@ -217,6 +217,17 @@ internal sealed partial class Executor : ModuleBuilder {
                 return elementType.MakePointerType();
             }
 
+            if (type is FunctionPointerTypeSymbol functionPointer) {
+                var args = functionPointer.signature.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
+
+                if (functionPointer.signature.returnsVoid) {
+                    return args.MakeGenericManagedCallVoidFunctionPointerType();
+                } else {
+                    var returnType = GetType(functionPointer.signature.returnType);
+                    return (returnType, args).MakeGenericManagedCallFunctionPointerType();
+                }
+            }
+
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
@@ -375,6 +386,13 @@ internal sealed partial class Executor : ModuleBuilder {
         return closedMethod;
     }
 
+    internal MethodInfo GetSizeOf(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var length = typeof(System.Runtime.InteropServices.Marshal).GetMethod("SizeOf", Type.EmptyTypes);
+        var closedMethod = length.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
     private void EmitInternal() {
         GenerateSTLMap();
         CompleteSpecialTypes();
@@ -507,6 +525,9 @@ internal sealed partial class Executor : ModuleBuilder {
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
 
+        if (type.IsStructType())
+            attributes |= TypeAttributes.SequentialLayout;
+
         attributes |= type.declaredAccessibility switch {
             Accessibility.Private => TypeAttributes.NestedPrivate,
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
@@ -554,9 +575,14 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                var fieldType = GetType(f.type, f.refKind != RefKind.None);
+
+                if (f.type.typeKind == TypeKind.FunctionPointer)
+                    fieldType = typeof(IntPtr);
+
                 var fieldBuilder = typeBuilder.DefineField(
                     f.name,
-                    GetType(f.type, f.refKind != RefKind.None),
+                    fieldType,
                     GetFieldAttributes(f)
                 );
 
@@ -575,6 +601,8 @@ internal sealed partial class Executor : ModuleBuilder {
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
         if (method.methodKind is MethodKind.Constructor or MethodKind.StaticConstructor)
             CreateConstructorDefinition(method, body, typeBuilder);
+        else if (method.isExtern)
+            CreatePInvokeMethodDefinition(method, typeBuilder);
         else
             CreateNormalMethodDefinition(method, body, typeBuilder);
     }
@@ -588,6 +616,37 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _constructors.Add(method, constructorBuilder);
         _constructorBodies.Add(constructorBuilder, (method, body));
+    }
+
+    private void CreatePInvokeMethodDefinition(MethodSymbol method, TypeBuilder typeBuilder) {
+        var dllImportData = method.GetDllImportData();
+        var methodBuilder = typeBuilder.DefinePInvokeMethod(
+            method.name,
+            dllImportData.moduleName,
+            GetMethodAttributes(method),
+            CallingConventions.Standard,
+            GetType(method.returnType, method.returnsByRef),
+            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray(),
+            GetCallingConvention(dllImportData.callingConvention),
+            dllImportData.characterSet
+        );
+
+        methodBuilder.SetImplementationFlags(
+            System.Reflection.MethodImplAttributes.PreserveSig
+        );
+
+        _methods.Add(method, methodBuilder);
+    }
+
+    private System.Runtime.InteropServices.CallingConvention GetCallingConvention(CallingConvention callingConvention) {
+        return callingConvention switch {
+            CallingConvention.Winapi => System.Runtime.InteropServices.CallingConvention.Winapi,
+            CallingConvention.FastCall => System.Runtime.InteropServices.CallingConvention.FastCall,
+            CallingConvention.Cdecl => System.Runtime.InteropServices.CallingConvention.Cdecl,
+            CallingConvention.StdCall => System.Runtime.InteropServices.CallingConvention.StdCall,
+            CallingConvention.ThisCall => System.Runtime.InteropServices.CallingConvention.ThisCall,
+            _ => throw ExceptionUtilities.UnexpectedValue(callingConvention)
+        };
     }
 
     private void CreateNormalMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
@@ -616,6 +675,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
         if (_logIL)
             Console.WriteLine($"Emitting method {method}");
+
+        if (method.isAbstract || method.isExtern)
+            return;
 
         var body = _methodBodies[method];
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logIL);

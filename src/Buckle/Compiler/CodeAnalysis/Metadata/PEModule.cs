@@ -1150,7 +1150,7 @@ internal sealed partial class PEModule : IDisposable {
     internal void GetMethodDefPropsOrThrow(
         MethodDefinitionHandle methodDef,
         out string name,
-        out MethodImplAttributes implFlags,
+        out System.Reflection.MethodImplAttributes implFlags,
         out MethodAttributes flags,
         out int rva) {
         var methodRow = metadataReader.GetMethodDefinition(methodDef);

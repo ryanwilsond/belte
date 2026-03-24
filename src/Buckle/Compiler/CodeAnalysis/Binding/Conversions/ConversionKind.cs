@@ -20,6 +20,8 @@ internal enum ConversionKind : byte {
     ExplicitReference,
     ExplicitUserDefined,
     ExplicitPointerToPointer,
+    ExplicitIntegerToPointer,
+    ExplicitPointerToInteger,
     ExplicitNumeric,
     AnyUnboxing,
     ListExpression,

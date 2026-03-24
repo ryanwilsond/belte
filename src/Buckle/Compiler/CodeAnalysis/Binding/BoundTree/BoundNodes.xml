@@ -111,6 +111,18 @@
     <Field Name="defaultArguments" Type="BitVector"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
   </Node>
+
+  <Node Name="BoundAttribute" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="constructor" Type="MethodSymbol?"/>
+    <Field Name="constructorArguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="constructorArgumentNamesOpt" Type="ImmutableArray&lt;string&gt;" Null="allow"/>
+    <Field Name="constructorArgumentsToParamsOpt" Type="ImmutableArray&lt;int&gt;" Null="allow"/>
+    <Field Name="constructorExpanded" Type="bool" />
+    <Field Name="constructorDefaultArguments" Type="BitVector"/>
+    <Field Name="namedArguments" Type ="ImmutableArray&lt;BoundAssignmentOperator&gt;"/>
+    <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind"/>
+  </Node>
   <Node Name="BoundCastExpression" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>
     <Field Name="conversion" Type="Conversion"/>
@@ -231,6 +243,22 @@
   <Node Name="BoundAddressOfOperator" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="operand" Type="BoundExpression"/>
+  </Node>
+  <Node Name="BoundUnconvertedAddressOfOperator" Base="BoundExpression">
+    <Field Name="operand" Type="BoundMethodGroup"/>
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
+  <Node Name="BoundFunctionPointerCallExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="invokedExpression" Type="BoundExpression"/>
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="argumentRefKindsOpt" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
+    <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind" />
+  </Node>
+  <Node Name="BoundFunctionPointerLoad" Base="BoundExpression">
+    <Field Name="targetMethod" Type="MethodSymbol"/>
+    <Field Name="constrainedToTypeOpt" Type="TypeSymbol?" Null="allow"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundPointerIndirectionOperator" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>

@@ -44,7 +44,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
                     withTemplateParametersBinder,
                     templateParameters,
                     syntax.templateParameterList,
-                    syntax.constraintClauseList.constraintClauses,
+                    syntax.constraintClauseList?.constraintClauses,
                     diagnostics
                 );
 
@@ -71,7 +71,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
                     withTemplateParametersBinder,
                     templateParameters,
                     syntax.templateParameterList,
-                    syntax.constraintClauseList.constraintClauses
+                    syntax.constraintClauseList?.constraintClauses
                 );
 
                 ImmutableInterlocked.InterlockedInitialize(

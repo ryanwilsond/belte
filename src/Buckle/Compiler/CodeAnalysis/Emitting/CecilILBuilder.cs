@@ -119,6 +119,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
+    internal override void EmitCalli(FunctionPointerTypeSymbol type) {
+        throw new NotImplementedException();
+    }
+
     internal override void EmitLocalAddress(DataContainerSymbol local) {
         if (local.isRef)
             EmitLocalLoad(local);
@@ -176,6 +180,10 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override void EmitLength(TypeSymbol elementType) {
         iLProcessor.Emit(OpCodes.Call, _module.GetLength(elementType));
+    }
+
+    internal override void EmitSizeOf(TypeSymbol elementType) {
+        throw new NotImplementedException();
     }
 
     internal override void EmitStringConcat2() {
@@ -446,6 +454,8 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
+            CodeGeneration.OpCode.Calli => OpCodes.Calli,
+            CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
             _ => throw new NotImplementedException()
         };
     }

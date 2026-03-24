@@ -24,5 +24,9 @@ internal enum BinderFlags : uint {
     InTryBlockOfTryCatch = 1 << 12,
     InNestedFinallyBlock = 1 << 13,
 
+    InContextualAttributeBinder = 1 << 14,
+    AttributeArgument = 1 << 15,
+    EarlyAttributeBinding = 1 << 16,
+
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

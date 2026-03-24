@@ -292,11 +292,35 @@ internal static partial class ConstraintsHelpers {
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
                     break;
+                case TypeKind.Pointer:
+                    next = ((PointerTypeSymbol)current).pointedAtTypeWithAnnotations;
+                    break;
+                case TypeKind.FunctionPointer:
+                    VisitFunctionPointerType((FunctionPointerTypeSymbol)current, out next);
+                    break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(current.typeKind);
             }
 
             type = next.nullableUnderlyingTypeOrSelf;
+        }
+
+        void VisitFunctionPointerType(FunctionPointerTypeSymbol type, out TypeWithAnnotations next) {
+            MethodSymbol currentPointer = type.signature;
+
+            if (currentPointer.parameterCount == 0) {
+                next = currentPointer.returnTypeWithAnnotations;
+                return;
+            }
+
+            CheckAllConstraints(currentPointer.returnType, location, diagnostics);
+
+            int i;
+            for (i = 0; i < currentPointer.parameterCount - 1; i++)
+                CheckAllConstraints(currentPointer.parameters[i].type, location, diagnostics);
+
+            next = currentPointer.parameters[i].typeWithAnnotations;
+            return;
         }
     }
 

@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class FieldSymbolWithModifiers : FieldSymbol {
+internal abstract class FieldSymbolWithModifiers : FieldSymbol, IAttributeTargetSymbol {
     private CustomAttributesBag<AttributeData> _lazyAttributeBag;
     private protected SymbolCompletionState _state;
 
@@ -18,9 +18,22 @@ internal abstract class FieldSymbolWithModifiers : FieldSymbol {
 
     internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
 
+    internal override bool isFixedSizeBuffer => false;
+
     internal sealed override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
 
     private protected abstract DeclarationModifiers _modifiers { get; }
+
+    private protected abstract IAttributeTargetSymbol _attributeOwner { get; }
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner
+        => _attributeOwner;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation
+        => AttributeLocation.Field;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations
+        => AttributeLocation.Field;
 
     internal sealed override ImmutableArray<AttributeData> GetAttributes() {
         return GetAttributesBag().attributes;

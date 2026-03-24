@@ -33,6 +33,10 @@ internal abstract class SymbolVisitor<TArgument, TResult> {
         return DefaultVisit(symbol, argument);
     }
 
+    internal virtual TResult VisitFunctionPointerType(FunctionPointerTypeSymbol symbol, TArgument argument) {
+        return DefaultVisit(symbol, argument);
+    }
+
     internal virtual TResult VisitTemplateParameter(TemplateParameterSymbol symbol, TArgument argument) {
         return DefaultVisit(symbol, argument);
     }

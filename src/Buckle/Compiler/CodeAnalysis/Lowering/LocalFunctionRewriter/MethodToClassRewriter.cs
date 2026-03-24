@@ -109,6 +109,10 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         return node.Update(newLocals, condition, body, node.breakLabel, node.continueLabel);
     }
 
+    internal override BoundNode VisitFunctionPointerLoad(BoundFunctionPointerLoad node) {
+        return node.Update(VisitMethodSymbol(node.targetMethod), VisitType(node.constrainedToTypeOpt), VisitType(node.type));
+    }
+
     internal override BoundNode VisitWhileStatement(BoundWhileStatement node) {
         var newLocals = RewriteLocals(node.locals);
         var condition = (BoundExpression)Visit(node.condition);

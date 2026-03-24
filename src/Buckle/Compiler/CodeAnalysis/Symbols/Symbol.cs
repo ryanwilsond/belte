@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
@@ -81,6 +84,11 @@ internal abstract class Symbol : ISymbol {
     /// If the symbol is "override", i.e. overriding a virtual or abstract symbol.
     /// </summary>
     internal abstract bool isOverride { get; }
+
+    /// <summary>
+    /// If the symbol has an external implementation, i.e. declared with the extern modifier.
+    /// </summary>
+    internal abstract bool isExtern { get; }
 
     /// <summary>
     /// If the symbol is "sealed", i.e. cannot have child classes.
@@ -179,6 +187,10 @@ internal abstract class Symbol : ISymbol {
         }
 
         return null;
+    }
+
+    internal CharSet? GetEffectiveDefaultMarshallingCharSet() {
+        return containingModule.defaultMarshallingCharSet;
     }
 
     internal virtual LexicalSortKey GetLexicalSortKey() {
@@ -353,25 +365,202 @@ internal abstract class Symbol : ISymbol {
         Binder binderOpt = null,
         Func<AttributeSyntax, bool> attributeMatchesOpt = null,
         Action<AttributeSyntax> beforeAttributePartBound = null,
-        Action<AttributeSyntax> afterAttributePartBound = null,
-        BelteDiagnosticQueue diagnostics = null) {
-        // TODO Finish when adding attributes for real
-        var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
+        Action<AttributeSyntax> afterAttributePartBound = null) {
+        var diagnostics = BelteDiagnosticQueue.GetInstance();
+        var compilation = declaringCompilation;
 
-        if (symbolPart == AttributeLocation.None) {
-            if (attributesSyntaxLists.Any() && (attributesSyntaxLists[0]?.Any() ?? false))
-                currentDiagnostics.Push(Error.InvalidAttributes(attributesSyntaxLists[0][0].location));
+        BoundAttribute[] boundAttributeArray;
+        var attributesToBind = GetAttributesToBind(
+            attributesSyntaxLists,
+            symbolPart,
+            diagnostics,
+            compilation,
+            attributeMatchesOpt,
+            binderOpt,
+            out var binders
+        );
+
+        var totalAttributesCount = attributesToBind.Length;
+
+        ImmutableArray<AttributeData> boundAttributes;
+        WellKnownAttributeData? wellKnownAttributeData;
+
+        if (totalAttributesCount != 0) {
+            if (lazyAttributesBag is null)
+                Interlocked.CompareExchange(ref lazyAttributesBag, new CustomAttributesBag<AttributeData>(), null);
+
+            var attributeTypesBuilder = new NamedTypeSymbol[totalAttributesCount];
+
+            Binder.BindAttributeTypes(
+                binders,
+                attributesToBind,
+                this,
+                attributeTypesBuilder,
+                beforeAttributePartBound,
+                afterAttributePartBound,
+                diagnostics
+            );
+
+            var interestedInDiagnostics = !earlyDecodingOnly && attributeMatchesOpt is null;
+            var boundAttributeTypes = attributeTypesBuilder.AsImmutableOrNull();
+
+            // this.EarlyDecodeWellKnownAttributeTypes(boundAttributeTypes, attributesToBind);
+            // this.PostEarlyDecodeWellKnownAttributeTypes();
+
+            var attributeDataArray = new AttributeData[totalAttributesCount];
+            boundAttributeArray = interestedInDiagnostics ? new BoundAttribute[totalAttributesCount] : null;
+
+            // EarlyWellKnownAttributeData? earlyData = this.EarlyDecodeWellKnownAttributes(binders, boundAttributeTypes, attributesToBind, symbolPart, attributeDataArray, boundAttributeArray);
+
+            // lazyAttributesBag.SetEarlyDecodedWellKnownAttributeData(earlyData);
+
+            if (earlyDecodingOnly) {
+                diagnostics.Free();
+                return false;
+            }
+
+            Binder.GetAttributes(
+                binders,
+                attributesToBind,
+                boundAttributeTypes,
+                attributeDataArray,
+                boundAttributeArray,
+                beforeAttributePartBound,
+                afterAttributePartBound,
+                diagnostics
+            );
+
+            boundAttributes = attributeDataArray.AsImmutableOrNull();
+
+            wellKnownAttributeData = ValidateAttributeUsageAndDecodeWellKnownAttributes(
+                binders,
+                attributesToBind,
+                boundAttributes,
+                diagnostics,
+                symbolPart
+            );
+
+            lazyAttributesBag.SetDecodedWellKnownAttributeData(wellKnownAttributeData);
+        } else if (earlyDecodingOnly) {
+            diagnostics.Free();
+            return false;
+        } else {
+            boundAttributes = [];
+            boundAttributeArray = null;
+            wellKnownAttributeData = null;
+            Interlocked.CompareExchange(ref lazyAttributesBag, CustomAttributesBag<AttributeData>.WithEmptyData(), null);
+            // this.PostEarlyDecodeWellKnownAttributeTypes();
         }
 
-        if (diagnostics is null)
-            AddDeclarationDiagnostics(currentDiagnostics);
-        else
-            diagnostics.PushRange(currentDiagnostics);
+        var lazyAttributesStoredOnThisThread = false;
 
-        currentDiagnostics.Free();
+        if (lazyAttributesBag.SetAttributes(boundAttributes)) {
+            // if (attributeMatchesOpt is null) {
+            // this.PostDecodeWellKnownAttributes(boundAttributes, attributesToBind, diagnostics, symbolPart, wellKnownAttributeData);
+            // this.RecordPresenceOfBadAttributes(boundAttributes);
 
-        lazyAttributesBag = CustomAttributesBag<AttributeData>.Empty;
+            //     if (totalAttributesCount != 0) {
+            //         for (var i = 0; i < totalAttributesCount; i++) {
+            //             var boundAttribute = boundAttributeArray[i];
+            //             Binder attributeBinder = binders[i];
+
+            //             if (boundAttribute.Constructor is { } ctor) {
+            //                 Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
+            //                 attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
+            //             }
+            //         }
+            //     }
+
+            //     AddDeclarationDiagnostics(diagnostics);
+            // }
+
+            lazyAttributesStoredOnThisThread = true;
+
+            if (lazyAttributesBag.isEmpty)
+                lazyAttributesBag = CustomAttributesBag<AttributeData>.Empty;
+        }
+
+        diagnostics.Free();
+        return lazyAttributesStoredOnThisThread;
+    }
+
+    private ImmutableArray<AttributeSyntax> GetAttributesToBind(
+        OneOrMany<SyntaxList<AttributeListSyntax>> attributeDeclarationSyntaxLists,
+        AttributeLocation symbolPart,
+        BelteDiagnosticQueue diagnostics,
+        Compilation compilation,
+        Func<AttributeSyntax, bool> attributeMatchesOpt,
+        Binder rootBinderOpt,
+        out ImmutableArray<Binder> binders) {
+        ArrayBuilder<AttributeSyntax> syntaxBuilder = null;
+        ArrayBuilder<Binder> bindersBuilder = null;
+        var attributesToBindCount = 0;
+        var attributeTarget = (IAttributeTargetSymbol)this;
+
+        for (var listIndex = 0; listIndex < attributeDeclarationSyntaxLists.Count; listIndex++) {
+            var attributeDeclarationSyntaxList = attributeDeclarationSyntaxLists[listIndex];
+
+            if (attributeDeclarationSyntaxList is not null && attributeDeclarationSyntaxList.Any()) {
+                var prevCount = attributesToBindCount;
+
+                foreach (var attributeDeclarationSyntax in attributeDeclarationSyntaxList) {
+                    if (symbolPart == AttributeLocation.None && ReferenceEquals(attributeTarget.attributesOwner, attributeTarget) &&
+                        ShouldBindAttributes(attributeDeclarationSyntax, diagnostics)) {
+                        if (syntaxBuilder == null) {
+                            syntaxBuilder = new ArrayBuilder<AttributeSyntax>();
+                            bindersBuilder = new ArrayBuilder<Binder>();
+                        }
+
+                        var attributesToBind = attributeDeclarationSyntax.attributes;
+                        if (attributeMatchesOpt is null) {
+                            syntaxBuilder.AddRange(attributesToBind);
+                            attributesToBindCount += attributesToBind.Count;
+                        } else {
+                            foreach (var attribute in attributesToBind) {
+                                if (attributeMatchesOpt(attribute)) {
+                                    syntaxBuilder.Add(attribute);
+                                    attributesToBindCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (attributesToBindCount != prevCount) {
+                    Debug.Assert(bindersBuilder != null);
+
+                    var binder = GetAttributeBinder(attributeDeclarationSyntaxList, compilation, rootBinderOpt);
+
+                    for (var i = 0; i < attributesToBindCount - prevCount; i++)
+                        bindersBuilder.Add(binder);
+                }
+            }
+        }
+
+        if (syntaxBuilder is not null) {
+            binders = bindersBuilder.ToImmutableAndFree();
+            return syntaxBuilder.ToImmutableAndFree();
+        } else {
+            binders = [];
+            return [];
+        }
+    }
+
+    private protected virtual bool ShouldBindAttributes(
+        AttributeListSyntax attributeDeclarationSyntax,
+        BelteDiagnosticQueue diagnostics) {
         return true;
+    }
+
+    private Binder GetAttributeBinder(
+        SyntaxList<AttributeListSyntax> attributeDeclarationSyntaxList,
+        Compilation compilation,
+        Binder rootBinder = null) {
+        var binder = rootBinder ?? compilation.GetBinderFactory(attributeDeclarationSyntaxList.node.syntaxTree)
+            .GetBinder(attributeDeclarationSyntaxList.node);
+
+        binder = new ContextualAttributeBinder(binder, this);
+        return binder;
     }
 
     // For PE interop use only
@@ -397,6 +586,87 @@ internal abstract class Symbol : ISymbol {
         wasZeroWidthMatch = false;
         return false;
     }
+
+    private protected void DecodeWellKnownAttribute(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        DecodeWellKnownAttributeImpl(ref arguments);
+    }
+
+    private WellKnownAttributeData ValidateAttributeUsageAndDecodeWellKnownAttributes(
+        ImmutableArray<Binder> binders,
+        ImmutableArray<AttributeSyntax> attributeSyntaxList,
+        ImmutableArray<AttributeData> boundAttributes,
+        BelteDiagnosticQueue diagnostics,
+        AttributeLocation symbolPart) {
+        var totalAttributesCount = boundAttributes.Length;
+        var uniqueAttributeTypes = new HashSet<NamedTypeSymbol>();
+        var arguments = new DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> {
+            diagnostics = diagnostics,
+            attributesCount = totalAttributesCount,
+            symbolPart = symbolPart
+        };
+
+        for (var i = 0; i < totalAttributesCount; i++) {
+            var boundAttribute = boundAttributes[i];
+            var attributeSyntax = attributeSyntaxList[i];
+            var binder = binders[i];
+
+            if (!boundAttribute.hasErrors && ValidateAttributeUsage(
+                    boundAttribute,
+                    attributeSyntax,
+                    binder.compilation,
+                    symbolPart,
+                    diagnostics,
+                    uniqueAttributeTypes)) {
+                arguments.attribute = boundAttribute;
+                arguments.attributeSyntax = attributeSyntax;
+                arguments.index = i;
+
+                DecodeWellKnownAttribute(ref arguments);
+            }
+        }
+
+        return arguments.hasDecodedData ? arguments.decodedData : null;
+    }
+
+    private bool ValidateAttributeUsage(
+        AttributeData attribute,
+        AttributeSyntax node,
+        Compilation compilation,
+        AttributeLocation symbolPart,
+        BelteDiagnosticQueue diagnostics,
+        HashSet<NamedTypeSymbol> uniqueAttributeTypes) {
+        // TODO Unnecessary since we only have 1 attribute right now
+        // NamedTypeSymbol attributeType = attribute.attributeClass;
+        // AttributeUsageInfo attributeUsageInfo = attributeType.GetAttributeUsageInfo();
+
+        // // Given attribute can't be specified more than once if AllowMultiple is false.
+        // if (!uniqueAttributeTypes.Add(attributeType.OriginalDefinition) && !attributeUsageInfo.AllowMultiple) {
+        //     diagnostics.Add(ErrorCode.ERR_DuplicateAttribute, node.Name.Location, node.GetErrorDisplayName());
+        //     return false;
+        // }
+
+        // // Verify if the attribute type can be applied to given owner symbol.
+        // AttributeTargets attributeTarget;
+        // if (symbolPart == AttributeLocation.Return) {
+        //     // attribute on return type
+        //     Debug.Assert(this.Kind == SymbolKind.Method);
+        //     attributeTarget = AttributeTargets.ReturnValue;
+        // } else {
+        //     attributeTarget = this.GetAttributeTarget();
+        // }
+
+        // if ((attributeTarget & attributeUsageInfo.ValidTargets) == 0) {
+        //     // generate error
+        //     diagnostics.Add(ErrorCode.ERR_AttributeOnBadSymbolType, node.Name.Location, node.GetErrorDisplayName(), attributeUsageInfo.GetValidTargetsErrorArgument());
+        //     return false;
+        // }
+
+        return true;
+    }
+
+    private protected virtual void DecodeWellKnownAttributeImpl(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) { }
 
     internal static ImmutableArray<SyntaxReference> GetDeclaringSyntaxReferenceHelper<TNode>(
         ImmutableArray<TextLocation> locations)

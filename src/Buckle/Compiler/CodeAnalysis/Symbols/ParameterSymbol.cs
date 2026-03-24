@@ -37,6 +37,8 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     internal override bool isStatic => false;
 
+    internal override bool isExtern => false;
+
     internal abstract TypeWithAnnotations typeWithAnnotations { get; }
 
     internal abstract bool isMetadataOptional { get; }

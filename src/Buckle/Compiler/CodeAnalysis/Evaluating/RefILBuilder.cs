@@ -99,6 +99,15 @@ internal sealed class RefILBuilder : ILBuilder {
         // var cLocal = ((RefVariableDefinition)temp).localBuilder;
     }
 
+    internal override void EmitCalli(FunctionPointerTypeSymbol type) {
+        _iLGenerator.EmitCalli(
+            OpCodes.Calli,
+            System.Runtime.InteropServices.CallingConvention.Winapi,
+            _module.GetType(type.signature.returnType),
+            type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray()
+        );
+    }
+
     internal override void Emit(CodeGeneration.OpCode opCode) {
         Emit(ConvertToRef(opCode));
     }
@@ -223,6 +232,10 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Call, _module.GetLength(elementType));
     }
 
+    internal override void EmitSizeOf(TypeSymbol elementType) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetSizeOf(elementType));
+    }
+
     internal override void EmitStringConcat2() {
         EmitWithSymbolToken(OpCodes.Call, Executor.MethodInfoCache.String_Concat_SS);
     }
@@ -333,6 +346,10 @@ internal sealed class RefILBuilder : ILBuilder {
         bool isSlotReusable) {
         var typeBuilder = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
         LogLocal(typeBuilder);
+
+        if (type.typeKind == TypeKind.FunctionPointer)
+            typeBuilder = typeof(IntPtr);
+
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
 
         return _localSlotManager.DeclareLocal(localBuilder, type, symbol, name, kind, constraints, isSlotReusable);
@@ -618,6 +635,8 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
+            CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
+            CodeGeneration.OpCode.Calli => OpCodes.Calli,
             _ => throw new NotImplementedException()
         };
     }

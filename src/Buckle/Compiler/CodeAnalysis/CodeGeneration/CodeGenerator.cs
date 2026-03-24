@@ -186,6 +186,17 @@ internal sealed partial class CodeGenerator {
 
                 EmitConditionalOperatorAddress((BoundConditionalOperator)expression, addressKind);
                 break;
+            case BoundKind.FunctionPointerCallExpression:
+                var funcPtrInvocation = (BoundFunctionPointerCallExpression)expression;
+                var funcPtrRefKind = funcPtrInvocation.functionPointer.signature.refKind;
+
+                if (funcPtrRefKind == RefKind.Ref ||
+                    (IsAnyReadOnly(addressKind) && funcPtrRefKind == RefKind.RefConst)) {
+                    EmitCalli(funcPtrInvocation, UseKind.UsedAsAddress);
+                    break;
+                }
+
+                goto default;
             case BoundKind.AssignmentOperator:
                 var assignment = (BoundAssignmentOperator)expression;
 
@@ -207,6 +218,28 @@ internal sealed partial class CodeGenerator {
         }
 
         return null;
+    }
+
+    private void EmitCalli(BoundFunctionPointerCallExpression ptrInvocation, UseKind useKind) {
+        EmitExpression(ptrInvocation.invokedExpression, used: true);
+        VariableDefinition temp = null;
+
+        if (ptrInvocation.arguments.Length > 0) {
+            temp = AllocateTemp(ptrInvocation.invokedExpression.type);
+            _builder.EmitLocalStore(temp);
+        }
+
+        var method = ptrInvocation.functionPointer.signature;
+        EmitArguments(ptrInvocation.arguments, method.parameters, ptrInvocation.argumentRefKindsOpt);
+
+        if (temp is not null) {
+            _builder.EmitLocalLoad(temp);
+            _builder.FreeTemp(temp);
+        }
+
+        _builder.EmitCalli(ptrInvocation.functionPointer);
+        // _builder.EmitWithSymbolToken(OpCode.Calli, ptrInvocation.functionPointer);
+        EmitCallCleanup(method, useKind);
     }
 
     internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
@@ -975,6 +1008,9 @@ oneMoreTime:
             case BoundKind.PointerIndirectionOperator:
                 EmitPointerIndirectionOperator((BoundPointerIndirectionOperator)expression, used);
                 break;
+            case BoundKind.FunctionPointerLoad:
+                EmitFunctionPointerLoad((BoundFunctionPointerLoad)expression, used);
+                break;
             case BoundKind.ConditionalOperator:
                 EmitConditionalOperator((BoundConditionalOperator)expression, used);
                 break;
@@ -1009,6 +1045,9 @@ oneMoreTime:
                 break;
             case BoundKind.ThrowExpression:
                 EmitThrowExpression((BoundThrowExpression)expression, used);
+                break;
+            case BoundKind.FunctionPointerCallExpression:
+                EmitCalli((BoundFunctionPointerCallExpression)expression, used ? UseKind.UsedAsValue : UseKind.Unused);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
@@ -1052,6 +1091,20 @@ oneMoreTime:
             EmitLoadIndirect(expression.type);
 
         EmitPopIfUnused(used);
+    }
+
+    private void EmitFunctionPointerLoad(BoundFunctionPointerLoad load, bool used) {
+        if (used) {
+            if ((load.targetMethod.isAbstract || load.targetMethod.isVirtual) && load.targetMethod.isStatic) {
+                if (load.constrainedToTypeOpt is not { typeKind: TypeKind.TemplateParameter }) {
+                    throw ExceptionUtilities.Unreachable();
+                }
+
+                _builder.EmitWithSymbolToken(OpCode.Constrained, load.constrainedToTypeOpt);
+            }
+
+            _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
+        }
     }
 
     private void EmitTypeOfExpression(BoundTypeOfExpression expression) {
@@ -1297,7 +1350,12 @@ oneMoreTime:
                     }
 
                     return;
+                case "SizeOf": {
+                        _builder.EmitSizeOf(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
 
+                    return;
             }
         }
 
@@ -1712,6 +1770,8 @@ oneMoreTime:
                 return ((BoundParameterExpression)receiver).parameter.refKind != RefKind.None;
             case BoundKind.CallExpression:
                 return ((BoundCallExpression)receiver).method.refKind != RefKind.None;
+            case BoundKind.FunctionPointerCallExpression:
+                return ((BoundFunctionPointerCallExpression)receiver).functionPointer.signature.refKind != RefKind.None;
         }
 
         return false;
@@ -2442,6 +2502,9 @@ oneMoreTime:
                 var arrayType = (ArrayTypeSymbol)array.StrippedType();
                 EmitArrayElementStore(arrayType);
                 break;
+            case BoundKind.FunctionPointerCallExpression:
+                EmitIndirectStore(expression.type);
+                break;
             case BoundKind.ThisExpression:
                 EmitThisStore((BoundThisExpression)expression);
                 break;
@@ -2599,6 +2662,13 @@ oneMoreTime:
                         _builder.EmitLoadArgument(ParameterSlot(left.parameter));
                         lhsUsesStack = true;
                     }
+                }
+
+                break;
+            case BoundKind.FunctionPointerCallExpression: {
+                    var left = (BoundFunctionPointerCallExpression)assignmentTarget;
+                    EmitCalli(left, UseKind.UsedAsAddress);
+                    lhsUsesStack = true;
                 }
 
                 break;
@@ -2963,6 +3033,16 @@ oneMoreTime:
             case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ImplicitPointerToVoid:
                 return;
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
+                var fromType = cast.operand.type;
+                var fromPredefTypeKind = fromType.specialType;
+
+                var toType = cast.type;
+                var toPredefTypeKind = toType.specialType;
+
+                EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
         }

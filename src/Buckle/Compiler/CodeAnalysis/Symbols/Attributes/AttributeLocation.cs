@@ -13,6 +13,7 @@ internal enum AttributeLocation : short {
     Parameter = 1 << 4,
     Return = 1 << 5,
     TemplateParameter = 1 << 6,
+    Module = 1 << 7,
 
-    Unknown = 1 << 7,
+    Unknown = 1 << 8,
 }

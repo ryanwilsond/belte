@@ -177,6 +177,16 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         }
     }
 
+    internal override void VisitAttribute(AttributeSyntax node) {
+        var attrBinder = new ExpressionVariableBinder(node, _enclosing);
+        AddToMap(node, attrBinder);
+
+        if (node.argumentList?.arguments?.Count > 0) {
+            foreach (ArgumentSyntax argument in node.argumentList.arguments)
+                Visit(argument.expression, attrBinder);
+        }
+    }
+
     internal override void VisitLocalFunctionStatement(LocalFunctionStatementSyntax node) {
         var oldMethod = _containingMember;
         var binder = _enclosing;

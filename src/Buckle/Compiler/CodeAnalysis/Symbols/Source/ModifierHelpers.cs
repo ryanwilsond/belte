@@ -122,6 +122,7 @@ internal static class ModifierHelpers {
             DeclarationModifiers.Virtual => SyntaxFacts.GetText(SyntaxKind.VirtualKeyword),
             DeclarationModifiers.Override => SyntaxFacts.GetText(SyntaxKind.OverrideKeyword),
             DeclarationModifiers.Ref => SyntaxFacts.GetText(SyntaxKind.RefKeyword),
+            DeclarationModifiers.Extern => SyntaxFacts.GetText(SyntaxKind.ExternKeyword),
             _ => throw ExceptionUtilities.UnexpectedValue(modifier),
         };
     }
@@ -160,6 +161,7 @@ internal static class ModifierHelpers {
             SyntaxKind.OverrideKeyword => DeclarationModifiers.Override,
             SyntaxKind.NewKeyword => DeclarationModifiers.New,
             SyntaxKind.RefKeyword => DeclarationModifiers.Ref,
+            SyntaxKind.ExternKeyword => DeclarationModifiers.Extern,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }

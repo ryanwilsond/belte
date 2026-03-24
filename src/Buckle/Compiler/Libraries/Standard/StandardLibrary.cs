@@ -168,11 +168,28 @@ internal static class StandardLibrary {
             CodeAnalysis.DeclarationModifiers.Static
         );
 
+        var sizeOfT = new SynthesizedTemplateParameterSymbol(
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            0
+        );
+
+        var sizeOf = new SynthesizedTemplateMethodSymbol(
+            "SizeOf",
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int32)),
+            [sizeOfT],
+            [],
+            MethodKind.Ordinary,
+            CodeAnalysis.DeclarationModifiers.Static
+        );
+
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
             length,
             sort,
+            sizeOf,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
         ]);
     }

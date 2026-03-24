@@ -40,6 +40,10 @@ internal static partial class MetadataHelpers {
         return (arity == 0) ? name : name + GenericTypeNameManglingChar + arity.ToString();
     }
 
+    internal static bool IsValidMetadataIdentifier(string str) {
+        return !string.IsNullOrEmpty(str) && str.IsValidUnicodeString() && str.IndexOf('\0') == -1;
+    }
+
     internal static string BuildQualifiedName(string qualifier, string name) {
         if (string.IsNullOrEmpty(qualifier))
             return name;

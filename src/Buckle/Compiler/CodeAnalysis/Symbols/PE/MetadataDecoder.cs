@@ -46,6 +46,8 @@ internal class MetadataDecoder : TypeNameDecoder<PEModuleSymbol, TypeSymbol> {
         _containingAssemblyIdentity = containingAssemblyIdentity;
     }
 
+    internal PEModuleSymbol moduleSymbol => _moduleSymbol;
+
     private protected MethodDefinitionHandle GetMethodHandle(MethodSymbol method) {
         var peMethod = method as PEMethodSymbol;
 
@@ -53,6 +55,23 @@ internal class MetadataDecoder : TypeNameDecoder<PEModuleSymbol, TypeSymbol> {
             return peMethod.handle;
 
         return default;
+    }
+
+    internal bool IsTargetAttribute(
+        CustomAttributeHandle customAttribute,
+        string namespaceName,
+        string typeName,
+        bool ignoreCase = false) {
+        try {
+            return module.IsTargetAttribute(
+                customAttribute,
+                namespaceName,
+                typeName,
+                out var ctor,
+                ignoreCase);
+        } catch (BadImageFormatException) {
+            return false;
+        }
     }
 
     internal static void GetSignatureCountsOrThrow(

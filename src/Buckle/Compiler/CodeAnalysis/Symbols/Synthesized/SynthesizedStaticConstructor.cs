@@ -56,6 +56,8 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     internal override bool isStatic => true;
 
+    internal override bool isExtern => true;
+
     internal override bool hidesBaseMethodsByName => false;
 
     internal override bool isDeclaredConst => false;
@@ -70,6 +72,10 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCCtor;
+    }
+
+    internal override DllImportData GetDllImportData() {
+        return null;
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) {

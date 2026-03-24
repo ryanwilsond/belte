@@ -109,6 +109,7 @@ public struct EvaluatorValue {
             SpecialType.UInt8 => new EvaluatorValue() { kind = ValueKind.UInt8, uint8 = Convert.ToByte(value) },
             SpecialType.UInt16 => new EvaluatorValue() { kind = ValueKind.UInt16, uint16 = Convert.ToUInt16(value) },
             SpecialType.UInt32 => new EvaluatorValue() { kind = ValueKind.UInt32, uint32 = Convert.ToUInt32(value) },
+            SpecialType.Pointer => new EvaluatorValue() { kind = ValueKind.UInt32, uint32 = Convert.ToUInt32(value) },
             SpecialType.UInt64 => new EvaluatorValue() { kind = ValueKind.UInt64, uint64 = Convert.ToUInt64(value) },
             SpecialType.Float32 => new EvaluatorValue() { kind = ValueKind.Float32, @single = Convert.ToSingle(value) },
             SpecialType.Float64 => new EvaluatorValue() { kind = ValueKind.Float64, @double = Convert.ToDouble(value) },

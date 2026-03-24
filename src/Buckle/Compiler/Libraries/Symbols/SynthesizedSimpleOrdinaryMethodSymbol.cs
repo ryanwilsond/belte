@@ -63,6 +63,8 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
 
     internal override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
 
+    internal override bool isExtern => (_modifiers & DeclarationModifiers.Extern) != 0;
+
     internal override SyntaxReference syntaxReference => null;
 
     internal override TextLocation location => null;
@@ -75,5 +77,9 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override DllImportData GetDllImportData() {
+        return null;
     }
 }

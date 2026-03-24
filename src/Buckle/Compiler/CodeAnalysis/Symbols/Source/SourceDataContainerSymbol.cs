@@ -8,7 +8,7 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal partial class SourceDataContainerSymbol : DataContainerSymbol {
+internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttributeTargetSymbol {
     private readonly TypeSyntax _typeSyntax;
     private readonly BelteDiagnosticQueue _declarationDiagnostics;
 
@@ -62,6 +62,12 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
     internal override TextLocation location => identifierToken.location;
 
     internal override bool isCompilerGenerated => false;
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => this;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Parameter;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations => AttributeLocation.Parameter;
 
     internal override TypeWithAnnotations typeWithAnnotations {
         get {
@@ -146,8 +152,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
         LoadAndValidateAttributes(
             GetAttributeDeclarations(),
-            ref _lazyAttributeBag,
-            diagnostics: _declarationDiagnostics
+            ref _lazyAttributeBag
         );
 
         return _lazyAttributeBag;

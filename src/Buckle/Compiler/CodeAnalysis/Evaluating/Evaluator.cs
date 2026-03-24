@@ -726,6 +726,9 @@ internal sealed class Evaluator {
             return EvaluatorValue.None;
         }
 
+        if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
+            return EvaluatorValue.Literal(value: 0);
+
         var value = EvaluateExpression(node.operand, true, abort);
 
         if (IsReferenceType(node.operand.Type())) {
@@ -752,6 +755,8 @@ internal sealed class Evaluator {
             case ConversionKind.Explicit:
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ExplicitNumeric:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
                 return EvaluateConvertCallOrNumericConversion(node, value);
             case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ImplicitPointerToVoid:

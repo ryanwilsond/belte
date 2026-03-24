@@ -178,7 +178,9 @@ internal sealed partial class Conversions {
         }
 
         if (sourceExpression.IsLiteralNull()) {
-            if (target.IsNullableType())
+            if (target.typeKind == TypeKind.Pointer)
+                return Conversion.ImplicitNullToPointer;
+            else if (target.IsNullableType())
                 return Conversion.NullLiteral;
             else
                 return Conversion.None;

@@ -120,4 +120,6 @@ internal enum OpCode : byte {
     Ldtoken,
     Throw,
     Rethrow,
+    Ldftn,
+    Calli,
 }

@@ -57,6 +57,8 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     internal override bool isSealed => false;
 
+    internal override bool isExtern => false;
+
     internal override SyntaxReference syntaxReference => null;
 
     internal override TextLocation location => null;
@@ -71,6 +73,10 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCtor;
+    }
+
+    internal override DllImportData GetDllImportData() {
+        return null;
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;

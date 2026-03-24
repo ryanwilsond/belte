@@ -244,7 +244,7 @@ internal static class LiteralUtilities {
         }
     }
 
-    internal static object ReduceNumeric(object value) {
+    internal static object ReduceNumeric(object value, bool unsigned) {
         // TODO We handle this during binding, maybe the Lexer should instead?
         if (value is null)
             return null;
@@ -277,16 +277,15 @@ internal static class LiteralUtilities {
             return (double)dec;
         }
 
-        // TODO Do we want to reduce to unsigned?
-        if (dec >= byte.MinValue && dec <= byte.MaxValue) return (byte)dec;
-        if (dec >= sbyte.MinValue && dec <= sbyte.MaxValue) return (sbyte)dec;
-        if (dec >= short.MinValue && dec <= short.MaxValue) return (short)dec;
-        if (dec >= ushort.MinValue && dec <= ushort.MaxValue) return (ushort)dec;
-        if (dec >= int.MinValue && dec <= int.MaxValue) return (int)dec;
-        if (dec >= uint.MinValue && dec <= uint.MaxValue) return (uint)dec;
-        if (dec >= long.MinValue && dec <= long.MaxValue) return (long)dec;
+        if (unsigned && dec >= byte.MinValue && dec <= byte.MaxValue) return (byte)dec;
+        if (!unsigned && dec >= sbyte.MinValue && dec <= sbyte.MaxValue) return (sbyte)dec;
+        if (!unsigned && dec >= short.MinValue && dec <= short.MaxValue) return (short)dec;
+        if (unsigned && dec >= ushort.MinValue && dec <= ushort.MaxValue) return (ushort)dec;
+        if (!unsigned && dec >= int.MinValue && dec <= int.MaxValue) return (int)dec;
+        if (unsigned && dec >= uint.MinValue && dec <= uint.MaxValue) return (uint)dec;
+        if (!unsigned && dec >= long.MinValue && dec <= long.MaxValue) return (long)dec;
+        if (unsigned && dec >= ulong.MinValue && dec <= ulong.MaxValue) return (ulong)dec;
 
-        // return (ulong)dec;
         return dec;
     }
 

@@ -116,6 +116,7 @@ public enum SyntaxKind : ushort {
     GlobalKeyword,
     ImplicitKeyword,
     ExplicitKeyword,
+    ExternKeyword,
 
     // Tokens with text
     BadToken,
@@ -208,6 +209,7 @@ public enum SyntaxKind : ushort {
     ArrayType,
     NonNullableType,
     PointerType,
+    FunctionPointerType,
     ReferenceType,
     BaseType,
     NameEquals,

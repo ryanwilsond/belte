@@ -89,7 +89,8 @@ public static class CompilationExtensions {
                 var method = (MethodSymbol)symbol;
                 SymbolDisplay.AppendToDisplayText(text, method, SymbolDisplayFormat.BoundDisplayFormat);
 
-                if (program.TryGetMethodBodyIncludingParents(method, out var body, useOriginalDefinitions: true)) {
+                if (!method.isAbstract && !method.isExtern &&
+                    program.TryGetMethodBodyIncludingParents(method, out var body, useOriginalDefinitions: true)) {
                     text.Write(CreateSpace());
                     DisplayText.DisplayNode(text, body);
                 } else {

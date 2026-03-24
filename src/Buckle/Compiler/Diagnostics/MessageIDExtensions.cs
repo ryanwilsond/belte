@@ -21,6 +21,7 @@ internal static class MessageIDExtensions {
             MessageID.IDS_SK_TYPE_OR_NAMESPACE => "type or namespace",
             MessageID.IDS_MethodGroup => "method group",
             MessageID.IDS_ArrayAccess => "array access",
+            MessageID.IDS_AddressOfMethodGroup => "address of method group",
             _ => throw ExceptionUtilities.Unreachable()
         };
     }

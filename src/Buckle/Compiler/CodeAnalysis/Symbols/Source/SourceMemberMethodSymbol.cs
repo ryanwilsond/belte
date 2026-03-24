@@ -7,7 +7,7 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
+internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, IAttributeTargetSymbol {
     private protected readonly DeclarationModifiers _modifiers;
 
     private protected Flags _flags;
@@ -70,6 +70,8 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol {
     internal sealed override bool isVirtual => (_modifiers & DeclarationModifiers.Virtual) != 0;
 
     internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
+
+    internal sealed override bool isExtern => (_modifiers & DeclarationModifiers.Extern) != 0;
 
     internal sealed override CallingConvention callingConvention {
         get {
@@ -236,7 +238,9 @@ done:
     }
 
     private protected void CheckModifiersForBody(TextLocation location, BelteDiagnosticQueue diagnostics) {
-        if (isAbstract)
+        if (isExtern && !isAbstract)
+            diagnostics.Push(Error.ExternCannotHaveBody(location, this));
+        else if (isAbstract && !isExtern)
             diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
     }
 

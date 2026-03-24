@@ -308,6 +308,27 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                         isRefEscape: true
                     );
                 }
+            case BoundKind.FunctionPointerCallExpression: {
+                    var ptrInvocation = (BoundFunctionPointerCallExpression)expression;
+
+                    var methodSymbol = ptrInvocation.functionPointer.signature;
+
+                    if (methodSymbol.refKind == RefKind.None)
+                        break;
+
+                    return GetInvocationEscape(
+                        MethodInfo.Create(methodSymbol),
+                        receiver: null,
+                        receiverIsSubjectToCloning: ThreeState.Unknown,
+                        methodSymbol.parameters,
+                        ptrInvocation.arguments,
+                        ptrInvocation.argumentRefKindsOpt,
+                        argsToParamsOpt: default,
+                        scopeOfTheContainingExpression,
+                        isRefEscape: true
+                    );
+                }
+
             case BoundKind.AssignmentOperator:
                 var assignment = (BoundAssignmentOperator)expression;
 
@@ -384,6 +405,28 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 }
 
                 break;
+            case BoundKind.FunctionPointerCallExpression:
+                var functionPointerInvocation = (BoundFunctionPointerCallExpression)expression;
+                var signature = functionPointerInvocation.functionPointer.signature;
+
+                if (signature.refKind == RefKind.None)
+                    break;
+
+                return CheckInvocationEscape(
+                    functionPointerInvocation.syntax,
+                    MethodInfo.Create(signature),
+                    functionPointerInvocation.invokedExpression,
+                    receiverIsSubjectToCloning: ThreeState.False,
+                    signature.parameters,
+                    functionPointerInvocation.arguments,
+                    functionPointerInvocation.argumentRefKindsOpt,
+                    argsToParamsOpt: default,
+                    checkingReceiver,
+                    escapeFrom,
+                    escapeTo,
+                    diagnostics,
+                    isRefEscape: true
+                );
             case BoundKind.FieldAccessExpression:
                 var fieldAccess = (BoundFieldAccessExpression)expression;
                 return CheckFieldRefEscape(node, fieldAccess, escapeFrom, escapeTo, diagnostics);
@@ -483,6 +526,22 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     return CallingMethodScope;
 
                 return GetValEscape(fieldAccess.receiver, scopeOfTheContainingExpression);
+
+            case BoundKind.FunctionPointerCallExpression:
+                var ptrInvocation = (BoundFunctionPointerCallExpression)expression;
+                var ptrSymbol = ptrInvocation.functionPointer.signature;
+
+                return GetInvocationEscape(
+                    MethodInfo.Create(ptrSymbol),
+                    receiver: null,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    ptrSymbol.parameters,
+                    ptrInvocation.arguments,
+                    ptrInvocation.argumentRefKindsOpt,
+                    argsToParamsOpt: default,
+                    scopeOfTheContainingExpression,
+                    isRefEscape: false
+                );
             case BoundKind.CallExpression: {
                     var call = (BoundCallExpression)expression;
 
@@ -689,6 +748,25 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                         diagnostics: diagnostics
                     );
                 }
+            case BoundKind.FunctionPointerCallExpression:
+                var ptrInvocation = (BoundFunctionPointerCallExpression)expression;
+                var ptrSymbol = ptrInvocation.functionPointer.signature;
+
+                return CheckInvocationEscape(
+                    ptrInvocation.syntax,
+                    MethodInfo.Create(ptrSymbol),
+                    receiver: null,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    ptrSymbol.parameters,
+                    ptrInvocation.arguments,
+                    ptrInvocation.argumentRefKindsOpt,
+                    argsToParamsOpt: default,
+                    checkingReceiver,
+                    escapeFrom,
+                    escapeTo,
+                    diagnostics,
+                    isRefEscape: false
+                );
             case BoundKind.NullCoalescingOperator:
                 var coalescingOp = (BoundNullCoalescingOperator)expression;
                 return CheckValEscape(

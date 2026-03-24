@@ -1,0 +1,51 @@
+/*
+
+    Win32
+
+    Creates a window using the Win32 api.
+
+*/
+
+using HRESULT = int32!;
+
+public struct WNDCLASSEX {
+    public uint32! cbSize;
+    public uint32! style;
+    public int64!(int64! hWnd, uint32! msg, int64! wParam, int64! lParam)* lpfnWndProc;
+    public int32! cbClsExtra;
+    public int32! cbWndExtra;
+    public int64! hInstance;
+    public int64! hIcon;
+    public int64! hCursor;
+    public int64! hbrBackground;
+    public string lpszMenuName;
+    public string lpszClassName;
+    public int64! hIconSm;
+}
+
+public static class Program {
+    constexpr uint32! WM_DESTROY = 0x0002;
+
+    [DllImport("kernel32.dll")]
+    static extern int64* GetModuleHandle(string lpModuleName);
+
+    [DllImport("user32.dll")]
+    static extern void PostQuitMessage(int32! nExitCode);
+
+    [DllImport("user32.dll")]
+    static extern int64! DefWindowProc(int64! hWnd, uint32! msg, int64! wParam, int64! lParam);
+
+    public static void Main() {
+        var hInstance = GetModuleHandle(null);
+        var wc = new WNDCLASSEX();
+        wc.cbSize = (uint32!)LowLevel.SizeOf<WNDCLASSEX>();
+        wc.lpfnWndProc = &WndProcImpl;
+    }
+
+    static int64! WndProcImpl(int64! hWnd, uint32! msg, int64! wParam, int64! lParam) {
+        if (msg == WM_DESTROY)
+            PostQuitMessage(0);
+
+        return DefWindowProc(hWnd, msg, wParam, lParam);
+    }
+}
