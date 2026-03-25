@@ -1,15 +1,38 @@
-# 5.3 Dictionary (Included By Default)
+# 5.7.2 Dictionary
 
 A Dictionary template is an ordered hashmap implementation.
 
-- [5.3.1](#531-definition) Definition
-- [5.3.2](#532-initializer-dictionaries) Initializer Dictionaries
+The Belte public interface for the Dictionary template can be found [here](../../../src/Belte/Native/Standard/Collections/Dictionary.blt).
 
-## 5.3.1 Definition
+- [5.7.2.1](#5721-constructors) Constructors
+- [5.7.2.2](#5722-methods) Methods
+- [5.7.2.3](#5723-operators) Operators
+- [5.7.2.4](#5724-initializer-dictionaries) Initializer Dictionaries
 
-The Belte public interface for the List class can be found [here](../../../src/Belte/Standard/Collections/Dictionary.blt).
+## 5.7.2.1 Constructors
 
-| Method | Description |
+The Dictionary template has two template parameters. The first corresponds to
+the key type, the second corresponds to the value type.
+
+| Signature | Description |
+|-|-|
+| `new Dictionary<type TKey, type TValue>()` | Creates an empty dictionary. |
+| `Dictionary<type TKey, type TValue>(int!) | Creates an empty dictionary with a starting capacity. |
+| `new Dictionary<type TKey, type TValue>(EqualityComparer<TKey>)` | Creates an empty dictionary with a custom equality comparer. |
+| `new Dictionary<type TKey, type TValue>(int!, EqualityComparer<TKey>)` | Creates an empty dictionary with a starting capacity and a custom equality comparer. |
+| `new Dictionary<type TKey, type TValue>(Dictionary<TKey, TValue>)` | Copies the given dictionary. |
+| `new Dictionary<type TKey, type TValue>(Dictionary<TKey, TValue>, EqualityComparer<TKey>)` | Copies the given dictionary with a new equality comparer. |
+
+For example, to create an empty dictionary where the key type is `int` and the
+value type is `string`:
+
+```belte
+new Dictionary<int, string>();
+```
+
+## 5.7.2.2 Methods
+
+| Signature | Description |
 |-|-|
 | `void Add(TKey, TValue)` | Adds a key value pair. |
 | `void Clear()` | Removes all elements. |
@@ -18,19 +41,37 @@ The Belte public interface for the List class can be found [here](../../../src/B
 | `int! Length()` | The number of elements. |
 | `bool Remove(TKey)` | Removes the pair with the given key. Returns true if succeeded, or false if the key was not present. |
 
-## 5.3.2 Initializer Dictionaries
+## 5.7.2.3 Operators
 
-Initializer dictionaries create Dictionaries.
+| Signature | Description |
+|-|-|
+| `static ref TValue operator[](Dictionary<TKey, TValue>, TKey)` | Gets the value associated with the given key. |
+
+For example, to set and get a value from a dictionary:
 
 ```belte
-var a = { "A": 1, "B": 2, "C": 3 };
+var myDict = new Dictionary<int, string>();
+myDict.Add(3, "test");
+
+myDict[3] = "new string";
+var myValue = myDict[3];
 ```
 
-The previous example could more explicitly be written as:
+Note that the indexing operator does not create new entries in the dictionary, only modifies them.
+
+## 5.7.2.4 Initializer Dictionaries
+
+Initializer dictionaries are special syntax that create dictionaries implicitly.
 
 ```belte
-Dictionary<string, int> a = new Dictionary<string, int>();
-a.Add("A", 1);
-a.Add("B", 2);
-a.Add("C", 3);
+var myDict = { "A": 1, "B": 2, "C": 3 };
+```
+
+The above is shorthand for:
+
+```belte
+Dictionary<string, int> myDict = new Dictionary<string, int>();
+myDict.Add("A", 1);
+myDict.Add("B", 2);
+myDict.Add("C", 3);
 ```
