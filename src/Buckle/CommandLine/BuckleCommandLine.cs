@@ -392,6 +392,8 @@ public static partial class BuckleCommandLine {
         Console.WriteLine($"    Module name: {state.moduleName}");
         Console.WriteLine($"    References: {string.Join(", ", state.references.Select(r => $"\"{r}\""))}");
         Console.WriteLine();
+        Console.WriteLine($"Verbose output path: \"{state.verbosePath}\"");
+        Console.WriteLine();
 
         LogTasks(state);
     }
@@ -630,6 +632,20 @@ public static partial class BuckleCommandLine {
                     state.projectType = OutputKind.DynamicallyLinkedLibrary;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
+            } else if (arg.StartsWith("--verbose-path")) {
+                if (arg == "--verbose-path" || arg == "--verbose-path=") {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingVerbosePath(arg));
+                    continue;
+                }
+
+                var path = arg.Substring(15);
+
+                if (!Directory.Exists(path)) {
+                    diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
+                    continue;
+                }
+
+                state.verbosePath = path;
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];

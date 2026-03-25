@@ -292,11 +292,35 @@ internal static partial class ConstraintsHelpers {
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
                     break;
+                case TypeKind.Pointer:
+                    next = ((PointerTypeSymbol)current).pointedAtTypeWithAnnotations;
+                    break;
+                case TypeKind.FunctionPointer:
+                    VisitFunctionPointerType((FunctionPointerTypeSymbol)current, out next);
+                    break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(current.typeKind);
             }
 
             type = next.nullableUnderlyingTypeOrSelf;
+        }
+
+        void VisitFunctionPointerType(FunctionPointerTypeSymbol type, out TypeWithAnnotations next) {
+            MethodSymbol currentPointer = type.signature;
+
+            if (currentPointer.parameterCount == 0) {
+                next = currentPointer.returnTypeWithAnnotations;
+                return;
+            }
+
+            CheckAllConstraints(currentPointer.returnType, location, diagnostics);
+
+            int i;
+            for (i = 0; i < currentPointer.parameterCount - 1; i++)
+                CheckAllConstraints(currentPointer.parameters[i].type, location, diagnostics);
+
+            next = currentPointer.parameters[i].typeWithAnnotations;
+            return;
         }
     }
 
@@ -398,7 +422,7 @@ internal static partial class ConstraintsHelpers {
                 names.Add(name, names.Count);
         }
 
-        var result = EvaluateConstraintCore(constraint, names, templateArguments);
+        var result = EvaluateConstraintCore(constraint, names, templateArguments, diagnostics);
 
         if (result.value is null)
             diagnostics.Push(Error.ConstraintWasNull(location, constraint.syntax.ToString()));
@@ -408,7 +432,8 @@ internal static partial class ConstraintsHelpers {
         static ConstantValue EvaluateConstraintCore(
             BoundExpression expression,
             Dictionary<string, int> names,
-            ImmutableArray<TypeOrConstant> templateArguments) {
+            ImmutableArray<TypeOrConstant> templateArguments,
+            BelteDiagnosticQueue diagnostics) {
             if (expression.constantValue is not null)
                 return expression.constantValue;
 
@@ -416,47 +441,52 @@ internal static partial class ConstraintsHelpers {
                 case BoundKind.UnaryOperator:
                     var unary = (BoundUnaryOperator)expression;
                     return ConstantFolding.FoldUnary(
-                        EvaluateConstraintCore(unary.operand, names, templateArguments),
+                        EvaluateConstraintCore(unary.operand, names, templateArguments, diagnostics),
                         unary.operatorKind, unary.Type());
                 case BoundKind.BinaryOperator:
                     var binary = (BoundBinaryOperator)expression;
                     return ConstantFolding.FoldBinary(
-                        EvaluateConstraintCore(binary.left, names, templateArguments),
-                        EvaluateConstraintCore(binary.right, names, templateArguments),
+                        EvaluateConstraintCore(binary.left, names, templateArguments, diagnostics),
+                        binary.left.type,
+                        EvaluateConstraintCore(binary.right, names, templateArguments, diagnostics),
+                        binary.right.type,
                         binary.operatorKind, binary.left.Type());
                 case BoundKind.IsOperator:
                     var isOperator = (BoundIsOperator)expression;
                     return ConstantFolding.FoldIs(
-                        EvaluateConstraintCore(isOperator.left, names, templateArguments),
-                        EvaluateConstraintCore(isOperator.right, names, templateArguments),
+                        EvaluateConstraintCore(isOperator.left, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(isOperator.right, names, templateArguments, diagnostics),
                         isOperator.isNot);
                 case BoundKind.NullCoalescingOperator:
                     var nullCoalescing = (BoundNullCoalescingOperator)expression;
                     return ConstantFolding.FoldNullCoalescing(
-                        EvaluateConstraintCore(nullCoalescing.left, names, templateArguments),
-                        EvaluateConstraintCore(nullCoalescing.right, names, templateArguments),
+                        EvaluateConstraintCore(nullCoalescing.left, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(nullCoalescing.right, names, templateArguments, diagnostics),
                         nullCoalescing.Type());
                 case BoundKind.NullAssertOperator:
                     var nullAssert = (BoundNullAssertOperator)expression;
                     return ConstantFolding.FoldNullAssert(
-                        EvaluateConstraintCore(nullAssert.operand, names, templateArguments));
+                        EvaluateConstraintCore(nullAssert.operand, names, templateArguments, diagnostics));
                 case BoundKind.CastExpression:
                     var cast = (BoundCastExpression)expression;
                     return ConstantFolding.FoldCast(
-                        EvaluateConstraintCore(cast.operand, names, templateArguments),
-                        new TypeWithAnnotations(cast.type));
+                        EvaluateConstraintCore(cast.operand, names, templateArguments, diagnostics),
+                        expression.syntax.location,
+                        cast.operand.type,
+                        new TypeWithAnnotations(cast.type),
+                        diagnostics);
                 case BoundKind.ConditionalOperator:
                     var conditional = (BoundConditionalOperator)expression;
                     return ConstantFolding.FoldConditional(
-                        EvaluateConstraintCore(conditional.condition, names, templateArguments),
-                        EvaluateConstraintCore(conditional.trueExpression, names, templateArguments),
-                        EvaluateConstraintCore(conditional.falseExpression, names, templateArguments),
+                        EvaluateConstraintCore(conditional.condition, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(conditional.trueExpression, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(conditional.falseExpression, names, templateArguments, diagnostics),
                         conditional.Type());
                 case BoundKind.TypeExpression:
                     var templateParameter = (TemplateParameterSymbol)expression.type;
                     return templateArguments[names[templateParameter.name]].constant;
                 default:
-                    return new ConstantValue(false);
+                    return new ConstantValue(false, SpecialType.Bool);
             }
         }
     }

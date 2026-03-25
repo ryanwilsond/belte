@@ -89,11 +89,12 @@ internal sealed class Evaluator {
     /// <param name="abort">External flag used to cancel evaluation.</param>
     /// <param name="hasValue">If the evaluation had a returned result.</param>
     /// <returns>Result of <see cref="BoundProgram" /> (if applicable).</returns>
-    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue) {
+    internal object Evaluate(ValueWrapper<bool> abort, out bool hasValue, out TypeSymbol resultType) {
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is null) {
             hasValue = false;
+            resultType = null;
             return null;
         }
 
@@ -147,7 +148,52 @@ internal sealed class Evaluator {
             _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
 
         hasValue = _hasValue;
+        resultType = GetResultType(result);
         return hasValue ? EvaluatorValue.Format(result, _context) : null;
+    }
+
+    private TypeSymbol GetResultType(EvaluatorValue result) {
+        switch (result.kind) {
+            case ValueKind.Int8:
+                return CorLibrary.GetSpecialType(SpecialType.Int8);
+            case ValueKind.Int16:
+                return CorLibrary.GetSpecialType(SpecialType.Int16);
+            case ValueKind.Int32:
+                return CorLibrary.GetSpecialType(SpecialType.Int32);
+            case ValueKind.Int64:
+                return CorLibrary.GetSpecialType(SpecialType.Int64);
+            case ValueKind.UInt8:
+                return CorLibrary.GetSpecialType(SpecialType.UInt8);
+            case ValueKind.UInt16:
+                return CorLibrary.GetSpecialType(SpecialType.UInt16);
+            case ValueKind.UInt32:
+                return CorLibrary.GetSpecialType(SpecialType.UInt32);
+            case ValueKind.UInt64:
+                return CorLibrary.GetSpecialType(SpecialType.UInt64);
+            case ValueKind.Float32:
+                return CorLibrary.GetSpecialType(SpecialType.Float32);
+            case ValueKind.Float64:
+                return CorLibrary.GetSpecialType(SpecialType.Float64);
+            case ValueKind.Bool:
+                return CorLibrary.GetSpecialType(SpecialType.Bool);
+            case ValueKind.Char:
+                return CorLibrary.GetSpecialType(SpecialType.Char);
+            case ValueKind.String:
+                return CorLibrary.GetSpecialType(SpecialType.String);
+            case ValueKind.Type:
+                return CorLibrary.GetSpecialType(SpecialType.Type);
+            case ValueKind.Struct:
+                return result.@struct.type;
+            case ValueKind.HeapPtr:
+                return _context.heap[result.ptr].type;
+            case ValueKind.Ref:
+                var innerType = GetResultType(result.loc[result.ptr]);
+                return new PointerTypeSymbol(new TypeWithAnnotations(innerType));
+            case ValueKind.MethodGroup:
+            case ValueKind.Null:
+            default:
+                return null;
+        }
     }
 
     private EvaluatorValue GetOrCreateStaticType(NamedTypeSymbol type, ValueWrapper<bool> abort) {
@@ -451,6 +497,7 @@ internal sealed class Evaluator {
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node, used),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
             BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
+            BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -680,6 +727,9 @@ internal sealed class Evaluator {
             return EvaluatorValue.None;
         }
 
+        if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
+            return EvaluatorValue.Ref(_stack.Peek().values, 0);
+
         var value = EvaluateExpression(node.operand, true, abort);
 
         if (IsReferenceType(node.operand.Type())) {
@@ -704,6 +754,10 @@ internal sealed class Evaluator {
                 return value;
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
+            case ConversionKind.ImplicitNumeric:
+            case ConversionKind.ExplicitNumeric:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
                 return EvaluateConvertCallOrNumericConversion(node, value);
             case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ImplicitPointerToVoid:
@@ -714,48 +768,281 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateConvertCallOrNumericConversion(BoundCastExpression node, EvaluatorValue value) {
-        var fromType = node.operand.Type().specialType;
-        var toType = node.Type().specialType;
+        var fromType = NormalizeNumericType(node.operand.Type().specialType);
+        var toType = NormalizeNumericType(node.Type().specialType);
 
-        switch (fromType, toType) {
-            case (SpecialType.String, SpecialType.Bool):
-                value.@bool = Convert.ToBoolean(value.@string);
+        switch (toType) {
+            case SpecialType.Bool:
                 value.kind = ValueKind.Bool;
+                value.@bool = fromType switch {
+                    SpecialType.String => Convert.ToBoolean(value.@string),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
                 break;
-            case (SpecialType.String, SpecialType.Int):
-                value.int64 = Convert.ToInt64(value.@string);
-                value.kind = ValueKind.Int64;
-                break;
-            case (SpecialType.Decimal, SpecialType.Int):
-                value.int64 = Convert.ToInt64(value.@double);
-                value.kind = ValueKind.Int64;
-                break;
-            case (SpecialType.String, SpecialType.Decimal):
-                value.@double = Convert.ToDouble(value.@string);
-                value.kind = ValueKind.Double;
-                break;
-            case (SpecialType.Int, SpecialType.Decimal):
-                value.@double = Convert.ToDouble(value.int64);
-                value.kind = ValueKind.Double;
-                break;
-            case (SpecialType.Int, SpecialType.String):
-                value.@string = Convert.ToString(value.int64);
+            case SpecialType.String:
                 value.kind = ValueKind.String;
+                value.@string = fromType switch {
+                    SpecialType.Bool => Convert.ToString(value.@bool),
+                    SpecialType.Char => Convert.ToString(value.@char),
+                    SpecialType.Int8 => Convert.ToString(value.int8),
+                    SpecialType.Int16 => Convert.ToString(value.int16),
+                    SpecialType.Int32 => Convert.ToString(value.int32),
+                    SpecialType.Int64 => Convert.ToString(value.int64),
+                    SpecialType.UInt8 => Convert.ToString(value.uint8),
+                    SpecialType.UInt16 => Convert.ToString(value.uint16),
+                    SpecialType.UInt32 => Convert.ToString(value.uint32),
+                    SpecialType.UInt64 => Convert.ToString(value.uint64),
+                    SpecialType.Float32 => Convert.ToString(value.single),
+                    SpecialType.Float64 => Convert.ToString(value.@double),
+                    SpecialType.Pointer => Convert.ToString(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToString(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
                 break;
-            case (SpecialType.Decimal, SpecialType.String):
-                value.@string = Convert.ToString(value.@double);
-                value.kind = ValueKind.String;
-                break;
-            case (SpecialType.Char, SpecialType.Int):
-                value.@int64 = Convert.ToInt64(value.@char);
-                value.kind = ValueKind.Int64;
-                break;
-            case (SpecialType.Int, SpecialType.Char):
-                value.@char = Convert.ToChar(value.@int64);
+            case SpecialType.Char:
                 value.kind = ValueKind.Char;
+                value.@char = fromType switch {
+                    SpecialType.Int8 => Convert.ToChar(value.int8),
+                    SpecialType.Int16 => Convert.ToChar(value.int16),
+                    SpecialType.Int32 => Convert.ToChar(value.int32),
+                    SpecialType.Int64 => Convert.ToChar(value.int64),
+                    SpecialType.UInt8 => Convert.ToChar(value.uint8),
+                    SpecialType.UInt16 => Convert.ToChar(value.uint16),
+                    SpecialType.UInt32 => Convert.ToChar(value.uint32),
+                    SpecialType.UInt64 => Convert.ToChar(value.uint64),
+                    SpecialType.Float32 => Convert.ToChar(value.single),
+                    SpecialType.Float64 => Convert.ToChar(value.@double),
+                    SpecialType.Pointer => Convert.ToChar(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToChar(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Int8:
+                value.kind = ValueKind.Int8;
+                value.int8 = fromType switch {
+                    SpecialType.String => Convert.ToSByte(value.@string),
+                    SpecialType.Char => Convert.ToSByte(value.@char),
+                    SpecialType.Int16 => Convert.ToSByte(value.int16),
+                    SpecialType.Int32 => Convert.ToSByte(value.int32),
+                    SpecialType.Int64 => Convert.ToSByte(value.int64),
+                    SpecialType.UInt8 => Convert.ToSByte(value.uint8),
+                    SpecialType.UInt16 => Convert.ToSByte(value.uint16),
+                    SpecialType.UInt32 => Convert.ToSByte(value.uint32),
+                    SpecialType.UInt64 => Convert.ToSByte(value.uint64),
+                    SpecialType.Float32 => Convert.ToSByte(value.@single),
+                    SpecialType.Float64 => Convert.ToSByte(value.@double),
+                    SpecialType.Pointer => Convert.ToSByte(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToSByte(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Int16:
+                value.kind = ValueKind.Int16;
+                value.int16 = fromType switch {
+                    SpecialType.String => Convert.ToInt16(value.@string),
+                    SpecialType.Char => Convert.ToInt16(value.@char),
+                    SpecialType.Int8 => Convert.ToInt16(value.int8),
+                    SpecialType.Int32 => Convert.ToInt16(value.int32),
+                    SpecialType.Int64 => Convert.ToInt16(value.int64),
+                    SpecialType.UInt8 => Convert.ToInt16(value.uint8),
+                    SpecialType.UInt16 => Convert.ToInt16(value.uint16),
+                    SpecialType.UInt32 => Convert.ToInt16(value.uint32),
+                    SpecialType.UInt64 => Convert.ToInt16(value.uint64),
+                    SpecialType.Float32 => Convert.ToInt16(value.single),
+                    SpecialType.Float64 => Convert.ToInt16(value.@double),
+                    SpecialType.Pointer => Convert.ToInt16(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToInt16(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Int32:
+                value.kind = ValueKind.Int32;
+                value.int32 = fromType switch {
+                    SpecialType.String => Convert.ToInt32(value.@string),
+                    SpecialType.Char => Convert.ToInt32(value.@string),
+                    SpecialType.Int8 => Convert.ToInt32(value.int8),
+                    SpecialType.Int16 => Convert.ToInt32(value.int16),
+                    SpecialType.Int64 => Convert.ToInt32(value.int32),
+                    SpecialType.UInt8 => Convert.ToInt32(value.uint8),
+                    SpecialType.UInt16 => Convert.ToInt32(value.uint16),
+                    SpecialType.UInt32 => Convert.ToInt32(value.uint32),
+                    SpecialType.UInt64 => Convert.ToInt32(value.uint64),
+                    SpecialType.Float32 => Convert.ToInt32(value.@single),
+                    SpecialType.Float64 => Convert.ToInt32(value.@double),
+                    SpecialType.Pointer => value.ptr,
+                    SpecialType.FunctionPointer => value.ptr,
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Int64:
+                value.kind = ValueKind.Int64;
+                value.int64 = fromType switch {
+                    SpecialType.String => Convert.ToInt64(value.@string),
+                    SpecialType.Char => Convert.ToInt64(value.@char),
+                    SpecialType.Int8 => Convert.ToInt64(value.int8),
+                    SpecialType.Int16 => Convert.ToInt64(value.int16),
+                    SpecialType.Int32 => Convert.ToInt64(value.int32),
+                    SpecialType.UInt8 => Convert.ToInt64(value.uint8),
+                    SpecialType.UInt16 => Convert.ToInt64(value.uint16),
+                    SpecialType.UInt32 => Convert.ToInt64(value.uint32),
+                    SpecialType.UInt64 => Convert.ToInt64(value.uint64),
+                    SpecialType.Float32 => Convert.ToInt64(value.@single),
+                    SpecialType.Float64 => Convert.ToInt64(value.@double),
+                    SpecialType.Pointer => Convert.ToInt64(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToInt64(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.UInt8:
+                value.kind = ValueKind.UInt8;
+                value.uint8 = fromType switch {
+                    SpecialType.String => Convert.ToByte(value.@string),
+                    SpecialType.Char => Convert.ToByte(value.@char),
+                    SpecialType.Int8 => Convert.ToByte(value.int8),
+                    SpecialType.Int16 => Convert.ToByte(value.int16),
+                    SpecialType.Int32 => Convert.ToByte(value.int32),
+                    SpecialType.Int64 => Convert.ToByte(value.int64),
+                    SpecialType.UInt16 => Convert.ToByte(value.uint16),
+                    SpecialType.UInt32 => Convert.ToByte(value.uint32),
+                    SpecialType.UInt64 => Convert.ToByte(value.uint64),
+                    SpecialType.Float32 => Convert.ToByte(value.@single),
+                    SpecialType.Float64 => Convert.ToByte(value.@double),
+                    SpecialType.Pointer => Convert.ToByte(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToByte(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.UInt16:
+                value.kind = ValueKind.UInt16;
+                value.uint16 = fromType switch {
+                    SpecialType.String => Convert.ToUInt16(value.@string),
+                    SpecialType.Char => Convert.ToUInt16(value.@char),
+                    SpecialType.Int8 => Convert.ToUInt16(value.int8),
+                    SpecialType.Int16 => Convert.ToUInt16(value.int16),
+                    SpecialType.Int32 => Convert.ToUInt16(value.int32),
+                    SpecialType.Int64 => Convert.ToUInt16(value.int64),
+                    SpecialType.UInt8 => Convert.ToUInt16(value.uint8),
+                    SpecialType.UInt32 => Convert.ToUInt16(value.uint32),
+                    SpecialType.UInt64 => Convert.ToUInt16(value.uint64),
+                    SpecialType.Float32 => Convert.ToUInt16(value.single),
+                    SpecialType.Float64 => Convert.ToUInt16(value.@double),
+                    SpecialType.Pointer => Convert.ToUInt16(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToUInt16(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.UInt32:
+                value.kind = ValueKind.UInt32;
+                value.uint32 = fromType switch {
+                    SpecialType.String => Convert.ToUInt32(value.@string),
+                    SpecialType.Char => Convert.ToUInt32(value.@char),
+                    SpecialType.Int8 => Convert.ToUInt32(value.int8),
+                    SpecialType.Int16 => Convert.ToUInt32(value.int16),
+                    SpecialType.Int32 => Convert.ToUInt32(value.int32),
+                    SpecialType.Int64 => Convert.ToUInt32(value.int64),
+                    SpecialType.UInt8 => Convert.ToUInt32(value.uint8),
+                    SpecialType.UInt16 => Convert.ToUInt32(value.uint16),
+                    SpecialType.UInt64 => Convert.ToUInt32(value.uint64),
+                    SpecialType.Float32 => Convert.ToUInt32(value.@single),
+                    SpecialType.Float64 => Convert.ToUInt32(value.@double),
+                    SpecialType.Pointer => Convert.ToUInt32(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToUInt32(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.UInt64:
+                value.kind = ValueKind.UInt64;
+                value.uint64 = fromType switch {
+                    SpecialType.String => Convert.ToUInt64(value.@string),
+                    SpecialType.Char => Convert.ToUInt64(value.@char),
+                    SpecialType.Int8 => Convert.ToUInt64(value.int8),
+                    SpecialType.Int16 => Convert.ToUInt64(value.int16),
+                    SpecialType.Int32 => Convert.ToUInt64(value.int32),
+                    SpecialType.Int64 => Convert.ToUInt64(value.int64),
+                    SpecialType.UInt8 => Convert.ToUInt64(value.uint8),
+                    SpecialType.UInt16 => Convert.ToUInt64(value.uint16),
+                    SpecialType.UInt32 => Convert.ToUInt64(value.uint32),
+                    SpecialType.Float32 => Convert.ToUInt64(value.@single),
+                    SpecialType.Float64 => Convert.ToUInt64(value.@double),
+                    SpecialType.Pointer => Convert.ToUInt64(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToUInt64(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Float32:
+                value.kind = ValueKind.Float32;
+                value.single = fromType switch {
+                    SpecialType.String => Convert.ToSingle(value.@string),
+                    SpecialType.Char => Convert.ToSingle(value.@char),
+                    SpecialType.Int8 => Convert.ToSingle(value.int8),
+                    SpecialType.Int16 => Convert.ToSingle(value.int16),
+                    SpecialType.Int32 => Convert.ToSingle(value.int32),
+                    SpecialType.Int64 => Convert.ToSingle(value.int64),
+                    SpecialType.UInt8 => Convert.ToSingle(value.uint8),
+                    SpecialType.UInt16 => Convert.ToSingle(value.uint16),
+                    SpecialType.UInt32 => Convert.ToSingle(value.uint32),
+                    SpecialType.UInt64 => Convert.ToSingle(value.uint64),
+                    SpecialType.Float64 => Convert.ToSingle(value.@double),
+                    SpecialType.Pointer => Convert.ToSingle(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToSingle(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Float64:
+                value.kind = ValueKind.Float64;
+                value.@double = fromType switch {
+                    SpecialType.String => Convert.ToDouble(value.@string),
+                    SpecialType.Char => Convert.ToDouble(value.@char),
+                    SpecialType.Int8 => Convert.ToDouble(value.int8),
+                    SpecialType.Int16 => Convert.ToDouble(value.int16),
+                    SpecialType.Int32 => Convert.ToDouble(value.int32),
+                    SpecialType.Int64 => Convert.ToDouble(value.int64),
+                    SpecialType.UInt8 => Convert.ToDouble(value.uint8),
+                    SpecialType.UInt16 => Convert.ToDouble(value.uint16),
+                    SpecialType.UInt32 => Convert.ToDouble(value.uint32),
+                    SpecialType.UInt64 => Convert.ToDouble(value.uint64),
+                    SpecialType.Float32 => Convert.ToDouble(value.single),
+                    SpecialType.Pointer => Convert.ToDouble(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToDouble(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                value.kind = ValueKind.Ref;
+                value.loc ??= _stack.Peek().values;
+                value.ptr = fromType switch {
+                    SpecialType.Char => Convert.ToInt32(value.@char),
+                    SpecialType.Int8 => Convert.ToInt32(value.int8),
+                    SpecialType.Int16 => Convert.ToInt32(value.int16),
+                    SpecialType.Int32 => Convert.ToInt32(value.int32),
+                    SpecialType.Int64 => Convert.ToInt32(value.int64),
+                    SpecialType.UInt8 => Convert.ToInt32(value.uint8),
+                    SpecialType.UInt16 => Convert.ToInt32(value.uint16),
+                    SpecialType.UInt32 => Convert.ToInt32(value.uint32),
+                    SpecialType.UInt64 => Convert.ToInt32(value.uint64),
+                    SpecialType.Float32 => Convert.ToInt32(value.single),
+                    SpecialType.Pointer => value.ptr,
+                    SpecialType.FunctionPointer => value.ptr,
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue((fromType, toType));
+                throw ExceptionUtilities.UnexpectedValue(toType);
         }
 
         return value;
@@ -890,10 +1177,10 @@ internal sealed class Evaluator {
             return CreateStruct((NamedTypeSymbol)type);
 
         if (type is PointerTypeSymbol)
-            return EvaluatorValue.Literal(0);
+            return EvaluatorValue.Literal(value: 0);
 
         return (!type.IsNullableType() && type.IsVerifierValue())
-            ? EvaluatorValue.Literal(LiteralUtilities.GetDefaultValue(type.specialType), type.specialType)
+            ? EvaluatorValue.Literal(type.specialType)
             : EvaluatorValue.Null;
     }
 
@@ -933,10 +1220,11 @@ internal sealed class Evaluator {
         if (!used)
             return EvaluatorValue.None;
 
-        var targetType = node.right.StrippedType();
-
         if (node.right.IsLiteralNull())
             return EvaluatorValue.Literal(value.kind == ValueKind.Null == (!node.isNot));
+
+        var targetType = node.right.StrippedType();
+        var targetSpecialType = NormalizeNumericType(targetType.specialType);
 
         if (value.kind == ValueKind.Null) {
             value.@bool = node.isNot;
@@ -944,11 +1232,19 @@ internal sealed class Evaluator {
             return value;
         }
 
-        if (value.kind == ValueKind.Int64 && targetType.specialType == SpecialType.Int ||
-            value.kind == ValueKind.Bool && targetType.specialType == SpecialType.Bool ||
-            value.kind == ValueKind.String && targetType.specialType == SpecialType.String ||
-            value.kind == ValueKind.Double && targetType.specialType == SpecialType.Decimal ||
-            targetType.specialType == SpecialType.Any) {
+        if (value.kind == ValueKind.Int8 && targetSpecialType == SpecialType.Int8 ||
+            value.kind == ValueKind.Int16 && targetSpecialType == SpecialType.Int16 ||
+            value.kind == ValueKind.Int32 && targetSpecialType == SpecialType.Int32 ||
+            value.kind == ValueKind.Int64 && targetSpecialType == SpecialType.Int64 ||
+            value.kind == ValueKind.UInt8 && targetSpecialType == SpecialType.UInt8 ||
+            value.kind == ValueKind.UInt16 && targetSpecialType == SpecialType.UInt16 ||
+            value.kind == ValueKind.UInt32 && targetSpecialType == SpecialType.UInt32 ||
+            value.kind == ValueKind.UInt64 && targetSpecialType == SpecialType.UInt64 ||
+            value.kind == ValueKind.Float32 && targetSpecialType == SpecialType.Float32 ||
+            value.kind == ValueKind.Float64 && targetSpecialType == SpecialType.Float64 ||
+            value.kind == ValueKind.Bool && targetSpecialType == SpecialType.Bool ||
+            value.kind == ValueKind.String && targetSpecialType == SpecialType.String ||
+            targetSpecialType == SpecialType.Any) {
             value.@bool = !node.isNot;
             value.kind = ValueKind.Bool;
             return value;
@@ -1014,23 +1310,20 @@ internal sealed class Evaluator {
         var value = EvaluateExpression(node.operand, true, abort);
 
         if (!node.refersToLocation) {
-            if (value.kind == ValueKind.Ref)
-                value = value.loc[value.ptr];
-            else
+            if (value.kind == ValueKind.Ref) {
+                if (value.ptr >= value.loc.Length)
+                    throw new BelteInvalidPointerIndirection(node.syntax.location);
+                else
+                    value = value.loc[value.ptr];
+            } else {
                 throw ExceptionUtilities.UnexpectedValue(value.kind);
+            }
         }
 
         if (!used)
             return EvaluatorValue.None;
 
-        value.kind = node.StrippedType().specialType switch {
-            SpecialType.Int => ValueKind.Int64,
-            SpecialType.Decimal => ValueKind.Double,
-            SpecialType.Bool => ValueKind.Bool,
-            SpecialType.String => ValueKind.String,
-            SpecialType.Char => ValueKind.Char,
-            _ => value.kind,
-        };
+        value.kind = ValueKindExtensions.FromSpecialType(node.StrippedType().specialType, value.kind);
 
         return value;
     }
@@ -1318,8 +1611,14 @@ internal sealed class Evaluator {
                 case BinaryOperatorKind.Int:
                     left.@bool = left.int64 == right.int64;
                     break;
-                case BinaryOperatorKind.Decimal:
+                case BinaryOperatorKind.UInt:
+                    left.@bool = left.uint64 == right.uint64;
+                    break;
+                case BinaryOperatorKind.Float64:
                     left.@bool = left.@double == right.@double;
+                    break;
+                case BinaryOperatorKind.Float32:
+                    left.@bool = left.@single == right.@single;
                     break;
                 case BinaryOperatorKind.Bool:
                     left.@bool = left.@bool == right.@bool;
@@ -1348,131 +1647,315 @@ internal sealed class Evaluator {
 
         switch (op) {
             case BinaryOperatorKind.Addition:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 += right.int64;
-                else if (operandType == BinaryOperatorKind.String)
-                    left.@string += right.@string;
-                else
-                    left.@double += right.@double;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 += right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 += right.uint64;
+                        break;
+                    case BinaryOperatorKind.String:
+                        left.@string += right.@string;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single += right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double += right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Subtraction:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 -= right.int64;
-                else
-                    left.@double -= right.@double;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 -= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 -= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single -= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double -= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Multiplication:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 *= right.int64;
-                else
-                    left.@double *= right.@double;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 *= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 *= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single *= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double *= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Division:
-                if (operandType == BinaryOperatorKind.Int) {
-                    if (right.int64 == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        if (right.int64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.int64 /= right.int64;
-                } else {
-                    if (right.@double == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                        left.int64 /= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        if (right.uint64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.@double /= right.@double;
+                        left.uint64 /= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        if (right.single == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.single /= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        if (right.@double == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.@double /= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.LessThan:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 < right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double < right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 < right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 < right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single < right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double < right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.GreaterThan:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 > right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double > right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 > right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 > right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single > right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double > right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.LessThanOrEqual:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 <= right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double <= right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 <= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 <= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single <= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double <= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.GreaterThanOrEqual:
-                if (operandType == BinaryOperatorKind.Int) {
-                    left.@bool = left.int64 >= right.int64;
-                    left.kind = ValueKind.Bool;
-                } else {
-                    left.@bool = left.@double >= right.@double;
-                    left.kind = ValueKind.Bool;
+                left.kind = ValueKind.Bool;
+
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.@bool = left.int64 >= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.@bool = left.uint64 >= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.@bool = left.single >= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@bool = left.@double >= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.And:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 &= right.int64;
-                else
-                    left.@bool &= right.@bool;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 &= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 &= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Bool:
+                        left.@bool &= right.@bool;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Or:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 |= right.int64;
-                else
-                    left.@bool |= right.@bool;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 |= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 |= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Bool:
+                        left.@bool |= right.@bool;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.Xor:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 ^= right.int64;
-                else
-                    left.@bool ^= right.@bool;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 ^= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 ^= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Bool:
+                        left.@bool ^= right.@bool;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             case BinaryOperatorKind.LeftShift:
-                left.int64 <<= (int)right.int64;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 <<= Convert.ToInt32(right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 <<= Convert.ToInt32(right.uint64);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
+
                 break;
             case BinaryOperatorKind.RightShift:
-                left.int64 >>= (int)right.int64;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 >>= Convert.ToInt32(right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 >>= Convert.ToInt32(right.uint64);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
+
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
-                left.int64 >>>= (int)right.int64;
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 >>>= Convert.ToInt32(right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 >>>= Convert.ToInt32(right.uint64);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
+
                 break;
             case BinaryOperatorKind.Modulo:
-                if (operandType == BinaryOperatorKind.Int) {
-                    if (right.int64 == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        if (right.int64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.int64 %= right.int64;
-                } else {
-                    if (right.@double == 0)
-                        throw new BelteDivideByZeroException(node.syntax.location);
+                        left.int64 %= right.int64;
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        if (right.uint64 == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
 
-                    left.@double %= right.@double;
+                        left.uint64 %= right.uint64;
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        if (right.single == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.single %= right.single;
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        if (right.@double == 0)
+                            throw new BelteDivideByZeroException(node.syntax.location);
+
+                        left.@double %= right.@double;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
                 }
 
                 break;
             case BinaryOperatorKind.Power:
-                if (operandType == BinaryOperatorKind.Int)
-                    left.int64 = (long)Math.Pow(left.int64, right.int64);
-                else
-                    left.@double = Math.Pow(left.@double, right.@double);
+                switch (operandType) {
+                    case BinaryOperatorKind.Int:
+                        left.int64 = (long)Math.Pow(left.int64, right.int64);
+                        break;
+                    case BinaryOperatorKind.UInt:
+                        left.uint64 = (ulong)Math.Pow(left.uint64, right.uint64);
+                        break;
+                    case BinaryOperatorKind.Float32:
+                        left.single = (float)Math.Pow(left.single, right.single);
+                        break;
+                    case BinaryOperatorKind.Float64:
+                        left.@double = Math.Pow(left.@double, right.@double);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(operandType);
+                }
 
                 break;
             default:
@@ -1920,10 +2403,18 @@ internal sealed class Evaluator {
                             result = argument.@struct.GetHashCode();
                         } else {
                             switch (argument.kind) {
+                                case ValueKind.Int8:
+                                case ValueKind.Int16:
+                                case ValueKind.Int32:
                                 case ValueKind.Int64:
+                                case ValueKind.UInt8:
+                                case ValueKind.UInt16:
+                                case ValueKind.UInt32:
+                                case ValueKind.UInt64:
+                                case ValueKind.Float32:
+                                case ValueKind.Float64:
                                 case ValueKind.Bool:
                                 case ValueKind.Char:
-                                case ValueKind.Double:
                                     result = argument.int64;
                                     break;
                                 case ValueKind.String:
@@ -1948,10 +2439,18 @@ internal sealed class Evaluator {
                         } else {
                             // TODO These are .NET types not Belte types! (to ensure parity with IL code gen)
                             result = argument.kind switch {
+                                ValueKind.Int8 => "SByte",
+                                ValueKind.Int16 => "Int16",
+                                ValueKind.Int32 => "Int32",
                                 ValueKind.Int64 => "Int64",
+                                ValueKind.UInt8 => "Byte",
+                                ValueKind.UInt16 => "UInt16",
+                                ValueKind.UInt32 => "UInt32",
+                                ValueKind.UInt64 => "UInt64",
+                                ValueKind.Float32 => "Single",
+                                ValueKind.Float64 => "Double",
                                 ValueKind.Bool => "Boolean",
                                 ValueKind.Char => "Char",
-                                ValueKind.Double => "Double",
                                 ValueKind.String => "String",
                                 _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
                             };

@@ -41,4 +41,5 @@ public enum DiagnosticCode : ushort {
     ERR_UnrecognizedType = 30,
     FTL_DLLWithWrongBuildMode = 31,
     FTL_CannotSpecifyOutAndModuleWithDll = 32,
+    ERR_MissingVerbosePath = 33,
 }

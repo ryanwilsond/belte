@@ -55,6 +55,7 @@ The Repl provides many commands usefully for debug snippets or code.
 | [Show Time](#show-time-command) | `#showTime` | Toggle display of submission execution time |
 | [Show Tokens](#show-tokens-command) | `#showTokens` | Toggle display of syntax tokens |
 | [Show Tree](#show-tree-command) | `#showTree` | Toggle display of the parse tree |
+| [Show Type](#show-type-command) | `#showType` | Toggle display of the result type |
 | [Show Warnings](#show-warnings-command) | `#showWarnings` | Toggle display of warnings |
 | [State](#state-command) | `#state` | Dump the current state of the Repl |
 
@@ -426,6 +427,22 @@ Parse trees visible
   │   │ └─NumericLiteralToken 7 [12..13)
   │   └─SemicolonToken ; [13..14)
   └─EndOfFileToken  [14..14)
+```
+
+### Show-Type Command
+
+Usage: `#showType`
+
+The show-type command toggles the display of the result type of each submission after it evaluates.
+
+For example:
+
+```belte
+» #showType
+Result type visible
+» return 1;
+1
+int8!
 ```
 
 ### Show-Warnings Command

@@ -1,4 +1,4 @@
-
+using System;
 using Buckle.CodeAnalysis.Display;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -30,6 +30,10 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    internal static int FixedBufferElementSizeInBytes(this TypeSymbol type) {
+        return type.specialType.FixedBufferElementSizeInBytes();
+    }
+
     internal static bool IsValidNullableTypeArgument(this TypeSymbol type) {
         return type is { isPrimitiveType: true } && !type.IsNullableType();
     }
@@ -50,5 +54,100 @@ internal static class TypeSymbolExtensions {
             return "<null>";
 
         return type.ToDisplayString(format);
+    }
+
+    internal static bool IsPointerOrFunctionPointer(this TypeSymbol type) {
+        switch (type.typeKind) {
+            case TypeKind.Pointer:
+            case TypeKind.FunctionPointer:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static TypedConstantKind GetAttributeParameterTypedConstantKind(this TypeSymbol type, Compilation compilation) {
+        var kind = TypedConstantKind.Error;
+
+        if (type is null)
+            return TypedConstantKind.Error;
+
+        if (type.kind == SymbolKind.ArrayType) {
+            var arrayType = (ArrayTypeSymbol)type;
+
+            if (!arrayType.isSZArray)
+                return TypedConstantKind.Error;
+
+            kind = TypedConstantKind.Array;
+            type = arrayType.elementType;
+        }
+
+        var typedConstantKind = TypedConstant.GetTypedConstantKind(type, compilation);
+
+        switch (typedConstantKind) {
+            case TypedConstantKind.Array:
+            case TypedConstantKind.Error:
+                return TypedConstantKind.Error;
+            default:
+                if (kind == TypedConstantKind.Array)
+                    return kind;
+
+                return typedConstantKind;
+        }
+    }
+
+    internal static bool IsUnboundTemplateType(this TypeSymbol type) {
+        return type is NamedTypeSymbol { isUnboundTemplateType: true };
+    }
+
+    internal static bool HasNameQualifier(this NamedTypeSymbol type, string qualifiedName) {
+        const StringComparison Comparison = StringComparison.Ordinal;
+
+        var container = type.containingSymbol;
+
+        if (container.kind != SymbolKind.Namespace) {
+            return string.Equals(
+                container.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat),
+                qualifiedName,
+                Comparison
+            );
+        }
+
+        var @namespace = (NamespaceSymbol)container;
+
+        if (@namespace.isGlobalNamespace)
+            return qualifiedName.Length == 0;
+
+        return HasNamespaceName(@namespace, qualifiedName, Comparison, length: qualifiedName.Length);
+    }
+
+    private static bool HasNamespaceName(
+        NamespaceSymbol @namespace,
+        string namespaceName,
+        StringComparison comparison,
+        int length) {
+        if (length == 0)
+            return false;
+
+        var container = @namespace.containingNamespace;
+        var separator = namespaceName.LastIndexOf('.', length - 1, length);
+        var offset = 0;
+
+        if (separator >= 0) {
+            if (container.isGlobalNamespace)
+                return false;
+
+            if (!HasNamespaceName(container, namespaceName, comparison, length: separator))
+                return false;
+
+            var n = separator + 1;
+            offset = n;
+            length -= n;
+        } else if (!container.isGlobalNamespace) {
+            return false;
+        }
+
+        var name = @namespace.name;
+        return (name.Length == length) && (string.Compare(name, 0, namespaceName, offset, length, comparison) == 0);
     }
 }

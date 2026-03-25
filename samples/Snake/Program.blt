@@ -41,18 +41,18 @@ class Program {
         var scorePosition = new Vec2(Settings.GameWidth / 2 - 100, 37);
         var highScorePosition = new Vec2(Settings.GameWidth / 2 + 280, 37);
 
-        scoreText = Graphics.LoadText("Score:        High Score:", "samples/Assets/arial.ttf", scoreTextPosition, 40, 0, 255, 255, 255);
-        score = Graphics.LoadText("0", "samples/Assets/arial.ttf", scorePosition, 40, 0, 255, 255, 255);
-        highScore = Graphics.LoadText((string)highScoreCounter, "samples/Assets/arial.ttf", highScorePosition, 40, 0, 255, 255, 255);
+        scoreText = Graphics.LoadText("Score:        High Score:", "samples/Snake/Assets/arial.ttf", scoreTextPosition, 40, 0, 255, 255, 255);
+        score = Graphics.LoadText("0", "samples/Snake/Assets/arial.ttf", scorePosition, 40, 0, 255, 255, 255);
+        highScore = Graphics.LoadText((string)highScoreCounter, "samples/Snake/Assets/arial.ttf", highScorePosition, 40, 0, 255, 255, 255);
 
         var position1 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 - 100);
         var position2 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2);
         var position3 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 75);
         var position4 = new Vec2(Settings.GameWidth / 2, Settings.GameHeight / 2 + 250);
-        gameOverLine1 = Graphics.LoadText("Game Over!", "samples/Assets/arial.ttf", position1, 80, 0, 255, 100, 100);
-        gameOverLine2 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position2, 50, 0, 255, 100, 100);
-        gameOverLine3 = Graphics.LoadText(null, "samples/Assets/arial.ttf", position3, 50, 0, 255, 100, 100);
-        gameOverLine4 = Graphics.LoadText("Press 'ENTER' to restart", "samples/Assets/arial.ttf", position4, 30, 0, 255, 255, 255);
+        gameOverLine1 = Graphics.LoadText("Game Over!", "samples/Snake/Assets/arial.ttf", position1, 80, 0, 255, 100, 100);
+        gameOverLine2 = Graphics.LoadText(null, "samples/Snake/Assets/arial.ttf", position2, 50, 0, 255, 100, 100);
+        gameOverLine3 = Graphics.LoadText(null, "samples/Snake/Assets/arial.ttf", position3, 50, 0, 255, 100, 100);
+        gameOverLine4 = Graphics.LoadText("Press 'ENTER' to restart", "samples/Snake/Assets/arial.ttf", position4, 30, 0, 255, 255, 255);
 
         banner = new Rect(0, 0, Settings.GameWidth, 80);
         Restart();

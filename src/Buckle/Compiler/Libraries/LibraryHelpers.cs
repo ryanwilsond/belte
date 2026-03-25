@@ -129,11 +129,17 @@ public static class LibraryHelpers {
 
         return stringBuilder.ToString();
 
-        static char GetNameCharacter(TypeSymbol type) {
+        static string GetNameCharacter(TypeSymbol type) {
             if (type.typeKind == TypeKind.Array)
-                return '[';
+                return "[";
 
-            return char.ToUpper(type.name.First());
+            if (type is PointerTypeSymbol ptr)
+                return char.ToUpper(ptr.pointedAtType.name.First()).ToString() + "*";
+
+            if (type is FunctionPointerTypeSymbol)
+                return "F";
+
+            return char.ToUpper(type.name.First()).ToString();
         }
     }
 

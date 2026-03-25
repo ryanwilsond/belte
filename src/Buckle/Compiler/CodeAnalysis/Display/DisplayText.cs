@@ -165,11 +165,17 @@ public sealed class DisplayText {
             case BoundKind.IndexerAccessExpression:
                 DisplayIndexerAccessExpression(text, (BoundIndexerAccessExpression)node);
                 break;
+            case BoundKind.PointerIndexAccessExpression:
+                DisplayPointerIndexAccessExpression(text, (BoundPointerIndexAccessExpression)node);
+                break;
             case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
             case BoundKind.UnconvertedInitializerList:
                 DisplayUnconvertedInitializerList(text, (BoundUnconvertedInitializerList)node);
+                break;
+            case BoundKind.UnconvertedNullptrExpression:
+                DisplayUnconvertedNullptrExpression(text, (BoundUnconvertedNullptrExpression)node);
                 break;
             case BoundKind.UnaryOperator:
                 DisplayUnaryOperator(text, (BoundUnaryOperator)node);
@@ -279,6 +285,12 @@ public sealed class DisplayText {
             case BoundKind.LocalFunctionStatement:
                 DisplayLocalFunctionStatement(text, (BoundLocalFunctionStatement)node);
                 break;
+            case BoundKind.FunctionPointerLoad:
+                DisplayFunctionPointerLoad(text, (BoundFunctionPointerLoad)node);
+                break;
+            case BoundKind.FunctionPointerCallExpression:
+                DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -328,7 +340,7 @@ public sealed class DisplayText {
             return;
         }
 
-        var specialType = LiteralUtilities.AssumeTypeFromLiteral(value);
+        var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
 
         if (specialType == SpecialType.String)
             DisplayStringLiteral(value.ToString(), false);
@@ -660,6 +672,13 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
+    private static void DisplayPointerIndexAccessExpression(DisplayText text, BoundPointerIndexAccessExpression node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.index);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
     private static void DisplayConditionalAccessExpression(DisplayText text, BoundConditionalAccessExpression node) {
         DisplayNode(text, node.receiver);
         var accessExpression = node.accessExpression;
@@ -741,6 +760,18 @@ public sealed class DisplayText {
         DisplayNode(text, node.operand);
     }
 
+    private static void DisplayFunctionPointerLoad(DisplayText text, BoundFunctionPointerLoad node) {
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+        SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
+    }
+
+    private static void DisplayFunctionPointerCallExpression(
+        DisplayText text,
+        BoundFunctionPointerCallExpression node) {
+        SymbolDisplay.AppendToDisplayText(text, node.functionPointer.signature, SymbolDisplayFormat.QualifiedNameFormat);
+        DisplayArguments(text, node.arguments);
+    }
+
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
         DisplayNode(text, node.operand);
@@ -800,6 +831,10 @@ public sealed class DisplayText {
 
     private static void DisplayUnconvertedInitializerList(DisplayText text, BoundUnconvertedInitializerList node) {
         DisplayListCore(text, node.items);
+    }
+
+    private static void DisplayUnconvertedNullptrExpression(DisplayText text, BoundUnconvertedNullptrExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.NullptrKeyword));
     }
 
     private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {

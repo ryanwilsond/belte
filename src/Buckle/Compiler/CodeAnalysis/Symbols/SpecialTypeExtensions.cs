@@ -12,6 +12,18 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Type:
             case SpecialType.Char:
             case SpecialType.Array:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
                 return true;
             default:
                 return false;
@@ -35,6 +47,11 @@ internal static class SpecialTypeExtensions {
     internal static bool IsUnsigned(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Char:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.UIntPtr:
                 return true;
             default:
                 return false;
@@ -45,21 +62,82 @@ internal static class SpecialTypeExtensions {
         if (value is null)
             return SpecialType.None;
 
-        if (value.GetType() == typeof(long))
-            return SpecialType.Int;
+        return value switch {
+            sbyte => SpecialType.Int8,
+            byte => SpecialType.UInt8,
+            short => SpecialType.Int16,
+            ushort => SpecialType.UInt16,
+            int => SpecialType.Int32,
+            uint => SpecialType.UInt32,
+            // long => SpecialType.Int64,
+            long => SpecialType.Int,
+            ulong => SpecialType.UInt64,
+            float => SpecialType.Float32,
+            // double => SpecialType.Float64,
+            double => SpecialType.Decimal,
+            string => SpecialType.String,
+            bool => SpecialType.Bool,
+            char => SpecialType.Char,
+            TypeSymbol => SpecialType.Type,
+            _ => SpecialType.None,
+        };
+    }
 
-        if (value.GetType() == typeof(string))
-            return SpecialType.String;
+    internal static bool IsNumeric(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Char:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+                return true;
+            default:
+                return false;
+        }
+    }
 
-        if (value.GetType() == typeof(bool))
-            return SpecialType.Bool;
+    internal static int FixedBufferElementSizeInBytes(this SpecialType specialType) {
+        return specialType.SizeInBytes();
+    }
 
-        if (value.GetType() == typeof(char))
-            return SpecialType.Char;
-
-        if (value.GetType() == typeof(double))
-            return SpecialType.Decimal;
-
-        return SpecialType.None;
+    internal static int SizeInBytes(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Int8:
+                return sizeof(sbyte);
+            case SpecialType.UInt8:
+                return sizeof(byte);
+            case SpecialType.Int16:
+                return sizeof(short);
+            case SpecialType.UInt16:
+                return sizeof(ushort);
+            case SpecialType.Int32:
+                return sizeof(int);
+            case SpecialType.UInt32:
+                return sizeof(uint);
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return sizeof(long);
+            case SpecialType.UInt64:
+                return sizeof(ulong);
+            case SpecialType.Char:
+                return sizeof(char);
+            case SpecialType.Float32:
+                return sizeof(float);
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return sizeof(double);
+            case SpecialType.Bool:
+                return sizeof(bool);
+            default:
+                return 0;
+        }
     }
 }

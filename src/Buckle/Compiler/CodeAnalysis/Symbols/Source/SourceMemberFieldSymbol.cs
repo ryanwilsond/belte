@@ -23,6 +23,13 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
     private protected abstract SyntaxTokenList _modifiersTokenList { get; }
 
+    internal override int fixedSize {
+        get {
+            _state.NotePartComplete(CompletionParts.FixedSize);
+            return 0;
+        }
+    }
+
     internal static DeclarationModifiers MakeModifiers(
         NamedTypeSymbol containingSymbol,
         SyntaxToken firstIdentifier,
@@ -63,6 +70,9 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
                     break;
                 case CompletionParts.Type:
                     GetFieldType(ConsList<FieldSymbol>.Empty);
+                    break;
+                case CompletionParts.FixedSize:
+                    _ = fixedSize;
                     break;
                 case CompletionParts.ConstantValue:
                     GetConstantValue(ConstantFieldsInProgress.Empty);

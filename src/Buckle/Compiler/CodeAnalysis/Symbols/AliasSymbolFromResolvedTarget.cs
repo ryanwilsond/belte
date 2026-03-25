@@ -10,8 +10,9 @@ internal sealed class AliasSymbolFromResolvedTarget : AliasSymbol {
         NamespaceOrTypeSymbol target,
         string aliasName,
         Symbol containingSymbol,
-        ImmutableArray<TextLocation> locations)
-        : base(aliasName, containingSymbol, locations) {
+        ImmutableArray<TextLocation> locations,
+        bool isExtern)
+        : base(aliasName, containingSymbol, locations, isExtern) {
         _aliasTarget = target;
     }
 

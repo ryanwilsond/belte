@@ -13,4 +13,5 @@ public enum TypeKind : byte {
     TemplateParameter,
     Error,
     Pointer,
+    FunctionPointer,
 }

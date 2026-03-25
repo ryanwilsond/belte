@@ -45,4 +45,37 @@ public static class Utilities {
     public static string[] Split(string text, string separator) {
         return text.Split(separator);
     }
+
+    public unsafe static char* CreateCharPtrString(string str) {
+        return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(str);
+    }
+
+    public unsafe static void FreeCharPtrString(char* str) {
+        System.Runtime.InteropServices.Marshal.FreeHGlobal((IntPtr)str);
+    }
+
+    public unsafe static void* GetGCPtr(object obj) {
+        var handle = System.Runtime.InteropServices.GCHandle.Alloc(obj, System.Runtime.InteropServices.GCHandleType.Normal);
+        return (void*)System.Runtime.InteropServices.GCHandle.ToIntPtr(handle);
+    }
+
+    public unsafe static void FreeGCHandle(void* ptr) {
+        var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr((IntPtr)ptr);
+        handle.Free();
+    }
+
+    public unsafe static object GetObject(void* ptr) {
+        var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr((IntPtr)ptr);
+        return handle.Target;
+    }
+
+    public unsafe static string ReadLPCSTR(void* ptr) {
+        var cPtr = (char*)ptr;
+        var len = 0;
+
+        while (cPtr[len] != '\0')
+            len++;
+
+        return new string(cPtr, 0, len);
+    }
 }

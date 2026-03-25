@@ -186,6 +186,17 @@ internal sealed partial class CodeGenerator {
 
                 EmitConditionalOperatorAddress((BoundConditionalOperator)expression, addressKind);
                 break;
+            case BoundKind.FunctionPointerCallExpression:
+                var funcPtrInvocation = (BoundFunctionPointerCallExpression)expression;
+                var funcPtrRefKind = funcPtrInvocation.functionPointer.signature.refKind;
+
+                if (funcPtrRefKind == RefKind.Ref ||
+                    (IsAnyReadOnly(addressKind) && funcPtrRefKind == RefKind.RefConst)) {
+                    EmitCalli(funcPtrInvocation, UseKind.UsedAsAddress);
+                    break;
+                }
+
+                goto default;
             case BoundKind.AssignmentOperator:
                 var assignment = (BoundAssignmentOperator)expression;
 
@@ -207,6 +218,27 @@ internal sealed partial class CodeGenerator {
         }
 
         return null;
+    }
+
+    private void EmitCalli(BoundFunctionPointerCallExpression ptrInvocation, UseKind useKind) {
+        EmitExpression(ptrInvocation.invokedExpression, used: true);
+        VariableDefinition temp = null;
+
+        if (ptrInvocation.arguments.Length > 0) {
+            temp = AllocateTemp(ptrInvocation.invokedExpression.type);
+            _builder.EmitLocalStore(temp);
+        }
+
+        var method = ptrInvocation.functionPointer.signature;
+        EmitArguments(ptrInvocation.arguments, method.parameters, ptrInvocation.argumentRefKindsOpt);
+
+        if (temp is not null) {
+            _builder.EmitLocalLoad(temp);
+            _builder.FreeTemp(temp);
+        }
+
+        _builder.EmitCalli(ptrInvocation.functionPointer);
+        EmitCallCleanup(method, useKind);
     }
 
     internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
@@ -426,7 +458,29 @@ internal sealed partial class CodeGenerator {
 
         switch (type.specialType) {
             case SpecialType.Int:
+            case SpecialType.Int64:
                 EmitLongConstant((long)value);
+                break;
+            case SpecialType.Int8:
+                EmitLongConstant((sbyte)value);
+                break;
+            case SpecialType.Int16:
+                EmitLongConstant((short)value);
+                break;
+            case SpecialType.Int32:
+                EmitLongConstant((int)value);
+                break;
+            case SpecialType.UInt8:
+                EmitLongConstant((byte)value);
+                break;
+            case SpecialType.UInt16:
+                EmitLongConstant((ushort)value);
+                break;
+            case SpecialType.UInt32:
+                EmitLongConstant((uint)value);
+                break;
+            case SpecialType.UInt64:
+                EmitLongConstant((long)(ulong)value);
                 break;
             case SpecialType.Char:
                 EmitCharConstant((char)value);
@@ -435,7 +489,11 @@ internal sealed partial class CodeGenerator {
                 EmitBoolConstant((bool)value);
                 break;
             case SpecialType.Decimal:
+            case SpecialType.Float64:
                 EmitDoubleConstant((double)value);
+                break;
+            case SpecialType.Float32:
+                EmitSingleConstant((float)value);
                 break;
             case SpecialType.String:
                 EmitStringConstant((string)value);
@@ -456,7 +514,11 @@ internal sealed partial class CodeGenerator {
 
                 break;
             case SpecialType.Any: {
-                    var inferredType = InferType(value);
+                    // TODO Ensure constantValue is never lying to us
+                    var inferredType = constant.specialType == SpecialType.None
+                        ? InferType(value)
+                        : CorLibrary.GetSpecialType(constant.specialType);
+
                     EmitConstantValue(constant, inferredType);
                     EmitBox(inferredType);
                 }
@@ -468,11 +530,15 @@ internal sealed partial class CodeGenerator {
     }
 
     private TypeSymbol InferType(object value) {
-        return CorLibrary.GetSpecialType(LiteralUtilities.AssumeTypeFromLiteral(value));
+        return CorLibrary.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
     }
 
     private void EmitDoubleConstant(double value) {
         _builder.Emit(OpCode.Ldc_R8, value);
+    }
+
+    private void EmitSingleConstant(float value) {
+        _builder.Emit(OpCode.Ldc_R4, value);
     }
 
     private void EmitStringConstant(string value) {
@@ -754,7 +820,9 @@ oneMoreTime:
                 throw ExceptionUtilities.UnexpectedValue(op.operatorKind.Operator());
         }
 
-        if (IsFloat(op.operatorKind))
+        if (IsUnsignedBinaryOperator(op))
+            opIdx += 2 * IL_OP_CODE_ROW_LENGTH;
+        else if (IsFloat(op.operatorKind))
             opIdx += 4 * IL_OP_CODE_ROW_LENGTH;
 
         var revOpIdx = opIdx;
@@ -941,6 +1009,9 @@ oneMoreTime:
             case BoundKind.PointerIndirectionOperator:
                 EmitPointerIndirectionOperator((BoundPointerIndirectionOperator)expression, used);
                 break;
+            case BoundKind.FunctionPointerLoad:
+                EmitFunctionPointerLoad((BoundFunctionPointerLoad)expression, used);
+                break;
             case BoundKind.ConditionalOperator:
                 EmitConditionalOperator((BoundConditionalOperator)expression, used);
                 break;
@@ -975,6 +1046,9 @@ oneMoreTime:
                 break;
             case BoundKind.ThrowExpression:
                 EmitThrowExpression((BoundThrowExpression)expression, used);
+                break;
+            case BoundKind.FunctionPointerCallExpression:
+                EmitCalli((BoundFunctionPointerCallExpression)expression, used ? UseKind.UsedAsValue : UseKind.Unused);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
@@ -1018,6 +1092,20 @@ oneMoreTime:
             EmitLoadIndirect(expression.type);
 
         EmitPopIfUnused(used);
+    }
+
+    private void EmitFunctionPointerLoad(BoundFunctionPointerLoad load, bool used) {
+        if (used) {
+            if ((load.targetMethod.isAbstract || load.targetMethod.isVirtual) && load.targetMethod.isStatic) {
+                if (load.constrainedToTypeOpt is not { typeKind: TypeKind.TemplateParameter }) {
+                    throw ExceptionUtilities.Unreachable();
+                }
+
+                _builder.EmitWithSymbolToken(OpCode.Constrained, load.constrainedToTypeOpt);
+            }
+
+            _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
+        }
     }
 
     private void EmitTypeOfExpression(BoundTypeOfExpression expression) {
@@ -1263,7 +1351,12 @@ oneMoreTime:
                     }
 
                     return;
+                case "SizeOf": {
+                        _builder.EmitSizeOf(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
 
+                    return;
             }
         }
 
@@ -1622,9 +1715,12 @@ oneMoreTime:
                 }
             }
 
-            if (type is PointerTypeSymbol) {
+            if (type.IsPointerOrFunctionPointer() || type.specialType == SpecialType.UIntPtr) {
                 _builder.Emit(OpCode.Ldc_I4_0);
                 _builder.Emit(OpCode.Conv_U);
+            } else if (type.specialType == SpecialType.IntPtr) {
+                _builder.Emit(OpCode.Ldc_I4_0);
+                _builder.Emit(OpCode.Conv_I);
             } else {
                 EmitInitObj(type, true);
             }
@@ -1678,6 +1774,8 @@ oneMoreTime:
                 return ((BoundParameterExpression)receiver).parameter.refKind != RefKind.None;
             case BoundKind.CallExpression:
                 return ((BoundCallExpression)receiver).method.refKind != RefKind.None;
+            case BoundKind.FunctionPointerCallExpression:
+                return ((BoundFunctionPointerCallExpression)receiver).functionPointer.signature.refKind != RefKind.None;
         }
 
         return false;
@@ -1838,7 +1936,7 @@ oneMoreTime:
 
     private void EmitConditionalOperator(BoundConditionalOperator expression, bool used) {
         if (used &&
-            (IsNumeric(expression.type.specialType) || expression.type.specialType == SpecialType.Bool) &&
+            (expression.type.specialType.IsNumeric() || expression.type.specialType == SpecialType.Bool) &&
             expression.trueExpression.constantValue?.IsIntegralValueZeroOrOne(out var isConsequenceOne) == true &&
             expression.falseExpression.constantValue?.IsIntegralValueZeroOrOne(out var isAlternativeOne) == true &&
             isConsequenceOne != isAlternativeOne &&
@@ -2045,16 +2143,28 @@ oneMoreTime:
                 _builder.Emit(OpCode.Sub);
                 break;
             case BinaryOperatorKind.Division:
-                _builder.Emit(OpCode.Div);
+                if (IsUnsignedBinaryOperator(expression))
+                    _builder.Emit(OpCode.Div_Un);
+                else
+                    _builder.Emit(OpCode.Div);
+
                 break;
             case BinaryOperatorKind.Modulo:
-                _builder.Emit(OpCode.Rem);
+                if (IsUnsignedBinaryOperator(expression))
+                    _builder.Emit(OpCode.Rem_Un);
+                else
+                    _builder.Emit(OpCode.Rem);
+
                 break;
             case BinaryOperatorKind.LeftShift:
                 _builder.Emit(OpCode.Shl);
                 break;
             case BinaryOperatorKind.RightShift:
-                _builder.Emit(OpCode.Shr);
+                if (IsUnsignedBinaryOperator(expression))
+                    _builder.Emit(OpCode.Shr_Un);
+                else
+                    _builder.Emit(OpCode.Shr);
+
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
                 _builder.Emit(OpCode.Shr_Un);
@@ -2070,6 +2180,29 @@ oneMoreTime:
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.operatorKind.Operator());
+        }
+    }
+
+    private static bool IsUnsigned(SpecialType type) {
+        switch (type) {
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsUnsignedBinaryOperator(BoundBinaryOperator op) {
+        var opKind = op.operatorKind;
+        var type = opKind.OperandTypes();
+
+        switch (type) {
+            case BinaryOperatorKind.UInt:
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -2231,7 +2364,9 @@ oneMoreTime:
                 throw ExceptionUtilities.UnexpectedValue(binOp.operatorKind.OperatorWithConditional());
         }
 
-        if (IsFloat(binOp.operatorKind))
+        if (IsUnsignedBinaryOperator(binOp))
+            opIdx += 4;
+        else if (IsFloat(binOp.operatorKind))
             opIdx += 8;
 
         EmitBinaryCondOperatorHelper(CompOpCodes[opIdx], binOp.left, binOp.right, sense);
@@ -2288,7 +2423,8 @@ oneMoreTime:
         var type = opKind.OperandTypes();
 
         switch (type) {
-            case BinaryOperatorKind.Decimal:
+            case BinaryOperatorKind.Float32:
+            case BinaryOperatorKind.Float64:
                 return true;
             default:
                 return false;
@@ -2407,6 +2543,9 @@ oneMoreTime:
                 var arrayType = (ArrayTypeSymbol)array.StrippedType();
                 EmitArrayElementStore(arrayType);
                 break;
+            case BoundKind.FunctionPointerCallExpression:
+                EmitIndirectStore(expression.type);
+                break;
             case BoundKind.ThisExpression:
                 EmitThisStore((BoundThisExpression)expression);
                 break;
@@ -2495,16 +2634,36 @@ oneMoreTime:
     private void EmitIndirectStore(TypeSymbol type) {
         switch (type.specialType) {
             case SpecialType.Bool:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
                 _builder.Emit(OpCode.Stind_I1);
                 break;
+            case SpecialType.Char:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+                _builder.Emit(OpCode.Stind_I2);
+                break;
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+                _builder.Emit(OpCode.Stind_I4);
+                break;
             case SpecialType.Int:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
                 _builder.Emit(OpCode.Stind_I8);
                 break;
-            case SpecialType.Decimal:
-                _builder.Emit(OpCode.Stind_R8);
-                break;
-            case SpecialType.None when type is PointerTypeSymbol:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
                 _builder.Emit(OpCode.Stind_I);
+                break;
+            case SpecialType.Float32:
+                _builder.Emit(OpCode.Stind_R4);
+                break;
+            case SpecialType.Decimal:
+            case SpecialType.Float64:
+                _builder.Emit(OpCode.Stind_R8);
                 break;
             default:
                 if (type.IsVerifierReference()) {
@@ -2564,6 +2723,13 @@ oneMoreTime:
                         _builder.EmitLoadArgument(ParameterSlot(left.parameter));
                         lhsUsesStack = true;
                     }
+                }
+
+                break;
+            case BoundKind.FunctionPointerCallExpression: {
+                    var left = (BoundFunctionPointerCallExpression)assignmentTarget;
+                    EmitCalli(left, UseKind.UsedAsAddress);
+                    lhsUsesStack = true;
                 }
 
                 break;
@@ -2921,11 +3087,23 @@ oneMoreTime:
                 break;
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
+            case ConversionKind.ImplicitNumeric:
+            case ConversionKind.ExplicitNumeric:
                 EmitConvertCallOrNumericConversion(cast);
                 break;
-            case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ExplicitPointerToPointer:
                 return;
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
+                var fromType = cast.operand.type;
+                var fromPredefTypeKind = fromType.specialType;
+
+                var toType = cast.type;
+                var toPredefTypeKind = toType.specialType;
+
+                EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
         }
@@ -2938,33 +3116,257 @@ oneMoreTime:
         var toType = cast.type;
         var toPredefTypeKind = toType.specialType;
 
-        if (IsNumeric(fromPredefTypeKind) && IsNumeric(toPredefTypeKind))
+        if (fromPredefTypeKind.IsNumeric() && toPredefTypeKind.IsNumeric())
             EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
         else
             _builder.EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
     }
 
     private void EmitNumericConversion(SpecialType from, SpecialType to) {
-        switch (from, to) {
-            case (SpecialType.Decimal, SpecialType.Int):
-                _builder.Emit(OpCode.Conv_I8);
+        // TODO Handle as if checked?
+        from = NormalizeNumericType(from);
+        to = NormalizeNumericType(to);
+
+        switch (to) {
+            case SpecialType.Int8:
+                switch (from) {
+                    case SpecialType.Int8:
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_I1);
+                        break;
+                }
+
                 break;
-            case (SpecialType.Int, SpecialType.Decimal):
+            case SpecialType.UInt8:
+                switch (from) {
+                    case SpecialType.UInt8:
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_U1);
+                        break;
+                }
+
+                break;
+            case SpecialType.Int16:
+                switch (from) {
+                    case SpecialType.Int8:
+                    case SpecialType.UInt8:
+                    case SpecialType.Int16:
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_I2);
+                        break;
+                }
+
+                break;
+            case SpecialType.Char:
+            case SpecialType.UInt16:
+                switch (from) {
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.Char:
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_U2);
+                        break;
+                }
+
+                break;
+            case SpecialType.Int32:
+                switch (from) {
+                    case SpecialType.Int8:
+                    case SpecialType.UInt8:
+                    case SpecialType.Int16:
+                    case SpecialType.UInt16:
+                    case SpecialType.Int32:
+                    case SpecialType.Char:
+                    case SpecialType.UInt32:
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_I4);
+                        break;
+                }
+
+                break;
+            case SpecialType.UInt32:
+                switch (from) {
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.UInt32:
+                    case SpecialType.Char:
+                    case SpecialType.Int8:
+                    case SpecialType.Int16:
+                    case SpecialType.Int32:
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_U4);
+                        break;
+                }
+
+                break;
+            case SpecialType.IntPtr:
+                switch (from) {
+                    case SpecialType.IntPtr:
+                    case SpecialType.UIntPtr:
+                    case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
+                        break;
+                    case SpecialType.Int8:
+                    case SpecialType.Int16:
+                    case SpecialType.Int32:
+                        _builder.Emit(OpCode.Conv_I);
+                        break;
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.Char:
+                        _builder.Emit(OpCode.Conv_U);
+                        break;
+                    case SpecialType.UInt32:
+                        _builder.Emit(OpCode.Conv_U);
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_I);
+                        break;
+                }
+
+                break;
+            case SpecialType.UIntPtr:
+                switch (from) {
+                    case SpecialType.UIntPtr:
+                    case SpecialType.IntPtr:
+                    case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
+                        break;
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.UInt32:
+                    case SpecialType.Char:
+                        _builder.Emit(OpCode.Conv_U);
+                        break;
+                    case SpecialType.Int8:
+                    case SpecialType.Int16:
+                    case SpecialType.Int32:
+                        _builder.Emit(OpCode.Conv_I);
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_U);
+                        break;
+                }
+
+                break;
+            case SpecialType.Int64:
+                switch (from) {
+                    case SpecialType.Int64:
+                    case SpecialType.UInt64:
+                        break;
+                    case SpecialType.Int8:
+                    case SpecialType.Int16:
+                    case SpecialType.Int32:
+                    case SpecialType.IntPtr:
+                        _builder.Emit(OpCode.Conv_I8);
+                        break;
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.UInt32:
+                    case SpecialType.Char:
+                        _builder.Emit(OpCode.Conv_U8);
+                        break;
+                    case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
+                    case SpecialType.UIntPtr:
+                        _builder.Emit(OpCode.Conv_U8);
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_I8);
+                        break;
+                }
+
+                break;
+            case SpecialType.UInt64:
+                switch (from) {
+                    case SpecialType.UInt64:
+                    case SpecialType.Int64:
+                        break;
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.UInt32:
+                    case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
+                    case SpecialType.UIntPtr:
+                    case SpecialType.Char:
+                        _builder.Emit(OpCode.Conv_U8);
+                        break;
+                    case SpecialType.Int8:
+                    case SpecialType.Int16:
+                    case SpecialType.Int32:
+                    case SpecialType.IntPtr:
+                        _builder.Emit(OpCode.Conv_I8);
+                        break;
+                    default:
+                        _builder.Emit(OpCode.Conv_U8);
+                        break;
+                }
+
+                break;
+            case SpecialType.Float32:
+                switch (from) {
+                    case SpecialType.UInt32:
+                    case SpecialType.UInt64:
+                    case SpecialType.UIntPtr:
+                        _builder.Emit(OpCode.Conv_R_Un);
+                        break;
+                }
+
+                _builder.Emit(OpCode.Conv_R4);
+                break;
+            case SpecialType.Float64:
+                switch (from) {
+                    case SpecialType.UInt32:
+                    case SpecialType.UInt64:
+                    case SpecialType.UIntPtr:
+                        _builder.Emit(OpCode.Conv_R_Un);
+                        break;
+                }
+
                 _builder.Emit(OpCode.Conv_R8);
                 break;
-            case (SpecialType.Int, SpecialType.Char):
-                _builder.Emit(OpCode.Conv_U2);
-                break;
-            case (SpecialType.Char, SpecialType.Int):
-                _builder.Emit(OpCode.Conv_U8);
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                switch (from) {
+                    case SpecialType.UInt8:
+                    case SpecialType.UInt16:
+                    case SpecialType.UInt32:
+                    case SpecialType.UInt64:
+                    case SpecialType.Int64:
+                        _builder.Emit(OpCode.Conv_U);
+                        break;
+                    case SpecialType.Int8:
+                    case SpecialType.Int16:
+                    case SpecialType.Int32:
+                        _builder.Emit(OpCode.Conv_I);
+                        break;
+                    case SpecialType.IntPtr:
+                    case SpecialType.UIntPtr:
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(from);
+                }
+
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue((from, to));
+                throw ExceptionUtilities.UnexpectedValue(to);
         }
     }
 
-    private static bool IsNumeric(SpecialType specialType) {
-        return specialType is SpecialType.Int or SpecialType.Decimal or SpecialType.Char;
+    internal static SpecialType NormalizeNumericType(SpecialType specialType) {
+        if (specialType == SpecialType.Int)
+            return SpecialType.Int64;
+
+        if (specialType == SpecialType.Decimal)
+            return SpecialType.Float64;
+
+        return specialType;
     }
 
     private void EmitImplicitReferenceConversion(BoundCastExpression conversion) {
@@ -3019,13 +3421,42 @@ oneMoreTime:
     private void EmitLoadIndirect(TypeSymbol type) {
         switch (type.specialType) {
             case SpecialType.Int:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
                 _builder.Emit(OpCode.Ldind_I8);
                 break;
             case SpecialType.Bool:
+            case SpecialType.UInt8:
+                _builder.Emit(OpCode.Ldind_U1);
+                break;
+            case SpecialType.Int8:
                 _builder.Emit(OpCode.Ldind_I1);
                 break;
+            case SpecialType.Int16:
+                _builder.Emit(OpCode.Ldind_I2);
+                break;
+            case SpecialType.UInt16:
+            case SpecialType.Char:
+                _builder.Emit(OpCode.Ldind_U2);
+                break;
+            case SpecialType.Int32:
+                _builder.Emit(OpCode.Ldind_I4);
+                break;
+            case SpecialType.UInt32:
+                _builder.Emit(OpCode.Ldind_U4);
+                break;
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                _builder.Emit(OpCode.Ldind_I);
+                break;
             case SpecialType.Decimal:
+            case SpecialType.Float64:
                 _builder.Emit(OpCode.Ldind_R8);
+                break;
+            case SpecialType.Float32:
+                _builder.Emit(OpCode.Ldind_R4);
                 break;
             case SpecialType.None when type is PointerTypeSymbol:
                 _builder.Emit(OpCode.Ldind_I);

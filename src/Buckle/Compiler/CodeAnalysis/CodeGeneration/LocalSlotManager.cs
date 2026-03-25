@@ -40,6 +40,10 @@ internal abstract partial class LocalSlotManager {
         return _localMap[symbol.originalDefinition];
     }
 
+    internal bool TryGetLocal(Symbol symbol, out VariableDefinition value) {
+        return _localMap.TryGetValue(symbol.originalDefinition, out value);
+    }
+
     internal void FreeLocal(Symbol symbol) {
         var slot = GetLocal(symbol);
         _localMap.Remove(symbol);

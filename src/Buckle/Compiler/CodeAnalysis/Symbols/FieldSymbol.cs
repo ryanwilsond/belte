@@ -46,6 +46,10 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal TypeSymbol type => typeWithAnnotations.type;
 
+    internal virtual bool isFixedSizeBuffer => false;
+
+    internal virtual int fixedSize => 0;
+
     internal virtual bool requiresInstanceReceiver => !isStatic;
 
     internal sealed override bool isAbstract => false;
@@ -55,6 +59,8 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
     internal sealed override bool isSealed => false;
 
     internal sealed override bool isVirtual => false;
+
+    internal sealed override bool isExtern => false;
 
     internal virtual bool isCapturedFrame => false;
 

@@ -37,7 +37,7 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
                     closureKind,
                     methodOrdinal
                 ),
-                MakeDeclarationModifiers(closureKind)) {
+                MakeDeclarationModifiers(closureKind, originalMethod)) {
         this.topLevelMethod = topLevelMethod;
         this.methodOrdinal = methodOrdinal;
         this.closureKind = closureKind;
@@ -99,11 +99,14 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         AssignTemplateMapAndTemplateParameters(templateMap, templateParameters);
     }
 
-    private static DeclarationModifiers MakeDeclarationModifiers(ClosureKind closureKind) {
+    private static DeclarationModifiers MakeDeclarationModifiers(ClosureKind closureKind, MethodSymbol originalMethod) {
         var mods = closureKind == ClosureKind.ThisOnly ? DeclarationModifiers.Private : DeclarationModifiers.Public;
 
         if (closureKind == ClosureKind.Static)
             mods |= DeclarationModifiers.Static;
+
+        if (originalMethod.isExtern)
+            mods |= DeclarationModifiers.Extern;
 
         return mods;
     }

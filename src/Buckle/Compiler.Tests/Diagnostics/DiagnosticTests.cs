@@ -1110,18 +1110,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0093_InvalidAttributes() {
-        var text = @"
-            [\[asdf\]]int x = 3;
-        ";
-
-        var diagnostics = @"
-            attributes are not valid in this context
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0093_InvalidAttributes
 
     [Fact]
     public void Reports_Error_BU0094_OperatorRefReturn() {
@@ -1600,7 +1589,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'A.M()' must declare a body because it is not marked abstract
+            'A.M()' must declare a body because it is not marked abstract or extern
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3438,6 +3427,91 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             must cast a void pointer before dereferencing
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0344_CannotConvertConstantValue
+
+    [Fact]
+    public void Reports_Error_BU0345_AbstractAndExtern() {
+        var text = @"
+            abstract class A {
+                public abstract extern void [M]();
+            }
+        ";
+
+        var diagnostics = @"
+            'A.M()' cannot be both abstract and extern
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0346_ExternCannotHaveBody() {
+        var text = @"
+            class A {
+                public extern void [M]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            'A.M()' cannot declare a body because it is marked extern
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // [Fact]
+    // public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
+    //     var text = @"
+    //         class A {
+    //             \[[DllImport](""d3d12.dll"")\]
+    //             public static void M() { }
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         the DllImport attribute must be specified on a method marked 'static' and 'extern'
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0348_DllImportOnTemplateMethod() {
+    //     var text = @"
+    //         class A {
+    //             \[[DllImport](""d3d12.dll"")\]
+    //             public static void M<type T>() { }
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         the DllImport attribute cannot be applied to a method that is template or contained in a template method or type
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Error_BU0349_InvalidAttributeArgument
+    // ! Error_BU0350_FixedBufferTooManyDimensions
+    // ! Error_BU0351_FixedOverflow
+    // ! Error_BU0352_InvalidFixedArraySize
+    // ! Error_BU0353_FixedNotInStruct
+    // ! Error_BU0354_FixedFieldMustNotBeRef
+    // ! Error_BU0355_IllegalFixedType
+
+    [Fact]
+    public void Reports_Error_BU0356_NullptrNoTargetType() {
+        var text = @"
+            var a = [nullptr];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the null pointer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -107,6 +107,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override bool hasSpecialName => HasFlag(MethodAttributes.SpecialName);
 
+    internal override bool isExtern => HasFlag(MethodAttributes.PinvokeImpl);
+
     internal MethodAttributes flags => (MethodAttributes)_flags;
 
     internal override ImmutableArray<TextLocation> locations
@@ -268,6 +270,14 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override byte? GetLocalNullableContextValue() {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override DllImportData GetDllImportData() {
+        // TODO
+        // return HasFlag(MethodAttributes.PinvokeImpl)
+        // ? _containingType.containingPEModule.module.GetDllImportData(_handle)
+        // : null;
+        return null;
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => HasFlag(MethodAttributes.Virtual);

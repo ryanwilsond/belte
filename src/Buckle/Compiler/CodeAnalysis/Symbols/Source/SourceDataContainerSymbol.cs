@@ -8,7 +8,7 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal partial class SourceDataContainerSymbol : DataContainerSymbol {
+internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttributeTargetSymbol {
     private readonly TypeSyntax _typeSyntax;
     private readonly BelteDiagnosticQueue _declarationDiagnostics;
 
@@ -35,7 +35,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
 
-        declarationKind = MakeModifiers(modifiers, _declarationDiagnostics);
+        declarationKind = MakeModifiers(modifiers, _declarationDiagnostics, out var isPinned);
+        this.isPinned = isPinned;
         GetAttributes();
     }
 
@@ -61,7 +62,15 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
     internal override TextLocation location => identifierToken.location;
 
+    internal override bool isPinned { get; }
+
     internal override bool isCompilerGenerated => false;
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => this;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Parameter;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations => AttributeLocation.Parameter;
 
     internal override TypeWithAnnotations typeWithAnnotations {
         get {
@@ -146,8 +155,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
 
         LoadAndValidateAttributes(
             GetAttributeDeclarations(),
-            ref _lazyAttributeBag,
-            diagnostics: _declarationDiagnostics
+            ref _lazyAttributeBag
         );
 
         return _lazyAttributeBag;
@@ -243,8 +251,13 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
         return declarationType;
     }
 
-    private DataContainerDeclarationKind MakeModifiers(SyntaxTokenList modifiers, BelteDiagnosticQueue diagnostics) {
-        var allowedModifiers = DeclarationModifiers.Const | DeclarationModifiers.ConstExpr;
+    private DataContainerDeclarationKind MakeModifiers(
+        SyntaxTokenList modifiers,
+        BelteDiagnosticQueue diagnostics,
+        out bool isPinned) {
+        var allowedModifiers = DeclarationModifiers.Const |
+                               DeclarationModifiers.ConstExpr |
+                               DeclarationModifiers.Pinned;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
@@ -255,6 +268,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol {
             out var hasErrors
         );
 
+        isPinned = (result & DeclarationModifiers.Pinned) != 0;
         var isConst = (result & DeclarationModifiers.Const) != 0;
         var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
         var declarationKind = isConstExpr

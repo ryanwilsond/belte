@@ -8,7 +8,7 @@ using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSymbol {
+internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSymbol, IAttributeTargetSymbol {
     private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
     private SymbolCompletionState _state;
     private TypeWithAnnotations _lazyUnderlyingType;
@@ -61,6 +61,12 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             return _lazyDefaultValue;
         }
     }
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => this;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.TemplateParameter;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations => AttributeLocation.TemplateParameter;
 
     internal sealed override SyntaxReference syntaxReference { get; }
 

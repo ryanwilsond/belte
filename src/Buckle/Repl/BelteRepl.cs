@@ -126,6 +126,7 @@ public sealed partial class BelteRepl : Repl {
         state.showTokens = false;
         state.showTree = false;
         state.showProgram = false;
+        state.showType = false;
         state.showWarnings = false;
         state.showIL = false;
         state.showCS = false;
@@ -387,6 +388,11 @@ public sealed partial class BelteRepl : Repl {
 
                 if (!result.containsIO)
                     SaveSubmission(syntaxTree.text.ToString());
+
+                if (state.showType) {
+                    RenderResultType(result.type);
+                    writer.WriteLine();
+                }
             }
 
             state.previous = compilation;
@@ -417,6 +423,19 @@ public sealed partial class BelteRepl : Repl {
         var changes = _changes.ToArray();
         _changes.Clear();
         state.tree = state.tree.WithChanges(changes);
+    }
+
+    private void RenderResultType(ITypeSymbol type) {
+        Console.ForegroundColor = state.colorTheme.comment;
+
+        if (type is null) {
+            writer.Write("<null>");
+            return;
+        }
+
+        var displayText = new DisplayText();
+        SymbolDisplay.AppendToDisplayText(displayText, type);
+        writer.Write(displayText.ToString());
     }
 
     private void RenderResult(object value) {
@@ -539,6 +558,12 @@ public sealed partial class BelteRepl : Repl {
     private void EvaluateShowProgram() {
         state.showProgram = !state.showProgram;
         writer.WriteLine(state.showProgram ? "Bound trees visible" : "Bound trees hidden");
+    }
+
+    [MetaCommand("showType", "Toggle display of the result type")]
+    private void EvaluateShowType() {
+        state.showType = !state.showType;
+        writer.WriteLine(state.showType ? "Result type visible" : "Result type hidden");
     }
 
     [MetaCommand("clear", "Clear the screen")]

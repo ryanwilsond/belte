@@ -341,6 +341,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 ));
             }
 
+            if (sourceMethod.isExtern)
+                return null;
+
             var bodyBinder = sourceMethod.TryGetBodyBinder(null, state.compilation.options.isScript);
 
             if (bodyBinder is null)

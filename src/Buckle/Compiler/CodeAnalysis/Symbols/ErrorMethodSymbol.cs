@@ -50,6 +50,8 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal override bool isStatic => false;
 
+    internal override bool isExtern => false;
+
     internal override Accessibility declaredAccessibility => Accessibility.Public;
 
     internal override SyntaxReference syntaxReference => null;
@@ -78,5 +80,9 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override DllImportData GetDllImportData() {
+        return null;
     }
 }

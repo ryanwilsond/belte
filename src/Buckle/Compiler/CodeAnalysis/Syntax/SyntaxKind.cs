@@ -71,6 +71,7 @@ public enum SyntaxKind : ushort {
     TypeOfKeyword,
     NameOfKeyword,
     NullKeyword,
+    NullptrKeyword,
     TrueKeyword,
     FalseKeyword,
     IfKeyword,
@@ -116,6 +117,8 @@ public enum SyntaxKind : ushort {
     GlobalKeyword,
     ImplicitKeyword,
     ExplicitKeyword,
+    ExternKeyword,
+    PinnedKeyword,
 
     // Tokens with text
     BadToken,
@@ -208,6 +211,7 @@ public enum SyntaxKind : ushort {
     ArrayType,
     NonNullableType,
     PointerType,
+    FunctionPointerType,
     ReferenceType,
     BaseType,
     NameEquals,
@@ -220,6 +224,8 @@ public enum SyntaxKind : ushort {
     BracketedArgumentList,
     Parameter,
     ParameterList,
+    FunctionPointerParameter,
+    FunctionPointerParameterList,
     ArrayRankSpecifier,
     TemplateParameterList,
     TemplateArgumentList,

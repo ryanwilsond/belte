@@ -7,7 +7,7 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SourceModuleSymbol : NonMissingModuleSymbol {
+internal sealed class SourceModuleSymbol : NonMissingModuleSymbol, IAttributeTargetSymbol {
     private readonly DeclarationTable _sources;
 
     private SymbolCompletionState _state;
@@ -61,6 +61,13 @@ internal sealed class SourceModuleSymbol : NonMissingModuleSymbol {
             return _locations;
         }
     }
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => (SourceAssemblySymbol)containingAssembly;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Module;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations
+        => AttributeLocation.Assembly | AttributeLocation.Module;
 
     internal override NamespaceSymbol globalNamespace {
         get {

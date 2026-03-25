@@ -8,4 +8,5 @@ public enum MethodKind : byte {
     LocalFunction,
     Operator,
     Conversion,
+    FunctionPointerSignature,
 }

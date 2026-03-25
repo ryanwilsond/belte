@@ -26,6 +26,8 @@ internal abstract class ILBuilder {
 
     internal abstract void Emit(OpCode opCode, double value);
 
+    internal abstract void Emit(OpCode opCode, float value);
+
     internal abstract void Emit(OpCode opCode, string value);
 
     internal abstract void EmitWithSymbolToken(OpCode opCode, TypeSymbol type);
@@ -43,6 +45,8 @@ internal abstract class ILBuilder {
     internal abstract void EndTry();
 
     internal abstract void EmitReturn();
+
+    internal abstract void EmitCalli(FunctionPointerTypeSymbol type);
 
     internal abstract void EmitLocalAddress(DataContainerSymbol local);
 
@@ -71,6 +75,8 @@ internal abstract class ILBuilder {
     internal abstract void EmitSort(TypeSymbol elementType);
 
     internal abstract void EmitLength(TypeSymbol elementType);
+
+    internal abstract void EmitSizeOf(TypeSymbol elementType);
 
     internal abstract void EmitStringConcat2();
 

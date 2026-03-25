@@ -28,6 +28,10 @@ internal abstract class SymbolVisitor {
         DefaultVisit(symbol);
     }
 
+    internal virtual void VisitFunctionPointerType(FunctionPointerTypeSymbol symbol) {
+        DefaultVisit(symbol);
+    }
+
     internal virtual void VisitTemplateParameter(TemplateParameterSymbol symbol) {
         DefaultVisit(symbol);
     }

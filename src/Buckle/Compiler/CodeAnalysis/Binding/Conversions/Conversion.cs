@@ -14,12 +14,16 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitConstant => new Conversion(ConversionKind.ImplicitConstant);
     internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
     internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
+    internal static Conversion ImplicitNumeric => new Conversion(ConversionKind.ImplicitNumeric);
     internal static Conversion NullLiteral => new Conversion(ConversionKind.NullLiteral);
     internal static Conversion AnyBoxing => new Conversion(ConversionKind.AnyBoxing);
     internal static Conversion Explicit => new Conversion(ConversionKind.Explicit);
     internal static Conversion ExplicitNullable => new Conversion(ConversionKind.ExplicitNullable);
     internal static Conversion ExplicitReference => new Conversion(ConversionKind.ExplicitReference);
+    internal static Conversion ExplicitNumeric => new Conversion(ConversionKind.ExplicitNumeric);
     internal static Conversion ExplicitPointerToPointer => new Conversion(ConversionKind.ExplicitPointerToPointer);
+    internal static Conversion ExplicitIntegerToPointer => new Conversion(ConversionKind.ExplicitIntegerToPointer);
+    internal static Conversion ExplicitPointerToInteger => new Conversion(ConversionKind.ExplicitPointerToInteger);
     internal static Conversion ImplicitPointerToVoid => new Conversion(ConversionKind.ImplicitPointerToVoid);
     internal static Conversion ImplicitNullToPointer => new Conversion(ConversionKind.ImplicitNullToPointer);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
@@ -188,25 +192,35 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         // Handle conversions with 'any' type that weren't picked up with the EasyOut
         // ~~We only allow using 'any' with other primitives, so the only type that the EasyOut couldn't pick up was array conversions~~
         // TODO We changed this to now treat any as a bigger-O Object
-        if (target.specialType == SpecialType.Any)
+        if (target.specialType == SpecialType.Any && source.typeKind != TypeKind.Pointer)
             return Implicit;
 
         if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
             return Explicit;
 
-        // EasyOut and our special array check covers all possible primitive conversions
-        if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)
-            return None;
-
         if (source.Equals(target))
             return Identity;
 
-        if (source.typeKind == TypeKind.Pointer && target.typeKind == TypeKind.Pointer) {
-            if (((PointerTypeSymbol)target).pointedAtType.specialType == SpecialType.Void)
+        if (source.IsPointerOrFunctionPointer() && target.IsPointerOrFunctionPointer()) {
+            if (target is PointerTypeSymbol p && p.pointedAtType.specialType == SpecialType.Void)
                 return ImplicitPointerToVoid;
 
             return ExplicitPointerToPointer;
         }
+
+        if (source.specialType.IsNumeric() && target.typeKind == TypeKind.Pointer) {
+            if (source.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)
+                return ExplicitIntegerToPointer;
+        }
+
+        if (target.specialType.IsNumeric() && source.typeKind == TypeKind.Pointer) {
+            if (target.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)
+                return ExplicitPointerToInteger;
+        }
+
+        // EasyOut and our special array check covers all possible primitive conversions
+        if (source.typeKind == TypeKind.Primitive || target.typeKind == TypeKind.Primitive)
+            return None;
 
         if (target.isStatic)
             return None;

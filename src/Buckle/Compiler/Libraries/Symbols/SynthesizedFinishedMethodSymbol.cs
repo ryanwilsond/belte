@@ -33,4 +33,8 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    internal override DllImportData GetDllImportData() {
+        return null;
+    }
 }

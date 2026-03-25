@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection.Emit;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -12,7 +13,7 @@ internal sealed class RefILBuilder : ILBuilder {
     private readonly ILGenerator _iLGenerator;
     private readonly Executor _module;
     private readonly MethodSymbol _method;
-    private readonly bool _log;
+    private readonly StringWriter _logger;
     private readonly List<Label> _labelCounts;
     private readonly Stack<object> _tryStack;
 
@@ -22,13 +23,13 @@ internal sealed class RefILBuilder : ILBuilder {
 
     private int _localCount;
 
-    internal RefILBuilder(MethodSymbol method, Executor module, ILGenerator iLGenerator, bool log) {
+    internal RefILBuilder(MethodSymbol method, Executor module, ILGenerator iLGenerator, StringWriter logger) {
         _method = method;
         _iLGenerator = iLGenerator;
         _module = module;
         _labelCounts = [];
         _tryStack = new Stack<object>();
-        _log = log;
+        _logger = logger;
         _localSlotManager = new RefLocalSlotManager();
     }
 
@@ -99,6 +100,15 @@ internal sealed class RefILBuilder : ILBuilder {
         // var cLocal = ((RefVariableDefinition)temp).localBuilder;
     }
 
+    internal override void EmitCalli(FunctionPointerTypeSymbol type) {
+        _iLGenerator.EmitCalli(
+            OpCodes.Calli,
+            System.Runtime.InteropServices.CallingConvention.Winapi,
+            _module.GetType(type.signature.returnType),
+            type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray()
+        );
+    }
+
     internal override void Emit(CodeGeneration.OpCode opCode) {
         Emit(ConvertToRef(opCode));
     }
@@ -116,6 +126,10 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode, double value) {
+        Emit(ConvertToRef(opCode), value);
+    }
+
+    internal override void Emit(CodeGeneration.OpCode opCode, float value) {
         Emit(ConvertToRef(opCode), value);
     }
 
@@ -217,6 +231,10 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitLength(TypeSymbol elementType) {
         EmitWithSymbolToken(OpCodes.Call, _module.GetLength(elementType));
+    }
+
+    internal override void EmitSizeOf(TypeSymbol elementType) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetSizeOf(elementType));
     }
 
     internal override void EmitStringConcat2() {
@@ -327,9 +345,12 @@ internal sealed class RefILBuilder : ILBuilder {
         SynthesizedLocalKind kind,
         LocalSlotConstraints constraints,
         bool isSlotReusable) {
-        var typeBuilder = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+        var typeBuilder = (type.typeKind == TypeKind.FunctionPointer)
+            ? typeof(IntPtr)
+            : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+
         LogLocal(typeBuilder);
-        var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
+        var localBuilder = _iLGenerator.DeclareLocal(typeBuilder, symbol.isPinned);
 
         return _localSlotManager.DeclareLocal(localBuilder, type, symbol, name, kind, constraints, isSlotReusable);
     }
@@ -374,7 +395,10 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override VariableDefinition AllocateSlot(
         TypeSymbol type,
         LocalSlotConstraints constraints) {
-        var typeBuilder = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+        var typeBuilder = type.typeKind == TypeKind.FunctionPointer
+            ? typeof(IntPtr)
+            : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+
         LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
 
@@ -382,23 +406,19 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode) {
-        if (_log)
-            Console.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode}");
+        _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode}");
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode, object value) {
-        if (_log)
-            Console.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode} {value}");
+        _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode} {value}");
     }
 
     private void LogLocal(Type type) {
-        if (_log)
-            Console.WriteLine($"\tlocal [{_localCount++}]{type}");
+        _logger.WriteLine($"\tlocal [{_localCount++}]{type}");
     }
 
     private void LogMark(Label label) {
-        if (_log)
-            Console.WriteLine($"\tlabel {_labelCounts.FindIndex(l => l == label)}: IL{_iLGenerator.ILOffset:X4}");
+        _logger.WriteLine($"\tlabel {_labelCounts.FindIndex(l => l == label)}: IL{_iLGenerator.ILOffset:X4}");
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, int value) {
@@ -417,6 +437,11 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, double value) {
+        Log(opCode, value);
+        _iLGenerator.Emit(opCode, value);
+    }
+
+    private void Emit(System.Reflection.Emit.OpCode opCode, float value) {
         Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
@@ -462,9 +487,6 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     private string PrettyPrint(System.Reflection.MethodInfo method) {
-        if (!_log)
-            return "";
-
         var preamble = $"{method.ReturnType.Name} {method.DeclaringType.Name}.{method.Name}";
 
         try {
@@ -478,9 +500,6 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     private string PrettyPrint(System.Reflection.ConstructorInfo ctor) {
-        if (!_log)
-            return "";
-
         var preamble = $"instance {ctor.DeclaringType.Name}.{ctor.Name}";
 
         try {
@@ -517,15 +536,11 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Brfalse => OpCodes.Brfalse,
             CodeGeneration.OpCode.Ldelema => OpCodes.Ldelema,
             CodeGeneration.OpCode.Ldc_I4 => OpCodes.Ldc_I4,
-            CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
             CodeGeneration.OpCode.Ldsflda => OpCodes.Ldsflda,
             CodeGeneration.OpCode.Ldflda => OpCodes.Ldflda,
             CodeGeneration.OpCode.Ldfld => OpCodes.Ldfld,
             CodeGeneration.OpCode.Initobj => OpCodes.Initobj,
             CodeGeneration.OpCode.Ldnull => OpCodes.Ldnull,
-            CodeGeneration.OpCode.Conv_U => OpCodes.Conv_U,
-            CodeGeneration.OpCode.Conv_I8 => OpCodes.Conv_I8,
-            CodeGeneration.OpCode.Conv_U8 => OpCodes.Conv_U8,
             CodeGeneration.OpCode.Ldc_I8 => OpCodes.Ldc_I8,
             CodeGeneration.OpCode.Ldc_I4_S => OpCodes.Ldc_I4_S,
             CodeGeneration.OpCode.Ldc_I4_M1 => OpCodes.Ldc_I4_M1,
@@ -539,6 +554,7 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldc_I4_7 => OpCodes.Ldc_I4_7,
             CodeGeneration.OpCode.Ldc_I4_8 => OpCodes.Ldc_I4_8,
             CodeGeneration.OpCode.Ldc_R8 => OpCodes.Ldc_R8,
+            CodeGeneration.OpCode.Ldc_R4 => OpCodes.Ldc_R4,
             CodeGeneration.OpCode.Ldstr => OpCodes.Ldstr,
             CodeGeneration.OpCode.Beq => OpCodes.Beq,
             CodeGeneration.OpCode.Bne_Un => OpCodes.Bne_Un,
@@ -560,7 +576,9 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Add => OpCodes.Add,
             CodeGeneration.OpCode.Sub => OpCodes.Sub,
             CodeGeneration.OpCode.Div => OpCodes.Div,
+            CodeGeneration.OpCode.Div_Un => OpCodes.Div_Un,
             CodeGeneration.OpCode.Rem => OpCodes.Rem,
+            CodeGeneration.OpCode.Rem_Un => OpCodes.Rem_Un,
             CodeGeneration.OpCode.Shl => OpCodes.Shl,
             CodeGeneration.OpCode.Shr => OpCodes.Shr,
             CodeGeneration.OpCode.Shr_Un => OpCodes.Shr_Un,
@@ -580,27 +598,49 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Stfld => OpCodes.Stfld,
             CodeGeneration.OpCode.Stind_I => OpCodes.Stind_I,
             CodeGeneration.OpCode.Stind_I1 => OpCodes.Stind_I1,
+            CodeGeneration.OpCode.Stind_I2 => OpCodes.Stind_I2,
+            CodeGeneration.OpCode.Stind_I4 => OpCodes.Stind_I4,
             CodeGeneration.OpCode.Stind_I8 => OpCodes.Stind_I8,
+            CodeGeneration.OpCode.Stind_R4 => OpCodes.Stind_R4,
             CodeGeneration.OpCode.Stind_R8 => OpCodes.Stind_R8,
             CodeGeneration.OpCode.Stind_Ref => OpCodes.Stind_Ref,
             CodeGeneration.OpCode.Dup => OpCodes.Dup,
             CodeGeneration.OpCode.Ldsfld => OpCodes.Ldsfld,
             CodeGeneration.OpCode.Unbox => OpCodes.Unbox,
-            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Conv_I => OpCodes.Conv_I,
+            CodeGeneration.OpCode.Conv_I1 => OpCodes.Conv_I1,
+            CodeGeneration.OpCode.Conv_I2 => OpCodes.Conv_I2,
+            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
+            CodeGeneration.OpCode.Conv_I8 => OpCodes.Conv_I8,
+            CodeGeneration.OpCode.Conv_U => OpCodes.Conv_U,
+            CodeGeneration.OpCode.Conv_U1 => OpCodes.Conv_U1,
             CodeGeneration.OpCode.Conv_U2 => OpCodes.Conv_U2,
+            CodeGeneration.OpCode.Conv_U4 => OpCodes.Conv_U4,
+            CodeGeneration.OpCode.Conv_U8 => OpCodes.Conv_U8,
+            CodeGeneration.OpCode.Conv_R4 => OpCodes.Conv_R4,
+            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
+            CodeGeneration.OpCode.Conv_R_Un => OpCodes.Conv_R_Un,
             CodeGeneration.OpCode.Castclass => OpCodes.Castclass,
             CodeGeneration.OpCode.Ldind_I => OpCodes.Ldind_I,
-            CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
+            CodeGeneration.OpCode.Ldind_U1 => OpCodes.Ldind_U1,
             CodeGeneration.OpCode.Ldind_I1 => OpCodes.Ldind_I1,
+            CodeGeneration.OpCode.Ldind_U2 => OpCodes.Ldind_U2,
+            CodeGeneration.OpCode.Ldind_I2 => OpCodes.Ldind_I2,
+            CodeGeneration.OpCode.Ldind_U4 => OpCodes.Ldind_U4,
+            CodeGeneration.OpCode.Ldind_I4 => OpCodes.Ldind_I4,
+            CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
+            CodeGeneration.OpCode.Ldind_R4 => OpCodes.Ldind_R4,
             CodeGeneration.OpCode.Ldind_R8 => OpCodes.Ldind_R8,
             CodeGeneration.OpCode.Ldind_Ref => OpCodes.Ldind_Ref,
             CodeGeneration.OpCode.Ldobj => OpCodes.Ldobj,
             CodeGeneration.OpCode.Box => OpCodes.Box,
             CodeGeneration.OpCode.Pop => OpCodes.Pop,
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
-            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
+            CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
+            CodeGeneration.OpCode.Calli => OpCodes.Calli,
             _ => throw new NotImplementedException()
         };
     }

@@ -6,7 +6,7 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol {
+internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol, IAttributeTargetSymbol {
     private readonly bool _hasDefaultValue;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
 
@@ -50,6 +50,14 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
             return (syntax is not null) ? syntax.attributeLists : default;
         }
     }
+
+    private protected virtual IAttributeTargetSymbol _attributeOwner => this;
+
+    IAttributeTargetSymbol IAttributeTargetSymbol.attributesOwner => _attributeOwner;
+
+    AttributeLocation IAttributeTargetSymbol.defaultAttributeLocation => AttributeLocation.Parameter;
+
+    AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations => AttributeLocation.Parameter;
 
     internal override ConstantValue explicitDefaultConstantValue {
         get {

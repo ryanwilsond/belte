@@ -99,6 +99,10 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
         return inheritsBaseMethodAttributes ? baseMethod.GetReturnTypeAttributes() : [];
     }
 
+    internal sealed override DllImportData GetDllImportData() {
+        return inheritsBaseMethodAttributes ? baseMethod.GetDllImportData() : null;
+    }
+
     private ImmutableArray<ParameterSymbol> MakeParameters() {
         var ordinal = 0;
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance();

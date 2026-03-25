@@ -126,6 +126,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             | DeclarationModifiers.Const
             | DeclarationModifiers.AccessibilityMask
             | DeclarationModifiers.Ref
+            | DeclarationModifiers.Extern
             | DeclarationModifiers.Override;
 
         bool hasExplicitAccessMod;
@@ -230,6 +231,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Error.CannotReturnStatic(location, returnType));
         else if (isAbstract && isSealed)
             diagnostics.Push(Error.AbstractAndSealed(location, this));
+        else if (isAbstract && isExtern)
+            diagnostics.Push(Error.AbstractAndExtern(location, this));
         else if (isAbstract && isVirtual)
             diagnostics.Push(Error.AbstractAndVirtual(location, kind.Localize(), this));
         else if (isStatic && isDeclaredConst)
@@ -238,7 +241,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Error.AbstractInNonAbstractType(location, this, containingType));
         else if (isVirtual && containingType.isSealed)
             diagnostics.Push(Error.VirtualInSealedType(location, this, containingType));
-        else if (!_hasAnyBody && !isAbstract)
+        else if (!_hasAnyBody && !isAbstract && !isExtern)
             diagnostics.Push(Error.NonAbstractMustHaveBody(location, this));
         else if (containingType.isSealed && declaredAccessibility.HasProtected() && !isOverride)
             diagnostics.Push(Warning.ProtectedInSealed(location, this));

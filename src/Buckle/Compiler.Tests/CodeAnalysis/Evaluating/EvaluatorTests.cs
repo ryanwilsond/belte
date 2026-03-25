@@ -60,7 +60,7 @@ public sealed class EvaluatorTests {
     [InlineData("return 3.2 - 3.4;", -0.19999999999999973)]
     [InlineData("return 4 * 2;", 8)]
     [InlineData("return -6 * -4;", 24)]
-    [InlineData("return 10 * 1.5;", 15)]
+    [InlineData("return 10 * 1.5;", 15F)]
     [InlineData("return 9 / 3;", 3)]
     [InlineData("return 12 / 3;", 4)]
     [InlineData("return 9 / 2;", 4)]

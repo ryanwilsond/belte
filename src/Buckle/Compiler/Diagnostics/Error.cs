@@ -552,13 +552,18 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, MethodSymbol method) {
-        var message = $"'{method}' must declare a body because it is not marked abstract";
+        var message = $"'{method}' must declare a body because it is not marked abstract or extern";
         return CreateError(DiagnosticCode.ERR_NonAbstractMustHaveBody, location, message);
     }
 
     internal static BelteDiagnostic AbstractCannotHaveBody(TextLocation location, MethodSymbol method) {
         var message = $"'{method}' cannot declare a body because it is marked abstract";
         return CreateError(DiagnosticCode.ERR_AbstractCannotHaveBody, location, message);
+    }
+
+    internal static BelteDiagnostic ExternCannotHaveBody(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}' cannot declare a body because it is marked extern";
+        return CreateError(DiagnosticCode.ERR_ExternCannotHaveBody, location, message);
     }
 
     internal static BelteDiagnostic AbstractInNonAbstractType(TextLocation location, Symbol symbol, TypeSymbol type) {
@@ -794,6 +799,11 @@ internal static class Error {
     internal static BelteDiagnostic ListNoTargetType(TextLocation location) {
         var message = $"there is no target type for the initializer list";
         return CreateError(DiagnosticCode.ERR_ListNoTargetType, location, message);
+    }
+
+    internal static BelteDiagnostic NullptrNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the null pointer";
+        return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
     }
 
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
@@ -1656,6 +1666,61 @@ internal static class Error {
     internal static BelteDiagnostic VoidPtr(TextLocation location) {
         var message = $"must cast a void pointer before dereferencing";
         return CreateError(DiagnosticCode.ERR_VoidPtr, location, message);
+    }
+
+    internal static BelteDiagnostic CannotConvertConstantValue(TextLocation location, object value, TypeSymbol type) {
+        var message = $"constant value '{value}' cannot be converted to '{type}'";
+        return CreateError(DiagnosticCode.ERR_CannotConvertConstantValue, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractAndExtern(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' cannot be both abstract and extern";
+        return CreateError(DiagnosticCode.ERR_AbstractAndExtern, location, message);
+    }
+
+    internal static BelteDiagnostic DllImportOnInvalidMethod(TextLocation location) {
+        var message = $"the DllImport attribute must be specified on a method marked 'static' and 'extern'";
+        return CreateError(DiagnosticCode.ERR_DllImportOnInvalidMethod, location, message);
+    }
+
+    internal static BelteDiagnostic DllImportOnTemplateMethod(TextLocation location) {
+        var message = $"the DllImport attribute cannot be applied to a method that is template or contained in a template method or type";
+        return CreateError(DiagnosticCode.ERR_DllImportOnTemplateMethod, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidAttributeArgument(TextLocation location, string name) {
+        var message = $"invalid value for argument to '{name}' attribute";
+        return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
+    }
+
+    internal static BelteDiagnostic FixedBufferTooManyDimensions(TextLocation location) {
+        var message = $"a fixed buffer can only have one dimension";
+        return CreateError(DiagnosticCode.ERR_FixedBufferTooManyDimensions, location, message);
+    }
+
+    internal static BelteDiagnostic FixedOverflow(TextLocation location, int value, TypeSymbol type) {
+        var message = $"fixed size buffer of length '{value}' and type '{type}' is too big";
+        return CreateError(DiagnosticCode.ERR_FixedOverflow, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidFixedArraySize(TextLocation location) {
+        var message = $"fixed size buffers must have a length greater than zero";
+        return CreateError(DiagnosticCode.ERR_InvalidFixedArraySize, location, message);
+    }
+
+    internal static BelteDiagnostic FixedNotInStruct(TextLocation location) {
+        var message = $"fixed size buffer fields may only be members of structs";
+        return CreateError(DiagnosticCode.ERR_FixedNotInStruct, location, message);
+    }
+
+    internal static BelteDiagnostic FixedFieldMustNotBeRef(TextLocation location) {
+        var message = $"fixed fields cannot be ref fields";
+        return CreateError(DiagnosticCode.ERR_FixedFieldMustNotBeRef, location, message);
+    }
+
+    internal static BelteDiagnostic IllegalFixedType(TextLocation location) {
+        var message = $"fixed size buffer type must be bool or a numeric primitive";
+        return CreateError(DiagnosticCode.ERR_IllegalFixedType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

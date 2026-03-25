@@ -26,6 +26,11 @@ public sealed partial class BelteRepl {
         internal bool showProgram = false;
 
         /// <summary>
+        /// Show the type of the result of the submission.
+        /// </summary>
+        internal bool showType = false;
+
+        /// <summary>
         /// Show the IL code after a submission.
         /// </summary>
         internal bool showIL = false;

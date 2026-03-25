@@ -1456,13 +1456,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         );
 
                         var declaration = fieldSyntax.declaration;
-                        var fieldSymbol = new SourceMemberFieldSymbolFromDeclarator(
-                            this,
-                            declaration,
-                            modifiers,
-                            modifierErrors,
-                            diagnostics
-                        );
+                        var fieldSymbol = declaration.argumentList is null
+                            ? new SourceMemberFieldSymbolFromDeclarator(
+                                this,
+                                declaration,
+                                modifiers,
+                                modifierErrors,
+                                diagnostics)
+                            : new SourceFixedFieldSymbol(this, declaration, modifiers, modifierErrors, diagnostics);
 
                         builder.nonTypeMembers.Add(fieldSymbol);
 

@@ -12,14 +12,16 @@ internal abstract class AliasSymbol : Symbol {
     private protected AliasSymbol(
         string aliasName,
         Symbol containingSymbol,
-        ImmutableArray<TextLocation> locations) {
+        ImmutableArray<TextLocation> locations,
+        bool isExtern) {
         _locations = locations;
         name = aliasName;
+        this.isExtern = isExtern;
         this.containingSymbol = containingSymbol;
     }
 
     internal static AliasSymbol CreateGlobalNamespaceAlias(NamespaceSymbol globalNamespace) {
-        return new AliasSymbolFromResolvedTarget(globalNamespace, "global", globalNamespace, []);
+        return new AliasSymbolFromResolvedTarget(globalNamespace, "global", globalNamespace, [], false);
     }
 
     internal AliasSymbol ToNewSubmission(Compilation compilation) {
@@ -34,7 +36,7 @@ internal abstract class AliasSymbol : Symbol {
             expandedGlobalNamespace
         );
 
-        return new AliasSymbolFromResolvedTarget(expandedNamespace, name, containingSymbol, _locations);
+        return new AliasSymbolFromResolvedTarget(expandedNamespace, name, containingSymbol, _locations, isExtern);
     }
 
     public sealed override string name { get; }
@@ -57,6 +59,8 @@ internal abstract class AliasSymbol : Symbol {
     internal override bool isVirtual => false;
 
     internal override bool isStatic => false;
+
+    internal override bool isExtern { get; }
 
     internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 

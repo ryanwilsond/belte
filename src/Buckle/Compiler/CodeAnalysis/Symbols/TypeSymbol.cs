@@ -88,19 +88,39 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case SpecialType.Int: return 4;
             case SpecialType.Decimal: return 5;
             case SpecialType.Type: return 6;
-            case SpecialType.Object: return 7;
+            case SpecialType.Int8: return 7;
+            case SpecialType.Int16: return 8;
+            case SpecialType.Int32: return 9;
+            case SpecialType.Int64: return 10;
+            case SpecialType.UInt8: return 11;
+            case SpecialType.UInt16: return 12;
+            case SpecialType.UInt32: return 13;
+            case SpecialType.UInt64: return 14;
+            case SpecialType.Float32: return 15;
+            case SpecialType.Float64: return 16;
+            case SpecialType.Object: return 17;
             case SpecialType.Nullable:
                 var underlyingType = GetNullableUnderlyingType();
 
                 switch (underlyingType.specialType) {
-                    case SpecialType.Any: return 8;
-                    case SpecialType.String: return 9;
-                    case SpecialType.Bool: return 10;
-                    case SpecialType.Char: return 11;
-                    case SpecialType.Int: return 12;
-                    case SpecialType.Decimal: return 13;
-                    case SpecialType.Type: return 14;
-                    case SpecialType.Object: return 15;
+                    case SpecialType.Any: return 18;
+                    case SpecialType.String: return 19;
+                    case SpecialType.Bool: return 20;
+                    case SpecialType.Char: return 21;
+                    case SpecialType.Int: return 22;
+                    case SpecialType.Decimal: return 23;
+                    case SpecialType.Type: return 24;
+                    case SpecialType.Int8: return 25;
+                    case SpecialType.Int16: return 26;
+                    case SpecialType.Int32: return 27;
+                    case SpecialType.Int64: return 28;
+                    case SpecialType.UInt8: return 29;
+                    case SpecialType.UInt16: return 30;
+                    case SpecialType.UInt32: return 31;
+                    case SpecialType.UInt64: return 32;
+                    case SpecialType.Float32: return 33;
+                    case SpecialType.Float64: return 34;
+                    case SpecialType.Object: return 35;
                 }
 
                 goto default;

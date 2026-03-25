@@ -61,6 +61,7 @@ public static class SymbolDisplay {
                 break;
             case SymbolKind.ArrayType:
             case SymbolKind.PointerType:
+            case SymbolKind.FunctionPointerType:
             case SymbolKind.ErrorType:
                 DisplayType(text, (TypeSymbol)symbol, format);
                 break;
@@ -117,6 +118,24 @@ public static class SymbolDisplay {
             }
         } else if (type is PointerTypeSymbol pointerType) {
             DisplayType(text, pointerType.pointedAtType, format);
+            text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
+        } else if (type is FunctionPointerTypeSymbol functionPointerType) {
+            var signature = functionPointerType.signature;
+            DisplayType(text, signature.returnType, format);
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+
+            var first = true;
+
+            foreach (var paramType in signature.GetParameterTypes()) {
+                if (first)
+                    first = false;
+                else
+                    text.Write(CreatePunctuation(", "));
+
+                DisplayType(text, paramType.type, format);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
             text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
         }
     }
@@ -439,6 +458,8 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayMethod(DisplayText text, MethodSymbol method, SymbolDisplayFormat format) {
+        DisplayAttributes(text, method.GetAttributes());
+
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
             DisplayAccessibility(text, method);
 
@@ -477,6 +498,26 @@ public static class SymbolDisplay {
         DisplayTemplateConstraints(text, method.templateConstraints, format);
     }
 
+    private static void DisplayAttributes(DisplayText text, ImmutableArray<AttributeData> attributes) {
+        foreach (SourceAttributeData attribute in attributes) {
+            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+            text.Write(CreateIdentifier(attribute.attributeClass.name));
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+
+            foreach (var argument in attribute._commonConstructorArguments) {
+                var constantValue = new ConstantValue(
+                    argument.value,
+                    SpecialTypeExtensions.SpecialTypeFromLiteralValue(argument.value)
+                );
+
+                DisplayText.DisplayConstant(text, constantValue);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+        }
+    }
+
     private static void DisplayNamespace(DisplayText text, NamespaceSymbol symbol, SymbolDisplayFormat format) {
         if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
             text.Write(CreateKeyword("namespace"));
@@ -494,6 +535,11 @@ public static class SymbolDisplay {
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
         if (symbol.isStatic) {
             text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (symbol.isExtern) {
+            text.Write(CreateKeyword(SyntaxKind.ExternKeyword));
             text.Write(CreateSpace());
         }
 

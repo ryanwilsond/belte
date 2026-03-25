@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -15,6 +16,7 @@ public sealed class EvaluationResult {
     /// <param name="diagnostics">Diagnostics associated with value.</param>
     internal EvaluationResult(
         object value,
+        TypeSymbol type,
         bool hasValue,
         BelteDiagnosticQueue diagnostics,
         List<Exception> exceptions,
@@ -22,6 +24,7 @@ public sealed class EvaluationResult {
         bool containsIO,
         Heap heap) {
         this.value = value;
+        this.type = type;
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
         this.diagnostics.Move(diagnostics);
@@ -40,6 +43,11 @@ public sealed class EvaluationResult {
     /// Value resulting from evaluation.
     /// </summary>
     public object value { get; private set; }
+
+    /// <summary>
+    /// Type of the result value.
+    /// </summary>
+    public ITypeSymbol type { get; private set; }
 
     /// <summary>
     /// Flag to distinguish the lack of value from the value of null.
@@ -65,11 +73,12 @@ public sealed class EvaluationResult {
     internal Heap heap { get; private set; }
 
     internal static EvaluationResult Failed(BelteDiagnosticQueue diagnostics) {
-        return new EvaluationResult(null, false, diagnostics, null, false, false, null);
+        return new EvaluationResult(null, null, false, diagnostics, null, false, false, null);
     }
 
     internal void Update(
         object value,
+        TypeSymbol type,
         bool hasValue,
         BelteDiagnosticQueue diagnostics,
         List<Exception> exceptions,
@@ -79,6 +88,7 @@ public sealed class EvaluationResult {
         if (hasValue) {
             this.value = value;
             this.hasValue = true;
+            this.type = type;
         }
 
         this.diagnostics.PushRange(diagnostics);

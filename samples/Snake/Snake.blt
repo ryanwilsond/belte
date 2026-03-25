@@ -14,7 +14,7 @@ class Snake {
         coords[2] = new Vec2(0, 0);
 
         _sprite = Graphics.LoadSprite(
-            "samples/Assets/square.png",
+            "samples/Snake/Assets/square.png",
             new Vec2(0, 0),
             new Vec2(Settings.SpaceSize - 10, Settings.SpaceSize - 10),
             0

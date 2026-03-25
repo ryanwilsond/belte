@@ -69,6 +69,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
+    internal override void Emit(CodeGeneration.OpCode opCode, float value) {
+        iLProcessor.Emit(ConvertToCil(opCode), value);
+    }
+
     internal override void Emit(CodeGeneration.OpCode opCode, string value) {
         iLProcessor.Emit(ConvertToCil(opCode), value);
     }
@@ -112,7 +116,18 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitReturn() {
-        throw new NotImplementedException();
+        iLProcessor.Emit(OpCodes.Ret);
+    }
+
+    internal override void EmitCalli(FunctionPointerTypeSymbol type) {
+        var callSite = new CallSite(_module.GetType(type.signature.returnType)) {
+            CallingConvention = MethodCallingConvention.StdCall
+        };
+
+        foreach (var p in type.signature.parameters)
+            callSite.Parameters.Add(new Mono.Cecil.ParameterDefinition(_module.GetType(p.type)));
+
+        iLProcessor.Emit(OpCodes.Calli, callSite);
     }
 
     internal override void EmitLocalAddress(DataContainerSymbol local) {
@@ -137,7 +152,25 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitLocalStore(DataContainerSymbol local) {
-        EmitLocalStore(_localSlotManager.GetLocal(local));
+        if (!_localSlotManager.TryGetLocal(local, out var value)) {
+            if (local.declaringCompilation.options.isScript) {
+                DeclareLocal(
+                    local.type,
+                    local,
+                    local.name,
+                    local.synthesizedKind,
+                    local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+                    false
+                );
+
+                EmitLocalStore(_localSlotManager.GetLocal(local));
+                return;
+            } else {
+                throw new KeyNotFoundException(local.name);
+            }
+        }
+
+        EmitLocalStore(value);
     }
 
     internal override void EmitLocalStore(CodeGeneration.VariableDefinition local) {
@@ -172,6 +205,10 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override void EmitLength(TypeSymbol elementType) {
         iLProcessor.Emit(OpCodes.Call, _module.GetLength(elementType));
+    }
+
+    internal override void EmitSizeOf(TypeSymbol elementType) {
+        throw new NotImplementedException();
     }
 
     internal override void EmitStringConcat2() {
@@ -350,15 +387,25 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Leave => OpCodes.Leave,
             CodeGeneration.OpCode.Leave_S => OpCodes.Leave_S,
             CodeGeneration.OpCode.Ldc_I4 => OpCodes.Ldc_I4,
-            CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
             CodeGeneration.OpCode.Ldsflda => OpCodes.Ldsflda,
             CodeGeneration.OpCode.Ldflda => OpCodes.Ldflda,
             CodeGeneration.OpCode.Ldfld => OpCodes.Ldfld,
             CodeGeneration.OpCode.Initobj => OpCodes.Initobj,
             CodeGeneration.OpCode.Ldnull => OpCodes.Ldnull,
-            CodeGeneration.OpCode.Conv_U => OpCodes.Conv_U,
+            CodeGeneration.OpCode.Conv_I => OpCodes.Conv_I,
+            CodeGeneration.OpCode.Conv_I1 => OpCodes.Conv_I1,
+            CodeGeneration.OpCode.Conv_I2 => OpCodes.Conv_I2,
+            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             CodeGeneration.OpCode.Conv_I8 => OpCodes.Conv_I8,
+            CodeGeneration.OpCode.Conv_U => OpCodes.Conv_U,
+            CodeGeneration.OpCode.Conv_U1 => OpCodes.Conv_U1,
+            CodeGeneration.OpCode.Conv_U2 => OpCodes.Conv_U2,
+            CodeGeneration.OpCode.Conv_U4 => OpCodes.Conv_U4,
             CodeGeneration.OpCode.Conv_U8 => OpCodes.Conv_U8,
+            CodeGeneration.OpCode.Conv_R4 => OpCodes.Conv_R4,
+            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
+            CodeGeneration.OpCode.Conv_Ovf_I => OpCodes.Conv_Ovf_I,
+            CodeGeneration.OpCode.Conv_R_Un => OpCodes.Conv_R_Un,
             CodeGeneration.OpCode.Ldc_I8 => OpCodes.Ldc_I8,
             CodeGeneration.OpCode.Ldc_I4_S => OpCodes.Ldc_I4_S,
             CodeGeneration.OpCode.Ldc_I4_M1 => OpCodes.Ldc_I4_M1,
@@ -372,6 +419,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Ldc_I4_7 => OpCodes.Ldc_I4_7,
             CodeGeneration.OpCode.Ldc_I4_8 => OpCodes.Ldc_I4_8,
             CodeGeneration.OpCode.Ldc_R8 => OpCodes.Ldc_R8,
+            CodeGeneration.OpCode.Ldc_R4 => OpCodes.Ldc_R4,
             CodeGeneration.OpCode.Ldstr => OpCodes.Ldstr,
             CodeGeneration.OpCode.Beq => OpCodes.Beq,
             CodeGeneration.OpCode.Bne_Un => OpCodes.Bne_Un,
@@ -419,8 +467,6 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Dup => OpCodes.Dup,
             CodeGeneration.OpCode.Ldsfld => OpCodes.Ldsfld,
             CodeGeneration.OpCode.Unbox => OpCodes.Unbox,
-            CodeGeneration.OpCode.Conv_R8 => OpCodes.Conv_R8,
-            CodeGeneration.OpCode.Conv_U2 => OpCodes.Conv_U2,
             CodeGeneration.OpCode.Castclass => OpCodes.Castclass,
             CodeGeneration.OpCode.Ldind_I => OpCodes.Ldind_I,
             CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
@@ -431,9 +477,10 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Box => OpCodes.Box,
             CodeGeneration.OpCode.Pop => OpCodes.Pop,
             CodeGeneration.OpCode.Ldtoken => OpCodes.Ldtoken,
-            CodeGeneration.OpCode.Conv_I4 => OpCodes.Conv_I4,
             CodeGeneration.OpCode.Throw => OpCodes.Throw,
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
+            CodeGeneration.OpCode.Calli => OpCodes.Calli,
+            CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
             _ => throw new NotImplementedException()
         };
     }

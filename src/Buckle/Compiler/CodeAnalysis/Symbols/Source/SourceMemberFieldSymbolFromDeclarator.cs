@@ -109,6 +109,24 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             type = new TypeWithAnnotations(binder.CreateErrorType());
         }
 
+        if (isFixedSizeBuffer) {
+            type = new TypeWithAnnotations(new PointerTypeSymbol(type));
+
+            if (containingType.typeKind != TypeKind.Struct)
+                diagnostics.Push(Error.FixedNotInStruct(errorLocation));
+
+            if (refKind != RefKind.None)
+                diagnostics.Push(Error.FixedFieldMustNotBeRef(errorLocation));
+
+            var elementType = ((PointerTypeSymbol)type.type).pointedAtType;
+            var elementSize = elementType.FixedBufferElementSizeInBytes();
+
+            if (elementSize == 0) {
+                var loc = typeSyntax.location;
+                diagnostics.Push(Error.IllegalFixedType(loc));
+            }
+        }
+
         if (Interlocked.CompareExchange(ref _lazyTypeAndRefKind, new TypeAndRefKind(refKind, type), null) is null) {
             TypeChecks(type.type, diagnostics);
             AddDeclarationDiagnostics(diagnostics);

@@ -1,0 +1,142 @@
+/*
+
+    Win32
+
+    Creates a window using the Win32 api. Doesn't do anything else with the window.
+    This is just to demonstrate extern dll imports and pointers.
+
+*/
+
+public struct WNDCLASSEX {
+    public uint32! cbSize;
+    public uint32! style;
+    public int64*(int64*, uint32!, int64*, int64*)* lpfnWndProc;
+    public int32! cbClsExtra;
+    public int32! cbWndExtra;
+    public int64* hInstance;
+    public int64* hIcon;
+    public int64* hCursor;
+    public int64* hbrBackground;
+    public char* lpszMenuName;
+    public char* lpszClassName;
+    public int64* hIconSm;
+}
+
+public struct MSG {
+    public int64* hWnd;
+    public uint32! message;
+    public int64* wParam;
+    public int64* lParam;
+    public uint32! time;
+    public int32! pt_x;
+    public int32! pt_y;
+}
+
+public static class Program {
+    constexpr int32! SW_SHOW = 5;
+
+    constexpr uint32! WS_OVERLAPPEDWINDOW = 0x00CF0000;
+    constexpr uint32! WS_VISIBLE = 0x10000000;
+
+    constexpr int32! CW_USEDEFAULT = (int32!)0x80000000;
+
+    constexpr uint32! WM_DESTROY = 0x0002;
+
+    [DllImport("user32.dll")]
+    static extern uint16! RegisterClassEx(WNDCLASSEX* lpwcx);
+
+    [DllImport("user32.dll")]
+    static extern int64* CreateWindowEx(
+        uint32! dwExStyle,
+        char* lpClassName,
+        char* lpWindowName,
+        uint32! dwStyle,
+        int32! x,
+        int32! y,
+        int32! nWidth,
+        int32! nHeight,
+        int64* hWndParent,
+        int64* hMenu,
+        int64* hInstance,
+        int64* lpParam);
+
+    [DllImport("kernel32.dll")]
+    static extern int64* GetModuleHandle(string lpModuleName);
+
+    [DllImport("user32.dll")]
+    static extern void PostQuitMessage(int32! nExitCode);
+
+    [DllImport("user32.dll")]
+    static extern int64* DefWindowProc(int64* hWnd, uint32! msg, int64* wParam, int64* lParam);
+
+    [DllImport("user32.dll")]
+    static extern bool! ShowWindow(int64* hWnd, int32! nCmdShow);
+
+    [DllImport("user32.dll")]
+    static extern bool! UpdateWindow(int64* hWnd);
+
+    [DllImport("user32.dll")]
+    static extern int8! GetMessage(MSG* lpMsg, int64* hWnd, uint32! min, uint32! max);
+
+    [DllImport("user32.dll")]
+    static extern bool! TranslateMessage(MSG* lpMsg);
+
+    [DllImport("user32.dll")]
+    static extern int64* DispatchMessage(MSG* lpMsg);
+
+    public static void Main() {
+        var hInstance = GetModuleHandle(null);
+        var wc = new WNDCLASSEX();
+        wc.cbSize = (uint32!)LowLevel.SizeOf<WNDCLASSEX>();
+        wc.lpfnWndProc = &WndProcImpl;
+        wc.hInstance = hInstance;
+        wc.hbrBackground = (int64*)3;
+        wc.lpszClassName = LowLevel.CreateCharPtrString("ExampleWindowClass");
+        char* windowName = LowLevel.CreateCharPtrString("Example Window");
+
+        if (RegisterClassEx(&wc) == 0) {
+            Console.PrintLine("RegisterClassEx failed");
+            return;
+        }
+
+        var hWnd = CreateWindowEx(
+            0,
+            wc.lpszClassName,
+            windowName,
+            (uint32!)(WS_OVERLAPPEDWINDOW | WS_VISIBLE),
+            CW_USEDEFAULT,
+            CW_USEDEFAULT,
+            800,
+            600,
+            (int64*)0,
+            (int64*)0,
+            hInstance,
+            (int64*)0
+        );
+
+        if (((int64!)hWnd) == 0) {
+            Console.PrintLine("CreateWindowEx failed");
+            return;
+        }
+
+        ShowWindow(hWnd, SW_SHOW);
+        UpdateWindow(hWnd);
+
+        MSG msg = new MSG();
+
+        while (GetMessage(&msg, (int64*)0, 0, 0) != 0) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        LowLevel.FreeCharPtrString(wc.lpszClassName);
+        LowLevel.FreeCharPtrString(windowName);
+    }
+
+    static int64* WndProcImpl(int64* hWnd, uint32! msg, int64* wParam, int64* lParam) {
+        if (msg == WM_DESTROY)
+            PostQuitMessage(0);
+
+        return DefWindowProc(hWnd, msg, wParam, lParam);
+    }
+}

@@ -27,6 +27,23 @@ internal sealed partial class OverloadResolution {
 
     internal Conversions conversions => _binder.conversions;
 
+    internal void FunctionPointerOverloadResolution(
+        ArrayBuilder<FunctionPointerMethodSymbol> funcPtrBuilder,
+        AnalyzedArguments analyzedArguments,
+        OverloadResolutionResult<FunctionPointerMethodSymbol> overloadResolutionResult) {
+        var typeArgumentsBuilder = ArrayBuilder<TypeOrConstant>.GetInstance();
+
+        AddMemberToCandidateSet(
+            funcPtrBuilder[0],
+            overloadResolutionResult.resultsBuilder,
+            funcPtrBuilder,
+            typeArgumentsBuilder,
+            analyzedArguments,
+            completeResults: true,
+            containingTypeMap: null
+        );
+    }
+
     internal void BinaryOperatorOverloadResolution(
         BinaryOperatorKind kind,
         BoundExpression left,
@@ -439,19 +456,6 @@ internal sealed partial class OverloadResolution {
         BoundExpression right) {
         var leftBetter = BetterConversionFromExpression(left, op1.leftType, op2.leftType);
         var rightBetter = BetterConversionFromExpression(right, op1.rightType, op2.rightType);
-
-        // If that is hard to follow, consult this handy chart (curtisy of Pilchie at Roslyn):
-        // op1.Left vs op2.Left     op1.Right vs op2.Right    result
-        // -----------------------------------------------------------
-        // op1 better               op1 better                op1 better
-        // op1 better               neither better            op1 better
-        // op1 better               op2 better                neither better
-        // neither better           op1 better                op1 better
-        // neither better           neither better            neither better
-        // neither better           op2 better                op2 better
-        // op2 better               op1 better                neither better
-        // op2 better               neither better            op2 better
-        // op2 better               op2 better                op2 better
 
         if (leftBetter == BetterResult.Left && rightBetter != BetterResult.Right ||
             leftBetter != BetterResult.Right && rightBetter == BetterResult.Left) {
@@ -1659,7 +1663,47 @@ internal sealed partial class OverloadResolution {
             return BetterResult.Right;
         }
 
+        if (IsSignedIntegralType(type1)) {
+            if (IsUnsignedIntegralType(type2))
+                return BetterResult.Left;
+        } else if (IsUnsignedIntegralType(type1) && IsSignedIntegralType(type2)) {
+            return BetterResult.Right;
+        }
+
         return BetterResult.Neither;
+    }
+
+    private bool IsSignedIntegralType(TypeSymbol type) {
+        if (type is not null && type.IsNullableType())
+            type = type.GetNullableUnderlyingType();
+
+        switch (type.GetSpecialTypeSafe()) {
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.Int:
+            case SpecialType.IntPtr:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsUnsignedIntegralType(TypeSymbol type) {
+        if (type is not null && type.IsNullableType())
+            type = type.GetNullableUnderlyingType();
+
+        switch (type.GetSpecialTypeSafe()) {
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.UIntPtr:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private bool ExpressionMatchExactly(BoundExpression node, TypeSymbol t) {
@@ -2095,6 +2139,7 @@ internal sealed partial class OverloadResolution {
         var argType = argument.Type();
 
         if (argRefKind == RefKind.None) {
+            argument = Binder.ReduceNumericIfApplicable(parameterType, argument);
             var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
             return conversion;
         }

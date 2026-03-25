@@ -10,13 +10,9 @@ namespace Buckle.CodeAnalysis;
 /// </summary>
 internal partial class ConstantValue {
     internal static ConstantValue Unset => ConstantValueNull.Uninitialized;
+    internal static ConstantValue Null => new ConstantValue(null, SpecialType.None);
 
     private protected ConstantValue() { }
-
-    internal ConstantValue(object value) {
-        this.value = value;
-        specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
-    }
 
     internal ConstantValue(object value, SpecialType specialType) {
         this.value = value;

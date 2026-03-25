@@ -593,6 +593,16 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 case SpecialType.Bool:
                 case SpecialType.Char:
                 case SpecialType.Int:
+                case SpecialType.Int8:
+                case SpecialType.Int16:
+                case SpecialType.Int32:
+                case SpecialType.Int64:
+                case SpecialType.UInt8:
+                case SpecialType.UInt16:
+                case SpecialType.UInt32:
+                case SpecialType.UInt64:
+                case SpecialType.Float32:
+                case SpecialType.Float64:
                 case SpecialType.Decimal:
                     isOrdinaryStruct = false;
                     break;

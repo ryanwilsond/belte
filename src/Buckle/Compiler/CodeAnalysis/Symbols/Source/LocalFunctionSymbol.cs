@@ -98,6 +98,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
 
+    internal override bool isExtern => (_modifiers & DeclarationModifiers.Extern) != 0;
+
     internal override bool isDeclaredConst => false;
 
     internal override bool requiresInstanceReceiver => false;

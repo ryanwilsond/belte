@@ -33,7 +33,17 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Any, typeof(object) },
         { SpecialType.Bool, typeof(bool) },
         { SpecialType.Int, typeof(long) },
+        { SpecialType.Int8, typeof(sbyte) },
+        { SpecialType.Int16, typeof(short) },
+        { SpecialType.Int32, typeof(int) },
+        { SpecialType.Int64, typeof(long) },
+        { SpecialType.UInt8, typeof(byte) },
+        { SpecialType.UInt16, typeof(ushort) },
+        { SpecialType.UInt32, typeof(uint) },
+        { SpecialType.UInt64, typeof(ulong) },
         { SpecialType.Decimal, typeof(double) },
+        { SpecialType.Float32, typeof(float) },
+        { SpecialType.Float64, typeof(double) },
         { SpecialType.Nullable, typeof(Nullable<>) },
         { SpecialType.Char, typeof(char) },
         { SpecialType.Void, typeof(void) },
@@ -65,8 +75,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private Type _programType;
     private Dictionary<string, MethodInfo> _stlMap;
     private bool _graphicsInitialized;
-    // Used for debugging
-    private bool _logIL = false;
+    private StringWriter _logger;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;
@@ -98,8 +107,9 @@ internal sealed partial class Executor : ModuleBuilder {
         _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
-    internal object Execute(bool verbose, bool logTime) {
+    internal object Execute(bool verbose, bool logTime, string verbosePath) {
         var timer = logTime ? Stopwatch.StartNew() : null;
+        _logger = new StringWriter();
 
         var entryPoint = _program.entryPoint;
 
@@ -142,10 +152,24 @@ internal sealed partial class Executor : ModuleBuilder {
             timer.Stop();
 
             if (verbose) {
-                var assemblyPath = $"{DynamicAssemblyName}.g.dll";
+                var assemblyName = $"{DynamicAssemblyName}.g.dll";
+                var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
-                var generator = new Lokad.ILPack.AssemblyGenerator();
-                generator.GenerateAssembly(_programType.Assembly, assemblyPath);
+
+                try {
+                    var generator = new Lokad.ILPack.AssemblyGenerator();
+                    generator.GenerateAssembly(_programType.Assembly, assemblyPath);
+                } catch (Exception e) {
+                    // Don't let Lokad's bugs crash our program, fallback
+                    Console.WriteLine($"\tError: Failed to generate dynamic assembly! Exception caught: {e}");
+                    Console.WriteLine("\tFalling back to manual IL logger");
+                    var logName = $"{DynamicAssemblyName}.txt";
+                    var logPath = verbosePath is null ? logName : Path.Combine(verbosePath, logName);
+                    Console.WriteLine($"\tWriting IL log to \"{logPath}\"");
+
+                    using var streamWriter = new StreamWriter(logPath);
+                    streamWriter.Write(_logger);
+                }
             }
 
             _diagnostics.Push(new BelteDiagnostic(
@@ -205,6 +229,18 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type is PointerTypeSymbol pointer) {
                 var elementType = GetType(pointer.pointedAtType);
                 return elementType.MakePointerType();
+            }
+
+            if (type is FunctionPointerTypeSymbol) {
+                throw ExceptionUtilities.Unreachable();
+                // var args = functionPointer.signature.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
+
+                // if (functionPointer.signature.returnsVoid) {
+                //     return args.MakeGenericManagedCallVoidFunctionPointerType();
+                // } else {
+                //     var returnType = GetType(functionPointer.signature.returnType);
+                //     return (returnType, args).MakeGenericManagedCallFunctionPointerType();
+                // }
             }
 
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
@@ -365,6 +401,13 @@ internal sealed partial class Executor : ModuleBuilder {
         return closedMethod;
     }
 
+    internal MethodInfo GetSizeOf(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var length = typeof(System.Runtime.InteropServices.Marshal).GetMethod("SizeOf", Type.EmptyTypes);
+        var closedMethod = length.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
     private void EmitInternal() {
         GenerateSTLMap();
         CompleteSpecialTypes();
@@ -401,12 +444,25 @@ internal sealed partial class Executor : ModuleBuilder {
                 EmitConstructor(cb);
         }
 
+        var comeBackTo = new List<(TypeSymbol, TypeBuilder)>();
+
         foreach (var (typeSymbol, typeBuilder) in _types) {
-            if (typeSymbol.Equals(_programNamedType.originalDefinition))
+            if (typeSymbol.Equals(_programNamedType.originalDefinition)) {
                 _programType = typeBuilder.CreateType();
-            else
+                continue;
+            }
+
+            // ? This is to work around sequential struct ordering
+            // TODO In the long term we will want a more robust dependency graph most likely
+            try {
                 typeBuilder.CreateType();
+            } catch (TypeLoadException) {
+                comeBackTo.Add((typeSymbol, typeBuilder));
+            }
         }
+
+        foreach (var (typeSymbol, typeBuilder) in comeBackTo)
+            typeBuilder.CreateType();
     }
 
     private void CompleteSpecialTypes() {
@@ -497,6 +553,9 @@ internal sealed partial class Executor : ModuleBuilder {
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
 
+        if (type.IsStructType())
+            attributes |= TypeAttributes.SequentialLayout;
+
         attributes |= type.declaredAccessibility switch {
             Accessibility.Private => TypeAttributes.NestedPrivate,
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
@@ -544,9 +603,13 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                var fieldType = (f.type.typeKind == TypeKind.FunctionPointer)
+                    ? typeof(IntPtr)
+                    : GetType(f.type, f.refKind != RefKind.None);
+
                 var fieldBuilder = typeBuilder.DefineField(
                     f.name,
-                    GetType(f.type, f.refKind != RefKind.None),
+                    fieldType,
                     GetFieldAttributes(f)
                 );
 
@@ -565,6 +628,8 @@ internal sealed partial class Executor : ModuleBuilder {
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
         if (method.methodKind is MethodKind.Constructor or MethodKind.StaticConstructor)
             CreateConstructorDefinition(method, body, typeBuilder);
+        else if (method.isExtern)
+            CreatePInvokeMethodDefinition(method, typeBuilder);
         else
             CreateNormalMethodDefinition(method, body, typeBuilder);
     }
@@ -578,6 +643,37 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _constructors.Add(method, constructorBuilder);
         _constructorBodies.Add(constructorBuilder, (method, body));
+    }
+
+    private void CreatePInvokeMethodDefinition(MethodSymbol method, TypeBuilder typeBuilder) {
+        var dllImportData = method.GetDllImportData();
+        var methodBuilder = typeBuilder.DefinePInvokeMethod(
+            method.name,
+            dllImportData.moduleName,
+            GetMethodAttributes(method),
+            CallingConventions.Standard,
+            GetType(method.returnType, method.returnsByRef),
+            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray(),
+            GetCallingConvention(dllImportData.callingConvention),
+            dllImportData.characterSet
+        );
+
+        methodBuilder.SetImplementationFlags(
+            System.Reflection.MethodImplAttributes.PreserveSig
+        );
+
+        _methods.Add(method, methodBuilder);
+    }
+
+    private System.Runtime.InteropServices.CallingConvention GetCallingConvention(CallingConvention callingConvention) {
+        return callingConvention switch {
+            CallingConvention.Winapi => System.Runtime.InteropServices.CallingConvention.Winapi,
+            CallingConvention.FastCall => System.Runtime.InteropServices.CallingConvention.FastCall,
+            CallingConvention.Cdecl => System.Runtime.InteropServices.CallingConvention.Cdecl,
+            CallingConvention.StdCall => System.Runtime.InteropServices.CallingConvention.StdCall,
+            CallingConvention.ThisCall => System.Runtime.InteropServices.CallingConvention.ThisCall,
+            _ => throw ExceptionUtilities.UnexpectedValue(callingConvention)
+        };
     }
 
     private void CreateNormalMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
@@ -604,11 +700,13 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
-        if (_logIL)
-            Console.WriteLine($"Emitting method {method}");
+        _logger.WriteLine($"Emitting method {method}");
+
+        if (method.isAbstract || method.isExtern)
+            return;
 
         var body = _methodBodies[method];
-        var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logIL);
+        var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, method, body, ilBuilder);
         codeGen.Generate();
     }
@@ -616,10 +714,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private void EmitConstructor(ConstructorBuilder constructorBuilder) {
         var (constructor, body) = _constructorBodies[constructorBuilder];
 
-        if (_logIL)
-            Console.WriteLine($"Emitting constructor {constructor}");
+        _logger.WriteLine($"Emitting constructor {constructor}");
 
-        var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logIL);
+        var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, constructor, body, ilBuilder);
         codeGen.Generate();
     }
@@ -933,6 +1030,12 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
+            { "LowLevel_CreateCharPtrString_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateCharPtrString", Flags, [typeof(string)]) },
+            { "LowLevel_FreeCharPtrString_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeCharPtrString", Flags, [typeof(char*)]) },
+            { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
+            { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
+            { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
+            { "LowLevel_ReadLPCSTR_V*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCSTR", Flags, [typeof(void*)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },
