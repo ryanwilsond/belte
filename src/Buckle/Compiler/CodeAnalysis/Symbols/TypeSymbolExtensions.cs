@@ -56,6 +56,16 @@ internal static class TypeSymbolExtensions {
         return type.ToDisplayString(format);
     }
 
+    internal static bool IsPointerOrFunctionPointer(this TypeSymbol type) {
+        switch (type.typeKind) {
+            case TypeKind.Pointer:
+            case TypeKind.FunctionPointer:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static TypedConstantKind GetAttributeParameterTypedConstantKind(this TypeSymbol type, Compilation compilation) {
         var kind = TypedConstantKind.Error;
 

@@ -56,6 +56,8 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
 
     internal override SyntaxToken identifierToken => null;
 
+    internal override bool isPinned => false;
+
     internal override bool isImplicitlyDeclared => true;
 
     internal override bool isCompilerGenerated => true;

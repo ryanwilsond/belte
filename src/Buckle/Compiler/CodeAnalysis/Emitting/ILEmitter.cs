@@ -79,7 +79,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),
-            // AssemblyDefinition.ReadAssembly(_belteDllName),
+            AssemblyDefinition.ReadAssembly(_belteDllName),
         ];
 
         _backupAssemblies = [
@@ -277,7 +277,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal MethodReference GetSort(TypeSymbol elementType) {
         var genericArgumentType = GetType(elementType);
 
-        var sortRef = new GenericInstanceMethod(NetMethodReference.Array_Sort);
+        var sortRef = new GenericInstanceMethod(NetMethodReference.LowLevel_Sort);
         sortRef.GenericArguments.Add(genericArgumentType);
 
         return _assemblyDefinition.MainModule.ImportReference(sortRef);
@@ -1056,8 +1056,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
-        NetMethodReference.Array_Sort = ResolveMethod("System.Array", "Sort", ["T[]"]);
-        NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T[]"]);
+        NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T"]);
+        NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T"]);
     }
 
     private void GenerateSTLMap() {
@@ -1097,8 +1097,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
             { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
             { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
-            { "LowLevel_Sort_A?", ResolveMethod("Belte.Runtime.Utilities", "Sort", ["System.Object[]"]) },
-            { "LowLevel_Length_A?", ResolveMethod("Belte.Runtime.Utilities", "Length", ["System.Object[]"]) },
             { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
             { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
             { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },

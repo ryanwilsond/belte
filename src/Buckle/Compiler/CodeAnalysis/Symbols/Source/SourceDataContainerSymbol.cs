@@ -35,7 +35,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
 
-        declarationKind = MakeModifiers(modifiers, _declarationDiagnostics);
+        declarationKind = MakeModifiers(modifiers, _declarationDiagnostics, out var isPinned);
+        this.isPinned = isPinned;
         GetAttributes();
     }
 
@@ -60,6 +61,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
     internal override SyntaxReference syntaxReference => new SyntaxReference(GetDeclarationSyntax());
 
     internal override TextLocation location => identifierToken.location;
+
+    internal override bool isPinned { get; }
 
     internal override bool isCompilerGenerated => false;
 
@@ -248,8 +251,13 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         return declarationType;
     }
 
-    private DataContainerDeclarationKind MakeModifiers(SyntaxTokenList modifiers, BelteDiagnosticQueue diagnostics) {
-        var allowedModifiers = DeclarationModifiers.Const | DeclarationModifiers.ConstExpr;
+    private DataContainerDeclarationKind MakeModifiers(
+        SyntaxTokenList modifiers,
+        BelteDiagnosticQueue diagnostics,
+        out bool isPinned) {
+        var allowedModifiers = DeclarationModifiers.Const |
+                               DeclarationModifiers.ConstExpr |
+                               DeclarationModifiers.Pinned;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
@@ -260,6 +268,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             out var hasErrors
         );
 
+        isPinned = (result & DeclarationModifiers.Pinned) != 0;
         var isConst = (result & DeclarationModifiers.Const) != 0;
         var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
         var declarationKind = isConstExpr

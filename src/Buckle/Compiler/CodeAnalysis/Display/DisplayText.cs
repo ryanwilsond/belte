@@ -165,6 +165,9 @@ public sealed class DisplayText {
             case BoundKind.IndexerAccessExpression:
                 DisplayIndexerAccessExpression(text, (BoundIndexerAccessExpression)node);
                 break;
+            case BoundKind.PointerIndexAccessExpression:
+                DisplayPointerIndexAccessExpression(text, (BoundPointerIndexAccessExpression)node);
+                break;
             case BoundKind.ReferenceExpression:
                 DisplayReferenceExpression(text, (BoundReferenceExpression)node);
                 break;
@@ -660,6 +663,13 @@ public sealed class DisplayText {
     }
 
     private static void DisplayIndexerAccessExpression(DisplayText text, BoundIndexerAccessExpression node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.index);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayPointerIndexAccessExpression(DisplayText text, BoundPointerIndexAccessExpression node) {
         DisplayNode(text, node.receiver);
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);

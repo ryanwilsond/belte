@@ -147,6 +147,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private bool PeekIsLocalDeclaration() {
         var offset = 0;
 
+        if (Peek(offset).kind == SyntaxKind.PinnedKeyword)
+            offset++;
+
         while (Peek(offset).kind == SyntaxKind.OpenBracketToken) {
             offset++;
 
@@ -196,6 +199,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
             finalOffset++;
         }
 
+        while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
+            finalOffset++;
+
+        if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
+            finalOffset++;
+
         if (Peek(finalOffset).kind == SyntaxKind.OpenParenToken) {
             var parenthesisStack = 0;
             var parenOffset = finalOffset;
@@ -221,11 +230,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
         while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
             finalOffset++;
 
-        var hasBrackets = false;
-        var bracketsBeenClosed = true;
-
         if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
             finalOffset++;
+
+        var hasBrackets = false;
+        var bracketsBeenClosed = true;
 
         while (Peek(finalOffset).kind is SyntaxKind.OpenBracketToken or SyntaxKind.CloseBracketToken) {
             hasBrackets = true;
@@ -780,6 +789,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.NewKeyword => DeclarationModifiers.New,
             SyntaxKind.RefKeyword => DeclarationModifiers.Ref,
             SyntaxKind.ExternKeyword => DeclarationModifiers.Extern,
+            SyntaxKind.PinnedKeyword => DeclarationModifiers.Pinned,
             _ => DeclarationModifiers.None,
         };
     }
@@ -1392,10 +1402,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParsePrimaryExpressionInternal(int parentPrecedence) {
         switch (currentToken.kind) {
             case SyntaxKind.OpenParenToken:
-                if (PeekIsCastExpression())
-                    return ParseCastExpression();
-                else
-                    return ParseParenthesizedExpression();
+                return ParseCastOrParenthesizedExpression();
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
                 return ParseBooleanLiteral();
@@ -1468,6 +1475,284 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 default:
                     return expression;
             }
+        }
+    }
+
+    private ScanTypeFlags ScanType() {
+        return ScanType(out _);
+    }
+
+    private ScanTypeFlags ScanType(out SyntaxToken lastTokenOfType) {
+        return ScanType(ParseTypeMode.Normal, out lastTokenOfType);
+    }
+
+    private ScanTypeFlags ScanType(ParseTypeMode mode, out SyntaxToken lastTokenOfType) {
+        ScanTypeFlags result;
+
+        if (currentToken.kind == SyntaxKind.RefKeyword) {
+            EatToken();
+
+            if (currentToken.kind == SyntaxKind.ConstKeyword)
+                EatToken();
+        }
+
+        if (currentToken.kind is SyntaxKind.IdentifierToken or SyntaxKind.ColonColonToken) {
+            bool isAlias;
+
+            if (currentToken.kind is SyntaxKind.ColonColonToken) {
+                result = ScanTypeFlags.NonTemplateTypeOrExpression;
+                isAlias = true;
+                lastTokenOfType = null;
+            } else {
+                isAlias = Peek(1).kind == SyntaxKind.ColonColonToken;
+                result = ScanNamedTypePart(out lastTokenOfType);
+
+                if (result == ScanTypeFlags.NotType)
+                    return ScanTypeFlags.NotType;
+            }
+
+            for (var firstLoop = true; currentToken.kind is SyntaxKind.PeriodToken or SyntaxKind.ColonColonToken; firstLoop = false) {
+                if (!firstLoop)
+                    isAlias = false;
+
+                EatToken();
+                result = ScanNamedTypePart(out lastTokenOfType);
+
+                if (result == ScanTypeFlags.NotType)
+                    return ScanTypeFlags.NotType;
+            }
+
+            if (isAlias)
+                result = ScanTypeFlags.AliasQualifiedName;
+        } else {
+            lastTokenOfType = null;
+            return ScanTypeFlags.NotType;
+        }
+
+        var lastTokenPosition = -1;
+
+        while (IsMakingProgress(ref lastTokenPosition)) {
+            switch (currentToken.kind) {
+                case SyntaxKind.ExclamationToken
+                        when lastTokenOfType.kind is not SyntaxKind.ExclamationToken
+                                                  and not SyntaxKind.AsteriskToken
+                                                  and not SyntaxKind.AsteriskAsteriskToken:
+                    lastTokenOfType = EatToken();
+                    result = ScanTypeFlags.NonNullableType;
+                    break;
+                case SyntaxKind.AsteriskToken:
+                case SyntaxKind.AsteriskAsteriskToken:
+                    switch (mode) {
+                        default:
+                            lastTokenOfType = EatToken();
+
+                            if (result is ScanTypeFlags.TemplateTypeOrExpression or ScanTypeFlags.NonTemplateTypeOrExpression)
+                                result = ScanTypeFlags.PointerOrMultiplication;
+                            else if (result == ScanTypeFlags.TemplateTypeOrMethod)
+                                result = ScanTypeFlags.MustBeType;
+
+                            break;
+                    }
+
+                    break;
+                case SyntaxKind.OpenParenToken:
+                    result = ScanFunctionPointerType(out lastTokenOfType);
+                    break;
+                case SyntaxKind.OpenBracketToken:
+                    EatToken();
+
+                    while (currentToken.kind == SyntaxKind.CommaToken)
+                        EatToken();
+
+                    if (currentToken.kind != SyntaxKind.CloseBracketToken) {
+                        lastTokenOfType = null;
+                        return ScanTypeFlags.NotType;
+                    }
+
+                    lastTokenOfType = EatToken();
+                    result = ScanTypeFlags.MustBeType;
+                    break;
+                default:
+                    goto done;
+            }
+        }
+
+done:
+        return result;
+    }
+
+    private void ScanNamedTypePart() {
+        ScanNamedTypePart(out _);
+    }
+
+    private ScanTypeFlags ScanNamedTypePart(out SyntaxToken lastTokenOfType) {
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            lastTokenOfType = null;
+            return ScanTypeFlags.NotType;
+        }
+
+        lastTokenOfType = EatToken();
+
+        if (currentToken.kind == SyntaxKind.LessThanToken)
+            return ScanPossibleTemplateParameterList(out lastTokenOfType, out _);
+        else
+            return ScanTypeFlags.NonTemplateTypeOrExpression;
+    }
+
+    private ScanTypeFlags ScanPossibleTemplateParameterList(
+        out SyntaxToken lastTokenOfType,
+        out bool isDefinitelyTemplateArgumentList) {
+        // TODO Do extra checks after initial fail?
+        var resetPoint = GetResetPoint();
+
+        var list = ParseTemplateParameterList();
+
+        Reset(resetPoint);
+
+        if (!list.containsDiagnostics) {
+            isDefinitelyTemplateArgumentList = true;
+            lastTokenOfType = list.GetLastToken();
+            return ScanTypeFlags.TemplateTypeOrMethod;
+        }
+
+        lastTokenOfType = null;
+        isDefinitelyTemplateArgumentList = false;
+        return ScanTypeFlags.NotType;
+    }
+
+    private ScanTypeFlags ScanFunctionPointerType(out SyntaxToken lastTokenOfType) {
+        var parenthesisStack = 0;
+        var parenOffset = 0;
+
+        while (Peek(parenOffset).kind != SyntaxKind.EndOfFileToken) {
+            if (Peek(parenOffset).kind == SyntaxKind.OpenParenToken)
+                parenthesisStack++;
+            else if (Peek(parenOffset).kind == SyntaxKind.CloseParenToken)
+                parenthesisStack--;
+
+            if (Peek(parenOffset).kind == SyntaxKind.CloseParenToken && parenthesisStack == 0) {
+                parenOffset++;
+                break;
+            } else {
+                parenOffset++;
+            }
+        }
+
+        if (Peek(parenOffset).kind is not SyntaxKind.AsteriskToken) {
+            lastTokenOfType = null;
+            return ScanTypeFlags.NotType;
+        } else {
+            while (parenOffset > 0) {
+                EatToken();
+                parenOffset--;
+            }
+
+            lastTokenOfType = _currentToken;
+            return ScanTypeFlags.MustBeType;
+        }
+    }
+
+    private ExpressionSyntax ParseCastOrParenthesizedExpression() {
+        var resetPoint = GetResetPoint();
+
+        if (ScanCast()) {
+            Reset(resetPoint);
+            return ParseCastExpression();
+        }
+
+        Reset(resetPoint);
+        return ParseParenthesizedExpression();
+    }
+
+    private bool ScanCast() {
+        if (currentToken.kind != SyntaxKind.OpenParenToken)
+            return false;
+
+        EatToken();
+
+        var type = ScanType();
+
+        if (type == ScanTypeFlags.NotType)
+            return false;
+
+        if (currentToken.kind != SyntaxKind.CloseParenToken)
+            return false;
+
+        EatToken();
+
+        switch (type) {
+            case ScanTypeFlags.PointerOrMultiplication:
+            case ScanTypeFlags.NonNullableType:
+            case ScanTypeFlags.MustBeType:
+            case ScanTypeFlags.AliasQualifiedName:
+                return true;
+            case ScanTypeFlags.TemplateTypeOrMethod:
+                return currentToken.kind == SyntaxKind.OpenBracketToken || CanFollowCast(currentToken.kind);
+            case ScanTypeFlags.TemplateTypeOrExpression:
+            case ScanTypeFlags.NonTemplateTypeOrExpression:
+                if (currentToken.kind == SyntaxKind.OpenBracketToken && Peek(1).kind == SyntaxKind.CloseBracketToken)
+                    return true;
+
+                return CanFollowCast(currentToken.kind);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(type);
+        }
+    }
+
+    private static bool CanFollowCast(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.AsKeyword:
+            case SyntaxKind.IsKeyword:
+            case SyntaxKind.SemicolonToken:
+            case SyntaxKind.CloseParenToken:
+            case SyntaxKind.CloseBracketToken:
+            case SyntaxKind.OpenBraceToken:
+            case SyntaxKind.CloseBraceToken:
+            case SyntaxKind.CommaToken:
+            case SyntaxKind.EqualsToken:
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.QuestionToken:
+            case SyntaxKind.ColonToken:
+            case SyntaxKind.PipePipeToken:
+            case SyntaxKind.AmpersandAmpersandToken:
+            case SyntaxKind.PipeToken:
+            case SyntaxKind.CaretToken:
+            case SyntaxKind.AmpersandToken:
+            case SyntaxKind.EqualsEqualsToken:
+            case SyntaxKind.ExclamationEqualsToken:
+            case SyntaxKind.LessThanToken:
+            case SyntaxKind.LessThanEqualsToken:
+            case SyntaxKind.GreaterThanToken:
+            case SyntaxKind.GreaterThanEqualsToken:
+            case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.LessThanLessThanToken:
+            case SyntaxKind.GreaterThanGreaterThanToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+            case SyntaxKind.PlusToken:
+            case SyntaxKind.MinusToken:
+            case SyntaxKind.AsteriskToken:
+            case SyntaxKind.SlashToken:
+            case SyntaxKind.PercentToken:
+            case SyntaxKind.PlusPlusToken:
+            case SyntaxKind.MinusMinusToken:
+            case SyntaxKind.OpenBracketToken:
+            case SyntaxKind.PeriodToken:
+            case SyntaxKind.MinusGreaterThanToken:
+            case SyntaxKind.QuestionQuestionToken:
+            case SyntaxKind.EndOfFileToken:
+                return false;
+            default:
+                return true;
         }
     }
 

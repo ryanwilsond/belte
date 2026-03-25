@@ -71,7 +71,7 @@ internal static class Assertions {
         Assert.Empty(evalResult.diagnostics.Errors().ToArray());
         Assert.Equal(expectedValue, evalResult.value);
 
-        var execDiags = execCompilation.Execute(false, false, out var execResult);
+        var execDiags = execCompilation.Execute(false, false, null, out var execResult);
 
         Assert.Empty(execDiags.Errors().ToArray());
         Assert.Equal(expectedValue, execResult);

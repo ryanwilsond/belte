@@ -117,6 +117,7 @@ public enum SyntaxKind : ushort {
     ImplicitKeyword,
     ExplicitKeyword,
     ExternKeyword,
+    PinnedKeyword,
 
     // Tokens with text
     BadToken,

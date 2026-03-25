@@ -49,6 +49,8 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal sealed override bool isExtern => false;
 
+    internal abstract bool isPinned { get; }
+
     internal sealed override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal abstract SyntaxToken identifierToken { get; }

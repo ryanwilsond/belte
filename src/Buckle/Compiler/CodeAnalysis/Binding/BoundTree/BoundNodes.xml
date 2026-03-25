@@ -76,6 +76,10 @@
     <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundPointerIndexAccessExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="index" Type="BoundExpression"/>
+  </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="initializer" Type="BoundInitializerList?"/>

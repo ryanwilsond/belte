@@ -4,8 +4,8 @@ namespace Buckle.CodeAnalysis;
 
 [Flags]
 internal enum CallingConvention : byte {
-    Default,
-    Winapi,
+    Default = 1,
+    Winapi = 1,
     Cdecl,
     StdCall,
     ThisCall,

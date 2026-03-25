@@ -208,6 +208,54 @@ internal static class StandardLibrary {
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "str")]
         );
 
+        var getGCPtr =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "GetGCPtr",
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Object)), 0, RefKind.None, "obj")]
+        );
+
+        var freeGCHandle =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "FreeGCHandle",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
+        );
+
+        var getObject =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "GetObject",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Object)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
+        );
+
+        var readLPCSTR =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "ReadLPCSTR",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
+        );
+
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
@@ -216,7 +264,11 @@ internal static class StandardLibrary {
             sizeOf,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
             createCharPtrString,
-            freeCharPtrString
+            freeCharPtrString,
+            getGCPtr,
+            freeGCHandle,
+            getObject,
+            readLPCSTR
         ]);
     }
 

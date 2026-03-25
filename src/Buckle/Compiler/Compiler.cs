@@ -151,11 +151,11 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode, state.time);
+                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode, state.time, state.verbosePath);
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(state.verboseMode, state.time));
+                    diagnostics.PushRange(compilation.Execute(state.verboseMode, state.time, state.verbosePath));
                 }
             }
 

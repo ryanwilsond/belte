@@ -48,9 +48,8 @@ internal sealed class FunctionPointerParameterSymbol : ParameterSymbol {
     }
 
     internal bool MethodEqualityChecks(FunctionPointerParameterSymbol other, TypeCompareKind compareKind) {
-        return FunctionPointerTypeSymbol.RefKindEquals(compareKind, refKind, other.refKind)
-            && ((compareKind & TypeCompareKind.IgnoreArraySizesAndLowerBounds) != 0)
-            && typeWithAnnotations.Equals(other.typeWithAnnotations, compareKind);
+        return FunctionPointerTypeSymbol.RefKindEquals(compareKind, refKind, other.refKind) &&
+            typeWithAnnotations.Equals(other.typeWithAnnotations, compareKind);
     }
 
     public override int GetHashCode() {

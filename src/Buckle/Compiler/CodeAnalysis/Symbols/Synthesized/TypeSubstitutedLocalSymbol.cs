@@ -45,6 +45,8 @@ internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
 
     internal override SyntaxToken identifierToken => _originalVariable.identifierToken;
 
+    internal override bool isPinned => _originalVariable.isPinned;
+
     public override RefKind refKind => _originalVariable.refKind;
 
     // TODO Any way this backfires/isn't necessary?

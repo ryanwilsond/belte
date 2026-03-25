@@ -23,6 +23,7 @@ internal enum DeclarationModifiers : uint {
     Ref = 1 << 12,
     ConstRef = 1 << 13,
     Extern = 1 << 14,
+    Pinned = 1 << 15,
 
     AccessibilityMask = Public | Private | Protected,
 }

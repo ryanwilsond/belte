@@ -60,6 +60,27 @@ internal static class AccessCheck {
             case SymbolKind.Parameter:
             case SymbolKind.Method when ((MethodSymbol)symbol).methodKind == MethodKind.LocalFunction:
                 return true;
+            case SymbolKind.FunctionPointerType:
+                var funcPtr = (FunctionPointerTypeSymbol)symbol;
+                if (!IsSymbolAccessibleCore(
+                    funcPtr.signature.returnType,
+                    within,
+                    throughType: null,
+                    out failedThroughTypeCheck)) {
+                    return false;
+                }
+
+                foreach (var param in funcPtr.signature.parameters) {
+                    if (!IsSymbolAccessibleCore(
+                        param.type,
+                        within,
+                        throughType: null,
+                        out failedThroughTypeCheck)) {
+                        return false;
+                    }
+                }
+
+                return true;
             case SymbolKind.Field:
             case SymbolKind.Method:
                 if (!symbol.RequiresInstanceReceiver())

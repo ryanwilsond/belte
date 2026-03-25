@@ -116,11 +116,18 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitReturn() {
-        throw new NotImplementedException();
+        iLProcessor.Emit(OpCodes.Ret);
     }
 
     internal override void EmitCalli(FunctionPointerTypeSymbol type) {
-        throw new NotImplementedException();
+        var callSite = new CallSite(_module.GetType(type.signature.returnType)) {
+            CallingConvention = MethodCallingConvention.StdCall
+        };
+
+        foreach (var p in type.signature.parameters)
+            callSite.Parameters.Add(new Mono.Cecil.ParameterDefinition(_module.GetType(p.type)));
+
+        iLProcessor.Emit(OpCodes.Calli, callSite);
     }
 
     internal override void EmitLocalAddress(DataContainerSymbol local) {
@@ -145,7 +152,25 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitLocalStore(DataContainerSymbol local) {
-        EmitLocalStore(_localSlotManager.GetLocal(local));
+        if (!_localSlotManager.TryGetLocal(local, out var value)) {
+            if (local.declaringCompilation.options.isScript) {
+                DeclareLocal(
+                    local.type,
+                    local,
+                    local.name,
+                    local.synthesizedKind,
+                    local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+                    false
+                );
+
+                EmitLocalStore(_localSlotManager.GetLocal(local));
+                return;
+            } else {
+                throw new KeyNotFoundException(local.name);
+            }
+        }
+
+        EmitLocalStore(value);
     }
 
     internal override void EmitLocalStore(CodeGeneration.VariableDefinition local) {

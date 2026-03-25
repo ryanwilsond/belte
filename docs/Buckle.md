@@ -172,6 +172,10 @@ The *--noout* option overrides *--verbose*, meaning that no information will be 
 to *all*, the [warning level](#--warnlevelwarning-level-default-1) to max, and will also display
 [timing information](#--time).
 
+### *--verbose-path=\<path>*
+
+Specifies the path the *--verbose* mode will dump files. Defaults to the path Buckle was called on.
+
 ## Running Programs
 
 There is no setup required. Because interpretation is the default behavior, no command-line arguments are needed, only

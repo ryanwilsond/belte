@@ -2990,14 +2990,18 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
         switch (expression.StrippedType().typeKind) {
-            case TypeKind.Array:
-                var access = BindArrayAccess(node, expression, analyzedArguments, diagnostics);
-                return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
+            case TypeKind.Array: {
+                    var access = BindArrayAccess(node, expression, analyzedArguments, diagnostics);
+                    return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
+                }
             case TypeKind.Class:
             case TypeKind.Primitive:
-            case TypeKind.TemplateParameter:
-                // TODO What to do about conditional access?
-                return BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
+            case TypeKind.TemplateParameter: {
+                    var access = BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
+                    return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
+                }
+            case TypeKind.Pointer:
+                return BindPointerIndexAccess(node, expression, analyzedArguments, diagnostics);
             default:
                 return ErrorIndexerExpression(
                     node,
@@ -3007,6 +3011,42 @@ internal partial class Binder {
                     diagnostics
                 );
         }
+    }
+
+    private BoundExpression BindPointerIndexAccess(
+        SyntaxNode node,
+        BoundExpression expression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        var argument = analyzedArguments.arguments[0].expression;
+
+        if (expression.hasErrors) {
+            expression = BindToTypeForErrorRecovery(expression);
+
+            return new BoundPointerIndexAccessExpression(
+                node,
+                expression,
+                argument,
+                CreateErrorType(),
+                true
+            );
+        }
+
+        var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
+
+        if (!conversion.exists)
+            GenerateImplicitConversionError(diagnostics, node, conversion, argument, intType);
+
+        var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
+        var resultType = ((PointerTypeSymbol)expression.Type()).pointedAtType;
+
+        return new BoundPointerIndexAccessExpression(
+            node,
+            expression,
+            boundConversion,
+            resultType
+        );
     }
 
     private BoundExpression BindIndexerAccess(
@@ -8684,6 +8724,10 @@ internal partial class Binder {
                     diagnose
                 );
 
+                break;
+            case TypeKind.Pointer:
+            case TypeKind.FunctionPointer:
+                result.Clear();
                 break;
             case TypeKind.Primitive:
                 result.MergeEqual(LookupResult.NotTypeOrNamespace(type, Error.PrimitivesDoNotHaveMembers(null)));

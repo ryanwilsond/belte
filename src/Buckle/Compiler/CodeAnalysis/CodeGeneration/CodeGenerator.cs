@@ -238,7 +238,6 @@ internal sealed partial class CodeGenerator {
         }
 
         _builder.EmitCalli(ptrInvocation.functionPointer);
-        // _builder.EmitWithSymbolToken(OpCode.Calli, ptrInvocation.functionPointer);
         EmitCallCleanup(method, useKind);
     }
 
@@ -821,7 +820,9 @@ oneMoreTime:
                 throw ExceptionUtilities.UnexpectedValue(op.operatorKind.Operator());
         }
 
-        if (IsFloat(op.operatorKind))
+        if (IsUnsignedBinaryOperator(op))
+            opIdx += 2 * IL_OP_CODE_ROW_LENGTH;
+        else if (IsFloat(op.operatorKind))
             opIdx += 4 * IL_OP_CODE_ROW_LENGTH;
 
         var revOpIdx = opIdx;
@@ -1714,9 +1715,12 @@ oneMoreTime:
                 }
             }
 
-            if (type is PointerTypeSymbol) {
+            if (type.IsPointerOrFunctionPointer() || type.specialType == SpecialType.UIntPtr) {
                 _builder.Emit(OpCode.Ldc_I4_0);
                 _builder.Emit(OpCode.Conv_U);
+            } else if (type.specialType == SpecialType.IntPtr) {
+                _builder.Emit(OpCode.Ldc_I4_0);
+                _builder.Emit(OpCode.Conv_I);
             } else {
                 EmitInitObj(type, true);
             }
@@ -2139,16 +2143,28 @@ oneMoreTime:
                 _builder.Emit(OpCode.Sub);
                 break;
             case BinaryOperatorKind.Division:
-                _builder.Emit(OpCode.Div);
+                if (IsUnsignedBinaryOperator(expression))
+                    _builder.Emit(OpCode.Div_Un);
+                else
+                    _builder.Emit(OpCode.Div);
+
                 break;
             case BinaryOperatorKind.Modulo:
-                _builder.Emit(OpCode.Rem);
+                if (IsUnsignedBinaryOperator(expression))
+                    _builder.Emit(OpCode.Rem_Un);
+                else
+                    _builder.Emit(OpCode.Rem);
+
                 break;
             case BinaryOperatorKind.LeftShift:
                 _builder.Emit(OpCode.Shl);
                 break;
             case BinaryOperatorKind.RightShift:
-                _builder.Emit(OpCode.Shr);
+                if (IsUnsignedBinaryOperator(expression))
+                    _builder.Emit(OpCode.Shr_Un);
+                else
+                    _builder.Emit(OpCode.Shr);
+
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
                 _builder.Emit(OpCode.Shr_Un);
@@ -2164,6 +2180,29 @@ oneMoreTime:
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.operatorKind.Operator());
+        }
+    }
+
+    private static bool IsUnsigned(SpecialType type) {
+        switch (type) {
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+                return true;
+        }
+        return false;
+    }
+
+    private static bool IsUnsignedBinaryOperator(BoundBinaryOperator op) {
+        var opKind = op.operatorKind;
+        var type = opKind.OperandTypes();
+
+        switch (type) {
+            case BinaryOperatorKind.UInt:
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -2325,7 +2364,9 @@ oneMoreTime:
                 throw ExceptionUtilities.UnexpectedValue(binOp.operatorKind.OperatorWithConditional());
         }
 
-        if (IsFloat(binOp.operatorKind))
+        if (IsUnsignedBinaryOperator(binOp))
+            opIdx += 4;
+        else if (IsFloat(binOp.operatorKind))
             opIdx += 8;
 
         EmitBinaryCondOperatorHelper(CompOpCodes[opIdx], binOp.left, binOp.right, sense);
@@ -2593,16 +2634,36 @@ oneMoreTime:
     private void EmitIndirectStore(TypeSymbol type) {
         switch (type.specialType) {
             case SpecialType.Bool:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
                 _builder.Emit(OpCode.Stind_I1);
                 break;
+            case SpecialType.Char:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+                _builder.Emit(OpCode.Stind_I2);
+                break;
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+                _builder.Emit(OpCode.Stind_I4);
+                break;
             case SpecialType.Int:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
                 _builder.Emit(OpCode.Stind_I8);
                 break;
-            case SpecialType.Decimal:
-                _builder.Emit(OpCode.Stind_R8);
-                break;
-            case SpecialType.None when type is PointerTypeSymbol:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
                 _builder.Emit(OpCode.Stind_I);
+                break;
+            case SpecialType.Float32:
+                _builder.Emit(OpCode.Stind_R4);
+                break;
+            case SpecialType.Decimal:
+            case SpecialType.Float64:
+                _builder.Emit(OpCode.Stind_R8);
                 break;
             default:
                 if (type.IsVerifierReference()) {
@@ -3030,8 +3091,8 @@ oneMoreTime:
             case ConversionKind.ExplicitNumeric:
                 EmitConvertCallOrNumericConversion(cast);
                 break;
-            case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ExplicitPointerToPointer:
                 return;
             case ConversionKind.ExplicitPointerToInteger:
             case ConversionKind.ExplicitIntegerToPointer:
@@ -3149,6 +3210,7 @@ oneMoreTime:
                     case SpecialType.IntPtr:
                     case SpecialType.UIntPtr:
                     case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
                         break;
                     case SpecialType.Int8:
                     case SpecialType.Int16:
@@ -3174,6 +3236,7 @@ oneMoreTime:
                     case SpecialType.UIntPtr:
                     case SpecialType.IntPtr:
                     case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
                         break;
                     case SpecialType.UInt8:
                     case SpecialType.UInt16:
@@ -3210,6 +3273,7 @@ oneMoreTime:
                         _builder.Emit(OpCode.Conv_U8);
                         break;
                     case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
                     case SpecialType.UIntPtr:
                         _builder.Emit(OpCode.Conv_U8);
                         break;
@@ -3228,6 +3292,7 @@ oneMoreTime:
                     case SpecialType.UInt16:
                     case SpecialType.UInt32:
                     case SpecialType.Pointer:
+                    case SpecialType.FunctionPointer:
                     case SpecialType.UIntPtr:
                     case SpecialType.Char:
                         _builder.Emit(OpCode.Conv_U8);
@@ -3267,6 +3332,7 @@ oneMoreTime:
                 _builder.Emit(OpCode.Conv_R8);
                 break;
             case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
                 switch (from) {
                     case SpecialType.UInt8:
                     case SpecialType.UInt16:
@@ -3355,13 +3421,42 @@ oneMoreTime:
     private void EmitLoadIndirect(TypeSymbol type) {
         switch (type.specialType) {
             case SpecialType.Int:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
                 _builder.Emit(OpCode.Ldind_I8);
                 break;
             case SpecialType.Bool:
+            case SpecialType.UInt8:
+                _builder.Emit(OpCode.Ldind_U1);
+                break;
+            case SpecialType.Int8:
                 _builder.Emit(OpCode.Ldind_I1);
                 break;
+            case SpecialType.Int16:
+                _builder.Emit(OpCode.Ldind_I2);
+                break;
+            case SpecialType.UInt16:
+            case SpecialType.Char:
+                _builder.Emit(OpCode.Ldind_U2);
+                break;
+            case SpecialType.Int32:
+                _builder.Emit(OpCode.Ldind_I4);
+                break;
+            case SpecialType.UInt32:
+                _builder.Emit(OpCode.Ldind_U4);
+                break;
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                _builder.Emit(OpCode.Ldind_I);
+                break;
             case SpecialType.Decimal:
+            case SpecialType.Float64:
                 _builder.Emit(OpCode.Ldind_R8);
+                break;
+            case SpecialType.Float32:
+                _builder.Emit(OpCode.Ldind_R4);
                 break;
             case SpecialType.None when type is PointerTypeSymbol:
                 _builder.Emit(OpCode.Ldind_I);

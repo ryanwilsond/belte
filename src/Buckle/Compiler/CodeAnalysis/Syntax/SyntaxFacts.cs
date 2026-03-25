@@ -191,6 +191,7 @@ public static class SyntaxFacts {
             "implicit" => SyntaxKind.ImplicitKeyword,
             "explicit" => SyntaxKind.ExplicitKeyword,
             "extern" => SyntaxKind.ExternKeyword,
+            "pinned" => SyntaxKind.PinnedKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -306,6 +307,7 @@ public static class SyntaxFacts {
             SyntaxKind.ImplicitKeyword => "implicit",
             SyntaxKind.ExplicitKeyword => "explicit",
             SyntaxKind.ExternKeyword => "extern",
+            SyntaxKind.PinnedKeyword => "pinned",
             _ => null,
         };
     }

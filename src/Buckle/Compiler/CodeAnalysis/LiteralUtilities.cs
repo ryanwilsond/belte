@@ -19,13 +19,12 @@ internal static class LiteralUtilities {
             return true;
         }
 
-        return TryCast(value, source, targetType.type.StrippedType(), out result);
+        return TryCast(value, source, targetType.type, out result);
     }
 
     internal static bool TryCast(object value, TypeSymbol sourceType, TypeSymbol targetType, out object result) {
         try {
-            result = Cast(value, sourceType.specialType, targetType.specialType);
-            return true;
+            return TryCastCore(value, sourceType, targetType, out result);
         } catch (FormatException) {
             // TODO consider raising a diagnostic in this case
             result = null;
@@ -33,14 +32,23 @@ internal static class LiteralUtilities {
         }
     }
 
-    internal static object Cast(object value, SpecialType sourceType, SpecialType targetType) {
+    internal static bool TryCastCore(
+        object value,
+        TypeSymbol sourceTypeSymbol,
+        TypeSymbol targetTypeSymbol,
+        out object result) {
+        var sourceType = sourceTypeSymbol.StrippedType().specialType;
+        var targetType = targetTypeSymbol.StrippedType().specialType;
+
         switch (targetType) {
             case SpecialType.Bool:
-                return Convert.ToBoolean(value);
+                result = Convert.ToBoolean(value);
+                break;
             case SpecialType.String:
-                return Convert.ToString(value);
+                result = Convert.ToString(value);
+                break;
             case SpecialType.Int8:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => value,
                     SpecialType.Int16 => unchecked((sbyte)(short)value),
                     SpecialType.Int32 => unchecked((sbyte)(int)value),
@@ -57,8 +65,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => unchecked((sbyte)(char)value),
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.Int16:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => (short)(sbyte)value,
                     SpecialType.Int16 => value,
                     SpecialType.Int32 => unchecked((short)(int)value),
@@ -75,8 +85,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => unchecked((short)(char)value),
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.Int32:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => (int)(sbyte)value,
                     SpecialType.Int16 => (int)(short)value,
                     SpecialType.Int32 => value,
@@ -93,8 +105,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (int)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.UInt8:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => unchecked((byte)(sbyte)value),
                     SpecialType.Int16 => unchecked((byte)(short)value),
                     SpecialType.Int32 => unchecked((byte)(int)value),
@@ -111,8 +125,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => unchecked((byte)(char)value),
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.UInt16:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => unchecked((ushort)(sbyte)value),
                     SpecialType.Int16 => unchecked((ushort)(short)value),
                     SpecialType.Int32 => unchecked((ushort)(int)value),
@@ -129,8 +145,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (ushort)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.UInt32:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => unchecked((uint)(sbyte)value),
                     SpecialType.Int16 => unchecked((uint)(short)value),
                     SpecialType.Int32 => unchecked((uint)(int)value),
@@ -147,8 +165,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (uint)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.UInt64:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => unchecked((ulong)(sbyte)value),
                     SpecialType.Int16 => unchecked((ulong)(short)value),
                     SpecialType.Int32 => unchecked((ulong)(int)value),
@@ -165,9 +185,11 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (ulong)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.Int:
             case SpecialType.Int64:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => (long)(sbyte)value,
                     SpecialType.Int16 => (long)(short)value,
                     SpecialType.Int32 => (long)(int)value,
@@ -184,9 +206,11 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (long)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.Decimal:
             case SpecialType.Float64:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => (double)(sbyte)value,
                     SpecialType.Int16 => (double)(short)value,
                     SpecialType.Int32 => (double)(int)value,
@@ -203,8 +227,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (double)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.Float32:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => (float)(sbyte)value,
                     SpecialType.Int16 => (float)(short)value,
                     SpecialType.Int32 => unchecked((float)(int)value),
@@ -221,8 +247,10 @@ internal static class LiteralUtilities {
                     SpecialType.Char => (float)(char)value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             case SpecialType.Char:
-                return sourceType switch {
+                result = sourceType switch {
                     SpecialType.Int8 => unchecked((char)(sbyte)value),
                     SpecialType.Int16 => unchecked((char)(short)value),
                     SpecialType.Int32 => unchecked((char)(int)value),
@@ -239,9 +267,14 @@ internal static class LiteralUtilities {
                     SpecialType.Char => value,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
+
+                break;
             default:
-                return value;
+                result = null;
+                return false;
         }
+
+        return true;
     }
 
     internal static object ReduceNumeric(object value, bool unsigned) {

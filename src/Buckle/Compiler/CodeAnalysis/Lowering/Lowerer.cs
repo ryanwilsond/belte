@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -200,6 +201,100 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(Call(syntax, node.method, node.receiver, node.index));
 
         return base.VisitIndexerAccessExpression(node);
+    }
+
+    internal override BoundNode VisitPointerIndexAccessExpression(BoundPointerIndexAccessExpression node) {
+        /*
+
+        <operand>[<index>]
+
+        ---->
+
+        ( *((<type>*)((<nuint>)<operand> + (<nuint>)<index> * (<nuint>)sizeof(<type>))) )
+
+        ----> <index> is 0
+
+        ( *<operand> )
+
+        ! *technically* sizeof(UIntPtr) does not definitionally equal C/C++ size_t, but it is accurate for nearly all architectures
+
+        */
+        var syntax = node.syntax;
+        var ptrType = (PointerTypeSymbol)node.receiver.Type();
+        var resultType = node.type;
+
+        if (node.index.constantValue is not null && Convert.ToInt32(node.index.constantValue.value) == 0) {
+            return Visit(
+                new BoundPointerIndirectionOperator(syntax,
+                    node.receiver,
+                    false,
+                    resultType
+                )
+            );
+        }
+
+        var size_t = resultType.specialType switch {
+            SpecialType.Int => sizeof(long),
+            SpecialType.Int64 => sizeof(long),
+            SpecialType.Int32 => sizeof(int),
+            SpecialType.Int16 => sizeof(short),
+            SpecialType.Int8 => sizeof(sbyte),
+            SpecialType.UInt64 => sizeof(ulong),
+            SpecialType.UInt32 => sizeof(uint),
+            SpecialType.UInt16 => sizeof(ushort),
+            SpecialType.UInt8 => sizeof(byte),
+            SpecialType.Bool => sizeof(bool),
+            SpecialType.Char => sizeof(char),
+            _ => UIntPtr.Size,
+        };
+
+        var binaryType = UIntPtr.Size switch {
+            4 => CorLibrary.GetSpecialType(SpecialType.UInt32),
+            8 => CorLibrary.GetSpecialType(SpecialType.UInt64),
+            _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
+        };
+
+        object castedSizeT = UIntPtr.Size switch {
+            4 => Convert.ToUInt32(size_t),
+            8 => Convert.ToUInt64(size_t),
+            _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
+        };
+
+        return Visit(
+            new BoundPointerIndirectionOperator(syntax,
+                Cast(syntax,
+                    ptrType,
+                    Binary(syntax,
+                        Cast(syntax,
+                            binaryType,
+                            node.receiver,
+                            Conversion.ExplicitPointerToInteger,
+                            null
+                        ),
+                        BinaryOperatorKind.UIntAddition,
+                        Binary(syntax,
+                            Cast(syntax,
+                                binaryType,
+                                node.index,
+                                Conversion.ImplicitNumeric,
+                                null
+                            ),
+                            BinaryOperatorKind.UIntMultiplication,
+                            Literal(syntax,
+                                castedSizeT,
+                                binaryType
+                            ),
+                            binaryType
+                        ),
+                        binaryType
+                    ),
+                    Conversion.ExplicitIntegerToPointer,
+                    null
+                ),
+                false,
+                resultType
+            )
+        );
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator expression) {

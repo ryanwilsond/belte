@@ -259,9 +259,13 @@ public sealed partial class Compilation {
         return Create(assemblyName, options, previous, syntaxTress);
     }
 
-    public EvaluationResult Evaluate(ValueWrapper<bool> abort, bool verbose = false, bool logTime = false) {
+    public EvaluationResult Evaluate(
+        ValueWrapper<bool> abort,
+        bool verbose = false,
+        bool logTime = false,
+        string verbosePath = null) {
         using var context = new EvaluatorContext(options);
-        var result = Evaluate(context, abort, verbose, logTime);
+        var result = Evaluate(context, abort, verbose, logTime, verbosePath);
         context.WaitForCompletion();
 
         if (verbose && result.heap is not null) {
@@ -277,9 +281,10 @@ public sealed partial class Compilation {
         EvaluatorContext context,
         ValueWrapper<bool> abort,
         bool verbose = false,
-        bool logTime = false) {
+        bool logTime = false,
+        string verbosePath = null) {
         EvaluationResult result = null;
-        Evaluate(context, abort, ref result, verbose, logTime);
+        Evaluate(context, abort, ref result, verbose, logTime, verbosePath);
 
         if (verbose && result.heap is not null) {
             Console.WriteLine(
@@ -299,7 +304,8 @@ public sealed partial class Compilation {
         ValueWrapper<bool> abort,
         ref EvaluationResult rollingResult,
         bool verbose = false,
-        bool logTime = false) {
+        bool logTime = false,
+        string verbosePath = null) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -312,8 +318,8 @@ public sealed partial class Compilation {
         }
 
         if (verbose && options.enableOutput) {
-            EmitCFG();
-            EmitBoundProgram();
+            EmitCFG(verbosePath);
+            EmitBoundProgram(verbosePath);
         }
 
         var evaluator = new Evaluator(program, context, options.arguments);
@@ -376,11 +382,11 @@ public sealed partial class Compilation {
         return diagnostics;
     }
 
-    public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false) {
-        return Execute(verbose, logTime, out _);
+    public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false, string verbosePath = null) {
+        return Execute(verbose, logTime, verbosePath, out _);
     }
 
-    internal BelteDiagnosticQueue Execute(bool verbose, bool logTime, out object result) {
+    internal BelteDiagnosticQueue Execute(bool verbose, bool logTime, string verbosePath, out object result) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -393,12 +399,12 @@ public sealed partial class Compilation {
         }
 
         if (verbose && options.enableOutput) {
-            EmitCFG();
-            EmitBoundProgram();
+            EmitCFG(verbosePath);
+            EmitBoundProgram(verbosePath);
         }
 
         var executor = new Executor(program, options.arguments, diagnostics);
-        result = executor.Execute(verbose, logTime);
+        result = executor.Execute(verbose, logTime, verbosePath);
 
         if (verbose && options.enableOutput && result is not null)
             Console.WriteLine(result);
@@ -795,9 +801,12 @@ public sealed partial class Compilation {
         );
     }
 
-    private void EmitCFG() {
+    private void EmitCFG(string path) {
+#if DEBUG
+        const string CFGName = "cfg.dot";
+
         var program = boundProgram;
-        var cfgPath = GetProjectPath("cfg.dot");
+        var cfgPath = path is null ? GetProjectPath(CFGName) : Path.Combine(path, CFGName);
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement is not null) {
@@ -806,20 +815,22 @@ public sealed partial class Compilation {
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);
         }
+#endif
     }
 
-    private void EmitBoundProgram() {
+    private void EmitBoundProgram(string path) {
         const string BoundProgramName = "BoundProgram.g.blt";
+        var boundProgramPath = path is null ? BoundProgramName : Path.Combine(path, BoundProgramName);
 
         var program = boundProgram;
-        Console.WriteLine($"Dumping bound program to \"{BoundProgramName}\"");
+        Console.WriteLine($"Dumping bound program to \"{boundProgramPath}\"");
 
         var displayText = new DisplayText();
 
         foreach (var pair in program.methodBodies)
             CompilationExtensions.EmitTree(pair.Key, displayText, program);
 
-        using var streamWriter = new StreamWriter(BoundProgramName);
+        using var streamWriter = new StreamWriter(boundProgramPath);
         var segments = displayText.Flush();
 
         foreach (var segment in segments) {

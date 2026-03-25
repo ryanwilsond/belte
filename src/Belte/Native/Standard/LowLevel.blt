@@ -13,4 +13,12 @@ public static class LowLevel {
     public static char* CreateCharPtrString(string! str);
 
     public static void FreeCharPtrString(char* str);
+
+    public static void* GetGCPtr(Object! obj);
+
+    public static void FreeGCHandle(void* ptr);
+
+    public static Object! GetObject(void* ptr);
+
+    public static string! ReadLPCSTR(void* ptr);
 }

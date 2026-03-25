@@ -32,6 +32,7 @@ public enum SpecialType : byte {
     List,
     Dictionary,
     Pointer,
+    FunctionPointer,
     Exception,
     Vec2,
     Sprite,

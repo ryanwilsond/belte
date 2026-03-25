@@ -29,4 +29,26 @@ internal static class ImmutableArrayExtensions {
 
         return builder.ToImmutableAndFree();
     }
+
+    internal static bool SequenceEqual<TElement, TArg>(
+        this ImmutableArray<TElement> array1,
+        ImmutableArray<TElement> array2,
+        TArg arg,
+        Func<TElement, TElement, TArg, bool> predicate) {
+        if (array1.IsDefault)
+            throw new NullReferenceException();
+
+        if (array2.IsDefault)
+            throw new NullReferenceException();
+
+        if (array1.Length != array2.Length)
+            return false;
+
+        for (var i = 0; i < array1.Length; i++) {
+            if (!predicate(array1[i], array2[i], arg))
+                return false;
+        }
+
+        return true;
+    }
 }

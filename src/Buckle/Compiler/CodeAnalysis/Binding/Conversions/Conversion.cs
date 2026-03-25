@@ -14,11 +14,13 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitConstant => new Conversion(ConversionKind.ImplicitConstant);
     internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
     internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
+    internal static Conversion ImplicitNumeric => new Conversion(ConversionKind.ImplicitNumeric);
     internal static Conversion NullLiteral => new Conversion(ConversionKind.NullLiteral);
     internal static Conversion AnyBoxing => new Conversion(ConversionKind.AnyBoxing);
     internal static Conversion Explicit => new Conversion(ConversionKind.Explicit);
     internal static Conversion ExplicitNullable => new Conversion(ConversionKind.ExplicitNullable);
     internal static Conversion ExplicitReference => new Conversion(ConversionKind.ExplicitReference);
+    internal static Conversion ExplicitNumeric => new Conversion(ConversionKind.ExplicitNumeric);
     internal static Conversion ExplicitPointerToPointer => new Conversion(ConversionKind.ExplicitPointerToPointer);
     internal static Conversion ExplicitIntegerToPointer => new Conversion(ConversionKind.ExplicitIntegerToPointer);
     internal static Conversion ExplicitPointerToInteger => new Conversion(ConversionKind.ExplicitPointerToInteger);
@@ -199,16 +201,12 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.Equals(target))
             return Identity;
 
-        if (source.typeKind == TypeKind.Pointer && target.typeKind == TypeKind.Pointer) {
-            if (((PointerTypeSymbol)target).pointedAtType.specialType == SpecialType.Void)
+        if (source.IsPointerOrFunctionPointer() && target.IsPointerOrFunctionPointer()) {
+            if (target is PointerTypeSymbol p && p.pointedAtType.specialType == SpecialType.Void)
                 return ImplicitPointerToVoid;
 
             return ExplicitPointerToPointer;
         }
-
-        // TODO Actual conversions
-        if (source.typeKind == TypeKind.FunctionPointer && target.typeKind == TypeKind.FunctionPointer)
-            return Identity;
 
         if (source.specialType.IsNumeric() && target.typeKind == TypeKind.Pointer) {
             if (source.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)

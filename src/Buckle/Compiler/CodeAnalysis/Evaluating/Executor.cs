@@ -75,8 +75,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private Type _programType;
     private Dictionary<string, MethodInfo> _stlMap;
     private bool _graphicsInitialized;
-    // Used for debugging
-    private bool _logIL = false;
+    private StringWriter _logger;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;
@@ -108,8 +107,9 @@ internal sealed partial class Executor : ModuleBuilder {
         _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
-    internal object Execute(bool verbose, bool logTime) {
+    internal object Execute(bool verbose, bool logTime, string verbosePath) {
         var timer = logTime ? Stopwatch.StartNew() : null;
+        _logger = new StringWriter();
 
         var entryPoint = _program.entryPoint;
 
@@ -152,10 +152,24 @@ internal sealed partial class Executor : ModuleBuilder {
             timer.Stop();
 
             if (verbose) {
-                var assemblyPath = $"{DynamicAssemblyName}.g.dll";
+                var assemblyName = $"{DynamicAssemblyName}.g.dll";
+                var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
-                var generator = new Lokad.ILPack.AssemblyGenerator();
-                generator.GenerateAssembly(_programType.Assembly, assemblyPath);
+
+                try {
+                    var generator = new Lokad.ILPack.AssemblyGenerator();
+                    generator.GenerateAssembly(_programType.Assembly, assemblyPath);
+                } catch (Exception e) {
+                    // Don't let Lokad's bugs crash our program, fallback
+                    Console.WriteLine($"\tError: Failed to generate dynamic assembly! Exception caught: {e}");
+                    Console.WriteLine("\tFalling back to manual IL logger");
+                    var logName = $"{DynamicAssemblyName}.txt";
+                    var logPath = verbosePath is null ? logName : Path.Combine(verbosePath, logName);
+                    Console.WriteLine($"\tWriting IL log to \"{logPath}\"");
+
+                    using var streamWriter = new StreamWriter(logPath);
+                    streamWriter.Write(_logger);
+                }
             }
 
             _diagnostics.Push(new BelteDiagnostic(
@@ -430,12 +444,25 @@ internal sealed partial class Executor : ModuleBuilder {
                 EmitConstructor(cb);
         }
 
+        var comeBackTo = new List<(TypeSymbol, TypeBuilder)>();
+
         foreach (var (typeSymbol, typeBuilder) in _types) {
-            if (typeSymbol.Equals(_programNamedType.originalDefinition))
+            if (typeSymbol.Equals(_programNamedType.originalDefinition)) {
                 _programType = typeBuilder.CreateType();
-            else
+                continue;
+            }
+
+            // ? This is to work around sequential struct ordering
+            // TODO In the long term we will want a more robust dependency graph most likely
+            try {
                 typeBuilder.CreateType();
+            } catch (TypeLoadException) {
+                comeBackTo.Add((typeSymbol, typeBuilder));
+            }
         }
+
+        foreach (var (typeSymbol, typeBuilder) in comeBackTo)
+            typeBuilder.CreateType();
     }
 
     private void CompleteSpecialTypes() {
@@ -673,14 +700,13 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
-        if (_logIL)
-            Console.WriteLine($"Emitting method {method}");
+        _logger.WriteLine($"Emitting method {method}");
 
         if (method.isAbstract || method.isExtern)
             return;
 
         var body = _methodBodies[method];
-        var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logIL);
+        var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, method, body, ilBuilder);
         codeGen.Generate();
     }
@@ -688,10 +714,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private void EmitConstructor(ConstructorBuilder constructorBuilder) {
         var (constructor, body) = _constructorBodies[constructorBuilder];
 
-        if (_logIL)
-            Console.WriteLine($"Emitting constructor {constructor}");
+        _logger.WriteLine($"Emitting constructor {constructor}");
 
-        var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logIL);
+        var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, constructor, body, ilBuilder);
         codeGen.Generate();
     }
@@ -1007,6 +1032,10 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
             { "LowLevel_CreateCharPtrString_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateCharPtrString", Flags, [typeof(string)]) },
             { "LowLevel_FreeCharPtrString_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeCharPtrString", Flags, [typeof(char*)]) },
+            { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
+            { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
+            { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
+            { "LowLevel_ReadLPCSTR_V*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCSTR", Flags, [typeof(void*)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },

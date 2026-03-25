@@ -152,12 +152,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         if (!EqualsNoParameters(other, compareKind))
             return false;
 
-
-
-        // TODO
-        //  && _parameters.SequenceEqual(other._parameters, compareKind,
-        //      (param1, param2, compareKind) => param1.MethodEqualityChecks(param2, compareKind)));
-        return true;
+        return _parameters.SequenceEqual(other._parameters, compareKind,
+             (param1, param2, compareKind) => param1.MethodEqualityChecks(param2, compareKind));
     }
 
     private bool EqualsNoParameters(FunctionPointerMethodSymbol other, TypeCompareKind compareKind) {
@@ -167,7 +163,6 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
             return false;
         }
 
-        // TODO We need to intuit this
         // if ((compareKind & TypeCompareKind.IgnoreArraySizesAndLowerBounds) != 0) {
         //     if (CallingConvention.IsCallingConvention(CallingConvention.Unmanaged)
         //         && !GetCallingConventionModifiers().SetEqualsWithoutIntermediateHashSet(other.GetCallingConventionModifiers())) {

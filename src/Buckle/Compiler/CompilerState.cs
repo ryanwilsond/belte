@@ -78,6 +78,11 @@ public class CompilerState {
     public bool verboseMode;
 
     /// <summary>
+    /// The path to dump verbose output files.
+    /// </summary>
+    public string verbosePath;
+
+    /// <summary>
     /// Whether or not the compiler will log timing data about each stage of compilation.
     /// </summary>
     public bool time;

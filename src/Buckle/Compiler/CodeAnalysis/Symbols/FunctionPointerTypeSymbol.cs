@@ -77,6 +77,8 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
 
     internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
+    public override SpecialType specialType => SpecialType.FunctionPointer;
+
     internal override bool isStatic => false;
 
     internal override bool isAbstract => false;
@@ -93,13 +95,11 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
     internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionPointerType(this, a);
 
     internal override bool Equals(TypeSymbol t2, TypeCompareKind compareKind) {
-        if (ReferenceEquals(this, t2)) {
+        if (ReferenceEquals(this, t2))
             return true;
-        }
 
-        if (!(t2 is FunctionPointerTypeSymbol other)) {
+        if (t2 is not FunctionPointerTypeSymbol other)
             return false;
-        }
 
         return signature.Equals(other.signature, compareKind);
     }

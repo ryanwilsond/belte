@@ -794,6 +794,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToString(value.uint64),
                     SpecialType.Float32 => Convert.ToString(value.single),
                     SpecialType.Float64 => Convert.ToString(value.@double),
+                    SpecialType.Pointer => Convert.ToString(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToString(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -811,6 +813,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToChar(value.uint64),
                     SpecialType.Float32 => Convert.ToChar(value.single),
                     SpecialType.Float64 => Convert.ToChar(value.@double),
+                    SpecialType.Pointer => Convert.ToChar(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToChar(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -829,6 +833,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToSByte(value.uint64),
                     SpecialType.Float32 => Convert.ToSByte(value.@single),
                     SpecialType.Float64 => Convert.ToSByte(value.@double),
+                    SpecialType.Pointer => Convert.ToSByte(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToSByte(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -847,6 +853,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToInt16(value.uint64),
                     SpecialType.Float32 => Convert.ToInt16(value.single),
                     SpecialType.Float64 => Convert.ToInt16(value.@double),
+                    SpecialType.Pointer => Convert.ToInt16(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToInt16(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -865,6 +873,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToInt32(value.uint64),
                     SpecialType.Float32 => Convert.ToInt32(value.@single),
                     SpecialType.Float64 => Convert.ToInt32(value.@double),
+                    SpecialType.Pointer => value.ptr,
+                    SpecialType.FunctionPointer => value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -883,6 +893,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToInt64(value.uint64),
                     SpecialType.Float32 => Convert.ToInt64(value.@single),
                     SpecialType.Float64 => Convert.ToInt64(value.@double),
+                    SpecialType.Pointer => Convert.ToInt64(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToInt64(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -901,6 +913,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToByte(value.uint64),
                     SpecialType.Float32 => Convert.ToByte(value.@single),
                     SpecialType.Float64 => Convert.ToByte(value.@double),
+                    SpecialType.Pointer => Convert.ToByte(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToByte(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -919,6 +933,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToUInt16(value.uint64),
                     SpecialType.Float32 => Convert.ToUInt16(value.single),
                     SpecialType.Float64 => Convert.ToUInt16(value.@double),
+                    SpecialType.Pointer => Convert.ToUInt16(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToUInt16(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -937,6 +953,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt64 => Convert.ToUInt32(value.uint64),
                     SpecialType.Float32 => Convert.ToUInt32(value.@single),
                     SpecialType.Float64 => Convert.ToUInt32(value.@double),
+                    SpecialType.Pointer => Convert.ToUInt32(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToUInt32(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -955,6 +973,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt32 => Convert.ToUInt64(value.uint32),
                     SpecialType.Float32 => Convert.ToUInt64(value.@single),
                     SpecialType.Float64 => Convert.ToUInt64(value.@double),
+                    SpecialType.Pointer => Convert.ToUInt64(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToUInt64(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -973,6 +993,8 @@ internal sealed class Evaluator {
                     SpecialType.UInt32 => Convert.ToSingle(value.uint32),
                     SpecialType.UInt64 => Convert.ToSingle(value.uint64),
                     SpecialType.Float64 => Convert.ToSingle(value.@double),
+                    SpecialType.Pointer => Convert.ToSingle(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToSingle(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -991,6 +1013,29 @@ internal sealed class Evaluator {
                     SpecialType.UInt32 => Convert.ToDouble(value.uint32),
                     SpecialType.UInt64 => Convert.ToDouble(value.uint64),
                     SpecialType.Float32 => Convert.ToDouble(value.single),
+                    SpecialType.Pointer => Convert.ToDouble(value.ptr),
+                    SpecialType.FunctionPointer => Convert.ToDouble(value.ptr),
+                    _ => throw ExceptionUtilities.UnexpectedValue(fromType),
+                };
+
+                break;
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                value.kind = ValueKind.Ref;
+                value.loc ??= _stack.Peek().values;
+                value.ptr = fromType switch {
+                    SpecialType.Char => Convert.ToInt32(value.@char),
+                    SpecialType.Int8 => Convert.ToInt32(value.int8),
+                    SpecialType.Int16 => Convert.ToInt32(value.int16),
+                    SpecialType.Int32 => Convert.ToInt32(value.int32),
+                    SpecialType.Int64 => Convert.ToInt32(value.int64),
+                    SpecialType.UInt8 => Convert.ToInt32(value.uint8),
+                    SpecialType.UInt16 => Convert.ToInt32(value.uint16),
+                    SpecialType.UInt32 => Convert.ToInt32(value.uint32),
+                    SpecialType.UInt64 => Convert.ToInt32(value.uint64),
+                    SpecialType.Float32 => Convert.ToInt32(value.single),
+                    SpecialType.Pointer => value.ptr,
+                    SpecialType.FunctionPointer => value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1264,10 +1309,14 @@ internal sealed class Evaluator {
         var value = EvaluateExpression(node.operand, true, abort);
 
         if (!node.refersToLocation) {
-            if (value.kind == ValueKind.Ref)
-                value = value.loc[value.ptr];
-            else
+            if (value.kind == ValueKind.Ref) {
+                if (value.ptr >= value.loc.Length)
+                    throw new BelteInvalidPointerIndirection(node.syntax.location);
+                else
+                    value = value.loc[value.ptr];
+            } else {
                 throw ExceptionUtilities.UnexpectedValue(value.kind);
+            }
         }
 
         if (!used)
