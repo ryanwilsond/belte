@@ -497,6 +497,7 @@ internal sealed class Evaluator {
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node, used),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
             BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
+            BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -727,7 +728,7 @@ internal sealed class Evaluator {
         }
 
         if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
-            return EvaluatorValue.Literal(value: 0);
+            return EvaluatorValue.Ref(_stack.Peek().values, 0);
 
         var value = EvaluateExpression(node.operand, true, abort);
 

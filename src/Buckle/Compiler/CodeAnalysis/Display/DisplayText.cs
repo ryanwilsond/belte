@@ -174,6 +174,9 @@ public sealed class DisplayText {
             case BoundKind.UnconvertedInitializerList:
                 DisplayUnconvertedInitializerList(text, (BoundUnconvertedInitializerList)node);
                 break;
+            case BoundKind.UnconvertedNullptrExpression:
+                DisplayUnconvertedNullptrExpression(text, (BoundUnconvertedNullptrExpression)node);
+                break;
             case BoundKind.UnaryOperator:
                 DisplayUnaryOperator(text, (BoundUnaryOperator)node);
                 break;
@@ -828,6 +831,10 @@ public sealed class DisplayText {
 
     private static void DisplayUnconvertedInitializerList(DisplayText text, BoundUnconvertedInitializerList node) {
         DisplayListCore(text, node.items);
+    }
+
+    private static void DisplayUnconvertedNullptrExpression(DisplayText text, BoundUnconvertedNullptrExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.NullptrKeyword));
     }
 
     private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {

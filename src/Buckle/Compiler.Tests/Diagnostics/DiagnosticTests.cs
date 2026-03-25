@@ -3504,4 +3504,16 @@ public sealed class DiagnosticTests {
     // ! Error_BU0354_FixedFieldMustNotBeRef
     // ! Error_BU0355_IllegalFixedType
 
+    [Fact]
+    public void Reports_Error_BU0356_NullptrNoTargetType() {
+        var text = @"
+            var a = [nullptr];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the null pointer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

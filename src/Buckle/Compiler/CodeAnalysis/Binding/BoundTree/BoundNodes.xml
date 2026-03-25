@@ -80,6 +80,9 @@
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="index" Type="BoundExpression"/>
   </Node>
+  <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="initializer" Type="BoundInitializerList?"/>

@@ -1414,6 +1414,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseCharacterLiteral();
             case SyntaxKind.NullKeyword:
                 return ParseNullLiteral();
+            case SyntaxKind.NullptrKeyword:
+                return ParseNullptrLiteral();
             case SyntaxKind.OpenBraceToken:
                 return ParseInitializerListOrDictionaryExpression();
             case SyntaxKind.TypeOfKeyword:
@@ -2096,6 +2098,11 @@ done:
         return SyntaxFactory.Literal(token);
     }
 
+    private ExpressionSyntax ParseNullptrLiteral() {
+        var token = Match(SyntaxKind.NullptrKeyword);
+        return SyntaxFactory.Literal(token);
+    }
+
     private ExpressionSyntax ParseNumericLiteral() {
         var token = Match(SyntaxKind.NumericLiteralToken);
         return SyntaxFactory.Literal(token);
@@ -2230,9 +2237,9 @@ done:
                     type = SyntaxFactory.PointerType(type, asteriskToken);
                     continue;
                 case SyntaxKind.AsteriskAsteriskToken:
-                    EatToken();
-                    type = SyntaxFactory.PointerType(type, SyntaxFactory.Token(SyntaxKind.AsteriskToken));
-                    type = SyntaxFactory.PointerType(type, SyntaxFactory.Token(SyntaxKind.AsteriskToken));
+                    var asteriskAsterisk = EatToken();
+                    type = SyntaxFactory.PointerType(type, asteriskAsterisk);
+                    type = SyntaxFactory.PointerType(type, SyntaxFactory.Token(SyntaxKind.None));
                     continue;
                 case SyntaxKind.OpenParenToken: {
                         var parenthesisStack = 0;

@@ -99,7 +99,8 @@ public static class Classifier {
             SyntaxKind.NumericLiteralToken or
             SyntaxKind.TrueKeyword or
             SyntaxKind.FalseKeyword or
-            SyntaxKind.NullKeyword;
+            SyntaxKind.NullKeyword or
+            SyntaxKind.NullptrKeyword;
         var isIdentifier = kind == SyntaxKind.IdentifierToken;
         var isString = kind is SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken;
         var isComment = kind.IsComment();

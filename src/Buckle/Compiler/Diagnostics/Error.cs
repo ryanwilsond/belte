@@ -801,6 +801,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ListNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic NullptrNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the null pointer";
+        return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
+    }
+
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
         var message = $"a field initializer cannot reference non-static member '{symbol}'";
         return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);

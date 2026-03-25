@@ -27,6 +27,23 @@ internal sealed partial class OverloadResolution {
 
     internal Conversions conversions => _binder.conversions;
 
+    internal void FunctionPointerOverloadResolution(
+        ArrayBuilder<FunctionPointerMethodSymbol> funcPtrBuilder,
+        AnalyzedArguments analyzedArguments,
+        OverloadResolutionResult<FunctionPointerMethodSymbol> overloadResolutionResult) {
+        var typeArgumentsBuilder = ArrayBuilder<TypeOrConstant>.GetInstance();
+
+        AddMemberToCandidateSet(
+            funcPtrBuilder[0],
+            overloadResolutionResult.resultsBuilder,
+            funcPtrBuilder,
+            typeArgumentsBuilder,
+            analyzedArguments,
+            completeResults: true,
+            containingTypeMap: null
+        );
+    }
+
     internal void BinaryOperatorOverloadResolution(
         BinaryOperatorKind kind,
         BoundExpression left,

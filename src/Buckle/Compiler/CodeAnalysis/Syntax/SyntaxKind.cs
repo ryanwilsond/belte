@@ -71,6 +71,7 @@ public enum SyntaxKind : ushort {
     TypeOfKeyword,
     NameOfKeyword,
     NullKeyword,
+    NullptrKeyword,
     TrueKeyword,
     FalseKeyword,
     IfKeyword,

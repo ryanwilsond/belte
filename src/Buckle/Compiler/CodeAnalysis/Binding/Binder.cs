@@ -1321,6 +1321,12 @@ internal partial class Binder {
 
                 result = BindListForErrorRecovery(list, CreateErrorType(), diagnostics);
                 break;
+            case BoundUnconvertedNullptrExpression:
+                if (reportNoTargetType && !expression.hasErrors)
+                    diagnostics.Push(Error.NullptrNoTargetType(expression.syntax.location));
+
+                result = new BoundLiteralExpression(expression.syntax, null, CreateErrorType());
+                break;
             default:
                 result = expression;
                 break;
@@ -5548,50 +5554,49 @@ internal partial class Binder {
 
         var funcPtr = (FunctionPointerTypeSymbol)boundExpression.Type();
 
-        // TODO Error checking
-        // var overloadResolutionResult = OverloadResolutionResult<FunctionPointerMethodSymbol>.GetInstance();
-        // var methodsBuilder = ArrayBuilder<FunctionPointerMethodSymbol>.GetInstance(1);
+        var overloadResolutionResult = OverloadResolutionResult<FunctionPointerMethodSymbol>.GetInstance();
+        var methodsBuilder = ArrayBuilder<FunctionPointerMethodSymbol>.GetInstance(1);
 
-        // methodsBuilder.Add(funcPtr.signature);
+        methodsBuilder.Add(funcPtr.signature);
 
-        // OverloadResolution.FunctionPointerOverloadResolution(
-        //     methodsBuilder,
-        //     analyzedArguments,
-        //     overloadResolutionResult,
-        //     ref useSiteInfo);
+        overloadResolution.FunctionPointerOverloadResolution(
+            methodsBuilder,
+            analyzedArguments,
+            overloadResolutionResult
+        );
 
-        // diagnostics.Add(node, useSiteInfo);
+        if (!overloadResolutionResult.succeeded) {
+            var methods = methodsBuilder.ToImmutableAndFree();
 
-        // if (!overloadResolutionResult.Succeeded) {
-        //     ImmutableArray<FunctionPointerMethodSymbol> methods = methodsBuilder.ToImmutableAndFree();
-        //     overloadResolutionResult.ReportDiagnostics(
-        //         binder: this,
-        //         node.Location,
-        //         nodeOpt: null,
-        //         diagnostics,
-        //         name: null,
-        //         boundExpression,
-        //         boundExpression.Syntax,
-        //         analyzedArguments,
-        //         methods,
-        //         typeContainingConstructor: null,
-        //         delegateTypeBeingInvoked: null,
-        //         returnRefKind: funcPtr.Signature.RefKind);
+            overloadResolutionResult.ReportDiagnostics(
+                binder: this,
+                node.location,
+                node: null,
+                diagnostics,
+                name: null,
+                boundExpression,
+                boundExpression.syntax,
+                analyzedArguments,
+                methods,
+                typeContainingConstructor: null,
+                returnRefKind: funcPtr.signature.refKind
+            );
 
-        //     return new BoundFunctionPointerInvocation(
-        //         node,
-        //         boundExpression,
-        //         BuildArgumentsForErrorRecovery(analyzedArguments, StaticCast<MethodSymbol>.From(methods)),
-        //         analyzedArguments.RefKinds.ToImmutableOrNull(),
-        //         LookupResultKind.OverloadResolutionFailure,
-        //         funcPtr.Signature.ReturnType,
-        //         hasErrors: true);
-        // }
+            return new BoundFunctionPointerCallExpression(
+                node,
+                boundExpression,
+                BuildArgumentsForErrorRecovery(analyzedArguments, StaticCast<MethodSymbol>.From(methods)),
+                analyzedArguments.refKinds.ToImmutableOrNull(),
+                LookupResultKind.OverloadResolutionFailure,
+                funcPtr.signature.returnType,
+                hasErrors: true
+            );
+        }
 
-        // methodsBuilder.Free();
+        methodsBuilder.Free();
 
-        // MemberResolutionResult<FunctionPointerMethodSymbol> methodResult = overloadResolutionResult.ValidResult;
-        // CheckAndCoerceArguments(node, methodResult, analyzedArguments, diagnostics, receiver: null, invokedAsExtensionMethod: false, argsToParamsOpt: out _);
+        var methodResult = overloadResolutionResult.bestResult;
+        CheckAndCoerceArguments(node, methodResult, analyzedArguments, diagnostics, receiver: null, argsToParams: out _);
 
         var args = analyzedArguments.arguments.Select(a => a.expression).ToImmutableArray();
         var refKinds = analyzedArguments.refKinds.ToImmutableOrNull();
@@ -6608,13 +6613,21 @@ internal partial class Binder {
         return new BoundNopStatement(node);
     }
 
-    private BoundLiteralExpression BindLiteralExpression(
+    private BoundExpression BindLiteralExpression(
         LiteralExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var value = node.token.value;
 
-        if (value is null)
-            return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
+        if (value is null) {
+            switch (node.token.kind) {
+                case SyntaxKind.NullKeyword:
+                    return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
+                case SyntaxKind.NullptrKeyword:
+                    return new BoundUnconvertedNullptrExpression(node);
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(node.token.kind);
+            }
+        }
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         var constantValue = new ConstantValue(value, specialType);
@@ -9797,6 +9810,11 @@ symIsHidden:;
                 hasErrors = true;
             }
 
+            if (initializer is not null && initializer.kind == BoundKind.UnconvertedNullptrExpression) {
+                diagnostics.Push(Error.NullptrNoTargetType(initializer.syntax.location));
+                hasErrors = true;
+            }
+
             var initializerType = initializer?.Type();
 
             if (initializerType is not null) {
@@ -9837,12 +9855,23 @@ symIsHidden:;
             }
         } else {
             if (equalsClauseSyntax is null) {
-                if (declarationType.IsNullableType() || declarationType.IsVoidType()) {
+                if (declarationType.IsNullableType() || declarationType.IsVoidType() ||
+                    declarationType.type.IsPointerOrFunctionPointer()) {
                     initializer = new BoundLiteralExpression(
                         declaration,
                         ConstantValue.Null,
                         declarationType.type
                     );
+
+                    if (declarationType.type.IsPointerOrFunctionPointer()) {
+                        initializer = new BoundCastExpression(
+                            declaration,
+                            initializer,
+                            Conversion.ImplicitNullToPointer,
+                            null,
+                            declarationType.type
+                        );
+                    }
                 } else {
                     initializer = ErrorExpression(declaration);
                     diagnostics.Push(Error.NoInitOnNonNullable(declaration.location));
@@ -10719,6 +10748,23 @@ symIsHidden:;
             );
         }
 
+        if (source.kind == BoundKind.UnconvertedNullptrExpression) {
+            var ptrExpression = ConvertNullptrExpression(
+                (BoundUnconvertedNullptrExpression)source,
+                destination,
+                conversion,
+                diagnostics
+            );
+
+            return new BoundCastExpression(
+                node,
+                ptrExpression,
+                conversion,
+                null,
+                destination
+            );
+        }
+
         ConstantValue constantValue = null;
 
         if (conversion.kind is not ConversionKind.ImplicitNullToPointer and not
@@ -10757,6 +10803,14 @@ symIsHidden:;
             destination: destination,
             diagnostics: diagnostics
         );
+    }
+
+    private BoundExpression ConvertNullptrExpression(
+        BoundUnconvertedNullptrExpression node,
+        TypeSymbol targetType,
+        Conversion conversion,
+        BelteDiagnosticQueue diagnostics) {
+        return new BoundLiteralExpression(node.syntax, new ConstantValue(null, SpecialType.None), targetType);
     }
 
     private BoundInitializerList ConvertListExpression(

@@ -34,6 +34,17 @@ internal sealed partial class Conversions {
         return ListExpressionTypeKind.None;
     }
 
+    private Conversion GetImplicitNullptrExpressionConversion(
+        BoundUnconvertedNullptrExpression ptrExpression,
+        TypeSymbol destination) {
+        var ptrExpressionConversion = GetNullptrExpressionConversion(ptrExpression, destination);
+
+        if (ptrExpressionConversion.exists)
+            return ptrExpressionConversion;
+
+        return Conversion.None;
+    }
+
     private Conversion GetImplicitListExpressionConversion(
         BoundUnconvertedInitializerList listExpression,
         TypeSymbol destination) {
@@ -48,6 +59,13 @@ internal sealed partial class Conversions {
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
         }
+
+        return Conversion.None;
+    }
+
+    internal Conversion GetNullptrExpressionConversion(BoundUnconvertedNullptrExpression node, TypeSymbol targetType) {
+        if (targetType.IsPointerOrFunctionPointer())
+            return Conversion.ImplicitNullToPointer;
 
         return Conversion.None;
     }
@@ -175,6 +193,16 @@ internal sealed partial class Conversions {
             // TODO Eventually we will handle user conversions, but right now if we can't immediately convert this
             // we won't be able to
             return listExpressionConversion;
+        }
+
+        if (sourceExpression is BoundUnconvertedNullptrExpression nullptr) {
+            var ptrExpressionConversion = GetImplicitNullptrExpressionConversion(nullptr, target);
+
+            if (ptrExpressionConversion.exists)
+                return ptrExpressionConversion;
+
+            // TODO See above todo
+            return ptrExpressionConversion;
         }
 
         if (sourceExpression.IsLiteralNull()) {

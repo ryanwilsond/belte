@@ -8,8 +8,11 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
-                "-r",
-                "--clearsubmissions",
+                // "-r",
+                // "--clearsubmissions",
+
+                "D:\\OneDrive\\Programming\\repos\\dx12game\\src",
+                "D:\\OneDrive\\Programming\\repos\\dx12game\\src\\Engine",
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",
