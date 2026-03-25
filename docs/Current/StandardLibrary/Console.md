@@ -1,26 +1,42 @@
-# 5.2 Console (Included By Default)
+# 5.1 Console
 
-The Console class provides a way to interact with the console/terminal via IO.
+The Console class provides a way to interact with the console.
 
-The Belte public interface for the Console class can be found [here](../../../src/Belte/Standard/Console.blt).
+The Belte public interface for the Console class can be found [here](../../../src/Belte/Native/Standard/Console.blt).
 
-- [5.2.1](#521-color) Color
-- [5.2.2](#522-printline) PrintLine
-- [5.2.3](#523-print) Print
-- [5.2.4](#524-input) Input
-- [5.2.5](#525-setforegroundcolor) SetForegroundColor
-- [5.2.6](#526-setbackgroundcolor) SetBackgroundColor
-- [5.2.7](#527-resetcolor) ResetColor
-- [5.2.8](#528-getwidth) GetWidth
-- [5.2.9](#529-getheight) GetHeight
-- [5.2.10](#5210-setcursorposition) SetCursorPosition
+- [5.1.1](#511-methods) Methods
+- [5.1.2](#512-classes) Classes
 
-## 5.2.1 Color
+## 5.1.1 Methods
+
+| Signature | Description |
+|-|-|
+| `int GetWidth()` | Gets the console character width. |
+| `int GetHeight()` | Gets the console character height. |
+| `string! Input()` | Gets a line of input from the console. |
+| `void PrintLine(string)` | Writes a string to the console followed by a line return. |
+| `void PrintLine(any)` | Writes a value to the console followed by a line return. |
+| `void PrintLine(Object)` | Writes the result of `Object.ToString()` to the console followed by a line return. |
+| `void PrintLine(char[])` | Writes a char array to the console as a string followed by a line return. |
+| `void PrintLine()` | Writes an empty line to the console. |
+| `void Print(string)` | Writes a string to the console. |
+| `void Print(any)` | Writes a value to the console. |
+| `void Print(Object)` | Writes the result of `Object.ToString()` to the console. |
+| `void Print(char[])` | Writes a char array to the console as a string. |
+| `void ResetColor()` | Resets the foreground and background colors of the console. |
+| `void SetForegroundColor(int!)` | Sets the console foreground color based on [Color](#5121-color). |
+| `void SetBackgroundColor(int!)` | Sets the console background color based on [Color](#5121-color). |
+| `void SetCursorPosition(int, int)` | Sets the console cursor position based on left and top. If either argument is null it will be ignored i.e. that axis of the cursor will not change. |
+| `void SetCursorVisibility(bool!)` | Sets the console cursor to be visible or not. |
+
+## 5.1.2 Classes
+
+### 5.1.2.1 Color
 
 The Color class contains all available console colors that can be used via static, constant-expression fields. These
-values are passed into [SetForegroundColor](#525-setforegroundcolor) and [SetBackgroundColor](#526-setbackgroundcolor).
+values are passed into `SetForegroundColor` `SetBackgroundColor`.
 
-| Field Name | Value |
+| Name | Value |
 |-|-|
 | `Black` | `0` |
 | `DarkBlue` | `1` |
@@ -38,68 +54,3 @@ values are passed into [SetForegroundColor](#525-setforegroundcolor) and [SetBac
 | `Magenta` | `13` |
 | `Yellow` | `14` |
 | `White` | `15` |
-
-## 5.2.2 PrintLine
-
-Writes the specified data, followed by the current line terminator, to the standard output stream.
-
-### Overloads
-
-|||
-|-|-|
-| `PrintLine(string)` | Prints the string as-is, followed by the current line terminator. |
-| `PrintLine(object)` | Prints the object after converting it to a string, followed by the current line terminator. |
-| `PrintLine()` | Prints only the current line terminator. |
-
-## 5.2.3 Print
-
-Writes the specified data to the standard output stream.
-
-### Overloads
-
-|||
-|-|-|
-| `Print(string)` | Prints the string as-is. |
-| `Print(object)` | Prints the object after converting it to a string. |
-
-## 5.2.4 Input
-
-Reads the next line of characters from the standard input stream.
-
-`Input(string)`
-
-## 5.2.5 SetForegroundColor
-
-Sets the foreground color of the console using a color code from [Color](#521-color).
-
-`SetForegroundColor(int!)`
-
-## 5.2.6 SetBackgroundColor
-
-Sets the background color of the console using a color code from [Color](#521-color).
-
-`SetBackgroundColor(int!)`
-
-## 5.2.7 ResetColor
-
-Resets the foreground and background color of the console to default.
-
-`ResetColor()`
-
-### 5.2.8 GetWidth
-
-Returns the window width of the console in number of columns or characters.
-
-`int! GetWidth()`
-
-### 5.2.9 GetHeight
-
-Returns the window height of the console in number of columns or characters.
-
-`int! GetHeight()`
-
-### 5.2.10 SetCursorPosition
-
-Sets the console cursor position to the specified character grid point.
-
-`void SetCursorPosition(int left, int top)`

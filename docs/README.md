@@ -12,6 +12,8 @@
   - [Using Buckle](Buckle.md)
   - [Using the Repl](Repl.md)
 
+Many code samples can be viewed at [github.com/ryanwilsond/belte/main/samples](https://github.com/ryanwilsond/belte/blob/main/samples).
+
 - #### Belte Language Docs in Its Current State
 
   - [1](Current/Overview.md) Overview
@@ -34,11 +36,26 @@
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
     - [4.4](Current/ClassesAndObjects.md#44-constructors) Constructors
   - [5](Current/StandardLibrary.md) The Standard Library
-    - [5.1](Current/StandardLibrary.md#51-built-in-functions) Built-in Functions
-    - [5.2](Current/StandardLibrary/Console.blt) Console
-    - [5.3](Current/StandardLibrary/Math.blt) Math
+    - [5.1](Current/StandardLibrary/Console.md) Console
+    - [5.2](Current/StandardLibrary/Math.md) Math
+    - [5.3](Current/StandardLibrary/Random.md) Random
+    - [5.4](Current/StandardLibrary/String.md) String
+    - [5.5](Current/StandardLibrary/Time.md) Time
+    - [5.6](Current/StandardLibrary/IO.md) IO
+      - [5.6.1](Current/StandardLibrary/IO.md#561-file-methods) File
+      - [5.6.2](Current/StandardLibrary/IO.md#562-directory-methods) Directory
+    - [5.7](Current/StandardLibrary/Collections.md) Collections
+      - [5.7.1](Current/StandardLibrary/List.md) List
+      - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
+    - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
   - [6](Current/LowLevelFeatures.md) Low-Level Features
-    - [6.1](Current/LowLevelFeatures.md#61-structures) Structures
+    - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
+    - [6.2](Current/LowLevelFeatures.md#62-structures) Structures
+    - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
+    - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
+    - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
+    - [6.6](Current/LowLevelFeatures.md#66-function-pointers) Function Pointers
+    - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
 
 ___
 

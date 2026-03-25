@@ -110,8 +110,8 @@ Valid `Main` signatures:
 ```belte
 void Main();
 int Main();
-void Main(int! argc, string[]! argv);
-int Main(int! argc, string[]! argv);
+void Main(int! argc, string![]! argv);
+int Main(int! argc, string![]! argv);
 ```
 
 Where `argc` is the number of command-line arguments and `argv` is an array of command-line arguments.
@@ -124,8 +124,8 @@ More valid `Main` signatures:
 ```belte
 void main();
 int MAIN();
-void main(int! a, string[]! b);
-int MaiN(int! argcount, string[]! args);
+void main(int! a, string![]! b);
+int MaiN(int! argcount, string![]! args);
 ```
 
 **Invalid** `Main` signatures:
@@ -134,6 +134,47 @@ int MaiN(int! argcount, string[]! args);
 string Main(); // Cannot return 'string'
 void Main(int! argc); // Must have 0 or 2 parameters
 int Main(string a, bool b); // Invalid parameters types, must be 'int!' and 'string[]!'
+```
+
+### 2.2.2 Program and Update
+
+The `Main` function can also be found if it is a static method within a class.
+
+```belte
+public static class Program {
+  public static void Main() { }
+}
+```
+
+The name of the class does not matter.
+
+Alternatively, `Main` can be made an instance method. If this is done, a single instance of the containing class will
+be created so that `Main` can access instance data.
+
+```belte
+public class Program {
+  int myField = 0;
+
+  public void Main() {
+    var local = myField + 3;
+  }
+}
+```
+
+This is most useful when compiling with `--type=graphics` where an `Update` method will be called every frame.
+
+```belte
+public class Program {
+  int myField = 0;
+
+  public void Main() {
+    myField++;
+  }
+
+  public void Update(decimal! deltaTime) {
+    Console.PrintLine(myField);
+  }
+}
 ```
 
 ## 2.3 Conditionals
