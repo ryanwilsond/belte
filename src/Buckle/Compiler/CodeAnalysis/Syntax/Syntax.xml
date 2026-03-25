@@ -82,15 +82,36 @@
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
-  <Node Name="ParameterSyntax" Base="SyntaxNode">
-    <Kind Name="Parameter"/>
+  <AbstractNode Name="BaseParameterSyntax" Base="SyntaxNode">
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
     <Field Name="type" Type="TypeSyntax"/>
+  </AbstractNode>
+  <Node Name="ParameterSyntax" Base="BaseParameterSyntax">
+    <Kind Name="Parameter"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="type" Type="TypeSyntax" Override="true"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="defaultValue" Type="EqualsValueClauseSyntax" Optional="true"/>
+  </Node>
+  <Node Name="FunctionPointerParameterListSyntax" Base="SyntaxNode">
+    <Kind Name="FunctionPointerParameterList"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="parameters" Type="SeparatedSyntaxList&lt;FunctionPointerParameterSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="FunctionPointerParameterSyntax" Base="BaseParameterSyntax">
+    <Kind Name="FunctionPointerParameter"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="type" Type="TypeSyntax" Override="true"/>
   </Node>
   <Node Name="TemplateArgumentListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateArgumentList"/>
@@ -277,7 +298,7 @@
   <Node Name="FunctionPointerSyntax" Base="TypeSyntax">
     <Kind Name="FunctionPointerType"/>
     <Field Name="returnType" Type="TypeSyntax"/>
-    <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="parameterList" Type="FunctionPointerParameterListSyntax"/>
     <Field Name="asterisk" Type="SyntaxToken"/>
   </Node>
   <Node Name="ReferenceTypeSyntax" Base="TypeSyntax">
@@ -724,7 +745,7 @@
     <Field Name="newKeyword" Type="SyntaxToken">
       <Kind Name="NewKeyword"/>
     </Field>
-    <Field Name="type" Type="ArrayTypeSyntax"/>
+    <Field Name="type" Type="TypeSyntax"/>
     <Field Name="initializer" Type="InitializerListExpressionSyntax" Optional="true" />
   </Node>
   <Node Name="IndexExpressionSyntax" Base="ExpressionSyntax">

@@ -3668,13 +3668,14 @@ internal partial class Binder {
     private BoundExpression BindArrayCreationExpression(
         ArrayCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        var type = (ArrayTypeSymbol)BindArrayType(node.type, diagnostics, true, null).type;
+        var arrayType = GetArrayType(node.type);
+        var type = (ArrayTypeSymbol)BindArrayType(arrayType, diagnostics, true, null).type;
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
         var hasErrors = false;
         var indexType = CorLibrary.GetSpecialType(SpecialType.Int);
 
         for (var i = 0; i < type.rank; i++) {
-            var rankSpecifier = node.type.rankSpecifiers[i];
+            var rankSpecifier = arrayType.rankSpecifiers[i];
             var size = rankSpecifier.size;
 
             if (size is not null) {
@@ -3703,6 +3704,17 @@ internal partial class Binder {
                 sizes.ToImmutable(),
                 hasErrors
             );
+
+        static ArrayTypeSyntax GetArrayType(TypeSyntax syntax) {
+            if (syntax is ArrayTypeSyntax a)
+                return a;
+            else if (syntax is NonNullableTypeSyntax n)
+                return GetArrayType(n.type);
+            else if (syntax is ReferenceTypeSyntax r)
+                return GetArrayType(r.type);
+            else
+                throw ExceptionUtilities.Unreachable();
+        }
     }
 
     private protected BoundExpression BindObjectCreationExpression(

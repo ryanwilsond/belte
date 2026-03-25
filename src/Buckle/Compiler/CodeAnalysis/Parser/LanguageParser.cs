@@ -832,6 +832,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ParameterList(openParenthesis, parameters, closeParenthesis);
     }
 
+    private FunctionPointerParameterListSyntax ParseFunctionPointerParameterList() {
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var parameters = ParseFunctionPointerParameters();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+
+        return SyntaxFactory.FunctionPointerParameterList(openParenthesis, parameters, closeParenthesis);
+    }
+
     private TemplateParameterListSyntax ParseTemplateParameterList() {
         var openAngleBracket = Match(SyntaxKind.LessThanToken);
 
@@ -872,6 +880,31 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return new SeparatedSyntaxList<ParameterSyntax>(nodesAndSeparators.ToList());
     }
 
+    private SeparatedSyntaxList<FunctionPointerParameterSyntax> ParseFunctionPointerParameters() {
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
+        var parseNextParameter = true;
+        var saved = _context;
+        _context |= ParserContext.InExpression;
+
+        while (parseNextParameter &&
+            currentToken.kind != SyntaxKind.CloseParenToken &&
+            currentToken.kind != SyntaxKind.EndOfFileToken) {
+            var expression = ParseFunctionPointerParameter();
+            nodesAndSeparators.Add(expression);
+
+            if (currentToken.kind == SyntaxKind.CommaToken) {
+                var comma = EatToken();
+                nodesAndSeparators.Add(comma);
+            } else {
+                parseNextParameter = false;
+            }
+        }
+
+        _context = saved;
+
+        return new SeparatedSyntaxList<FunctionPointerParameterSyntax>(nodesAndSeparators.ToList());
+    }
+
     private ParameterSyntax ParseParameter() {
         var attributes = ParseAttributeLists();
         var modifiers = ParseParameterModifiers();
@@ -882,6 +915,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
 
         return SyntaxFactory.Parameter(attributes, modifiers, type, identifier, defaultValue);
+    }
+
+    private FunctionPointerParameterSyntax ParseFunctionPointerParameter() {
+        var attributes = ParseAttributeLists();
+        var modifiers = ParseParameterModifiers();
+        var type = ParseType(false);
+
+        return SyntaxFactory.FunctionPointerParameter(attributes, modifiers, type);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {
@@ -1878,23 +1919,20 @@ done:
         var keyword = Match(SyntaxKind.NewKeyword);
         var type = ParseType(allowArraySize: true);
 
-        if (IsArrayType(type, out var arrayType))
-            return ParseArrayCreationExpression(keyword, arrayType);
+        if (IsArrayType(type))
+            return ParseArrayCreationExpression(keyword, type);
         else
             return ParseObjectCreationExpression(keyword, type);
 
-        static bool IsArrayType(TypeSyntax syntax, out ArrayTypeSyntax arrayType) {
-            if (syntax is ArrayTypeSyntax a) {
-                arrayType = a;
+        static bool IsArrayType(TypeSyntax syntax) {
+            if (syntax is ArrayTypeSyntax a)
                 return true;
-            } else if (syntax is NonNullableTypeSyntax n) {
-                return IsArrayType(n.type, out arrayType);
-            } else if (syntax is ReferenceTypeSyntax r) {
-                return IsArrayType(r.type, out arrayType);
-            } else {
-                arrayType = null;
+            else if (syntax is NonNullableTypeSyntax n)
+                return IsArrayType(n.type);
+            else if (syntax is ReferenceTypeSyntax r)
+                return IsArrayType(r.type);
+            else
                 return false;
-            }
         }
     }
 
@@ -1903,7 +1941,7 @@ done:
         return SyntaxFactory.ObjectCreationExpression(newKeyword, type, argumentList);
     }
 
-    private ExpressionSyntax ParseArrayCreationExpression(SyntaxToken newKeyword, ArrayTypeSyntax type) {
+    private ExpressionSyntax ParseArrayCreationExpression(SyntaxToken newKeyword, TypeSyntax type) {
         var initializer = currentToken.kind == SyntaxKind.OpenBraceToken
             ? (InitializerListExpressionSyntax)ParseInitializerListExpression(EatToken())
             : null;
@@ -2262,7 +2300,7 @@ done:
                         if (Peek(parenOffset).kind is not SyntaxKind.AsteriskToken)
                             continue;
 
-                        var paramList = ParseParameterList();
+                        var paramList = ParseFunctionPointerParameterList();
                         var asterisk = Match(SyntaxKind.AsteriskToken);
                         type = SyntaxFactory.FunctionPointer(type, paramList, asterisk);
                     }

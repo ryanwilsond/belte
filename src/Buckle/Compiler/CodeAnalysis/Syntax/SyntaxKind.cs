@@ -224,6 +224,8 @@ public enum SyntaxKind : ushort {
     BracketedArgumentList,
     Parameter,
     ParameterList,
+    FunctionPointerParameter,
+    FunctionPointerParameterList,
     ArrayRankSpecifier,
     TemplateParameterList,
     TemplateArgumentList,

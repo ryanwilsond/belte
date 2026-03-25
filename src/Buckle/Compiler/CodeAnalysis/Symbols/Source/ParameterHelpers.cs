@@ -17,7 +17,7 @@ internal static class ParameterHelpers {
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
         bool addRefConstModifier) {
-        return MakeParameters<SourceParameterSymbol, Symbol>(
+        return MakeParameters(
             withTemplateParametersBinder,
             owner,
             parameterList,
@@ -43,9 +43,9 @@ internal static class ParameterHelpers {
     internal static ImmutableArray<FunctionPointerParameterSymbol> MakeFunctionPointerParameters(
         Binder binder,
         FunctionPointerMethodSymbol owner,
-        SeparatedSyntaxList<ParameterSyntax> parametersList,
+        SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
-        return MakeParameters<FunctionPointerParameterSymbol, FunctionPointerMethodSymbol>(
+        return MakeParameters(
             binder,
             owner,
             parametersList,
@@ -54,7 +54,7 @@ internal static class ParameterHelpers {
             true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
-                                    ParameterSyntax syntax, RefKind refKind, int ordinal,
+                                    FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
                                     bool addRefReadOnlyModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType()) {
                                             // TODO
@@ -189,7 +189,7 @@ internal static class ParameterHelpers {
 
     public static void ReportParameterErrors(
         Symbol owner,
-        ParameterSyntax syntax,
+        BaseParameterSyntax syntax,
         int ordinal,
         int lastParameterIndex,
         TypeWithAnnotations typeWithAnnotations,
@@ -203,21 +203,22 @@ internal static class ParameterHelpers {
         if (typeWithAnnotations.nullableUnderlyingTypeOrSelf.isStatic) {
             diagnostics.Push(Error.ParameterIsStatic(syntax.type.location, typeWithAnnotations.type));
         } else if (firstDefault != -1 && parameterIndex > firstDefault && !isDefault) {
-            var location = syntax.identifier.GetNextToken(includeZeroWidth: true).location;
+            var location = ((ParameterSyntax)syntax).identifier.GetNextToken(includeZeroWidth: true).location;
             diagnostics.Push(Error.DefaultBeforeNoDefault(location));
         }
     }
 
-    private static ImmutableArray<TParameterSymbol> MakeParameters<TParameterSymbol, TOwningSymbol>(
+    private static ImmutableArray<TParameterSymbol> MakeParameters<TParameterSyntax, TParameterSymbol, TOwningSymbol>(
         Binder withTemplateParametersBinder,
         TOwningSymbol owner,
-        SeparatedSyntaxList<ParameterSyntax> parametersList,
+        SeparatedSyntaxList<TParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
         bool addRefConstModifier,
         int lastIndex,
-        Func<TOwningSymbol, TypeWithAnnotations, ParameterSyntax, RefKind, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
+        Func<TOwningSymbol, TypeWithAnnotations, TParameterSyntax, RefKind, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
         bool parsingFunctionPointer = false)
+        where TParameterSyntax : BaseParameterSyntax
         where TParameterSymbol : ParameterSymbol
         where TOwningSymbol : Symbol {
 
@@ -283,7 +284,7 @@ internal static class ParameterHelpers {
         return parameters;
     }
 
-    internal static void CheckParameterModifiers(ParameterSyntax parameter, BelteDiagnosticQueue diagnostics) {
+    internal static void CheckParameterModifiers(BaseParameterSyntax parameter, BelteDiagnosticQueue diagnostics) {
         var seenRef = false;
         var seenConst = false;
 
