@@ -9,23 +9,11 @@
   <ItemGroup>
     <Content Remove="Resources/HelpPrompt.txt" />
     <Content Remove="Resources/Version.txt" />
-    <Content Remove="../../../bin/release/freetype6.dll" />
-    <Content Remove="../../../bin/release/openal.dll" />
-    <Content Remove="../../../bin/release/SDL2.dll" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Resources/HelpPrompt.txt" />
     <EmbeddedResource Include="Resources/Version.txt" />
-    <EmbeddedResource Include="../../../bin/release/freetype6.dll">
-      <LogicalName>Resources.freetype6.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="../../../bin/release/openal.dll">
-      <LogicalName>Resources.openal.dll</LogicalName>
-    </EmbeddedResource>
-    <EmbeddedResource Include="../../../bin/release/SDL2.dll">
-      <LogicalName>Resources.SDL2.dll</LogicalName>
-    </EmbeddedResource>
     </ItemGroup>
 
   <ItemGroup>
