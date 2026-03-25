@@ -37,7 +37,7 @@ else
 endif
 
 all: debug
-release: prebuild copydlls build postbuild
+release: prebuild build postbuild
 portable: prebuild buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
