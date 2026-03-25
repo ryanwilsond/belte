@@ -10,7 +10,7 @@
 public struct WNDCLASSEX {
     public uint32! cbSize;
     public uint32! style;
-    public int64*(int64! hWnd, uint32! msg, int64! wParam, int64! lParam)* lpfnWndProc;
+    public int64*(int64*, uint32!, int64*, int64*)* lpfnWndProc;
     public int32! cbClsExtra;
     public int32! cbWndExtra;
     public int64* hInstance;

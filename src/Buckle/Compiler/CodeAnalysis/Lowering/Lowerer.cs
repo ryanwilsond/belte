@@ -776,7 +776,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (expression.conversion.underlyingConversions == default) {
             if (expression.conversion.kind is ConversionKind.ImplicitNullToPointer or
-                ConversionKind.ExplicitIntegerToPointer or ConversionKind.ExplicitPointerToInteger) {
+                                              ConversionKind.ExplicitIntegerToPointer or
+                                              ConversionKind.ExplicitPointerToInteger) {
                 return expression;
             }
 
