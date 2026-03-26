@@ -17,7 +17,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly Dictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
@@ -26,6 +25,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Predicate<Symbol> _filter;
 
     private MethodSymbol _entryPoint;
+    private MethodSymbol _updatePoint;
 
     private MethodCompiler(
         Compilation compilation,
@@ -76,8 +76,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
         var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
-        if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
-            diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
+        if (!compilation.options.isScript) {
+            if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
+                diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
+        }
 
         var methodCompiler = new MethodCompiler(
             compilation,
@@ -91,6 +93,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         );
 
         methodCompiler.CompileNamespace(globalNamespace);
+
+        if (compilation.options.isScript && methodCompiler._updatePoint is null)
+            methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
+
         return methodCompiler.CreateBoundProgram();
     }
 

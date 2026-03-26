@@ -464,6 +464,13 @@ public sealed partial class Compilation {
         return _lazyUpdatePoint;
     }
 
+    internal MethodSymbol GetLateScriptUpdatePoint(Dictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        if (_lazyUpdatePoint is null)
+            Interlocked.CompareExchange(ref _lazyUpdatePoint, FindLateScriptUpdatePoint(methodBodies), null);
+
+        return _lazyUpdatePoint;
+    }
+
     internal int CompareSourceLocations(SyntaxReference syntax1, SyntaxReference syntax2) {
         var comparison = CompareSyntaxTreeOrdering(syntax1.syntaxTree, syntax2.syntaxTree);
 
@@ -585,6 +592,23 @@ public sealed partial class Compilation {
             else
                 diagnostics.Push(Error.MultipleUpdates(updatePointCandidates[0].location));
         }
+
+        return updatePoint;
+    }
+
+    private MethodSymbol FindLateScriptUpdatePoint(Dictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+        foreach (var (method, _) in methodBodies) {
+            if (HasUpdatePointSignature(method))
+                builder.Add(method);
+        }
+
+        var updatePointCandidates = builder.ToImmutableAndFree();
+        MethodSymbol updatePoint = null;
+
+        if (updatePointCandidates.Length == 1)
+            updatePoint = updatePointCandidates[0];
 
         return updatePoint;
     }

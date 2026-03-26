@@ -40,6 +40,7 @@ internal sealed class Evaluator {
     private MethodSymbol _lazyToString;
     private Random _lazyRandom;
     private bool _insideTry;
+    private bool _insideUpdate;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -2846,7 +2847,7 @@ internal sealed class Evaluator {
 
                     var spriteFont = (DynamicSpriteFont)fields[0].data;
 
-                    if (_isScript) {
+                    if (_isScript && !_insideUpdate) {
                         result = _context.graphicsHandler.AddAction(
                             () => { _context.graphicsHandler.DrawText(spriteFont, text, posX, posY, r, g, b); }
                         );
@@ -2910,7 +2911,7 @@ internal sealed class Evaluator {
                     var g = evaluatedArguments[1].int64;
                     var b = evaluatedArguments[2].int64;
 
-                    if (_isScript) {
+                    if (_isScript && !_insideUpdate) {
                         result = _context.graphicsHandler.AddAction(
                             () => { _context.graphicsHandler.Fill(r, g, b); }
                         );
@@ -2942,7 +2943,7 @@ internal sealed class Evaluator {
                     var (dx, dy, dw, dh) = ExtRect(dstRect);
                     var dst = new Microsoft.Xna.Framework.Rectangle(dx, dy, dw, dh);
 
-                    if (_isScript) {
+                    if (_isScript && !_insideUpdate) {
                         result = _context.graphicsHandler.AddAction(
                             () => {
                                 _context.graphicsHandler.Draw(
@@ -3026,7 +3027,7 @@ internal sealed class Evaluator {
             long? b = fields[3].kind == ValueKind.Null ? null : fields[3].int64;
             long? a = includeAlpha ? (fields[4].kind == ValueKind.Null ? null : fields[4].int64) : 255;
 
-            if (_isScript) {
+            if (_isScript && !_insideUpdate) {
                 result = _context.graphicsHandler.AddAction(
                     () => { _context.graphicsHandler.DrawRect(x, y, w, h, r, g, b, a); }
                 );
@@ -3064,7 +3065,7 @@ internal sealed class Evaluator {
                 dy -= (int)H(offsetVec)[1].@double;
             }
 
-            if (_isScript) {
+            if (_isScript && !_insideUpdate) {
                 result = _context.graphicsHandler.AddAction(
                     () => {
                         _context.graphicsHandler.DrawSprite(texture, sx, sy, sw, sh, dx, dy, dw, dh, rotation);
@@ -3124,7 +3125,11 @@ internal sealed class Evaluator {
             return;
 
         var argument = EvaluatorValue.Literal(deltaTime);
+
+        // _insideUpdate prevents adding Graphics calls to _updateActions
+        _insideUpdate = true;
         InvokeMethod(_program.updatePoint, _programObject, [argument], abort);
+        _insideUpdate = false;
 
         if (exceptions.Count > 0)
             abort.Value = true;

@@ -28,7 +28,7 @@ public abstract partial class Repl : IDisposable {
 
     private readonly List<MetaCommand> _metaCommands = new List<MetaCommand>();
 
-    private protected ValueWrapper<bool> _abortEvaluation;
+    private protected ValueWrapper<bool> _abortEvaluation = false;
     private protected bool _showTime;
     private protected bool _hasDiagnosticHandle;
 
