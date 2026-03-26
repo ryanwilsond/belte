@@ -17,8 +17,8 @@ public struct WNDCLASSEX {
     public int64* hIcon;
     public int64* hCursor;
     public int64* hbrBackground;
-    public char* lpszMenuName;
-    public char* lpszClassName;
+    public uint8* lpszMenuName;
+    public uint8* lpszClassName;
     public int64* hIconSm;
 }
 
@@ -48,8 +48,8 @@ public static class Program {
     [DllImport("user32.dll")]
     static extern int64* CreateWindowEx(
         uint32 dwExStyle,
-        char* lpClassName,
-        char* lpWindowName,
+        uint8* lpClassName,
+        uint8* lpWindowName,
         uint32 dwStyle,
         int32 x,
         int32 y,
@@ -87,12 +87,12 @@ public static class Program {
     public static void Main() {
         var hInstance = GetModuleHandle(null);
         var wc = new WNDCLASSEX();
-        wc.cbSize = (uint32)LowLevel.SizeOf<WNDCLASSEX>();
+        wc.cbSize = (uint32)sizeof(WNDCLASSEX);
         wc.lpfnWndProc = &WndProcImpl;
         wc.hInstance = hInstance;
         wc.hbrBackground = (int64*)3;
-        wc.lpszClassName = LowLevel.CreateCharPtrString("ExampleWindowClass");
-        char* windowName = LowLevel.CreateCharPtrString("Example Window");
+        wc.lpszClassName = LowLevel.CreateLPCSTR("ExampleWindowClass");
+        uint8* windowName = LowLevel.CreateLPCSTR("Example Window");
 
         if (RegisterClassEx(&wc) == 0) {
             Console.PrintLine("RegisterClassEx failed");
@@ -129,8 +129,8 @@ public static class Program {
             DispatchMessage(&msg);
         }
 
-        LowLevel.FreeCharPtrString(wc.lpszClassName);
-        LowLevel.FreeCharPtrString(windowName);
+        LowLevel.FreeLPCSTR(wc.lpszClassName);
+        LowLevel.FreeLPCSTR(windowName);
     }
 
     static int64* WndProcImpl(int64* hWnd, uint32 msg, int64* wParam, int64* lParam) {

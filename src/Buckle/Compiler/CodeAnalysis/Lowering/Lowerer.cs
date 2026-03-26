@@ -34,7 +34,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         rewrittenStatement = FlowLowerer.Lower(rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
-        rewrittenStatement = Flatten(method, rewrittenStatement);
+        rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
 
         rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
 
@@ -78,6 +78,25 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.VisitAssignmentOperator(expression);
+    }
+
+    internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
+        /*
+
+        <receiver>.<field>
+
+        ----> <field> is fixed
+
+        &(<receiver>.<field>)
+
+        */
+        var syntax = node.syntax;
+        var result = (BoundFieldAccessExpression)base.VisitFieldAccessExpression(node);
+
+        if (node.field.isFixedSizeBuffer)
+            return new BoundAddressOfOperator(syntax, result, node.type);
+
+        return result;
     }
 
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -233,20 +252,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
             );
         }
 
-        var size_t = resultType.specialType switch {
-            SpecialType.Int => sizeof(long),
-            SpecialType.Int64 => sizeof(long),
-            SpecialType.Int32 => sizeof(int),
-            SpecialType.Int16 => sizeof(short),
-            SpecialType.Int8 => sizeof(sbyte),
-            SpecialType.UInt64 => sizeof(ulong),
-            SpecialType.UInt32 => sizeof(uint),
-            SpecialType.UInt16 => sizeof(ushort),
-            SpecialType.UInt8 => sizeof(byte),
-            SpecialType.Bool => sizeof(bool),
-            SpecialType.Char => sizeof(char),
-            _ => UIntPtr.Size,
-        };
+        var size_t = resultType.specialType.SizeInBytes();
+        size_t = size_t == 0 ? UIntPtr.Size : size_t;
 
         var binaryType = UIntPtr.Size switch {
             4 => CorLibrary.GetSpecialType(SpecialType.UInt32),
@@ -774,21 +781,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = expression.Type();
         var operandType = operand.Type();
 
-        if (expression.conversion.underlyingConversions == default) {
-            if (expression.conversion.kind is ConversionKind.ImplicitNullToPointer or
-                                              ConversionKind.ExplicitIntegerToPointer or
-                                              ConversionKind.ExplicitPointerToInteger) {
-                return expression;
-            }
+        if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
+            return Visit(operand);
 
-            if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
-                return Visit(operand);
+        if (expression.conversion.underlyingConversions == default) {
+            if (expression.conversion.kind is ConversionKind.ImplicitNullToPointer)
+                return expression;
 
             return base.VisitCastExpression(expression);
         }
-
-        if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
-            return Visit(operand);
 
         if (operandType.IsNullableType() && type.IsNullableType()) {
             return VisitConditionalOperator(
@@ -965,30 +966,43 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    internal static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
-        var syntax = statement.syntax;
+    internal static BoundBlockStatement Flatten(MethodSymbol method, BoundBlockStatement statement) {
+        return FlattenBlock(method, statement, true);
+    }
+
+    private static BoundBlockStatement FlattenBlock(MethodSymbol method, BoundBlockStatement block, bool needsReturn) {
+        var syntax = block.syntax;
         var statementsBuilder = ArrayBuilder<BoundStatement>.GetInstance();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance();
         var functionsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
 
         var stack = new Stack<BoundStatement>();
-        stack.Push(statement);
+        stack.Push(block);
 
         while (stack.Count > 0) {
             var current = stack.Pop();
 
-            if (current is BoundBlockStatement block) {
-                localsBuilder.AddRange(block.locals);
-                functionsBuilder.AddRange(block.localFunctions);
+            if (current is BoundBlockStatement blockStatement) {
+                localsBuilder.AddRange(blockStatement.locals);
+                functionsBuilder.AddRange(blockStatement.localFunctions);
 
-                foreach (var s in block.statements.Reverse())
+                foreach (var s in blockStatement.statements.Reverse())
                     stack.Push(s);
+            } else if (current is BoundTryStatement tryStatement) {
+                var hasCatch = tryStatement.catchBody is not null;
+                var hasFinally = tryStatement.finallyBody is not null;
+
+                statementsBuilder.Add(tryStatement.Update(
+                    FlattenBlock(method, (BoundBlockStatement)tryStatement.body, false),
+                    hasCatch ? FlattenBlock(method, (BoundBlockStatement)tryStatement.catchBody, false) : null,
+                    hasFinally ? FlattenBlock(method, (BoundBlockStatement)tryStatement.finallyBody, false) : null
+                ));
             } else {
                 statementsBuilder.Add(current);
             }
         }
 
-        if (method.returnsVoid) {
+        if (method.returnsVoid && needsReturn) {
             if (statementsBuilder.Count == 0 || CanFallThrough(statementsBuilder.Last()))
                 statementsBuilder.Add(new BoundReturnStatement(syntax, RefKind.None, null));
         }

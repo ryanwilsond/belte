@@ -9,5 +9,7 @@ internal partial class Binder {
         internal BoundStatement loweredInitializers { get; set; }
 
         internal bool hasErrors { get; set; }
+
+        internal ImportChain firstImportChain { get; set; }
     }
 }

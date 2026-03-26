@@ -72,6 +72,7 @@ public enum SyntaxKind : ushort {
     // Keywords
     TypeOfKeyword,
     NameOfKeyword,
+    SizeOfKeyword,
     NullKeyword,
     NullptrKeyword,
     TrueKeyword,
@@ -157,6 +158,7 @@ public enum SyntaxKind : ushort {
     LiteralExpression,
     TypeOfExpression,
     NameOfExpression,
+    SizeOfExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,

@@ -88,6 +88,8 @@ internal partial class Binder {
 
     internal virtual QuickAttributeChecker quickAttributeChecker => next.quickAttributeChecker;
 
+    internal virtual ImportChain importChain => next.importChain;
+
     internal NamedTypeSymbol containingType => containingMember switch {
         null => null,
         NamedTypeSymbol namedType => namedType,
@@ -170,6 +172,11 @@ internal partial class Binder {
     private bool IsSymbolAccessible(Symbol symbol, NamedTypeSymbol within, TypeSymbol throughType = null) {
         return flags.Includes(BinderFlags.IgnoreAccessibility) ||
             AccessCheck.IsSymbolAccessible(symbol, within, throughType);
+    }
+
+    private protected void MarkImportDirective(SyntaxReference directive) {
+        if (directive is not null)
+            compilation.MarkImportDirectiveAsUsed(directive);
     }
 
     private bool IsSymbolAccessible(
@@ -2031,6 +2038,8 @@ internal partial class Binder {
                 return Error.AssignableLValueExpected(location);
             case BindValueKind.IncrementDecrement:
                 return Error.IncrementableLValueExpected(location);
+            case BindValueKind.FixedReceiver:
+                return Error.FixedNeedsLValue(location);
             case BindValueKind.RefReturn:
             case BindValueKind.RefConst:
                 return Error.RefReturnLValueExpected(location);
@@ -2195,6 +2204,19 @@ internal partial class Binder {
                 }
 
                 break;
+            case BoundKind.PointerIndexAccessExpression: {
+                    if (RequiresRefAssignableVariable(valueKind)) {
+                        diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
+                        return false;
+                    }
+
+                    var receiver = ((BoundPointerIndexAccessExpression)expression).receiver;
+
+                    if (receiver is BoundFieldAccessExpression fieldAccess && fieldAccess.field.isFixedSizeBuffer)
+                        return CheckValueKind(node, fieldAccess.receiver, valueKind, checkingReceiver: true, diagnostics);
+
+                    return true;
+                }
             case BoundKind.ConditionalOperator:
                 if (RequiresRefAssignableVariable(valueKind)) {
                     diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
@@ -2220,9 +2242,10 @@ internal partial class Binder {
                 }
 
                 break;
-            case BoundKind.FieldAccessExpression:
-                var fieldAccess = (BoundFieldAccessExpression)expression;
-                return CheckFieldValueKind(node, fieldAccess, valueKind, checkingReceiver, diagnostics);
+            case BoundKind.FieldAccessExpression: {
+                    var fieldAccess = (BoundFieldAccessExpression)expression;
+                    return CheckFieldValueKind(node, fieldAccess, valueKind, checkingReceiver, diagnostics);
+                }
             case BoundKind.AssignmentOperator:
                 if (RequiresRefAssignableVariable(valueKind)) {
                     diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
@@ -2458,6 +2481,11 @@ internal partial class Binder {
                     return false;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(fieldSymbol.refKind);
+            }
+
+            if (fieldSymbol.isFixedSizeBuffer) {
+                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
+                return false;
             }
         }
 
@@ -2773,6 +2801,8 @@ internal partial class Binder {
                 return BindArrayCreationExpression((ArrayCreationExpressionSyntax)node, diagnostics);
             case SyntaxKind.NameOfExpression:
                 return BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics);
+            case SyntaxKind.SizeOfExpression:
+                return BindSizeOfExpression((SizeOfExpressionSyntax)node, diagnostics);
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)node, diagnostics);
             case SyntaxKind.InitializerListExpression:
@@ -2933,6 +2963,27 @@ internal partial class Binder {
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
         return new BoundTypeOfExpression(node, boundType, CorLibrary.GetSpecialType(SpecialType.Type), hasError);
+    }
+
+    private BoundExpression BindSizeOfExpression(SizeOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        ExpressionSyntax typeSyntax = node.type;
+        var typeWithAnnotations = BindType(typeSyntax, diagnostics, out var alias);
+        var type = typeWithAnnotations.type;
+
+        var typeHasErrors = type.IsErrorType();
+
+        var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, alias, type, typeHasErrors);
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var sizeInBytes = boundType.type.specialType.SizeInBytes();
+        var constantValue = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
+
+        return new BoundSizeOfOperator(
+            node,
+            boundType,
+            constantValue,
+            int32,
+            typeHasErrors
+        );
     }
 
     private BoundExpression BindNameOfExpression(NameOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -5337,6 +5388,38 @@ internal partial class Binder {
 
         if (!hasError)
             hasError = CheckInstanceOrStatic(node, receiver, fieldSymbol, ref resultKind, diagnostics);
+
+        if (!hasError && fieldSymbol.isFixedSizeBuffer && !isInsideNameof) {
+            var receiverType = receiver.type;
+
+            hasError = receiverType is null || !(receiverType.isPrimitiveType || receiverType.IsStructType());
+
+            // TODO Do we need these errors?
+            // if (!hasError) {
+            //     var isFixedStatementExpression = SyntaxFacts.IsFixedStatementExpression(node);
+
+            //     if (IsMoveableVariable(receiver, accessedLocalOrParameterOpt: out _) != isFixedStatementExpression) {
+            //         if (!indexed) {
+            //             // SPEC C# 7.3: If the fixed size buffer access is the receiver of an element_access_expression,
+            //             // E may be either fixed or moveable
+            //             CheckFeatureAvailability(node, MessageID.IDS_FeatureIndexingMovableFixedBuffers, diagnostics);
+            //         } else {
+            //             Error(diagnostics, isFixedStatementExpression ? ErrorCode.ERR_FixedNotNeeded : ErrorCode.ERR_FixedBufferNotFixed, node);
+            //             hasErrors = hasError = true;
+            //         }
+            //     }
+            // }
+
+            if (!hasError) {
+                hasError = !CheckValueKind(
+                    node,
+                    receiver,
+                    BindValueKind.FixedReceiver,
+                    checkingReceiver: false,
+                    diagnostics: diagnostics
+                );
+            }
+        }
 
         ConstantValue constantValueOpt = null;
 
@@ -10348,10 +10431,12 @@ symIsHidden:;
         processedInitializers.boundInitializers = BindFieldInitializers(
             compilation,
             fieldInitializers,
-            diagsForInstanceInitializers
+            diagsForInstanceInitializers,
+            out var firstImportChain
         );
 
         processedInitializers.hasErrors = diagsForInstanceInitializers.AnyErrors();
+        processedInitializers.firstImportChain = firstImportChain;
         diagnostics.PushRange(diagsForInstanceInitializers);
         diagsForInstanceInitializers.Free();
     }
@@ -10359,12 +10444,15 @@ symIsHidden:;
     internal static ImmutableArray<BoundInitializer> BindFieldInitializers(
         Compilation compilation,
         ImmutableArray<ImmutableArray<FieldInitializer>> initializers,
-        BelteDiagnosticQueue diagnostics) {
-        if (initializers.IsEmpty)
+        BelteDiagnosticQueue diagnostics,
+        out ImportChain firstImportChain) {
+        if (initializers.IsEmpty) {
+            firstImportChain = null;
             return [];
+        }
 
         var boundInitializers = ArrayBuilder<BoundInitializer>.GetInstance();
-        BindRegularFieldInitializers(compilation, initializers, boundInitializers, diagnostics);
+        BindRegularFieldInitializers(compilation, initializers, boundInitializers, diagnostics, out firstImportChain);
         return boundInitializers.ToImmutableAndFree();
     }
 
@@ -10382,7 +10470,9 @@ symIsHidden:;
         Compilation compilation,
         ImmutableArray<ImmutableArray<FieldInitializer>> initializers,
         ArrayBuilder<BoundInitializer> boundInitializers,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        out ImportChain firstImportChain) {
+        firstImportChain = null;
 
         foreach (var siblingInitializers in initializers) {
             BinderFactory binderFactory = null;
@@ -10398,6 +10488,9 @@ symIsHidden:;
                             binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
                             var parentBinder = binderFactory.GetBinder(initializerNode);
                             parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
+
+                            if (firstImportChain is null)
+                                firstImportChain = parentBinder.importChain;
 
                             var boundInitializer = BindFieldInitializer(
                                 parentBinder,

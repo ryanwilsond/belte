@@ -21,5 +21,12 @@ internal abstract partial class WithUsingAliasesBinder {
             ConsList<TypeSymbol> basesBeingResolved) {
             return _usingAliases;
         }
+
+        private protected override ImportChain BuildImportChain() {
+            return new ImportChain(
+                Imports.Create(_usingAliases, ((WithUsingNamespacesAndTypesBinder)next).GetUsings(null)),
+                next.importChain
+            );
+        }
     }
 }

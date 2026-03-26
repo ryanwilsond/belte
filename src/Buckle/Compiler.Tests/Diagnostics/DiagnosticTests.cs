@@ -3497,12 +3497,98 @@ public sealed class DiagnosticTests {
     // }
 
     // ! Error_BU0349_InvalidAttributeArgument
-    // ! Error_BU0350_FixedBufferTooManyDimensions
-    // ! Error_BU0351_FixedOverflow
-    // ! Error_BU0352_InvalidFixedArraySize
-    // ! Error_BU0353_FixedNotInStruct
-    // ! Error_BU0354_FixedFieldMustNotBeRef
-    // ! Error_BU0355_IllegalFixedType
+
+    [Fact]
+    public void Reports_Error_BU0350_FixedBufferTooManyDimensions() {
+        var text = @"
+            struct A {
+                int32 a[\[1,1\]];
+            }
+        ";
+
+        var diagnostics = @"
+            a fixed buffer can only have one dimension
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0351_FixedOverflow() {
+        var text = @"
+            struct A {
+                int32 a\[[[9999999999999]]\];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'int!' to 'int32!' implicitly; an explicit conversion exists (are you missing a cast?)
+            fixed size buffer of length '1316134911' and type 'int32!' is too big
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0352_InvalidFixedArraySize() {
+        var text = @"
+            struct A {
+                int32 a\[[[-1]]\];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'int!' to 'int32!' implicitly; an explicit conversion exists (are you missing a cast?)
+            fixed size buffers must have a length greater than zero
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0353_FixedNotInStruct() {
+        var text = @"
+            class A {
+                [int32 a\[30\]];
+            }
+        ";
+
+        var diagnostics = @"
+            fixed size buffer fields may only be members of structs
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0354_FixedFieldMustNotBeRef() {
+        var text = @"
+            struct A {
+                [ref int32 a\[30\]];
+            }
+        ";
+
+        var diagnostics = @"
+            fixed fields cannot be ref fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0355_IllegalFixedType() {
+        var text = @"
+            struct A {
+                [char] a\[30\];
+            }
+        ";
+
+        var diagnostics = @"
+            fixed size buffer type must a non-nullable bool or a non-nullable sized numeric primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0356_NullptrNoTargetType() {
@@ -3516,7 +3602,6 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
-
 
     [Fact]
     public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
@@ -3535,4 +3620,6 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // ! Error_BU0358_FixedNeedsLValue
 }

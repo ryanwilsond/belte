@@ -1,0 +1,150 @@
+/*
+
+    Socket
+
+    This program uses WinSock2 to create a very simple socket connection to send a single http text response.
+
+*/
+
+public static class Program {
+    constexpr uint16 PORT = 8080;
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 WSAStartup(uint16 wVersionRequested, void* lpWSAData);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 WSAGetLastError();
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 socket(int32 af, int32 type_, int32 protocol);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 bind(int32 s, sockaddr_in* addr, int32 namelen);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 listen(int32 s, int32 backlog);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 accept(int32 s, void* addr, void* addrlen);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 send(int32 s, uint8* buf, int32 len, int32 flags);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
+
+    [DllImport("ws2_32.dll")]
+    static extern uint16 htons(uint16 hostshort);
+
+    [DllImport("ws2_32.dll")]
+    static extern uint32 inet_addr(uint8* cp);
+
+    [DllImport("ws2_32.dll")]
+    static extern int32 closesocket(int32 s);
+
+    constexpr int16 AF_INET = 2;
+    constexpr int32 SOCK_STREAM = 1;
+    constexpr int32 IPPROTO_TCP = 6;
+
+    public static void Main() {
+        uint16 version = 0x0202;
+        WSAData wsaData = new WSAData();
+
+        if (WSAStartup(version, &wsaData) != 0) {
+            Console.PrintLine("WSAStartup failed");
+            return;
+        }
+
+        int32 server = socket(AF_INET, SOCK_STREAM, 0);
+
+        if (server < 0) {
+            Console.PrintLine("socket failed");
+            return;
+        }
+
+        sockaddr_in addr = new sockaddr_in();
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(PORT);
+
+        uint8* ip = LowLevel.CreateLPCSTR("127.0.0.1");
+        addr.sin_addr.s_addr = inet_addr(ip);
+
+        if (bind(server, &addr, sizeof(sockaddr_in)) != 0) {
+            Console.PrintLine("bind failed");
+            Console.PrintLine(WSAGetLastError());
+            return;
+        }
+
+        if (listen(server, 1) != 0) {
+            Console.PrintLine("listen failed");
+            return;
+        }
+
+        Console.PrintLine("Listening on 127.0.0.1:" + ((string)PORT) + "...");
+
+        string! response =
+            "HTTP/1.1 200 OK\r\n" +
+            "Content-Type: text/plain; charset=utf-8\r\n" +
+            "Content-Length: 13\r\n" +
+            "Connection: close\r\n" +
+            "\r\n" +
+            "Hello, world!";
+
+        uint8* msg = LowLevel.CreateLPCSTR(response);
+
+        // Can loop this block to continually send message on refresh
+        {
+            int32 client = accept(server, null, null);
+
+            if (client < 0) {
+                Console.PrintLine("accept failed");
+                Cleanup();
+                return;
+            }
+
+            var buffer = new Buffer();
+            if (recv(client, buffer.buffer, 1024, 0) <= 0) {
+                closesocket(client);
+                Cleanup();
+                return;
+            }
+
+            send(client, msg, (int32)String.Length(response), 0);
+            closesocket(client);
+
+            Console.PrintLine("Sent message");
+        }
+
+        Cleanup();
+
+        void Cleanup() {
+            LowLevel.FreeLPCSTR(msg);
+            LowLevel.FreeLPCSTR(ip);
+        }
+    }
+}
+
+public struct Buffer {
+    public uint8 buffer[1024];
+}
+
+public struct in_addr {
+    public uint32 s_addr;
+}
+
+public struct sockaddr_in {
+    public int16 sin_family;
+    public uint16 sin_port;
+    public in_addr sin_addr;
+    public uint8 sin_zero[8];
+}
+
+public struct WSAData {
+    uint32 wVersion;
+    uint32 wHighVersion;
+    uint16 iMaxSockets;
+    uint16 iMaxUdpDg;
+    uint8* lPVendorInfo;
+    uint8 szDescription[257];
+    uint8 szSystemStatus[129];
+}

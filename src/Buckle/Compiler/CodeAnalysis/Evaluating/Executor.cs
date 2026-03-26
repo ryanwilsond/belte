@@ -339,6 +339,10 @@ internal sealed partial class Executor : ModuleBuilder {
         randomField = typeof(Executor).GetField("Random", BindingFlags.Public | BindingFlags.Static);
     }
 
+    internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
+        return _program.fixedImplementationTypes[field];
+    }
+
     internal MethodInfo GetNullAssert(TypeSymbol type) {
         var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
@@ -594,6 +598,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (f.isFixedSizeBuffer) {
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeBuilder);
+                    continue;
+                }
+
                 var fieldType = (f.type.typeKind == TypeKind.FunctionPointer)
                     ? typeof(IntPtr)
                     : GetType(f.type, f.refKind != RefKind.None);
@@ -614,6 +623,40 @@ internal sealed partial class Executor : ModuleBuilder {
             if (pair.Item1.containingType.originalDefinition.Equals(type))
                 CreateMethodDefinition(pair.Item1, pair.Item2, typeBuilder);
         }
+    }
+
+    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeBuilder typeBuilder) {
+        var fixedImpl = GetFixedImplementationType(field);
+
+        var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
+        var elementSize = elementType.FixedBufferElementSizeInBytes();
+
+        var nestedBuilder = typeBuilder.DefineNestedType(
+            fixedImpl.name,
+            GetTypeAttributes(fixedImpl, true),
+            GetBaseType(fixedImpl),
+            PackingSize.Unspecified,
+            field.fixedSize * elementSize
+        );
+
+        var nestedBufferField = fixedImpl.fixedElementField;
+        var nestedBufferFieldBuilder = nestedBuilder.DefineField(
+            nestedBufferField.name,
+            GetType(nestedBufferField.type),
+            GetFieldAttributes(nestedBufferField)
+        );
+
+        var adaptedFieldBuilder = typeBuilder.DefineField(
+            field.name,
+            nestedBuilder,
+            GetFieldAttributes(field)
+        );
+
+        _fields.Add(field, adaptedFieldBuilder);
+        _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
+        _types.Add(fixedImpl, nestedBuilder);
+
+        nestedBuilder.CreateType();
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
@@ -1028,17 +1071,21 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
-            { "LowLevel_CreateCharPtrString_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateCharPtrString", Flags, [typeof(string)]) },
-            { "LowLevel_FreeCharPtrString_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeCharPtrString", Flags, [typeof(char*)]) },
+            { "LowLevel_CreateLPCSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCSTR", Flags, [typeof(string)]) },
+            { "LowLevel_CreateLPCWSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCWSTR", Flags, [typeof(string)]) },
+            { "LowLevel_FreeLPCSTR_U*", typeof(Belte.Runtime.Utilities).GetMethod("FreeLPCSTR", Flags, [typeof(byte*)]) },
+            { "LowLevel_FreeLPCWSTR_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeLPCWSTR", Flags, [typeof(char*)]) },
+            { "LowLevel_ReadLPCSTR_U*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCSTR", Flags, [typeof(byte*)]) },
+            { "LowLevel_ReadLPCWSTR_C*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCWSTR", Flags, [typeof(char*)]) },
             { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
             { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
             { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
-            { "LowLevel_ReadLPCSTR_V*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCSTR", Flags, [typeof(void*)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },
             { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
             { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
+            { "String_Length_S", typeof(Belte.Runtime.Utilities).GetMethod("StringLength", Flags, [typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },

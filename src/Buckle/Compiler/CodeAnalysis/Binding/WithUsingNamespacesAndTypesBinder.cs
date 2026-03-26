@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -6,7 +7,28 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
-    private protected WithUsingNamespacesAndTypesBinder(Binder next) : base(next) { }
+    private readonly bool _withImportChainEntry;
+    private ImportChain _lazyImportChain;
+
+    private protected WithUsingNamespacesAndTypesBinder(Binder next, bool withImportChainEntry) : base(next) {
+        _withImportChainEntry = withImportChainEntry;
+    }
+
+    internal override ImportChain importChain {
+        get {
+            if (_lazyImportChain is null) {
+                var importChain = next.importChain;
+
+                if (_withImportChainEntry) {
+                    importChain = new ImportChain(GetImports(), importChain);
+                }
+
+                Interlocked.CompareExchange(ref _lazyImportChain, importChain, null);
+            }
+
+            return _lazyImportChain;
+        }
+    }
 
     internal abstract ImmutableArray<NamespaceOrTypeAndUsingDirective> GetUsings(
         ConsList<TypeSymbol> basesBeingResolved
@@ -44,10 +66,8 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
                     basesBeingResolved
                 );
 
-                // TODO Imports
-                // if (res.kind == LookupResultKind.Viable) {
-                //     MarkImportDirective(typeOrNamespace.UsingDirectiveReference, callerIsSemanticModel);
-                // }
+                if (res.kind == LookupResultKind.Viable)
+                    MarkImportDirective(typeOrNamespace.usingDirectiveReference);
 
                 result.MergeEqual(res);
             }
@@ -89,6 +109,8 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
         }
     }
 
+    private protected abstract Imports GetImports();
+
     private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken nameToken) {
         return null;
     }
@@ -100,7 +122,8 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
     internal static WithUsingNamespacesAndTypesBinder Create(
         SourceNamespaceSymbol declaringSymbol,
         BelteSyntaxNode declarationSyntax,
-        Binder next) {
-        return new FromSyntax(declaringSymbol, declarationSyntax, next);
+        Binder next,
+        bool withImportChainEntry = false) {
+        return new FromSyntax(declaringSymbol, declarationSyntax, next, withImportChainEntry);
     }
 }

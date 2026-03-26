@@ -80,6 +80,11 @@
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="index" Type="BoundExpression"/>
   </Node>
+  <Node Name="BoundSizeOfOperator" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="sourceType" Type="BoundTypeExpression"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundCompileTimeExpression" Base="BoundExpression">
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="conditional" Type="bool"/>

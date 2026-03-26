@@ -318,6 +318,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _fields[field];
     }
 
+    internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
+        return _program.fixedImplementationTypes[field];
+    }
+
     internal override void EmitGlobalsClass() {
         _globalsClass = new TypeDefinition(
             "",

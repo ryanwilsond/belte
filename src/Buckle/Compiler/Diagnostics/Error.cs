@@ -1719,13 +1719,18 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IllegalFixedType(TextLocation location) {
-        var message = $"fixed size buffer type must be bool or a numeric primitive";
+        var message = $"fixed size buffer type must a non-nullable bool or a non-nullable sized numeric primitive";
         return CreateError(DiagnosticCode.ERR_IllegalFixedType, location, message);
     }
 
     internal static BelteDiagnostic InvalidCompileTimeExpression(TextLocation location) {
         var message = $"expression is not computable at compile time";
         return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpression, location, message);
+    }
+
+    internal static BelteDiagnostic FixedNeedsLValue(TextLocation location) {
+        var message = $"fixed size buffers can only be accessed through locals or fields";
+        return CreateError(DiagnosticCode.ERR_FixedNeedsLValue, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

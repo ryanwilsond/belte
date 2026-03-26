@@ -33,6 +33,7 @@ internal enum OpCode : byte {
     Ldfld,
     Initobj,
     Ldnull,
+    Ldloc,
     Ldc_I8,
     Ldc_I4_S,
     Ldc_I4_M1,
@@ -133,4 +134,5 @@ internal enum OpCode : byte {
     Rethrow,
     Ldftn,
     Calli,
+    Sizeof,
 }

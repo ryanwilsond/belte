@@ -401,6 +401,15 @@ internal sealed partial class CodeGenerator {
             );
 
         _builder.EmitWithSymbolToken(field.refKind == RefKind.None ? OpCode.Ldflda : OpCode.Ldfld, field);
+
+        if (field.isFixedSizeBuffer) {
+            var fixedImpl = _module.GetFixedImplementationType(field as SourceFixedFieldSymbol);
+            var fixedElementField = fixedImpl.fixedElementField;
+
+            if (fixedElementField is not null)
+                _builder.EmitWithSymbolToken(OpCode.Ldflda, fixedElementField);
+        }
+
         return tempOpt;
     }
 
@@ -901,21 +910,24 @@ oneMoreTime:
     }
 
     private void EmitTryStatement(BoundTryStatement statement) {
+        var hasCatch = statement.catchBody is not null;
+        var hasFinally = statement.finallyBody is not null;
+
         _builder.BeginTry();
 
         EmitBlock((BoundBlockStatement)statement.body);
 
-        if (statement.catchBody is not null) {
+        if (hasCatch) {
             _builder.BeginCatch();
             EmitBlock((BoundBlockStatement)statement.catchBody);
         }
 
-        if (statement.finallyBody is not null) {
+        if (hasFinally) {
             _builder.BeginFinally();
             EmitBlock((BoundBlockStatement)statement.finallyBody);
         }
 
-        _builder.EndTry();
+        _builder.EndTry(hasFinally);
     }
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -1038,6 +1050,11 @@ oneMoreTime:
                     EmitTypeOfExpression((BoundTypeOfExpression)expression);
 
                 break;
+            case BoundKind.SizeOfOperator:
+                if (used)
+                    EmitSizeOfExpression((BoundSizeOfOperator)expression);
+
+                break;
             case BoundKind.TypeExpression:
                 EmitTypeExpression((BoundTypeExpression)expression);
                 break;
@@ -1112,6 +1129,11 @@ oneMoreTime:
         var type = expression.sourceType.type;
         _builder.EmitWithSymbolToken(OpCode.Ldtoken, type);
         _builder.EmitGetTypeFromHandle(type);
+    }
+
+    private void EmitSizeOfExpression(BoundSizeOfOperator boundSizeOfOperator) {
+        var type = boundSizeOfOperator.sourceType.type;
+        _builder.EmitWithSymbolToken(OpCode.Sizeof, type);
     }
 
     private void EmitThrowExpression(BoundThrowExpression expression, bool used) {
@@ -1351,10 +1373,9 @@ oneMoreTime:
                     }
 
                     return;
-                case "SizeOf": {
-                        _builder.EmitSizeOf(method.templateArguments[0].type.type);
-                        EmitCallCleanup(method, useKind);
-                    }
+                case "SizeOf":
+                    if (useKind != UseKind.Unused)
+                        _builder.EmitWithSymbolToken(OpCode.Sizeof, method.templateArguments[0].type.type);
 
                     return;
             }

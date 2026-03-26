@@ -254,8 +254,16 @@ internal abstract class BoundTreeExpander {
             BoundKind.FunctionPointerCallExpression => ExpandFunctionPointerCallExpression((BoundFunctionPointerCallExpression)expression, out replacement),
             BoundKind.UnconvertedNullptrExpression => ExpandUnconvertedNullptrExpression((BoundUnconvertedNullptrExpression)expression, out replacement),
             BoundKind.CompileTimeExpression => ExpandCompileTimeExpression((BoundCompileTimeExpression)expression, out replacement),
+            BoundKind.SizeOfOperator => ExpandSizeOfOperator((BoundSizeOfOperator)expression, out replacement),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandSizeOfOperator(
+        BoundSizeOfOperator expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandMethodGroup(
