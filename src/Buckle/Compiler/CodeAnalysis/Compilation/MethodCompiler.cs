@@ -126,16 +126,25 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var newMethodLayouts = new Dictionary<MethodSymbol, EvaluatorSlotManager>();
 
         if (!_compilation.options.buildMode.Evaluating()) {
-            foreach (var (key, value) in _methodBodies) {
-                newMethodBodies.Add(key, EvaluatorSlotRewriter.Rewrite(
-                    key,
-                    value,
-                    _typeLayouts,
-                    _compilation.previous?.boundProgram,
-                    out var manager
-                ));
+            var current = _methodBodies;
+            var currentCompilation = _compilation;
 
-                newMethodLayouts.Add(key, manager);
+            while (currentCompilation is not null) {
+                foreach (var (key, value) in current) {
+                    newMethodBodies.Add(key, EvaluatorSlotRewriter.Rewrite(
+                        key,
+                        value,
+                        _typeLayouts,
+                        _compilation.previous?.boundProgram,
+                        out var manager
+                    ));
+
+                    newMethodLayouts.Add(key, manager);
+                }
+
+                // We have to recompute libraries because they aren't build with evaluator slots in mind
+                currentCompilation = currentCompilation.previous;
+                current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
             }
         } else {
             newMethodBodies = _methodBodies;

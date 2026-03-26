@@ -10228,19 +10228,26 @@ symIsHidden:;
         var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
 
         if (!compilation.options.isScript) {
-            if (expression is not BoundCallExpression
+            if (IsInvalidExpressionStatement(expression))
+                diagnostics.Push(Error.InvalidExpressionStatement(node.location));
+        }
+
+        return new BoundExpressionStatement(node, expression);
+
+        static bool IsInvalidExpressionStatement(BoundExpression expression) {
+            if (expression is BoundCompileTimeExpression cte)
+                return IsInvalidExpressionStatement(cte.expression);
+
+            return expression is not BoundCallExpression
                           and not BoundAssignmentOperator
                           and not BoundErrorExpression
                           and not BoundCompoundAssignmentOperator
                           and not BoundThrowExpression
                           and not BoundIncrementOperator
                           and not BoundNullCoalescingAssignmentOperator
-                          and not BoundFunctionPointerCallExpression) {
-                diagnostics.Push(Error.InvalidExpressionStatement(node.location));
-            }
+                          and not BoundFunctionPointerCallExpression
+                          and not BoundCompileTimeExpression;
         }
-
-        return new BoundExpressionStatement(node, expression);
     }
 
     private BindValueKind GetRequiredReturnValueKind(RefKind refKind) {
