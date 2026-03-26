@@ -237,13 +237,15 @@ int32 MyMethod(bool arg1, string arg2) { ... }
 ```
 
 Function pointers are treated the same as normal pointers in that they can be
-freely cast. This is helpful when trying to call a function given a vtable.
+freely cast. This is helpful when trying to call a function given a vtable. To
+declare an unmanaged function pointer (such as with a COM interface vtable),
+mark it as such with a `~`.
 Consider this example of calling the first function of a vtable:
 
 ```belte
 void** vtable = ...;
 
-((void()*)vtable[0])();
+((void()*~)vtable[0])();
 ```
 
 For clarity, the function pointer set to a temporary:
@@ -251,7 +253,7 @@ For clarity, the function pointer set to a temporary:
 ```belte
 void** vtable = ...;
 
-var MyFunction = (void()*)vtable[0];
+var MyFunction = (void()*~)vtable[0];
 MyFunction();
 ```
 

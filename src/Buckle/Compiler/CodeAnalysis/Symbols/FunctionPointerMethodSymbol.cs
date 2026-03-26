@@ -95,11 +95,11 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     }
 
     internal static FunctionPointerMethodSymbol CreateFromSource(
+        CallingConvention callingConvention,
         FunctionPointerSyntax syntax,
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
-        var callingConvention = CallingConvention.Default;
 
         var refKind = RefKind.None;
         TypeWithAnnotations returnType;
@@ -189,6 +189,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     }
 
     internal override CallingConvention callingConvention { get; }
+
+    internal bool isManaged => callingConvention != CallingConvention.Unmanaged;
 
     public override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
 

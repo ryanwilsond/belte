@@ -101,12 +101,26 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitCalli(FunctionPointerTypeSymbol type) {
-        _iLGenerator.EmitCalli(
-            OpCodes.Calli,
-            System.Runtime.InteropServices.CallingConvention.Winapi,
-            _module.GetType(type.signature.returnType),
-            type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray()
-        );
+        var managed = type.signature.isManaged;
+        var returnType = _module.GetType(type.signature.returnType);
+        var paramTypes = type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray();
+
+        if (managed) {
+            _iLGenerator.EmitCalli(
+                OpCodes.Calli,
+                System.Reflection.CallingConventions.VarArgs,
+                returnType,
+                paramTypes,
+                Type.EmptyTypes
+            );
+        } else {
+            _iLGenerator.EmitCalli(
+                OpCodes.Calli,
+                System.Runtime.InteropServices.CallingConvention.Winapi,
+                returnType,
+                paramTypes
+            );
+        }
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode) {

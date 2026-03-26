@@ -227,8 +227,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 finalOffset = parenOffset;
         }
 
-        while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
+        while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or
+                                         SyntaxKind.AsteriskAsteriskToken or
+                                         SyntaxKind.TildeToken) {
             finalOffset++;
+        }
 
         if (Peek(finalOffset).kind is SyntaxKind.ExclamationToken)
             finalOffset++;
@@ -1690,7 +1693,12 @@ done:
                 parenOffset--;
             }
 
-            lastTokenOfType = _currentToken;
+            EatToken();
+
+            if (currentToken.kind == SyntaxKind.TildeToken)
+                EatToken();
+
+            lastTokenOfType = currentToken;
             return ScanTypeFlags.MustBeType;
         }
     }
@@ -2302,7 +2310,12 @@ done:
 
                         var paramList = ParseFunctionPointerParameterList();
                         var asterisk = Match(SyntaxKind.AsteriskToken);
-                        type = SyntaxFactory.FunctionPointer(type, paramList, asterisk);
+                        SyntaxToken callingConvention = null;
+
+                        if (currentToken.kind == SyntaxKind.TildeToken)
+                            callingConvention = EatToken();
+
+                        type = SyntaxFactory.FunctionPointer(type, paramList, asterisk, callingConvention);
                     }
 
                     continue;

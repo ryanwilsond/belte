@@ -137,6 +137,9 @@ public static class SymbolDisplay {
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
             text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
+
+            if (!functionPointerType.signature.isManaged)
+                text.Write(CreatePunctuation(SyntaxKind.TildeToken));
         }
     }
 

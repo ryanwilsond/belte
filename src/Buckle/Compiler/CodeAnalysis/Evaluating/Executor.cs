@@ -231,17 +231,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 return elementType.MakePointerType();
             }
 
-            if (type is FunctionPointerTypeSymbol) {
+            if (type is FunctionPointerTypeSymbol)
                 throw ExceptionUtilities.Unreachable();
-                // var args = functionPointer.signature.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
-
-                // if (functionPointer.signature.returnsVoid) {
-                //     return args.MakeGenericManagedCallVoidFunctionPointerType();
-                // } else {
-                //     var returnType = GetType(functionPointer.signature.returnType);
-                //     return (returnType, args).MakeGenericManagedCallFunctionPointerType();
-                // }
-            }
 
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
@@ -690,13 +681,20 @@ internal sealed partial class Executor : ModuleBuilder {
             _methodTypeParameters.Add(method, typeParameters);
         }
 
-        methodBuilder.SetReturnType(GetType(method.returnType, method.returnsByRef));
+        methodBuilder.SetReturnType(GetTypeOrIntPtr(method.returnType, method.returnsByRef));
         methodBuilder.SetParameters(
-            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
+            method.parameters.Select(p => GetTypeOrIntPtr(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
         _methods.Add(method, methodBuilder);
         _methodBodies.Add(method, body);
+
+        Type GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
+            if (type.typeKind == TypeKind.FunctionPointer)
+                return typeof(IntPtr);
+
+            return GetType(type, byRef);
+        }
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
