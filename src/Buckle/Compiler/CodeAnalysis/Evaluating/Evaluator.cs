@@ -153,6 +153,13 @@ internal sealed class Evaluator {
         return hasValue ? EvaluatorValue.Format(result, _context) : null;
     }
 
+    internal object EvaluateExpression(BoundExpression expression, out bool hasValue) {
+        _hasValue = true;
+        var result = EvaluateExpression(expression, true, false);
+        hasValue = _hasValue;
+        return hasValue ? EvaluatorValue.Format(result, _context) : null;
+    }
+
     private TypeSymbol GetResultType(EvaluatorValue result) {
         switch (result.kind) {
             case ValueKind.Int8:
@@ -2365,7 +2372,6 @@ internal sealed class Evaluator {
     #endregion
 
     #region Libraries
-
 
     private bool CheckStandardMap(
         TextLocation location,

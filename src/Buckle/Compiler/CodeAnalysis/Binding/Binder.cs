@@ -7807,6 +7807,12 @@ internal partial class Binder {
         return new BoundPointerIndirectionOperator(node, operand, false, pointedAtType ?? CreateErrorType(), hasErrors);
     }
 
+    private BoundExpression BindCompileTimeExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindExpression(node.operand, diagnostics);
+        var conditional = node.operatorToken.kind == SyntaxKind.DollarQuestionToken;
+        return new BoundCompileTimeExpression(node, operand, conditional, operand.type);
+    }
+
     private static void BindPointerIndirectionExpressionInternal(
         ExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
@@ -7841,6 +7847,9 @@ internal partial class Binder {
 
         if (node.operatorToken.kind == SyntaxKind.AsteriskToken)
             return BindPointerIndirectionExpression(node, diagnostics);
+
+        if (node.operatorToken.kind is SyntaxKind.DollarToken or SyntaxKind.DollarQuestionToken)
+            return BindCompileTimeExpression(node, diagnostics);
 
         var operatorText = node.operatorToken.text;
         var operand = BindToNaturalType(BindValue(node.operand, diagnostics, BindValueKind.RValue), diagnostics);

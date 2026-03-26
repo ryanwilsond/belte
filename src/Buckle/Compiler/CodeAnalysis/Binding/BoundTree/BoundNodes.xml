@@ -80,6 +80,10 @@
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="index" Type="BoundExpression"/>
   </Node>
+  <Node Name="BoundCompileTimeExpression" Base="BoundExpression">
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="conditional" Type="bool"/>
+  </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>

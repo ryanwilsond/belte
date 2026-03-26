@@ -826,6 +826,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                     synthesizedMethod,
                     body,
                     _compilationState.typeLayouts,
+                    _compilationState.compilation.previous?.boundProgram,
                     out var slotManager
                 );
 

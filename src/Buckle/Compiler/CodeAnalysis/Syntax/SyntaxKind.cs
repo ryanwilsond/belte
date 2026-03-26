@@ -35,6 +35,7 @@ public enum SyntaxKind : ushort {
     ColonColonToken,
     PeriodToken,
     HashToken,
+    DollarToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -66,6 +67,7 @@ public enum SyntaxKind : ushort {
     QuestionPeriodToken,
     QuestionOpenBracketToken,
     MinusGreaterThanToken,
+    DollarQuestionToken,
 
     // Keywords
     TypeOfKeyword,

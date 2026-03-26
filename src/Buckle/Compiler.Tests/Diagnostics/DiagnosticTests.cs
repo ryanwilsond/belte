@@ -3516,4 +3516,23 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+
+    [Fact]
+    public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
+        var text = @"
+            class A {
+                public int Method() { return 3; }
+            }
+
+            var a = new A();
+            var b = [$a.Method()];
+        ";
+
+        var diagnostics = @"
+            expression is not computable at compile time
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

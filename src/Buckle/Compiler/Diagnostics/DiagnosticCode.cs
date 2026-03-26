@@ -365,6 +365,7 @@ public enum DiagnosticCode : ushort {
     ERR_FixedFieldMustNotBeRef = 354,
     ERR_IllegalFixedType = 355,
     ERR_NullptrNoTargetType = 356,
+    ERR_InvalidCompileTimeExpression = 357,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

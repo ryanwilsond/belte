@@ -6,6 +6,7 @@
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
 - [3.5](#35-references) References
 - [3.6](#36-arrays) Arrays
+- [3.7](#37-compile-time-expressions) Compile-Time Expressions
 
 ## 3.1 Data Types
 
@@ -157,3 +158,65 @@ a[2] = 6;
 
 Note that this functionality will eventually be moved to be exclusive to low-level contexts, and be replaced with more
 powerful collection types.
+
+## 3.7 Compile-Time Expressions
+
+To evaluate an expression at compile-time, you can precede it with `$` or `$?`.
+
+For example:
+
+```belte
+int myInt = $Add(4, 5);
+
+int Add(int x, int y) {
+  return x + y;
+}
+```
+
+In the above example, the program produced by the compiler will evaluate the expression `Add(4, 5)` and put the result,
+`9`, in its place:
+
+```belte
+int myInt = 9;
+
+int Add(int x, int y) {
+  return x + y;
+}
+```
+
+Some expressions are not computable at compile-time. One possibility is that the expression tries to use data from
+outside the scope of the expression:
+
+```belte
+var myClass = new MyClass();
+var myInt = $myClass.GetF(); // Fails to compute
+
+class MyClass {
+  public int f = 10;
+
+  public int GetF() {
+    return f;
+  }
+}
+```
+
+In the above example, the expression cannot be computed at compile-time because it references local `myClass` which is
+defined outside of the scope of the compile-time expression.
+
+If you want to ignore any compile-time evaluation errors and continue you can use `$?`:
+
+```belte
+var myClass = new MyClass();
+var myInt = $?myClass.GetF();
+
+class MyClass {
+  public int f = 10;
+
+  public int GetF() {
+    return f;
+  }
+}
+```
+
+The above example will not replace the `myInt` declaration with anything and will retain its original initializer of
+`myClass.GetF()` because the compile-time evaluation failed.
