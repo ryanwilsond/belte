@@ -4,6 +4,10 @@
 
 Currently, all of these features are enabled everywhere for conciseness.
 This may change.
+~~These features are only enabled in low-level contexts.~~
+
+Currently, all of these features are enabled everywhere for conciseness.
+This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structures) Structures
@@ -15,9 +19,18 @@ This may change.
 
 Additionally, the [Standard Library contains a class named LowLevel that provides
 various helper methods](StandardLibrary/LowLevel.md).
+- [6.4](#64-numerics) Numerics
+- [6.5](#65-pointers) Pointers
+- [6.6](#66-function-pointers) Function Pointers
+- [6.7](#67-extern-methods) Extern Methods
+
+Additionally, the [Standard Library contains a class named LowLevel that provides
+various helper methods](StandardLibrary/LowLevel.md).
 
 ## 6.1 Low-Level Contexts
 
+Low-level contexts are created by applying the `lowlevel` modifier to a type
+declaration, method, or block.
 Low-level contexts are created by applying the `lowlevel` modifier to a type
 declaration, method, or block.
 
@@ -31,12 +44,19 @@ lowlevel { ... }
 The low-level context extends from the declaration to all statements inside. In
 other words, if a method is marked `lowlevel`, the parameter list of that method
 can use low-level exclusive features.
+The low-level context extends from the declaration to all statements inside. In
+other words, if a method is marked `lowlevel`, the parameter list of that method
+can use low-level exclusive features.
 
 ## 6.2 Structures
 
 Structures are custom data types that pass by value and use the stack, unlike
 classes which are heap-allocated.
+Structures are custom data types that pass by value and use the stack, unlike
+classes which are heap-allocated.
 
+Structures only allow field declarations with no initializers. Fields within
+structures cannot be constants or references.
 Structures only allow field declarations with no initializers. Fields within
 structures cannot be constants or references.
 
@@ -49,11 +69,15 @@ struct MyStruct {
 
 Creating a new instance of a structure uses the same `new` keyword as classes,
 but the constructor cannot be overridden and always takes no arguments:
+Creating a new instance of a structure uses the same `new` keyword as classes,
+but the constructor cannot be overridden and always takes no arguments:
 
 ```belte
 var myInstance = new MyStruct();
 ```
 
+Because of this, all fields must manually be written to after structure
+creation:
 Because of this, all fields must manually be written to after structure
 creation:
 
@@ -66,11 +90,20 @@ myInstance.b = "Hello";
 
 Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
 C-style arrays.
+Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
+C-style arrays.
 
 ```belte
 int![]! v = { 1, 2, 3 };
+int![]! v = { 1, 2, 3 };
 ```
 
+Arrays are heap allocated and have no members. To sort or get the length of the
+array,
+[`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
+
+Arrays are runtime checked, meaning trying to access an index outside the bounds
+of the array will throw an exception.
 Arrays are heap allocated and have no members. To sort or get the length of the
 array,
 [`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
