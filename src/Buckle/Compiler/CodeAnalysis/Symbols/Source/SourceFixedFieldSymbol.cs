@@ -39,10 +39,12 @@ internal class SourceFixedFieldSymbol : SourceMemberFieldSymbolFromDeclarator {
                 binder = new ExecutableCodeBinder(sizeExpression, binder.containingMember, binder).GetBinder(sizeExpression);
 
                 var intType = CorLibrary.GetSpecialType(SpecialType.Int32);
+                var boundSize = binder.BindValue(sizeExpression, diagnostics, Binder.BindValueKind.RValue);
+                boundSize = Binder.ReduceNumericIfApplicable(intType, boundSize);
 
                 var boundSizeExpression = binder.GenerateConversionForAssignment(
                     intType,
-                    binder.BindValue(sizeExpression, diagnostics, Binder.BindValueKind.RValue),
+                    boundSize,
                     diagnostics
                 );
 

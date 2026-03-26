@@ -24,6 +24,15 @@ internal sealed class SubstitutedFieldSymbol : WrappedFieldSymbol {
         return originalDefinition.GetAttributes();
     }
 
+    // TODO Technically reachable? Need to implement
+    // internal override NamedTypeSymbol FixedImplementationType(PEModuleBuilder emitModule) {
+    //     // This occurs rarely, if ever.  The scenario would be a generic struct
+    //     // containing a fixed-size buffer.  Given the rarity there would be little
+    //     // benefit to "optimizing" the performance of this by caching the
+    //     // translated implementation type.
+    //     return (NamedTypeSymbol)_containingType.TypeSubstitution.SubstituteType(OriginalDefinition.FixedImplementationType(emitModule)).Type;
+    // }
+
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
         if (_lazyType is null) {
             var type = _containingType.templateSubstitution.SubstituteType(

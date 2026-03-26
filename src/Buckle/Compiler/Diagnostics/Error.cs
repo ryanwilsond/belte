@@ -1728,6 +1728,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpression, location, message);
     }
 
+    internal static BelteDiagnostic FixedNeedsLValue(TextLocation location) {
+        var message = $"fixed size buffers can only be accessed through locals or fields";
+        return CreateError(DiagnosticCode.ERR_FixedNeedsLValue, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

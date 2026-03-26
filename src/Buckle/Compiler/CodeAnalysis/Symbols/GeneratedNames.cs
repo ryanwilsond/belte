@@ -32,6 +32,10 @@ internal static class GeneratedNames {
         return result.ToStringAndFree();
     }
 
+    internal static string MakeFixedFieldImplementationName(string fieldName) {
+        return "<" + fieldName + ">e__FixedBuffer";
+    }
+
     internal static string MakeClosureName(
         string topLevelMethodName,
         string localFunctionName,

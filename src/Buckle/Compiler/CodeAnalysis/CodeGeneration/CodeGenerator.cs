@@ -401,6 +401,15 @@ internal sealed partial class CodeGenerator {
             );
 
         _builder.EmitWithSymbolToken(field.refKind == RefKind.None ? OpCode.Ldflda : OpCode.Ldfld, field);
+
+        if (field.isFixedSizeBuffer) {
+            var fixedImpl = _module.GetFixedImplementationType(field as SourceFixedFieldSymbol);
+            var fixedElementField = fixedImpl.fixedElementField;
+
+            if (fixedElementField is not null)
+                _builder.EmitWithSymbolToken(OpCode.Ldflda, fixedElementField);
+        }
+
         return tempOpt;
     }
 

@@ -339,6 +339,10 @@ internal sealed partial class Executor : ModuleBuilder {
         randomField = typeof(Executor).GetField("Random", BindingFlags.Public | BindingFlags.Static);
     }
 
+    internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
+        return _program.fixedImplementationTypes[field];
+    }
+
     internal MethodInfo GetNullAssert(TypeSymbol type) {
         var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
@@ -594,6 +598,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (f.isFixedSizeBuffer) {
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeBuilder);
+                    continue;
+                }
+
                 var fieldType = (f.type.typeKind == TypeKind.FunctionPointer)
                     ? typeof(IntPtr)
                     : GetType(f.type, f.refKind != RefKind.None);
@@ -614,6 +623,40 @@ internal sealed partial class Executor : ModuleBuilder {
             if (pair.Item1.containingType.originalDefinition.Equals(type))
                 CreateMethodDefinition(pair.Item1, pair.Item2, typeBuilder);
         }
+    }
+
+    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeBuilder typeBuilder) {
+        var fixedImpl = GetFixedImplementationType(field);
+
+        var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
+        var elementSize = elementType.FixedBufferElementSizeInBytes();
+
+        var nestedBuilder = typeBuilder.DefineNestedType(
+            fixedImpl.name,
+            GetTypeAttributes(fixedImpl, true),
+            GetBaseType(fixedImpl),
+            PackingSize.Unspecified,
+            field.fixedSize * elementSize
+        );
+
+        var nestedBufferField = fixedImpl.fixedElementField;
+        var nestedBufferFieldBuilder = nestedBuilder.DefineField(
+            nestedBufferField.name,
+            GetType(nestedBufferField.type),
+            GetFieldAttributes(nestedBufferField)
+        );
+
+        var adaptedFieldBuilder = typeBuilder.DefineField(
+            field.name,
+            nestedBuilder,
+            GetFieldAttributes(field)
+        );
+
+        _fields.Add(field, adaptedFieldBuilder);
+        _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
+        _types.Add(fixedImpl, nestedBuilder);
+
+        nestedBuilder.CreateType();
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {

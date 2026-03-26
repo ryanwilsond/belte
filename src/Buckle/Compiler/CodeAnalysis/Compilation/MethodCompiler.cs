@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -25,6 +26,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly Predicate<Symbol> _filter;
 
+    private Dictionary<FieldSymbol, NamedTypeSymbol> _lazyFixedImplementationTypes;
     private MethodSymbol _entryPoint;
     private MethodSymbol _updatePoint;
 
@@ -115,6 +117,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _types.ToImmutableAndFree(),
             _typeLayouts.ToImmutableDictionary(),
             _synthesizedNestedTypes,
+            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
             _entryPoint,
             _updatePoint,
             _compilation.previous?.boundProgram
@@ -158,6 +161,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _types.ToImmutableArray(),
             _typeLayouts.ToImmutableDictionary(),
             _synthesizedNestedTypes,
+            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
             null,
             null,
             _compilation.previous?.boundProgram
@@ -243,6 +247,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     if (f.isConstExpr)
                         f.GetConstantValue(ConstantFieldsInProgress.Empty);
 
+                    if (f.isFixedSizeBuffer)
+                        SetFixedImplementationType(f as SourceMemberFieldSymbol);
+
                     break;
             }
         }
@@ -267,6 +274,19 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         state.Free();
     }
 
+    private void SetFixedImplementationType(SourceMemberFieldSymbol field) {
+        if (_lazyFixedImplementationTypes is null)
+            Interlocked.CompareExchange(ref _lazyFixedImplementationTypes, [], null);
+
+        lock (_lazyFixedImplementationTypes) {
+            if (_lazyFixedImplementationTypes.TryGetValue(field, out _))
+                return;
+
+            var result = new FixedFieldImplementationType(field);
+            _lazyFixedImplementationTypes.Add(field, result);
+        }
+    }
+
     private void CompileMethod(
         MethodSymbol method,
         int methodOrdinal,
@@ -274,6 +294,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         TypeCompilationState state) {
         if (method.isAbstract)
             return;
+
+        var oldImportChain = state.currentImportChain;
 
         var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
         BoundBlockStatement analyzedInitializers = null;
@@ -303,7 +325,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             currentDiagnostics,
             includeInitializers,
             analyzedInitializers,
-            ref _entryPoint
+            ref _entryPoint,
+            out var importChain
         );
 
         if (body is null || !_emitting || currentDiagnostics.AnyErrors()) {
@@ -311,6 +334,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _methodBodies.Add(method, body);
             return;
         }
+
+        importChain ??= processedInitializers.firstImportChain;
+        state.currentImportChain = importChain;
 
         var loweredBody = LowerBody(
             method,
@@ -337,6 +363,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         }
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
+        state.currentImportChain = oldImportChain;
         _methodBodies.Add(method, loweredBody);
     }
 
@@ -370,7 +397,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         MethodSymbol method,
         TypeCompilationState compilationState,
         BelteDiagnosticQueue diagnostics) {
-        MethodSymbol _ = null;
+        MethodSymbol _1 = null;
 
         return BindMethodBody(
             method,
@@ -378,7 +405,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             diagnostics,
             includeInitializers: false,
             initializersBody: null,
-            entryPoint: ref _
+            entryPoint: ref _1,
+            importChain: out _
         );
     }
 
@@ -388,8 +416,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BelteDiagnosticQueue diagnostics,
         bool includeInitializers,
         BoundBlockStatement initializersBody,
-        ref MethodSymbol entryPoint) {
+        ref MethodSymbol entryPoint,
+        out ImportChain importChain) {
         BoundBlockStatement body = null;
+        importChain = null;
         var syntax = method.GetNonNullSyntaxNode();
         initializersBody ??= new BoundBlockStatement(syntax, [], [], []);
         var builder = ArrayBuilder<BoundStatement>.GetInstance();
@@ -413,6 +443,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
             if (bodyBinder is null)
                 return null;
+
+            importChain = bodyBinder.importChain;
 
             var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
 

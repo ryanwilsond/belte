@@ -3535,4 +3535,6 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // ! Error_BU0358_FixedNeedsLValue
 }

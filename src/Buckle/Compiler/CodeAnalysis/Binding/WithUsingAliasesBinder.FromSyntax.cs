@@ -46,5 +46,20 @@ internal abstract partial class WithUsingAliasesBinder {
 
             return _lazyUsingAliasesMap;
         }
+
+        private protected override ImportChain BuildImportChain() {
+            var previous = next.importChain;
+
+            if (_declarationSyntax is BaseNamespaceDeclarationSyntax namespaceDecl) {
+                var name = namespaceDecl.name;
+
+                while (name is QualifiedNameSyntax dotted) {
+                    previous = new ImportChain(Imports.Empty, previous);
+                    name = dotted.left;
+                }
+            }
+
+            return new ImportChain(_declaringSymbol.GetImports(_declarationSyntax, basesBeingResolved: null), previous);
+        }
     }
 }

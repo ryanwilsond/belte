@@ -17,6 +17,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
@@ -27,6 +28,8 @@ namespace Buckle.CodeAnalysis;
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
 public sealed partial class Compilation {
+    private static readonly Func<SyntaxTree, SmallConcurrentSetOfInts> CreateSetCallback =
+        t => new SmallConcurrentSetOfInts();
     private readonly static Predicate<Symbol> SkipLibrariesFilter
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
@@ -35,6 +38,7 @@ public sealed partial class Compilation {
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
 
+    private ConcurrentDictionary<SyntaxTree, SmallConcurrentSetOfInts> _lazyTreeToUsedImportDirectivesMap;
     private BelteDiagnosticQueue _lazyDeclarationDiagnostics;
     private BoundProgram _lazyBoundProgram;
     private BelteDiagnosticQueue _lazyMethodDiagnostics;
@@ -175,6 +179,15 @@ public sealed partial class Compilation {
             }
 
             return _lazyPreviousAnalyses;
+        }
+    }
+
+    private ConcurrentDictionary<SyntaxTree, SmallConcurrentSetOfInts> treeToUsedImportDirectivesMap {
+        get {
+            if (_lazyTreeToUsedImportDirectivesMap is null)
+                InterlockedOperations.Initialize(ref _lazyTreeToUsedImportDirectivesMap, new());
+
+            return _lazyTreeToUsedImportDirectivesMap;
         }
     }
 
@@ -767,6 +780,17 @@ public sealed partial class Compilation {
                 == previousWeakReference) {
                 return newFactory;
             }
+        }
+    }
+
+    internal void MarkImportDirectiveAsUsed(SyntaxReference node) {
+        MarkImportDirectiveAsUsed(node.syntaxTree, node.span.start);
+    }
+
+    internal void MarkImportDirectiveAsUsed(SyntaxTree? syntaxTree, int position) {
+        if (syntaxTree is not null) {
+            var set = treeToUsedImportDirectivesMap.GetOrAdd(syntaxTree, CreateSetCallback);
+            set.Add(position);
         }
     }
 

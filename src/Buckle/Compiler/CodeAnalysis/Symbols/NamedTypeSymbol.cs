@@ -44,6 +44,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         }
     }
 
+    internal virtual FieldSymbol fixedElementField => null;
+
     internal abstract bool mangleName { get; }
 
     internal abstract IEnumerable<string> memberNames { get; }
