@@ -30,6 +30,7 @@ Many code samples can be viewed at [github.com/ryanwilsond/belte/main/samples](h
     - [3.4](Current/Data.md#34-attributes-and-modifiers) Attributes and Modifiers
     - [3.5](Current/Data.md#35-references) References
     - [3.6](Current/Data.md#36-arrays) Arrays
+    - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions
   - [4](Current/ClassesAndObjects.md) Classes and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes
     - [4.2](Current/ClassesAndObjects.md#42-members) Members

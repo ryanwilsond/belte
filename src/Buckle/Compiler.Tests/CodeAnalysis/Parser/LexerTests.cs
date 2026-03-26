@@ -361,6 +361,18 @@ public sealed class LexerTests {
             return true;
         if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.MinusGreaterThanToken)
             return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionOpenBracketToken)
+            return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionPeriodToken)
+            return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionQuestionEqualsToken)
+            return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionToken)
+            return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.DollarQuestionToken)
+            return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionQuestionToken)
+            return true;
 
         return false;
     }

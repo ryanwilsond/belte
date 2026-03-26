@@ -1723,6 +1723,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_IllegalFixedType, location, message);
     }
 
+    internal static BelteDiagnostic InvalidCompileTimeExpression(TextLocation location) {
+        var message = $"expression is not computable at compile time";
+        return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpression, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

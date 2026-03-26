@@ -99,6 +99,8 @@ public static class SyntaxFacts {
             case SyntaxKind.TildeToken:
             case SyntaxKind.AmpersandToken:
             case SyntaxKind.AsteriskToken:
+            case SyntaxKind.DollarToken:
+            case SyntaxKind.DollarQuestionToken:
                 return 17;
             default:
                 return 0;
@@ -259,6 +261,8 @@ public static class SyntaxFacts {
             SyntaxKind.QuestionOpenBracketToken => "?[",
             SyntaxKind.HashToken => "#",
             SyntaxKind.MinusGreaterThanToken => "->",
+            SyntaxKind.DollarToken => "$",
+            SyntaxKind.DollarQuestionToken => "$?",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",

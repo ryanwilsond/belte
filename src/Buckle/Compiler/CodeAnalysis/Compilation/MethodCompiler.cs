@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -58,13 +59,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         var globalNamespace = compilation.globalNamespaceInternal;
 
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
-
-        if (compilation.options.buildMode.Evaluating())
-            typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
-        else
-            typeLayouts = [];
-
+        var typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
         var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
 
         if (previousLayouts is not null) {
@@ -93,6 +88,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         );
 
         methodCompiler.CompileNamespace(globalNamespace);
+        methodCompiler.ComputeCompileTimeExpressions();
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
             methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
@@ -123,6 +119,62 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _updatePoint,
             _compilation.previous?.boundProgram
         );
+    }
+
+    private void ComputeCompileTimeExpressions() {
+        var newMethodBodies = new Dictionary<MethodSymbol, BoundBlockStatement>();
+        var newMethodLayouts = new Dictionary<MethodSymbol, EvaluatorSlotManager>();
+
+        if (!_compilation.options.buildMode.Evaluating()) {
+            var current = _methodBodies;
+            var currentCompilation = _compilation;
+
+            while (currentCompilation is not null) {
+                foreach (var (key, value) in current) {
+                    newMethodBodies.Add(key, EvaluatorSlotRewriter.Rewrite(
+                        key,
+                        value,
+                        _typeLayouts,
+                        _compilation.previous?.boundProgram,
+                        out var manager
+                    ));
+
+                    newMethodLayouts.Add(key, manager);
+                }
+
+                // We have to recompute libraries because they aren't build with evaluator slots in mind
+                currentCompilation = currentCompilation.previous;
+                current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
+            }
+        } else {
+            newMethodBodies = _methodBodies;
+            newMethodLayouts = _methodLayouts;
+        }
+
+        var boundProgram = new BoundProgram(
+            _compilation,
+            newMethodBodies.ToImmutableDictionary(),
+            newMethodLayouts.ToImmutableDictionary(),
+            _types.ToImmutableArray(),
+            _typeLayouts.ToImmutableDictionary(),
+            _synthesizedNestedTypes,
+            null,
+            null,
+            _compilation.previous?.boundProgram
+        );
+
+        var evaluatorContext = new EvaluatorContext(_compilation.options);
+
+        foreach (var (method, body) in _methodBodies) {
+            var loweredBody = CompileTimeLowerer.Lower(
+                body,
+                _diagnostics,
+                boundProgram,
+                evaluatorContext
+            );
+
+            _methodBodies[method] = (BoundBlockStatement)loweredBody;
+        }
     }
 
     private void CompileNamespace(NamespaceSymbol symbol) {
@@ -273,7 +325,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
         if (_compilation.options.buildMode.Evaluating()) {
-            loweredBody = EvaluatorSlotRewriter.Rewrite(method, loweredBody, _typeLayouts, out var slotManager);
+            loweredBody = EvaluatorSlotRewriter.Rewrite(
+                method,
+                loweredBody,
+                _typeLayouts,
+                _compilation.previous?.boundProgram,
+                out var slotManager
+            );
+
             _methodLayouts.Add(method, slotManager);
         }
 

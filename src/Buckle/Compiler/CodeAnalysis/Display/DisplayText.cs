@@ -291,6 +291,9 @@ public sealed class DisplayText {
             case BoundKind.FunctionPointerCallExpression:
                 DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
                 break;
+            case BoundKind.CompileTimeExpression:
+                DisplayCompileTimeExpression(text, (BoundCompileTimeExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -770,6 +773,11 @@ public sealed class DisplayText {
         BoundFunctionPointerCallExpression node) {
         SymbolDisplay.AppendToDisplayText(text, node.functionPointer.signature, SymbolDisplayFormat.QualifiedNameFormat);
         DisplayArguments(text, node.arguments);
+    }
+
+    private static void DisplayCompileTimeExpression(DisplayText text, BoundCompileTimeExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.DollarToken));
+        DisplayNode(text, node.expression);
     }
 
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {

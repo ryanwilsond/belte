@@ -41,6 +41,7 @@ internal sealed class Evaluator {
     private Random _lazyRandom;
     private bool _insideTry;
     private bool _insideUpdate;
+    private bool _insideExpressionEvaluation;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -150,6 +151,15 @@ internal sealed class Evaluator {
 
         hasValue = _hasValue;
         resultType = GetResultType(result);
+        return hasValue ? EvaluatorValue.Format(result, _context) : null;
+    }
+
+    internal object EvaluateExpression(BoundExpression expression, out bool hasValue) {
+        _insideExpressionEvaluation = true;
+        _hasValue = true;
+        var result = EvaluateExpression(expression, true, false);
+        hasValue = _hasValue;
+        _insideExpressionEvaluation = false;
         return hasValue ? EvaluatorValue.Format(result, _context) : null;
     }
 
@@ -443,7 +453,7 @@ internal sealed class Evaluator {
             if (abort)
                 return EvaluatorValue.None;
 
-            if (_insideTry)
+            if (_insideTry || _insideExpressionEvaluation)
                 throw;
 
             exceptions.Add(e);
@@ -2365,7 +2375,6 @@ internal sealed class Evaluator {
     #endregion
 
     #region Libraries
-
 
     private bool CheckStandardMap(
         TextLocation location,
