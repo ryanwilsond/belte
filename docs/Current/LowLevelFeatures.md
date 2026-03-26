@@ -93,7 +93,8 @@ int[] v = { 1, 2, 3 };
 
 To allow for better interop, several numeric types can be used to specify
 specific sizes. These being `int8`, `uint8`, `int16`, `uint16`, `int32`,
-`uint32`, `int64`, `uint64`, `float32`, `float64`.
+`uint32`, `int64`, `uint64`, `float32`, `float64`. These types are always
+non-nullable.
 
 All arithmetic upcasts to `int` and `decimal`, so casting is required in cases
 such as:
@@ -191,7 +192,7 @@ For example:
 ```belte
 void* myPtr = ...;
 // Offset the pointer by 8 bytes
-myPtr = (void*)((int64!)myPtr + 8);
+myPtr = (void*)((int64)myPtr + 8);
 ```
 
 Indexing an operator will automatically offset the pointer and then dereference
@@ -206,7 +207,7 @@ The above example is equivalent to:
 
 ```belte
 char* myPtr = ...;
-char! myChar = *((char*)((int64!)myPtr + 10 * LowLevel.SizeOf<char!>()));
+char! myChar = *((char*)((int64)myPtr + 10 * LowLevel.SizeOf<char!>()));
 ```
 
 ## 6.6 Function Pointers
@@ -221,7 +222,7 @@ can then be called like a normal method:
 var myPtr = &MyMethod;
 var myInt = myPtr(); // myInt = 4
 
-int32! MyMethod() {
+int32 MyMethod() {
   return 4;
 }
 ```

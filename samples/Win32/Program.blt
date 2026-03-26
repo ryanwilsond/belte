@@ -8,11 +8,11 @@
 */
 
 public struct WNDCLASSEX {
-    public uint32! cbSize;
-    public uint32! style;
-    public int64*(int64*, uint32!, int64*, int64*)* lpfnWndProc;
-    public int32! cbClsExtra;
-    public int32! cbWndExtra;
+    public uint32 cbSize;
+    public uint32 style;
+    public int64*(int64*, uint32, int64*, int64*)* lpfnWndProc;
+    public int32 cbClsExtra;
+    public int32 cbWndExtra;
     public int64* hInstance;
     public int64* hIcon;
     public int64* hCursor;
@@ -24,37 +24,37 @@ public struct WNDCLASSEX {
 
 public struct MSG {
     public int64* hWnd;
-    public uint32! message;
+    public uint32 message;
     public int64* wParam;
     public int64* lParam;
-    public uint32! time;
-    public int32! pt_x;
-    public int32! pt_y;
+    public uint32 time;
+    public int32 pt_x;
+    public int32 pt_y;
 }
 
 public static class Program {
-    constexpr int32! SW_SHOW = 5;
+    constexpr int32 SW_SHOW = 5;
 
-    constexpr uint32! WS_OVERLAPPEDWINDOW = 0x00CF0000;
-    constexpr uint32! WS_VISIBLE = 0x10000000;
+    constexpr uint32 WS_OVERLAPPEDWINDOW = 0x00CF0000;
+    constexpr uint32 WS_VISIBLE = 0x10000000;
 
-    constexpr int32! CW_USEDEFAULT = (int32!)0x80000000;
+    constexpr int32 CW_USEDEFAULT = (int32)0x80000000;
 
-    constexpr uint32! WM_DESTROY = 0x0002;
+    constexpr uint32 WM_DESTROY = 0x0002;
 
     [DllImport("user32.dll")]
-    static extern uint16! RegisterClassEx(WNDCLASSEX* lpwcx);
+    static extern uint16 RegisterClassEx(WNDCLASSEX* lpwcx);
 
     [DllImport("user32.dll")]
     static extern int64* CreateWindowEx(
-        uint32! dwExStyle,
+        uint32 dwExStyle,
         char* lpClassName,
         char* lpWindowName,
-        uint32! dwStyle,
-        int32! x,
-        int32! y,
-        int32! nWidth,
-        int32! nHeight,
+        uint32 dwStyle,
+        int32 x,
+        int32 y,
+        int32 nWidth,
+        int32 nHeight,
         int64* hWndParent,
         int64* hMenu,
         int64* hInstance,
@@ -64,19 +64,19 @@ public static class Program {
     static extern int64* GetModuleHandle(string lpModuleName);
 
     [DllImport("user32.dll")]
-    static extern void PostQuitMessage(int32! nExitCode);
+    static extern void PostQuitMessage(int32 nExitCode);
 
     [DllImport("user32.dll")]
-    static extern int64* DefWindowProc(int64* hWnd, uint32! msg, int64* wParam, int64* lParam);
+    static extern int64* DefWindowProc(int64* hWnd, uint32 msg, int64* wParam, int64* lParam);
 
     [DllImport("user32.dll")]
-    static extern bool! ShowWindow(int64* hWnd, int32! nCmdShow);
+    static extern bool! ShowWindow(int64* hWnd, int32 nCmdShow);
 
     [DllImport("user32.dll")]
     static extern bool! UpdateWindow(int64* hWnd);
 
     [DllImport("user32.dll")]
-    static extern int8! GetMessage(MSG* lpMsg, int64* hWnd, uint32! min, uint32! max);
+    static extern int8 GetMessage(MSG* lpMsg, int64* hWnd, uint32 min, uint32 max);
 
     [DllImport("user32.dll")]
     static extern bool! TranslateMessage(MSG* lpMsg);
@@ -87,7 +87,7 @@ public static class Program {
     public static void Main() {
         var hInstance = GetModuleHandle(null);
         var wc = new WNDCLASSEX();
-        wc.cbSize = (uint32!)LowLevel.SizeOf<WNDCLASSEX>();
+        wc.cbSize = (uint32)LowLevel.SizeOf<WNDCLASSEX>();
         wc.lpfnWndProc = &WndProcImpl;
         wc.hInstance = hInstance;
         wc.hbrBackground = (int64*)3;
@@ -103,7 +103,7 @@ public static class Program {
             0,
             wc.lpszClassName,
             windowName,
-            (uint32!)(WS_OVERLAPPEDWINDOW | WS_VISIBLE),
+            (uint32)(WS_OVERLAPPEDWINDOW | WS_VISIBLE),
             CW_USEDEFAULT,
             CW_USEDEFAULT,
             800,
@@ -114,7 +114,7 @@ public static class Program {
             (int64*)0
         );
 
-        if (((int64!)hWnd) == 0) {
+        if (((int64)hWnd) == 0) {
             Console.PrintLine("CreateWindowEx failed");
             return;
         }
@@ -133,7 +133,7 @@ public static class Program {
         LowLevel.FreeCharPtrString(windowName);
     }
 
-    static int64* WndProcImpl(int64* hWnd, uint32! msg, int64* wParam, int64* lParam) {
+    static int64* WndProcImpl(int64* hWnd, uint32 msg, int64* wParam, int64* lParam) {
         if (msg == WM_DESTROY)
             PostQuitMessage(0);
 

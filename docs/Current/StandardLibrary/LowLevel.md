@@ -16,7 +16,7 @@ The Belte public interface for the String class can be found [here](../../../src
 | `string! GetTypeName(Object!)` | Equivalent to calling `Object.GetTypeName()`. |
 | `int! Length<type T>(T!)` | Gets the length of the given array, or 0 if not passed an array. |
 | `void Sort<type T>(T!)` | Sorts the given array, or does nothing if not passed an array. |
-| `int32! SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. |
+| `int32 SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. |
 | `char* CreateCharPtrString(string!)` | Creates a raw `char` array with the content of the passed string and returns a pointer to the first element. |
 | `void FreeCharPtrString(char*)` | Frees the memory used by a raw `char` array*. |
 | `void* GetGCPtr(Object!)` | Creates a garbage collector handle for the given object and returns a pointer to that handle*. |
@@ -64,7 +64,7 @@ class MyClass {
   }
 
   public MyClass* GetPtr() {
-    return (MyClass*) (((int64!)&this) + 232);
+    return (MyClass*) (((int64)&this) + 232);
   }
 }
 

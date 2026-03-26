@@ -598,6 +598,9 @@ internal partial class Binder {
                     return typeToCheck;
             }
 
+            if (typeToCheck.specialType.IsLowLevelNumeric())
+                return typeToCheck;
+
             return typeToCheck.SetIsAnnotated();
         }
 
@@ -612,7 +615,7 @@ internal partial class Binder {
                 return nullableType;
             }
 
-            return new TypeWithAnnotations(nullableType.type.GetNullableUnderlyingType(), false);
+            return new TypeWithAnnotations(nullableType.type.StrippedType(), false);
         }
 
         NamespaceOrTypeOrAliasSymbolWithAnnotations BindAlias() {
