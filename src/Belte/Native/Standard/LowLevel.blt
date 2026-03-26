@@ -10,15 +10,21 @@ public static class LowLevel {
 
     public static int32 SizeOf<type T>();
 
-    public static char* CreateCharPtrString(string! str);
+    public static uint8* CreateLPCSTR(string! str);
 
-    public static void FreeCharPtrString(char* str);
+    public static char* CreateLPCWSTR(string! str);
+
+    public static void FreeLPCSTR(uint8* str);
+
+    public static void FreeLPCWSTR(char* str);
+
+    public static string! ReadLPCSTR(uint8* ptr);
+
+    public static string! ReadLPCWSTR(char* ptr);
 
     public static void* GetGCPtr(Object! obj);
 
     public static void FreeGCHandle(void* ptr);
 
     public static Object! GetObject(void* ptr);
-
-    public static string! ReadLPCSTR(void* ptr);
 }

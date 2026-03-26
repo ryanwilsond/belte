@@ -1719,7 +1719,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IllegalFixedType(TextLocation location) {
-        var message = $"fixed size buffer type must be bool or a numeric primitive";
+        var message = $"fixed size buffer type must a non-nullable bool or a non-nullable sized numeric primitive";
         return CreateError(DiagnosticCode.ERR_IllegalFixedType, location, message);
     }
 

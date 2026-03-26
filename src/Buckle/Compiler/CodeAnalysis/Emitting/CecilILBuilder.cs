@@ -111,7 +111,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
-    internal override void EndTry() {
+    internal override void EndTry(bool emitEndFinally) {
         throw new NotImplementedException();
     }
 
@@ -481,6 +481,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
             CodeGeneration.OpCode.Calli => OpCodes.Calli,
             CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
+            CodeGeneration.OpCode.Sizeof => OpCodes.Sizeof,
             _ => throw new NotImplementedException()
         };
     }

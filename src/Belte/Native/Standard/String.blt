@@ -5,4 +5,6 @@ public static class String {
     public static int Ascii(string! chr);
 
     public static string! Char(int! ascii);
+
+    public static int! Length(string! str);
 }

@@ -43,10 +43,12 @@ internal sealed class RefILBuilder : ILBuilder {
         if (_needsEpilogue) {
             MarkLabel(_epilogue);
 
-            if (!_method.returnsVoid)
+            if (!_method.returnsVoid) {
+                Log(OpCodes.Ldloc, _returnLocal);
                 _iLGenerator.Emit(OpCodes.Ldloc, _returnLocal);
+            }
 
-            _iLGenerator.Emit(OpCodes.Ret);
+            Emit(CodeGeneration.OpCode.Ret);
         }
     }
 
@@ -61,21 +63,30 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         _iLGenerator.BeginExceptionBlock();
+        _logger.WriteLine("Try {");
         _tryStack.Push(new object());
     }
 
     internal override void BeginCatch() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginCatchBlock(typeof(Exception));
+        _logger.WriteLine("} Catch {");
     }
 
     internal override void BeginFinally() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginFinallyBlock();
+        _logger.WriteLine("} Finally {");
     }
 
-    internal override void EndTry() {
+    internal override void EndTry(bool emitEndFinally) {
+        if (emitEndFinally) {
+            Log(OpCodes.Endfinally);
+            _iLGenerator.Emit(OpCodes.Endfinally);
+        }
+
         _iLGenerator.EndExceptionBlock();
+        _logger.WriteLine("} // Try end");
         MarkLabel(_tryStack.Pop());
 
         if (_tryStack.Count > 0)
@@ -86,7 +97,7 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitReturn() {
         if (_tryStack.Count == 0) {
-            _iLGenerator.Emit(OpCodes.Ret);
+            Emit(CodeGeneration.OpCode.Ret);
         } else {
             if (!_method.returnsVoid)
                 Emit(OpCodes.Stloc, _returnLocal);
@@ -106,6 +117,7 @@ internal sealed class RefILBuilder : ILBuilder {
         var paramTypes = type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray();
 
         if (managed) {
+            Log(OpCodes.Calli, type.signature);
             _iLGenerator.EmitCalli(
                 OpCodes.Calli,
                 System.Reflection.CallingConventions.VarArgs,
@@ -114,6 +126,7 @@ internal sealed class RefILBuilder : ILBuilder {
                 Type.EmptyTypes
             );
         } else {
+            Log(OpCodes.Calli, type.signature);
             _iLGenerator.EmitCalli(
                 OpCodes.Calli,
                 System.Runtime.InteropServices.CallingConvention.Winapi,
@@ -324,7 +337,9 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitThrowNullCondition() {
+        Log(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
         _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
+        Log(OpCodes.Throw);
         _iLGenerator.Emit(OpCodes.Throw);
     }
 
@@ -345,6 +360,7 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitToString() {
+        Log(OpCodes.Call, Executor.MethodInfoCache.Object_ToString);
         _iLGenerator.Emit(OpCodes.Call, Executor.MethodInfoCache.Object_ToString);
     }
 
@@ -655,6 +671,8 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
             CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
             CodeGeneration.OpCode.Calli => OpCodes.Calli,
+            CodeGeneration.OpCode.Ldloc => OpCodes.Ldloc,
+            CodeGeneration.OpCode.Sizeof => OpCodes.Sizeof,
             _ => throw new NotImplementedException()
         };
     }

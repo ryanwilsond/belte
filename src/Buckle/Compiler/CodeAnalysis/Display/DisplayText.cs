@@ -294,6 +294,9 @@ public sealed class DisplayText {
             case BoundKind.CompileTimeExpression:
                 DisplayCompileTimeExpression(text, (BoundCompileTimeExpression)node);
                 break;
+            case BoundKind.SizeOfOperator:
+                DisplaySizeOfOperator(text, (BoundSizeOfOperator)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -778,6 +781,13 @@ public sealed class DisplayText {
     private static void DisplayCompileTimeExpression(DisplayText text, BoundCompileTimeExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.DollarToken));
         DisplayNode(text, node.expression);
+    }
+
+    private static void DisplaySizeOfOperator(DisplayText text, BoundSizeOfOperator node) {
+        text.Write(CreateKeyword(SyntaxKind.SizeOfKeyword));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {

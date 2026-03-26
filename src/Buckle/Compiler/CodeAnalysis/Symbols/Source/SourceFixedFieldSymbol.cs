@@ -56,7 +56,7 @@ internal class SourceFixedFieldSymbol : SourceMemberFieldSymbolFromDeclarator {
                     diagnostics
                 );
 
-                if (sizeConstant.specialType.IsNumeric()) {
+                if (sizeConstant is not null && sizeConstant.specialType.IsNumeric()) {
                     var int32Value = (int)sizeConstant.value;
 
                     if (int32Value > 0) {

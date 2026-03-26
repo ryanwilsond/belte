@@ -847,6 +847,19 @@
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
+  <Node Name="SizeOfExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="SizeOfExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="SizeOfKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
   <Node Name="ThrowExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ThrowExpression" />
     <Field Name="throwKeyword" Type="SyntaxToken">

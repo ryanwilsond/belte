@@ -42,7 +42,7 @@ internal abstract class ILBuilder {
 
     internal abstract void BeginFinally();
 
-    internal abstract void EndTry();
+    internal abstract void EndTry(bool emitEndFinally);
 
     internal abstract void EmitReturn();
 

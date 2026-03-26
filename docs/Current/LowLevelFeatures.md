@@ -16,13 +16,8 @@ This may change.
 - [6.5](#65-pointers) Pointers
 - [6.6](#66-function-pointers) Function Pointers
 - [6.7](#67-extern-methods) Extern Methods
-
-Additionally, the [Standard Library contains a class named LowLevel that provides
-various helper methods](StandardLibrary/LowLevel.md).
-- [6.4](#64-numerics) Numerics
-- [6.5](#65-pointers) Pointers
-- [6.6](#66-function-pointers) Function Pointers
-- [6.7](#67-extern-methods) Extern Methods
+- [6.8](#68-fixed-size-buffers) Fixed Size Buffers
+- [6.9](#69-sizeof-operator) Sizeof Operator
 
 Additionally, the [Standard Library contains a class named LowLevel that provides
 various helper methods](StandardLibrary/LowLevel.md).
@@ -240,7 +235,7 @@ The above example is equivalent to:
 
 ```belte
 char* myPtr = ...;
-char! myChar = *((char*)((int64)myPtr + 10 * LowLevel.SizeOf<char!>()));
+char! myChar = *((char*)((int64)myPtr + 10 * sizeof(char!)));
 ```
 
 ## 6.6 Function Pointers
@@ -306,3 +301,73 @@ The method is resolved at runtime, meaning if it cannot be found an exception
 will be thrown.
 
 Extern methods use the `UniCode` char set and the `stdcall` calling convention.
+
+## 6.8 Fixed Size Buffers
+
+Arbitrary blobs of memory can be reserved with fixed size buffers. Fixed size
+buffers are struct fields specifying a numeric type and a quantity:
+
+```belte
+struct MyStruct {
+  int32 field[32];
+}
+```
+
+In the above example, `field` reserves a contiguous piece of memory 128 bytes
+long (`sizeof(int32) * 32 = 128`).
+
+The field is then treated as a pointer to the start of the blob, which can then
+be indexed:
+
+```belte
+var myStruct = new MyStruct();
+myStruct.field[0] = 5;
+myStruct.field[1] = 10;
+...
+
+struct MyStruct {
+  int32 field[32];
+}
+```
+
+The type pointed at by the buffer can be `bool!`, `uint8`, `int8`, `uint16`,
+`int16`, `uint32`, `int32`, `uint64`, `int64`, `float32`, `float64`, or `char!`.
+Note that `int` and `decimal` are not valid types in this context because their
+size is not publicly defined.
+
+## 6.9 Sizeof Operator
+
+The `sizeof(T)` operator is the shorthand form of `$?LowLevel.SizeOf<T>()`. It
+operates on a type. If the type has a known size at compile time, it replaces
+the operator with that value as an `int32!`. Otherwise, it computes the size at
+runtime. Size is calculated in terms of number of bytes.
+
+The following statements are equivalent:
+
+```belte
+var myInt = sizeof(bool!);
+var myInt = $?LowLevel.SizeOf<bool>();
+var myInt = (int32)1;
+```
+
+The following table shows all types with a known size at compile time. All other
+types compute their size at runtime.
+
+| Type | Size |
+|-|-|
+| `bool!` | 1 |
+| `int8` | 1 |
+| `uint8` | 1 |
+| `char!` | 2 |
+| `int16` | 2 |
+| `uint16` | 2 |
+| `int32` | 4 |
+| `uint32` | 4 |
+| `float32` | 4 |
+| `int64` | 8 |
+| `uint64` | 8 |
+| `float64` | 8 |
+
+Note that taking the size of a reference type will return the size of the
+reference itself, not the object. Similarly, taking the size of a pointer
+returns the pointer size, not the size of the pointed at type.

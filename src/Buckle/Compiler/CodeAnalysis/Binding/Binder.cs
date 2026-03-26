@@ -2801,6 +2801,8 @@ internal partial class Binder {
                 return BindArrayCreationExpression((ArrayCreationExpressionSyntax)node, diagnostics);
             case SyntaxKind.NameOfExpression:
                 return BindNameOfExpression((NameOfExpressionSyntax)node, diagnostics);
+            case SyntaxKind.SizeOfExpression:
+                return BindSizeOfExpression((SizeOfExpressionSyntax)node, diagnostics);
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)node, diagnostics);
             case SyntaxKind.InitializerListExpression:
@@ -2961,6 +2963,27 @@ internal partial class Binder {
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
         return new BoundTypeOfExpression(node, boundType, CorLibrary.GetSpecialType(SpecialType.Type), hasError);
+    }
+
+    private BoundExpression BindSizeOfExpression(SizeOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        ExpressionSyntax typeSyntax = node.type;
+        var typeWithAnnotations = BindType(typeSyntax, diagnostics, out var alias);
+        var type = typeWithAnnotations.type;
+
+        var typeHasErrors = type.IsErrorType();
+
+        var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, alias, type, typeHasErrors);
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var sizeInBytes = boundType.type.specialType.SizeInBytes();
+        var constantValue = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
+
+        return new BoundSizeOfOperator(
+            node,
+            boundType,
+            constantValue,
+            int32,
+            typeHasErrors
+        );
     }
 
     private BoundExpression BindNameOfExpression(NameOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
