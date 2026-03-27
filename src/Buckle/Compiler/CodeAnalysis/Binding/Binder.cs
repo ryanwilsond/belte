@@ -1926,39 +1926,55 @@ internal partial class Binder {
         BindValueKind kind,
         BelteDiagnosticQueue diagnostics) {
         switch (expression.kind) {
+            // TODO
+            // case BoundKind.IndexerAccessExpression:
+            // expression = BindIndexerDefaultArgumentsAndParamsCollection((BoundIndexerAccess)expression, valueKind, diagnostics);
+            // break;
+
+            // case BoundKind.ImplicitIndexerAccess: {
+            //         var implicitIndexer = (BoundImplicitIndexerAccess)expression;
+            //         if (implicitIndexer.IndexerOrSliceAccess is BoundIndexerAccess indexerAccess) {
+            //             var kind = GetIndexerAccessorKind(indexerAccess, valueKind);
+            //             expression = implicitIndexer.Update(
+            //                 implicitIndexer.Receiver,
+            //                 implicitIndexer.Argument,
+            //                 implicitIndexer.LengthOrCountAccess,
+            //                 implicitIndexer.ReceiverPlaceholder,
+            //                 indexerAccess.Update(kind),
+            //                 implicitIndexer.ArgumentPlaceholders,
+            //                 implicitIndexer.Type);
+            //         }
+            //     }
+            //     break;
+
             case BoundKind.UnconvertedInitializerList:
                 if (kind == BindValueKind.RValue)
                     return expression;
 
                 break;
-                // TODO Need to be able to check the refness while being aware of the lhs
-                // case BoundKind.DataContainerExpression: {
-                //         var symbol = ((BoundDataContainerExpression)expression).dataContainer;
+            case BoundKind.PointerIndirectionOperator:
+                if ((kind & BindValueKind.RefersToLocation) == BindValueKind.RefersToLocation) {
+                    var pointerIndirection = (BoundPointerIndirectionOperator)expression;
+                    expression = pointerIndirection.Update(
+                        pointerIndirection.operand,
+                        refersToLocation: true,
+                        pointerIndirection.type
+                    );
+                }
 
-                //         if (kind == BindValueKind.RefConst && !symbol.isConst)
-                //             diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
+                break;
+            case BoundKind.PointerIndexAccessExpression:
+                if ((kind & BindValueKind.RefersToLocation) == BindValueKind.RefersToLocation) {
+                    var elementAccess = (BoundPointerIndexAccessExpression)expression;
+                    expression = elementAccess.Update(
+                        elementAccess.receiver,
+                        elementAccess.index,
+                        refersToLocation: true,
+                        elementAccess.type
+                    );
+                }
 
-                //         if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
-                //             diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
-                //     }
-
-                //     break;
-                // case BoundKind.ParameterExpression:
-                //     if (kind == BindValueKind.RefConst)
-                //         diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
-
-                //     break;
-                // case BoundKind.FieldAccessExpression: {
-                //         var symbol = ((BoundFieldAccessExpression)expression).field;
-
-                //         if (kind == BindValueKind.RefConst && !symbol.isConst)
-                //             diagnostics.Push(Error.ConstantToNonConstantReference(expression.syntax.location));
-
-                //         if (kind == BindValueKind.RefAssignable && (symbol.isConst || symbol.isConstExpr))
-                //             diagnostics.Push(Error.ReferenceToConstant(expression.syntax.location));
-                //     }
-
-                //     break;
+                break;
         }
 
         var hasResolutionErrors = false;
@@ -2263,6 +2279,14 @@ internal partial class Binder {
                 );
             case BoundKind.ValuePlaceholder:
                 break;
+
+            case BoundKind.PointerIndirectionOperator:
+                if (RequiresRefAssignableVariable(valueKind)) {
+                    diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
+                    return false;
+                }
+
+                return true;
         }
 
         diagnostics.Push(GetStandardLValueError(valueKind, node.location));
@@ -3087,6 +3111,7 @@ internal partial class Binder {
                 node,
                 expression,
                 argument,
+                false,
                 CreateErrorType(),
                 true
             );
@@ -3105,6 +3130,7 @@ internal partial class Binder {
             node,
             expression,
             boundConversion,
+            false,
             resultType
         );
     }
@@ -7881,7 +7907,7 @@ internal partial class Binder {
 
         var operandType = operand.Type();
         var pointerType = new PointerTypeSymbol(new TypeWithAnnotations(operandType));
-        return new BoundAddressOfOperator(node, operand, pointerType, operand.hasErrors);
+        return new BoundAddressOfOperator(node, operand, false, pointerType, operand.hasErrors);
     }
 
     private BoundExpression BindPointerIndirectionExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -10891,7 +10917,7 @@ symIsHidden:;
 
         ConstantValue constantValue = null;
 
-        if (conversion.kind is not ConversionKind.ImplicitNullToPointer and not
+        if (conversion.exists && conversion.kind is not ConversionKind.ImplicitNullToPointer and not
             ConversionKind.ExplicitIntegerToPointer and not ConversionKind.ExplicitPointerToInteger) {
             constantValue = conversion.method is null
                 ? ConstantFolding.FoldCast(source, new TypeWithAnnotations(destination), diagnostics)

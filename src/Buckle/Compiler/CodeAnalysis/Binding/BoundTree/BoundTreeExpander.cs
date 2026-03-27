@@ -613,6 +613,7 @@ internal abstract class BoundTreeExpander {
         if (statements.Count != 0) {
             replacement = expression.Update(
                 newOperand,
+                expression.isLoweredFixedField,
                 expression.type
             );
 
@@ -757,6 +758,7 @@ internal abstract class BoundTreeExpander {
             replacement = expression.Update(
                 newOperand,
                 newIndex,
+                expression.refersToLocation,
                 expression.type
             );
 

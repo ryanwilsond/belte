@@ -467,6 +467,8 @@ internal static class StandardLibrary {
             StaticMethod("Tanh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Truncate", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
             StaticMethod("Truncate", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
+            StaticMethod("DegToRad", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
+            StaticMethod("DegToRad", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
         ]);
     }
 
@@ -662,6 +664,10 @@ internal static class StandardLibrary {
                 => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
+            { "Math_DegToRad_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : double.DegreesToRadians(Convert.ToDouble(a)); }) },
+            { "Math_DegToRad_D", new Func<object, object, object, object>((a, b, c)
+                => { return double.DegreesToRadians(Convert.ToDouble(a)); }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)

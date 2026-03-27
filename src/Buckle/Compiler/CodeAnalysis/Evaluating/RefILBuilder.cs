@@ -279,6 +279,9 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
 
+        if (from != SpecialType.String && to != SpecialType.String)
+            throw ExceptionUtilities.UnexpectedValue((from, to));
+
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", flags, [typeof(string)]));
@@ -286,19 +289,82 @@ internal sealed class RefILBuilder : ILBuilder {
             case (SpecialType.String, SpecialType.Int):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", flags, [typeof(string)]));
                 break;
-            case (SpecialType.Decimal, SpecialType.Int):
-                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", flags, [typeof(double)]));
-                break;
             case (SpecialType.String, SpecialType.Decimal):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", flags, [typeof(string)]));
                 break;
-            case (SpecialType.Int, SpecialType.Decimal):
-                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", flags, [typeof(long)]));
+            case (SpecialType.String, SpecialType.Char):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToChar", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt8):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToByte", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt16):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToUInt16", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt32):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToUInt32", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt64):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToUInt64", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int8):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToSByte", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int16):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt16", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int32):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt32", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int64):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Float32):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToSingle", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Float64):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", flags, [typeof(string)]));
+                break;
+            case (SpecialType.Bool, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(bool)]));
                 break;
             case (SpecialType.Int, SpecialType.String):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(long)]));
                 break;
             case (SpecialType.Decimal, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(double)]));
+                break;
+            case (SpecialType.Char, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(char)]));
+                break;
+            case (SpecialType.UInt8, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(byte)]));
+                break;
+            case (SpecialType.UInt16, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(ushort)]));
+                break;
+            case (SpecialType.UInt32, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(uint)]));
+                break;
+            case (SpecialType.UInt64, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(ulong)]));
+                break;
+            case (SpecialType.Int8, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(sbyte)]));
+                break;
+            case (SpecialType.Int16, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(short)]));
+                break;
+            case (SpecialType.Int32, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(int)]));
+                break;
+            case (SpecialType.Int64, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(long)]));
+                break;
+            case (SpecialType.Float32, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(float)]));
+                break;
+            case (SpecialType.Float64, SpecialType.String):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(double)]));
                 break;
             default:

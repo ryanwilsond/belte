@@ -9,6 +9,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Microsoft.Xna.Framework.Graphics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -94,9 +95,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var result = (BoundFieldAccessExpression)base.VisitFieldAccessExpression(node);
 
         if (node.field.isFixedSizeBuffer)
-            return new BoundAddressOfOperator(syntax, result, node.type);
+            return Visit(new BoundAddressOfOperator(syntax, result, true, node.type));
 
         return result;
+    }
+
+    internal override BoundNode VisitAddressOfOperator(BoundAddressOfOperator node) {
+        if (node.isLoweredFixedField)
+            return node;
+
+        return base.VisitAddressOfOperator(node);
     }
 
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -246,24 +254,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(
                 new BoundPointerIndirectionOperator(syntax,
                     node.receiver,
-                    false,
+                    node.refersToLocation,
                     resultType
                 )
             );
         }
 
-        var size_t = resultType.specialType.SizeInBytes();
-        size_t = size_t == 0 ? UIntPtr.Size : size_t;
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var sizeInBytes = resultType.specialType.SizeInBytes();
+        var constantValue = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
 
         var binaryType = UIntPtr.Size switch {
             4 => CorLibrary.GetSpecialType(SpecialType.UInt32),
             8 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-            _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
-        };
-
-        object castedSizeT = UIntPtr.Size switch {
-            4 => Convert.ToUInt32(size_t),
-            8 => Convert.ToUInt64(size_t),
             _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
         };
 
@@ -287,9 +290,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
                                 null
                             ),
                             BinaryOperatorKind.UIntMultiplication,
-                            Literal(syntax,
-                                castedSizeT,
-                                binaryType
+                            Cast(syntax,
+                                binaryType,
+                                new BoundSizeOfOperator(syntax,
+                                    new BoundTypeExpression(syntax,
+                                        new TypeWithAnnotations(resultType),
+                                        null,
+                                        resultType
+                                    ),
+                                    constantValue,
+                                    int32
+                                ),
+                                Conversion.ImplicitNumeric,
+                                null
                             ),
                             binaryType
                         ),
@@ -298,7 +311,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     Conversion.ExplicitIntegerToPointer,
                     null
                 ),
-                false,
+                node.refersToLocation,
                 resultType
             )
         );
