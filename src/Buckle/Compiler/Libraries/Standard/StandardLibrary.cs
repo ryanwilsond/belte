@@ -15,6 +15,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
@@ -89,6 +90,15 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol CallingConvention {
+        get {
+            if (_lazyCallingConvention is null)
+                Interlocked.CompareExchange(ref _lazyCallingConvention, GenerateCallingConvention(), null);
+
+            return _lazyCallingConvention;
+        }
+    }
+
     internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
         get {
             if (_lazyEvaluatorMap is null)
@@ -107,6 +117,7 @@ internal static class StandardLibrary {
         yield return Time;
         yield return Random;
         yield return String;
+        yield return CallingConvention;
     }
 
     internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
@@ -126,6 +137,13 @@ internal static class StandardLibrary {
             StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
             StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
             StaticMethod("Length", SpecialType.Int, [("str", SpecialType.String)]),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateCallingConvention() {
+        return StaticClass("CallingConvention", [
+            ConstExprField("Winapi", SpecialType.UInt32, 1),
+            ConstExprField("Cdecl", SpecialType.UInt32, 2),
         ]);
     }
 

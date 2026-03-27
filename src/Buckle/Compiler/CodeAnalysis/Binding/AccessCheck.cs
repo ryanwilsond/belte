@@ -93,6 +93,10 @@ internal static class AccessCheck {
                     throughType,
                     out failedThroughTypeCheck
                 );
+            case SymbolKind.ErrorType:
+                // TODO This should only ever be reached because we ignore diagnostics during attribute binding
+                // TODO Once attributes are more established remove this case
+                return true;
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }

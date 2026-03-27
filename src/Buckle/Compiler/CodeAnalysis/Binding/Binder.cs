@@ -11227,7 +11227,28 @@ symIsHidden:;
         var visitor = new AttributeExpressionVisitor(this);
         var arguments = boundAttribute.constructorArguments;
         var constructorArgsArray = visitor.VisitArguments(arguments, diagnostics, ref hasErrors);
-        var namedArguments = visitor.VisitNamedArguments(boundAttribute.namedArguments, diagnostics, ref hasErrors);
+        // var namedArguments = visitor.VisitNamedArguments(boundAttribute.namedArguments, diagnostics, ref hasErrors);
+        var namedBuilder = ArrayBuilder<KeyValuePair<string, TypedConstant>>.GetInstance();
+
+        if (boundAttribute.constructorArgumentNamesOpt != default) {
+            for (var i = 0; i < arguments.Length; i++) {
+                var name = boundAttribute.constructorArgumentNamesOpt[i];
+                var expression = arguments[i];
+
+                if (name is null || expression.constantValue is null)
+                    continue;
+
+                var typedConstant = new TypedConstant(
+                    expression.type,
+                    TypedConstantKind.Primitive,
+                    expression.constantValue.value
+                );
+
+                namedBuilder.Add(new KeyValuePair<string, TypedConstant>(name, typedConstant));
+            }
+        }
+
+        var namedArguments = namedBuilder.ToImmutable();
 
         var argsToParamsOpt = boundAttribute.constructorArgumentsToParamsOpt;
         ImmutableArray<TypedConstant> rewrittenArguments;
