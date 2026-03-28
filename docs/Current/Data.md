@@ -49,13 +49,16 @@ In addition, nullability affects casting:
 
 ## 3.2 Operators
 
+### 3.2.1 Operator Precedence
+
 Operators are used to interact with data. Each operator takes in one or more operands to perform on. Operators follow a
 strict order of precedence:
 
 | Operators | Category |
 |-|-|
-| a\[i\], a?\[i\], f(x), (T)y, x.y, x?.y, x++, x--, x!, new, typeof | Primary |
-| +x, -x, !x, ~x, ++x, --x | Unary |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, new, typeof, nameof, sizeof | Primary |
+| +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
+| x..y, x?..y | Cascade |
 | x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
@@ -69,6 +72,35 @@ strict order of precedence:
 | x \|\| y | Conditional OR |
 | x ?? y | Null-Coalescing |
 | c ? t : f | Tertiary Conditional |
+
+### 3.2.2 Uncommon Operators
+
+`a?[i]` is a conditional indexer. If `a` is null, the index is not performed.
+
+`x?.y` is a conditional member access. If `a` is null, the access is not performed.
+
+`x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
+
+`x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
+discarded.
+
+For example:
+
+```belte
+var a = new Obj()..M()..f=3;
+```
+
+The above example is equivalent to:
+
+```belte
+var temp = new Obj();
+temp.M();
+temp.f = 3;
+var a = temp;
+```
+
+`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
+null.
 
 ## 3.3 Variables and Constants
 
