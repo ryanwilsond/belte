@@ -9,7 +9,6 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
-using Microsoft.Xna.Framework.Graphics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
