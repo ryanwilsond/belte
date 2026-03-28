@@ -1200,9 +1200,12 @@ internal sealed class Evaluator {
     #region Operators
 
     private EvaluatorValue EvaluateConditionalOperator(BoundConditionalOperator node, bool used, ValueWrapper<bool> abort) {
-        var condition = EvaluateExpression(node.condition, true, abort).@bool;
+        var condition = EvaluateExpression(node.condition, true, abort);
 
-        if (condition)
+        if (condition.kind == ValueKind.Null)
+            throw new BelteNullReferenceException(node.condition.syntax.location);
+
+        if (condition.@bool)
             return EvaluateExpression(node.trueExpression, used, abort);
         else
             return EvaluateExpression(node.falseExpression, used, abort);

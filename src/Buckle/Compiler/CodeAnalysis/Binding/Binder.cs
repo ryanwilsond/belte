@@ -1151,22 +1151,26 @@ internal partial class Binder {
     internal TypeWithAnnotations BindTypeOrImplicitType(
         TypeSyntax syntax,
         BelteDiagnosticQueue diagnostics,
-        out bool isImplicitlyTyped) {
-        return BindTypeOrImplicitType(syntax, diagnostics, out isImplicitlyTyped, out _);
+        out bool isImplicitlyTyped,
+        out bool isNonNullable) {
+        return BindTypeOrImplicitType(syntax, diagnostics, out isImplicitlyTyped, out isNonNullable, out _);
     }
 
     internal TypeWithAnnotations BindTypeOrImplicitType(
         TypeSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool isImplicitlyTyped,
+        out bool isNonNullable,
         out AliasSymbol alias) {
         if (syntax.isImplicitlyTyped || (syntax is NonNullableTypeSyntax n && n.type.isImplicitlyTyped)) {
             isImplicitlyTyped = true;
+            isNonNullable = syntax.kind == SyntaxKind.NonNullableType;
             alias = null;
             return new TypeWithAnnotations(null, true);
         } else {
             var symbol = BindTypeOrAlias(syntax, diagnostics);
             isImplicitlyTyped = false;
+            isNonNullable = false;
             return UnwrapAlias(symbol, out alias, diagnostics, syntax).typeWithAnnotations;
         }
     }
@@ -1707,7 +1711,8 @@ internal partial class Binder {
     private BoundExpression BindUnexpectedArrayInitializer(
         InitializerListExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
-        bool inferType) {
+        bool inferType,
+        bool shouldLiftIfPossible = true) {
         var result = BindArrayInitializerList(
             diagnostics,
             node,
@@ -1718,7 +1723,7 @@ internal partial class Binder {
         );
 
         if (inferType)
-            return InferTypeOfArrayInitializer(result, diagnostics);
+            return InferTypeOfArrayInitializer(result, diagnostics, shouldLiftIfPossible);
 
         if (!result.hasErrors && !inferType) {
             result = new BoundInitializerList(
@@ -1734,7 +1739,8 @@ internal partial class Binder {
 
     private BoundExpression InferTypeOfArrayInitializer(
         BoundInitializerList expression,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        bool shouldLiftIfPossible) {
         var shouldLift = true;
         TypeSymbol foundElementType = null;
         TypeWithAnnotations foundTypeWithAnnotations;
@@ -1774,7 +1780,7 @@ internal partial class Binder {
 
         foundTypeWithAnnotations = new TypeWithAnnotations(foundElementType);
 
-        if (shouldLift)
+        if (shouldLift && shouldLiftIfPossible)
             foundTypeWithAnnotations = foundTypeWithAnnotations.SetIsAnnotated();
 
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
@@ -1793,7 +1799,8 @@ internal partial class Binder {
             type
         );
 
-        type = new TypeWithAnnotations(type).SetIsAnnotated().type;
+        if (shouldLiftIfPossible)
+            type = new TypeWithAnnotations(type).SetIsAnnotated().type;
 
         return new BoundArrayCreationExpression(
             expression.syntax,
@@ -9947,6 +9954,7 @@ symIsHidden:;
             ref isConst,
             ref isConstExpr,
             out var isImplicitlyTyped,
+            out var isNonNullable,
             out var alias
         );
 
@@ -9957,6 +9965,7 @@ symIsHidden:;
         return BindVariableDeclaration(
             kind,
             isImplicitlyTyped,
+            isNonNullable,
             node.declaration,
             typeSyntax,
             declarationType,
@@ -9971,6 +9980,7 @@ symIsHidden:;
     private protected BoundLocalDeclarationStatement BindVariableDeclaration(
         DataContainerDeclarationKind kind,
         bool isImplicitlyTyped,
+        bool isNonNullable,
         VariableDeclarationSyntax declaration,
         TypeSyntax typeSyntax,
         TypeWithAnnotations declarationType,
@@ -9987,6 +9997,7 @@ symIsHidden:;
             dataContainer,
             kind,
             isImplicitlyTyped,
+            isNonNullable,
             declaration,
             typeSyntax,
             declarationType,
@@ -10031,6 +10042,7 @@ symIsHidden:;
         SourceDataContainerSymbol localSymbol,
         DataContainerDeclarationKind kind,
         bool isImplicitlyTyped,
+        bool isNonNullable,
         VariableDeclarationSyntax declaration,
         TypeSyntax typeSyntax,
         TypeWithAnnotations declarationType,
@@ -10064,7 +10076,7 @@ symIsHidden:;
                 diagnostics.Push(Error.ConstantAndVariable(localSymbol.location));
             }
 
-            initializer = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration);
+            initializer = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration, !isNonNullable);
 
             if (initializer is not null && initializer.IsLiteralNull()) {
                 diagnostics.Push(Error.NullAssignOnImplicit(declaration.location));
@@ -10089,13 +10101,27 @@ symIsHidden:;
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else {
-                    if (!initializerType.IsNullableType() && !localSymbol.isConstExpr && !localSymbol.isConst) {
+                    if (!initializerType.IsNullableType() && !localSymbol.isConstExpr &&
+                        !localSymbol.isConst && !isNonNullable) {
                         if (!initializer.type.IsStructType() && initializer.type.typeKind != TypeKind.FunctionPointer &&
                             initializer.type.typeKind != TypeKind.Pointer &&
                             (initializer.kind == BoundKind.ObjectCreationExpression ||
                             initializer.constantValue is not null)) {
                             declarationType = declarationType.SetIsAnnotated();
-                            initializer = GenerateConversionForAssignment(declarationType.type, initializer, diagnostics);
+                            initializer = GenerateConversionForAssignment(
+                                declarationType.type,
+                                initializer,
+                                diagnostics
+                            );
+                        }
+                    } else {
+                        if (isNonNullable && declarationType.IsNullableType()) {
+                            declarationType = new TypeWithAnnotations(declarationType.nullableUnderlyingTypeOrSelf);
+                            initializer = GenerateConversionForAssignment(
+                                declarationType.type,
+                                initializer,
+                                diagnostics
+                            );
                         }
                     }
                 }
@@ -10210,16 +10236,18 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics,
         RefKind refKind,
         EqualsValueClauseSyntax initializer,
-        BelteSyntaxNode errorSyntax) {
+        BelteSyntaxNode errorSyntax,
+        bool shouldLiftIfPossible) {
         IsInitializerRefKindValid(initializer, initializer, refKind, diagnostics, out var valueKind, out var value);
-        return BindInferredVariableInitializer(diagnostics, value, valueKind, errorSyntax);
+        return BindInferredVariableInitializer(diagnostics, value, valueKind, errorSyntax, shouldLiftIfPossible);
     }
 
     private protected BoundExpression BindInferredVariableInitializer(
         BelteDiagnosticQueue diagnostics,
         ExpressionSyntax initializer,
         BindValueKind valueKind,
-        BelteSyntaxNode errorSyntax) {
+        BelteSyntaxNode errorSyntax,
+        bool shouldLiftIfPossible = true) {
         if (initializer is null) {
             diagnostics.Push(Error.NoInitOnImplicit(errorSyntax.location));
             return null;
@@ -10229,7 +10257,8 @@ symIsHidden:;
             var result = BindUnexpectedArrayInitializer(
                 (InitializerListExpressionSyntax)initializer,
                 diagnostics,
-                true
+                true,
+                shouldLiftIfPossible
             );
 
             return CheckValue(result, valueKind, diagnostics);
@@ -10344,8 +10373,15 @@ symIsHidden:;
         ref bool isConst,
         ref bool isConstExpr,
         out bool isImplicitlyTyped,
+        out bool isNonNullable,
         out AliasSymbol alias) {
-        var declType = BindTypeOrImplicitType(typeSyntax.SkipRef(out _), diagnostics, out isImplicitlyTyped, out alias);
+        var declType = BindTypeOrImplicitType(
+            typeSyntax.SkipRef(out _),
+            diagnostics,
+            out isImplicitlyTyped,
+            out isNonNullable,
+            out alias
+        );
 
         if (!isImplicitlyTyped) {
             if (declType.nullableUnderlyingTypeOrSelf.isStatic)

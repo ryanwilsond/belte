@@ -72,9 +72,11 @@ public abstract partial class Repl {
                     Console.ForegroundColor = ConsoleColor.Green;
 
                     if (lineCount == 0)
-                        _writer.Write("» ");
+                        _writer.Write("»" + new string(' ', Console.WindowWidth - line.Length - 1));
                     else
-                        _writer.Write("· ");
+                        _writer.Write("·" + new string(' ', Console.WindowWidth - line.Length - 1));
+
+                    _writer.SetCursorPosition(2, _cursorTop + lineCount);
 
                     Console.ForegroundColor = previous;
                     _lineRenderer(_document, lineCount);

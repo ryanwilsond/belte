@@ -1,3 +1,4 @@
+using Buckle.Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 using static Buckle.Tests.Assertions;
@@ -40,7 +41,6 @@ public sealed class IssueTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    /*
     [Fact]
     public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
         var text = @"
@@ -59,12 +59,12 @@ public sealed class IssueTests {
         var text = @"
             lowlevel {
                 var! a = { 1, 2, 3 };
-                a = [{null, 2, 3 }];
+                a = { [null], 2, 3 };
             }
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int[]' to 'int[]!' implicitly; an explicit conversion exists (are you missing a cast?)
+            cannot convert null to 'int!' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -76,7 +76,7 @@ public sealed class IssueTests {
             null ? 3 : 5;
         ";
 
-        AssertExceptions(text, _writer, new NullReferenceException());
+        AssertExceptions(text, _writer, new BelteNullReferenceException(null));
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert 'null' to 'int!' because it is a non-nullable type
+            cannot convert null to 'int!' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -117,12 +117,14 @@ public sealed class IssueTests {
                 a.num = 5;
             }
 
-            var a = new A();
-            MyFunction([ref a]);
+            void MyFunction2() {
+                var a = new A();
+                MyFunction([ref a]);
+            }
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'ref A' to 'A'
+            argument 1 may not be passed with the 'ref' keyword
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -132,12 +134,12 @@ public sealed class IssueTests {
     public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
         var text = @"
             int x = 3;
-            const y = ref x;
-            y [=] ref x;
+            const ref int y = ref x;
+            [y] = ref x;
         ";
 
         var diagnostics = @"
-            'y' cannot be assigned to as it is a constant
+            left side of ref assignment must be a ref variable, ref field, ref parameter, or ref indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -147,11 +149,11 @@ public sealed class IssueTests {
     public void Evaluator_AssignmentExpression_Reports_CannotAssignConst() {
         var text = @"
             const x = 3;
-            x [=] 56;
+            [x] = 56;
         ";
 
         var diagnostics = @"
-            'x' cannot be assigned to as it is a constant
+            left side of assignment operation must be a variable, parameter, field, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -166,7 +168,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot use implicit-typing in this context
+            fields cannot be implicitly typed
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -196,28 +198,30 @@ public sealed class IssueTests {
             }
         ";
 
-        AssertExceptions(text, _writer, new NullReferenceException());
+        AssertExceptions(text, _writer, new BelteNullReferenceException(null));
     }
 
-    [Fact]
-    public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
-        var text = @"
-            void test() {
-                const int x = 4 * 3;
-                if (x > 12) {
-                    [Console.PrintLine(""x"");]
-                } else {
-                    Console.PrintLine(""x"");
-                }
-            }
-        ";
+    /*
+    // !
+    // [Fact]
+    // public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+    //     var text = @"
+    //         void test() {
+    //             const int x = 4 * 3;
+    //             if (x > 12) {
+    //                 [Console.PrintLine(""x"");]
+    //             } else {
+    //                 Console.PrintLine(""x"");
+    //             }
+    //         }
+    //     ";
 
-        var diagnostics = @"
-            unreachable code
-        ";
+    //     var diagnostics = @"
+    //         unreachable code
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
 
     [Fact]
     public void Evaluator_CompoundExpression_Reports_Undefined() {

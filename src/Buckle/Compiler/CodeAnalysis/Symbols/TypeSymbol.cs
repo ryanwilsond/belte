@@ -219,6 +219,8 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
                 return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
             case TypeKind.Array:
                 return baseType;
+            case TypeKind.Primitive:
+                return null;
             default:
                 throw ExceptionUtilities.UnexpectedValue(typeKind);
         }

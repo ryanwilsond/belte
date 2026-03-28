@@ -60,14 +60,17 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundKind.ConditionalGotoStatement:
                         var cgs = (BoundConditionalGotoStatement)statement;
-                        var thenBlock = _blockFromLabel[cgs.label];
-                        var elseBlock = next;
-                        var negatedCondition = Negate(cgs.condition);
-                        var thenCondition = cgs.jumpIfTrue ? cgs.condition : negatedCondition;
-                        var elseCondition = cgs.jumpIfTrue ? negatedCondition : cgs.condition;
 
-                        Connect(current, thenBlock, thenCondition);
-                        Connect(current, elseBlock, elseCondition);
+                        if (!cgs.condition.IsLiteralNull()) {
+                            var thenBlock = _blockFromLabel[cgs.label];
+                            var elseBlock = next;
+                            var negatedCondition = Negate(cgs.condition);
+                            var thenCondition = cgs.jumpIfTrue ? cgs.condition : negatedCondition;
+                            var elseCondition = cgs.jumpIfTrue ? negatedCondition : cgs.condition;
+
+                            Connect(current, thenBlock, thenCondition);
+                            Connect(current, elseBlock, elseCondition);
+                        }
 
                         break;
                     case BoundKind.ReturnStatement:

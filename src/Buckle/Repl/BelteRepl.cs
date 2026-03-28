@@ -196,6 +196,7 @@ public sealed partial class BelteRepl : Repl {
 
         Console.ForegroundColor = state.colorTheme.@default;
     }
+
     private protected override void EvaluateSubmission(string text) {
         // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
         // Otherwise, this is much slower than the 0 arity overload
@@ -846,6 +847,12 @@ public sealed partial class BelteRepl : Repl {
             }
 
             foreach (var symbol in currentSymbols) {
+                // TODO This prevents crashes but cuts off the symbol list
+                // Would be nice if we had scroll-ability
+                // This does refresh automatically if the console is resized though so not a huge deal
+                if (index + 1 >= writer.height)
+                    break;
+
                 writer.SetCursorPosition(9, index++);
 
                 if (targetIndex == index - 3)

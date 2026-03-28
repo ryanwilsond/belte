@@ -267,25 +267,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return true;
     }
 
-    private bool PeekIsCastExpression() {
-        if (currentToken.kind == SyntaxKind.OpenParenToken &&
-            PeekIsType(1, out var offset, out _, out _) &&
-            Peek(offset).kind == SyntaxKind.CloseParenToken) {
-            if (Peek(offset + 1).kind == SyntaxKind.OpenParenToken)
-                return true;
-
-            var isBinary = Peek(offset + 1).kind.GetBinaryPrecedence() > 0;
-            var isUnary = Peek(offset + 1).kind.GetBinaryPrecedence() > 0;
-            var isTernary = Peek(offset + 1).kind.GetTernaryPrecedence() > 0;
-            var isEquals = Peek(offset + 1).kind == SyntaxKind.EqualsToken;
-
-            if (!isBinary && !isUnary && !isTernary && !isEquals)
-                return true;
-        }
-
-        return false;
-    }
-
     private bool IsTerminator() {
         if (currentToken.kind == SyntaxKind.EndOfFileToken)
             return true;

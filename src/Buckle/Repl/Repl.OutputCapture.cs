@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using JetBrains.Annotations;
 
 namespace Repl;
 
@@ -21,6 +22,8 @@ public abstract partial class Repl {
         /// </summary>
         /// <value>Ascii.</value>
         public override Encoding Encoding { get { return Encoding.UTF8; } }
+
+        internal int height => Console.WindowHeight;
 
         public override void Write(string output) {
             Console.Write(output);
