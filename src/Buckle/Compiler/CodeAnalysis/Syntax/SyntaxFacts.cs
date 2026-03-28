@@ -78,6 +78,10 @@ public static class SyntaxFacts {
             case SyntaxKind.MinusMinusToken:
             case SyntaxKind.ExclamationToken:
             case SyntaxKind.NewKeyword:
+                return 20;
+            // ! Precedence 19 must remain unused (it is used to correctly parse cascade lists)
+            case SyntaxKind.PeriodPeriodToken:
+            case SyntaxKind.QuestionPeriodPeriodToken:
                 return 18;
             default:
                 return 0;
@@ -208,6 +212,8 @@ public static class SyntaxFacts {
     internal static string GetText(SyntaxKind type) {
         return type switch {
             SyntaxKind.PeriodToken => ".",
+            SyntaxKind.PeriodPeriodToken => "..",
+            SyntaxKind.QuestionPeriodPeriodToken => "?..",
             SyntaxKind.CommaToken => ",",
             SyntaxKind.PlusToken => "+",
             SyntaxKind.MinusToken => "-",

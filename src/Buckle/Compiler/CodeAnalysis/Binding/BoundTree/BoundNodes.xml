@@ -266,6 +266,11 @@
     <Field Name="operand" Type="BoundMethodGroup"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
+  <Node Name="BoundCascadeListExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="cascades" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="conditionals" Type="ImmutableArray&lt;bool&gt;"/>
+  </Node>
   <Node Name="BoundFunctionPointerCallExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="invokedExpression" Type="BoundExpression"/>

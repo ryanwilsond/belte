@@ -240,6 +240,7 @@ public sealed class EvaluatorTests {
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("return (string)null;", null)]
     [InlineData("return (int)null;", null)]
+    [InlineData("int! a = 3; decimal! b = 3.5; return (int!)b == a;", true)]
     [InlineData("lowlevel { any a = new int[] {1, 2, 3}; return ((int[])a)[1]; }", 2)]
     [InlineData("lowlevel { any a = new bool[] {true, false}; return ((bool[])a)[0]; }", true)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[0]; }", 1)]
@@ -252,6 +253,9 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("lowlevel { int[] a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
     [InlineData("int M() { ref int F(ref int a) { return ref a; } int b = 3; F(ref b) = 6; return b; } return M();", 6)]
+    // Cascade list expression
+    [InlineData("class A { public int f = 0; } var a = new A()..f=1.0..f=5; return a.f;", 5)]
+    [InlineData("class A { public int f = 0; public void M() { f++; } } var a = new A()..M()..M(); return a.f;", 2)]
     // Initializer list expressions and index expressions
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]

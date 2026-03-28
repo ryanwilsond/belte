@@ -1733,6 +1733,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FixedNeedsLValue, location, message);
     }
 
+    internal static BelteDiagnostic InvalidCascadeExpression(TextLocation location) {
+        var message = $"cascade expression must be an assignment or call expression";
+        return CreateError(DiagnosticCode.ERR_InvalidCascadeExpression, location, message);
+    }
+
+    internal static BelteDiagnostic NestedCascadeExpression(TextLocation location) {
+        var message = $"cascade expression must access a direct member of the target receiver";
+        return CreateError(DiagnosticCode.ERR_NestedCascadeExpression, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

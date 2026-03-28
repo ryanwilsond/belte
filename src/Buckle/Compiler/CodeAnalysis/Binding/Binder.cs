@@ -2841,6 +2841,8 @@ internal partial class Binder {
                 return BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics);
             case SyntaxKind.ThrowExpression:
                 return BindThrowExpression((ThrowExpressionSyntax)node, diagnostics);
+            case SyntaxKind.CascadeListExpression:
+                return BindCascadeListExpression((CascadeListExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -2928,6 +2930,108 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundExpression BindCascadeListExpression(
+        CascadeListExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var receiver = BindExpression(node.expression, diagnostics);
+        var cascadeBuilder = ArrayBuilder<BoundExpression>.GetInstance();
+        var conditionalsBuilder = ArrayBuilder<bool>.GetInstance();
+        var hasErrors = false;
+
+        foreach (var cascadeExpression in node.cascades) {
+            var expression = cascadeExpression.expression;
+            var isConditional = cascadeExpression.op.kind == SyntaxKind.QuestionPeriodPeriodToken;
+
+            switch (expression.kind) {
+                case SyntaxKind.CallExpression: {
+                        var call = (CallExpressionSyntax)expression;
+
+                        if (call.expression is not SimpleNameSyntax name) {
+                            diagnostics.Push(Error.NestedCascadeExpression(call.expression.location));
+                            hasErrors = true;
+                            continue;
+                        }
+
+                        var access = BindMemberAccessWithBoundLeft(
+                            expression,
+                            receiver,
+                            name,
+                            cascadeExpression.op,
+                            true,
+                            false,
+                            diagnostics
+                        );
+
+                        var analyzedArguments = AnalyzedArguments.GetInstance();
+                        var result = BindArgumentsAndInvocation(call, access, analyzedArguments, diagnostics);
+
+                        conditionalsBuilder.Add(isConditional);
+                        cascadeBuilder.Add(result);
+                    }
+
+                    break;
+                case SyntaxKind.AssignmentExpression: {
+                        var assignment = (AssignmentExpressionSyntax)expression;
+
+                        if (assignment.left is not SimpleNameSyntax name) {
+                            diagnostics.Push(Error.NestedCascadeExpression(assignment.left.location));
+                            hasErrors = true;
+                            continue;
+                        }
+
+                        var access = BindMemberAccessWithBoundLeft(
+                            expression,
+                            receiver,
+                            name,
+                            cascadeExpression.op,
+                            false,
+                            false,
+                            diagnostics
+                        );
+
+                        BoundExpression result;
+
+                        if (assignment.assignmentToken.kind == SyntaxKind.QuestionQuestionEqualsToken) {
+                            var leftOperand = CheckValue(access, BindValueKind.CompoundAssignment, diagnostics);
+                            result = BindNullCoalescingCompoundAssignmentWithBoundLeft(
+                                assignment,
+                                leftOperand,
+                                diagnostics
+                            );
+                        } else if (assignment.assignmentToken.kind != SyntaxKind.EqualsToken) {
+                            var leftOperand = CheckValue(
+                                access,
+                                GetBinaryAssignmentKind(assignment.assignmentToken.kind),
+                                diagnostics
+                            );
+
+                            result = BindCompoundAssignmentWithBoundLeft(assignment, leftOperand, diagnostics);
+                        } else {
+                            result = BindSimpleAssignmentWithUncheckedBoundLeft(assignment, access, diagnostics);
+                        }
+
+                        conditionalsBuilder.Add(isConditional);
+                        cascadeBuilder.Add(result);
+                    }
+
+                    break;
+                default:
+                    hasErrors = true;
+                    diagnostics.Push(Error.InvalidCascadeExpression(expression.location));
+                    break;
+            }
+        }
+
+        return new BoundCascadeListExpression(
+            node,
+            receiver,
+            cascadeBuilder.ToImmutableAndFree(),
+            conditionalsBuilder.ToImmutableAndFree(),
+            receiver.type,
+            hasErrors
+        );
     }
 
     private BoundExpression BindThrowExpression(ThrowExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -4747,7 +4851,7 @@ internal partial class Binder {
 
         boundLeft = BindToNaturalType(boundLeft, diagnostics);
         leftType = boundLeft.Type()?.StrippedType();
-        var isConditional = operatorToken.kind == SyntaxKind.QuestionPeriodToken;
+        var isConditional = operatorToken.kind is SyntaxKind.QuestionPeriodToken or SyntaxKind.QuestionPeriodPeriodToken;
         var lookupResult = LookupResult.GetInstance();
 
         try {
@@ -5615,17 +5719,6 @@ internal partial class Binder {
         analyzedArguments.Free();
         return result;
 
-        BoundExpression BindArgumentsAndInvocation(
-            CallExpressionSyntax node,
-            BoundExpression boundExpression,
-            AnalyzedArguments analyzedArguments,
-            BelteDiagnosticQueue diagnostics) {
-            boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
-            var name = boundExpression.kind == BoundKind.MethodGroup ? GetName(node.expression) : null;
-            BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
-            return BindCallExpression(node, node.expression, name, boundExpression, analyzedArguments, diagnostics);
-        }
-
         static bool ReceiverIsInvocation(CallExpressionSyntax node, out CallExpressionSyntax nested) {
             if (node.expression is MemberAccessExpressionSyntax {
                 expression: CallExpressionSyntax receiver,
@@ -5638,6 +5731,17 @@ internal partial class Binder {
             nested = null;
             return false;
         }
+    }
+
+    private BoundExpression BindArgumentsAndInvocation(
+        CallExpressionSyntax node,
+        BoundExpression boundExpression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics) {
+        boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
+        var name = boundExpression.kind == BoundKind.MethodGroup ? GetName(node.expression) : null;
+        BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+        return BindCallExpression(node, node.expression, name, boundExpression, analyzedArguments, diagnostics);
     }
 
     private BoundExpression BindCallExpression(
@@ -8190,10 +8294,18 @@ internal partial class Binder {
         else if (node.assignmentToken.kind != SyntaxKind.EqualsToken)
             return BindCompoundAssignment(node, diagnostics);
 
+        var left = BindExpressionInternal(node.left, diagnostics, false, false);
+        return BindSimpleAssignmentWithUncheckedBoundLeft(node, left, diagnostics);
+    }
+
+    private BoundExpression BindSimpleAssignmentWithUncheckedBoundLeft(
+        AssignmentExpressionSyntax node,
+        BoundExpression left,
+        BelteDiagnosticQueue diagnostics) {
         var rhsExpr = node.right.UnwrapRefExpression(out var refKind);
         var isRef = refKind == RefKind.Ref;
         var lhsKind = isRef ? BindValueKind.RefAssignable : BindValueKind.Assignable;
-        var op1 = BindValue(node.left, diagnostics, lhsKind);
+        var op1 = CheckValue(left, lhsKind, diagnostics);
         var rhsKind = isRef ? GetRequiredRHSValueKindForRefAssignment(op1) : BindValueKind.RValue;
         var op2 = BindPossibleArrayInitializer(rhsExpr, op1.Type(), rhsKind, diagnostics);
         op2 = ReduceNumericIfApplicable(op1.Type(), op2);
@@ -8204,6 +8316,13 @@ internal partial class Binder {
         AssignmentExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var leftOperand = BindValue(node.left, diagnostics, BindValueKind.CompoundAssignment);
+        return BindNullCoalescingCompoundAssignmentWithBoundLeft(node, leftOperand, diagnostics);
+    }
+
+    private BoundExpression BindNullCoalescingCompoundAssignmentWithBoundLeft(
+        AssignmentExpressionSyntax node,
+        BoundExpression leftOperand,
+        BelteDiagnosticQueue diagnostics) {
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
 
         if (leftOperand.hasErrors || rightOperand.hasErrors) {
@@ -8264,6 +8383,13 @@ internal partial class Binder {
 
     private BoundExpression BindCompoundAssignment(AssignmentExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var left = BindValue(node.left, diagnostics, GetBinaryAssignmentKind(node.kind));
+        return BindCompoundAssignmentWithBoundLeft(node, left, diagnostics);
+    }
+
+    private BoundExpression BindCompoundAssignmentWithBoundLeft(
+        AssignmentExpressionSyntax node,
+        BoundExpression left,
+        BelteDiagnosticQueue diagnostics) {
         var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
         var kind = SyntaxKindToBinaryOperatorKind(node.assignmentToken.kind);
 

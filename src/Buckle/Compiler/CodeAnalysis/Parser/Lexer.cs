@@ -327,10 +327,6 @@ internal sealed class Lexer : IDisposable {
             case '\0':
                 _kind = SyntaxKind.EndOfFileToken;
                 break;
-            case '.':
-                _position++;
-                _kind = SyntaxKind.PeriodToken;
-                break;
             case ',':
                 _position++;
                 _kind = SyntaxKind.CommaToken;
@@ -367,6 +363,11 @@ internal sealed class Lexer : IDisposable {
                 _position++;
                 _kind = SyntaxKind.TildeToken;
                 break;
+            case '.':
+                _position++;
+                if (AdvanceIfMatches('.')) _kind = SyntaxKind.PeriodPeriodToken;
+                else _kind = SyntaxKind.PeriodToken;
+                break;
             case '$':
                 _position++;
                 if (AdvanceIfMatches('?')) _kind = SyntaxKind.DollarQuestionToken;
@@ -394,7 +395,8 @@ internal sealed class Lexer : IDisposable {
                     if (AdvanceIfMatches('=')) _kind = SyntaxKind.QuestionQuestionEqualsToken;
                     else _kind = SyntaxKind.QuestionQuestionToken;
                 } else if (AdvanceIfMatches('.')) {
-                    _kind = SyntaxKind.QuestionPeriodToken;
+                    if (AdvanceIfMatches('.')) _kind = SyntaxKind.QuestionPeriodPeriodToken;
+                    else _kind = SyntaxKind.QuestionPeriodToken;
                 } else if (AdvanceIfMatches('[')) {
                     _kind = SyntaxKind.QuestionOpenBracketToken;
                 } else {
