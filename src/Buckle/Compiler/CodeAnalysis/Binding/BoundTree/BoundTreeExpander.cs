@@ -700,7 +700,7 @@ internal abstract class BoundTreeExpander {
         return statements;
     }
 
-    private List<BoundStatement> ExpandExpressionList(
+    private protected List<BoundStatement> ExpandExpressionList(
         ImmutableArray<BoundExpression> expressions,
         out ImmutableArray<BoundExpression> replacement) {
         var statements = new List<BoundStatement>();

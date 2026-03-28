@@ -54,13 +54,14 @@ internal sealed class Expander : BoundTreeExpander {
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)cascade;
                         var replacementReceiver = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+                        statements.AddRange(ExpandExpressionList(call.arguments, out var arguments));
 
                         statements.Add(
                             new BoundExpressionStatement(syntax,
                                 call.Update(
                                     replacementReceiver,
                                     call.method,
-                                    call.arguments,
+                                    arguments,
                                     call.argumentRefKinds,
                                     call.defaultArguments,
                                     call.resultKind,
@@ -74,12 +75,13 @@ internal sealed class Expander : BoundTreeExpander {
                 case BoundKind.CompoundAssignmentOperator: {
                         var assignment = (BoundCompoundAssignmentOperator)cascade;
                         var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        statements.AddRange(ExpandExpression(assignment.right, out var right));
 
                         statements.Add(
                             new BoundExpressionStatement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
-                                    assignment.right,
+                                    right,
                                     assignment.op,
                                     assignment.leftPlaceholder,
                                     assignment.leftConversion,
@@ -97,12 +99,13 @@ internal sealed class Expander : BoundTreeExpander {
                 case BoundKind.NullCoalescingAssignmentOperator: {
                         var assignment = (BoundNullCoalescingAssignmentOperator)cascade;
                         var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        statements.AddRange(ExpandExpression(assignment.right, out var right));
 
                         statements.Add(
                             new BoundExpressionStatement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
-                                    assignment.right,
+                                    right,
                                     assignment.type
                                 )
                             )
@@ -113,12 +116,13 @@ internal sealed class Expander : BoundTreeExpander {
                 case BoundKind.AssignmentOperator: {
                         var assignment = (BoundAssignmentOperator)cascade;
                         var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        statements.AddRange(ExpandExpression(assignment.right, out var right));
 
                         statements.Add(
                             new BoundExpressionStatement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
-                                    assignment.right,
+                                    right,
                                     assignment.isRef,
                                     assignment.type
                                 )

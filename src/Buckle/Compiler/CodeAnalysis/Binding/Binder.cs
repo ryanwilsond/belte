@@ -2967,6 +2967,7 @@ internal partial class Binder {
                         var analyzedArguments = AnalyzedArguments.GetInstance();
                         var result = BindArgumentsAndInvocation(call, access, analyzedArguments, diagnostics);
 
+                        hasErrors |= result.hasErrors;
                         conditionalsBuilder.Add(isConditional);
                         cascadeBuilder.Add(result);
                     }
@@ -3012,6 +3013,7 @@ internal partial class Binder {
                             result = BindSimpleAssignmentWithUncheckedBoundLeft(assignment, access, diagnostics);
                         }
 
+                        hasErrors |= result.hasErrors;
                         conditionalsBuilder.Add(isConditional);
                         cascadeBuilder.Add(result);
                     }

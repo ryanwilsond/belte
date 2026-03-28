@@ -78,11 +78,11 @@ public static class SyntaxFacts {
             case SyntaxKind.MinusMinusToken:
             case SyntaxKind.ExclamationToken:
             case SyntaxKind.NewKeyword:
-                return 20;
-            // ! Precedence 19 must remain unused (it is used to correctly parse cascade lists)
+                return 18;
+            // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
             case SyntaxKind.PeriodPeriodToken:
             case SyntaxKind.QuestionPeriodPeriodToken:
-                return 18;
+                return 15;
             default:
                 return 0;
         }
