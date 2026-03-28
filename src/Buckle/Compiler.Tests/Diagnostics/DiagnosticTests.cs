@@ -3622,4 +3622,34 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0358_FixedNeedsLValue
+
+    [Fact]
+    public void Reports_Error_BU0359_InvalidCascadeExpression() {
+        var text = @"
+            class A { }
+
+            var a = new A()..[3];
+        ";
+
+        var diagnostics = @"
+            cascade expression must be an assignment or call expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0360_NestedCascadeExpression() {
+        var text = @"
+            class A { }
+
+            var a = new A()..[a.M]();
+        ";
+
+        var diagnostics = @"
+            cascade expression must access a direct member of the target receiver
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

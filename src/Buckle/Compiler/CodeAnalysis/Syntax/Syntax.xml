@@ -792,6 +792,16 @@
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="name" Type="SimpleNameSyntax"/>
   </Node>
+  <Node Name="CascadeListExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="CascadeListExpression"/>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="cascades" Type="SyntaxList&lt;CascadeExpressionSyntax&gt;"/>
+  </Node>
+  <Node Name="CascadeExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="CascadeExpression"/>
+    <Field Name="op" Type="SyntaxToken"/>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
   <Node Name="ParenthesisExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ParenthesizedExpression"/>
     <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">

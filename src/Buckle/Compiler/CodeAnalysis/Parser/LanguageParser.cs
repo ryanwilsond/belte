@@ -1312,8 +1312,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.BlockStatement(modifiers, openBrace, statements.ToList(), closeBrace);
     }
 
-    private ExpressionSyntax ParseAssignmentExpression() {
-        var left = ParseOperatorExpression();
+    private ExpressionSyntax ParseAssignmentExpression(bool insideCascade = false) {
+        var left = ParseOperatorExpression(insideCascade ? SyntaxKind.PeriodPeriodToken.GetPrimaryPrecedence() + 1 : 0);
 
         switch (currentToken.kind) {
             case SyntaxKind.PlusEqualsToken:
@@ -1331,7 +1331,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.QuestionQuestionEqualsToken:
             case SyntaxKind.EqualsToken:
                 var operatorToken = EatToken();
-                var right = ParseAssignmentExpression();
+                var right = ParseAssignmentExpression(insideCascade);
                 left = SyntaxFactory.AssignmentExpression(left, operatorToken, right);
                 break;
             default:
@@ -1516,6 +1516,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 case SyntaxKind.QuestionPeriodToken:
                 case SyntaxKind.MinusGreaterThanToken:
                     return ParseMemberAccessExpression(expression);
+                case SyntaxKind.PeriodPeriodToken:
+                case SyntaxKind.QuestionPeriodPeriodToken:
+                    return ParseCascadeListExpression(expression);
                 case SyntaxKind.MinusMinusToken:
                 case SyntaxKind.PlusPlusToken:
                 case SyntaxKind.ExclamationToken:
@@ -1813,7 +1816,11 @@ done:
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var type = ParseType(false, false);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
-        var expression = ParseExpression();
+
+        // ? We treat casts as unary precedence so we grab a random unary operator
+        // ? We can't set ParenToken as an actual unary operator because then ParseUnaryExpression grabs parens before
+        // ? we can parse parenthesized expressions properly
+        var expression = ParseOperatorExpression(SyntaxKind.DollarToken.GetUnaryPrecedence());
 
         return SyntaxFactory.CastExpression(openParenthesis, type, closeParenthesis, expression);
     }
@@ -1989,6 +1996,37 @@ done:
         var name = ParseSimpleName();
 
         return SyntaxFactory.MemberAccessExpression(expression, operatorToken, name);
+    }
+
+    private ExpressionSyntax ParseCascadeListExpression(ExpressionSyntax expression) {
+        var cascades = ParseCascadeList();
+        return SyntaxFactory.CascadeListExpression(expression, cascades);
+    }
+
+    private SyntaxList<CascadeExpressionSyntax> ParseCascadeList() {
+        var nodes = SyntaxListBuilder<CascadeExpressionSyntax>.Create();
+        var parseNextCascade = true;
+
+        while (parseNextCascade && currentToken.kind != SyntaxKind.EndOfFileToken) {
+            if (currentToken.kind is SyntaxKind.PeriodPeriodToken or SyntaxKind.QuestionPeriodPeriodToken) {
+                var cascade = ParseCascadeExpression();
+                nodes.Add(cascade);
+            } else {
+                parseNextCascade = false;
+            }
+        }
+
+        return nodes.ToList();
+    }
+
+    private CascadeExpressionSyntax ParseCascadeExpression() {
+        var op = MatchTwo(SyntaxKind.PeriodPeriodToken, SyntaxKind.QuestionPeriodPeriodToken);
+        var expression = ParseNonCascadeListExpression();
+        return SyntaxFactory.CascadeExpression(op, expression);
+    }
+
+    private ExpressionSyntax ParseNonCascadeListExpression() {
+        return ParseAssignmentExpression(true);
     }
 
     private ExpressionSyntax ParseIndexExpression(ExpressionSyntax expression) {

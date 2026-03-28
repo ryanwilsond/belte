@@ -90,7 +90,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         );
 
         methodCompiler.CompileNamespace(globalNamespace);
-        methodCompiler.ComputeCompileTimeExpressions();
+
+        if (!methodCompiler._diagnostics.AnyErrors())
+            methodCompiler.ComputeCompileTimeExpressions();
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
             methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);

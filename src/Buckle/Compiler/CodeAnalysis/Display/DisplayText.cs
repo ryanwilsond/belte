@@ -297,6 +297,9 @@ public sealed class DisplayText {
             case BoundKind.SizeOfOperator:
                 DisplaySizeOfOperator(text, (BoundSizeOfOperator)node);
                 break;
+            case BoundKind.CascadeListExpression:
+                DisplayCascadeListExpression(text, (BoundCascadeListExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -788,6 +791,18 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayCascadeListExpression(DisplayText text, BoundCascadeListExpression node) {
+        DisplayNode(text, node.receiver);
+
+        for (var i = 0; i < node.cascades.Length; i++) {
+            var cascade = node.cascades[i];
+            var isConditional = node.conditionals[i];
+            var opKind = isConditional ? SyntaxKind.QuestionPeriodPeriodToken : SyntaxKind.PeriodPeriodToken;
+            text.Write(CreatePunctuation(opKind));
+            DisplayNode(text, cascade);
+        }
     }
 
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {

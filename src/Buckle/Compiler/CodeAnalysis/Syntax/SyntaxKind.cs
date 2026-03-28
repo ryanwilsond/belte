@@ -68,6 +68,8 @@ public enum SyntaxKind : ushort {
     QuestionOpenBracketToken,
     MinusGreaterThanToken,
     DollarQuestionToken,
+    PeriodPeriodToken,
+    QuestionPeriodPeriodToken,
 
     // Keywords
     TypeOfKeyword,
@@ -164,6 +166,8 @@ public enum SyntaxKind : ushort {
     MemberAccessExpression,
     ObjectCreationExpression,
     ArrayCreationExpression,
+    CascadeListExpression,
+    CascadeExpression,
 
     // Statements
     EmptyStatement,

@@ -255,8 +255,32 @@ internal abstract class BoundTreeExpander {
             BoundKind.UnconvertedNullptrExpression => ExpandUnconvertedNullptrExpression((BoundUnconvertedNullptrExpression)expression, out replacement),
             BoundKind.CompileTimeExpression => ExpandCompileTimeExpression((BoundCompileTimeExpression)expression, out replacement),
             BoundKind.SizeOfOperator => ExpandSizeOfOperator((BoundSizeOfOperator)expression, out replacement),
+            BoundKind.CascadeListExpression => ExpandCascadeListExpression((BoundCascadeListExpression)expression, out replacement),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandCascadeListExpression(
+        BoundCascadeListExpression expression,
+        out BoundExpression replacement) {
+        List<BoundStatement> statements;
+        BoundExpression newReceiver = null;
+
+        if (expression.receiver is not null)
+            statements = ExpandExpression(expression.receiver, out newReceiver);
+        else
+            statements = [];
+
+        statements.AddRange(ExpandExpressionList(expression.cascades, out var newCascades));
+
+        replacement = expression.Update(
+            newReceiver,
+            newCascades,
+            expression.conditionals,
+            expression.type
+        );
+
+        return statements;
     }
 
     private protected virtual List<BoundStatement> ExpandSizeOfOperator(
@@ -305,7 +329,7 @@ internal abstract class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandArguments(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newInvokedExpression,
@@ -661,7 +685,7 @@ internal abstract class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandArguments(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newReceiver,
@@ -676,18 +700,18 @@ internal abstract class BoundTreeExpander {
         return statements;
     }
 
-    private List<BoundStatement> ExpandArguments(
-        ImmutableArray<BoundExpression> arguments,
+    private protected List<BoundStatement> ExpandExpressionList(
+        ImmutableArray<BoundExpression> expressions,
         out ImmutableArray<BoundExpression> replacement) {
         var statements = new List<BoundStatement>();
-        var replacementArguments = ArrayBuilder<BoundExpression>.GetInstance();
+        var replacementExpressions = ArrayBuilder<BoundExpression>.GetInstance();
 
-        foreach (var argument in arguments) {
-            statements.AddRange(ExpandExpression(argument, out var newArgument));
-            replacementArguments.Add(newArgument);
+        foreach (var expression in expressions) {
+            statements.AddRange(ExpandExpression(expression, out var newExpression));
+            replacementExpressions.Add(newExpression);
         }
 
-        replacement = replacementArguments.ToImmutableAndFree();
+        replacement = replacementExpressions.ToImmutableAndFree();
         return statements;
     }
 
@@ -837,7 +861,7 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandObjectCreationExpression(
         BoundObjectCreationExpression expression,
         out BoundExpression replacement) {
-        var statements = ExpandArguments(expression.arguments, out var newArguments);
+        var statements = ExpandExpressionList(expression.arguments, out var newArguments);
 
         replacement = expression.Update(
             expression.constructor,
