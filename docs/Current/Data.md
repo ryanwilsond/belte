@@ -193,7 +193,19 @@ powerful collection types.
 
 ## 3.7 Compile-Time Expressions
 
-To evaluate an expression at compile-time, you can precede it with `$` or `$?`.
+To evaluate an expression at compile-time, you can precede it with `$` or `$?`. The `$` operator tells the compiler to
+evaluate the expression at compile time. The `$?` operator tells the compiler to try and evaluate the expression at
+compile time, and if it cannot be evaluated ignore the failure and compile the expression as normal.
+
+Not all expressions are able to be evaluated at compile time. If the type of the expression is an object, pointer, or
+function pointer, the compiler does not attempt to evaluate the expression.
+
+If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
+If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
+expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
+evaluate.
+
+### 3.7.1 Examples
 
 For example:
 
@@ -252,3 +264,42 @@ class MyClass {
 
 The above example will not replace the `myInt` declaration with anything and will retain its original initializer of
 `myClass.GetF()` because the compile-time evaluation failed.
+
+### 3.7.2 Side Effects
+
+Because whether or not an expression is evaluatable at compile time cannot always be predetermined, it is important to
+note that there may be side effects to expressions marked to evaluate even if the expression fails, such as file IO.
+
+For example:
+
+```belte
+$ExampleMethod();
+
+void ExampleMethod() {
+  File.AppendText("path/to/file.txt", "Some line of text");
+  throw new Exception();
+}
+```
+
+In the above example, the compilation will fail because `ExampleMethod` threw an uncaught exception, but the preceding
+file write still happened.
+
+Consider this more insidious example:
+
+```belte
+$?ExampleMethod();
+
+void ExampleMethod() {
+  File.AppendText("path/to/file.txt", "Some line of text");
+  throw new Exception();
+}
+```
+
+In this example, the compilation will succeed because the conditional `$?` operator was used. The file write will
+happen, and then the exception thrown will cause the compile time expression to fail to evaluate, meaning the compiler
+will emit the original expression.
+
+The result is that if you compile and then run this program, the file write will happen twice.
+
+The compiler cannot verify whether or not an expression has side effects, so the usage of the compile-time expression
+operator is not restricted to prevent them from happening.

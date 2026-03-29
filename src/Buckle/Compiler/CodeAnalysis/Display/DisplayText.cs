@@ -996,6 +996,8 @@ public sealed class DisplayText {
     }
 
     private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
     }
 

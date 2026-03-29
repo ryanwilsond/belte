@@ -8032,6 +8032,11 @@ internal partial class Binder {
     private BoundExpression BindCompileTimeExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var operand = BindExpression(node.operand, diagnostics);
         var conditional = node.operatorToken.kind == SyntaxKind.DollarQuestionToken;
+        var nodeType = operand.StrippedType();
+
+        if (!nodeType.IsPrimitiveType() && !nodeType.IsStructType() && !nodeType.IsArray())
+            diagnostics.Push(Error.InvalidCompileTimeType(node.location));
+
         return new BoundCompileTimeExpression(node, operand, conditional, operand.type);
     }
 

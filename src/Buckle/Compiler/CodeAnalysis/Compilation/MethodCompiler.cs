@@ -172,14 +172,18 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var evaluatorContext = new EvaluatorContext(_compilation.options);
 
         foreach (var (method, body) in _methodBodies) {
-            var loweredBody = CompileTimeLowerer.Lower(
-                body,
-                _diagnostics,
-                boundProgram,
-                evaluatorContext
-            );
+            if (body is not null) {
+                var loweredBody = CompileTimeLowerer.Lower(
+                    method,
+                    body,
+                    _diagnostics,
+                    boundProgram,
+                    evaluatorContext,
+                    _compilation
+                );
 
-            _methodBodies[method] = (BoundBlockStatement)loweredBody;
+                _methodBodies[method] = (BoundBlockStatement)loweredBody;
+            }
         }
     }
 

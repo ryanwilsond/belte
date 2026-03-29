@@ -143,6 +143,25 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         return base.VisitArrayCreationExpression(node);
     }
 
+    internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
+        var structStack = new Stack<NamedTypeSymbol>();
+
+        if (node.Type().IsStructType())
+            structStack.Push((NamedTypeSymbol)node.Type());
+
+        while (structStack.Count > 0) {
+            _lateTempCount++;
+            var structType = structStack.Pop();
+
+            foreach (var member in structType.GetMembers()) {
+                if (member is FieldSymbol f && f.type.IsStructType())
+                    structStack.Push((NamedTypeSymbol)f.type);
+            }
+        }
+
+        return base.VisitCompileTimeExpression(node);
+    }
+
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         var method = node.method;
 

@@ -3652,4 +3652,19 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0361_InvalidCompileTimeType() {
+        var text = @"
+            class A { }
+            A GetA() { return new A(); }
+            var a = [$GetA()];
+        ";
+
+        var diagnostics = @"
+            compile time expression must result in a primitive or struct type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

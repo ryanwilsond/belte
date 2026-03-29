@@ -1743,6 +1743,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NestedCascadeExpression, location, message);
     }
 
+    internal static BelteDiagnostic InvalidCompileTimeType(TextLocation location) {
+        var message = $"compile time expression must result in a primitive or struct type";
+        return CreateError(DiagnosticCode.ERR_InvalidCompileTimeType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

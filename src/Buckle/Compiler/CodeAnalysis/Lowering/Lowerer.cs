@@ -1032,7 +1032,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             boundStatement.kind != BoundKind.GotoStatement;
     }
 
-    private bool ShouldBeTreatedAsNullable(TypeSymbol type) {
+    private static bool ShouldBeTreatedAsNullable(TypeSymbol type) {
         return type.IsNullableType() && CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
     }
 
@@ -1060,7 +1060,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    private BoundNode VisitConstant(BoundExpression expression) {
+    internal static BoundNode VisitConstant(BoundExpression expression) {
         var syntax = expression.syntax;
         var type = expression.Type();
 

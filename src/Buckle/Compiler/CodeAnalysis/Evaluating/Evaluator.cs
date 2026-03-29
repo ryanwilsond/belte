@@ -154,13 +154,20 @@ internal sealed class Evaluator {
         return hasValue ? EvaluatorValue.Format(result, _context) : null;
     }
 
-    internal object EvaluateExpression(BoundExpression expression, out bool hasValue) {
+    internal EvaluatorValue EvaluateExpression(
+        BoundExpression expression,
+        EvaluatorSlotManager layout,
+        out bool hasValue) {
         _insideExpressionEvaluation = true;
         _hasValue = true;
+        _stack.Push(new StackFrame(layout));
+
         var result = EvaluateExpression(expression, true, false);
+
+        _stack.Pop();
         hasValue = _hasValue;
         _insideExpressionEvaluation = false;
-        return hasValue ? EvaluatorValue.Format(result, _context) : null;
+        return result;
     }
 
     private TypeSymbol GetResultType(EvaluatorValue result) {
@@ -508,9 +515,17 @@ internal sealed class Evaluator {
             BoundKind.TypeOfExpression => EvaluateTypeOfExpression((BoundTypeOfExpression)node, used),
             BoundKind.MethodGroup => EvaluateMethodGroup((BoundMethodGroup)node),
             BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
+            BoundKind.CompileTimeExpression => EvaluateCompileTimeExpression((BoundCompileTimeExpression)node, used, abort),
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    private EvaluatorValue EvaluateCompileTimeExpression(BoundCompileTimeExpression node, bool used, ValueWrapper<bool> abort) {
+        if (_insideExpressionEvaluation)
+            return EvaluateExpression(node.expression, used, abort);
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {

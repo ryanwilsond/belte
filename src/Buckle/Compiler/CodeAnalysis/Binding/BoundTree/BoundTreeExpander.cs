@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -11,11 +12,32 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Rewrites BoundStatements and all child BoundStatements, allowing expansion.
 /// </summary>
 internal abstract class BoundTreeExpander {
+    private protected readonly List<string> _localNames = [];
+
+    private protected int _tempCount = 0;
+
+    private protected abstract MethodSymbol _container { get; set; }
+
     private protected static BoundStatement Simplify(SyntaxNode syntax, List<BoundStatement> statements) {
         if (statements.Count == 1)
             return statements[0];
         else
             return Block(syntax, statements.ToArray());
+    }
+
+    private protected SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
+        string name;
+
+        do {
+            name = $"temp{_tempCount++}";
+        } while (_localNames.Contains(name));
+
+        return new SynthesizedDataContainerSymbol(
+            _container,
+            new TypeWithAnnotations(type),
+            SynthesizedLocalKind.ExpanderTemp,
+            name
+        );
     }
 
     private protected virtual List<BoundStatement> ExpandStatement(BoundStatement statement) {
@@ -129,7 +151,9 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(statement.expression, out var replacement);
 
         if (statements.Count != 0) {
-            statements.Add(new BoundExpressionStatement(statement.syntax, replacement));
+            if (replacement is not null)
+                statements.Add(new BoundExpressionStatement(statement.syntax, replacement));
+
             return statements;
         }
 
@@ -256,6 +280,8 @@ internal abstract class BoundTreeExpander {
             BoundKind.CompileTimeExpression => ExpandCompileTimeExpression((BoundCompileTimeExpression)expression, out replacement),
             BoundKind.SizeOfOperator => ExpandSizeOfOperator((BoundSizeOfOperator)expression, out replacement),
             BoundKind.CascadeListExpression => ExpandCascadeListExpression((BoundCascadeListExpression)expression, out replacement),
+            BoundKind.StackSlotExpression => ExpandStackSlotExpression((BoundStackSlotExpression)expression, out replacement),
+            BoundKind.FieldSlotExpression => ExpandFieldSlotExpression((BoundFieldSlotExpression)expression, out replacement),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -285,6 +311,20 @@ internal abstract class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandSizeOfOperator(
         BoundSizeOfOperator expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandStackSlotExpression(
+        BoundStackSlotExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandFieldSlotExpression(
+        BoundFieldSlotExpression expression,
         out BoundExpression replacement) {
         replacement = expression;
         return [];

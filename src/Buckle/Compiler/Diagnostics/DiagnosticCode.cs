@@ -369,6 +369,7 @@ public enum DiagnosticCode : ushort {
     ERR_FixedNeedsLValue = 358,
     ERR_InvalidCascadeExpression = 359,
     ERR_NestedCascadeExpression = 360,
+    ERR_InvalidCompileTimeType = 361,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
