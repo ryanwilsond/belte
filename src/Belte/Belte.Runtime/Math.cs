@@ -244,4 +244,11 @@ public static class Math {
 
         return double.DegreesToRadians(a.Value);
     }
+
+    public static double? RadToDeg(double? a) {
+        if (a is null)
+            return null;
+
+        return double.RadiansToDegrees(a.Value);
+    }
 }

@@ -1070,6 +1070,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Truncate_D", typeof(Math).GetMethod("Truncate", Flags, [typeof(double)]) },
             { "Math_DegToRad_D?", typeof(Belte.Runtime.Math).GetMethod("DegToRad", Flags, [typeof(double?)]) },
             { "Math_DegToRad_D", typeof(double).GetMethod("DegreesToRadians", Flags, [typeof(double)]) },
+            { "Math_RadToDeg_D?", typeof(Belte.Runtime.Math).GetMethod("RadToDeg", Flags, [typeof(double?)]) },
+            { "Math_RadToDeg_D", typeof(double).GetMethod("RadiansToDegrees", Flags, [typeof(double)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },

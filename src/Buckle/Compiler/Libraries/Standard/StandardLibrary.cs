@@ -467,8 +467,10 @@ internal static class StandardLibrary {
             StaticMethod("Tanh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Truncate", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
             StaticMethod("Truncate", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
-            StaticMethod("DegToRad", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
-            StaticMethod("DegToRad", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
+            StaticMethod("DegToRad", SpecialType.Decimal, true, [("degrees", SpecialType.Decimal, true)]),
+            StaticMethod("DegToRad", SpecialType.Decimal, [("degrees", SpecialType.Decimal)]),
+            StaticMethod("RadToDeg", SpecialType.Decimal, true, [("radians", SpecialType.Decimal, true)]),
+            StaticMethod("RadToDeg", SpecialType.Decimal, [("radians", SpecialType.Decimal)]),
         ]);
     }
 
@@ -668,6 +670,10 @@ internal static class StandardLibrary {
                 => { return a is null ? null : double.DegreesToRadians(Convert.ToDouble(a)); }) },
             { "Math_DegToRad_D", new Func<object, object, object, object>((a, b, c)
                 => { return double.DegreesToRadians(Convert.ToDouble(a)); }) },
+            { "Math_RadToDeg_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : double.RadiansToDegrees(Convert.ToDouble(a)); }) },
+            { "Math_RadToDeg_D", new Func<object, object, object, object>((a, b, c)
+                => { return double.RadiansToDegrees(Convert.ToDouble(a)); }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
                 => { return DateTime.Now.Ticks; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
