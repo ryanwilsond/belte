@@ -799,6 +799,7 @@ public sealed class DisplayText {
 
     private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
         text.Write(CreateKeyword(SyntaxKind.StackAllocKeyword));
+        text.Write(CreateSpace());
         SymbolDisplay.AppendToDisplayText(text, node.elementType);
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.count);
