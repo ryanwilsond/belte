@@ -40,7 +40,6 @@ internal sealed partial class CodeGenerator {
     private readonly HashSet<DataContainerSymbol> _stackLocals = [];
     private readonly List<(int instructionIndex, LabelSymbol target)> _unhandledGotos = [];
     private readonly SyntaxNode _methodBodySyntax;
-    private readonly ILEmitStyle _ilEmitStyle;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
@@ -54,8 +53,7 @@ internal sealed partial class CodeGenerator {
         _body = methodBody;
         _builder = iLBuilder;
         // TODO Make this dynamic when debugging is added
-        // ? This is only here for better compat with Evaluator which uses debug-only slot information
-        _ilEmitStyle = ILEmitStyle.Release;
+        // _ilEmitStyle = ILEmitStyle.Release;
 
         var sourceMethod = method as SourceMemberMethodSymbol;
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
@@ -239,6 +237,21 @@ internal sealed partial class CodeGenerator {
 
         _builder.EmitCalli(ptrInvocation.functionPointer);
         EmitCallCleanup(method, useKind);
+    }
+
+    private void EmitStackAllocExpression(BoundConvertedStackAllocExpression expression, bool used) {
+        if (used) {
+            EmitStackAlloc(expression.type, expression.count);
+        } else {
+            EmitExpression(expression.count, used: false);
+        }
+    }
+
+    private void EmitStackAlloc(TypeSymbol type, BoundExpression count) {
+        EmitExpression(count, used: true);
+        _builder.Emit(OpCode.Localloc);
+        // TODO If we ever encode to metadata we need to keep track of this
+        // _sawStackalloc = true;
     }
 
     internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
@@ -1066,6 +1079,9 @@ oneMoreTime:
                 break;
             case BoundKind.FunctionPointerCallExpression:
                 EmitCalli((BoundFunctionPointerCallExpression)expression, used ? UseKind.UsedAsValue : UseKind.Unused);
+                break;
+            case BoundKind.ConvertedStackAllocExpression:
+                EmitStackAllocExpression((BoundConvertedStackAllocExpression)expression, used);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);

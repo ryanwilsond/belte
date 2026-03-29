@@ -1449,6 +1449,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNameOfExpression();
             case SyntaxKind.SizeOfKeyword:
                 return ParseSizeOfExpression();
+            case SyntaxKind.StackAllocKeyword:
+                return ParseStackAllocExpression();
             case SyntaxKind.NewKeyword:
                 return ParseObjectOrArrayCreationExpression();
             case SyntaxKind.ThisKeyword:
@@ -1920,6 +1922,12 @@ done:
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.SizeOfExpression(keyword, openParenthesis, type, closeParenthesis);
+    }
+
+    private ExpressionSyntax ParseStackAllocExpression() {
+        var keyword = Match(SyntaxKind.StackAllocKeyword);
+        var type = ParseType(false, allowArraySize: true);
+        return SyntaxFactory.StackAllocExpression(keyword, type);
     }
 
     private ExpressionSyntax ParseObjectOrArrayCreationExpression() {

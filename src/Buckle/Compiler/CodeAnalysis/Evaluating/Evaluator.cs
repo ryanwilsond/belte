@@ -517,6 +517,7 @@ internal sealed class Evaluator {
             BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
             BoundKind.CompileTimeExpression => EvaluateCompileTimeExpression((BoundCompileTimeExpression)node, used, abort),
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
+            BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("stackalloc is not supported in the Evaluator", node.syntax.location),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -2202,6 +2203,9 @@ internal sealed class Evaluator {
 
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
+        if (method.isExtern)
+            throw new BelteEvaluatorException("extern method calls are not supported in the Evaluator", node.syntax.location);
+
         var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
 
         if (exceptions.Count == 0 && useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
@@ -2270,6 +2274,9 @@ internal sealed class Evaluator {
             throw new BelteNullReferenceException(receiver.syntax.location);
 
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
+
+        if (method.isExtern)
+            throw new BelteEvaluatorException("extern method calls are not supported in the Evaluator", node.syntax.location);
 
         method = ResolveVirtualMethod(method, receiver, thisParameter);
 

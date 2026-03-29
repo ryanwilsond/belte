@@ -106,6 +106,97 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitAddressOfOperator(node);
     }
 
+    internal override BoundNode VisitStackAllocExpression(BoundStackAllocExpression node) {
+        /*
+
+        stackalloc <type>[<count>]
+
+        ----> <count> is 0
+
+        nullptr
+
+        */
+        var syntax = node.syntax;
+        var type = node.type;
+
+        if ((int)node.count.constantValue.value == 0)
+            return new BoundLiteralExpression(node.syntax, new ConstantValue(null, SpecialType.None), type);
+
+        var elementType = node.elementType;
+        var rewrittenCount = (BoundExpression)Visit(node.count);
+
+        if (type.typeKind == TypeKind.Pointer) {
+            var stackSize = RewriteStackAllocCountToSize(syntax, rewrittenCount, elementType);
+            return new BoundConvertedStackAllocExpression(syntax, elementType, stackSize, type);
+        } else {
+            throw ExceptionUtilities.UnexpectedValue(type);
+        }
+    }
+
+    private BoundExpression RewriteStackAllocCountToSize(
+        SyntaxNode syntax,
+        BoundExpression countExpression,
+        TypeSymbol elementType) {
+        var uint32 = CorLibrary.GetSpecialType(SpecialType.UInt32);
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var uintptr = CorLibrary.GetSpecialType(SpecialType.UIntPtr);
+
+        var sizeInBytes = elementType.specialType.SizeInBytes();
+        var sizeOfConstant = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
+
+        var sizeOf = new BoundSizeOfOperator(syntax,
+            new BoundTypeExpression(syntax, new TypeWithAnnotations(elementType), null, elementType),
+            sizeOfConstant,
+            int32
+        );
+
+        var sizeConst = sizeOf.constantValue;
+
+        if (sizeConst is not null) {
+            var size = (int)sizeConst.value;
+
+            var countConst = countExpression.constantValue;
+
+            if (countConst is not null) {
+                var count = (int)countConst.value;
+                var folded = unchecked((uint)count * size);
+
+                if (folded < uint.MaxValue) {
+                    return new BoundCastExpression(syntax,
+                        Literal(syntax, (uint)folded, uint32),
+                        Conversion.ExplicitIntegerToPointer,
+                        null,
+                        uintptr
+                    );
+                }
+            }
+        }
+
+        var convertedCount = new BoundCastExpression(syntax,
+            countExpression,
+            Conversion.ExplicitNumeric,
+            null,
+            uint32
+        );
+
+        convertedCount = new BoundCastExpression(syntax,
+            convertedCount,
+            Conversion.ExplicitIntegerToPointer,
+            null,
+            uintptr
+        );
+
+        if ((int?)sizeConst?.value == 1)
+            return convertedCount;
+
+        return Binary(syntax,
+            convertedCount,
+            BinaryOperatorKind.UIntMultiplication,
+            sizeOf,
+            uintptr
+        );
+    }
+
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
         /*
 

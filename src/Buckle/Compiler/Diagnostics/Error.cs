@@ -1748,6 +1748,36 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidCompileTimeType, location, message);
     }
 
+    internal static BelteDiagnostic BadStackAllocExpression(TextLocation location) {
+        var message = $"a stackalloc expression or local requires a type with a single array size specifier";
+        return CreateError(DiagnosticCode.ERR_BadStackAllocExpression, location, message);
+    }
+
+    internal static BelteDiagnostic NegativeStackAllocSize(TextLocation location) {
+        var message = $"cannot use a negative size with a stackalloc expression or local";
+        return CreateError(DiagnosticCode.ERR_NegativeStackAllocSize, location, message);
+    }
+
+    internal static BelteDiagnostic NoStackAllocTarget(TextLocation location) {
+        var message = $"stackalloc expression can only be used as a data container initializer";
+        return CreateError(DiagnosticCode.ERR_NoStackAllocTarget, location, message);
+    }
+
+    internal static BelteDiagnostic StackAllocInCatchFinally(TextLocation location) {
+        var message = $"a stackalloc expression or local may not be used in a catch or finally block";
+        return CreateError(DiagnosticCode.ERR_StackAllocInCatchFinally, location, message);
+    }
+
+    internal static BelteDiagnostic StackAllocLocalWithInitializer(TextLocation location) {
+        var message = $"a stackalloc local cannot not have an explicit initializer";
+        return CreateError(DiagnosticCode.ERR_StackAllocLocalWithInitializer, location, message);
+    }
+
+    internal static BelteDiagnostic ImplicitlyTypedStackAllocLocal(TextLocation location) {
+        var message = $"a stackalloc local cannot be implicitly typed";
+        return CreateError(DiagnosticCode.ERR_ImplicitlyTypedStackAllocLocal, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

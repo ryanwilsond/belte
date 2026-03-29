@@ -370,6 +370,12 @@ public enum DiagnosticCode : ushort {
     ERR_InvalidCascadeExpression = 359,
     ERR_NestedCascadeExpression = 360,
     ERR_InvalidCompileTimeType = 361,
+    ERR_BadStackAllocExpression = 362,
+    ERR_NegativeStackAllocSize = 363,
+    ERR_NoStackAllocTarget = 364,
+    ERR_StackAllocInCatchFinally = 365,
+    ERR_StackAllocLocalWithInitializer = 366,
+    ERR_ImplicitlyTypedStackAllocLocal = 367,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

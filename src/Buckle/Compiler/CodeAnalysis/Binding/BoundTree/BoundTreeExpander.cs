@@ -282,6 +282,8 @@ internal abstract class BoundTreeExpander {
             BoundKind.CascadeListExpression => ExpandCascadeListExpression((BoundCascadeListExpression)expression, out replacement),
             BoundKind.StackSlotExpression => ExpandStackSlotExpression((BoundStackSlotExpression)expression, out replacement),
             BoundKind.FieldSlotExpression => ExpandFieldSlotExpression((BoundFieldSlotExpression)expression, out replacement),
+            BoundKind.StackAllocExpression => ExpandStackAllocExpression((BoundStackAllocExpression)expression, out replacement),
+            BoundKind.ConvertedStackAllocExpression => ExpandConvertedStackAllocExpression((BoundConvertedStackAllocExpression)expression, out replacement),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -325,6 +327,20 @@ internal abstract class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandFieldSlotExpression(
         BoundFieldSlotExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandStackAllocExpression(
+        BoundStackAllocExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandConvertedStackAllocExpression(
+        BoundConvertedStackAllocExpression expression,
         out BoundExpression replacement) {
         replacement = expression;
         return [];
