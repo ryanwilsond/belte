@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -58,8 +59,12 @@ internal sealed class LookupResult {
         return new SingleLookupResult(LookupResultKind.Inaccessible, symbol, error);
     }
 
-    internal static SingleLookupResult NotInvocable(Symbol unwrappedSymbol, Symbol symbol, bool diagnose) {
-        var error = diagnose ? Error.NonInvocableMemberCalled(unwrappedSymbol) : null;
+    internal static SingleLookupResult NotInvocable(
+        Symbol unwrappedSymbol,
+        Symbol symbol,
+        bool diagnose,
+        TextLocation errorLocation) {
+        var error = diagnose ? Error.NonInvocableMemberCalled(errorLocation, unwrappedSymbol) : null;
         return new SingleLookupResult(LookupResultKind.NotInvocable, symbol, error);
     }
 

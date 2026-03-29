@@ -22,7 +22,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '??' is not defined for operands of types '<null>' and 'int'
+            binary operator '??' is not defined for operands of types '<null>' and 'int!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -35,7 +35,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '||' is not defined for operands of types '<null>' and 'bool'
+            binary operator '||' is not defined for operands of types '<null>' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -201,37 +201,15 @@ public sealed class IssueTests {
         AssertExceptions(text, _writer, new BelteNullReferenceException(null));
     }
 
-    /*
-    // !
-    // [Fact]
-    // public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             const int x = 4 * 3;
-    //             if (x > 12) {
-    //                 [Console.PrintLine(""x"");]
-    //             } else {
-    //                 Console.PrintLine(""x"");
-    //             }
-    //         }
-    //     ";
-
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
-
     [Fact]
     public void Evaluator_CompoundExpression_Reports_Undefined() {
         var text = @"
             var x = 10;
-            x [+=] false;
+            [x += false];
         ";
 
         var diagnostics = @"
-            compound operator '+=' is not defined for types 'int' and 'bool'
+            binary operator '+=' is not defined for operands of types 'int' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -255,50 +233,15 @@ public sealed class IssueTests {
         var text = @"
             {
                 const int x = 10;
-                x [+=] 1;
+                [x] += 1;
             }
         ";
 
         var diagnostics = @"
-            'x' cannot be assigned to as it is a constant
+            left side of assignment operation must be a variable, parameter, field, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
-        var text = @"
-            int test() {
-                if (true)
-                    return 1;
-                else
-                    [return 0;]
-            }
-        ";
-
-        var diagnostics = @"
-            unreachable code
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
-
-    [Fact]
-    public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
-        var text = @"
-            void test() {
-                while (false) {
-                    [continue;]
-                }
-            }
-        ";
-
-        var diagnostics = @"
-            unreachable code
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
     [Fact]
@@ -316,11 +259,11 @@ public sealed class IssueTests {
     public void Evaluator_InvokeFunctionArguments_Missing() {
         var text = @"
             void myFunc(int a) { }
-            myFunc([)];
+            [myFunc]();
         ";
 
         var diagnostics = @"
-            method 'myFunc' expects 1 argument, got 0
+            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -330,11 +273,11 @@ public sealed class IssueTests {
     public void Evaluator_InvokeFunctionArguments_Exceeding() {
         var text = @"
             void myFunc(int a) { }
-            myFunc(""Hello""[, "" "", "" world!""]);
+            [myFunc](1, 2, 3);
         ";
 
         var diagnostics = @"
-            method 'myFunc' expects 1 argument, got 3
+            no overload for method 'myFunc' takes 3 arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -393,7 +336,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int!' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -407,7 +350,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int!' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -421,7 +364,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int!' to 'bool'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -452,8 +395,8 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            variable 'x' is already declared in this scope
-            variable 'x' is already declared in this scope
+            cannot declare a local with the name 'x' because that name is already used by a parameter in an enclosing scope
+            a local or local function with the name 'x' has already been declared in this scope
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -493,11 +436,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_CannotAssign() {
         var text = @"
-            [PrintLine] = 10;
+            [Console.PrintLine] = 10;
         ";
 
         var diagnostics = @"
-            method 'PrintLine' cannot be used as a variable
+            cannot assign to 'PrintLine' because it is a method group
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -507,11 +450,11 @@ public sealed class IssueTests {
     public void Evaluator_AssignmentExpression_Reports_Readonly() {
         var text = @"
             const int x = 10;
-            x [=] 0;
+            [x] = 0;
         ";
 
         var diagnostics = @"
-            'x' cannot be assigned to as it is a constant
+            left side of assignment operation must be a variable, parameter, field, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -525,7 +468,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'bool' to 'int'
+            cannot convert from type 'bool!' to 'int'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -538,7 +481,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            undefined method 'foo'
+            undefined symbol 'foo'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -552,21 +495,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            called object 'foo' is not a method
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Evaluator_Variables_ShadowsFunction() {
-        var text = @"
-            int PrintLine = 4;
-            [PrintLine](""test"");
-        ";
-
-        var diagnostics = @"
-            called object 'PrintLine' is not a method
+            called object is not a method
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -615,11 +544,11 @@ public sealed class IssueTests {
     public void Evaluator_Expression_MustHaveValue() {
         var text = @"
             void func() {}
-            var x = [func()];
+            [var x = func()];
         ";
 
         var diagnostics = @"
-            expression must have a value
+            cannot assign void to an implicitly-typed local
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -628,11 +557,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Break_Invalid() {
         var text = @"
-            [break];
+            [break;]
         ";
 
         var diagnostics = @"
-            break statements can only be used within a loop
+            break and continue statements can only be used within a loop
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -641,11 +570,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Parameter_AlreadyDeclared() {
         var text = @"
-            void func(int a, [int a]) {}
+            void func(int a, int [a]) {}
         ";
 
         var diagnostics = @"
-            cannot reuse parameter name 'a'; parameter names must be unique
+            the parameter name 'a' is a duplicate
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -654,11 +583,12 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Function_MustHaveName() {
         var text = @"
-            void [(]int a) {}
+            void [(]int [a]) {}
         ";
 
         var diagnostics = @"
-            expected identifier
+            unexpected token '('
+            unexpected identifier, expected '('
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -672,7 +602,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'bool' to 'int'
+            argument 1: cannot convert from type 'bool!' to 'int'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -685,7 +615,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            unknown type 'invalidType'
+            undefined symbol 'invalidType'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -694,11 +624,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_UnaryOperator_Reports_Undefined() {
         var text = @"
-            [+]true;
+            [+true];
         ";
 
         var diagnostics = @"
-            unary operator '+' is not defined for type 'bool'
+            unary operator '+' is not defined for type 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -707,11 +637,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_BinaryOperator_Reports_Undefined() {
         var text = @"
-            10[+]true;
+            [10+true];
         ";
 
         var diagnostics = @"
-            binary operator '+' is not defined for types 'int' and 'bool'
+            binary operator '+' is not defined for operands of types 'int!' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -832,11 +762,11 @@ public sealed class IssueTests {
     public void Evaluator_CallExpression_ExceedingArgumentsOnZero() {
         var text = @"
             void Test() {}
-            Test([,]);
+            [Test](,);
         ";
 
         var diagnostics = @"
-            method 'Test' expects 0 arguments, got 2
+           no overload for method 'Test' takes 2 arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -846,7 +776,7 @@ public sealed class IssueTests {
     public void Evaluator_PostfixExpression_AllowedOnRef() {
         var text = @"
             int x = 3;
-            var y = ref x;
+            ref var y = ref x;
             y++;
         ";
 
@@ -877,7 +807,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            unknown type 'coasdf'
+            undefined symbol 'coasdf'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -888,11 +818,11 @@ public sealed class IssueTests {
         var text = @"
             void Test(ref int a) { a++; }
             const int a = 3;
-            Test([ref a]);
+            Test(ref [a]);
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'ref const int' to 'ref int'
+            ref value must be an assignable variable, field, parameter, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -905,24 +835,11 @@ public sealed class IssueTests {
                 public int a = 3;
             }
             const a = new A();
-            a.a[++];
+            [a.a]++;
         ";
 
         var diagnostics = @"
-            'a' cannot be assigned to as it is a constant
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
-    public void Evaluator_FunctionDeclaration_ParsesConst() {
-        var text = @"
-            [const] int Test() {}
-        ";
-
-        var diagnostics = @"
-            modifier 'const' is not valid for this item
+            left side of increment or decrement operation must be a variable, parameter, field, or indexer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -938,7 +855,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            an object reference is required for non-static member 'a'
+            an object reference is required for non-static member 'A.a'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -949,12 +866,12 @@ public sealed class IssueTests {
         var text = @"
             class A {
                 int Test() { return 3; }
-                static int Test1() { return [Test()]; }
+                static int Test1() { return [Test](); }
             }
         ";
 
         var diagnostics = @"
-            an object reference is required for non-static member 'Test'
+            an object reference is required for non-static member 'A.Test()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -991,7 +908,21 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            'A' is a type, which is not valid in this context
+            'A' is a type but is used like a variable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_CallExpression_NonInvocableType() {
+        var text = @"
+            static class A { }
+            return [A]();
+        ";
+
+        var diagnostics = @"
+            non-invocable member 'A' cannot be used like a method
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1084,5 +1015,60 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
-    */
+
+    // ! Bring these back when CFG issues are fixed
+    // [Fact]
+    // public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+    //     var text = @"
+    //         int test() {
+    //             if (true)
+    //                 return 1;
+    //             else
+    //                 [return 0;]
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         unreachable code
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
+
+    // [Fact]
+    // public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+    //     var text = @"
+    //         void test() {
+    //             while (false) {
+    //                 [continue;]
+    //             }
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         unreachable code
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
+
+    // [Fact]
+    // public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+    //     var text = @"
+    //         void test() {
+    //             const int x = 4 * 3;
+    //             if (x > 12) {
+    //                 [Console.PrintLine(""x"");]
+    //             } else {
+    //                 Console.PrintLine(""x"");
+    //             }
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         unreachable code
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
 }

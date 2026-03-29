@@ -2131,13 +2131,15 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {
-        // TODO Reachable? If not stack frame size can be computed ahead of time
-        throw ExceptionUtilities.Unreachable();
-        // var value = EvaluateExpression(node, abort);
-        // var temp = AllocateTemp(node.type);
-        // var frame = _stack.Peek();
-        // frame.values[temp.slot] = value;
-        // return EvaluatorValue.Ref(frame.values, temp.slot);
+        // Should only be reachable with uninitialized ref locals
+        if (!node.IsLiteralNull())
+            throw ExceptionUtilities.UnexpectedValue(node.kind);
+
+        var value = EvaluateExpression(node, true, abort);
+        var temp = AllocateTemp(node.type);
+        var frame = _stack.Peek();
+        frame.values[temp.slot] = value;
+        return EvaluatorValue.Ref(frame.values, temp.slot);
     }
 
     private VariableDefinition AllocateTemp(

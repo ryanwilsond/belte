@@ -2286,7 +2286,6 @@ internal partial class Binder {
                 );
             case BoundKind.ValuePlaceholder:
                 break;
-
             case BoundKind.PointerIndirectionOperator:
                 if (RequiresRefAssignableVariable(valueKind)) {
                     diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
@@ -2550,8 +2549,10 @@ internal partial class Binder {
             }
         }
 
-        if (fieldSymbol.isStatic || fieldSymbol.containingType.isObjectType)
+        if (fieldSymbol.isStatic ||
+            (fieldSymbol.containingType.isObjectType && node.parent.kind == SyntaxKind.CascadeExpression)) {
             return true;
+        }
 
         return CheckIsValidReceiverForVariable(node, fieldAccess.receiver, valueKind, diagnostics);
     }
@@ -8396,7 +8397,7 @@ internal partial class Binder {
     }
 
     private BoundExpression BindCompoundAssignment(AssignmentExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var left = BindValue(node.left, diagnostics, GetBinaryAssignmentKind(node.kind));
+        var left = BindValue(node.left, diagnostics, GetBinaryAssignmentKind(node.assignmentToken.kind));
         return BindCompoundAssignmentWithBoundLeft(node, left, diagnostics);
     }
 
@@ -9570,7 +9571,7 @@ symIsHidden:;
             return LookupResult.NotTypeOrNamespace(symbol, symbol, diagnose);
         } else if ((options & LookupOptions.MustBeInvocableIfMember) != 0
               && IsNonInvocableMember(unwrappedSymbol)) {
-            return LookupResult.NotInvocable(unwrappedSymbol, symbol, diagnose);
+            return LookupResult.NotInvocable(unwrappedSymbol, symbol, diagnose, errorLocation);
         } else if (!IsAccessible(
             unwrappedSymbol,
             RefineAccessThroughType(options, accessThroughType),

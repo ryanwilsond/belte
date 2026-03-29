@@ -346,7 +346,10 @@ public sealed partial class BelteRepl : Repl {
             }
         }
 
-        var diagnostics = compilation.GetDiagnostics();
+        var diagnostics = compilation.GetParseDiagnostics();
+
+        if (!diagnostics.AnyErrors())
+            diagnostics = compilation.GetDiagnostics();
 
         if (state.showWarnings)
             handle.diagnostics.PushRange(diagnostics);

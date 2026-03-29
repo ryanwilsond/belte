@@ -7,7 +7,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
     );
 
     public static readonly SymbolDisplayFormat ObjectCreationFormat = new SymbolDisplayFormat(

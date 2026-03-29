@@ -107,7 +107,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            unary operator '-' is not defined for type 'bool'
+            unary operator '-' is not defined for type 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -147,7 +147,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            binary operator '+' is not defined for operands of types 'bool' and 'int'
+            binary operator '+' is not defined for operands of types 'bool!' and 'int!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2176,7 +2176,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert null to 'T' because it is a non-nullable type
+            cannot convert null to 'type! T' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

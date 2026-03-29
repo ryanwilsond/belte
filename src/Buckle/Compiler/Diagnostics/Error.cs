@@ -89,7 +89,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
-        var message = $"unary operator '{op}' is not defined for type '{operand.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        var message = $"unary operator '{op}' is not defined for type '{operand.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidUnaryOperatorUse, location, message);
     }
 
@@ -99,7 +99,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
-        var message = $"binary operator '{op}' is not defined for operands of types '{left.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}' and '{right.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        var message = $"binary operator '{op}' is not defined for operands of types '{left.ToNullOrString()}' and '{right.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidBinaryOperatorUse, location, message);
     }
 
@@ -881,9 +881,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
     }
 
-    internal static BelteDiagnostic NonInvocableMemberCalled(Symbol symbol) {
-        var message = $"non-invocable member '{symbol}' cannot be used like a method";
-        return CreateError(DiagnosticCode.ERR_NonInvocableMemberCalled, null, message);
+    internal static BelteDiagnostic NonInvocableMemberCalled(TextLocation location, Symbol symbol) {
+        var message = $"non-invocable member '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot be used like a method";
+        return CreateError(DiagnosticCode.ERR_NonInvocableMemberCalled, location, message);
     }
 
     internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
