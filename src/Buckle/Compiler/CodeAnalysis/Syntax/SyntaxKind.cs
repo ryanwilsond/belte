@@ -124,6 +124,7 @@ public enum SyntaxKind : ushort {
     ExplicitKeyword,
     ExternKeyword,
     PinnedKeyword,
+    StackAllocKeyword,
 
     // Tokens with text
     BadToken,
@@ -168,6 +169,7 @@ public enum SyntaxKind : ushort {
     ArrayCreationExpression,
     CascadeListExpression,
     CascadeExpression,
+    StackAllocExpression,
 
     // Statements
     EmptyStatement,

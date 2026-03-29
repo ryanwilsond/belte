@@ -2851,6 +2851,8 @@ internal partial class Binder {
                 return BindThrowExpression((ThrowExpressionSyntax)node, diagnostics);
             case SyntaxKind.CascadeListExpression:
                 return BindCascadeListExpression((CascadeListExpressionSyntax)node, diagnostics);
+            case SyntaxKind.StackAllocExpression:
+                return BindStackAllocExpression((StackAllocExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -2938,6 +2940,117 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundExpression BindStackAllocExpression(
+        StackAllocExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var typeSyntax = node.type;
+
+        if (typeSyntax.kind != SyntaxKind.ArrayType) {
+            diagnostics.Push(Error.BadStackAllocExpression(typeSyntax.location));
+
+            return new BoundErrorExpression(
+                node,
+                LookupResultKind.NotCreatable,
+                [],
+                [],
+                new PointerTypeSymbol(BindType(typeSyntax, diagnostics))
+            );
+        }
+
+        var arrayTypeSyntax = (ArrayTypeSyntax)typeSyntax;
+        var arrayType = (ArrayTypeSymbol)BindArrayType(
+            arrayTypeSyntax,
+            diagnostics,
+            permitDimensions: true,
+            basesBeingResolved: null
+        ).type;
+
+        var elementType = arrayType.elementTypeWithAnnotations;
+
+        var type = GetStackAllocType(node, elementType, diagnostics, out var hasErrors);
+
+        var rankSpecifiers = arrayTypeSyntax.rankSpecifiers;
+
+        if (rankSpecifiers.Count != 1) {
+            diagnostics.Push(Error.BadStackAllocExpression(typeSyntax.location));
+
+            var builder = ArrayBuilder<BoundExpression>.GetInstance();
+
+            foreach (var rankSpecifier in rankSpecifiers) {
+                builder.Add(
+                    BindToTypeForErrorRecovery(BindExpression(rankSpecifier.size, BelteDiagnosticQueue.Discarded))
+                );
+            }
+
+            return new BoundErrorExpression(
+                node,
+                LookupResultKind.Empty,
+                [],
+                builder.ToImmutableAndFree(),
+                new PointerTypeSymbol(elementType)
+            );
+        }
+
+        var countSyntax = rankSpecifiers[0].size;
+
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var count = BindValue(countSyntax, diagnostics, BindValueKind.RValue);
+        count = ReduceNumericIfApplicable(int32, count);
+        count = GenerateConversionForAssignment(int32, count, diagnostics);
+
+        if ((int)count.constantValue.value < 0) {
+            diagnostics.Push(Error.NegativeStackAllocSize(countSyntax.location));
+            hasErrors = true;
+        }
+
+        return new BoundStackAllocExpression(
+            node,
+            elementType.type,
+            count,
+            type,
+            hasErrors
+        );
+    }
+
+    private TypeSymbol GetStackAllocType(
+        SyntaxNode node,
+        TypeWithAnnotations elementTypeWithAnnotations,
+        BelteDiagnosticQueue diagnostics,
+        out bool hasErrors) {
+        var inLegalPosition = ReportBadStackAllocPosition(node, diagnostics);
+        hasErrors = !inLegalPosition;
+
+        // TODO Use Span<T> eventually for non-lowlevel contexts?
+        if (inLegalPosition && !IsStackallocTargetTyped(node))
+            diagnostics.Push(Error.NoStackAllocTarget(node.location));
+
+        return new PointerTypeSymbol(elementTypeWithAnnotations);
+
+        static bool IsStackallocTargetTyped(SyntaxNode node) {
+            var equalsValueClause = node.parent;
+
+            if (equalsValueClause.kind != SyntaxKind.EqualsValueClause)
+                return false;
+
+            var variableDeclaration = equalsValueClause.parent;
+
+            if (variableDeclaration.kind != SyntaxKind.VariableDeclaration)
+                return false;
+
+            return variableDeclaration.parent.kind is SyntaxKind.LocalDeclarationStatement or SyntaxKind.ForStatement;
+        }
+    }
+
+    private bool ReportBadStackAllocPosition(SyntaxNode node, BelteDiagnosticQueue diagnostics) {
+        var inLegalPosition = true;
+        // TODO Theres something to say about nested stack allocs
+
+        if (flags.Includes(BinderFlags.InCatchBlock) || flags.Includes(BinderFlags.InFinallyBlock))
+            diagnostics.Push(Error.StackAllocInCatchFinally(node.location));
+
+        return inLegalPosition;
     }
 
     private BoundExpression BindCascadeListExpression(
@@ -10073,7 +10186,8 @@ symIsHidden:;
             hasErrors = true;
         }
 
-        BoundExpression initializer;
+        BoundExpression initializer = null;
+
         if (isImplicitlyTyped) {
             alias = null;
 
@@ -10147,7 +10261,9 @@ symIsHidden:;
                 hasErrors = true;
             }
         } else {
-            if (equalsClauseSyntax is null) {
+            if (declaration.argumentList is not null) {
+                // Handled later
+            } else if (equalsClauseSyntax is null) {
                 if (declarationType.IsNullableType() || declarationType.IsVoidType() ||
                     declarationType.type.IsPointerOrFunctionPointer()) {
                     initializer = new BoundLiteralExpression(
@@ -10182,6 +10298,46 @@ symIsHidden:;
                         : ConversionForAssignmentFlags.None
                 );
             }
+        }
+
+        if (declaration.argumentList is not null) {
+            if (isImplicitlyTyped)
+                diagnostics.Push(Error.ImplicitlyTypedStackAllocLocal(declaration.location));
+            else if (equalsClauseSyntax is not null)
+                diagnostics.Push(Error.StackAllocLocalWithInitializer(declaration.location));
+
+            if (flags.Includes(BinderFlags.InCatchBlock) || flags.Includes(BinderFlags.InFinallyBlock))
+                diagnostics.Push(Error.StackAllocInCatchFinally(declaration.location));
+
+            var arguments = declaration.argumentList.arguments;
+
+            if (arguments.Count > 1)
+                diagnostics.Push(Error.BadStackAllocExpression(declaration.argumentList.location));
+
+            var elementType = declarationType;
+            var type = GetStackAllocType(declaration, elementType, BelteDiagnosticQueue.Discarded, out hasErrors);
+
+            var sizeExpression = ((ArgumentSyntax)arguments[0]).expression;
+
+            var intType = CorLibrary.GetSpecialType(SpecialType.Int32);
+            var boundSize = BindValue(sizeExpression, diagnostics, BindValueKind.RValue);
+            boundSize = ReduceNumericIfApplicable(intType, boundSize);
+            boundSize = GenerateConversionForAssignment(intType, boundSize, diagnostics);
+
+            if ((int)boundSize.constantValue.value < 0) {
+                diagnostics.Push(Error.NegativeStackAllocSize(sizeExpression.location));
+                hasErrors = true;
+            }
+
+            initializer = new BoundStackAllocExpression(
+                declaration,
+                elementType.type,
+                boundSize,
+                type,
+                hasErrors
+            );
+
+            declarationType = new TypeWithAnnotations(type);
         }
 
         localSymbol.SetTypeWithAnnotations(declarationType);

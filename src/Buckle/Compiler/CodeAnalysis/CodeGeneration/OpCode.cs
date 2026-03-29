@@ -135,4 +135,5 @@ internal enum OpCode : byte {
     Ldftn,
     Calli,
     Sizeof,
+    Localloc,
 }

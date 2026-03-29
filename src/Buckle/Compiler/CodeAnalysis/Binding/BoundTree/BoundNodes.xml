@@ -271,6 +271,19 @@
     <Field Name="cascades" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="conditionals" Type="ImmutableArray&lt;bool&gt;"/>
   </Node>
+  <AbstractNode Name="BoundStackAllocExpressionBase" Base="BoundExpression">
+    <Field Name="elementType" Type="TypeSymbol" Null="disallow"/>
+    <Field Name="count" Type="BoundExpression" Null="disallow"/>
+  </AbstractNode>
+  <Node Name="BoundStackAllocExpression" Base="BoundStackAllocExpressionBase">
+    <Field Name="elementType" Type="TypeSymbol" Null="disallow" Override="true"/>
+    <Field Name="count" Type="BoundExpression" Null="disallow" Override="true"/>
+  </Node>
+  <Node Name="BoundConvertedStackAllocExpression" Base="BoundStackAllocExpressionBase">
+    <Field Name="elementType" Type="TypeSymbol" Null="disallow" Override="true"/>
+    <Field Name="count" Type="BoundExpression" Null="disallow" Override="true"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
   <Node Name="BoundFunctionPointerCallExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="invokedExpression" Type="BoundExpression"/>

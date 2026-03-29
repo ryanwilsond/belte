@@ -739,6 +739,7 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Calli => OpCodes.Calli,
             CodeGeneration.OpCode.Ldloc => OpCodes.Ldloc,
             CodeGeneration.OpCode.Sizeof => OpCodes.Sizeof,
+            CodeGeneration.OpCode.Localloc => OpCodes.Localloc,
             _ => throw new NotImplementedException()
         };
     }

@@ -3667,4 +3667,85 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0362_BadStackAllocExpression() {
+        var text = @"
+            int32 a[\[1,2\]];
+        ";
+
+        var diagnostics = @"
+            a stackalloc expression or local requires a type with a single array size specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0363_NegativeStackAllocSize() {
+        var text = @"
+            var a = stackalloc int32\[[(int32!)-1]\];
+        ";
+
+        var diagnostics = @"
+            cannot use a negative size with a stackalloc expression or local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0364_NoStackAllocTarget() {
+        var text = @"
+            [stackalloc int32\[10\]];
+        ";
+
+        var diagnostics = @"
+            stackalloc expression can only be used as a data container initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0365_StackAllocInCatchFinally() {
+        var text = @"
+            try {
+            } catch {
+                var a = [stackalloc int32\[10\]];
+            }
+        ";
+
+        var diagnostics = @"
+            a stackalloc expression or local may not be used in a catch or finally block
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0366_StackAllocLocalWithInitializer() {
+        var text = @"
+            [int32 a\[10\] = 3];
+        ";
+
+        var diagnostics = @"
+            a stackalloc local cannot not have an explicit initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0367_ImplicitlyTypedStackAllocLocal() {
+        var text = @"
+            [var a\[10\] = 3];
+        ";
+
+        var diagnostics = @"
+            a stackalloc local cannot be implicitly typed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

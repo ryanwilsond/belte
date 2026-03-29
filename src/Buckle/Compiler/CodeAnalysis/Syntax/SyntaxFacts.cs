@@ -68,6 +68,8 @@ public static class SyntaxFacts {
         switch (type) {
             case SyntaxKind.TypeOfKeyword:
             case SyntaxKind.NameOfKeyword:
+            case SyntaxKind.SizeOfKeyword:
+            case SyntaxKind.StackAllocKeyword:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.PeriodToken:
@@ -200,6 +202,7 @@ public static class SyntaxFacts {
             "explicit" => SyntaxKind.ExplicitKeyword,
             "extern" => SyntaxKind.ExternKeyword,
             "pinned" => SyntaxKind.PinnedKeyword,
+            "stackalloc" => SyntaxKind.StackAllocKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -322,6 +325,7 @@ public static class SyntaxFacts {
             SyntaxKind.ExplicitKeyword => "explicit",
             SyntaxKind.ExternKeyword => "extern",
             SyntaxKind.PinnedKeyword => "pinned",
+            SyntaxKind.StackAllocKeyword => "stackalloc",
             _ => null,
         };
     }

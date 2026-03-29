@@ -482,6 +482,7 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Calli => OpCodes.Calli,
             CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
             CodeGeneration.OpCode.Sizeof => OpCodes.Sizeof,
+            CodeGeneration.OpCode.Localloc => OpCodes.Localloc,
             _ => throw new NotImplementedException()
         };
     }

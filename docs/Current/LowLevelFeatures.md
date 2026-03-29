@@ -18,6 +18,7 @@ This may change.
 - [6.7](#67-extern-methods) Extern Methods
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
+- [6.10](#610-stackalloc-operator) Stackalloc Operator
 
 Additionally, the [Standard Library contains a class named LowLevel that provides
 various helper methods](StandardLibrary/LowLevel.md).
@@ -371,3 +372,27 @@ types compute their size at runtime.
 Note that taking the size of a reference type will return the size of the
 reference itself, not the object. Similarly, taking the size of a pointer
 returns the pointer size, not the size of the pointed at type.
+
+## 6.10 Stackalloc Operator
+
+Similar to fixed sized buffers for fields, the `stackalloc T[s]` operator can be
+used to create a segment of memory for indexing where the size of the memory
+is `sizeof(T) * s`. The memory is allocated on the stack. The operator results
+in a pointer to the start of the memory.
+
+```belte
+int32* ptr = stackalloc int32[10];
+ptr[0] = 5;
+ptr[1] = 10;
+...
+```
+
+### 6.10.1 Stackalloc Locals
+
+A C-style shorthand is available for stackalloc expressions. The following are
+equivalent:
+
+```belte
+int32 ptr[10];
+int32* ptr = stackalloc int32[10];
+```

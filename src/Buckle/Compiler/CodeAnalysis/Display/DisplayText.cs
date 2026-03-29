@@ -300,6 +300,10 @@ public sealed class DisplayText {
             case BoundKind.CascadeListExpression:
                 DisplayCascadeListExpression(text, (BoundCascadeListExpression)node);
                 break;
+            case BoundKind.StackAllocExpression:
+            case BoundKind.ConvertedStackAllocExpression:
+                DisplayStackAllocExpression(text, (BoundStackAllocExpressionBase)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -791,6 +795,14 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
+        text.Write(CreateKeyword(SyntaxKind.StackAllocKeyword));
+        SymbolDisplay.AppendToDisplayText(text, node.elementType);
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.count);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
     private static void DisplayCascadeListExpression(DisplayText text, BoundCascadeListExpression node) {
