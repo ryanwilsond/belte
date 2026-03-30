@@ -535,7 +535,8 @@ internal static partial class ConstraintsHelpers {
         if (templateArgument.isConstant)
             return true;
 
-        if (templateArgument.type.IsVoidType()) {
+        if (templateArgument.type.IsVoidType() ||
+            templateArgument.type.type.StrippedType().IsPointerOrFunctionPointer()) {
             diagnostics.Push(Error.BadTemplateArgument(location, templateArgument.type.type));
             return false;
         }

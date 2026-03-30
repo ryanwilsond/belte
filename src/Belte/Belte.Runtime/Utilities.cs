@@ -38,7 +38,7 @@ public static class Utilities {
     }
 
     public static long TimeNow() {
-        return DateTime.Now.Ticks;
+        return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
     }
 
     public static void TimeSleep(long ms) {

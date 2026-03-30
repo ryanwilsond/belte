@@ -675,7 +675,7 @@ internal static class StandardLibrary {
             { "Math_RadToDeg_D", new Func<object, object, object, object>((a, b, c)
                 => { return double.RadiansToDegrees(Convert.ToDouble(a)); }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
-                => { return DateTime.Now.Ticks; }) },
+                => { return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
                 => { Thread.Sleep(Convert.ToInt32(a)); return null; }) },
             { "String_Ascii_S", new Func<object, object, object, object>((a, b, c)

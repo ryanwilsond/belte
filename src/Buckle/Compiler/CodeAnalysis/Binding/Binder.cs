@@ -1219,7 +1219,7 @@ internal partial class Binder {
         var type = typeWithAnnotations.type;
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
-            if (!typeWithAnnotations.isNullable && !type.IsStructType() &&
+            if (!typeWithAnnotations.isNullable && !type.IsStructType() && !type.IsPointerOrFunctionPointer() &&
                 type.specialType != SpecialType.Void && type.typeKind != TypeKind.TemplateParameter) {
                 diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
             }
@@ -8160,7 +8160,7 @@ internal partial class Binder {
         out TypeSymbol pointedAtType,
         out bool hasErrors) {
         hasErrors = operand.hasErrors;
-        if (operand.Type() is not PointerTypeSymbol operandType) {
+        if (operand.StrippedType() is not PointerTypeSymbol operandType) {
             pointedAtType = null;
 
             if (!hasErrors) {
@@ -9850,12 +9850,17 @@ symIsHidden:;
     }
 
     private bool IsInvocableMember(Symbol symbol) {
+        TypeSymbol type = null;
+
         switch (symbol.kind) {
             case SymbolKind.Method:
                 return true;
+            case SymbolKind.Field:
+                type = ((FieldSymbol)symbol).GetFieldType(fieldsBeingBound).type;
+                break;
         }
 
-        return false;
+        return type is not null && type.StrippedType().typeKind == TypeKind.FunctionPointer;
     }
 
     private static bool IsInstance(Symbol symbol) {
