@@ -19,7 +19,12 @@ internal static class SyntaxNodeExtensions {
                 action(rankSpecifier, argument);
                 continue;
             } else if (current is ArgumentSyntax syntax) {
-                type = (TypeSyntax)syntax.expression;
+                if (syntax.expression is TypeSyntax t)
+                    type = t;
+                else
+                    continue;
+            } else if (current is OmittedArgumentSyntax) {
+                continue;
             } else {
                 type = (TypeSyntax)current;
             }

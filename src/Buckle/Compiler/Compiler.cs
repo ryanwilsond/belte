@@ -129,6 +129,15 @@ public sealed class Compiler {
         //      2) Evaluator is only better than Executor for trivially simple programs
         var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
 
+        var options = new CompilationOptions(
+            buildMode,
+            _options.outputKind,
+            _options.arguments,
+            _options.isScript,
+            _options.enableOutput,
+            _options.references
+        );
+
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {
                 ReportAndReturnLibraryErrors();
@@ -138,7 +147,7 @@ public sealed class Compiler {
             var libTime = LogLibraryLoadTime(timer);
 
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
-            var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
+            var compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
@@ -178,7 +187,7 @@ public sealed class Compiler {
             var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
             task.stage = CompilerStage.Finished;
 
-            var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree, corLibrary);
+            var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
