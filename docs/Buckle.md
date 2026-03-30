@@ -8,6 +8,7 @@ Currently there are no releases of Belte, so to use the compiler you will have t
 
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
+- [Building to a .NET DLL](#building-to-a-net-dll)
 - [Building with .NET](#building-with-net)
 
 ## Options Summary
@@ -178,8 +179,7 @@ Specifies the path the *--verbose* mode will dump files. Defaults to the path Bu
 
 ## Running Programs
 
-There is no setup required. Because interpretation is the default behavior, no command-line arguments are needed, only
-the names of the files to run.
+There is no setup required. No command-line arguments are needed apart from the files to run.
 
 Example:
 
@@ -200,6 +200,14 @@ buckle Program.blt
 ```
 Hello, world!
 ```
+
+## Building to a .NET DLL
+
+Both the `-d` and `--type=dll` options output a .NET dll. The former outputs a dll alongside a runtime config file so
+that the dll is ready to run by using `dotnet <path/to/dll>`.
+
+The `--type=dll` option outputs a dll that can be referenced by other applications, but is not a runnable application
+itself. There is no entry point.
 
 ## Building with .NET
 

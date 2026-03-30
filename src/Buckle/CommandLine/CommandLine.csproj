@@ -14,7 +14,33 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources/HelpPrompt.txt" />
     <EmbeddedResource Include="Resources/Version.txt" />
-    </ItemGroup>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <Content Remove="../../../lib/Belte.Runtime.dll"/>
+    <Content Remove="../../../lib/Belte.Graphics.dll"/>
+    <Content Remove="../../../bin/release/freetype6.dll" />
+    <Content Remove="../../../bin/release/openal.dll" />
+    <Content Remove="../../../bin/release/SDL2.dll" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <EmbeddedResource Include="../../../lib/Belte.Runtime.dll">
+      <LogicalName>Resources.Belte.Runtime.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../../../lib/Belte.Graphics.dll">
+      <LogicalName>Resources.Belte.Graphics.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../../../bin/release/freetype6.dll">
+      <LogicalName>Resources.freetype6.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../../../bin/release/openal.dll">
+      <LogicalName>Resources.openal.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="../../../bin/release/SDL2.dll">
+      <LogicalName>Resources.SDL2.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\Dependencies\Diagnostics\Diagnostics.csproj" />

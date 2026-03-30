@@ -46,6 +46,18 @@ If something goes wrong, the Evaluator provides much better debug information, a
 
 ## Compiling a Sample
 
+Use the `-d` option to output a .NET dll that is ready to run. You can optionally specify an output path for the dll
+with `-o <path/to/dll>`. Run the dll using `dotnet <path/to/dll>`.
+
+E.g.
+
+```bash
+buckle samples/Donut -d -o donut.dll
+dotnet donut.dll
+```
+
+### Building using `dotnet build`
+
 > Note: using `dotnet build` or `dotnet run` commands builds the Buckle compiler before building the sample project,
 > potentially slowing down build times
 

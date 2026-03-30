@@ -668,7 +668,7 @@ public static partial class BuckleCommandLine {
         state.includeWarnings = includeWarnings.ToArray();
         state.excludeWarnings = excludeWarnings.ToArray();
 
-        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary || state.buildMode == BuildMode.Dotnet) {
             if (!specifyBuildMode)
                 state.buildMode = BuildMode.Dotnet;
 

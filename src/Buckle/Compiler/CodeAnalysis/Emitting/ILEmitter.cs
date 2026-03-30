@@ -33,6 +33,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
     private readonly string _belteDllName;
+    private readonly string _tfm;
+    private readonly string _version;
 
     private Dictionary<string, MethodReference> _stlMap;
 
@@ -63,30 +65,33 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .OfType<TargetFrameworkAttribute>()
             .FirstOrDefault();
 
-        var tfm = attr.FrameworkName.Split('=')[1].Substring(1);
-        var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
-        var netstandardDll = DotnetReferenceResolver.ResolveNetStandardDll(tfm);
-        var privateCoreLibDll = DotnetReferenceResolver.ResolvePrivateCoreLibDll(tfm);
+        _tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
 
 #if !DEBUG
 #pragma warning disable IL3000
 #endif
 
+        var objectDll = typeof(object).Assembly.Location;
+        var consoleDll = typeof(Console).Assembly.Location;
         _belteDllName = typeof(Belte.Runtime.Console).Assembly.Location;
 
         if (string.IsNullOrEmpty(_belteDllName))
             _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
 
+        if (string.IsNullOrEmpty(objectDll))
+            objectDll = Path.Combine(refPackPath, "System.Runtime.dll");
+
+        if (string.IsNullOrEmpty(consoleDll))
+            consoleDll = Path.Combine(refPackPath, "System.Console.dll");
+
         _assemblies = [
-            AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),
+            AssemblyDefinition.ReadAssembly(objectDll),
             AssemblyDefinition.ReadAssembly(_belteDllName),
         ];
 
         _backupAssemblies = [
-            AssemblyDefinition.ReadAssembly(typeof(Console).Assembly.Location),
-            // AssemblyDefinition.ReadAssembly(runtimeDll),
-            // AssemblyDefinition.ReadAssembly(netstandardDll),
-            // AssemblyDefinition.ReadAssembly(privateCoreLibDll),
+            AssemblyDefinition.ReadAssembly(consoleDll),
         ];
 
 #if !DEBUG
@@ -150,7 +155,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitToFile(string outputPath) {
         EmitInternal();
+        EmitRuntimeConfig(outputPath);
         _assemblyDefinition.Write(outputPath);
+    }
+
+    private void EmitRuntimeConfig(string outputPath) {
+        var runtimeConfigPath = outputPath;
+
+        if (outputPath.EndsWith(".dll") || outputPath.EndsWith(".exe"))
+            runtimeConfigPath = outputPath.Substring(0, outputPath.Length - 4);
+
+        runtimeConfigPath += ".runtimeconfig.json";
+
+        if (File.Exists(runtimeConfigPath))
+            File.Delete(runtimeConfigPath);
+
+        var content = $"{{\"runtimeOptions\": {{\"tfm\": \"net{_tfm}\",\"framework\": {{\"name\": \"Microsoft.NETCore.App\",\"version\": \"{_version}\"}}}}}}";
+
+        File.WriteAllText(runtimeConfigPath, content);
     }
 
     private string EmitToString() {

@@ -37,8 +37,8 @@ else
 endif
 
 all: debug
-release: prebuild copydlls build postbuild
-portable: prebuild buildportable postbuildportable
+release: prebuild libs copydlls build postbuild
+portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
 setup: prebuild generate libs
@@ -89,6 +89,7 @@ prebuild:
 	@$(MKDIR) bin/portable
 	@$(MKDIR) bin/debug
 	@$(MKDIR) bin/linux
+	@$(MKDIR) artifacts
 
 postbuild:
 	@$(MV) bin/release/CommandLine.exe bin/release/buckle.exe
