@@ -1443,9 +1443,8 @@ internal partial class Binder {
         var result = (argumentListBinder ?? this)
             .BindConstructorInitializerCore(initializerArgumentList, constructor, diagnostics);
 
-        if (argumentListBinder is not null) {
+        if (argumentListBinder is not null)
             result = argumentListBinder.WrapWithVariablesIfAny(initializerArgumentList, result);
-        }
 
         return result;
     }

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.CodeGeneration;
 
@@ -10,11 +12,19 @@ internal abstract class ILBuilder {
 
     internal abstract LocalSlotManager localSlotManager { get; }
 
+    internal abstract int instructionsEmitted { get; }
+
     internal abstract void Finish();
 
     internal abstract void MarkLabel(object label);
 
     internal abstract void FreeTemp(VariableDefinition temp);
+
+    internal abstract void DefineHiddenSequencePoint(int instructionIndex);
+
+    internal abstract void DefineSequencePoint(SyntaxTree syntaxTree, TextLocation location, int instructionIndex);
+
+    internal abstract void DefineInitialHiddenSequencePoint();
 
     internal abstract void Emit(OpCode opCode);
 

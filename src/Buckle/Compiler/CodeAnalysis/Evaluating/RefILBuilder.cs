@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection.Emit;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -39,6 +41,9 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override int tryNestingLevel => _tryStack.Count;
 
+    // ? This doesn't actually need to be accurate because this builder doesn't emit sequence points
+    internal override int instructionsEmitted => _iLGenerator.ILOffset;
+
     internal override void Finish() {
         if (_needsEpilogue) {
             MarkLabel(_epilogue);
@@ -51,6 +56,12 @@ internal sealed class RefILBuilder : ILBuilder {
             Emit(CodeGeneration.OpCode.Ret);
         }
     }
+
+    internal override void DefineHiddenSequencePoint(int instructionIndex) { }
+
+    internal override void DefineSequencePoint(SyntaxTree syntaxTree, TextLocation location, int instructionIndex) { }
+
+    internal override void DefineInitialHiddenSequencePoint() { }
 
     internal override void BeginTry() {
         if (!_needsEpilogue) {

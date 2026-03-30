@@ -731,6 +731,9 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
         var newStatements = ArrayBuilder<BoundStatement>.GetInstance();
 
+        if (prologue.Count > 0)
+            newStatements.Add(BoundSequencePoint.CreateHidden());
+
         InsertAndFreePrologue(newStatements, prologue);
 
         foreach (var statement in node.statements) {

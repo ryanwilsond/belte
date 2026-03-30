@@ -40,7 +40,12 @@
 				"scopeName": "source.belte",
 				"path": "./belte.tmLanguage.json"
 			}
-		]
+		],
+        "breakpoints": [
+            {
+                "language": "belte"
+            }
+        ]
 	},
 	"__metadata": {
 		"size": 312868

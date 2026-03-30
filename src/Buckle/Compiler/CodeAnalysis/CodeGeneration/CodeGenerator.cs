@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -40,6 +41,8 @@ internal sealed partial class CodeGenerator {
     private readonly HashSet<DataContainerSymbol> _stackLocals = [];
     private readonly List<(int instructionIndex, LabelSymbol target)> _unhandledGotos = [];
     private readonly SyntaxNode _methodBodySyntax;
+    private readonly ILEmitStyle _ilEmitStyle;
+    private readonly bool _emitPdbSequencePoints;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
@@ -47,19 +50,23 @@ internal sealed partial class CodeGenerator {
         ModuleBuilder module,
         MethodSymbol method,
         BoundBlockStatement methodBody,
-        ILBuilder iLBuilder) {
+        ILBuilder iLBuilder,
+        bool debugMode) {
         _module = module;
         _method = method;
         _body = methodBody;
         _builder = iLBuilder;
-        // TODO Make this dynamic when debugging is added
-        // _ilEmitStyle = ILEmitStyle.Release;
+        _ilEmitStyle = debugMode ? ILEmitStyle.Debug : ILEmitStyle.Release;
+        _emitPdbSequencePoints = debugMode;
 
         var sourceMethod = method as SourceMemberMethodSymbol;
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
     }
 
     internal void Generate() {
+        if (_emitPdbSequencePoints && _method.isImplicitlyDeclared)
+            _builder.DefineInitialHiddenSequencePoint();
+
         EmitBlock(_body);
         _builder.Finish();
         _expressionTemps?.Free();
@@ -632,7 +639,7 @@ internal sealed partial class CodeGenerator {
     private void EmitStatement(BoundStatement statement) {
         switch (statement.kind) {
             case BoundKind.NopStatement:
-                EmitNopStatement((BoundNopStatement)statement);
+                EmitNopStatement();
                 break;
             case BoundKind.GotoStatement:
                 EmitGotoStatement((BoundGotoStatement)statement);
@@ -655,13 +662,20 @@ internal sealed partial class CodeGenerator {
             case BoundKind.ExpressionStatement:
                 EmitExpression(((BoundExpressionStatement)statement).expression, false);
                 break;
+            case BoundKind.SequencePoint:
+                EmitSequencePoint((BoundSequencePoint)statement);
+                break;
+            case BoundKind.SequencePointWithLocation:
+                EmitSequencePointWithLocation((BoundSequencePointWithLocation)statement);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(statement.kind);
         }
     }
 
-    private void EmitNopStatement(BoundNopStatement _) {
-        _builder.Emit(OpCode.Nop);
+    private void EmitNopStatement() {
+        if (_ilEmitStyle == ILEmitStyle.Debug)
+            _builder.Emit(OpCode.Nop);
     }
 
     private void EmitLabelStatement(BoundLabelStatement statement) {
@@ -941,6 +955,62 @@ oneMoreTime:
         }
 
         _builder.EndTry(hasFinally);
+    }
+
+    private void EmitSequencePoint(BoundSequencePoint node) {
+        var syntax = node.syntax;
+
+        var statement = node.statement;
+        var instructionsEmitted = 0;
+        var index = _builder.instructionsEmitted;
+
+        if (statement is not null)
+            instructionsEmitted = EmitStatementAndCountInstructions(statement);
+
+        if (instructionsEmitted == 0 && syntax is not null && _ilEmitStyle == ILEmitStyle.Debug)
+            _builder.Emit(OpCode.Nop);
+
+        if (_emitPdbSequencePoints) {
+            if (syntax is null)
+                EmitHiddenSequencePoint(index);
+            else
+                EmitSequencePoint(syntax, index);
+        }
+    }
+
+    private void EmitHiddenSequencePoint(int instructionIndex) {
+        _builder.DefineHiddenSequencePoint(instructionIndex);
+    }
+
+    private void EmitSequencePoint(SyntaxNode syntax, int instructionIndex) {
+        EmitSequencePoint(syntax.syntaxTree, syntax.location, instructionIndex);
+    }
+
+    private void EmitSequencePoint(SyntaxTree syntaxTree, TextLocation location, int instructionIndex) {
+        _builder.DefineSequencePoint(syntaxTree, location, instructionIndex);
+    }
+
+    private int EmitStatementAndCountInstructions(BoundStatement statement) {
+        var n = _builder.instructionsEmitted;
+        EmitStatement(statement);
+        return _builder.instructionsEmitted - n;
+    }
+
+    private void EmitSequencePointWithLocation(BoundSequencePointWithLocation node) {
+        var location = node.location;
+
+        var statement = node.statement;
+        var instructionsEmitted = 0;
+        var index = _builder.instructionsEmitted;
+
+        if (statement is not null)
+            instructionsEmitted = EmitStatementAndCountInstructions(statement);
+
+        if (instructionsEmitted == 0 && location is not null && _ilEmitStyle == ILEmitStyle.Debug)
+            _builder.Emit(OpCode.Nop);
+
+        if (location is not null && _emitPdbSequencePoints)
+            EmitSequencePoint(node.syntax.syntaxTree, location, index);
     }
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {

@@ -31,7 +31,8 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
             // TODO This only works on surface level and breaks on nested trys
             // TODO Will have to rewrite the CFG builder from scratch fix trys later
-            if (!reachableStatements.Contains(statement) && statement.kind != BoundKind.TryStatement) {
+            if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
+                BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
                 var statementToRemove = statement;
                 PotentiallyReportDeadCode(statementToRemove);
                 builder.RemoveAt(i);

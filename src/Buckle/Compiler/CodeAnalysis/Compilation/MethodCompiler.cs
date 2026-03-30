@@ -97,6 +97,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
             methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
 
+        methodCompiler.InjectSequencePoints();
+
         return methodCompiler.CreateBoundProgram();
     }
 
@@ -184,6 +186,13 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
                 _methodBodies[method] = (BoundBlockStatement)loweredBody;
             }
+        }
+    }
+
+    private void InjectSequencePoints() {
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null)
+                _methodBodies[method] = SequencePointInjector.Lower(body);
         }
     }
 

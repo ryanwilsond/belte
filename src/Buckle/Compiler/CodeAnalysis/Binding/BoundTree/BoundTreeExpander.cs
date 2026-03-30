@@ -59,6 +59,8 @@ internal abstract class BoundTreeExpander {
             BoundKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
             BoundKind.ErrorStatement => ExpandErrorStatement((BoundErrorStatement)statement),
             BoundKind.LocalFunctionStatement => ExpandLocalFunctionStatement((BoundLocalFunctionStatement)statement),
+            BoundKind.SequencePoint => ExpandSequencePoint((BoundSequencePoint)statement),
+            BoundKind.SequencePointWithLocation => ExpandSequencePointWithLocation((BoundSequencePointWithLocation)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -69,6 +71,15 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandNopStatement(BoundNopStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandSequencePoint(BoundSequencePoint statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandSequencePointWithLocation(
+        BoundSequencePointWithLocation statement) {
         return [statement];
     }
 

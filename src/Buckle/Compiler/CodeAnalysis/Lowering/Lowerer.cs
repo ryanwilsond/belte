@@ -35,7 +35,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
-
         rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
 
         return (BoundBlockStatement)rewrittenStatement;

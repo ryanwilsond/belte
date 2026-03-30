@@ -27,6 +27,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
     private readonly bool _isDll;
+    private readonly bool _debugMode;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
@@ -54,9 +55,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         BoundProgram program,
         string assemblySimpleName,
         string[] references,
+        bool debugMode,
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
+        _debugMode = debugMode;
         _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -145,11 +148,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string moduleName,
         string[] references,
         string outputPath,
+        bool debugMode,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, references, debugMode, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
-            emitter.EmitToFile(outputPath);
+            emitter.EmitToFile(outputPath, debugMode);
     }
 
     internal static string EmitToString(
@@ -157,7 +161,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string moduleName,
         string[] references,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, references, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString();
@@ -176,19 +180,29 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return true;
     }
 
-    private void EmitToFile(string outputPath) {
+    private void EmitToFile(string outputPath, bool debugMode) {
         EmitInternal();
         EmitRuntimeConfig(outputPath);
-        _assemblyDefinition.Write(outputPath);
+
+        if (debugMode) {
+            var debugPath = Path.ChangeExtension(outputPath, ".pdb");
+
+            using var symbolStream = File.Create(debugPath);
+
+            var writerParameters = new WriterParameters {
+                WriteSymbols = true,
+                SymbolStream = symbolStream,
+                SymbolWriterProvider = new PortablePdbWriterProvider()
+            };
+
+            _assemblyDefinition.Write(outputPath, writerParameters);
+        } else {
+            _assemblyDefinition.Write(outputPath);
+        }
     }
 
     private void EmitRuntimeConfig(string outputPath) {
-        var runtimeConfigPath = outputPath;
-
-        if (outputPath.EndsWith(".dll") || outputPath.EndsWith(".exe"))
-            runtimeConfigPath = outputPath.Substring(0, outputPath.Length - 4);
-
-        runtimeConfigPath += ".runtimeconfig.json";
+        var runtimeConfigPath = Path.ChangeExtension(outputPath, ".runtimeconfig.json");
 
         if (File.Exists(runtimeConfigPath))
             File.Delete(runtimeConfigPath);
@@ -522,6 +536,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int))
                 _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
         }
+
+        if (_debugMode) {
+            var debuggableAttribute = new CustomAttribute(ResolveMethod("System.Diagnostics.DebuggableAttribute", ".ctor", ["System.Boolean", "System.Boolean"]));
+            debuggableAttribute.ConstructorArguments.Add(new CustomAttributeArgument(_specialTypes[SpecialType.Bool], true));
+            debuggableAttribute.ConstructorArguments.Add(new CustomAttributeArgument(_specialTypes[SpecialType.Bool], true));
+
+            _assemblyDefinition.CustomAttributes.Add(debuggableAttribute);
+        }
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
@@ -842,7 +864,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         var (method, body) = _methodBodies[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode);
 
         if (_program.entryPoint == method)
             EmitAssemblyResolver(methodDefinition);
@@ -850,6 +872,21 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         codeGen.Generate();
 
         methodDefinition.Body.OptimizeMacros();
+
+        if (_debugMode) {
+            methodDefinition.DebugInformation.Scope = new ScopeDebugInformation(
+                methodDefinition.Body.Instructions.First(),
+                methodDefinition.Body.Instructions.Last()
+            );
+
+            foreach (CecilVariableDefinition local in ilBuilder.localSlotManager.LocalsInOrder()) {
+                if (local.synthesizedKind == SynthesizedLocalKind.UserDefined) {
+                    methodDefinition.DebugInformation.Scope.Variables.Add(
+                        new VariableDebugInformation(local.variableDefinition, local.name)
+                    );
+                }
+            }
+        }
     }
 
     private void CreateAssemblyResolverDefinition(TypeDefinition mainType) {

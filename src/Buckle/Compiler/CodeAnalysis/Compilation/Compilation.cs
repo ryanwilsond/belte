@@ -368,7 +368,7 @@ public sealed partial class Compilation {
         }
     }
 
-    public BelteDiagnosticQueue Emit(string outputPath, bool logTime = false) {
+    public BelteDiagnosticQueue Emit(string outputPath, bool debugMode, bool logTime) {
         if (options.buildMode == BuildMode.Independent) {
             var fatal = new BelteDiagnosticQueue();
             fatal.Push(Fatal.Unsupported.IndependentCompilation());
@@ -385,7 +385,7 @@ public sealed partial class Compilation {
             return diagnostics;
 
         if (options.buildMode == BuildMode.Dotnet)
-            ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
+            ILEmitter.Emit(program, assemblyName, options.references, outputPath, debugMode, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
 

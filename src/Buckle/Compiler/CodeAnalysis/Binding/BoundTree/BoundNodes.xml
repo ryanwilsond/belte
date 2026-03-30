@@ -382,4 +382,11 @@
     <Field Name="symbol" Type="LocalFunctionSymbol"/>
     <Field Name="body" Type="BoundBlockStatement"/>
   </Node>
+  <Node Name="BoundSequencePoint" Base="BoundStatement">
+    <Field Name="statement" Type="BoundStatement?"/>
+  </Node>
+  <Node Name="BoundSequencePointWithLocation" Base="BoundStatement">
+    <Field Name="statement" Type="BoundStatement?"/>
+    <Field Name="location" Type="TextLocation"/>
+  </Node>
 </Tree>

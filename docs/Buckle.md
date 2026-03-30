@@ -158,6 +158,10 @@ Adds a reference when .NET integration is enabled. This reference is a path to a
 and can then be referenced from within the program. This option is only valid in junction with the *-d* or *--dotnet*
 options.
 
+### *--debug*
+
+Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d* option was specified.
+
 ### *--time*
 
 Displays how much time each stage of compilation took.

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
@@ -5,6 +6,7 @@ using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
@@ -155,6 +157,12 @@ public sealed class DisplayText {
                 break;
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
+                break;
+            case BoundKind.SequencePoint:
+                DisplaySequencePoint(text, (BoundSequencePoint)node);
+                break;
+            case BoundKind.SequencePointWithLocation:
+                DisplaySequencePointWithLocation(text, (BoundSequencePointWithLocation)node);
                 break;
             case BoundKind.GlobalStatement:
                 DisplayGlobalStatement(text, (BoundGlobalStatement)node);
@@ -449,6 +457,41 @@ public sealed class DisplayText {
     private static void DisplayContinueStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
         text.WriteLine();
+    }
+
+    private static void DisplaySequencePoint(DisplayText text, BoundSequencePoint node) {
+        if (node.syntax?.location is not null)
+            DisplaySequencePointComment(text, node.syntax.location);
+
+        if (node.statement is null)
+            DisplayNopStatement(text);
+        else
+            DisplayNode(text, node.statement);
+    }
+
+    private static void DisplaySequencePointWithLocation(DisplayText text, BoundSequencePointWithLocation node) {
+        DisplaySequencePointComment(text, node.location);
+
+        if (node.statement is null)
+            DisplayNopStatement(text);
+        else
+            DisplayNode(text, node.statement);
+    }
+
+    private static void DisplaySequencePointComment(DisplayText text, TextLocation location) {
+        var span = location.span;
+        var startLine = location.text.GetLineIndex(span.start);
+        var endLine = location.text.GetLineIndex(span.end);
+
+        for (var i = startLine; i <= endLine; i++) {
+            var line = location.text.GetLines()[i];
+            var start = Math.Max(line.start, span.start);
+            var end = Math.Min(line.end, span.end);
+            var lineSpan = TextSpan.FromBounds(start, end);
+            var lineText = location.text.ToString(lineSpan);
+            text.Write(CreateComment(lineText));
+            text.WriteLine();
+        }
     }
 
     private static void DisplayGlobalStatement(DisplayText text, BoundGlobalStatement node) {

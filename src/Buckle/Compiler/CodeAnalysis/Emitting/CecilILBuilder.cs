@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Mono.Cecil;
@@ -11,11 +14,17 @@ using Mono.Cecil.Cil;
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed class CecilILBuilder : ILBuilder {
+    private const int HiddenLine = 0xFEEFEE;
+
     private readonly List<(int instructionIndex, object target)> _unhandledGotos;
     private readonly ILEmitter _module;
     private readonly MethodSymbol _method;
     private readonly MethodDefinition _definition;
     private readonly Stack<object> _tryStack;
+    private readonly Dictionary<StringText, Document> _documents;
+
+    private SyntaxTree _lastSeqPointTree;
+    private int _initialHiddenSequencePointMarker = -1;
 
     internal readonly ILProcessor iLProcessor;
 
@@ -26,6 +35,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         definition.Body.InitLocals = true;
         iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
+        _documents = [];
         _localSlotManager = new CecilLocalSlotManager();
         _tryStack = new Stack<object>();
     }
@@ -37,6 +47,8 @@ internal sealed class CecilILBuilder : ILBuilder {
     internal override LocalSlotManager localSlotManager => _localSlotManager;
 
     internal override int tryNestingLevel => _tryStack.Count;
+
+    internal override int instructionsEmitted => iLProcessor.Body.Instructions.Count;
 
     internal override void Finish() {
         foreach (var (instructionIndex, target) in _unhandledGotos) {
@@ -52,6 +64,68 @@ internal sealed class CecilILBuilder : ILBuilder {
         // TODO Mono does not handle slot freeing, we would need to do this manually by keeping a stack
         // var cLocal = ((CecilVariableDefinition)temp).variableDefinition;
         // _iLProcessor.Body.Variables.Remove(cLocal);
+    }
+
+    internal override void DefineHiddenSequencePoint(int instructionIndex) {
+        if (_lastSeqPointTree is not null)
+            DefineSequencePoint(_lastSeqPointTree, HiddenLine, HiddenLine, 0, 0, instructionIndex);
+    }
+
+    internal override void DefineSequencePoint(SyntaxTree syntaxTree, TextLocation location, int instructionIndex) {
+        DefineSequencePoint(
+            syntaxTree,
+            location.startLine,
+            location.endline,
+            location.startCharacter,
+            location.endCharacter,
+            instructionIndex
+        );
+    }
+
+    private void DefineSequencePoint(
+        SyntaxTree syntaxTree,
+        int startLine,
+        int endLine,
+        int startChar,
+        int endChar,
+        int instructionIndex) {
+        if (syntaxTree.text is not StringText t)
+            return;
+
+        _lastSeqPointTree = syntaxTree;
+
+        var instruction = iLProcessor.Body.Instructions[instructionIndex];
+
+        if (!_documents.TryGetValue(t, out var document)) {
+            var fullPath = Path.GetFullPath(t.fileName);
+            document = new Document(fullPath);
+            _documents.Add(t, document);
+        }
+
+        if (_initialHiddenSequencePointMarker >= 0) {
+            var hiddenSequencePoint = new SequencePoint(instruction, document) {
+                StartLine = HiddenLine,
+                EndLine = HiddenLine,
+                StartColumn = 0,
+                EndColumn = 0,
+            };
+
+            iLProcessor.Body.Method.DebugInformation.SequencePoints.Add(hiddenSequencePoint);
+            _initialHiddenSequencePointMarker = -1;
+        }
+
+        var sequencePoint = new SequencePoint(instruction, document) {
+            StartLine = startLine + 1,
+            EndLine = endLine + 1,
+            StartColumn = startChar + 1,
+            EndColumn = endChar + 1,
+        };
+
+        iLProcessor.Body.Method.DebugInformation.SequencePoints.Add(sequencePoint);
+    }
+
+    internal override void DefineInitialHiddenSequencePoint() {
+        _initialHiddenSequencePointMarker = 0;
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode) {
@@ -392,6 +466,9 @@ internal sealed class CecilILBuilder : ILBuilder {
         var typeReference = (type.typeKind == TypeKind.FunctionPointer)
             ? _module.GetType(CorLibrary.GetSpecialType(SpecialType.IntPtr))
             : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+
+        if (symbol.isPinned)
+            typeReference = new PinnedType(typeReference);
 
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
         iLProcessor.Body.Variables.Add(variableDefinition);

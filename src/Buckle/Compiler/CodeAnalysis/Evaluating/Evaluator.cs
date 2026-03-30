@@ -331,19 +331,26 @@ internal sealed class Evaluator {
                 return _lastValue;
 
             var labelToIndex = new Dictionary<LabelSymbol, int>();
+            var statements = block.statements.Select(
+                s => s is BoundSequencePoint p
+                    ? p.statement
+                    : s is BoundSequencePointWithLocation p2
+                        ? p2.statement
+                        : s
+                ).ToArray();
 
-            for (var i = 0; i < block.statements.Length; i++) {
-                if (block.statements[i] is BoundLabelStatement l)
+            for (var i = 0; i < statements.Length; i++) {
+                if (statements[i] is BoundLabelStatement l)
                     labelToIndex.Add(l.label, i + 1);
             }
 
             var index = 0;
 
-            while (index < block.statements.Length) {
+            while (index < statements.Length) {
                 if (abort)
                     throw new BelteThreadException();
 
-                var s = block.statements[index];
+                var s = statements[index];
 
                 switch (s.kind) {
                     case BoundKind.NopStatement:

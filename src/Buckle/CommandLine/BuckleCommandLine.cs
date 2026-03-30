@@ -450,6 +450,7 @@ public static partial class BuckleCommandLine {
         state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
         state.time = false;
+        state.debugMode = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -495,6 +496,9 @@ public static partial class BuckleCommandLine {
                 case "--dotnet":
                     specifyBuildMode = true;
                     state.buildMode = BuildMode.Dotnet;
+                    break;
+                case "--debug":
+                    state.debugMode = true;
                     break;
                 case "-h":
                 case "--help":

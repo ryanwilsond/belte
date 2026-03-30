@@ -47,6 +47,11 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.TryStatement:
                         BuildTryRegion((BoundTryStatement)statement);
                         break;
+                    case BoundKind.SequencePoint:
+                        if (((BoundSequencePoint)statement).statement is null)
+                            break;
+
+                        goto default;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(statement.kind);
                 }
