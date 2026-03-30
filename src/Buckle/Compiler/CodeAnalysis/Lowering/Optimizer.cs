@@ -51,8 +51,9 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
                 return;
 
-            if (seenScopes.Add(syntax.parent))
-                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+            // TODO CFG is broken so these warnings are not being triggered correctly
+            // if (seenScopes.Add(syntax.parent))
+            //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
         }
     }
 

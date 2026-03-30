@@ -12,6 +12,13 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
+    public static T AssertNull<T>(T value) {
+        if (value is null)
+            throw new NullReferenceException();
+
+        return value;
+    }
+
     public static void Sort<T>(T array) {
         if (array is null)
             return;

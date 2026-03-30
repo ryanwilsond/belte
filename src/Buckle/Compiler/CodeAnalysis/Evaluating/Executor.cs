@@ -264,34 +264,21 @@ internal sealed partial class Executor : ModuleBuilder {
                 current = current.containingType;
             }
 
-            // Type constructed = null;
             var allTypeArgs = new List<Type>();
 
             while (chain.Count > 0) {
                 var s = chain.Pop();
 
-                // var def = _types[s.originalDefinition];
-
-                // if (constructed is not null)
-                //     def = constructed.GetNestedTypes().Single(t => t.Name == def.Name);
-
                 if (s.arity > 0) {
                     foreach (var arg in s.templateArguments)
                         allTypeArgs.Add(GetType(arg.type.type));
                 }
-
-                // if (allTypeArgs.Count > 0)
-                //     def = def.MakeGenericType(allTypeArgs.ToArray());
-
-                // constructed = def;
             }
 
             if (allTypeArgs.Count > 0)
                 return foundType.MakeGenericType(allTypeArgs.ToArray());
 
             return foundType;
-
-            // return constructed;
         }
     }
 
@@ -344,7 +331,7 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     internal MethodInfo GetNullAssert(TypeSymbol type) {
-        var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
+        var assertNull = typeof(Belte.Runtime.Utilities).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
         return closedMethod;
     }
@@ -796,13 +783,6 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     #region Libraries
-
-    public static T AssertNull<T>(T value) {
-        if (value is null)
-            throw new NullReferenceException();
-
-        return value;
-    }
 
     public static void Fill(long r, long g, long b) {
         GraphicsHandler.Fill(r, g, b);

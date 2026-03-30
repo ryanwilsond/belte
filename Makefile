@@ -89,7 +89,6 @@ prebuild:
 	@$(MKDIR) bin/portable
 	@$(MKDIR) bin/debug
 	@$(MKDIR) bin/linux
-	@$(MKDIR) artifacts
 
 postbuild:
 	@$(MV) bin/release/CommandLine.exe bin/release/buckle.exe

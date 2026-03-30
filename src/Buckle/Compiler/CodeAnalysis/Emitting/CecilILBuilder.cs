@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -13,6 +15,8 @@ internal sealed class CecilILBuilder : ILBuilder {
     private readonly ILEmitter _module;
     private readonly MethodSymbol _method;
     private readonly MethodDefinition _definition;
+    private readonly Stack<object> _tryStack;
+
     internal readonly ILProcessor iLProcessor;
 
     internal CecilILBuilder(MethodSymbol method, ILEmitter module, MethodDefinition definition) {
@@ -23,6 +27,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
         _localSlotManager = new CecilLocalSlotManager();
+        _tryStack = new Stack<object>();
     }
 
     private int _count => iLProcessor.Body.Instructions.Count;
@@ -31,7 +36,7 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override LocalSlotManager localSlotManager => _localSlotManager;
 
-    internal override int tryNestingLevel => throw new NotImplementedException();
+    internal override int tryNestingLevel => _tryStack.Count;
 
     internal override void Finish() {
         foreach (var (instructionIndex, target) in _unhandledGotos) {
@@ -120,12 +125,17 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitCalli(FunctionPointerTypeSymbol type) {
-        var callSite = new CallSite(_module.GetType(type.signature.returnType)) {
-            CallingConvention = MethodCallingConvention.StdCall
+        var managed = type.signature.isManaged;
+        var returnType = _module.GetType(type.signature.returnType);
+        var paramTypes = type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray();
+
+        var callSite = new CallSite(returnType) {
+            HasThis = false,
+            CallingConvention = managed ? MethodCallingConvention.VarArg : MethodCallingConvention.StdCall
         };
 
-        foreach (var p in type.signature.parameters)
-            callSite.Parameters.Add(new Mono.Cecil.ParameterDefinition(_module.GetType(p.type)));
+        foreach (var p in paramTypes)
+            callSite.Parameters.Add(new Mono.Cecil.ParameterDefinition(p));
 
         iLProcessor.Emit(OpCodes.Calli, callSite);
     }
@@ -224,27 +234,93 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
+        if (from != SpecialType.String && to != SpecialType.String)
+            throw ExceptionUtilities.UnexpectedValue((from, to));
+
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
                 iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToBoolean_S);
                 break;
             case (SpecialType.String, SpecialType.Int):
-                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_S);
-                break;
-            case (SpecialType.Decimal, SpecialType.Int):
-                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_D);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt32_S);
                 break;
             case (SpecialType.String, SpecialType.Decimal):
                 iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_S);
                 break;
-            case (SpecialType.Int, SpecialType.Decimal):
-                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_I);
+            case (SpecialType.String, SpecialType.Char):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToChar_S);
+                break;
+            case (SpecialType.String, SpecialType.UInt8):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToByte_S);
+                break;
+            case (SpecialType.String, SpecialType.UInt16):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToUInt16_S);
+                break;
+            case (SpecialType.String, SpecialType.UInt32):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToUInt32_S);
+                break;
+            case (SpecialType.String, SpecialType.UInt64):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToUInt64_S);
+                break;
+            case (SpecialType.String, SpecialType.Int8):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToSByte_S);
+                break;
+            case (SpecialType.String, SpecialType.Int16):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt16_S);
+                break;
+            case (SpecialType.String, SpecialType.Int32):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt32_S);
+                break;
+            case (SpecialType.String, SpecialType.Int64):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt64_S);
+                break;
+            case (SpecialType.String, SpecialType.Float32):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToSingle_S);
+                break;
+            case (SpecialType.String, SpecialType.Float64):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToDouble_S);
+                break;
+            case (SpecialType.Bool, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_B);
                 break;
             case (SpecialType.Int, SpecialType.String):
-                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I64);
                 break;
             case (SpecialType.Decimal, SpecialType.String):
-                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_D);
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_F64);
+                break;
+            case (SpecialType.Char, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_C);
+                break;
+            case (SpecialType.UInt8, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_UI8);
+                break;
+            case (SpecialType.UInt16, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_UI16);
+                break;
+            case (SpecialType.UInt32, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_UI32);
+                break;
+            case (SpecialType.UInt64, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_UI64);
+                break;
+            case (SpecialType.Int8, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I8);
+                break;
+            case (SpecialType.Int16, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I16);
+                break;
+            case (SpecialType.Int32, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I32);
+                break;
+            case (SpecialType.Int64, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_I64);
+                break;
+            case (SpecialType.Float32, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_F32);
+                break;
+            case (SpecialType.Float64, SpecialType.String):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_F64);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue((from, to));
@@ -313,7 +389,10 @@ internal sealed class CecilILBuilder : ILBuilder {
         SynthesizedLocalKind kind,
         LocalSlotConstraints constraints,
         bool isSlotReusable) {
-        var typeReference = _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+        var typeReference = (type.typeKind == TypeKind.FunctionPointer)
+            ? _module.GetType(CorLibrary.GetSpecialType(SpecialType.IntPtr))
+            : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
+
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
         iLProcessor.Body.Variables.Add(variableDefinition);
 
@@ -331,7 +410,10 @@ internal sealed class CecilILBuilder : ILBuilder {
     internal override CodeGeneration.VariableDefinition AllocateSlot(
         TypeSymbol type,
         LocalSlotConstraints constraints) {
-        var typeReference = _module.GetType(type);
+        var typeReference = (type.typeKind == TypeKind.FunctionPointer)
+            ? _module.GetType(CorLibrary.GetSpecialType(SpecialType.IntPtr))
+            : _module.GetType(type);
+
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);
         iLProcessor.Body.Variables.Add(variableDefinition);
         return _localSlotManager.AllocateSlot(variableDefinition, type, constraints);
@@ -461,7 +543,10 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Stfld => OpCodes.Stfld,
             CodeGeneration.OpCode.Stind_I => OpCodes.Stind_I,
             CodeGeneration.OpCode.Stind_I1 => OpCodes.Stind_I1,
+            CodeGeneration.OpCode.Stind_I2 => OpCodes.Stind_I2,
+            CodeGeneration.OpCode.Stind_I4 => OpCodes.Stind_I4,
             CodeGeneration.OpCode.Stind_I8 => OpCodes.Stind_I8,
+            CodeGeneration.OpCode.Stind_R4 => OpCodes.Stind_R4,
             CodeGeneration.OpCode.Stind_R8 => OpCodes.Stind_R8,
             CodeGeneration.OpCode.Stind_Ref => OpCodes.Stind_Ref,
             CodeGeneration.OpCode.Dup => OpCodes.Dup,
@@ -469,8 +554,14 @@ internal sealed class CecilILBuilder : ILBuilder {
             CodeGeneration.OpCode.Unbox => OpCodes.Unbox,
             CodeGeneration.OpCode.Castclass => OpCodes.Castclass,
             CodeGeneration.OpCode.Ldind_I => OpCodes.Ldind_I,
-            CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
+            CodeGeneration.OpCode.Ldind_U1 => OpCodes.Ldind_U1,
             CodeGeneration.OpCode.Ldind_I1 => OpCodes.Ldind_I1,
+            CodeGeneration.OpCode.Ldind_U2 => OpCodes.Ldind_U2,
+            CodeGeneration.OpCode.Ldind_I2 => OpCodes.Ldind_I2,
+            CodeGeneration.OpCode.Ldind_U4 => OpCodes.Ldind_U4,
+            CodeGeneration.OpCode.Ldind_I4 => OpCodes.Ldind_I4,
+            CodeGeneration.OpCode.Ldind_I8 => OpCodes.Ldind_I8,
+            CodeGeneration.OpCode.Ldind_R4 => OpCodes.Ldind_R4,
             CodeGeneration.OpCode.Ldind_R8 => OpCodes.Ldind_R8,
             CodeGeneration.OpCode.Ldind_Ref => OpCodes.Ldind_Ref,
             CodeGeneration.OpCode.Ldobj => OpCodes.Ldobj,

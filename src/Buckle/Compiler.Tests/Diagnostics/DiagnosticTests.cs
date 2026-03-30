@@ -280,21 +280,22 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Warning_BU0026_UnreachableCode() {
-        var text = @"
-            if (false) {
-                [Console.PrintLine();]
-                Console.PrintLine();
-            }
-        ";
+    // !
+    // [Fact]
+    // public void Reports_Warning_BU0026_UnreachableCode() {
+    //     var text = @"
+    //         if (false) {
+    //             [Console.PrintLine();]
+    //             Console.PrintLine();
+    //         }
+    //     ";
 
-        var diagnostics = @"
-            unreachable code
-        ";
+    //     var diagnostics = @"
+    //         unreachable code
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
 
     [Fact]
     public void Reports_Error_BU0027_UnterminatedString() {

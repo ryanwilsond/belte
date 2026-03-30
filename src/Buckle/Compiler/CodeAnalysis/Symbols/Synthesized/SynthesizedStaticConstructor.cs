@@ -56,7 +56,7 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     internal override bool isStatic => true;
 
-    internal override bool isExtern => true;
+    internal override bool isExtern => false;
 
     internal override bool hidesBaseMethodsByName => false;
 
