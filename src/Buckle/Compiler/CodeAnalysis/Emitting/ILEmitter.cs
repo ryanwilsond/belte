@@ -871,7 +871,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         codeGen.Generate();
 
-        methodDefinition.Body.OptimizeMacros();
+        methodDefinition.Body.Optimize();
 
         if (_debugMode) {
             methodDefinition.DebugInformation.Scope = new ScopeDebugInformation(
