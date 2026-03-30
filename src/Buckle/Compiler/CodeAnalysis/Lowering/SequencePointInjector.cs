@@ -61,7 +61,7 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
                 case ConstructorDeclarationSyntax ctorDecl:
                     TextLocation location;
 
-                    if (ctorDecl.modifiers.Any(SyntaxKind.StaticKeyword)) {
+                    if (ctorDecl.modifiers is not null && ctorDecl.modifiers.Any(SyntaxKind.StaticKeyword)) {
                         var start = ctorDecl.body.openBrace.span.start;
                         var end = ctorDecl.body.openBrace.span.end;
                         location = FromBounds(syntax, start, end);
@@ -107,7 +107,7 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
         SyntaxNodeOrToken node;
         int startPos;
 
-        if (startOpt.Count > 0)
+        if (startOpt is not null && startOpt.Count > 0)
             node = startOpt.First();
         else if (startFallbackOpt is not null)
             node = startFallbackOpt;

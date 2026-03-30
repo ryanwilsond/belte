@@ -332,12 +332,13 @@ internal sealed class Evaluator {
 
             var labelToIndex = new Dictionary<LabelSymbol, int>();
             var statements = block.statements.Select(
-                s => s is BoundSequencePoint p
+                s => (s is BoundSequencePoint p && p.statement is not null)
                     ? p.statement
-                    : s is BoundSequencePointWithLocation p2
+                    : (s is BoundSequencePointWithLocation p2 && p2.statement is not null)
                         ? p2.statement
                         : s
-                ).ToArray();
+                ).Where(s => s.kind is not BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation)
+                .ToArray();
 
             for (var i = 0; i < statements.Length; i++) {
                 if (statements[i] is BoundLabelStatement l)
