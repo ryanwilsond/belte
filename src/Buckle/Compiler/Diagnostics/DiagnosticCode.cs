@@ -376,6 +376,12 @@ public enum DiagnosticCode : ushort {
     ERR_StackAllocInCatchFinally = 365,
     ERR_StackAllocLocalWithInitializer = 366,
     ERR_ImplicitlyTypedStackAllocLocal = 367,
+    ERR_InvalidGotoCase = 368,
+    ERR_SwitchTypeValueExpected = 369,
+    ERR_SwitchExpressionValueExpected = 370,
+    ERR_LabelNotFound = 371,
+    ERR_DuplicateCaseLabel = 372,
+    ERR_SwitchCaseSubsumed = 373,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -353,7 +353,48 @@
   </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>
+    <Field Name="caseExpression" Type="BoundExpression?"/>
   </Node>
+  <Node Name="BoundSwitchStatement" Base="BoundStatement">
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="innerLocalFunctions" Type="ImmutableArray&lt;LocalFunctionSymbol&gt;"/>
+    <Field Name="switchSections" Type="ImmutableArray&lt;BoundSwitchSection&gt;"/>
+    <Field Name="reachabilityDecisionDag" Type="BoundDecisionDag" Null="disallow" SkipInVisitor="true"/>
+    <Field Name="defaultLabel" Type="BoundSwitchLabel?"/>
+    <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundSwitchSection" Base="BoundStatement">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="switchLabels" Type="ImmutableArray&lt;BoundSwitchLabel&gt;"/>
+    <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
+  </Node>
+  <Node Name="BoundSwitchLabel" Base="BoundNode">
+    <Field Name="label" Type="LabelSymbol"/>
+    <Field Name="pattern" Type="BoundPattern"/>
+  </Node>
+  <AbstractNode Name="BoundPattern" Base="BoundNode">
+    <Field Name="InputType" Type="TypeSymbol" Null="disallow"/>
+    <Field Name="NarrowedType" Type="TypeSymbol" Null="disallow"/>
+  </AbstractNode>
+  <Node Name="BoundConstantPattern" Base="BoundPattern">
+    <Field Name="value" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" Null="disallow"/>
+  </Node>
+  <Node Name="BoundDecisionDag" Base="BoundNode">
+    <Field Name="rootNode" Type="BoundDecisionDagNode" Null="disallow"/>
+  </Node>
+  <AbstractNode Name="BoundDecisionDagNode" Base="BoundNode"/>
+  <AbstractNode Name="BoundDagTest" Base="BoundNode">
+    <Field Name="input" Type="BoundDagTemp"/>
+  </AbstractNode>
+  <Node Name="BoundDagTemp" Base="BoundNode">
+    <Field Name="type" Type="TypeSymbol" Null="disallow"/>
+    <Field Name="source" Type="BoundDagEvaluation?"/>
+    <Field Name="index" Type="int"/>
+  </Node>
+  <AbstractNode Name="BoundDagEvaluation" Base="BoundDagTest"/>
+  <Node Name="BoundDiscardPattern" Base="BoundPattern"/>
   <Node Name="BoundIfStatement" Base="BoundStatement">
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="consequence" Type="BoundStatement"/>

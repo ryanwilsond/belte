@@ -1175,6 +1175,15 @@ internal partial class Binder {
         }
     }
 
+    internal BoundExpression BindTypeOrRValue(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var valueOrType = BindExpressionInternal(node, diagnostics: diagnostics, called: false, indexed: false);
+
+        if (valueOrType.kind == BoundKind.TypeExpression)
+            return valueOrType;
+
+        return CheckValue(valueOrType, BindValueKind.RValue, diagnostics);
+    }
+
     private AnalyzedArguments BindTemplateArguments(
         SeparatedSyntaxList<BaseArgumentSyntax> templateArguments,
         BelteDiagnosticQueue diagnostics,
@@ -10009,11 +10018,129 @@ symIsHidden:;
     }
 
     private BoundStatement BindSwitchStatement(SwitchStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        return new BoundNopStatement(node);
+        var switchBinder = GetBinder(node);
+        return switchBinder.BindSwitchStatementCore(node, switchBinder, diagnostics);
+    }
+
+    internal virtual BoundStatement BindSwitchStatementCore(
+        SwitchStatementSyntax node,
+        Binder originalBinder,
+        BelteDiagnosticQueue diagnostics) {
+        return next.BindSwitchStatementCore(node, originalBinder, diagnostics);
     }
 
     private BoundStatement BindGotoStatement(GotoStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        return new BoundNopStatement(node);
+        switch (node.caseOrDefaultKeyword.kind) {
+            case SyntaxKind.CaseKeyword:
+            case SyntaxKind.DefaultKeyword:
+                var binder = GetSwitchBinder(this);
+
+                if (binder is null) {
+                    diagnostics.Push(Error.InvalidGotoCase(node.location));
+                    ImmutableArray<BoundNode> childNodes;
+
+                    if (node.value is not null) {
+                        var value = BindRValueWithoutTargetType(node.value, BelteDiagnosticQueue.Discarded);
+                        childNodes = ImmutableArray.Create<BoundNode>(value);
+                    } else {
+                        childNodes = ImmutableArray<BoundNode>.Empty;
+                    }
+
+                    return new BoundErrorStatement(node, childNodes, true);
+                }
+
+                return binder.BindGotoCaseOrDefault(node, this, diagnostics);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
+        }
+    }
+
+    private static SwitchBinder GetSwitchBinder(Binder binder) {
+        var switchBinder = binder as SwitchBinder;
+
+        while (binder is not null && switchBinder is null) {
+            binder = binder.next;
+            switchBinder = binder as SwitchBinder;
+        }
+
+        return switchBinder;
+    }
+
+    internal BoundExpression ConvertPatternExpression(
+        TypeSymbol inputType,
+        BelteSyntaxNode node,
+        BoundExpression expression,
+        out ConstantValue constantValue,
+        bool hasErrors,
+        BelteDiagnosticQueue diagnostics,
+        out Conversion patternExpressionConversion) {
+        BoundExpression convertedExpression;
+        // TODO We currently only use this for string conversions, but patterns will be added later
+
+        if (inputType.ContainsTemplateParameter()) {
+            // convertedExpression = expression;
+
+            // if (!hasErrors && expression.constantValue is not null) {
+            //     if (expression.constantValue == ConstantValue.Null) {
+            //         if (!inputType.IsNullableType() && !inputType.IsPointerOrFunctionPointer()) {
+            //             diagnostics.Push(Error.ValueCannotBeNull(expression.syntax.location, inputType));
+            //             hasErrors = true;
+            //         }
+            //     } else {
+            //         ConstantValue match = ExpressionOfTypeMatchesPatternType(Conversions, inputType, expression.Type, ref useSiteInfo, out _, operandConstantValue: null);
+            //         if (match == ConstantValue.False || match == ConstantValue.Bad) {
+            //             diagnostics.Add(ErrorCode.ERR_PatternWrongType, expression.Syntax.Location, inputType, expression.Display);
+            //             hasErrors = true;
+            //         }
+            //     }
+
+            //     if (!hasErrors) {
+            //         var requiredVersion = MessageID.IDS_FeatureRecursivePatterns.RequiredVersion();
+            //         patternExpressionConversion = this.Conversions.ClassifyConversionFromExpression(expression, inputType, isChecked: CheckOverflowAtRuntime, ref useSiteInfo);
+            //         if (Compilation.LanguageVersion < requiredVersion && !patternExpressionConversion.IsImplicit) {
+            //             diagnostics.Add(ErrorCode.ERR_ConstantPatternVsOpenType,
+            //                 expression.Syntax.Location, inputType, expression.Display, new CSharpRequiredLanguageVersion(requiredVersion));
+            //         }
+            //     } else {
+            //         patternExpressionConversion = Conversion.None;
+            //     }
+            // } else {
+            //     patternExpressionConversion = Conversion.None;
+            // }
+            throw ExceptionUtilities.Unreachable();
+        } else {
+            convertedExpression = GenerateConversionForAssignment(
+                inputType,
+                expression,
+                diagnostics,
+                out patternExpressionConversion
+            );
+
+            if (convertedExpression.kind == BoundKind.CastExpression) {
+                var conversion = (BoundCastExpression)convertedExpression;
+                var operand = conversion.operand;
+
+                if (inputType.IsNullableType() && (convertedExpression.constantValue is null ||
+                    !ConstantValue.IsNull(convertedExpression.constantValue))) {
+                    convertedExpression = CreateConversion(
+                        operand,
+                        inputType.GetNullableUnderlyingType(),
+                        BelteDiagnosticQueue.Discarded
+                    );
+                } else if ((conversion.conversion.kind == ConversionKind.AnyBoxing ||
+                    conversion.conversion.kind == ConversionKind.ImplicitReference)
+                      && operand.constantValue is not null && convertedExpression.constantValue is null) {
+                    convertedExpression = operand;
+                } else if (conversion.conversion.kind == ConversionKind.ImplicitNullToPointer ||
+                      (conversion.conversion.kind == ConversionKind.None &&
+                      convertedExpression.type?.IsErrorType() == true)) {
+                    convertedExpression = operand;
+                }
+            }
+        }
+
+        constantValue = convertedExpression.constantValue;
+        return convertedExpression;
     }
 
     internal BoundStatement BindPossibleEmbeddedStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -11074,6 +11201,140 @@ symIsHidden:;
 
     #region Conversions
 
+    private static ExpressionSyntax SkipParensAndNullSuppressions(
+        ExpressionSyntax expression,
+        BelteDiagnosticQueue diagnostics,
+        ref bool hasErrors) {
+        while (true) {
+            switch (expression.kind) {
+                // TODO default
+                // case SyntaxKind.DefaultLiteralExpression:
+                //     diagnostics.Add(ErrorCode.ERR_DefaultPattern, expression.Location);
+                //     hasErrors = true;
+                //     return expression;
+                case SyntaxKind.ParenthesizedExpression:
+                    expression = ((ParenthesisExpressionSyntax)expression).expression;
+                    continue;
+                default:
+                    return expression;
+            }
+        }
+    }
+
+    private BoundExpression BindExpressionOrTypeForPattern(
+        TypeSymbol inputType,
+        ExpressionSyntax patternExpression,
+        ref bool hasErrors,
+        BelteDiagnosticQueue diagnostics,
+        out ConstantValue constantValueOpt,
+        out bool wasExpression,
+        out Conversion patternExpressionConversion) {
+        constantValueOpt = null;
+        var expression = BindTypeOrRValue(patternExpression, diagnostics);
+        wasExpression = expression.kind != BoundKind.TypeExpression;
+
+        if (wasExpression) {
+            return BindExpressionForPatternContinued(
+                expression,
+                inputType,
+                patternExpression,
+                ref hasErrors,
+                diagnostics,
+                out constantValueOpt,
+                out patternExpressionConversion
+            );
+        } else {
+            // TODO patterns
+            throw ExceptionUtilities.Unreachable();
+            // hasErrors |= CheckValidPatternType(patternExpression, inputType, expression.Type, diagnostics: diagnostics);
+            // patternExpressionConversion = Conversion.None;
+            // return expression;
+        }
+    }
+
+    private BoundExpression BindExpressionForPatternContinued(
+        BoundExpression expression,
+        TypeSymbol inputType,
+        ExpressionSyntax patternExpression,
+        ref bool hasErrors,
+        BelteDiagnosticQueue diagnostics,
+        out ConstantValue constantValue,
+        out Conversion patternExpressionConversion) {
+        var convertedExpression = ConvertPatternExpression(
+            inputType,
+            patternExpression,
+            expression,
+            out constantValue,
+            hasErrors,
+            diagnostics,
+            out patternExpressionConversion
+        );
+
+        if (!convertedExpression.hasErrors && !hasErrors) {
+            if (constantValue is null) {
+                var strippedInputType = inputType.StrippedType();
+
+                // TODO do we care about this error
+                // if (strippedInputType.kind is not SymbolKind.ErrorType and not SymbolKind.TemplateParameter &&
+                //     strippedInputType.specialType is not SpecialType.Object and not SpecialType.System_ValueType) {
+                //     diagnostics.Add(ErrorCode.ERR_ConstantValueOfTypeExpected, patternExpression.Location, strippedInputType);
+                // } else {
+                diagnostics.Push(Error.ConstantExpected(patternExpression.location));
+                // }
+
+                hasErrors = true;
+            }
+        }
+
+        if (convertedExpression.type is null && constantValue.value is not null)
+            convertedExpression = BindToTypeForErrorRecovery(convertedExpression);
+
+        return convertedExpression;
+    }
+
+    internal BoundPattern BindConstantPatternWithFallbackToTypePattern(
+        SyntaxNode node,
+        ExpressionSyntax expression,
+        TypeSymbol inputType,
+        bool hasErrors,
+        BelteDiagnosticQueue diagnostics) {
+        var innerExpression = SkipParensAndNullSuppressions(expression, diagnostics, ref hasErrors);
+        var convertedExpression = BindExpressionOrTypeForPattern(
+            inputType,
+            innerExpression,
+            ref hasErrors,
+            diagnostics,
+            out var constantValue,
+            out var wasExpression,
+            out var patternConversion
+        );
+
+        if (wasExpression) {
+            var convertedType = convertedExpression.type ?? inputType;
+
+            // TODO Interfaces
+            // if (constantValue is not null && constantValue.specialType.IsNumeric() && ShouldBlockINumberBaseConversion(patternConversion, inputType)) {
+            // Cannot use a numeric constant or relational pattern on '{0}' because it inherits from or extends 'INumberBase&lt;T&gt;'. Consider using a type pattern to narrow to a specific numeric type.
+            // diagnostics.Add(ErrorCode.ERR_CannotMatchOnINumberBase, node.Location, inputType);
+            // }
+
+            return new BoundConstantPattern(
+                node,
+                convertedExpression,
+                constantValue ?? ConstantValue.Unset,
+                inputType,
+                convertedType,
+                hasErrors || constantValue is null
+            );
+        } else {
+            // TODO patterns
+            throw ExceptionUtilities.Unreachable();
+            // var boundType = (BoundTypeExpression)convertedExpression;
+            // var isExplicitNotNullTest = boundType.type.specialType == SpecialType.Object;
+            // return new BoundTypePattern(node, boundType, isExplicitNotNullTest, inputType, boundType.Type, hasErrors);
+        }
+    }
+
     internal BoundExpression CreateReturnConversion(
         SyntaxNode node,
         BelteDiagnosticQueue diagnostics,
@@ -11273,6 +11534,22 @@ symIsHidden:;
                 diagnostics.Push(Error.CannotConvert(syntax.location, sourceType, targetType));
             }
         }
+    }
+
+    internal BoundExpression CreateConversion(
+        BoundExpression source,
+        TypeSymbol destination,
+        BelteDiagnosticQueue diagnostics) {
+        var conversion = conversions.ClassifyConversionFromExpression(source, destination);
+
+        return CreateConversion(
+            source.syntax,
+            source,
+            conversion,
+            isCast: false,
+            destination: destination,
+            diagnostics: diagnostics
+        );
     }
 
     internal BoundExpression CreateConversion(

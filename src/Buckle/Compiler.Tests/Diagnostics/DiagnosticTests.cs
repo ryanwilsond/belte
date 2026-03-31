@@ -3749,4 +3749,102 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0368_InvalidGotoCase() {
+        var text = @"
+            [goto default;]
+        ";
+
+        var diagnostics = @"
+            a goto is only valid inside a switch statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0369_SwitchTypeValueExpected() {
+        var text = @"
+            class A { }
+            var a = new A();
+            switch (3) {
+                case [a]:
+            }
+        ";
+
+        var diagnostics = @"
+            a switch expression or case label must be a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0370_SwitchExpressionValueExpected() {
+        var text = @"
+            class A { }
+            var a = new A();
+            switch (3) {
+                case [a]:
+            }
+        ";
+
+        var diagnostics = @"
+            the switch expression must be a value; found 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0371_LabelNotFound() {
+        var text = @"
+            switch (3) {
+                case 1:
+                    goto [case 5];
+            }
+        ";
+
+        var diagnostics = @"
+            no such label 'case 5' within the scope of the goto statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0372_DuplicateCaseLabel() {
+        var text = @"
+            switch (3) {
+                case 1:
+                [case 1:]
+                    ;
+            }
+        ";
+
+        var diagnostics = @"
+            the switch statement contains multiple cases with the label value 'case 1'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0373_SwitchCaseSubsumed() {
+        var text = @"
+            switch (3) {
+                case 1, 2:
+                    ;
+                [case 1:]
+                    ;
+            }
+        ";
+
+        var diagnostics = @"
+            the switch case is unreachable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

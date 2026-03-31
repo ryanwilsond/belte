@@ -1783,6 +1783,36 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ImplicitlyTypedStackAllocLocal, location, message);
     }
 
+    internal static BelteDiagnostic InvalidGotoCase(TextLocation location) {
+        var message = $"a goto is only valid inside a switch statement";
+        return CreateError(DiagnosticCode.ERR_InvalidGotoCase, location, message);
+    }
+
+    internal static BelteDiagnostic SwitchTypeValueExpected(TextLocation location) {
+        var message = $"a switch expression or case label must be a primitive";
+        return CreateError(DiagnosticCode.ERR_SwitchTypeValueExpected, location, message);
+    }
+
+    internal static BelteDiagnostic SwitchExpressionValueExpected(TextLocation location, BoundExpression expression) {
+        var message = $"the switch expression must be a value; found '{expression}'";
+        return CreateError(DiagnosticCode.ERR_SwitchExpressionValueExpected, location, message);
+    }
+
+    internal static BelteDiagnostic LabelNotFound(TextLocation location, string name) {
+        var message = $"no such label '{name}' within the scope of the goto statement";
+        return CreateError(DiagnosticCode.ERR_LabelNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateCaseLabel(TextLocation location, string name) {
+        var message = $"the switch statement contains multiple cases with the label value '{name}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateCaseLabel, location, message);
+    }
+
+    internal static BelteDiagnostic SwitchCaseSubsumed(TextLocation location) {
+        var message = $"the switch case is unreachable";
+        return CreateError(DiagnosticCode.ERR_SwitchCaseSubsumed, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
