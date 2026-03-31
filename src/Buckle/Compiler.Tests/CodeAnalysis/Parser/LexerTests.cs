@@ -284,6 +284,14 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.PeriodPeriodToken) return true;
         if (t1Kind == SyntaxKind.QuestionPeriodToken && t2Kind == SyntaxKind.PeriodToken) return true;
         if (t1Kind == SyntaxKind.QuestionPeriodToken && t2Kind == SyntaxKind.PeriodPeriodToken) return true;
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionExclamationToken) return true;
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.QuestionExclamationEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionExclamationToken && t2Kind == SyntaxKind.EqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionExclamationToken && t2Kind == SyntaxKind.EqualsEqualsToken) return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionExclamationToken) return true;
+        if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionExclamationEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationToken) return true;
 
         return false;
     }

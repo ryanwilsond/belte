@@ -1310,6 +1310,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
             case SyntaxKind.PercentEqualsToken:
             case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionExclamationEqualsToken:
             case SyntaxKind.EqualsToken:
                 var operatorToken = EatToken();
                 var right = ParseAssignmentExpression(insideCascade);
@@ -1774,6 +1775,7 @@ done:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.GreaterThanEqualsToken:
             case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionExclamationEqualsToken:
             case SyntaxKind.LessThanLessThanToken:
             case SyntaxKind.GreaterThanGreaterThanToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
@@ -1788,6 +1790,9 @@ done:
             case SyntaxKind.PeriodToken:
             case SyntaxKind.MinusGreaterThanToken:
             case SyntaxKind.QuestionQuestionToken:
+            case SyntaxKind.QuestionExclamationToken:
+            case SyntaxKind.DollarToken:
+            case SyntaxKind.DollarQuestionToken:
             case SyntaxKind.EndOfFileToken:
                 return false;
             default:

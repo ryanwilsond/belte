@@ -536,7 +536,14 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newRight, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newLeft,
+                newRight,
+                expression.isPropagation,
+                expression.constantValue,
+                expression.type
+            );
+
             return statements;
         }
 
@@ -551,7 +558,7 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newRight, expression.type);
+            replacement = expression.Update(newLeft, newRight, expression.isPropagation, expression.type);
             return statements;
         }
 

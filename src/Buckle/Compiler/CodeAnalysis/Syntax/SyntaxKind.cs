@@ -70,6 +70,8 @@ public enum SyntaxKind : ushort {
     DollarQuestionToken,
     PeriodPeriodToken,
     QuestionPeriodPeriodToken,
+    QuestionExclamationToken,
+    QuestionExclamationEqualsToken,
 
     // Keywords
     TypeOfKeyword,

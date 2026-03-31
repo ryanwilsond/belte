@@ -1034,13 +1034,25 @@ public sealed class DisplayText {
     }
 
     private static void DisplayNullCoalescingOperator(DisplayText text, BoundNullCoalescingOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken, false);
+        DisplayBinaryAdjacentExpression(
+            text,
+            node.left,
+            node.right,
+            node.isPropagation ? SyntaxKind.QuestionExclamationToken : SyntaxKind.QuestionQuestionToken,
+            false
+        );
     }
 
     private static void DisplayNullCoalescingAssignmentOperator(
         DisplayText text,
         BoundNullCoalescingAssignmentOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionEqualsToken, false);
+        DisplayBinaryAdjacentExpression(
+            text,
+            node.left,
+            node.right,
+            node.isPropagation ? SyntaxKind.QuestionExclamationEqualsToken : SyntaxKind.QuestionQuestionEqualsToken,
+            false
+        );
     }
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {

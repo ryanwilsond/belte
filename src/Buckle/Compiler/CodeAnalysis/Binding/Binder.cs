@@ -3114,7 +3114,8 @@ internal partial class Binder {
 
                         BoundExpression result;
 
-                        if (assignment.assignmentToken.kind == SyntaxKind.QuestionQuestionEqualsToken) {
+                        if (assignment.assignmentToken.kind is SyntaxKind.QuestionQuestionEqualsToken or
+                                                               SyntaxKind.QuestionExclamationEqualsToken) {
                             var leftOperand = CheckValue(access, BindValueKind.CompoundAssignment, diagnostics);
                             result = BindNullCoalescingCompoundAssignmentWithBoundLeft(
                                 assignment,
@@ -3186,7 +3187,8 @@ internal partial class Binder {
                 return node == conditionalParent.center || node == conditionalParent.right;
             case SyntaxKind.BinaryExpression:
                 var binaryParent = (BinaryExpressionSyntax)parent;
-                return binaryParent.operatorToken.kind == SyntaxKind.QuestionQuestionToken &&
+                return binaryParent.operatorToken.kind is SyntaxKind.QuestionQuestionToken or
+                                                          SyntaxKind.QuestionExclamationToken &&
                     node == binaryParent.right;
             case SyntaxKind.ExpressionStatement:
                 return true;
@@ -7107,8 +7109,8 @@ internal partial class Binder {
             return BindAsOperator(node, diagnostics);
         else if (node.operatorToken.kind is SyntaxKind.PipePipeToken or SyntaxKind.AmpersandAmpersandToken)
             return BindConditionalLogicalOperator(node, diagnostics);
-        else if (node.operatorToken.kind == SyntaxKind.QuestionQuestionToken)
-            return BindNullCoalescingOperator(node, diagnostics);
+        else if (node.operatorToken.kind is SyntaxKind.QuestionQuestionToken or SyntaxKind.QuestionExclamationToken)
+            return BindNullCoalescingOrPropagationOperator(node, diagnostics);
 
         throw ExceptionUtilities.Unreachable();
     }
@@ -7277,7 +7279,10 @@ internal partial class Binder {
             diagnostics.Push(Warning.AlwaysValue(node.location, null));
     }
 
-    private BoundExpression BindNullCoalescingOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+    private BoundExpression BindNullCoalescingOrPropagationOperator(
+        BinaryExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var isPropagation = node.operatorToken.kind == SyntaxKind.QuestionExclamationToken;
         var leftOperand = BindValue(node.left, diagnostics, BindValueKind.RValue);
         leftOperand = BindToNaturalType(leftOperand, diagnostics);
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
@@ -7285,16 +7290,25 @@ internal partial class Binder {
         if (leftOperand.hasErrors || rightOperand.hasErrors) {
             leftOperand = BindToTypeForErrorRecovery(leftOperand);
             rightOperand = BindToTypeForErrorRecovery(rightOperand);
-            return new BoundNullCoalescingOperator(node, leftOperand, rightOperand, null, CreateErrorType(), true);
+
+            return new BoundNullCoalescingOperator(
+                node,
+                leftOperand,
+                rightOperand,
+                isPropagation,
+                null,
+                CreateErrorType(),
+                true
+            );
         }
 
         var optLeftType = leftOperand.Type();
         var optRightType = rightOperand.Type();
         var isLeftNullable = optLeftType is not null && optLeftType.IsNullableType();
-        var optLeftType0 = isLeftNullable ? optLeftType.GetNullableUnderlyingType() : optLeftType;
+        var optLeftType0 = isPropagation ? optLeftType : (isLeftNullable ? optLeftType.GetNullableUnderlyingType() : optLeftType);
 
         if (leftOperand.kind == BoundKind.MethodGroup)
-            return GenerateNullCoalescingBadBinaryOpsError(node, leftOperand, rightOperand, diagnostics);
+            return GenerateNullCoalescingBadBinaryOpsError(node, leftOperand, rightOperand, isPropagation, diagnostics);
 
         if (isLeftNullable) {
             var rightConversion = conversions.ClassifyImplicitConversionFromExpression(rightOperand, optLeftType0);
@@ -7313,7 +7327,8 @@ internal partial class Binder {
                     node,
                     leftOperand,
                     convertedRightOperand,
-                    ConstantFolding.FoldNullCoalescing(leftOperand, convertedRightOperand, optLeftType0),
+                    isPropagation,
+                    ConstantFolding.FoldNullCoalescing(leftOperand, convertedRightOperand, isPropagation, optLeftType0),
                     optLeftType0
                 );
             }
@@ -7336,7 +7351,8 @@ internal partial class Binder {
                     node,
                     leftOperand,
                     convertedRightOperand,
-                    ConstantFolding.FoldNullCoalescing(leftOperand, convertedRightOperand, optLeftType),
+                    isPropagation,
+                    ConstantFolding.FoldNullCoalescing(leftOperand, convertedRightOperand, isPropagation, optLeftType),
                     optLeftType
                 );
             }
@@ -7363,7 +7379,8 @@ internal partial class Binder {
                         node,
                         leftConversion,
                         rightOperand,
-                        ConstantFolding.FoldNullCoalescing(leftConversion, rightOperand, optRightType),
+                        isPropagation,
+                        ConstantFolding.FoldNullCoalescing(leftConversion, rightOperand, isPropagation, optRightType),
                         optRightType
                     );
                 }
@@ -7387,20 +7404,22 @@ internal partial class Binder {
                         node,
                         leftConversion,
                         rightOperand,
-                        ConstantFolding.FoldNullCoalescing(leftConversion, rightOperand, optRightType),
+                        isPropagation,
+                        ConstantFolding.FoldNullCoalescing(leftConversion, rightOperand, isPropagation, optRightType),
                         optRightType
                     );
                 }
             }
         }
 
-        return GenerateNullCoalescingBadBinaryOpsError(node, leftOperand, rightOperand, diagnostics);
+        return GenerateNullCoalescingBadBinaryOpsError(node, leftOperand, rightOperand, isPropagation, diagnostics);
     }
 
     private BoundExpression GenerateNullCoalescingBadBinaryOpsError(
         BinaryExpressionSyntax node,
         BoundExpression leftOperand,
         BoundExpression rightOperand,
+        bool isPropagation,
         BelteDiagnosticQueue diagnostics) {
         leftOperand = BindToTypeForErrorRecovery(leftOperand);
         rightOperand = BindToTypeForErrorRecovery(rightOperand);
@@ -7411,7 +7430,15 @@ internal partial class Binder {
             rightOperand.Type()
         ));
 
-        return new BoundNullCoalescingOperator(node, leftOperand, rightOperand, null, CreateErrorType(), true);
+        return new BoundNullCoalescingOperator(
+            node,
+            leftOperand,
+            rightOperand,
+            isPropagation,
+            null,
+            CreateErrorType(),
+            true
+        );
     }
 
     private BoundExpression BindConditionalLogicalOperator(
@@ -7531,6 +7558,7 @@ internal partial class Binder {
                 case SyntaxKind.AmpersandAmpersandToken:
                 case SyntaxKind.PipePipeToken:
                 case SyntaxKind.QuestionQuestionToken:
+                case SyntaxKind.QuestionExclamationToken:
                 default:
                     return false;
             }
@@ -7984,6 +8012,7 @@ internal partial class Binder {
             case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
             case SyntaxKind.PercentEqualsToken:
             case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionExclamationEqualsToken:
                 return BindValueKind.CompoundAssignment;
             default:
                 return BindValueKind.RValue;
@@ -8416,7 +8445,7 @@ internal partial class Binder {
     private BoundExpression BindAssignmentOperator(
         AssignmentExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        if (node.assignmentToken.kind == SyntaxKind.QuestionQuestionEqualsToken)
+        if (node.assignmentToken.kind is SyntaxKind.QuestionQuestionEqualsToken or SyntaxKind.QuestionExclamationEqualsToken)
             return BindNullCoalescingCompoundAssignment(node, diagnostics);
         else if (node.assignmentToken.kind != SyntaxKind.EqualsToken)
             return BindCompoundAssignment(node, diagnostics);
@@ -8451,19 +8480,35 @@ internal partial class Binder {
         BoundExpression leftOperand,
         BelteDiagnosticQueue diagnostics) {
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
+        var isPropagation = node.assignmentToken.kind == SyntaxKind.QuestionExclamationEqualsToken;
 
         if (leftOperand.hasErrors || rightOperand.hasErrors) {
             leftOperand = BindToTypeForErrorRecovery(leftOperand);
             rightOperand = BindToTypeForErrorRecovery(rightOperand);
-            return new BoundNullCoalescingAssignmentOperator(node, leftOperand, rightOperand, CreateErrorType(), true);
+
+            return new BoundNullCoalescingAssignmentOperator(
+                node,
+                leftOperand,
+                rightOperand,
+                isPropagation,
+                CreateErrorType(),
+                true
+            );
         }
 
         var leftType = leftOperand.Type();
 
-        if (!leftType.IsNullableType())
-            return GenerateNullCoalescingAssignmentBadBinaryOpsError(node, leftOperand, rightOperand, diagnostics);
+        if (!leftType.IsNullableType()) {
+            return GenerateNullCoalescingAssignmentBadBinaryOpsError(
+                node,
+                leftOperand,
+                rightOperand,
+                isPropagation,
+                diagnostics
+            );
+        }
 
-        var underlyingLeftType = leftType.GetNullableUnderlyingType();
+        var underlyingLeftType = isPropagation ? leftType : leftType.GetNullableUnderlyingType();
         var underlyingRightConversion = conversions.ClassifyImplicitConversionFromExpression(
             rightOperand,
             underlyingLeftType
@@ -8477,23 +8522,43 @@ internal partial class Binder {
                 diagnostics
             );
 
-            return new BoundNullCoalescingAssignmentOperator(node, leftOperand, convertedRightOperand, underlyingLeftType);
+            return new BoundNullCoalescingAssignmentOperator(
+                node,
+                leftOperand,
+                convertedRightOperand,
+                isPropagation,
+                underlyingLeftType
+            );
         }
 
         var rightConversion = conversions.ClassifyImplicitConversionFromExpression(rightOperand, leftType);
 
         if (rightConversion.exists) {
             var convertedRightOperand = CreateConversion(rightOperand, rightConversion, leftType, diagnostics);
-            return new BoundNullCoalescingAssignmentOperator(node, leftOperand, convertedRightOperand, leftType);
+
+            return new BoundNullCoalescingAssignmentOperator(
+                node,
+                leftOperand,
+                convertedRightOperand,
+                isPropagation,
+                leftType
+            );
         }
 
-        return GenerateNullCoalescingAssignmentBadBinaryOpsError(node, leftOperand, rightOperand, diagnostics);
+        return GenerateNullCoalescingAssignmentBadBinaryOpsError(
+            node,
+            leftOperand,
+            rightOperand,
+            isPropagation,
+            diagnostics
+        );
     }
 
     private BoundExpression GenerateNullCoalescingAssignmentBadBinaryOpsError(
         AssignmentExpressionSyntax node,
         BoundExpression leftOperand,
         BoundExpression rightOperand,
+        bool isPropagation,
         BelteDiagnosticQueue diagnostics) {
         diagnostics.Push(Error.InvalidBinaryOperatorUse(
             node.location,
@@ -8505,7 +8570,14 @@ internal partial class Binder {
         leftOperand = BindToTypeForErrorRecovery(leftOperand);
         rightOperand = BindToTypeForErrorRecovery(rightOperand);
 
-        return new BoundNullCoalescingAssignmentOperator(node, leftOperand, rightOperand, CreateErrorType(), true);
+        return new BoundNullCoalescingAssignmentOperator(
+            node,
+            leftOperand,
+            rightOperand,
+            isPropagation,
+            CreateErrorType(),
+            true
+        );
     }
 
     private BoundExpression BindCompoundAssignment(AssignmentExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

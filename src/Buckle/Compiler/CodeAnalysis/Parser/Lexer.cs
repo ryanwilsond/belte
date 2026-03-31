@@ -399,6 +399,9 @@ internal sealed class Lexer : IDisposable {
                     else _kind = SyntaxKind.QuestionPeriodToken;
                 } else if (AdvanceIfMatches('[')) {
                     _kind = SyntaxKind.QuestionOpenBracketToken;
+                } else if (AdvanceIfMatches('!')) {
+                    if (AdvanceIfMatches('=')) _kind = SyntaxKind.QuestionExclamationEqualsToken;
+                    else _kind = SyntaxKind.QuestionExclamationToken;
                 } else {
                     _kind = SyntaxKind.QuestionToken;
                 }

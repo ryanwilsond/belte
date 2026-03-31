@@ -70,16 +70,40 @@ strict order of precedence:
 | x \| y | Bitwise Logical OR |
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
-| x ?? y | Null-Coalescing |
+| x ?? y, x ?! y | Null-Coalescing |
 | c ? t : f | Tertiary Conditional |
 
 ### 3.2.2 Uncommon Operators
 
+#### 3.2.2.1 `x!`
+
+`x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
+
+#### 3.2.2.2 `a?[i]`
+
 `a?[i]` is a conditional indexer. If `a` is null, the index is not performed.
+
+This operator is syntax sugar for `a is null ? null : a![i]`.
+
+#### 3.2.2.3 `x?.y`
 
 `x?.y` is a conditional member access. If `a` is null, the access is not performed.
 
-`x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
+This operator is syntax sugar for `x is null ? null : x!.y`.
+
+#### 3.2.2.4 `x ?? y`
+
+`x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result.
+
+This operator is syntax sugar for `x is null ? y : null`.
+
+#### 3.2.2.5 `x ?! y`
+
+`x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result.
+
+This operator is syntax sugar for `x is null ? null : y`.
+
+#### 3.2.2.6 `x..y`
 
 `x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
 discarded.
@@ -99,8 +123,10 @@ temp.f = 3;
 var a = temp;
 ```
 
-`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
-null.
+#### 3.2.2.7 `x?..y`
+
+`x?..y` is a conditional [cascade expression](#3226-xy). The field assignment or call expression `y` is only performed
+if `x` is not null.
 
 ## 3.3 Variables and Constants
 

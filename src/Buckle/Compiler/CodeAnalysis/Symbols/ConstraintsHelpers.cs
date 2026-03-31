@@ -462,6 +462,7 @@ internal static partial class ConstraintsHelpers {
                     return ConstantFolding.FoldNullCoalescing(
                         EvaluateConstraintCore(nullCoalescing.left, names, templateArguments, diagnostics),
                         EvaluateConstraintCore(nullCoalescing.right, names, templateArguments, diagnostics),
+                        nullCoalescing.isPropagation,
                         nullCoalescing.Type());
                 case BoundKind.NullAssertOperator:
                     var nullAssert = (BoundNullAssertOperator)expression;

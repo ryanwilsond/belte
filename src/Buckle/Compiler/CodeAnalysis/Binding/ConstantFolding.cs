@@ -304,18 +304,34 @@ internal static class ConstantFolding {
         }
     }
 
-    internal static ConstantValue FoldNullCoalescing(BoundExpression left, BoundExpression right, TypeSymbol type) {
-        return FoldNullCoalescing(left.constantValue, right.constantValue, type);
+    internal static ConstantValue FoldNullCoalescing(
+        BoundExpression left,
+        BoundExpression right,
+        bool isPropagation,
+        TypeSymbol type) {
+        return FoldNullCoalescing(left.constantValue, right.constantValue, isPropagation, type);
     }
 
-    internal static ConstantValue FoldNullCoalescing(ConstantValue left, ConstantValue right, TypeSymbol type) {
+    internal static ConstantValue FoldNullCoalescing(
+        ConstantValue left,
+        ConstantValue right,
+        bool isPropagation,
+        TypeSymbol type) {
         var specialType = type.specialType;
 
-        if (left is not null && left.value is not null)
-            return new ConstantValue(left.value, specialType);
+        if (isPropagation) {
+            if (left is not null && left.value is null)
+                return new ConstantValue(left.value, specialType);
 
-        if (left is not null && left.value is null && right is not null)
-            return new ConstantValue(right.value, specialType);
+            if (left is not null && left.value is not null && right is not null)
+                return new ConstantValue(right.value, specialType);
+        } else {
+            if (left is not null && left.value is not null)
+                return new ConstantValue(left.value, specialType);
+
+            if (left is not null && left.value is null && right is not null)
+                return new ConstantValue(right.value, specialType);
+        }
 
         return null;
     }

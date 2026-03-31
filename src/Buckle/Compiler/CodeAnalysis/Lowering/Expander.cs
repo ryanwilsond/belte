@@ -104,6 +104,7 @@ internal sealed class Expander : BoundTreeExpander {
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
                                     right,
+                                    assignment.isPropagation,
                                     assignment.type
                                 )
                             )
@@ -307,6 +308,7 @@ internal sealed class Expander : BoundTreeExpander {
                         syntax,
                         newLeft,
                         newRight,
+                        expression.isPropagation,
                         expression.Type()
                     )
                 )

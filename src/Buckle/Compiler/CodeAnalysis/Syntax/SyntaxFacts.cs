@@ -53,6 +53,7 @@ public static class SyntaxFacts {
             case SyntaxKind.PipePipeToken:
                 return 4;
             case SyntaxKind.QuestionQuestionToken:
+            case SyntaxKind.QuestionExclamationToken:
                 return 3;
             default:
                 return 0;
@@ -252,6 +253,7 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanToken => ">",
             SyntaxKind.PercentToken => "%",
             SyntaxKind.QuestionQuestionToken => "??",
+            SyntaxKind.QuestionExclamationToken => "?!",
             SyntaxKind.LessThanEqualsToken => "<=",
             SyntaxKind.GreaterThanEqualsToken => ">=",
             SyntaxKind.AmpersandEqualsToken => "&=",
@@ -267,6 +269,7 @@ public static class SyntaxFacts {
             SyntaxKind.LessThanLessThanEqualsToken => "<<=",
             SyntaxKind.PercentEqualsToken => "%=",
             SyntaxKind.QuestionQuestionEqualsToken => "??=",
+            SyntaxKind.QuestionExclamationEqualsToken => "?!=",
             SyntaxKind.QuestionPeriodToken => "?.",
             SyntaxKind.QuestionOpenBracketToken => "?[",
             SyntaxKind.HashToken => "#",
@@ -361,6 +364,7 @@ public static class SyntaxFacts {
                 => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
+            SyntaxKind.QuestionExclamationEqualsToken => SyntaxKind.QuestionExclamationToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
@@ -386,6 +390,7 @@ public static class SyntaxFacts {
                 => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
             SyntaxKind.PercentToken => SyntaxKind.PercentEqualsToken,
             SyntaxKind.QuestionQuestionToken => SyntaxKind.QuestionQuestionEqualsToken,
+            SyntaxKind.QuestionExclamationToken => SyntaxKind.QuestionExclamationEqualsToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }

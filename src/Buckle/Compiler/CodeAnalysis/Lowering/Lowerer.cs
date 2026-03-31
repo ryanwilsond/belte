@@ -471,11 +471,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             if (op.IsConditional() && (leftIsNullable || rightIsNullable)) {
                 var coalescedLeft = leftIsNullable
-                    ? new BoundNullCoalescingOperator(syntax, left, Literal(syntax, false, type), null, type)
+                    ? new BoundNullCoalescingOperator(syntax, left, Literal(syntax, false, type), false, null, type)
                     : left;
 
                 var coalescedRight = rightIsNullable
-                    ? new BoundNullCoalescingOperator(syntax, right, Literal(syntax, false, type), null, type)
+                    ? new BoundNullCoalescingOperator(syntax, right, Literal(syntax, false, type), false, null, type)
                     : right;
 
                 return VisitBinaryOperator(Binary(syntax, coalescedLeft, op, coalescedRight, type));
@@ -557,17 +557,32 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (HasValue(<left>) ? Value(<left>) : <right>)
 
+        ----> isPropagation
+
+        (HasValue(<left>) ? <right> : <left>)
+
         */
         var syntax = expression.syntax;
 
-        return VisitConditionalOperator(
-            Conditional(syntax,
-                @if: HasValue(syntax, expression.left),
-                @then: Value(syntax, expression.left, expression.left.StrippedType()),
-                @else: expression.right,
-                expression.Type()
-            )
-        );
+        if (expression.isPropagation) {
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.left),
+                    @then: expression.right,
+                    @else: expression.left,
+                    expression.Type()
+                )
+            );
+        } else {
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.left),
+                    @then: Value(syntax, expression.left, expression.left.StrippedType()),
+                    @else: expression.right,
+                    expression.Type()
+                )
+            );
+        }
     }
 
     internal override BoundNode VisitUnaryOperator(BoundUnaryOperator expression) {
@@ -1059,6 +1074,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     syntax,
                     expression.left,
                     expression.right,
+                    expression.isPropagation,
                     null,
                     expression.Type()
                 ),

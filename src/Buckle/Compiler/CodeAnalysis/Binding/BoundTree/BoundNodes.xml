@@ -159,6 +159,7 @@
   <Node Name="BoundNullCoalescingAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
+    <Field Name="isPropagation" Type="bool"/>
   </Node>
   <Node Name="BoundConditionalAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
@@ -228,6 +229,7 @@
   <Node Name="BoundNullCoalescingOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
+    <Field Name="isPropagation" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundObjectCreationExpression" Base="BoundObjectCreationExpressionBase">
