@@ -10002,8 +10002,18 @@ symIsHidden:;
             SyntaxKind.BreakStatement => BindBreakStatement((BreakStatementSyntax)node, diagnostics),
             SyntaxKind.ContinueStatement => BindContinueStatement((ContinueStatementSyntax)node, diagnostics),
             SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
+            SyntaxKind.SwitchStatement => BindSwitchStatement((SwitchStatementSyntax)node, diagnostics),
+            SyntaxKind.GotoStatement => BindGotoStatement((GotoStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    private BoundStatement BindSwitchStatement(SwitchStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        return new BoundNopStatement(node);
+    }
+
+    private BoundStatement BindGotoStatement(GotoStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        return new BoundNopStatement(node);
     }
 
     internal BoundStatement BindPossibleEmbeddedStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {

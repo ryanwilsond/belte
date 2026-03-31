@@ -204,6 +204,10 @@ public static class SyntaxFacts {
             "extern" => SyntaxKind.ExternKeyword,
             "pinned" => SyntaxKind.PinnedKeyword,
             "stackalloc" => SyntaxKind.StackAllocKeyword,
+            "switch" => SyntaxKind.SwitchKeyword,
+            "case" => SyntaxKind.CaseKeyword,
+            "default" => SyntaxKind.DefaultKeyword,
+            "goto" => SyntaxKind.GotoKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -329,6 +333,10 @@ public static class SyntaxFacts {
             SyntaxKind.ExternKeyword => "extern",
             SyntaxKind.PinnedKeyword => "pinned",
             SyntaxKind.StackAllocKeyword => "stackalloc",
+            SyntaxKind.SwitchKeyword => "switch",
+            SyntaxKind.CaseKeyword => "case",
+            SyntaxKind.DefaultKeyword => "default",
+            SyntaxKind.GotoKeyword => "goto",
             _ => null,
         };
     }

@@ -680,6 +680,77 @@
     </Field>
     <Field Name="body" Type="StatementSyntax"/>
   </Node>
+  <Node Name="SwitchStatementSyntax" Base="StatementSyntax">
+    <Kind Name="SwitchStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="SwitchKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="sections" Type="SyntaxList&lt;SwitchSectionSyntax&gt;"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="SwitchSectionSyntax" Base="SyntaxNode">
+    <Kind Name="SwitchSection"/>
+    <Field Name="Labels" Type="SyntaxList&lt;SwitchLabelSyntax&gt;"/>
+    <Field Name="statements" Type="SyntaxList&lt;StatementSyntax&gt;"/>
+  </Node>
+  <AbstractNode Name="SwitchLabelSyntax" Base="SyntaxNode">
+    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="colon" Type="SyntaxToken">
+      <Kind Name="ColonToken"/>
+    </Field>
+  </AbstractNode>
+  <Node Name="CaseSwitchLabelSyntax" Base="SwitchLabelSyntax">
+    <Kind Name="CaseSwitchLabel"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="CaseKeyword"/>
+    </Field>
+    <Field Name="value" Type="ExpressionSyntax"/>
+    <Field Name="colon" Type="SyntaxToken" Override="true">
+      <Kind Name="ColonToken"/>
+    </Field>
+  </Node>
+  <Node Name="DefaultSwitchLabelSyntax" Base="SwitchLabelSyntax">
+    <Kind Name="DefaultSwitchLabel"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="DefaultKeyword"/>
+    </Field>
+    <Field Name="colon" Type="SyntaxToken" Override="true">
+      <Kind Name="ColonToken"/>
+    </Field>
+  </Node>
+  <Node Name="MultiCaseSwitchLabelSyntax" Base="SwitchLabelSyntax">
+    <Kind Name="MultiCaseSwitchLabel"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="CaseKeyword"/>
+    </Field>
+    <Field Name="values" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
+    <Field Name="colon" Type="SyntaxToken" Override="true">
+      <Kind Name="ColonToken"/>
+    </Field>
+  </Node>
+  <Node Name="GotoStatementSyntax" Base="StatementSyntax">
+    <Kind Name="GotoStatement"/>
+    <Field Name="gotoKeyword" Type="SyntaxToken">
+      <Kind Name="GotoKeyword"/>
+    </Field>
+    <Field Name="caseOrDefaultKeyword" Type="SyntaxToken"/>
+    <Field Name="value" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <!-- Expressions -->
   <AbstractNode Name="ExpressionSyntax" Base="SyntaxNode"/>
   <Node Name="AssignmentExpressionSyntax" Base="ExpressionSyntax">

@@ -1056,6 +1056,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseContinueStatement();
             case SyntaxKind.ReturnKeyword:
                 return ParseReturnStatement();
+            case SyntaxKind.SwitchKeyword:
+                return ParseSwitchStatement();
+            case SyntaxKind.GotoKeyword:
+                return ParseGotoStatement();
         }
 
         if (PeekIsFunctionOrMethodDeclaration()) {
@@ -1128,6 +1132,121 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return SyntaxFactory.ReturnStatement(keyword, expression, semicolon);
+    }
+
+    private StatementSyntax ParseGotoStatement() {
+        var keyword = EatToken();
+        var caseOrDefaultKeyword = MatchTwo(SyntaxKind.CaseKeyword, SyntaxKind.DefaultKeyword);
+        var expression = caseOrDefaultKeyword.kind == SyntaxKind.CaseKeyword ? ParseExpression() : null;
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+
+        return SyntaxFactory.GotoStatement(keyword, caseOrDefaultKeyword, expression, semicolon);
+    }
+
+    private StatementSyntax ParseSwitchStatement() {
+        var keyword = EatToken();
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var expression = ParseExpression();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var sections = ParseSwitchSections();
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return SyntaxFactory.SwitchStatement(
+            keyword,
+            openParenthesis,
+            expression,
+            closeParenthesis,
+            openBrace,
+            sections,
+            closeBrace
+        );
+    }
+
+    private SyntaxList<SwitchSectionSyntax> ParseSwitchSections() {
+        var statements = SyntaxListBuilder<SwitchSectionSyntax>.Create();
+        var startToken = currentToken;
+
+        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
+            var statement = ParseSwitchSection();
+            statements.Add(statement);
+
+            if (currentToken == startToken)
+                EatToken();
+
+            startToken = currentToken;
+        }
+
+        return statements.ToList();
+    }
+
+    private SwitchSectionSyntax ParseSwitchSection() {
+        var labels = ParseSwitchLabels();
+        var statements = ParseStatements(SyntaxKind.CloseBraceToken, SyntaxKind.CaseKeyword, SyntaxKind.DefaultKeyword);
+        return SyntaxFactory.SwitchSection(labels, statements);
+    }
+
+    private SyntaxList<SwitchLabelSyntax> ParseSwitchLabels() {
+        var labels = SyntaxListBuilder<SwitchLabelSyntax>.Create();
+        var startToken = currentToken;
+
+        if (currentToken.kind != SyntaxKind.EndOfFileToken) do {
+            var label = ParseSwitchLabel();
+            labels.Add(label);
+
+            if (currentToken == startToken)
+                EatToken();
+
+            startToken = currentToken;
+        } while (currentToken.kind is SyntaxKind.CaseKeyword or SyntaxKind.DefaultKeyword);
+
+        return labels.ToList();
+    }
+
+    private SwitchLabelSyntax ParseSwitchLabel() {
+        if (currentToken.kind == SyntaxKind.DefaultKeyword)
+            return ParseDefaultSwitchLabel();
+
+        var keyword = Match(SyntaxKind.CaseKeyword);
+        var firstExpression = ParseExpression();
+
+        if (currentToken.kind == SyntaxKind.CommaToken)
+            return ParseMultiCaseSwitchLabel(keyword, firstExpression);
+
+        var colon = Match(SyntaxKind.ColonToken);
+        return SyntaxFactory.CaseSwitchLabel(keyword, firstExpression, colon);
+    }
+
+    private SwitchLabelSyntax ParseDefaultSwitchLabel() {
+        var keyword = EatToken();
+        var colon = Match(SyntaxKind.ColonToken);
+        return SyntaxFactory.DefaultSwitchLabel(keyword, colon);
+    }
+
+    private SwitchLabelSyntax ParseMultiCaseSwitchLabel(SyntaxToken keyword, ExpressionSyntax firstExpression) {
+        var firstComma = EatToken();
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
+        var parseNextItem = true;
+
+        nodesAndSeparators.Add(firstExpression);
+        nodesAndSeparators.Add(firstComma);
+
+        while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.ColonToken) {
+            var expression = ParseExpression();
+            nodesAndSeparators.Add(expression);
+
+            if (currentToken.kind == SyntaxKind.CommaToken) {
+                var comma = EatToken();
+                nodesAndSeparators.Add(comma);
+            } else {
+                parseNextItem = false;
+            }
+        }
+
+        var separatedSyntaxList = new SeparatedSyntaxList<ExpressionSyntax>(nodesAndSeparators.ToList());
+        var colon = Match(SyntaxKind.ColonToken);
+
+        return SyntaxFactory.MultiCaseSwitchLabel(keyword, separatedSyntaxList, colon);
     }
 
     private StatementSyntax ParseContinueStatement() {
@@ -1274,11 +1393,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private StatementSyntax ParseBlockStatement(SyntaxList<SyntaxToken> modifiers = null) {
-        var statements = SyntaxListBuilder<StatementSyntax>.Create();
         var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var statements = ParseStatements(SyntaxKind.CloseBraceToken);
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+        return SyntaxFactory.BlockStatement(modifiers, openBrace, statements, closeBrace);
+    }
+
+    private SyntaxList<StatementSyntax> ParseStatements(params SyntaxKind[] endDelimiters) {
+        var statements = SyntaxListBuilder<StatementSyntax>.Create();
         var startToken = currentToken;
 
-        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
+        while (currentToken.kind != SyntaxKind.EndOfFileToken && !endDelimiters.Contains(currentToken.kind)) {
             var statement = ParseStatement();
             statements.Add(statement);
 
@@ -1288,9 +1413,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             startToken = currentToken;
         }
 
-        var closeBrace = Match(SyntaxKind.CloseBraceToken);
-
-        return SyntaxFactory.BlockStatement(modifiers, openBrace, statements.ToList(), closeBrace);
+        return statements.ToList();
     }
 
     private ExpressionSyntax ParseAssignmentExpression(bool insideCascade = false) {

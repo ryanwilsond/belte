@@ -127,6 +127,10 @@ public enum SyntaxKind : ushort {
     ExternKeyword,
     PinnedKeyword,
     StackAllocKeyword,
+    CaseKeyword,
+    DefaultKeyword,
+    SwitchKeyword,
+    GotoKeyword,
 
     // Tokens with text
     BadToken,
@@ -180,20 +184,24 @@ public enum SyntaxKind : ushort {
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
-    // Jump statements
+    // Control flow statements
     BreakStatement,
     ContinueStatement,
     ReturnStatement,
     WhileStatement,
     DoWhileStatement,
     ForStatement,
-
-    // Checked statements
     IfStatement,
     ElseClause,
     TryStatement,
     CatchClause,
     FinallyClause,
+    SwitchStatement,
+    SwitchSection,
+    CaseSwitchLabel,
+    DefaultSwitchLabel,
+    MultiCaseSwitchLabel,
+    GotoStatement,
 
     // Directives
     UsingDirective,
