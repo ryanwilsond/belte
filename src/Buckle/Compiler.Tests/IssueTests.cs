@@ -615,7 +615,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            undefined symbol 'invalidType'
+            the type or namespace name 'invalidType' could not be found
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -807,7 +807,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            undefined symbol 'coasdf'
+            the type or namespace name 'coasdf' could not be found
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

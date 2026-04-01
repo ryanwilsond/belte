@@ -261,7 +261,7 @@ internal partial class SourceNamespaceSymbol {
                             } else {
                                 GetOrCreateUsingsBuilder(ref usings, globalUsingNamespacesOrTypes).Add(new NamespaceOrTypeAndUsingDirective(imported, usingDirective, dependencies: default));
                             }
-                        } else if (imported.kind == SymbolKind.NamedType) {
+                        } else if (imported is NamedTypeSymbol t && !t.IsStructType()) {
                             if (usingDirective.staticKeyword is null) {
                                 diagnostics.Push(Error.BadUsingNamespace(usingDirective.namespaceOrType.location, imported));
                             } else {
@@ -299,10 +299,11 @@ internal partial class SourceNamespaceSymbol {
                                     );
                                 }
                             }
-                        } else if (imported.kind is SymbolKind.ArrayType) {
+                        } else if (imported.kind == SymbolKind.ArrayType ||
+                            (imported is NamedTypeSymbol t2 && t2.IsStructType())) {
                             diagnostics.Push(Error.BadUsingStaticType(
                                 usingDirective.namespaceOrType.location,
-                                imported.kind.Localize()
+                                imported.kind == SymbolKind.ArrayType ? imported.kind.Localize() : "struct"
                             ));
 
                             addDirectiveDiagnostics = false;

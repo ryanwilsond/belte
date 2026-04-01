@@ -1464,6 +1464,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseReferenceExpression();
             case SyntaxKind.RefKeyword when parentPrecedence > 0:
                 return AddDiagnostic(ParseReferenceExpression(), Error.InvalidExpressionTerm(SyntaxKind.RefKeyword));
+            case SyntaxKind.ColonColonToken:
+                return ParseAliasQualifiedName();
             case SyntaxKind.IdentifierToken:
             default:
                 return ParseLastCaseName();
@@ -2178,7 +2180,7 @@ done:
 
     private AttributeSyntax ParseAttribute() {
         var name = ParseQualifiedName();
-        var arguments = ParseArgumentList();
+        var arguments = currentToken.kind == SyntaxKind.OpenParenToken ? ParseArgumentList() : null;
         return SyntaxFactory.Attribute(name, arguments);
     }
 
@@ -2224,13 +2226,13 @@ done:
         return SyntaxFactory.ArrayRankSpecifier(openBracket, size, closeBracket);
     }
 
-    private SimpleNameSyntax ParseLastCaseName() {
+    private NameSyntax ParseLastCaseName() {
         if (currentToken.kind != SyntaxKind.IdentifierToken) {
             _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
             return SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
         }
 
-        return ParseSimpleName();
+        return ParseAliasQualifiedName();
     }
 
     private SimpleNameSyntax ParseSimpleName() {

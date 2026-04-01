@@ -325,7 +325,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 method
             );
 
-            processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasErrors;
+            processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasAnyErrors;
 
             RefSafetyAnalysis.Analyze(
                 method,
@@ -585,6 +585,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (call is not null &&
             call.method != method &&
+            !call.hasAnyErrors &&
             TypeSymbol.Equals(call.method.containingType, method.containingType, TypeCompareKind.ConsiderEverything)) {
             state.ReportConstructorInitializerCycles(method, call.method, syntax, diagnostics);
         }

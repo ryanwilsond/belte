@@ -431,6 +431,16 @@ public sealed class EvaluatorTests {
     [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int>(3);", 3)]
     [InlineData("T Test<type T>() { return null; } return Test<int>();", null)]
+    // Misc for coverage
+    [InlineData("using H = int; H myVar = 3; return myVar;", 3)]
+    [InlineData("class P { int a = 3; public int M(int a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
+    // [InlineData("class P { ref int a; public int M(ref int b) { a = ref b; a++; return a; } } int F() { var myP = new P(); int c = 4; return myP.M(ref c); } return F();", 5)]
+    [InlineData("class P { public int M(int a, int b) { return a + b; } public int M(int a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
+    // [InlineData("class P { public static T M<type T>() { T a = null; return a; } } return P.M<int>();", null)]
+    // [InlineData("class P { public static T M<type T>(T b) { T a = b; L(); return a; void L() { a = null; } } } return P.M<int>();", null)]
+    // [InlineData("class P { public static T M<type T>(T b) { T a = b; L<bool>(); return a; void L<type T2>() { a = null; } } } return P.M<int>();", null)]
+    [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string lpModuleName); } return null;", null)]
+    [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue);
     }

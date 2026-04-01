@@ -539,11 +539,12 @@ internal sealed partial class Executor : ModuleBuilder {
             attributes |= TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
-            Accessibility.Private => TypeAttributes.NestedPrivate,
+            Accessibility.Private when isNested => TypeAttributes.NestedPrivate,
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
             Accessibility.Public => TypeAttributes.Public,
             Accessibility.Protected => TypeAttributes.NestedFamily,
-            _ => 0
+            Accessibility.NotApplicable => 0,
+            _ => throw ExceptionUtilities.UnexpectedValue(type.declaredAccessibility)
         };
 
         return attributes;

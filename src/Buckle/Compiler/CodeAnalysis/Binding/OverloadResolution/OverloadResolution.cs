@@ -2156,20 +2156,14 @@ internal sealed partial class OverloadResolution {
         ref bool hasAnyRefOmittedArgument) {
         var paramRefKind = parameter.refKind;
 
-        if (paramRefKind == RefKind.Ref) {
-            if (argRefKind == RefKind.None)
-                return RefKind.None;
-
-            if (argRefKind == RefKind.Ref)
-                return RefKind.Ref;
-        } else if (paramRefKind == RefKind.RefConst && argRefKind is RefKind.None or RefKind.Ref) {
+        if (paramRefKind == RefKind.RefConst && argRefKind is RefKind.None or RefKind.Ref)
             return argRefKind;
-        }
 
-        if (paramRefKind == RefKind.Ref && argRefKind == RefKind.None) {
-            hasAnyRefOmittedArgument = true;
-            return RefKind.None;
-        }
+        // TODO Consider allowing this for COM interop?
+        // if (paramRefKind == RefKind.Ref && argRefKind == RefKind.None) {
+        //     hasAnyRefOmittedArgument = true;
+        //     return RefKind.None;
+        // }
 
         return paramRefKind;
     }
