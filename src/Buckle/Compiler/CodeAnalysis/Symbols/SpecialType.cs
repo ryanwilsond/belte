@@ -8,6 +8,7 @@ public enum SpecialType : byte {
     None,
     Object,
     Array,
+    Enum,
     Any,
     String,
     Bool,

@@ -1541,6 +1541,27 @@ internal partial class Binder {
         );
     }
 
+    internal BoundFieldEqualsValue BindEnumConstantInitializer(
+        SourceEnumConstantSymbol symbol,
+        EqualsValueClauseSyntax equalsValueSyntax,
+        BelteDiagnosticQueue diagnostics) {
+        var initializerBinder = GetBinder(equalsValueSyntax);
+        var initializer = initializerBinder.BindValue(equalsValueSyntax.value, diagnostics, BindValueKind.RValue);
+        initializer = ReduceNumericIfApplicable(symbol.containingType.enumUnderlyingType, initializer);
+        initializer = initializerBinder.GenerateConversionForAssignment(
+            symbol.containingType.enumUnderlyingType,
+            initializer,
+            diagnostics
+        );
+
+        return new BoundFieldEqualsValue(
+            equalsValueSyntax,
+            symbol,
+            initializerBinder.GetDeclaredLocalsForScope(equalsValueSyntax),
+            initializer
+        );
+    }
+
     internal BoundExpression BindVariableOrAutoPropInitializerValue(
         EqualsValueClauseSyntax initializerOpt,
         RefKind refKind,
@@ -2647,7 +2668,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var containingType = constructor.containingType;
 
-        if ((containingType.typeKind == TypeKind.Struct) && initializerArgumentList is null)
+        if ((containingType.typeKind is TypeKind.Struct or TypeKind.Enum) && initializerArgumentList is null)
             return null;
 
         var analyzedArguments = AnalyzedArguments.GetInstance();
@@ -4070,6 +4091,7 @@ internal partial class Binder {
 
                 goto case TypeKind.Class;
             case TypeKind.Class:
+            case TypeKind.Enum:
             case TypeKind.Error:
                 return BindClassCreationExpression(
                     node,
@@ -5680,6 +5702,14 @@ internal partial class Binder {
         bool indexed,
         bool hasErrors) {
         var hasError = false;
+        var type = fieldSymbol.containingType;
+        var isEnumField = (fieldSymbol.isStatic && type.IsEnumType());
+
+        // TODO enum
+        // if (isEnumField && !type.IsValidEnumType()) {
+        //     Error(diagnostics, ErrorCode.ERR_BindToBogus, node, fieldSymbol);
+        //     hasError = true;
+        // }
 
         if (!hasError)
             hasError = CheckInstanceOrStatic(node, receiver, fieldSymbol, ref resultKind, diagnostics);
@@ -5733,8 +5763,7 @@ internal partial class Binder {
         IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics);
 
         var fieldType = fieldSymbol.GetFieldType(fieldsBeingBound).type;
-
-        return new BoundFieldAccessExpression(
+        BoundExpression expr = new BoundFieldAccessExpression(
             node,
             receiver,
             fieldSymbol,
@@ -5742,6 +5771,32 @@ internal partial class Binder {
             fieldType,
             hasError
         );
+
+        if (InEnumMemberInitializer()) {
+            NamedTypeSymbol enumType = null;
+            if (isEnumField)
+                enumType = type;
+            else if (constantValueOpt is not null && fieldType.IsEnumType())
+                enumType = (NamedTypeSymbol)fieldType;
+
+            if (enumType is not null) {
+                var underlyingType = enumType.enumUnderlyingType;
+                expr = new BoundCastExpression(
+                    node,
+                    expr,
+                    Conversion.ImplicitNumeric,
+                    constantValue: expr.constantValue,
+                    type: underlyingType
+                );
+            }
+        }
+
+        return expr;
+    }
+
+    private bool InEnumMemberInitializer() {
+        var containingType = this.containingType;
+        return inFieldInitializer && containingType is not null && containingType.IsEnumType();
     }
 
     private bool IsBadBaseAccess(
@@ -9253,6 +9308,7 @@ internal partial class Binder {
                 break;
             case TypeKind.Class:
             case TypeKind.Struct:
+            case TypeKind.Enum:
             case TypeKind.Array:
                 LookupMembersInClass(
                     result,
@@ -9719,6 +9775,7 @@ symIsHidden:;
 
                 break;
             case TypeKind.Class:
+            case TypeKind.Enum:
             case TypeKind.Struct:
             case TypeKind.Array:
                 AddMemberLookupSymbolsInfoInClass(result, type, options, originalBinder, type);
@@ -11108,7 +11165,7 @@ symIsHidden:;
                 return null;
         }
 
-        if (containingType.IsStructType())
+        if (containingType.IsStructType() || containingType.IsEnumType())
             return null;
 
         Binder outerBinder;

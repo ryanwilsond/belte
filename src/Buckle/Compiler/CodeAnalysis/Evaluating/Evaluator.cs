@@ -224,7 +224,13 @@ internal sealed class Evaluator {
             if (type.IsStructType()) {
                 var structValue = CreateStruct(type);
                 _context.AddStaticType(type, structValue);
-                return value;
+                return structValue;
+            }
+
+            if (type.IsEnumType()) {
+                var enumValue = CreateEnum(type);
+                _context.AddStaticType(type, enumValue);
+                return enumValue;
             }
 
             var ptr = CreateObject(type);
@@ -235,11 +241,14 @@ internal sealed class Evaluator {
 
         return EvaluatorValue.None;
     }
-
     private EvaluatorValue CreateObject(NamedTypeSymbol type) {
         var heapObject = CreateHeapObject(type);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         return EvaluatorValue.HeapPtr(index);
+    }
+
+    private EvaluatorValue CreateEnum(NamedTypeSymbol type) {
+        return EvaluatorValue.Struct(CreateHeapObject(type));
     }
 
     private EvaluatorValue CreateStruct(NamedTypeSymbol type) {
@@ -261,7 +270,10 @@ internal sealed class Evaluator {
             if (type.templateSubstitution is not null)
                 fieldType = type.templateSubstitution.SubstituteType(field.type).type.type;
 
-            heapObject.fields[field.slot] = GetDefaultValue(fieldType);
+            heapObject.fields[field.slot] = GetDefaultValue(
+                fieldType,
+                (field.symbol as FieldSymbol).constantValue
+            );
         }
 
         if (type.arity > 0) {
@@ -787,6 +799,8 @@ internal sealed class Evaluator {
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 return value;
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
             case ConversionKind.ImplicitNumeric:
@@ -803,8 +817,18 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateConvertCallOrNumericConversion(BoundCastExpression node, EvaluatorValue value) {
-        var fromType = NormalizeNumericType(node.operand.Type().specialType);
-        var toType = NormalizeNumericType(node.Type().specialType);
+        var fromTypeSymbol = node.operand.Type();
+
+        if (fromTypeSymbol.IsEnumType())
+            fromTypeSymbol = ((NamedTypeSymbol)fromTypeSymbol).enumUnderlyingType;
+
+        var toTypeSymbol = node.Type();
+
+        if (toTypeSymbol.IsEnumType())
+            toTypeSymbol = ((NamedTypeSymbol)toTypeSymbol).enumUnderlyingType;
+
+        var fromType = NormalizeNumericType(toTypeSymbol.specialType);
+        var toType = NormalizeNumericType(toTypeSymbol.specialType);
 
         switch (toType) {
             case SpecialType.Bool:
@@ -1195,7 +1219,7 @@ internal sealed class Evaluator {
 
         if (depth == sizes.Length - 1) {
             for (var i = 0; i < length; i++)
-                elements[i] = GetDefaultValue(type.elementType);
+                elements[i] = GetDefaultValue(type.elementType, null);
         } else {
             for (var i = 0; i < length; i++) {
                 var array = CreateArray(type, sizes, depth + 1);
@@ -1207,12 +1231,19 @@ internal sealed class Evaluator {
         return new HeapObject(type, elements);
     }
 
-    private EvaluatorValue GetDefaultValue(TypeSymbol type) {
+    private EvaluatorValue GetDefaultValue(TypeSymbol type, object constantValueForEnum) {
         if (type.IsStructType())
             return CreateStruct((NamedTypeSymbol)type);
 
         if (type is PointerTypeSymbol)
             return EvaluatorValue.Literal(value: 0);
+
+        if (type.IsEnumType()) {
+            return EvaluatorValue.Literal(
+                constantValueForEnum,
+                (type as NamedTypeSymbol).enumUnderlyingType.StrippedType().specialType
+            );
+        }
 
         return (!type.IsNullableType() && type.IsVerifierValue())
             ? EvaluatorValue.Literal(type.specialType)

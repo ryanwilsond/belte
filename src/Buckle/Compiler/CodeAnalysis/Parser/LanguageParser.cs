@@ -385,6 +385,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseStructDeclaration(attributeLists, modifiers);
             case SyntaxKind.ClassKeyword:
                 return ParseClassDeclaration(attributeLists, modifiers);
+            case SyntaxKind.EnumKeyword:
+                return ParseEnumDeclaration(attributeLists, modifiers);
             default:
                 if (allowGlobalStatements)
                     return ParseGlobalStatement(attributeLists, modifiers);
@@ -465,6 +467,64 @@ internal sealed partial class LanguageParser : SyntaxParser {
             members,
             closeBrace
         );
+    }
+
+    private MemberDeclarationSyntax ParseEnumDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var keyword = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
+        var baseType = currentToken.kind == SyntaxKind.ExtendsKeyword
+            ? ParseBaseType()
+            : null;
+
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var members = ParseEnumMembers();
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return SyntaxFactory.EnumDeclaration(
+            attributeLists,
+            modifiers,
+            keyword,
+            identifier,
+            null,
+            baseType,
+            null,
+            openBrace,
+            null,
+            members,
+            closeBrace
+        );
+    }
+
+    private SeparatedSyntaxList<EnumMemberDeclarationSyntax> ParseEnumMembers() {
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
+        var parseNextMember = true;
+
+        while (parseNextMember &&
+            currentToken.kind != SyntaxKind.CloseBraceToken &&
+            currentToken.kind != SyntaxKind.EndOfFileToken) {
+            var expression = ParseEnumMember();
+            nodesAndSeparators.Add(expression);
+
+            if (currentToken.kind == SyntaxKind.CommaToken) {
+                var comma = EatToken();
+                nodesAndSeparators.Add(comma);
+            } else {
+                parseNextMember = false;
+            }
+        }
+
+        return new SeparatedSyntaxList<EnumMemberDeclarationSyntax>(nodesAndSeparators.ToList());
+    }
+
+    private EnumMemberDeclarationSyntax ParseEnumMember() {
+        var attributeLists = ParseAttributeLists();
+        var modifiers = ParseModifiers();
+        var identifier = Match(SyntaxKind.IdentifierToken);
+        var equalsValue = currentToken.kind == SyntaxKind.EqualsToken ? ParseEqualsValueClause(false) : null;
+
+        return SyntaxFactory.EnumMemberDeclaration(attributeLists, modifiers, identifier, equalsValue);
     }
 
     private MemberDeclarationSyntax ParseClassDeclaration(

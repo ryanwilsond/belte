@@ -6,6 +6,7 @@ internal enum DeclarationKind : byte {
     Class,
     ImplicitClass,
     Struct,
+    Enum,
     Submission,
     Script,
 }

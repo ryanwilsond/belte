@@ -910,6 +910,9 @@ oneMoreTime:
     }
 
     private static bool CanPassToBrfalse(TypeSymbol ts) {
+        if (ts.IsEnumType())
+            return true;
+
         var st = ts.specialType;
 
         if (st == SpecialType.Decimal)
@@ -1245,6 +1248,9 @@ oneMoreTime:
 
         if (((ArrayTypeSymbol)expression.receiver.StrippedType()).isSZArray) {
             var elementType = expression.type;
+
+            if (elementType.IsEnumType())
+                elementType = ((NamedTypeSymbol)elementType).enumUnderlyingType;
 
             switch (elementType.specialType) {
                 case SpecialType.Int:
@@ -2695,6 +2701,9 @@ oneMoreTime:
     private void EmitVectorElementStore(ArrayTypeSymbol arrayType) {
         var elementType = arrayType.elementType;
 
+        if (elementType.IsEnumType())
+            elementType = ((NamedTypeSymbol)elementType).enumUnderlyingType;
+
         switch (elementType.specialType) {
             case SpecialType.Bool:
                 _builder.Emit(OpCode.Stelem_I1);
@@ -2739,6 +2748,9 @@ oneMoreTime:
     }
 
     private void EmitIndirectStore(TypeSymbol type) {
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         switch (type.specialType) {
             case SpecialType.Bool:
             case SpecialType.Int8:
@@ -2781,6 +2793,23 @@ oneMoreTime:
 
                 break;
         }
+    }
+
+    private void EmitEnumConversion(BoundCastExpression conversion) {
+        var fromType = conversion.operand.type;
+
+        if (fromType.IsEnumType())
+            fromType = ((NamedTypeSymbol)fromType).enumUnderlyingType;
+
+        var fromPredefTypeKind = fromType.specialType;
+        var toType = conversion.type;
+
+        if (toType.IsEnumType())
+            toType = ((NamedTypeSymbol)toType).enumUnderlyingType;
+
+        var toPredefTypeKind = toType.specialType;
+
+        EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
     }
 
     private VariableDefinition EmitAssignmentDuplication(
@@ -3101,12 +3130,25 @@ oneMoreTime:
 
         switch (type.specialType) {
             case SpecialType.Int:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Char:
             case SpecialType.Decimal:
             case SpecialType.Bool:
                 return true;
         }
 
-        return false;
+        return type.IsEnumType();
     }
 
     private void EmitParameterLoad(BoundParameterExpression expression) {
@@ -3191,6 +3233,10 @@ oneMoreTime:
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 EmitExplicitReferenceConversion(cast);
+                break;
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
+                EmitEnumConversion(cast);
                 break;
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
@@ -3526,6 +3572,9 @@ oneMoreTime:
     }
 
     private void EmitLoadIndirect(TypeSymbol type) {
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         switch (type.specialType) {
             case SpecialType.Int:
             case SpecialType.Int64:

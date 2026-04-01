@@ -1783,6 +1783,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ImplicitlyTypedStackAllocLocal, location, message);
     }
 
+    internal static BelteDiagnostic InvalidEnumType(TextLocation location) {
+        var message = $"an enum type can only derive from integral primitives or string";
+        return CreateError(DiagnosticCode.ERR_InvalidEnumType, location, message);
+    }
+
+    internal static BelteDiagnostic EnumOverflow(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': the enum value is too large to fit in its type";
+        return CreateError(DiagnosticCode.ERR_EnumOverflow, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

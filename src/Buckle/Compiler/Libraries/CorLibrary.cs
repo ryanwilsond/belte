@@ -165,6 +165,7 @@ internal sealed class CorLibrary {
 
     private void RegisterNonPrimitiveCorTypes() {
         RegisterSpecialType(new PrimitiveTypeSymbol("Array", SpecialType.Array));
+        RegisterSpecialType(new PrimitiveTypeSymbol("Enum", SpecialType.Enum));
 
         RegisterSpecialType(new SynthesizedSimpleNamedTypeSymbol(
             "Nullable",

@@ -37,5 +37,6 @@ internal static class WellKnownMemberNames {
     internal const string EntryPointMethodName = "Main";
     internal const string UpdatePointMethodName = "Update";
     internal const string TopLevelStatementsEntryPointTypeName = "<Program>";
+    internal const string EnumBackingFieldName = "<>value__";
     internal new const string ToString = "ToString";
 }
