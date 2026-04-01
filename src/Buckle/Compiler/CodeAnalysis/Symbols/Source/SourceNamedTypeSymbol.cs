@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -339,14 +340,21 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         var i = 0;
 
         var syntax = (TypeDeclarationSyntax)_declaration.declarations[0].syntaxReference.node;
+        var seenNames = new HashSet<string>();
 
         foreach (var templateSyntax in syntax.templateParameterList.parameters) {
+            var identifier = templateSyntax.identifier;
+            var name = identifier.text;
+
             var result = new SourceTemplateParameterSymbol(
                 this,
-                templateSyntax.identifier.text,
+                name,
                 i,
                 new SyntaxReference(templateSyntax)
             );
+
+            if (!seenNames.Add(name))
+                diagnostics.Push(Error.DuplicateTemplateParameter(identifier.location, name));
 
             builder.Add(result);
 

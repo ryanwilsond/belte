@@ -265,7 +265,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].text));
 
         foreach (var directive in node.usings) {
-            if (directive.globalKeyword.kind == SyntaxKind.GlobalKeyword) {
+            if (directive.globalKeyword?.kind == SyntaxKind.GlobalKeyword) {
                 diagnostics.Push(Error.GlobalUsingInNamespace(directive.globalKeyword.location));
                 break;
             }

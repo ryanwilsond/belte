@@ -29,11 +29,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.belte",
-                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw)\\b"
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case)\\b"
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|as|global)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",

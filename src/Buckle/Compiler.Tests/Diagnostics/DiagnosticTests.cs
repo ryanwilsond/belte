@@ -2074,6 +2074,19 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0155_CannotDeriveTemplate2() {
+        var text = @"
+            class A<[type T], int T2> where { T extends T2; } { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from template parameter 'int T2'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0156_InconsistentAccessibilityField() {
         var text = @"
             class A {
@@ -2780,10 +2793,34 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0207_BadSKUnknown
+    // ? Unsure how to trigger this
+
     // ! Error_BU0208_RefConstLocal
+    // Struct methods not implemented yet
+
     // ! Error_BU0209_RefReturnThis
-    // TODO Do we want this following case to be an error:
-    // ! Error_BU0210_ConstantAssignmentThis
+    // Struct methods not implemented yet
+
+    [Fact]
+    public void Reports_Error_BU0210_ConstantAssignmentThis() {
+        var text = @"
+            class P {
+                void M(P! p) {
+                    [this] = p;
+                }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot assign to 'this' because it is constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // Unsure how to trigger any of these
     // ! Error_BU0211_ReturnNotLValue
     // ! Error_BU0212_RefConstNotField
     // ! Error_BU0213_RefReturnConstNotField
@@ -2847,6 +2884,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // Unsure how to trigger any of these
     // ! Error_BU0221_RefReturnConstantStatic
     // ! Error_BU0222_RefConstantStatic
     // ! Error_BU0223_AssignmentConstantStatic
@@ -2858,10 +2896,27 @@ public sealed class DiagnosticTests {
     // ! Error_BU0229_AssignmentConstantStatic2
     // ! Error_BU0230_RefConstantLocalCause
     // ! Error_BU0231_AssignmentConstantLocalCause
+
     // ! Error_BU0232_PossibleBadNegativeCast
+    // Unreachable currently
+
+    // Nested diagnostics
     // ! Error_BU0233_RefReturnMustHaveIdentityConversion
     // ! Error_BU0234_RefAssignmentMustHaveIdentityConversion
-    // ! Error_BU0235_LocalSameNameAsTemplate
+
+    [Fact]
+    public void Reports_Error_BU0235_LocalSameNameAsTemplate() {
+        var text = @"
+            void M<type T>(int [T]) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'T': a parameter, local, or local function cannot have the same name as a method template parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0236_DuplicateParameterName() {
@@ -2890,6 +2945,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0238_NewTemplateWithArguments
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Warning_BU0239_IncorrectBooleanAssignment() {
@@ -2905,7 +2961,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Error_BU0240_LookupInTemplateVariable
+    [Fact]
+    public void Reports_Error_BU0240_LookupInTemplateVariable() {
+        var text = @"
+            void M<type T>() {
+                [T].M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot do non-virtual member lookup in 'type! T' because it is a template parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0241_AbstractBaseCall() {
@@ -2927,10 +2997,25 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0242_StaticMemberInObjectInitializer
+    // Object initializers not implemented yet
+
     // ! Warning_BU0243_RefConstNotVariable
     // ! Warning_BU0244_ArgExpectedRef
     // ! Error_BU0245_RefConditionalDifferentTypes
-    // ! Error_BU0246_DuplicateTemplateParameter
+
+    [Fact]
+    public void Reports_Error_BU0246_DuplicateTemplateParameter() {
+        var text = @"
+            class A<type T, type [T]> { }
+        ";
+
+        var diagnostics = @"
+            duplicate template parameter 'T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Warning_BU0247_TemplateParameterSameAsOuterMethod
     // ! Warning_BU0248_TemplateParameterSameAsOuter
 
@@ -3358,7 +3443,25 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0284_CantChangeRefReturnOnOverride
+    [Fact]
+    public void Reports_Error_BU0284_CantChangeRefReturnOnOverride() {
+        var text = @"
+            class A {
+                public virtual ref int M(ref int a) { return ref a; }
+            }
+
+            class B extends A {
+                public override int [M](ref int a) { return 3; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M(ref int)' must match by reference return of overridden member 'A.M(ref int)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0285_CantChangeReturnTypeOnOverride() {
@@ -3378,12 +3481,15 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // Not implemented yet
     // ! Warning_BU0286_OverridingDifferentRefness
     // ! Warning_BU0287_TopLevelNullabilityMismatchInParameterTypeOnOverride
     // ! Warning_BU0288_NullabilityMismatchInParameterTypeOnOverride
     // ! Warning_BU0289_TopLevelNullabilityMismatchInReturnTypeOnOverride
     // ! Warning_BU0290_NullabilityMismatchInReturnTypeOnOverride
+
     // ! Fatal_BU0291_LibraryErrors
+    // Hopefully unreachable
 
     [Fact]
     public void Reports_Error_BU0292_OperatorCantReturnVoid() {
@@ -3416,6 +3522,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0294_BadAbstractUnaryOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0295_BadShiftOperatorSignature() {
@@ -3433,6 +3540,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0296_BadAbstractShiftOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0297_BadBinaryOperatorSignature() {
@@ -3450,7 +3558,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0298_BadAbstractBinaryOperatorSignature
+    // Abstract operators not implements yet
+
     // ! Error_BU0299_BadAbstractEqualityOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0300_BadIncrementOperatorSignature() {
@@ -3468,6 +3579,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0301_BadAbstractIncrementOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0302_BadIncrementReturnType() {
@@ -3485,6 +3597,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0303_BadAbstractIncrementReturnType
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0304_BadIndexCount() {
@@ -3501,7 +3614,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0305_MultipleUpdates
+    // Requires command-line arguments (specifically `--type=graphics`)
+
     // ! Error_BU0306_SeparateMainAndUpdate
+    // Requires command-line arguments (specifically `--type=graphics`)
 
     [Fact]
     public void Reports_Error_BU0307_FieldsCannotBeImplicitlyTyped() {
@@ -3618,6 +3734,7 @@ public sealed class DiagnosticTests {
     // }
 
     // ! Error_BU0313_EscapeLocal
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0314_RefAssignReturnOnly() {
@@ -3650,6 +3767,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0316_RefAssignValEscapeWider
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0317_MissingArraySize() {
@@ -3664,9 +3782,47 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0318_GlobalUsingInNamespace
-    // ! Error_BU0319_AliasNotFound
-    // ! Error_BU0320_SingleTypeNameNotFound
+    [Fact]
+    public void Reports_Error_BU0318_GlobalUsingInNamespace() {
+        var text = @"
+            namespace A {
+                [global] using B = A;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot use a global using directive in a namespace declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0319_AliasNotFound() {
+        var text = @"
+            var a = [A]::C();
+        ";
+
+        var diagnostics = @"
+            alias 'A' not found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0320_SingleTypeNameNotFound() {
+        var text = @"
+            [asdf] a = 3;
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'asdf' could not be found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Warning_BU0321_NamespaceNameShadowsBelte() {
@@ -3681,12 +3837,56 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Error_BU0322_GlobalSingleTypeNameNotFound
-    // ! Error_BU0323_DottedTypeNamesNotFoundInNamespace
+    [Fact]
+    public void Reports_Error_BU0322_GlobalSingleTypeNameNotFound() {
+        var text = @"
+            var a = new global::[A]();
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'A' could not be found in the global namespace
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0323_DottedTypeNamesNotFoundInNamespace() {
+        var text = @"
+            namespace A { }
+            var a = new A.[B]();
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'B' does not exist in the namespace 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0324_ConflictingAliasAndMember
+    // ? Unsure how to trigger this
+
     // ! Error_BU0325_UnexpectedUnboundTemplateName
-    // ! Error_BU0326_HasNoTemplate
+    // ? Unsure how to trigger this
+
+    [Fact]
+    public void Reports_Error_BU0326_HasNoTemplate() {
+        var text = @"
+            class A { }
+            var a = new [A<int>]();
+            ;
+        ";
+
+        var diagnostics = @"
+            the non-template type 'A' cannot be used with template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0327_TemplateNotAllowed
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0328_BadTemplateArgument() {
@@ -3746,6 +3946,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0332_NotNullableConstraintFailed
+    // Not implemented currently
 
     [Fact]
     public void Reports_Error_BU0333_DuplicateConstraint() {
@@ -3901,7 +4102,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0344_CannotConvertConstantValue
+    [Fact]
+    public void Reports_Error_BU0344_CannotConvertConstantValue() {
+        var text = @"
+            var a = (bool)[""asdf""];
+        ";
+
+        var diagnostics = @"
+            constant value 'asdf' cannot be converted to 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0345_AbstractAndExtern() {
@@ -3933,6 +4145,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // !
+    // Unreachable currently, attributes not implemented yet
     // [Fact]
     // public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
     //     var text = @"
@@ -3966,6 +4180,7 @@ public sealed class DiagnosticTests {
     // }
 
     // ! Error_BU0349_InvalidAttributeArgument
+    // Unreachable currently, attributes not implemented yet
 
     [Fact]
     public void Reports_Error_BU0350_FixedBufferTooManyDimensions() {
@@ -4091,6 +4306,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0358_FixedNeedsLValue
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0359_InvalidCascadeExpression() {

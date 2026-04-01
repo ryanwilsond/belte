@@ -405,7 +405,11 @@ internal partial class Binder {
             if (syntax.extendConstraint is not null) {
                 var typeSyntax = syntax.extendConstraint.type;
                 var type = BindType(typeSyntax, diagnostics, basesBeingResolved);
-                constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
+
+                if (type.type.StrippedType().specialType.IsPrimitiveType())
+                    diagnostics.Push(Error.CannotDerivePrimitive(typeSyntax.location, type.type.StrippedType()));
+                else
+                    constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
             } else if (syntax.isConstraint is not null) {
                 switch (syntax.isConstraint.keyword.kind) {
                     case SyntaxKind.PrimitiveKeyword:
@@ -2211,9 +2215,7 @@ internal partial class Binder {
                     return false;
                 }
 
-                // var isValueType = ((BoundThisExpression)expression).type.isPrimitiveType;
-                // TODO Consider, should this auto-ref? Or do we allow 'ref this':
-                var isValueType = true;
+                var isValueType = ((BoundThisExpression)expression).type.IsVerifierValue();
 
                 if (!isValueType || (RequiresAssignableVariable(valueKind) &&
                     containingMember is MethodSymbol { isEffectivelyConst: true })) {
@@ -7519,7 +7521,15 @@ internal partial class Binder {
 
         if (left.type is not null && left.StrippedType().specialType == SpecialType.Bool &&
             right.type is not null && right.StrippedType().specialType == SpecialType.Bool) {
-            var constantValue = ConstantFolding.FoldBinary(left, right, kind | BinaryOperatorKind.Bool, left.Type());
+            var constantValue = ConstantFolding.FoldBinary(
+                left,
+                right,
+                kind | BinaryOperatorKind.Bool,
+                left.Type(),
+                node.location,
+                diagnostics
+            );
+
             return new BoundBinaryOperator(
                 node,
                 left,
@@ -7823,7 +7833,9 @@ internal partial class Binder {
             resultLeft,
             resultRight,
             resultOperatorKind,
-            signature.leftType
+            signature.leftType,
+            location,
+            diagnostics
         );
     }
 

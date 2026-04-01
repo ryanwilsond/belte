@@ -1559,7 +1559,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic HasNoTemplate(TextLocation location, Symbol symbol, string text) {
-        var message = $"the non-template {text} '{symbol}' cannot be used with template arguments";
+        var message = $"the non-template {text} '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot be used with template arguments";
         return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
     }
 
