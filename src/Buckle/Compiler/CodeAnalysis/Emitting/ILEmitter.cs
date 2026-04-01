@@ -308,6 +308,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         TypeReference GetTypeWithContainingGenerics(NamedTypeSymbol type) {
             var foundType = _types[type.originalDefinition];
 
+            // Acceptable inside specific contexts like typeof
+            if (type.ContainsTemplateParameter() || type.ContainsErrorType())
+                return foundType;
+
             var chain = new Stack<NamedTypeSymbol>();
             var current = type;
 

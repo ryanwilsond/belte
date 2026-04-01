@@ -90,7 +90,7 @@ internal static class ParameterHelpers {
         if (refKind == RefKind.Ref) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
-        } else if (!defaultExpression.hasErrors && !IsValidDefaultValue(defaultExpression)) {
+        } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {
             diagnostics.Push(Error.DefaultMustBeConstant(
                 parameterSyntax.defaultValue.value.location,
                 parameterSyntax.identifier.text

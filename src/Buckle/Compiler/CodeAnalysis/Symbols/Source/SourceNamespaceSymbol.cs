@@ -129,6 +129,21 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
                     _ = GetNameToMembersMap();
                     break;
                 case CompletionParts.MembersCompleted: {
+                        SingleNamespaceDeclaration? targetDeclarationWithImports = null;
+
+                        foreach (var declaration in mergedDeclaration.declarations) {
+                            if (location is null || location.tree == declaration.syntaxReference.syntaxTree) {
+                                if (declaration.hasGlobalUsings || declaration.hasUsings || declaration.hasExternAliases) {
+                                    targetDeclarationWithImports = declaration;
+                                    GetAliasesAndUsings(declaration).Complete(this, declaration.syntaxReference);
+                                }
+                            }
+                        }
+
+                        if (isGlobalNamespace && (location is null || targetDeclarationWithImports is not null)) {
+                            GetMergedGlobalAliasesAndUsings(basesBeingResolved: null).Complete(this);
+                        }
+
                         var members = GetMembers();
                         var allCompleted = true;
 
@@ -323,13 +338,12 @@ done:
 
                 memberOfArity[arity] = symbol;
 
-                // TODO If we want this error we have to deal with locals auto-privating
-                // if (nts is not null) {
-                //     var declaredAccessibility = nts.declaredAccessibility;
+                if (nts is not null) {
+                    var declaredAccessibility = nts.declaredAccessibility;
 
-                //     if (declaredAccessibility != Accessibility.Public)
-                //         diagnostics.Push(Error.NoNamespacePrivate(symbol.location));
-                // }
+                    if (declaredAccessibility is not Accessibility.Public and not Accessibility.NotApplicable)
+                        diagnostics.Push(Error.NoNamespacePrivate(symbol.location));
+                }
             }
         }
     }

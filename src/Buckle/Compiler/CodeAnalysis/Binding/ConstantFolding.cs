@@ -17,8 +17,19 @@ internal static class ConstantFolding {
         BoundExpression left,
         BoundExpression right,
         BinaryOperatorKind opKind,
-        TypeSymbol type) {
-        return FoldBinary(left.constantValue, left.type, right.constantValue, right.type, opKind, type);
+        TypeSymbol type,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics) {
+        return FoldBinary(
+            left.constantValue,
+            left.type,
+            right.constantValue,
+            right.type,
+            opKind,
+            type,
+            errorLocation,
+            diagnostics
+        );
     }
 
     internal static ConstantValue FoldBinary(
@@ -27,7 +38,9 @@ internal static class ConstantFolding {
         ConstantValue right,
         TypeSymbol rightType,
         BinaryOperatorKind opKind,
-        TypeSymbol type) {
+        TypeSymbol type,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics) {
         if (opKind == BinaryOperatorKind.Error)
             return null;
 
@@ -65,8 +78,8 @@ internal static class ConstantFolding {
         if (opKind is BinaryOperatorKind.NotEqual)
             return new ConstantValue(!Equals(leftValue, rightValue), SpecialType.Bool);
 
-        if (!LiteralUtilities.TryCast(leftValue, leftType, type, out leftValue) ||
-            !LiteralUtilities.TryCast(rightValue, rightType, type, out rightValue)) {
+        if (!LiteralUtilities.TryCast(leftValue, leftType, type, errorLocation, diagnostics, out leftValue) ||
+            !LiteralUtilities.TryCast(rightValue, rightType, type, errorLocation, diagnostics, out rightValue)) {
             return null;
         }
 
@@ -489,7 +502,7 @@ internal static class ConstantFolding {
             return constantValue;
 
         try {
-            if (LiteralUtilities.TryCast(constantValue.value, source, target, out var castedValue))
+            if (LiteralUtilities.TryCast(constantValue.value, source, target, location, diagnostics, out var castedValue))
                 return new ConstantValue(castedValue, specialType);
         } catch (Exception e) when (e is OverflowException or InvalidCastException) {
             diagnostics.Push(Error.CannotConvertConstantValue(location, constantValue.value, target.type));

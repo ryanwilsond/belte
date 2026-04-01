@@ -1,5 +1,7 @@
 using System;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
@@ -8,7 +10,13 @@ namespace Buckle.CodeAnalysis;
 /// Utilities helping casting values, and utilities related to the <see cref="Convert" /> class.
 /// </summary>
 internal static class LiteralUtilities {
-    internal static bool TryCast(object value, TypeSymbol source, TypeWithAnnotations targetType, out object result) {
+    internal static bool TryCast(
+        object value,
+        TypeSymbol source,
+        TypeWithAnnotations targetType,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics,
+        out object result) {
         if (value is null && !targetType.isNullable) {
             result = null;
             return false;
@@ -19,14 +27,20 @@ internal static class LiteralUtilities {
             return true;
         }
 
-        return TryCast(value, source, targetType.type, out result);
+        return TryCast(value, source, targetType.type, errorLocation, diagnostics, out result);
     }
 
-    internal static bool TryCast(object value, TypeSymbol sourceType, TypeSymbol targetType, out object result) {
+    internal static bool TryCast(
+        object value,
+        TypeSymbol sourceType,
+        TypeSymbol targetType,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics,
+        out object result) {
         try {
             return TryCastCore(value, sourceType, targetType, out result);
         } catch (FormatException) {
-            // TODO consider raising a diagnostic in this case
+            diagnostics.Push(Error.CannotConvertConstantValue(errorLocation, value, targetType));
             result = null;
             return false;
         }

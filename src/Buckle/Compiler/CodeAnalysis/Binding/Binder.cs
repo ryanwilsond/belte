@@ -405,7 +405,11 @@ internal partial class Binder {
             if (syntax.extendConstraint is not null) {
                 var typeSyntax = syntax.extendConstraint.type;
                 var type = BindType(typeSyntax, diagnostics, basesBeingResolved);
-                constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
+
+                if (type.type.StrippedType().specialType.IsPrimitiveType())
+                    diagnostics.Push(Error.CannotDerivePrimitive(typeSyntax.location, type.type.StrippedType()));
+                else
+                    constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
             } else if (syntax.isConstraint is not null) {
                 switch (syntax.isConstraint.keyword.kind) {
                     case SyntaxKind.PrimitiveKeyword:
@@ -434,6 +438,28 @@ internal partial class Binder {
     #endregion
 
     #region Symbols
+
+    internal BoundExpression BindNamespaceOrType(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var symbol = BindNamespaceOrTypeOrAliasSymbol(node, diagnostics, null);
+        return CreateBoundNamespaceOrTypeExpression(node, symbol.symbol);
+    }
+
+    private static BoundExpression CreateBoundNamespaceOrTypeExpression(ExpressionSyntax node, Symbol symbol) {
+        var alias = symbol as AliasSymbol;
+
+        if (alias is not null)
+            symbol = alias.target;
+
+        var type = symbol as TypeSymbol;
+
+        if (type is not null)
+            return new BoundTypeExpression(node, new TypeWithAnnotations(type), alias, type);
+
+        if (symbol is NamespaceSymbol namespaceSymbol)
+            return new BoundNamespaceExpression(node, namespaceSymbol, alias);
+
+        throw ExceptionUtilities.UnexpectedValue(symbol);
+    }
 
     internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindNamespaceOrTypeSymbol(
         ExpressionSyntax syntax,
@@ -595,7 +621,7 @@ internal partial class Binder {
                     return namespaceOrNonNullableType;
             }
 
-            if (typeToCheck.specialType == SpecialType.Void || typeToCheck.type.IsStructType())
+            if (typeToCheck.specialType == SpecialType.Void || typeToCheck.type.IsStructType() || typeToCheck.isStatic)
                 return typeToCheck;
 
             // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
@@ -1229,7 +1255,7 @@ internal partial class Binder {
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
             if (!typeWithAnnotations.isNullable && !type.IsStructType() && !type.IsPointerOrFunctionPointer() &&
-                type.specialType != SpecialType.Void && type.typeKind != TypeKind.TemplateParameter) {
+                !type.isStatic && type.specialType != SpecialType.Void && type.typeKind != TypeKind.TemplateParameter) {
                 diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
             }
 
@@ -1339,13 +1365,13 @@ internal partial class Binder {
 
         switch (expression) {
             case BoundUnconvertedInitializerList list:
-                if (reportNoTargetType && !expression.hasErrors)
+                if (reportNoTargetType && !expression.hasAnyErrors)
                     diagnostics.Push(Error.ListNoTargetType(expression.syntax.location));
 
                 result = BindListForErrorRecovery(list, CreateErrorType(), diagnostics);
                 break;
             case BoundUnconvertedNullptrExpression:
-                if (reportNoTargetType && !expression.hasErrors)
+                if (reportNoTargetType && !expression.hasAnyErrors)
                     diagnostics.Push(Error.NullptrNoTargetType(expression.syntax.location));
 
                 result = new BoundLiteralExpression(expression.syntax, null, CreateErrorType());
@@ -1733,7 +1759,7 @@ internal partial class Binder {
         if (inferType)
             return InferTypeOfArrayInitializer(result, diagnostics, shouldLiftIfPossible);
 
-        if (!result.hasErrors && !inferType) {
+        if (!result.hasAnyErrors && !inferType) {
             result = new BoundInitializerList(
                 node,
                 result.items,
@@ -2003,7 +2029,7 @@ internal partial class Binder {
             Symbol otherSymbol = null;
             var resolvedToMethodGroup = resolution.methodGroup is not null;
 
-            if (!expression.hasErrors) diagnostics.PushRange(resolution.diagnostics);
+            if (!expression.hasAnyErrors) diagnostics.PushRange(resolution.diagnostics);
 
             hasResolutionErrors = resolution.hasAnyErrors;
 
@@ -2027,7 +2053,7 @@ internal partial class Binder {
         }
 
         if (!hasResolutionErrors && CheckValueKind(expression.syntax, expression, kind, false, diagnostics) ||
-            expression.hasErrors && kind == BindValueKind.RValueOrMethodGroup) {
+            expression.hasAnyErrors && kind == BindValueKind.RValueOrMethodGroup) {
             return expression;
         }
 
@@ -2118,7 +2144,7 @@ internal partial class Binder {
         BindValueKind valueKind,
         bool checkingReceiver,
         BelteDiagnosticQueue diagnostics) {
-        if (expression.hasErrors)
+        if (expression.hasAnyErrors)
             return false;
 
         if (RequiresRValueOnly(valueKind))
@@ -2198,9 +2224,7 @@ internal partial class Binder {
                     return false;
                 }
 
-                // var isValueType = ((BoundThisExpression)expression).type.isPrimitiveType;
-                // TODO Consider, should this auto-ref? Or do we allow 'ref this':
-                var isValueType = true;
+                var isValueType = ((BoundThisExpression)expression).type.IsVerifierValue();
 
                 if (!isValueType || (RequiresAssignableVariable(valueKind) &&
                     containingMember is MethodSymbol { isEffectivelyConst: true })) {
@@ -2823,6 +2847,8 @@ internal partial class Binder {
             case SyntaxKind.IdentifierName:
             case SyntaxKind.TemplateName:
                 return BindIdentifier((SimpleNameSyntax)node, called, indexed, diagnostics);
+            case SyntaxKind.AliasQualifiedName:
+                return BindNamespaceOrType(node, diagnostics);
             case SyntaxKind.BinaryExpression:
                 return BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics);
             case SyntaxKind.UnaryExpression:
@@ -2902,7 +2928,7 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         BelteDiagnostic error,
         BelteDiagnosticQueue diagnostics) {
-        if (!expression.hasErrors)
+        if (!expression.hasAnyErrors)
             diagnostics.Push(error);
 
         var childBoundNodes = BuildArgumentsForErrorRecovery(analyzedArguments).Add(expression);
@@ -2923,7 +2949,7 @@ internal partial class Binder {
         var resultType = expression.Type();
         var expressionKind = expression.kind;
 
-        if (expression.hasErrors && resultType is not null)
+        if (expression.hasAnyErrors && resultType is not null)
             return expression;
 
         if (expressionKind == BoundKind.ErrorExpression) {
@@ -3298,7 +3324,7 @@ internal partial class Binder {
         if (expression.type is null)
             return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
 
-        if (analyzedArguments.anyErrors || expression.hasErrors)
+        if (analyzedArguments.anyErrors || expression.hasAnyErrors)
             diagnostics = BelteDiagnosticQueue.Discarded;
 
         return BindArrayAccessOrIndexerCore(node, isConditional, expression, analyzedArguments, diagnostics);
@@ -3674,7 +3700,7 @@ internal partial class Binder {
         var targetType = targetTypeWithAnnotations.type;
 
         if (targetType.IsNullableType() &&
-            !operand.hasErrors &&
+            !operand.hasAnyErrors &&
             operand.Type() is not null &&
             !operand.Type().IsNullableType() &&
             !TypeSymbol.Equals(
@@ -3735,7 +3761,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var targetType = targetTypeWithAnnotations.type;
         var conversion = conversions.ClassifyConversionFromExpression(operand, targetType);
-        var suppressErrors = operand.hasErrors || targetType.IsErrorType();
+        var suppressErrors = operand.hasAnyErrors || targetType.IsErrorType();
         var hasErrors = !conversion.exists || targetType.isStatic;
 
         if (hasErrors && !suppressErrors)
@@ -3758,7 +3784,7 @@ internal partial class Binder {
         Conversion conversion,
         BoundExpression operand,
         TypeSymbol targetType) {
-        if (operand.hasErrors || targetType.IsErrorType())
+        if (operand.hasAnyErrors || targetType.IsErrorType())
             return;
 
         if (targetType.StrippedType().isStatic) {
@@ -3767,7 +3793,9 @@ internal partial class Binder {
         }
 
         if (!targetType.IsNullableType() && operand.IsLiteralNull()) {
-            diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+            if (!targetType.isStatic)
+                diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+
             return;
         }
 
@@ -3800,7 +3828,7 @@ internal partial class Binder {
             var size = sizes[i];
             knownSizes[i] = size.constantValue?.value is long l ? l : null;
 
-            if (!size.hasErrors && knownSizes[i] is null) {
+            if (!size.hasAnyErrors && knownSizes[i] is null) {
                 diagnostics.Push(Error.ConstantExpected(size.syntax.location));
                 hasErrors = true;
             }
@@ -3816,7 +3844,7 @@ internal partial class Binder {
             default
         );
 
-        hasErrors = hasErrors || initializer.hasErrors;
+        hasErrors = hasErrors || initializer.hasAnyErrors;
         var nonNullSyntax = (SyntaxNode)creationSyntax ?? initSyntax;
 
         if (numSizes == 0) {
@@ -3965,7 +3993,7 @@ internal partial class Binder {
                     var boundExpression = BindValue(expression, diagnostics, BindValueKind.RValue);
 
                     if (boundExpression.type is null || !boundExpression.type.IsErrorType()) {
-                        if (!boundExpression.hasErrors)
+                        if (!boundExpression.hasAnyErrors)
                             diagnostics.Push(Error.ArrayInitExpected(expression.location));
 
                         boundExpression = ErrorExpression(
@@ -4041,7 +4069,7 @@ internal partial class Binder {
         var type = typeWithAnnotations.nullableUnderlyingTypeOrSelf;
         var originalType = type;
 
-        if (!typeWithAnnotations.isNullable && type.IsClassType())
+        if (!typeWithAnnotations.isNullable && type.IsClassType() && !type.isStatic)
             diagnostics.Push(Error.AnnotationsDisallowedInObjectCreation(node.location));
 
         switch (type.typeKind) {
@@ -4446,7 +4474,7 @@ internal partial class Binder {
         var expression = BindValue(node, diagnostics, BindValueKind.RValue);
         var boolean = CorLibrary.GetNullableType(SpecialType.Bool);
 
-        if (expression.hasErrors) {
+        if (expression.hasAnyErrors) {
             return new BoundCastExpression(
                 node,
                 BindToTypeForErrorRecovery(expression),
@@ -5166,11 +5194,13 @@ internal partial class Binder {
                     break;
                 default:
                     if (boundLeft.IsLiteralNull()) {
-                        diagnostics.Push(Error.InvalidUnaryOperatorUse(
-                            node.location,
-                            operatorToken.text,
-                            CreateErrorType("<null>")
-                        ));
+                        if (!boundLeft.hasAnyErrors) {
+                            diagnostics.Push(Error.InvalidUnaryOperatorUse(
+                                node.location,
+                                operatorToken.text,
+                                CreateErrorType("<null>")
+                            ));
+                        }
 
                         return ErrorExpression(node, boundLeft);
                     } else if (leftType is not null) {
@@ -5239,7 +5269,7 @@ internal partial class Binder {
         }
     }
 
-    private DiagnosticInfo NotFound(
+    private BelteDiagnostic NotFound(
         SyntaxNode where,
         string simpleName,
         int arity,
@@ -5261,15 +5291,19 @@ internal partial class Binder {
         if (qualifier is not null) {
             if (qualifier.isType) {
                 if (qualifier is ErrorTypeSymbol errorQualifier && errorQualifier.error is not null)
-                    return errorQualifier.error.info;
+                    return errorQualifier.error;
 
-                return diagnostics.Push(Error.DottedTypeNamesNotFound(location, whereText, qualifier));
+                var error = Error.DottedTypeNamesNotFound(location, whereText, qualifier);
+                diagnostics.Push(error);
+                return error;
             } else {
                 // TODO Assembly refs
                 // forwardedToAssembly = GetForwardedToAssembly(simpleName, arity, ref qualifierOpt, diagnostics, location);
 
                 if (ReferenceEquals(qualifier, compilation.globalNamespace)) {
-                    return diagnostics.Push(Error.GlobalSingleTypeNameNotFound(location, whereText));
+                    var error = Error.GlobalSingleTypeNameNotFound(location, whereText);
+                    diagnostics.Push(error);
+                    return error;
                     // : diagnostics.Add(ErrorCode.ERR_GlobalSingleTypeNameNotFoundFwd, location, whereText, forwardedToAssembly);
                 } else {
                     object container = qualifier;
@@ -5277,14 +5311,19 @@ internal partial class Binder {
                     if (alias is not null && qualifier.isNamespace && ((NamespaceSymbol)qualifier).isGlobalNamespace)
                         container = alias;
 
-                    return diagnostics.Push(Error.DottedTypeNamesNotFoundInNamespace(location, whereText, container));
+                    var error = Error.DottedTypeNamesNotFoundInNamespace(location, whereText, container);
+                    diagnostics.Push(error);
+                    return error;
                     // : diagnostics.Add(ErrorCode.ERR_DottedTypeNameNotFoundInNSFwd, location, whereText, container, forwardedToAssembly);
                 }
             }
         }
 
-        if (options == LookupOptions.NamespaceAliasesOnly)
-            return diagnostics.Push(Error.AliasNotFound(location, whereText));
+        if (options == LookupOptions.NamespaceAliasesOnly) {
+            var error = Error.AliasNotFound(location, whereText);
+            diagnostics.Push(error);
+            return error;
+        }
 
         // if (where is IdentifierNameSyntax { identifier.text: "var" } && !options.IsAttributeTypeLookup()) {
         //     var code = (where.Parent is QueryClauseSyntax) ? ErrorCode.ERR_TypeVarNotFoundRangeVariable : ErrorCode.ERR_TypeVarNotFound;
@@ -5299,7 +5338,9 @@ internal partial class Binder {
         //         : diagnostics.Add(ErrorCode.ERR_DottedTypeNameNotFoundInNSFwd, location, whereText, qualifierOpt, forwardedToAssembly);
         // }
 
-        return diagnostics.Push(Error.SingleTypeNameNotFound(location, whereText));
+        var finalError = Error.SingleTypeNameNotFound(location, whereText);
+        diagnostics.Push(finalError);
+        return finalError;
     }
 
     private BoundExpression CreateConditionalAccess(
@@ -5382,7 +5423,7 @@ internal partial class Binder {
         BoundExpression boundLeft,
         BelteDiagnostic lookupError,
         BelteDiagnosticQueue diagnostics) {
-        if (boundLeft.hasErrors)
+        if (boundLeft.hasAnyErrors && boundLeft.kind != BoundKind.TypeExpression)
             return;
 
         if (lookupError is not null) {
@@ -5897,7 +5938,7 @@ internal partial class Binder {
         } else if (boundExpression.Type().kind == SymbolKind.FunctionPointerType) {
             result = BindFunctionPointerInvocation(node, boundExpression, analyzedArguments, diagnostics);
         } else {
-            if (!boundExpression.hasErrors)
+            if (!boundExpression.hasAnyErrors)
                 diagnostics.Push(Error.CannotCallNonMethod(expression.location));
 
             result = CreateErrorCall(node, boundExpression, LookupResultKind.NotInvocable, analyzedArguments);
@@ -6075,7 +6116,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var resolution = ResolveMethodGroup(methodGroup, analyzedArguments);
 
-        if (!methodGroup.hasErrors)
+        if (!methodGroup.hasAnyErrors)
             diagnostics.PushRange(resolution.diagnostics);
 
         BoundExpression result;
@@ -7178,7 +7219,7 @@ internal partial class Binder {
         var boundType = new BoundTypeExpression(node.right, targetTypeWithAnnotations, alias, targetType);
         var resultType = targetType;
 
-        if (operand.hasErrors || targetTypeKind == TypeKind.Error)
+        if (operand.hasAnyErrors || targetTypeKind == TypeKind.Error)
             return new BoundAsOperator(node, operand, boundType, null, null, resultType, true);
 
         if ((operand.Type().isObjectType && targetType.isPrimitiveType) ||
@@ -7296,7 +7337,7 @@ internal partial class Binder {
         leftOperand = BindToNaturalType(leftOperand, diagnostics);
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
 
-        if (leftOperand.hasErrors || rightOperand.hasErrors) {
+        if (leftOperand.hasAnyErrors || rightOperand.hasAnyErrors) {
             leftOperand = BindToTypeForErrorRecovery(leftOperand);
             rightOperand = BindToTypeForErrorRecovery(rightOperand);
 
@@ -7489,7 +7530,15 @@ internal partial class Binder {
 
         if (left.type is not null && left.StrippedType().specialType == SpecialType.Bool &&
             right.type is not null && right.StrippedType().specialType == SpecialType.Bool) {
-            var constantValue = ConstantFolding.FoldBinary(left, right, kind | BinaryOperatorKind.Bool, left.Type());
+            var constantValue = ConstantFolding.FoldBinary(
+                left,
+                right,
+                kind | BinaryOperatorKind.Bool,
+                left.Type(),
+                node.location,
+                diagnostics
+            );
+
             return new BoundBinaryOperator(
                 node,
                 left,
@@ -7498,6 +7547,19 @@ internal partial class Binder {
                 null,
                 constantValue,
                 left.StrippedType()
+            );
+        }
+
+        if (left.hasAnyErrors || right.hasAnyErrors) {
+            return new BoundBinaryOperator(
+                node,
+                left,
+                right,
+                kind | BinaryOperatorKind.Bool,
+                null,
+                null,
+                left.StrippedType(),
+                true
             );
         }
 
@@ -7659,7 +7721,7 @@ internal partial class Binder {
         BoundExpression right) {
         var kind = SyntaxKindToBinaryOperatorKind(node.operatorToken.kind);
 
-        if (left.hasErrors || right.hasErrors) {
+        if (left.hasAnyErrors || right.hasAnyErrors) {
             left = BindToTypeForErrorRecovery(left);
             right = BindToTypeForErrorRecovery(right);
 
@@ -7780,7 +7842,9 @@ internal partial class Binder {
             resultLeft,
             resultRight,
             resultOperatorKind,
-            signature.leftType
+            signature.leftType,
+            location,
+            diagnostics
         );
     }
 
@@ -8086,7 +8150,7 @@ internal partial class Binder {
         } else {
             trueExpr = GenerateConversionForAssignment(bestType, trueExpr, diagnostics);
             falseExpr = GenerateConversionForAssignment(bestType, falseExpr, diagnostics);
-            hasErrors = trueExpr.hasErrors || falseExpr.hasErrors;
+            hasErrors = trueExpr.hasAnyErrors || falseExpr.hasAnyErrors;
         }
 
         if (!hasErrors)
@@ -8197,7 +8261,8 @@ internal partial class Binder {
         BoundExpression operand,
         out TypeSymbol pointedAtType,
         out bool hasErrors) {
-        hasErrors = operand.hasErrors;
+        hasErrors = operand.hasAnyErrors;
+
         if (operand.StrippedType() is not PointerTypeSymbol operandType) {
             pointedAtType = null;
 
@@ -8339,7 +8404,7 @@ internal partial class Binder {
         operand = BindToNaturalType(operand, diagnostics);
         var kind = SyntaxKindToIncrementOperatorKind(node.kind, operatorToken.kind);
 
-        if (operand.hasErrors) {
+        if (operand.hasAnyErrors) {
             return new BoundIncrementOperator(
                 node,
                 kind,
@@ -8491,7 +8556,7 @@ internal partial class Binder {
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
         var isPropagation = node.assignmentToken.kind == SyntaxKind.QuestionExclamationEqualsToken;
 
-        if (leftOperand.hasErrors || rightOperand.hasErrors) {
+        if (leftOperand.hasAnyErrors || rightOperand.hasAnyErrors) {
             leftOperand = BindToTypeForErrorRecovery(leftOperand);
             rightOperand = BindToTypeForErrorRecovery(rightOperand);
 
@@ -8601,7 +8666,7 @@ internal partial class Binder {
         var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
         var kind = SyntaxKindToBinaryOperatorKind(node.assignmentToken.kind);
 
-        if (left.hasErrors || right.hasErrors) {
+        if (left.hasAnyErrors || right.hasAnyErrors) {
             left = BindToTypeForErrorRecovery(left);
             right = BindToTypeForErrorRecovery(right);
             return new BoundCompoundAssignmentOperator(
@@ -8728,10 +8793,10 @@ internal partial class Binder {
         BoundExpression op2,
         bool isRef,
         BelteDiagnosticQueue diagnostics) {
-        var hasErrors = op1.hasErrors || op2.hasErrors;
+        var hasErrors = op1.hasAnyErrors || op2.hasAnyErrors;
 
         if (op1.Type() is { } lhsType && !lhsType.IsErrorType()) {
-            if (op1.hasErrors)
+            if (op1.hasAnyErrors)
                 op1 = BindToTypeForErrorRecovery(op1);
 
             op2 = GenerateConversionForAssignment(
@@ -8928,8 +8993,28 @@ internal partial class Binder {
         wasError = true;
 
         if (result.kind == LookupResultKind.Empty) {
-            var error = Error.UndefinedSymbol(where.location, simpleName);
-            diagnostics.Push(error);
+            string aliasOpt = null;
+            var node = where;
+
+            while (node is ExpressionSyntax) {
+                if (node.kind == SyntaxKind.AliasQualifiedName) {
+                    aliasOpt = ((AliasQualifiedNameSyntax)node).alias.identifier.text;
+                    break;
+                }
+
+                node = node.parent;
+            }
+
+            var error = NotFound(
+                where,
+                simpleName,
+                arity,
+                (where as NameSyntax)?.ErrorDisplayName() ?? simpleName,
+                diagnostics,
+                aliasOpt,
+                qualifier,
+                options
+            );
 
             return new ExtendedErrorTypeSymbol(
                 qualifier ?? compilation.globalNamespaceInternal,
@@ -9460,9 +9545,9 @@ symIsHidden:;
         LookupOptions options,
         Binder originalBinder) {
         if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol)
-            return nsOrType.GetTypeMembers(name).Cast<NamedTypeSymbol, Symbol>();
+            return nsOrType.StrippedTypeOrSelf().GetTypeMembers(name).Cast<NamedTypeSymbol, Symbol>();
         else
-            return nsOrType.GetMembers(name);
+            return nsOrType.StrippedTypeOrSelf().GetMembers(name);
     }
 
     internal static ImmutableArray<Symbol> GetCandidateMembers(
@@ -10496,7 +10581,10 @@ symIsHidden:;
                     }
                 } else {
                     initializer = ErrorExpression(declaration);
-                    diagnostics.Push(Error.NoInitOnNonNullable(declaration.location));
+
+                    if (!declarationType.isStatic)
+                        diagnostics.Push(Error.NoInitOnNonNullable(declaration.location));
+
                     hasErrors = true;
                 }
             } else {
@@ -10644,7 +10732,7 @@ symIsHidden:;
             ? BindToInferredDelegateType(value, diagnostics)
             : BindToNaturalType(value, diagnostics);
 
-        if (!expression.hasErrors && !expression.HasExpressionType() && !compilation.options.isScript)
+        if (!expression.hasAnyErrors && !expression.HasExpressionType() && !compilation.options.isScript)
             diagnostics.Push(Error.ImplicitlyTypedLocalAssignedBadValue(errorSyntax.location, expression.Type()));
 
         return expression;
@@ -11343,7 +11431,7 @@ symIsHidden:;
         TypeSymbol returnType) {
         var conversion = conversions.ClassifyConversionFromExpression(argument, returnType);
 
-        if (!argument.hasErrors) {
+        if (!argument.hasAnyErrors) {
             if (returnRefKind != RefKind.None) {
                 if (conversion.kind is not ConversionKind.Identity and not ConversionKind.NullLiteral)
                     diagnostics.Push(Error.RefReturnMustHaveIdentityConversion(argument.syntax.location, returnType));
@@ -11373,7 +11461,7 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics,
         out Conversion conversion,
         ConversionForAssignmentFlags flags = ConversionForAssignmentFlags.None) {
-        if (expression.hasErrors)
+        if (expression.hasAnyErrors)
             diagnostics = BelteDiagnosticQueue.Discarded;
 
         conversion = (flags & ConversionForAssignmentFlags.IncrementAssignment) == 0
@@ -11432,7 +11520,9 @@ symIsHidden:;
             case BoundKind.LiteralExpression:
                 if (ConstantValue.IsNull(operand.constantValue)) {
                     if (!targetType.IsNullableType()) {
-                        diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+                        if (!targetType.isStatic)
+                            diagnostics.Push(Error.ValueCannotBeNull(syntax.location, targetType));
+
                         return;
                     }
                 }
@@ -11918,7 +12008,7 @@ symIsHidden:;
     private AttributeData GetAttribute(BoundAttribute boundAttribute, BelteDiagnosticQueue diagnostics) {
         var attributeType = (NamedTypeSymbol)boundAttribute.type.StrippedType();
         var attributeConstructor = boundAttribute.constructor;
-        var hasErrors = boundAttribute.hasErrors;
+        var hasErrors = boundAttribute.hasAnyErrors;
 
         if (attributeType.IsErrorType() || attributeType.isAbstract || attributeConstructor is null) {
             hasErrors = true;

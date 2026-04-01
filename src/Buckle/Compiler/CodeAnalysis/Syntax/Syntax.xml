@@ -253,9 +253,7 @@
   </Node>
   <Node Name="IdentifierNameSyntax" Base="SimpleNameSyntax">
     <Kind Name="IdentifierName"/>
-    <Field Name="identifier" Type="SyntaxToken" Override="true">
-      <Kind Name="IdentifierToken"/>
-    </Field>
+    <Field Name="identifier" Type="SyntaxToken" Override="true"/>
   </Node>
   <Node Name="TemplateNameSyntax" Base="SimpleNameSyntax">
     <Kind Name="TemplateName"/>

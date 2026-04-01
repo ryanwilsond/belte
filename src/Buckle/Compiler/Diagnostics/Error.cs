@@ -702,7 +702,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousReference(TextLocation location, string name, Symbol first, Symbol second) {
-        var message = $"'{name}' is an ambiguous reference between '{first}' and '{second}'";
+        var message = $"'{name}' is an ambiguous reference between '{first.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat)}' and '{second.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_AmbiguousReference, location, message);
     }
 
@@ -792,7 +792,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotConvertToStatic(TextLocation location, TypeSymbol type) {
-        var message = $"cannot cast to static type '{type}'";
+        var message = $"cannot cast to static type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_CannotConvertToStatic, location, message);
     }
 
@@ -1101,7 +1101,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ParameterIsStatic(TextLocation location, TypeSymbol type) {
-        var message = $"'{type}': static types cannot be used as parameters";
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static types cannot be used as parameters";
         return CreateError(DiagnosticCode.ERR_ParameterIsStatic, location, message);
     }
 
@@ -1379,7 +1379,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefReturnParameter2(TextLocation location, string name) {
-        var message = $"cannot returns by reference a member of parameter '{name}' because is not a ref parameter";
+        var message = $"cannot return by reference a member of parameter '{name}' because is not a ref parameter";
         return CreateError(DiagnosticCode.ERR_RefReturnParameter2, location, message);
     }
 
@@ -1449,7 +1449,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadUsingType(TextLocation location, NamespaceOrTypeSymbol symbol) {
-        var message = $"a 'using static' directive can only be applied to types; '{symbol}' is a namespace not a type; consider a 'using namespace' directive instead";
+        var message = $"a 'using static' directive can only be applied to types; '{symbol}' is a namespace not a type";
         return CreateError(DiagnosticCode.ERR_BadUsingType, location, message);
     }
 
@@ -1459,12 +1459,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadUsingNamespace(TextLocation location, Symbol symbol) {
-        var message = $"a 'using namespace' directive can only be applied to namespaces; '{symbol}' is a type not a namespace; consider a 'using static' directive instead";
+        var message = $"a 'using' directive can only be applied to namespaces; '{symbol}' is a type not a namespace; consider a 'using static' directive instead";
         return CreateError(DiagnosticCode.ERR_BadUsingNamespace, location, message);
     }
 
     internal static BelteDiagnostic BadUsingStaticType(TextLocation location, string kind) {
-        var message = $"'{kind}' type is not valid for 'using static'; only a class or namespace can be used";
+        var message = $"'{kind}' type is not valid for 'using static'; only a class can be used";
         return CreateError(DiagnosticCode.ERR_BadUsingStaticType, location, message);
     }
 
@@ -1559,7 +1559,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic HasNoTemplate(TextLocation location, Symbol symbol, string text) {
-        var message = $"the non-template {text} '{symbol}' cannot be used with template arguments";
+        var message = $"the non-template {text} '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot be used with template arguments";
         return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
     }
 
@@ -1574,7 +1574,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic TemplateIsStatic(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}': static types cannot be used as type arguments";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static types cannot be used as type arguments";
         return CreateError(DiagnosticCode.ERR_TemplateIsStatic, location, message);
     }
 

@@ -1587,7 +1587,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseReferenceExpression();
             case SyntaxKind.RefKeyword when parentPrecedence > 0:
                 return AddDiagnostic(ParseReferenceExpression(), Error.InvalidExpressionTerm(SyntaxKind.RefKeyword));
+            case SyntaxKind.ColonColonToken:
+                return ParseAliasQualifiedName();
             case SyntaxKind.IdentifierToken:
+            case SyntaxKind.GlobalKeyword:
             default:
                 return ParseLastCaseName();
         }
@@ -1890,7 +1893,6 @@ done:
             case SyntaxKind.AmpersandAmpersandToken:
             case SyntaxKind.PipeToken:
             case SyntaxKind.CaretToken:
-            case SyntaxKind.AmpersandToken:
             case SyntaxKind.EqualsEqualsToken:
             case SyntaxKind.ExclamationEqualsToken:
             case SyntaxKind.LessThanToken:
@@ -1902,20 +1904,19 @@ done:
             case SyntaxKind.LessThanLessThanToken:
             case SyntaxKind.GreaterThanGreaterThanToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
-            case SyntaxKind.PlusToken:
-            case SyntaxKind.MinusToken:
-            case SyntaxKind.AsteriskToken:
             case SyntaxKind.SlashToken:
             case SyntaxKind.PercentToken:
-            case SyntaxKind.PlusPlusToken:
-            case SyntaxKind.MinusMinusToken:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.PeriodToken:
             case SyntaxKind.MinusGreaterThanToken:
             case SyntaxKind.QuestionQuestionToken:
             case SyntaxKind.QuestionExclamationToken:
-            case SyntaxKind.DollarToken:
-            case SyntaxKind.DollarQuestionToken:
+            case SyntaxKind.PlusToken:
+            case SyntaxKind.MinusToken:
+            case SyntaxKind.AsteriskToken:
+            case SyntaxKind.PlusPlusToken:
+            case SyntaxKind.MinusMinusToken:
+            case SyntaxKind.AmpersandToken:
             case SyntaxKind.EndOfFileToken:
                 return false;
             default:
@@ -2301,7 +2302,7 @@ done:
 
     private AttributeSyntax ParseAttribute() {
         var name = ParseQualifiedName();
-        var arguments = ParseArgumentList();
+        var arguments = currentToken.kind == SyntaxKind.OpenParenToken ? ParseArgumentList() : null;
         return SyntaxFactory.Attribute(name, arguments);
     }
 
@@ -2347,17 +2348,17 @@ done:
         return SyntaxFactory.ArrayRankSpecifier(openBracket, size, closeBracket);
     }
 
-    private SimpleNameSyntax ParseLastCaseName() {
-        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+    private NameSyntax ParseLastCaseName() {
+        if (currentToken.kind is not SyntaxKind.IdentifierToken and not SyntaxKind.GlobalKeyword) {
             _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
             return SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
         }
 
-        return ParseSimpleName();
+        return ParseAliasQualifiedName();
     }
 
-    private SimpleNameSyntax ParseSimpleName() {
-        var identifierName = ParseIdentifierName();
+    private SimpleNameSyntax ParseSimpleName(bool allowGlobal = false) {
+        var identifierName = ParseIdentifierName(allowGlobal);
 
         if (identifierName.identifier.isFabricated)
             return identifierName;
@@ -2377,8 +2378,11 @@ done:
         return name;
     }
 
-    private IdentifierNameSyntax ParseIdentifierName() {
-        var identifier = Match(SyntaxKind.IdentifierToken);
+    private IdentifierNameSyntax ParseIdentifierName(bool allowGlobal = false) {
+        var identifier = (allowGlobal && currentToken.kind == SyntaxKind.GlobalKeyword)
+            ? EatToken()
+            : Match(SyntaxKind.IdentifierToken);
+
         return SyntaxFactory.IdentifierName(identifier);
     }
 
@@ -2492,7 +2496,7 @@ done:
     }
 
     private TypeSyntax ParseUnderlyingType() {
-        if (currentToken.kind == SyntaxKind.IdentifierToken)
+        if (currentToken.kind is SyntaxKind.IdentifierToken or SyntaxKind.GlobalKeyword)
             return ParseQualifiedName();
 
         return AddDiagnostic(
@@ -2504,7 +2508,7 @@ done:
     }
 
     private NameSyntax ParseAliasQualifiedName() {
-        var name = ParseSimpleName();
+        var name = ParseSimpleName(true);
         return currentToken.kind == SyntaxKind.ColonColonToken
             ? ParseQualifiedNameRight(name, EatToken())
             : name;

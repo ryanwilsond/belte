@@ -35,6 +35,9 @@ internal static partial class ConstraintsHelpers {
                         var constraintTypeParameter = (TemplateParameterSymbol)strippedConstraintType;
                         ConsList<TemplateParameterSymbol> constraintsInProgress;
 
+                        if (constraintTypeParameter.underlyingType.specialType != SpecialType.Type)
+                            diagnostics.Push(Error.CannotDeriveTemplate(errorLocation, constraintTypeParameter));
+
                         if (constraintTypeParameter.containingSymbol == templateParameter.containingSymbol) {
                             if (inProgress.ContainsReference(constraintTypeParameter)) {
                                 diagnostics.Push(
@@ -450,7 +453,10 @@ internal static partial class ConstraintsHelpers {
                         binary.left.type,
                         EvaluateConstraintCore(binary.right, names, templateArguments, diagnostics),
                         binary.right.type,
-                        binary.operatorKind, binary.left.Type());
+                        binary.operatorKind,
+                        binary.left.Type(),
+                        binary.syntax.location,
+                        diagnostics);
                 case BoundKind.IsOperator:
                     var isOperator = (BoundIsOperator)expression;
                     return ConstantFolding.FoldIs(

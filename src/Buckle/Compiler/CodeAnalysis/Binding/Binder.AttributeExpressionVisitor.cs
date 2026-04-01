@@ -26,7 +26,7 @@ internal partial class Binder {
             if (numArguments > 0) {
                 var builder = ArrayBuilder<TypedConstant>.GetInstance(numArguments);
                 foreach (var argument in arguments) {
-                    var curArgumentHasErrors = parentHasErrors || argument.hasErrors;
+                    var curArgumentHasErrors = parentHasErrors || argument.hasAnyErrors;
                     builder.Add(VisitExpression(argument, diagnostics, ref attrHasErrors, curArgumentHasErrors));
                 }
 
@@ -70,7 +70,7 @@ internal partial class Binder {
                     var fa = (BoundFieldAccessExpression)assignment.left;
                     visitedArgument = new KeyValuePair<string, TypedConstant>(
                         fa.field.name,
-                        VisitExpression(assignment.right, diagnostics, ref attrHasErrors, assignment.hasErrors)
+                        VisitExpression(assignment.right, diagnostics, ref attrHasErrors, assignment.hasAnyErrors)
                     );
 
                     break;

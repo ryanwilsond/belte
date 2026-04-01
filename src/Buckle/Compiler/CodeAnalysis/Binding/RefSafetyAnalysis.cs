@@ -256,7 +256,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
     }
 
     internal uint GetRefEscape(BoundExpression expression, uint scopeOfTheContainingExpression) {
-        if (expression.hasErrors)
+        if (expression.hasAnyErrors)
             return CallingMethodScope;
 
         if (expression.type?.GetSpecialTypeSafe() == SpecialType.Void)
@@ -353,7 +353,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         if (escapeTo >= escapeFrom)
             return true;
 
-        if (expression.hasErrors)
+        if (expression.hasAnyErrors)
             return true;
 
         if (expression.type?.GetSpecialTypeSafe() == SpecialType.Void)
@@ -489,7 +489,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
     }
 
     internal uint GetValEscape(BoundExpression expression, uint scopeOfTheContainingExpression) {
-        if (expression.hasErrors)
+        if (expression.hasAnyErrors)
             return CallingMethodScope;
 
         if (expression.constantValue is not null)
@@ -700,7 +700,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         if (escapeTo >= escapeFrom)
             return true;
 
-        if (expression.hasErrors)
+        if (expression.hasAnyErrors)
             return true;
 
         if (expression.constantValue is not null)
@@ -1458,7 +1458,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
                 if (leftEscape < rightEscape) {
                     if (rightEscape == ReturnOnlyScope)
-                        diagnostics.Push(Error.RefAssignReturnOnly(node.location, GetName(op1), op1.syntax));
+                        diagnostics.Push(Error.RefAssignReturnOnly(node.location, GetName(op1), op2.syntax));
                     else
                         diagnostics.Push(Error.RefAssignNarrower(node.location, GetName(op1), op2.syntax));
 

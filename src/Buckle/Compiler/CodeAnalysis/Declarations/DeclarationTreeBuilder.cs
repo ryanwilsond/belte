@@ -170,6 +170,20 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
+        foreach (var directive in compilationUnit.usings) {
+            if (directive.globalKeyword is not null) {
+                hasGlobalUsings = true;
+
+                // TODO Do we care about this
+                // if (hasUsings && !reportedGlobalUsingOutOfOrder) {
+                //     reportedGlobalUsingOutOfOrder = true;
+                //     diagnostics.Add(ErrorCode.ERR_GlobalUsingOutOfOrder, directive.globalKeyword.GetLocation());
+                // }
+            } else {
+                hasUsings = true;
+            }
+        }
+
         return new RootSingleNamespaceDeclaration(
             hasGlobalUsings: hasGlobalUsings,
             hasUsings: hasUsings,
@@ -185,6 +199,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         switch (name.kind) {
             case SyntaxKind.TemplateName:
                 return false;
+            case SyntaxKind.AliasQualifiedName:
+                return true;
             case SyntaxKind.QualifiedName:
                 var qualifiedName = (QualifiedNameSyntax)name;
                 return ContainsAlias(qualifiedName.left);
@@ -197,6 +213,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         switch (name.kind) {
             case SyntaxKind.TemplateName:
                 return true;
+            case SyntaxKind.AliasQualifiedName:
+                return ContainsTemplate(((AliasQualifiedNameSyntax)name).name);
             case SyntaxKind.QualifiedName:
                 var qualifiedName = (QualifiedNameSyntax)name;
                 return ContainsTemplate(qualifiedName.left) || ContainsTemplate(qualifiedName.right);
@@ -247,7 +265,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].text));
 
         foreach (var directive in node.usings) {
-            if (directive.globalKeyword.kind == SyntaxKind.GlobalKeyword) {
+            if (directive.globalKeyword?.kind == SyntaxKind.GlobalKeyword) {
                 diagnostics.Push(Error.GlobalUsingInNamespace(directive.globalKeyword.location));
                 break;
             }

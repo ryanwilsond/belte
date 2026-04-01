@@ -58,6 +58,8 @@ internal static class AccessCheck {
             case SymbolKind.Local:
             case SymbolKind.TemplateParameter:
             case SymbolKind.Parameter:
+            case SymbolKind.Namespace:
+            case SymbolKind.ErrorType:
             case SymbolKind.Method when ((MethodSymbol)symbol).methodKind == MethodKind.LocalFunction:
                 return true;
             case SymbolKind.FunctionPointerType:
@@ -93,10 +95,8 @@ internal static class AccessCheck {
                     throughType,
                     out failedThroughTypeCheck
                 );
-            case SymbolKind.ErrorType:
-                // TODO This should only ever be reached because we ignore diagnostics during attribute binding
-                // TODO Once attributes are more established remove this case
-                return true;
+            case SymbolKind.Alias:
+                return IsSymbolAccessibleCore(((AliasSymbol)symbol).target, within, null, out failedThroughTypeCheck);
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }

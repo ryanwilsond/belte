@@ -1046,7 +1046,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.right,
                     expression.op.kind,
                     expression.op.method,
-                    ConstantFolding.FoldBinary(expression.left, expression.right, expression.op.kind, expression.Type()),
+                    ConstantFolding.FoldBinary(
+                        expression.left,
+                        expression.right,
+                        expression.op.kind,
+                        expression.Type(),
+                        syntax.location,
+                        BelteDiagnosticQueue.Discarded
+                    ),
                     expression.Type()
                 ),
                 false,

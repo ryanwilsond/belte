@@ -256,6 +256,10 @@ internal sealed partial class Executor : ModuleBuilder {
         Type GetTypeWithContainingGenerics(NamedTypeSymbol type) {
             var foundType = _types[type.originalDefinition];
 
+            // Acceptable inside specific contexts like typeof
+            if (type.ContainsTemplateParameter() || type.ContainsErrorType())
+                return foundType;
+
             var chain = new Stack<NamedTypeSymbol>();
             var current = type;
 
@@ -539,11 +543,12 @@ internal sealed partial class Executor : ModuleBuilder {
             attributes |= TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
-            Accessibility.Private => TypeAttributes.NestedPrivate,
+            Accessibility.Private when isNested => TypeAttributes.NestedPrivate,
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
             Accessibility.Public => TypeAttributes.Public,
             Accessibility.Protected => TypeAttributes.NestedFamily,
-            _ => 0
+            Accessibility.NotApplicable => 0,
+            _ => throw ExceptionUtilities.UnexpectedValue(type.declaredAccessibility)
         };
 
         return attributes;

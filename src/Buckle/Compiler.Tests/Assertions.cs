@@ -161,6 +161,9 @@ internal static class Assertions {
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
+        // All this does is ensure predictable ordering
+        diagnostics = BelteDiagnosticQueue.CleanDiagnostics(diagnostics);
+
         for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnostic = diagnostics.Pop();
 
