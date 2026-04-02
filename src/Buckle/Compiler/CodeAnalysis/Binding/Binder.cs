@@ -2337,6 +2337,11 @@ internal partial class Binder {
                 }
 
                 return true;
+            case BoundKind.ObjectCreationExpression:
+                if (node.parent.kind == SyntaxKind.CascadeExpression)
+                    return true;
+
+                break;
         }
 
         diagnostics.Push(GetStandardLValueError(valueKind, node.location));
@@ -5748,7 +5753,7 @@ internal partial class Binder {
 
         ConstantValue constantValueOpt = null;
 
-        if (fieldSymbol.isConstExpr && !isInsideNameof) {
+        if ((fieldSymbol.isConstExpr || isEnumField) && !isInsideNameof) {
             constantValueOpt = fieldSymbol.GetConstantValue(constantFieldsInProgress);
 
             if ((object)constantValueOpt == (object)ConstantValue.Unset)
@@ -7373,6 +7378,26 @@ internal partial class Binder {
 
         if (constantValue is not null)
             diagnostics.Push(Warning.AlwaysValue(node.location, null));
+    }
+
+    internal static SpecialType GetEnumPromotedType(SpecialType underlyingType) {
+        switch (underlyingType) {
+            case SpecialType.UInt8:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Char:
+                return SpecialType.Int32;
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.String:
+            case SpecialType.Int:
+                return underlyingType;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(underlyingType);
+        }
     }
 
     private BoundExpression BindNullCoalescingOrPropagationOperator(

@@ -124,6 +124,7 @@ internal sealed partial class Conversions {
             // We tried our best. There are no built-in conversions for lists.
             return result;
 
+        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
         return Conversion.Classify(sourceExpression.Type(), target);
     }
 
@@ -213,6 +214,8 @@ internal sealed partial class Conversions {
             else
                 return Conversion.None;
         }
+
+        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
 
         var conversion = FastClassifyConversion(sourceExpression.Type(), target);
 

@@ -30,6 +30,15 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    internal static bool IsValidEnumType(this TypeSymbol type) {
+        var underlyingType = type.GetEnumUnderlyingType()?.StrippedType();
+        return underlyingType is not null && underlyingType.specialType.IsValidEnumUnderlyingType();
+    }
+
+    internal static NamedTypeSymbol GetEnumUnderlyingType(this TypeSymbol type) {
+        return (type is NamedTypeSymbol namedType) ? namedType.enumUnderlyingType : null;
+    }
+
     internal static int FixedBufferElementSizeInBytes(this TypeSymbol type) {
         return type.specialType.FixedBufferElementSizeInBytes();
     }

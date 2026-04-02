@@ -272,7 +272,7 @@ internal sealed class Evaluator {
 
             heapObject.fields[field.slot] = GetDefaultValue(
                 fieldType,
-                (field.symbol as FieldSymbol).constantValue
+                (field.symbol as FieldSymbol)?.constantValue
             );
         }
 
@@ -827,7 +827,7 @@ internal sealed class Evaluator {
         if (toTypeSymbol.IsEnumType())
             toTypeSymbol = ((NamedTypeSymbol)toTypeSymbol).enumUnderlyingType;
 
-        var fromType = NormalizeNumericType(toTypeSymbol.specialType);
+        var fromType = NormalizeNumericType(fromTypeSymbol.specialType);
         var toType = NormalizeNumericType(toTypeSymbol.specialType);
 
         switch (toType) {
@@ -855,6 +855,7 @@ internal sealed class Evaluator {
                     SpecialType.Float32 => Convert.ToString(value.single),
                     SpecialType.Float64 => Convert.ToString(value.@double),
                     SpecialType.Pointer => Convert.ToString(value.ptr),
+                    SpecialType.String => value.@string,
                     SpecialType.FunctionPointer => Convert.ToString(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
@@ -869,6 +870,7 @@ internal sealed class Evaluator {
                     SpecialType.Int64 => unchecked((char)value.int64),
                     SpecialType.UInt8 => (char)value.uint8,
                     SpecialType.UInt16 => (char)value.uint16,
+                    SpecialType.Char => value.@char,
                     SpecialType.UInt32 => unchecked((char)value.uint32),
                     SpecialType.UInt64 => unchecked((char)value.uint64),
                     SpecialType.Float32 => unchecked((char)value.single),
@@ -884,6 +886,7 @@ internal sealed class Evaluator {
                 value.int8 = fromType switch {
                     SpecialType.String => Convert.ToSByte(value.@string),
                     SpecialType.Char => unchecked((sbyte)value.@char),
+                    SpecialType.Int8 => value.int8,
                     SpecialType.Int16 => unchecked((sbyte)value.int16),
                     SpecialType.Int32 => unchecked((sbyte)value.int32),
                     SpecialType.Int64 => unchecked((sbyte)value.int64),
@@ -905,6 +908,7 @@ internal sealed class Evaluator {
                     SpecialType.String => Convert.ToInt16(value.@string),
                     SpecialType.Char => unchecked((short)value.@char),
                     SpecialType.Int8 => unchecked((short)value.int8),
+                    SpecialType.Int16 => value.int16,
                     SpecialType.Int32 => unchecked((short)value.int32),
                     SpecialType.Int64 => unchecked((short)value.int64),
                     SpecialType.UInt8 => (short)value.uint8,
@@ -926,6 +930,7 @@ internal sealed class Evaluator {
                     SpecialType.Char => unchecked((int)value.@char),
                     SpecialType.Int8 => (int)value.int8,
                     SpecialType.Int16 => (int)value.int16,
+                    SpecialType.Int32 => value.int32,
                     SpecialType.Int64 => unchecked((int)value.int32),
                     SpecialType.UInt8 => (int)value.uint8,
                     SpecialType.UInt16 => (int)value.uint16,
@@ -950,6 +955,7 @@ internal sealed class Evaluator {
                     SpecialType.UInt8 => (long)value.uint8,
                     SpecialType.UInt16 => (long)value.uint16,
                     SpecialType.UInt32 => (long)value.uint32,
+                    SpecialType.Int64 => value.int64,
                     SpecialType.UInt64 => unchecked((long)value.uint64),
                     SpecialType.Float32 => unchecked((long)value.@single),
                     SpecialType.Float64 => unchecked((long)value.@double),
@@ -965,6 +971,7 @@ internal sealed class Evaluator {
                     SpecialType.String => Convert.ToByte(value.@string),
                     SpecialType.Char => unchecked((byte)value.@char),
                     SpecialType.Int8 => unchecked((byte)value.int8),
+                    SpecialType.UInt8 => value.uint8,
                     SpecialType.Int16 => unchecked((byte)value.int16),
                     SpecialType.Int32 => unchecked((byte)value.int32),
                     SpecialType.Int64 => unchecked((byte)value.int64),
@@ -986,6 +993,7 @@ internal sealed class Evaluator {
                     SpecialType.Char => (ushort)value.@char,
                     SpecialType.Int8 => unchecked((ushort)value.int8),
                     SpecialType.Int16 => unchecked((ushort)value.int16),
+                    SpecialType.UInt16 => value.uint16,
                     SpecialType.Int32 => unchecked((ushort)value.int32),
                     SpecialType.Int64 => unchecked((ushort)value.int64),
                     SpecialType.UInt8 => (ushort)value.uint8,
@@ -1007,6 +1015,7 @@ internal sealed class Evaluator {
                     SpecialType.Int8 => unchecked((uint)value.int8),
                     SpecialType.Int16 => unchecked((uint)value.int16),
                     SpecialType.Int32 => unchecked((uint)value.int32),
+                    SpecialType.UInt32 => value.uint32,
                     SpecialType.Int64 => unchecked((uint)value.int64),
                     SpecialType.UInt8 => (uint)value.uint8,
                     SpecialType.UInt16 => (uint)value.uint16,
@@ -1028,6 +1037,7 @@ internal sealed class Evaluator {
                     SpecialType.Int16 => unchecked((ulong)value.int16),
                     SpecialType.Int32 => unchecked((ulong)value.int32),
                     SpecialType.Int64 => unchecked((ulong)value.int64),
+                    SpecialType.UInt64 => value.uint64,
                     SpecialType.UInt8 => (ulong)value.uint8,
                     SpecialType.UInt16 => (ulong)value.uint16,
                     SpecialType.UInt32 => (ulong)value.uint32,
@@ -1052,6 +1062,7 @@ internal sealed class Evaluator {
                     SpecialType.UInt16 => (float)value.uint16,
                     SpecialType.UInt32 => unchecked((float)value.uint32),
                     SpecialType.UInt64 => unchecked((float)value.uint64),
+                    SpecialType.Float32 => value.single,
                     SpecialType.Float64 => unchecked((float)value.@double),
                     SpecialType.Pointer => unchecked((float)value.ptr),
                     SpecialType.FunctionPointer => unchecked((float)value.ptr),
@@ -1073,6 +1084,7 @@ internal sealed class Evaluator {
                     SpecialType.UInt32 => (double)value.uint32,
                     SpecialType.UInt64 => unchecked((double)value.uint64),
                     SpecialType.Float32 => (double)value.single,
+                    SpecialType.Float64 => value.@double,
                     SpecialType.Pointer => (double)value.ptr,
                     SpecialType.FunctionPointer => (double)value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
@@ -1671,6 +1683,19 @@ internal sealed class Evaluator {
             return right;
 
         var operandType = operatorKind.OperandTypes();
+
+        if (operandType is BinaryOperatorKind.Enum or
+            BinaryOperatorKind.EnumAndUnderlying or BinaryOperatorKind.UnderlyingAndEnum) {
+            operandType = GetEnumPromotedType(node.left.StrippedType().GetEnumUnderlyingType().StrippedType().specialType) switch {
+                SpecialType.Int32 => BinaryOperatorKind.Int,
+                SpecialType.UInt32 => BinaryOperatorKind.UInt,
+                SpecialType.Int64 => BinaryOperatorKind.Int,
+                SpecialType.UInt64 => BinaryOperatorKind.UInt,
+                SpecialType.Int => BinaryOperatorKind.Int,
+                SpecialType.String => BinaryOperatorKind.String,
+                _ => throw ExceptionUtilities.Unreachable(),
+            };
+        }
 
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
             if (node.right.IsLiteralNull())

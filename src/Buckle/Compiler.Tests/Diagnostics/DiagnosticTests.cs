@@ -4451,12 +4451,14 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0369_EnumOverflow() {
         var text = @"
             enum A extends uint8 {
-                [SomeField] = 300,
+                SomeField = 254,
+                G,
+                [H]
             }
         ";
 
         var diagnostics = @"
-            'SomeField': the enum value is too large to fit in its type
+            'A.H': the enum value is too large to fit in its type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

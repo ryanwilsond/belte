@@ -99,7 +99,7 @@ internal sealed partial class CodeGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsValueType(TypeSymbol type) {
-        var isValueType = (type.isPrimitiveType || type.IsStructType() ||
+        var isValueType = (type.isPrimitiveType || type.IsStructType() || type.IsEnumType() ||
                            IsTrueNullable(type)) && IsValueType(type.specialType);
 
         // TODO Double check there is no edge case where a primitive constraint can result in a reference type
@@ -485,7 +485,9 @@ internal sealed partial class CodeGenerator {
             return;
         }
 
-        switch (type.specialType) {
+        var discriminator = type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
+
+        switch (discriminator) {
             case SpecialType.Int:
             case SpecialType.Int64:
                 EmitLongConstant((long)value);
@@ -554,7 +556,7 @@ internal sealed partial class CodeGenerator {
 
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+                throw ExceptionUtilities.UnexpectedValue(discriminator);
         }
     }
 
@@ -2229,6 +2231,7 @@ oneMoreTime:
 
             EmitExpression(binary.right, true);
             EmitBinaryOperatorInstruction(binary);
+            EmitConversionToEnumUnderlyingType(binary);
         } while (stack.Count > 0);
 
         stack.Free();
@@ -2238,6 +2241,51 @@ oneMoreTime:
         EmitExpression(expression.left, true);
         EmitExpression(expression.right, true);
         EmitBinaryOperatorInstruction(expression);
+        EmitConversionToEnumUnderlyingType(expression);
+    }
+
+    private void EmitConversionToEnumUnderlyingType(BoundBinaryOperator expression) {
+        TypeSymbol enumType;
+
+        switch (expression.operatorKind.Operator() | expression.operatorKind.OperandTypes()) {
+            case BinaryOperatorKind.EnumAndUnderlyingAddition:
+            case BinaryOperatorKind.EnumSubtraction:
+            case BinaryOperatorKind.EnumAndUnderlyingSubtraction:
+                enumType = expression.left.type;
+                break;
+            case BinaryOperatorKind.EnumAnd:
+            case BinaryOperatorKind.EnumOr:
+            case BinaryOperatorKind.EnumXor:
+                enumType = null;
+                break;
+            case BinaryOperatorKind.UnderlyingAndEnumSubtraction:
+            case BinaryOperatorKind.UnderlyingAndEnumAddition:
+                enumType = expression.right.type;
+                break;
+            default:
+                enumType = null;
+                break;
+        }
+
+        if (enumType is null)
+            return;
+
+        var type = enumType.GetEnumUnderlyingType().specialType;
+
+        switch (type) {
+            case SpecialType.UInt8:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt8);
+                break;
+            case SpecialType.Int8:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int8);
+                break;
+            case SpecialType.Int16:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int16);
+                break;
+            case SpecialType.UInt16:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt16);
+                break;
+        }
     }
 
     private void EmitBinaryOperatorInstruction(BoundBinaryOperator expression) {
@@ -2312,6 +2360,11 @@ oneMoreTime:
         var type = opKind.OperandTypes();
 
         switch (type) {
+            case BinaryOperatorKind.Enum:
+            case BinaryOperatorKind.EnumAndUnderlying:
+                return IsUnsigned(GetEnumPromotedType(op.left.type.GetEnumUnderlyingType().specialType));
+            case BinaryOperatorKind.UnderlyingAndEnum:
+                return IsUnsigned(GetEnumPromotedType(op.right.type.GetEnumUnderlyingType().specialType));
             case BinaryOperatorKind.UInt:
                 return true;
             default:

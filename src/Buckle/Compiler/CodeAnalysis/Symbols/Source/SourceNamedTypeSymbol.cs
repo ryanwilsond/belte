@@ -423,13 +423,13 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
             if (!type.StrippedType().specialType.IsValidEnumUnderlyingType()) {
                 diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
-                type = CorLibrary.GetSpecialType(SpecialType.Int32);
+                type = CorLibrary.GetSpecialType(SpecialType.Int);
             }
 
             return (NamedTypeSymbol)type;
         }
 
-        return CorLibrary.GetSpecialType(SpecialType.Int32);
+        return CorLibrary.GetSpecialType(SpecialType.Int);
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(

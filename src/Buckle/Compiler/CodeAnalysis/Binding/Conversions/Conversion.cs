@@ -180,7 +180,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
-            if (underlyingConversion.isIdentity)
+            if (underlyingConversion.isIdentity && !source.IsEnumType() && !target.IsEnumType())
                 return underlyingConversion;
 
             if (underlyingConversion.exists)
@@ -191,6 +191,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.IsEnumType() && target.IsEnumType()) {
             var sourceUnderlying = (source as NamedTypeSymbol).enumUnderlyingType;
             var targetUnderlying = (target as NamedTypeSymbol).enumUnderlyingType;
+
+            if (source.Equals(target))
+                return Identity;
 
             if (sourceUnderlying.specialType == SpecialType.String || targetUnderlying.specialType == SpecialType.String)
                 return None;
@@ -205,7 +208,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             if (underlyingConversion.isImplicit)
                 return ImplicitEnum;
             else if (underlyingConversion.exists)
-                return ExplicitEnum;
+                // TODO Consider making this ExplicitEnum
+                return ImplicitEnum;
 
             return None;
         }
