@@ -190,7 +190,7 @@ Example:
 *Program.blt*
 
 ```belte
-PrintLine("Hello, world!");
+Console.PrintLine("Hello, world!");
 ```
 
 *Command Line*
