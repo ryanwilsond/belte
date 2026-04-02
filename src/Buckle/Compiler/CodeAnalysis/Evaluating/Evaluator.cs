@@ -538,6 +538,7 @@ internal sealed class Evaluator {
             BoundKind.CompileTimeExpression => EvaluateCompileTimeExpression((BoundCompileTimeExpression)node, used, abort),
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("stackalloc is not supported in the Evaluator", node.syntax.location),
+            BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("function pointers are not supported in the Evaluator", node.syntax.location),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }

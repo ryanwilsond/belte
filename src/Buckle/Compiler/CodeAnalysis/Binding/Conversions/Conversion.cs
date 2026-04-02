@@ -219,7 +219,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             var underlyingConversion = CollapseConversion(Classify(source, underlying));
 
             if (underlyingConversion.exists)
-                return ExplicitEnum;
+                // TODO Consider making this ExplicitEnum
+                return ImplicitEnum;
 
             return None;
         }

@@ -587,10 +587,7 @@ internal partial class Binder {
                 }
             case SyntaxKind.PointerType: {
                     var node = (PointerTypeSyntax)syntax;
-
-                    var elementType = new TypeWithAnnotations(BindType(node.elementType, diagnostics, basesBeingResolved)
-                        .nullableUnderlyingTypeOrSelf);
-
+                    var elementType = BindType(node.elementType, diagnostics, basesBeingResolved);
                     return new TypeWithAnnotations(new PointerTypeSymbol(elementType));
                 }
             case SyntaxKind.FunctionPointerType:

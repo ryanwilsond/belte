@@ -4,7 +4,8 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> class.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> and
+/// <see cref="Buckle.CodeAnalysis.Evaluating.Executor" /> classes.
 /// </summary>
 public sealed class EvaluatorTests {
     [Theory]
@@ -442,6 +443,6 @@ public sealed class EvaluatorTests {
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
-        AssertValue(text, expectedValue);
+        AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
 }
