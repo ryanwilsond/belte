@@ -204,6 +204,7 @@ public static class SyntaxFacts {
             "extern" => SyntaxKind.ExternKeyword,
             "pinned" => SyntaxKind.PinnedKeyword,
             "stackalloc" => SyntaxKind.StackAllocKeyword,
+            "enum" => SyntaxKind.EnumKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -329,6 +330,7 @@ public static class SyntaxFacts {
             SyntaxKind.ExternKeyword => "extern",
             SyntaxKind.PinnedKeyword => "pinned",
             SyntaxKind.StackAllocKeyword => "stackalloc",
+            SyntaxKind.EnumKeyword => "enum",
             _ => null,
         };
     }

@@ -26,6 +26,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ExplicitPointerToInteger => new Conversion(ConversionKind.ExplicitPointerToInteger);
     internal static Conversion ImplicitPointerToVoid => new Conversion(ConversionKind.ImplicitPointerToVoid);
     internal static Conversion ImplicitNullToPointer => new Conversion(ConversionKind.ImplicitNullToPointer);
+    internal static Conversion ImplicitEnum => new Conversion(ConversionKind.ImplicitEnum);
+    internal static Conversion ExplicitEnum => new Conversion(ConversionKind.ExplicitEnum);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
@@ -178,11 +180,49 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
-            if (underlyingConversion.isIdentity)
+            if (underlyingConversion.isIdentity && !source.IsEnumType() && !target.IsEnumType())
                 return underlyingConversion;
 
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+        }
+
+        // Handle enum conversions
+        if (source.IsEnumType() && target.IsEnumType()) {
+            var sourceUnderlying = (source as NamedTypeSymbol).enumUnderlyingType;
+            var targetUnderlying = (target as NamedTypeSymbol).enumUnderlyingType;
+
+            if (source.Equals(target))
+                return Identity;
+
+            if (sourceUnderlying.specialType == SpecialType.String || targetUnderlying.specialType == SpecialType.String)
+                return None;
+
+            return ExplicitEnum;
+        }
+
+        if (source.IsEnumType()) {
+            var underlying = (source as NamedTypeSymbol).enumUnderlyingType;
+            var underlyingConversion = CollapseConversion(Classify(underlying, target));
+
+            if (underlyingConversion.isImplicit)
+                return ImplicitEnum;
+            else if (underlyingConversion.exists)
+                // TODO Consider making this ExplicitEnum
+                return ImplicitEnum;
+
+            return None;
+        }
+
+        if (target.IsEnumType()) {
+            var underlying = (target as NamedTypeSymbol).enumUnderlyingType;
+            var underlyingConversion = CollapseConversion(Classify(source, underlying));
+
+            if (underlyingConversion.exists)
+                // TODO Consider making this ExplicitEnum
+                return ImplicitEnum;
+
+            return None;
         }
 
         // Handle most primitive conversions

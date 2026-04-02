@@ -355,6 +355,7 @@ done:
             case DeclarationKind.Namespace:
                 return new SourceNamespaceSymbol(_module, this, (MergedNamespaceDeclaration)declaration, diagnostics);
             case DeclarationKind.Struct:
+            case DeclarationKind.Enum:
             case DeclarationKind.Class:
                 return new SourceNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
             case DeclarationKind.Script:

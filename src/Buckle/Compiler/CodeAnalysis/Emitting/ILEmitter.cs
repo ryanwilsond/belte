@@ -309,7 +309,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var foundType = _types[type.originalDefinition];
 
             // Acceptable inside specific contexts like typeof
-            if (type.ContainsTemplateParameter() || type.ContainsErrorType())
+            if (type.ContainsErrorType())
                 return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
@@ -555,7 +555,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetNamespaceName(type),
             type.name,
             GetTypeAttributes(type, isNested),
-            type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
+            GetBaseType(type)
         );
 
         GenericParameter[] workingParams = [];
@@ -571,7 +571,16 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
+    }
 
+    private TypeReference GetBaseType(NamedTypeSymbol type) {
+        if (type.baseType is null || type.IsStructType())
+            return NetTypeReference.ValueType;
+
+        if (type.IsEnumType())
+            return NetTypeReference.Enum;
+
+        return GetType(type.baseType);
     }
 
     private void CreateNestedTypes(
@@ -607,8 +616,44 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return symbol.containingNamespace.name;
     }
 
+    private void CreateEnumMemberDefinitions(NamedTypeSymbol type, TypeDefinition typeDefinition) {
+        var underlyingType = type.GetEnumUnderlyingType().StrippedType();
+        var underlyingTypeRef = GetType(underlyingType);
+        var underlyingField = (type as SourceNamedTypeSymbol).enumValueField;
+
+        var underlyingFieldDef = new FieldDefinition(
+            underlyingField.name,
+            FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName,
+            underlyingTypeRef
+        );
+
+        typeDefinition.Fields.Add(underlyingFieldDef);
+        _fields.Add(underlyingField, underlyingFieldDef);
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            var fieldDef = new FieldDefinition(
+                f.name,
+                FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal,
+                typeDefinition
+            ) {
+                Constant = f.constantValue
+            };
+
+            typeDefinition.Fields.Add(fieldDef);
+            _fields.Add(f, fieldDef);
+        }
+    }
+
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
         var typeDefinition = _types[type.originalDefinition];
+
+        if (type.IsEnumType()) {
+            CreateEnumMemberDefinitions(type, typeDefinition);
+            return;
+        }
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
@@ -653,7 +698,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             typeDefinition.Namespace,
             fixedImpl.name,
             GetTypeAttributes(fixedImpl, true),
-            fixedImpl.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(fixedImpl.baseType)
+            GetBaseType(fixedImpl)
         ) {
             PackingSize = 0,
             ClassSize = field.fixedSize * elementSize
@@ -1193,6 +1238,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetTypeReference.Random = ResolveType(null, "System.Random");
         NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
         NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
+        NetTypeReference.Enum = ResolveType(null, "System.Enum");
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {

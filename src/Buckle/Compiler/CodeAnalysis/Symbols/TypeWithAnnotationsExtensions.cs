@@ -15,7 +15,7 @@ internal static class TypeWithAnnotationsExtensions {
             var current = type ?? typeWithAnnotationsOpt.type;
             var isNestedNamedType = false;
 
-            if (current.typeKind is TypeKind.Class or TypeKind.Struct) {
+            if (current.typeKind is TypeKind.Class or TypeKind.Struct or TypeKind.Enum) {
                 var containingType = current.containingType;
 
                 if (containingType is not null) {
@@ -51,6 +51,7 @@ internal static class TypeWithAnnotationsExtensions {
                 case TypeKind.Error:
                 case TypeKind.Class:
                 case TypeKind.Struct:
+                case TypeKind.Enum:
                     var templateArguments = ((NamedTypeSymbol)current).templateArguments;
 
                     if (templateArguments.IsEmpty)

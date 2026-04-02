@@ -144,6 +144,10 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return typeKind == TypeKind.Struct;
     }
 
+    internal bool IsEnumType() {
+        return typeKind == TypeKind.Enum;
+    }
+
     internal bool IsTemplateParameter() {
         return typeKind == TypeKind.TemplateParameter;
     }
@@ -218,6 +222,9 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Error:
                 return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
             case TypeKind.Array:
+            case TypeKind.Enum:
+            case TypeKind.Pointer:
+            case TypeKind.FunctionPointer:
                 return baseType;
             case TypeKind.Primitive:
                 return null;

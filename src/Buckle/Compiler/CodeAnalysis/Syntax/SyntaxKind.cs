@@ -127,6 +127,7 @@ public enum SyntaxKind : ushort {
     ExternKeyword,
     PinnedKeyword,
     StackAllocKeyword,
+    EnumKeyword,
 
     // Tokens with text
     BadToken,
@@ -207,6 +208,8 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    EnumDeclaration,
+    EnumMemberDeclaration,
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,

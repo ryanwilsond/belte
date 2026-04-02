@@ -4433,4 +4433,34 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0368_InvalidEnumType() {
+        var text = @"
+            enum A extends [Object] { }
+        ";
+
+        var diagnostics = @"
+            an enum type can only derive from integral primitives or string
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0369_EnumOverflow() {
+        var text = @"
+            enum A extends uint8 {
+                SomeField = 254,
+                G,
+                [H]
+            }
+        ";
+
+        var diagnostics = @"
+            'A.H': the enum value is too large to fit in its type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

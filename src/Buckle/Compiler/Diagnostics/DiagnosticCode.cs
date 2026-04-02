@@ -376,6 +376,8 @@ public enum DiagnosticCode : ushort {
     ERR_StackAllocInCatchFinally = 365,
     ERR_StackAllocLocalWithInitializer = 366,
     ERR_ImplicitlyTypedStackAllocLocal = 367,
+    ERR_InvalidEnumType = 368,
+    ERR_EnumOverflow = 369,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

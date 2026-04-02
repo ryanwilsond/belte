@@ -99,7 +99,7 @@ internal sealed partial class CodeGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsValueType(TypeSymbol type) {
-        var isValueType = (type.isPrimitiveType || type.IsStructType() ||
+        var isValueType = (type.isPrimitiveType || type.IsStructType() || type.IsEnumType() ||
                            IsTrueNullable(type)) && IsValueType(type.specialType);
 
         // TODO Double check there is no edge case where a primitive constraint can result in a reference type
@@ -485,7 +485,9 @@ internal sealed partial class CodeGenerator {
             return;
         }
 
-        switch (type.specialType) {
+        var discriminator = type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
+
+        switch (discriminator) {
             case SpecialType.Int:
             case SpecialType.Int64:
                 EmitLongConstant((long)value);
@@ -554,7 +556,7 @@ internal sealed partial class CodeGenerator {
 
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+                throw ExceptionUtilities.UnexpectedValue(discriminator);
         }
     }
 
@@ -910,6 +912,9 @@ oneMoreTime:
     }
 
     private static bool CanPassToBrfalse(TypeSymbol ts) {
+        if (ts.IsEnumType())
+            return true;
+
         var st = ts.specialType;
 
         if (st == SpecialType.Decimal)
@@ -1245,6 +1250,9 @@ oneMoreTime:
 
         if (((ArrayTypeSymbol)expression.receiver.StrippedType()).isSZArray) {
             var elementType = expression.type;
+
+            if (elementType.IsEnumType())
+                elementType = ((NamedTypeSymbol)elementType).enumUnderlyingType;
 
             switch (elementType.specialType) {
                 case SpecialType.Int:
@@ -2223,6 +2231,7 @@ oneMoreTime:
 
             EmitExpression(binary.right, true);
             EmitBinaryOperatorInstruction(binary);
+            EmitConversionToEnumUnderlyingType(binary);
         } while (stack.Count > 0);
 
         stack.Free();
@@ -2232,6 +2241,51 @@ oneMoreTime:
         EmitExpression(expression.left, true);
         EmitExpression(expression.right, true);
         EmitBinaryOperatorInstruction(expression);
+        EmitConversionToEnumUnderlyingType(expression);
+    }
+
+    private void EmitConversionToEnumUnderlyingType(BoundBinaryOperator expression) {
+        TypeSymbol enumType;
+
+        switch (expression.operatorKind.Operator() | expression.operatorKind.OperandTypes()) {
+            case BinaryOperatorKind.EnumAndUnderlyingAddition:
+            case BinaryOperatorKind.EnumSubtraction:
+            case BinaryOperatorKind.EnumAndUnderlyingSubtraction:
+                enumType = expression.left.type;
+                break;
+            case BinaryOperatorKind.EnumAnd:
+            case BinaryOperatorKind.EnumOr:
+            case BinaryOperatorKind.EnumXor:
+                enumType = null;
+                break;
+            case BinaryOperatorKind.UnderlyingAndEnumSubtraction:
+            case BinaryOperatorKind.UnderlyingAndEnumAddition:
+                enumType = expression.right.type;
+                break;
+            default:
+                enumType = null;
+                break;
+        }
+
+        if (enumType is null)
+            return;
+
+        var type = enumType.GetEnumUnderlyingType().specialType;
+
+        switch (type) {
+            case SpecialType.UInt8:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt8);
+                break;
+            case SpecialType.Int8:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int8);
+                break;
+            case SpecialType.Int16:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int16);
+                break;
+            case SpecialType.UInt16:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt16);
+                break;
+        }
     }
 
     private void EmitBinaryOperatorInstruction(BoundBinaryOperator expression) {
@@ -2306,6 +2360,11 @@ oneMoreTime:
         var type = opKind.OperandTypes();
 
         switch (type) {
+            case BinaryOperatorKind.Enum:
+            case BinaryOperatorKind.EnumAndUnderlying:
+                return IsUnsigned(GetEnumPromotedType(op.left.type.GetEnumUnderlyingType().specialType));
+            case BinaryOperatorKind.UnderlyingAndEnum:
+                return IsUnsigned(GetEnumPromotedType(op.right.type.GetEnumUnderlyingType().specialType));
             case BinaryOperatorKind.UInt:
                 return true;
             default:
@@ -2695,6 +2754,9 @@ oneMoreTime:
     private void EmitVectorElementStore(ArrayTypeSymbol arrayType) {
         var elementType = arrayType.elementType;
 
+        if (elementType.IsEnumType())
+            elementType = ((NamedTypeSymbol)elementType).enumUnderlyingType;
+
         switch (elementType.specialType) {
             case SpecialType.Bool:
                 _builder.Emit(OpCode.Stelem_I1);
@@ -2739,6 +2801,9 @@ oneMoreTime:
     }
 
     private void EmitIndirectStore(TypeSymbol type) {
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         switch (type.specialType) {
             case SpecialType.Bool:
             case SpecialType.Int8:
@@ -2781,6 +2846,23 @@ oneMoreTime:
 
                 break;
         }
+    }
+
+    private void EmitEnumConversion(BoundCastExpression conversion) {
+        var fromType = conversion.operand.type;
+
+        if (fromType.IsEnumType())
+            fromType = ((NamedTypeSymbol)fromType).enumUnderlyingType;
+
+        var fromPredefTypeKind = fromType.specialType;
+        var toType = conversion.type;
+
+        if (toType.IsEnumType())
+            toType = ((NamedTypeSymbol)toType).enumUnderlyingType;
+
+        var toPredefTypeKind = toType.specialType;
+
+        EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
     }
 
     private VariableDefinition EmitAssignmentDuplication(
@@ -3101,12 +3183,25 @@ oneMoreTime:
 
         switch (type.specialType) {
             case SpecialType.Int:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Char:
             case SpecialType.Decimal:
             case SpecialType.Bool:
                 return true;
         }
 
-        return false;
+        return type.IsEnumType();
     }
 
     private void EmitParameterLoad(BoundParameterExpression expression) {
@@ -3191,6 +3286,10 @@ oneMoreTime:
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 EmitExplicitReferenceConversion(cast);
+                break;
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
+                EmitEnumConversion(cast);
                 break;
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
@@ -3526,6 +3625,9 @@ oneMoreTime:
     }
 
     private void EmitLoadIndirect(TypeSymbol type) {
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         switch (type.specialType) {
             case SpecialType.Int:
             case SpecialType.Int64:

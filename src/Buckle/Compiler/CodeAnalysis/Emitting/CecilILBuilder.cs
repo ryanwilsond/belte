@@ -205,7 +205,7 @@ internal sealed class CecilILBuilder : ILBuilder {
 
         var callSite = new CallSite(returnType) {
             HasThis = false,
-            CallingConvention = managed ? MethodCallingConvention.VarArg : MethodCallingConvention.StdCall
+            CallingConvention = managed ? MethodCallingConvention.Default : MethodCallingConvention.StdCall
         };
 
         foreach (var p in paramTypes)

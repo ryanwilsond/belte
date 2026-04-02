@@ -59,6 +59,8 @@ internal sealed partial class Executor : ModuleBuilder {
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
+    private readonly Dictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
+    private readonly Dictionary<TypeSymbol, Type> _enums = [];
     private readonly Dictionary<MethodSymbol, MethodInfo> _methods = [];
     private readonly Dictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
     private readonly Dictionary<MethodSymbol, ConstructorInfo> _constructors = [];
@@ -237,6 +239,9 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
+            if (type.IsEnumType())
+                return _enums[type.originalDefinition];
+
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
                     var containingMethodTypeParameters = _methodTypeParameters[
@@ -257,7 +262,7 @@ internal sealed partial class Executor : ModuleBuilder {
             var foundType = _types[type.originalDefinition];
 
             // Acceptable inside specific contexts like typeof
-            if (type.ContainsTemplateParameter() || type.ContainsErrorType())
+            if (type.ContainsErrorType())
                 return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
@@ -481,6 +486,23 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateTypeBuilder(NamedTypeSymbol type) {
+        if (type.IsEnumType()) {
+            if (_workingEnums.ContainsKey(type.originalDefinition))
+                return;
+
+            var underlyingType = GetType(type.enumUnderlyingType);
+            var enumBuilder = _moduleBuilder.DefineEnum(
+                type.name,
+                GetTypeAttributes(type, false) & TypeAttributes.VisibilityMask,
+                underlyingType
+            );
+
+            _workingEnums.Add(type, enumBuilder);
+
+            CreateEnumMemberDefinitions(type);
+            return;
+        }
+
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
@@ -497,8 +519,11 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private Type GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null)
+        if (type.baseType is null || type.IsStructType())
             return typeof(ValueType);
+
+        if (type.IsEnumType())
+            return typeof(Enum);
 
         return GetType(type.baseType);
     }
@@ -585,7 +610,31 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
+    private void CreateEnumMemberDefinitions(NamedTypeSymbol type) {
+        var enumBuilder = _workingEnums[type.originalDefinition];
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            enumBuilder.DefineLiteral(f.name, f.constantValue);
+        }
+
+        var finalEnum = enumBuilder.CreateType();
+        _enums.Add(type, finalEnum);
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            _fields.Add(f, finalEnum.GetField(f.name));
+        }
+    }
+
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
+        if (type.IsEnumType())
+            return;
+
         var typeBuilder = _types[type.originalDefinition];
 
         foreach (var member in type.GetMembers()) {

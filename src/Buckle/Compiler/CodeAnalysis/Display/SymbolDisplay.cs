@@ -163,6 +163,9 @@ public static class SymbolDisplay {
                 case TypeKind.Primitive:
                     text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
                     break;
+                case TypeKind.Enum:
+                    text.Write(CreateKeyword(SyntaxKind.EnumKeyword));
+                    break;
                 case TypeKind.Error:
                     text.Write(CreateKeyword("?"));
                     break;

@@ -131,10 +131,10 @@ internal sealed class RefILBuilder : ILBuilder {
             Log(OpCodes.Calli, type.signature);
             _iLGenerator.EmitCalli(
                 OpCodes.Calli,
-                System.Reflection.CallingConventions.VarArgs,
+                System.Reflection.CallingConventions.Standard,
                 returnType,
                 paramTypes,
-                Type.EmptyTypes
+                null
             );
         } else {
             Log(OpCodes.Calli, type.signature);

@@ -106,6 +106,10 @@ internal static partial class ConstraintsHelpers {
                         constraintEffectiveBase = CorLibrary.GetSpecialType(SpecialType.Array);
                         constraintDeducedBase = constraintType.type;
                         break;
+                    case TypeKind.Enum:
+                        constraintEffectiveBase = CorLibrary.GetSpecialType(SpecialType.Enum);
+                        constraintDeducedBase = constraintType.type;
+                        break;
                     case TypeKind.Error:
                     case TypeKind.Class:
                         constraintEffectiveBase = (NamedTypeSymbol)constraintType.type;

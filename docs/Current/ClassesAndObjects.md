@@ -5,6 +5,7 @@
 - [4.3](#43-modifiers) Modifiers
 - [4.4](#44-constructors) Constructors
 - [4.5](#45-templates) Templates
+- [4.6](#46-enums) Enums
 
 ## 4.1 Classes
 
@@ -289,3 +290,60 @@ Int<0, 10>
 Int<5, 5>
 Int<10, 0> // Compile error
 ```
+
+## 4.6 Enums
+
+Enums are value types that contain a list of integral constants. Enum field values implicitly start at 0 and count up,
+but explicit values can be specified. The underlying integral type defaults to `int` but can be specified:
+
+```belte
+enum MyEnum extends uint8 {
+  Field1,
+  Field2,
+  ...
+}
+```
+
+Where `Field1` equals 0 and `Field2` equals 1. Explicitly declaring field values can be done as such:
+
+```belte
+enum MyEnum {
+  Field1 = 300,
+  Field2 = 400,
+  ...
+}
+```
+
+Creating an instance of an enum type is done by initializing to a field of the enum:
+
+```belte
+MyEnum myLocal = MyEnum.Field1;
+
+enum MyEnum {
+  Field1,
+  ...
+}
+```
+
+Instances of enum types can interact with their underlying integral type implicitly:
+
+```belte
+int myLocal = MyEnum.Field1 + 10;
+// myLocal = 20
+
+enum MyEnum {
+  Field1 = 10
+}
+```
+
+### 4.6.1 Experimental Underlying Types
+
+When using the Evaluator, enums can additional represent the `string` and `char` primitives:
+
+```belte
+enum MyEnum extends string {
+  Field1 = "some string",
+}
+```
+
+This feature is experimental and may be removed.

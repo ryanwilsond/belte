@@ -77,6 +77,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal bool knownToHaveNoDeclaredBaseCycles => _hasNoBaseCycles;
 
+    internal virtual NamedTypeSymbol enumUnderlyingType => null;
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
