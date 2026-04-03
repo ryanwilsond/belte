@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -258,7 +259,7 @@ internal sealed class Evaluator {
     private HeapObject CreateHeapObject(NamedTypeSymbol type) {
         if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout)) {
             _program.TryGetTypeLayoutIncludingParents(type, out _);
-            throw new BelteInternalException($"Failed to get type layout ({type})");
+            throw new BelteInternalException($"Failed to get type layout ({type}).");
         }
 
         var fields = layout.LocalsInOrder();
@@ -470,6 +471,8 @@ internal sealed class Evaluator {
                         }
 
                         return _lastValue;
+                    case BoundKind.InlineILStatement:
+                        throw new BelteEvaluatorException("Inline IL is not supported in the Evaluator.", ((InlineILStatementSyntax)s.syntax).keyword.location);
                     default:
                         throw ExceptionUtilities.UnexpectedValue(s.kind);
                 }
@@ -537,8 +540,8 @@ internal sealed class Evaluator {
             BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
             BoundKind.CompileTimeExpression => EvaluateCompileTimeExpression((BoundCompileTimeExpression)node, used, abort),
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
-            BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("stackalloc is not supported in the Evaluator", node.syntax.location),
-            BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("function pointers are not supported in the Evaluator", node.syntax.location),
+            BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("Stackalloc is not supported in the Evaluator.", node.syntax.location),
+            BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -582,7 +585,7 @@ internal sealed class Evaluator {
             var heapObject = _context.heap[thisParameter.ptr];
 
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-                throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
             var field = layout.GetLocal(type.StrippedType());
             return EvaluatorValue.Type(heapObject.fields[field.slot].type);
@@ -620,7 +623,7 @@ internal sealed class Evaluator {
             var heapObject = _context.heap[thisParameter.ptr];
 
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-                throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
             var field = layout.GetLocal(node.type);
             return heapObject.fields[field.slot];
@@ -635,7 +638,7 @@ internal sealed class Evaluator {
 
         if (used || isRefLocal) {
             if (!_context.TryGetGlobal(node.dataContainer, out var value))
-                throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist");
+                throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist.");
 
             if (isRefLocal)
                 return value.loc[value.ptr];
@@ -2269,7 +2272,7 @@ internal sealed class Evaluator {
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
         if (method.isExtern)
-            throw new BelteEvaluatorException("extern method calls are not supported in the Evaluator", node.syntax.location);
+            throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
 
         var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
 
@@ -2341,7 +2344,7 @@ internal sealed class Evaluator {
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
         if (method.isExtern)
-            throw new BelteEvaluatorException("extern method calls are not supported in the Evaluator", node.syntax.location);
+            throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
 
         method = ResolveVirtualMethod(method, receiver, thisParameter);
 
@@ -2421,7 +2424,7 @@ internal sealed class Evaluator {
         EvaluatorValue[] arguments,
         ValueWrapper<bool> abort) {
         if (!_program.TryGetMethodBodyIncludingParents(method, out var body))
-            throw new BelteInternalException($"Failed to get method body ({method})");
+            throw new BelteInternalException($"Failed to get method body ({method}).");
 
         if (!_program.TryGetMethodLayoutIncludingParents(method, out var layout)) {
             layout = new EvaluatorSlotManager(method);
@@ -2813,7 +2816,7 @@ internal sealed class Evaluator {
         }
 
         if (_context.graphicsThread is null)
-            throw new BelteEvaluatorException("All Graphics calls must come after Graphics.Initialize", location);
+            throw new BelteEvaluatorException("All Graphics calls must come after Graphics.Initialize.", location);
 
         while (_context.graphicsHandler?.GraphicsDevice is null)
             Thread.SpinWait(1);
@@ -2821,7 +2824,7 @@ internal sealed class Evaluator {
         switch (mapKey) {
             case "Graphics_LoadTexture_S": {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist.", location);
 
                     result = LoadTexture(path);
                 }
@@ -2830,7 +2833,7 @@ internal sealed class Evaluator {
             case "Graphics_LoadTexture_SIII": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist.", location);
 
                     var r = evaluatedArguments[1].int64;
                     var g = evaluatedArguments[2].int64;
@@ -2843,7 +2846,7 @@ internal sealed class Evaluator {
             case "Graphics_LoadSprite_SV?V?I?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
 
                     var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
                     var sprite = CreateObject(spriteType);
@@ -2903,7 +2906,7 @@ internal sealed class Evaluator {
             case "Graphics_LoadText_S?SV?DD?I?I?I?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load text: path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
                     var textType = CorLibrary.GetSpecialType(SpecialType.Text);
                     var textPtr = CreateObject(textType);
@@ -2923,7 +2926,7 @@ internal sealed class Evaluator {
                     text[0].data = _context.graphicsHandler.LoadText(path, fontSize);
 
                     if (text[0].data is not DynamicSpriteFont spriteFont)
-                        throw new BelteEvaluatorException("Failed to create text object", location);
+                        throw new BelteEvaluatorException("Failed to create text object.", location);
 
                     result = textPtr;
                 }
@@ -3074,7 +3077,7 @@ internal sealed class Evaluator {
                 break;
             case "Graphics_LoadSound_S": {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
                     var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
                     var soundPtr = CreateObject(soundType);
@@ -3142,7 +3145,7 @@ internal sealed class Evaluator {
             var texturePointer = CreateObject(textureType);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))
-                ?? throw new BelteEvaluatorException("Failed to load texture", location);
+                ?? throw new BelteEvaluatorException("Failed to load texture.", location);
 
             texture.fields[0].data = texture2D;
             texture.fields[1].int64 = texture2D.Width;

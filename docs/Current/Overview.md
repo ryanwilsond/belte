@@ -41,3 +41,4 @@ implemented.
 | Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
 | Externs/DLL imports | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
+| Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |

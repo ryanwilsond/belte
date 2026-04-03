@@ -330,6 +330,9 @@
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="localFunctions" Type="ImmutableArray&lt;LocalFunctionSymbol&gt;"/>
   </Node>
+  <Node Name="BoundInlineILStatement" Base="BoundStatement">
+    <Field Name="instructions" Type="ImmutableArray&lt;(CodeGeneration.OpCode, ConstantValue, Symbol)&gt;"/>
+  </Node>
   <Node Name="BoundExpressionStatement" Base="BoundStatement">
     <Field Name="expression" Type="BoundExpression"/>
   </Node>

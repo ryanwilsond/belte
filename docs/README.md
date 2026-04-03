@@ -65,6 +65,7 @@
     - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
     - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator
+    - [6.11](Current/LowLevelFeatures.md#611-inline-il) Inline IL
 
 ___
 

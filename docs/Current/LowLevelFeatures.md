@@ -4,10 +4,6 @@
 
 Currently, all of these features are enabled everywhere for conciseness.
 This may change.
-~~These features are only enabled in low-level contexts.~~
-
-Currently, all of these features are enabled everywhere for conciseness.
-This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structures) Structures
@@ -19,14 +15,13 @@ This may change.
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
+- [6.11](#611-inline-il) Inline IL
 
 Additionally, the [Standard Library contains a class named LowLevel that provides
 various helper methods](StandardLibrary/LowLevel.md).
 
 ## 6.1 Low-Level Contexts
 
-Low-level contexts are created by applying the `lowlevel` modifier to a type
-declaration, method, or block.
 Low-level contexts are created by applying the `lowlevel` modifier to a type
 declaration, method, or block.
 
@@ -40,19 +35,12 @@ lowlevel { ... }
 The low-level context extends from the declaration to all statements inside. In
 other words, if a method is marked `lowlevel`, the parameter list of that method
 can use low-level exclusive features.
-The low-level context extends from the declaration to all statements inside. In
-other words, if a method is marked `lowlevel`, the parameter list of that method
-can use low-level exclusive features.
 
 ## 6.2 Structures
 
 Structures are custom data types that pass by value and use the stack, unlike
 classes which are heap-allocated.
-Structures are custom data types that pass by value and use the stack, unlike
-classes which are heap-allocated.
 
-Structures only allow field declarations with no initializers. Fields within
-structures cannot be constants or references.
 Structures only allow field declarations with no initializers. Fields within
 structures cannot be constants or references.
 
@@ -65,15 +53,11 @@ struct MyStruct {
 
 Creating a new instance of a structure uses the same `new` keyword as classes,
 but the constructor cannot be overridden and always takes no arguments:
-Creating a new instance of a structure uses the same `new` keyword as classes,
-but the constructor cannot be overridden and always takes no arguments:
 
 ```belte
 var myInstance = new MyStruct();
 ```
 
-Because of this, all fields must manually be written to after structure
-creation:
 Because of this, all fields must manually be written to after structure
 creation:
 
@@ -86,20 +70,12 @@ myInstance.b = "Hello";
 
 Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
 C-style arrays.
-Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
-C-style arrays.
 
 ```belte
 int![]! v = { 1, 2, 3 };
 int![]! v = { 1, 2, 3 };
 ```
 
-Arrays are heap allocated and have no members. To sort or get the length of the
-array,
-[`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
-
-Arrays are runtime checked, meaning trying to access an index outside the bounds
-of the array will throw an exception.
 Arrays are heap allocated and have no members. To sort or get the length of the
 array,
 [`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
@@ -396,3 +372,74 @@ equivalent:
 int32 ptr[10];
 int32* ptr = stackalloc int32[10];
 ```
+
+## 6.11 Inline IL
+
+For performance critical code paths or when you are trying to emit specific
+instructions with no language equivalent, an inline IL block can be used:
+
+```belte
+int32 a = 0;
+
+il {
+  ldc.i4.0;
+  stloc.0;
+}
+```
+
+Symbols can be referenced like normal:
+
+```belte
+int32 a = 0;
+
+il {
+  call Func
+  stloc.0;
+}
+
+int32 Func() {
+  return 10;
+}
+```
+
+### 6.11.1 Verification
+
+The instructions in the IL block are minimally verified. All instructions must
+provide the proper number and kind of arguments.
+
+Additionally, the stack must be balanced within the block. To bypass this check,
+the `noverify` modifier can be used:
+
+```belte
+il noverify {
+  add;
+}
+```
+
+### 6.11.2 Unsupported Instructions
+
+The inline IL allows most CIL instructions. The following instructions are not
+currently supported:
+
+- All branch instructions
+- `endfault`
+- `endfilter`
+- `endfinally`
+- `jmp`
+- `leave`
+- `leave.s`
+- `no.`
+- `ret`
+- `rethrow`
+- `switch`
+- `throw`
+
+The `jmp`, `switch`, and branch instructions are unsupported because there is
+currently no way to get instruction addresses or define labels.
+
+The `endfault`, `endfilter`, `endfinally`, `leave`, `leave.s`, `no.`, `rethrow`,
+and `throw` instructions are not supported because there is currently no way to
+specify exception handling blocks within the inline IL.
+
+The `ret` instruction is unsupported to ensure the IL remains localized to it's
+block and has a zero delta stack balance.

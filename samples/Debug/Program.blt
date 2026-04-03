@@ -1,0 +1,4 @@
+
+Console.PrintLine("Printing some text");
+var text = Console.Input();
+Console.PrintLine(text);

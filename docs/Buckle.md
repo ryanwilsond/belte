@@ -9,6 +9,7 @@ Currently there are no releases of Belte, so to use the compiler you will have t
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
 - [Building to a .NET DLL](#building-to-a-net-dll)
+- [Debugging a Program](#debugging-a-program)
 - [Building with .NET](#building-with-net)
 
 ## Options Summary
@@ -212,6 +213,13 @@ that the dll is ready to run by using `dotnet <path/to/dll>`.
 
 The `--type=dll` option outputs a dll that can be referenced by other applications, but is not a runnable application
 itself. There is no entry point.
+
+## Debugging a Program
+
+When [building to a .NET DLL](#building-to-a-net-dll) with the `--debug` flag, a PDB file is produced next to the output
+assembly.
+
+[Here is a sample that you can debug in VSCode](https://github.com/ryanwilsond/belte/tree/staging/samples/Debug/README.md).
 
 ## Building with .NET
 

@@ -205,6 +205,8 @@ public static class SyntaxFacts {
             "pinned" => SyntaxKind.PinnedKeyword,
             "stackalloc" => SyntaxKind.StackAllocKeyword,
             "enum" => SyntaxKind.EnumKeyword,
+            "il" => SyntaxKind.ILKeyword,
+            "noverify" => SyntaxKind.NoVerifyKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -331,6 +333,8 @@ public static class SyntaxFacts {
             SyntaxKind.PinnedKeyword => "pinned",
             SyntaxKind.StackAllocKeyword => "stackalloc",
             SyntaxKind.EnumKeyword => "enum",
+            SyntaxKind.ILKeyword => "il",
+            SyntaxKind.NoVerifyKeyword => "noverify",
             _ => null,
         };
     }
