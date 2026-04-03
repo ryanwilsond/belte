@@ -1197,11 +1197,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
             opCodeSuffixThree = MatchTwo(SyntaxKind.NumericLiteralToken, SyntaxKind.IdentifierToken);
         }
 
-        var operand = currentToken.kind is SyntaxKind.NumericLiteralToken or
-                                           SyntaxKind.StringLiteralToken or
-                                           SyntaxKind.IdentifierToken
+        var literal = currentToken.kind is SyntaxKind.NumericLiteralToken or SyntaxKind.StringLiteralToken
             ? EatToken()
             : null;
+
+        TypeSyntax symbol = null;
+
+        if (literal is null) {
+            if (PeekIsType(0, out _, out _, out _))
+                symbol = ParseType(false, false, true);
+            else if (currentToken.kind is SyntaxKind.GlobalKeyword or SyntaxKind.IdentifierToken)
+                symbol = ParseLastCaseName();
+        }
 
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
@@ -1213,7 +1220,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             opCodeSuffixTwo,
             periodThree,
             opCodeSuffixThree,
-            operand,
+            literal,
+            symbol,
             semicolon
         );
     }

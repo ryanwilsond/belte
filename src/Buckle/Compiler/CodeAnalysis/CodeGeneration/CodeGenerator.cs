@@ -1023,6 +1023,11 @@ oneMoreTime:
 
     private void EmitInlineILStatement(BoundInlineILStatement statement) {
         foreach (var (opCode, constant, symbol) in statement.instructions) {
+            if (opCode == OpCode.Calli) {
+                _builder.EmitCalli(symbol as FunctionPointerTypeSymbol);
+                continue;
+            }
+
             if (symbol is not null) {
                 switch (symbol) {
                     case FieldSymbol field:

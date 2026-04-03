@@ -204,4 +204,6 @@ internal enum OpCode : byte {
     Tail,
     Unaligned,
     Volatile,
+    Starg,
+    Starg_S,
 }

@@ -10280,7 +10280,8 @@ symIsHidden:;
             var (constant, symbol) = hasErrors ? (null, null) : BindOpCodeOperand(
                 instructionSyntax,
                 opCode,
-                instructionSyntax.operand,
+                instructionSyntax.literal,
+                instructionSyntax.symbol,
                 diagnostics,
                 displayString,
                 out hasErrors
@@ -10288,7 +10289,10 @@ symIsHidden:;
 
             hasAnyErrors |= hasErrors;
 
-            stackOffset += opCode.StackOffset();
+            stackOffset += opCode.StackOffset(
+                symbol is FunctionPointerTypeSymbol t ? t.signature : symbol as MethodSymbol
+            );
+
             instructions.Add((opCode, constant, symbol));
         }
 
@@ -10607,6 +10611,10 @@ symIsHidden:;
                 return OpCode.Rem;
             case "rem.un":
                 return OpCode.Rem_Un;
+            case "starg":
+                return OpCode.Starg;
+            case "starg.s":
+                return OpCode.Starg_S;
             case "shl":
                 return OpCode.Shl;
             case "shr":
@@ -10727,8 +10735,6 @@ symIsHidden:;
             case "no":
             case "ret":
             case "rethrow":
-            case "starg":
-            case "starg.s":
             case "switch":
             case "throw":
                 diagnostics.Push(Error.Unsupported.ILOpCode(location, displayString));
@@ -10744,7 +10750,8 @@ symIsHidden:;
     private (ConstantValue, Symbol) BindOpCodeOperand(
         SyntaxNode node,
         OpCode opCode,
-        SyntaxToken operand,
+        SyntaxToken literal,
+        TypeSyntax symbol,
         BelteDiagnosticQueue diagnostics,
         string displayString,
         out bool hasErrors) {
@@ -10752,7 +10759,7 @@ symIsHidden:;
         var operandKind = opCode.ToOperandKind();
 
         if (operandKind == OperandKind.None) {
-            if (operand is not null) {
+            if (literal is not null || symbol is not null) {
                 diagnostics.Push(Error.InvalidILOperand(node.location, displayString));
                 hasErrors = true;
             }
@@ -10760,7 +10767,7 @@ symIsHidden:;
             return (null, null);
         }
 
-        if (operand?.kind is SyntaxKind.NumericLiteralToken or SyntaxKind.StringLiteralToken) {
+        if (literal is not null) {
             if (!operandKind.IsLiteral()) {
                 diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
                 hasErrors = true;
@@ -10769,7 +10776,7 @@ symIsHidden:;
 
             var targetSpecialType = operandKind.ToSpecialType();
             var targetType = CorLibrary.GetSpecialType(targetSpecialType);
-            var value = operand.value;
+            var value = literal.value;
             var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
             var constantValue = new ConstantValue(value, specialType);
             var type = CorLibrary.GetSpecialType(specialType);
@@ -10779,7 +10786,7 @@ symIsHidden:;
             hasErrors |= boundOperand.hasAnyErrors;
 
             if (boundOperand.constantValue is null && !boundOperand.hasAnyErrors) {
-                diagnostics.Push(Error.ConstantExpected(operand.location));
+                diagnostics.Push(Error.ConstantExpected(literal.location));
                 hasErrors = true;
                 return (null, null);
             }
@@ -10793,10 +10800,95 @@ symIsHidden:;
             return (null, null);
         }
 
-        // TODO TypeTok, ValueType, Class, Method, Ctor, and Field operands
-        diagnostics.Push(Error.Unsupported.ILOperand(node.location, operandKind.ToString()));
-        hasErrors = true;
-        return (null, null);
+        switch (operandKind) {
+            case OperandKind.Token:
+            case OperandKind.TypeToken: {
+                    var boundSymbol = BindType(symbol, diagnostics);
+                    return (null, boundSymbol.type);
+                }
+            case OperandKind.Class: {
+                    var boundSymbol = BindType(symbol, diagnostics);
+
+                    if (boundSymbol.type.typeKind != TypeKind.Class) {
+                        diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    return (null, boundSymbol.type);
+                }
+            case OperandKind.Constructor: {
+                    var boundSymbol = BindType(symbol, diagnostics);
+
+                    if (boundSymbol.type.typeKind != TypeKind.Class) {
+                        diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    var constructors = ((NamedTypeSymbol)boundSymbol.type).instanceConstructors;
+
+                    if (constructors.Length != 1) {
+                        diagnostics.Push(Error.AmbiguousMethodOverload(symbol.location, constructors.ToArray()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    return (null, constructors[0]);
+                }
+            case OperandKind.Field: {
+                    var boundSymbol = BindMethodGroup(symbol, false, false, diagnostics);
+
+                    if (boundSymbol is not BoundFieldAccessExpression f) {
+                        diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    return (null, f.field);
+                }
+            case OperandKind.Method: {
+                    var boundSymbol = BindMethodGroup(symbol, true, false, diagnostics);
+
+                    if (boundSymbol is not BoundMethodGroup m) {
+                        diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    if (m.methods.Length != 1) {
+                        diagnostics.Push(Error.AmbiguousMethodOverload(symbol.location, m.methods.ToArray()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    return (null, m.methods[0]);
+                }
+            case OperandKind.FunctionPointer: {
+                    var boundSymbol = BindType(symbol, diagnostics);
+
+                    if (boundSymbol.type.typeKind != TypeKind.FunctionPointer) {
+                        diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    return (null, boundSymbol.type);
+                }
+            case OperandKind.ValueType: {
+                    var boundSymbol = BindType(symbol, diagnostics);
+
+                    if (!boundSymbol.type.IsVerifierValue()) {
+                        diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
+                        hasErrors = true;
+                        return (null, null);
+                    }
+
+                    return (null, boundSymbol.type);
+                }
+            default:
+                throw ExceptionUtilities.UnexpectedValue(operandKind);
+        }
     }
 
     private BoundStatement BindTryStatement(TryStatementSyntax node, BelteDiagnosticQueue diagnostics) {

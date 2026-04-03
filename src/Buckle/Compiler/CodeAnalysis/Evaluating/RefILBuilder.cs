@@ -819,6 +819,8 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Tail => OpCodes.Tailcall,
             CodeGeneration.OpCode.Unaligned => OpCodes.Unaligned,
             CodeGeneration.OpCode.Volatile => OpCodes.Volatile,
+            CodeGeneration.OpCode.Starg => OpCodes.Starg,
+            CodeGeneration.OpCode.Starg_S => OpCodes.Starg_S,
             _ => throw new NotImplementedException()
         };
     }

@@ -609,7 +609,8 @@
       <Kind Name="PeriodToken"/>
     </Field>
     <Field Name="opCodeSuffixThree" Type="SyntaxToken" Optional="true"/>
-    <Field Name="operand" Type="SyntaxToken" Optional="true"/>
+    <Field Name="literal" Type="SyntaxToken" Optional="true"/>
+    <Field Name="symbol" Type="TypeSyntax" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
