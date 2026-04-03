@@ -77,6 +77,22 @@ public sealed class ExecutorTests {
 
         return a;
     ", 10)]
+    [InlineData(@"
+        int32 Func(int32 a, int32 b) {
+            int32 ret = 0;
+
+            il {
+                ldarg.0;
+                ldarg.1;
+                add;
+                stloc.0;
+            }
+
+            return ret;
+        }
+
+        return Func(5, 10);
+    ", 15)]
     public void Executor_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: false, executor: true);
     }
