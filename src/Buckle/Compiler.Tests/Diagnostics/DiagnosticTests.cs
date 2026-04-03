@@ -4463,4 +4463,64 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0370_UnbalancedILStack() {
+        var text = @"
+            [il] {
+                dup;
+            }
+        ";
+
+        var diagnostics = @"
+            inline IL block does not have a balanced stack
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0371_UnknownILOpCode() {
+        var text = @"
+            il {
+                [asdf;]
+            }
+        ";
+
+        var diagnostics = @"
+            unknown IL instruction 'asdf'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0372_InvalidILOperandKind() {
+        var text = @"
+            il noverify {
+                [Ldc.I4;]
+            }
+        ";
+
+        var diagnostics = @"
+            IL instruction 'ldc.i4' expects an operand of type 'int32'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0373_InvalidILOperand() {
+        var text = @"
+            il noverify {
+                [add 3;]
+            }
+        ";
+
+        var diagnostics = @"
+            IL instruction 'add' does not expect an operand
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

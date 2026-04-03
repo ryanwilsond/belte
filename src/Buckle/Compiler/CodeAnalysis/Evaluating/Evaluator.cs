@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -470,6 +471,8 @@ internal sealed class Evaluator {
                         }
 
                         return _lastValue;
+                    case BoundKind.InlineILStatement:
+                        throw new BelteEvaluatorException("inline IL is not supported in the Evaluator", ((InlineILStatementSyntax)s.syntax).keyword.location);
                     default:
                         throw ExceptionUtilities.UnexpectedValue(s.kind);
                 }

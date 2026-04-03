@@ -146,6 +146,9 @@ public sealed class DisplayText {
             case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
+            case BoundKind.InlineILStatement:
+                DisplayInlineILStatement(text, (BoundInlineILStatement)node);
+                break;
             case BoundKind.TypeExpression:
                 DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
@@ -538,6 +541,36 @@ public sealed class DisplayText {
             DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
         }
 
+        text.WriteLine();
+    }
+
+    private static void DisplayInlineILStatement(DisplayText text, BoundInlineILStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ILKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+
+        text.indent++;
+
+        foreach (var instruction in node.instructions) {
+            text.Write(CreateKeyword(instruction.Item1.ToString().ToLower()));
+
+            if (instruction.Item2 is not null) {
+                text.Write(CreateSpace());
+                DisplayConstant(text, instruction.Item2);
+            }
+
+            if (instruction.Item3 is not null) {
+                text.Write(CreateSpace());
+                SymbolDisplay.AppendToDisplayText(text, instruction.Item3);
+            }
+
+            text.WriteLine();
+        }
+
+        text.indent--;
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         text.WriteLine();
     }
 

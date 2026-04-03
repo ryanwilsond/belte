@@ -41,6 +41,16 @@ public sealed class ExecutorTests {
         (*ptr) = 4;
         return a;
     ", 4)]
+    [InlineData(@"
+        int32 a = 3;
+
+        il {
+            ldc.i4.5;
+            stloc.0;
+        }
+
+        return a;
+    ", 5)]
     public void Executor_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: false, executor: true);
     }

@@ -128,6 +128,8 @@ public enum SyntaxKind : ushort {
     PinnedKeyword,
     StackAllocKeyword,
     EnumKeyword,
+    ILKeyword,
+    NoVerifyKeyword,
 
     // Tokens with text
     BadToken,
@@ -177,6 +179,8 @@ public enum SyntaxKind : ushort {
     // Statements
     EmptyStatement,
     BlockStatement,
+    InlineILStatement,
+    ILInstruction,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,

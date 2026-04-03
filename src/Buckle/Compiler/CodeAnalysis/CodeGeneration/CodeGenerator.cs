@@ -670,6 +670,9 @@ internal sealed partial class CodeGenerator {
             case BoundKind.SequencePointWithLocation:
                 EmitSequencePointWithLocation((BoundSequencePointWithLocation)statement);
                 break;
+            case BoundKind.InlineILStatement:
+                EmitInlineILStatement((BoundInlineILStatement)statement);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(statement.kind);
         }
@@ -1016,6 +1019,33 @@ oneMoreTime:
 
         if (location is not null && _emitPdbSequencePoints)
             EmitSequencePoint(node.syntax.syntaxTree, location, index);
+    }
+
+    private void EmitInlineILStatement(BoundInlineILStatement statement) {
+        foreach (var (opCode, constant, symbol) in statement.instructions) {
+            if (symbol is not null) {
+                switch (symbol) {
+                    case FieldSymbol field:
+                        _builder.EmitWithSymbolToken(opCode, field);
+                        continue;
+                    case MethodSymbol method:
+                        _builder.EmitWithSymbolToken(opCode, method);
+                        continue;
+                    case TypeSymbol type:
+                        _builder.EmitWithSymbolToken(opCode, type);
+                        continue;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+                }
+            }
+
+            _builder.Emit(opCode);
+
+            if (constant is not null) {
+                var type = CorLibrary.GetSpecialType(constant.specialType);
+                EmitConstantValue(constant, type);
+            }
+        }
     }
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {

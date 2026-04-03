@@ -27,7 +27,17 @@ internal static class Error {
 
         internal static BelteDiagnostic GraphicsDll() {
             var message = "unsupported: cannot use the graphics project type when building for .NET or transpiling to C#; consider executing instead";
-            return CreateError(DiagnosticCode.UNS_NonTypeTemplate, null, message);
+            return CreateError(DiagnosticCode.UNS_GraphicsDll, null, message);
+        }
+
+        internal static BelteDiagnostic ILOpCode(TextLocation location, string opCode) {
+            var message = $"unsupported: inline IL instruction '{opCode}' not supported";
+            return CreateError(DiagnosticCode.UNS_ILOpCode, location, message);
+        }
+
+        internal static BelteDiagnostic ILOperand(TextLocation location, string operandKind) {
+            var message = $"unsupported: inline IL instruction operand kind '{operandKind.ToLower()}' not supported";
+            return CreateError(DiagnosticCode.UNS_ILOperand, location, message);
         }
     }
 
@@ -1791,6 +1801,26 @@ internal static class Error {
     internal static BelteDiagnostic EnumOverflow(TextLocation location, Symbol symbol) {
         var message = $"'{symbol}': the enum value is too large to fit in its type";
         return CreateError(DiagnosticCode.ERR_EnumOverflow, location, message);
+    }
+
+    internal static BelteDiagnostic UnbalancedILStack(TextLocation location) {
+        var message = $"inline IL block does not have a balanced stack";
+        return CreateError(DiagnosticCode.ERR_UnbalancedILStack, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownILOpCode(TextLocation location, string opCode) {
+        var message = $"unknown IL instruction '{opCode}'";
+        return CreateError(DiagnosticCode.ERR_UnknownILOpCode, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidILOperandKind(TextLocation location, string opCode, string operandKind) {
+        var message = $"IL instruction '{opCode}' expects an operand of type '{operandKind.ToLower()}'";
+        return CreateError(DiagnosticCode.ERR_InvalidILOperandKind, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidILOperand(TextLocation location, string opCode) {
+        var message = $"IL instruction '{opCode}' does not expect an operand";
+        return CreateError(DiagnosticCode.ERR_InvalidILOperand, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

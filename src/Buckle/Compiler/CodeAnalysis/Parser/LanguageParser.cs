@@ -1116,6 +1116,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseContinueStatement();
             case SyntaxKind.ReturnKeyword:
                 return ParseReturnStatement();
+            case SyntaxKind.ILKeyword:
+                return ParseInlineILStatement();
         }
 
         if (PeekIsFunctionOrMethodDeclaration()) {
@@ -1142,6 +1144,78 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return SyntaxFactory.LocalDeclarationStatement(attributeLists, modifiers, declaration, semicolon);
+    }
+
+    private StatementSyntax ParseInlineILStatement() {
+        var ilKeyword = EatToken();
+        var noVerifyKeyword = currentToken.kind == SyntaxKind.NoVerifyKeyword ? EatToken() : null;
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var instructions = ParseILInstructions();
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return SyntaxFactory.InlineILStatement(ilKeyword, noVerifyKeyword, openBrace, instructions, closeBrace);
+    }
+
+    private SyntaxList<ILInstructionSyntax> ParseILInstructions() {
+        var instructions = SyntaxListBuilder<ILInstructionSyntax>.Create();
+        var startToken = currentToken;
+
+        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
+            var instruction = ParseILInstruction();
+            instructions.Add(instruction);
+
+            if (currentToken == startToken)
+                EatToken();
+
+            startToken = currentToken;
+        }
+
+        return instructions.ToList();
+    }
+
+    private ILInstructionSyntax ParseILInstruction() {
+        var opCode = Match(SyntaxKind.IdentifierToken);
+        SyntaxToken periodOne = null;
+        SyntaxToken opCodeSuffixOne = null;
+        SyntaxToken periodTwo = null;
+        SyntaxToken opCodeSuffixTwo = null;
+        SyntaxToken periodThree = null;
+        SyntaxToken opCodeSuffixThree = null;
+
+        if (currentToken.kind == SyntaxKind.PeriodToken) {
+            periodOne = EatToken();
+            opCodeSuffixOne = MatchTwo(SyntaxKind.NumericLiteralToken, SyntaxKind.IdentifierToken);
+        }
+
+        if (currentToken.kind == SyntaxKind.PeriodToken) {
+            periodTwo = EatToken();
+            opCodeSuffixTwo = MatchTwo(SyntaxKind.NumericLiteralToken, SyntaxKind.IdentifierToken);
+        }
+
+        if (currentToken.kind == SyntaxKind.PeriodToken) {
+            periodThree = EatToken();
+            opCodeSuffixThree = MatchTwo(SyntaxKind.NumericLiteralToken, SyntaxKind.IdentifierToken);
+        }
+
+        var operand = currentToken.kind is SyntaxKind.NumericLiteralToken or
+                                           SyntaxKind.StringLiteralToken or
+                                           SyntaxKind.IdentifierToken
+            ? EatToken()
+            : null;
+
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+
+        return SyntaxFactory.ILInstruction(
+            opCode,
+            periodOne,
+            opCodeSuffixOne,
+            periodTwo,
+            opCodeSuffixTwo,
+            periodThree,
+            opCodeSuffixThree,
+            operand,
+            semicolon
+        );
     }
 
     private StatementSyntax ParseTryStatement() {

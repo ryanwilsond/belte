@@ -378,8 +378,15 @@ public enum DiagnosticCode : ushort {
     ERR_ImplicitlyTypedStackAllocLocal = 367,
     ERR_InvalidEnumType = 368,
     ERR_EnumOverflow = 369,
+    ERR_UnbalancedILStack = 370,
+    ERR_UnknownILOpCode = 371,
+    ERR_InvalidILOperandKind = 372,
+    ERR_InvalidILOperand = 373,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
     UNS_NonTypeTemplate = 9001,
+    UNS_ILOpCode = 9002,
+    UNS_ILOperand = 9003,
+    UNS_GraphicsDll = 9004,
 }
