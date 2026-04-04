@@ -117,7 +117,6 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         var compilation = declaringCompilation;
         var syntaxNode = this.syntaxNode;
         Binder result = new EndBinder(compilation, syntaxNode.syntaxTree.text);
-        result = compilation.AddReferenceBinders(result);
 
         for (var current = compilation; current is not null; current = current.previous) {
             // TODO Also add usings binders for previous?

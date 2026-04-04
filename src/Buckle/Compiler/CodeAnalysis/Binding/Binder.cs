@@ -1243,7 +1243,8 @@ internal partial class Binder {
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
             if (!typeWithAnnotations.isNullable && !type.IsStructType() && !type.IsPointerOrFunctionPointer() &&
-                !type.isStatic && type.specialType != SpecialType.Void && type.typeKind != TypeKind.TemplateParameter) {
+                !type.specialType.IsLowLevelNumeric() && !type.isStatic && type.specialType != SpecialType.Void &&
+                type.typeKind != TypeKind.TemplateParameter) {
                 diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
             }
 

@@ -134,6 +134,7 @@ public sealed partial class Compilation {
                 var modules = ArrayBuilder<ModuleSymbol>.GetInstance();
                 GetAllUnaliasedModules(modules);
                 builder.AddRange(modules.SelectDistinct(m => m.globalNamespace));
+                builder.AddRange(_referenceManager.GetGlobalNamespaces());
 
                 if (_specialNamespace is not null)
                     builder.Add(_specialNamespace);
@@ -589,10 +590,6 @@ public sealed partial class Compilation {
             Interlocked.CompareExchange(ref _lazyUsedAssemblyReferences, new ConcurrentSet<AssemblySymbol>(), null);
 
         return _lazyUsedAssemblyReferences.Add(assembly);
-    }
-
-    internal Binder AddReferenceBinders(Binder binder) {
-        return _referenceManager.AddReferenceBinders(binder);
     }
 
     private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {

@@ -8,13 +8,8 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
-                // "-r",
-                // "--clearsubmissions",
-                ".tmp/test.blt",
-                "-d",
-                "--ref=C:/Program Files/dotnet/packs/Microsoft.NETCore.App.Ref/10.0.3/ref/net10.0/System.Console.dll",
-                "-o",
-                ".tmp/test.dll"
+                "-r",
+                "--clearsubmissions",
             ],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.Binding;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -46,11 +46,8 @@ public sealed partial class Compilation {
             _assemblySymbols = assemblyBuilder.ToImmutableAndFree();
         }
 
-        internal Binder AddReferenceBinders(Binder binder) {
-            foreach (var assemblySymbol in _assemblySymbols)
-                binder = new InContainerBinder(assemblySymbol.globalNamespace, binder);
-
-            return binder;
+        internal NamespaceSymbol[] GetGlobalNamespaces() {
+            return _assemblySymbols.Select(a => a.globalNamespace).ToArray();
         }
 
         internal PEAssemblySymbol CreatePEAssemblyForAssemblyMetadata(

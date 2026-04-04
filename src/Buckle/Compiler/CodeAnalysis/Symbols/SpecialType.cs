@@ -42,4 +42,5 @@ public enum SpecialType : byte {
     Texture,
     Sound,
     ValueType,
+    TypedReference,
 }

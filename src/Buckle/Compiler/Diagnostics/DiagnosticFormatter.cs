@@ -69,7 +69,7 @@ public static partial class DiagnosticFormatter {
         var displayParts = new DisplayParts();
         var initialColor = foregroundColor ?? Console.ForegroundColor;
 
-        if (location is not null)
+        if (location?.span is not null)
             AddLocationToDisplayParts(displayParts, location, initialColor);
 
         var highlightColor = ConsoleColor.White;
@@ -105,7 +105,7 @@ public static partial class DiagnosticFormatter {
 
         displayParts.Add($"{diagnostic.message}\n", initialColor);
 
-        if (location is not null)
+        if (location?.span is not null)
             AddTextAtLocation(displayParts, location, diagnostic.suggestions, initialColor, highlightColor);
 
         return displayParts;

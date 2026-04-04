@@ -615,21 +615,21 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 fieldMembers.Free();
 
                 methodHandleToSymbol.Free();
+            }
 
-                var membersCount = members.Count;
+            var membersCount = members.Count;
 
-                foreach (var typeArray in _lazyNestedTypes.Values)
-                    members.AddRange(typeArray);
+            foreach (var typeArray in _lazyNestedTypes.Values)
+                members.AddRange(typeArray);
 
-                members.Sort(membersCount, DeclarationOrderTypeSymbolComparer.Instance);
-                var membersInDeclarationOrder = members.ToImmutable();
+            members.Sort(membersCount, DeclarationOrderTypeSymbolComparer.Instance);
+            var membersInDeclarationOrder = members.ToImmutable();
 
-                if (!ImmutableInterlocked.InterlockedInitialize(ref _lazyMembersInDeclarationOrder, membersInDeclarationOrder)) {
-                    members.Free();
-                    members = null;
-                } else {
-                    members.Clip(membersCount);
-                }
+            if (!ImmutableInterlocked.InterlockedInitialize(ref _lazyMembersInDeclarationOrder, membersInDeclarationOrder)) {
+                members.Free();
+                members = null;
+            } else {
+                members.Clip(membersCount);
             }
         }
 
