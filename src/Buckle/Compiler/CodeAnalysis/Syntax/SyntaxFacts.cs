@@ -211,6 +211,7 @@ public static class SyntaxFacts {
             "endif" => SyntaxKind.EndifKeyword,
             "define" => SyntaxKind.DefineKeyword,
             "undef" => SyntaxKind.UndefKeyword,
+            "flags" => SyntaxKind.FlagsKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -343,6 +344,7 @@ public static class SyntaxFacts {
             SyntaxKind.EndifKeyword => "endif",
             SyntaxKind.DefineKeyword => "define",
             SyntaxKind.UndefKeyword => "undef",
+            SyntaxKind.FlagsKeyword => "flags",
             _ => null,
         };
     }

@@ -4592,4 +4592,45 @@ public sealed class DiagnosticTests {
 
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
+
+    [Fact]
+    public void Reports_Error_BU0379_InvalidImplicitEnum() {
+        var text = @"
+            enum A extends string {
+                [F]
+            }
+        ";
+
+        var diagnostics = @"
+            enum members with a string underlying type must have explicit values
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0380_EnumFieldNoTargetType() {
+        var text = @"
+            var a = [.A];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the implicit enum field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0381_WrongEnumTargetType() {
+        var text = @"
+            int32 a = [.A];
+        ";
+
+        var diagnostics = @"
+            cannot infer enum type from implicit enum field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

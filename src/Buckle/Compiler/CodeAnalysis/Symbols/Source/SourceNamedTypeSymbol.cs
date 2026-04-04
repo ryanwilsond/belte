@@ -419,9 +419,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             var typeSyntax = bases.type;
 
             var baseBinder = compilation.GetBinder(bases);
-            var type = baseBinder.BindType(typeSyntax, diagnostics).type;
+            var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
 
-            if (!type.StrippedType().specialType.IsValidEnumUnderlyingType()) {
+            if (!type.specialType.IsValidEnumUnderlyingType()) {
                 diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
                 type = CorLibrary.GetSpecialType(SpecialType.Int);
             }

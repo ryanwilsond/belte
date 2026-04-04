@@ -336,7 +336,50 @@ enum MyEnum {
 }
 ```
 
-### 4.6.1 Experimental Underlying Types
+### 4.6.1 Flags
+
+The `flags` keyword can be used to signal to other developers that the enum is meant to be used with multiple fields
+at the same time. For example:
+
+```belte
+var myLocal = MyEnum.Field1 | MyEnum.Field2;
+
+enum flags MyEnum {
+  None,
+  Field1,
+  Field2,
+}
+```
+
+Beyond documentation, the `flags` keyword also changes the default value behavior of enum fields. Instead of
+incrementally counting up from 0, enum fields will count up in powers of 2 (0, 1, 2, 4, 8, etc.) so that when the fields
+are combined their bits do not conflict. You can still give fields explicit values like normal.
+
+Additionally, flags enums string cast will display each field component of the value. For example:
+
+```belte
+var myLocal = MyEnum.Field1 | MyEnum.Field2;
+var myString = (string)myLocal;
+// myString = "Field1, Field2"
+
+enum flags MyEnum {
+  None,
+  Field1,
+  Field2,
+}
+```
+
+### 4.6.2 Implicit Enum Fields
+
+In target typed expressions, an implicit enum field expression can be used which
+omits the enum type name. The following are equivalent:
+
+```belte
+var myLocal = MyEnum.Field1;
+MyEnum myLocal = .Field1;
+```
+
+### 4.6.3 Experimental Underlying Types
 
 When using the Evaluator, enums can additional represent the `string` and `char` primitives:
 

@@ -358,6 +358,7 @@ internal static class LiteralUtilities {
             SpecialType.Float64 => 0D,
             SpecialType.Bool => false,
             SpecialType.Char => '\0',
+            SpecialType.String => "",
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }

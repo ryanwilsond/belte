@@ -35,9 +35,9 @@ internal static class Error {
             return CreateError(DiagnosticCode.UNS_ILOpCode, location, message);
         }
 
-        internal static BelteDiagnostic ILOperand(TextLocation location, string operandKind) {
-            var message = $"unsupported: inline IL instruction operand kind '{operandKind.ToLower()}' not supported";
-            return CreateError(DiagnosticCode.UNS_ILOperand, location, message);
+        internal static BelteDiagnostic NonIntegralEnum(TextLocation location) {
+            var message = $"unsupported: cannot use non-integral enums when building for .NET, transpiling to C#, or executing";
+            return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
         }
     }
 
@@ -821,6 +821,10 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic EnumFieldNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the implicit enum field";
+        return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
+    }
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
         var message = $"a field initializer cannot reference non-static member '{symbol}'";
         return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);
@@ -1846,6 +1850,16 @@ internal static class Error {
     internal static Diagnostic InvalidDirectiveExpression() {
         var message = $"invalid preprocessor expression";
         return CreateError(DiagnosticCode.ERR_InvalidDirectiveExpression, message);
+    }
+
+    internal static BelteDiagnostic InvalidImplicitEnum(TextLocation location) {
+        var message = $"enum members with a string underlying type must have explicit values";
+        return CreateError(DiagnosticCode.ERR_InvalidImplicitEnum, location, message);
+    }
+
+    internal static BelteDiagnostic WrongEnumTargetType(TextLocation location) {
+        var message = $"cannot infer enum type from implicit enum field";
+        return CreateError(DiagnosticCode.ERR_WrongEnumTargetType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -387,11 +387,14 @@ public enum DiagnosticCode : ushort {
     ERR_UnexpectedDirective = 376,
     ERR_DirectiveFollowsToken = 377,
     ERR_InvalidDirectiveExpression = 378,
+    ERR_InvalidImplicitEnum = 379,
+    ERR_EnumFieldNoTargetType = 380,
+    ERR_WrongEnumTargetType = 381,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
     UNS_NonTypeTemplate = 9001,
     UNS_ILOpCode = 9002,
-    UNS_ILOperand = 9003,
+    UNS_NonIntegralEnum = 9003,
     UNS_GraphicsDll = 9004,
 }

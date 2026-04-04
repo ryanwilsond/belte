@@ -45,6 +45,17 @@ internal sealed partial class Conversions {
         return Conversion.None;
     }
 
+    private Conversion GetImplicitEnumFieldExpressionConversion(
+        BoundUnconvertedImplicitEnumFieldExpression fieldAccess,
+        TypeSymbol destination) {
+        var fieldAccessConversion = GetEnumFieldExpressionConversion(fieldAccess, destination);
+
+        if (fieldAccessConversion.exists)
+            return fieldAccessConversion;
+
+        return Conversion.None;
+    }
+
     private Conversion GetImplicitListExpressionConversion(
         BoundUnconvertedInitializerList listExpression,
         TypeSymbol destination) {
@@ -66,6 +77,19 @@ internal sealed partial class Conversions {
     internal Conversion GetNullptrExpressionConversion(BoundUnconvertedNullptrExpression node, TypeSymbol targetType) {
         if (targetType.IsPointerOrFunctionPointer())
             return Conversion.ImplicitNullToPointer;
+
+        return Conversion.None;
+    }
+
+    internal Conversion GetEnumFieldExpressionConversion(
+        BoundUnconvertedImplicitEnumFieldExpression node,
+        TypeSymbol targetType) {
+        if (targetType.StrippedType().IsEnumType()) {
+            if (targetType.IsNullableType())
+                return new Conversion(ConversionKind.ImplicitNullable, [Conversion.ImplicitEnum]);
+
+            return Conversion.ImplicitEnum;
+        }
 
         return Conversion.None;
     }
@@ -120,9 +144,11 @@ internal sealed partial class Conversions {
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
 
-        if (result.exists || sourceExpression is BoundUnconvertedInitializerList || sourceExpression.IsLiteralNull())
+        if (result.exists || sourceExpression is BoundUnconvertedInitializerList ||
+            sourceExpression.IsLiteralNull() || sourceExpression is BoundUnconvertedImplicitEnumFieldExpression) {
             // We tried our best. There are no built-in conversions for lists.
             return result;
+        }
 
         sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
         return Conversion.Classify(sourceExpression.Type(), target);
@@ -185,25 +211,20 @@ internal sealed partial class Conversions {
     }
 
     internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
-        if (sourceExpression is BoundUnconvertedInitializerList list) {
-            var listExpressionConversion = GetImplicitListExpressionConversion(list, target);
+        switch (sourceExpression) {
+            case BoundUnconvertedInitializerList list:
+                var listExpressionConversion = GetImplicitListExpressionConversion(list, target);
 
-            if (listExpressionConversion.exists)
+                if (listExpressionConversion.exists)
+                    return listExpressionConversion;
+
+                // TODO Eventually we will handle user conversions, but right now if we can't immediately convert this
+                // we won't be able to
                 return listExpressionConversion;
-
-            // TODO Eventually we will handle user conversions, but right now if we can't immediately convert this
-            // we won't be able to
-            return listExpressionConversion;
-        }
-
-        if (sourceExpression is BoundUnconvertedNullptrExpression nullptr) {
-            var ptrExpressionConversion = GetImplicitNullptrExpressionConversion(nullptr, target);
-
-            if (ptrExpressionConversion.exists)
-                return ptrExpressionConversion;
-
-            // TODO See above todo
-            return ptrExpressionConversion;
+            case BoundUnconvertedNullptrExpression nullptr:
+                return GetImplicitNullptrExpressionConversion(nullptr, target); ;
+            case BoundUnconvertedImplicitEnumFieldExpression fieldAccess:
+                return GetImplicitEnumFieldExpressionConversion(fieldAccess, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {

@@ -473,6 +473,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
         var keyword = EatToken();
+        var flagsKeyword = currentToken.kind == SyntaxKind.FlagsKeyword ? EatToken() : null;
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         var baseType = currentToken.kind == SyntaxKind.ExtendsKeyword
             ? ParseBaseType()
@@ -486,6 +487,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             keyword,
+            flagsKeyword,
             identifier,
             null,
             baseType,
@@ -1608,11 +1610,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return AddDiagnostic(ParseReferenceExpression(), Error.InvalidExpressionTerm(SyntaxKind.RefKeyword));
             case SyntaxKind.ColonColonToken:
                 return ParseAliasQualifiedName();
+            case SyntaxKind.PeriodToken:
+                return ParseImplicitEnumFieldExpression();
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.GlobalKeyword:
             default:
                 return ParseLastCaseName();
         }
+    }
+
+    private ExpressionSyntax ParseImplicitEnumFieldExpression() {
+        var period = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken);
+        return SyntaxFactory.ImplicitEnumFieldExpression(period, identifier);
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {

@@ -11,6 +11,8 @@ internal abstract partial class SourceEnumConstantSymbol {
             EnumMemberDeclarationSyntax syntax,
             BelteDiagnosticQueue diagnostics)
             : base(containingEnum, syntax, diagnostics) {
+            if (containingEnum.enumUnderlyingType.specialType == SpecialType.String)
+                diagnostics.Push(Error.InvalidImplicitEnum(syntax.location));
         }
 
         private protected override ConstantValue MakeConstantValue(
