@@ -95,7 +95,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum)\\b"
+                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",

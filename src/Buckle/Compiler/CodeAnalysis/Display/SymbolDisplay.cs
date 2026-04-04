@@ -174,6 +174,11 @@ public static class SymbolDisplay {
             }
 
             text.Write(CreateSpace());
+
+            if (namedType.enumFlagsAttribute) {
+                text.Write(CreateKeyword(SyntaxKind.FlagsKeyword));
+                text.Write(CreateSpace());
+            }
         }
 
         DisplayContainedNames(text, namedType, format);

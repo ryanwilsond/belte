@@ -202,6 +202,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         }
 
         if (source.IsEnumType()) {
+            if (target.specialType == SpecialType.Any)
+                return Implicit;
+
             var underlying = (source as NamedTypeSymbol).enumUnderlyingType;
             var underlyingConversion = CollapseConversion(Classify(underlying, target));
 

@@ -419,11 +419,16 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             var typeSyntax = bases.type;
 
             var baseBinder = compilation.GetBinder(bases);
-            var type = baseBinder.BindType(typeSyntax, diagnostics).type;
+            var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
 
-            if (!type.StrippedType().specialType.IsValidEnumUnderlyingType()) {
+            if (!type.specialType.IsValidEnumUnderlyingType()) {
                 diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
                 type = CorLibrary.GetSpecialType(SpecialType.Int);
+            }
+
+            if (type.specialType is SpecialType.Char or SpecialType.String &&
+                declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or BuildMode.Execute or BuildMode.Dotnet) {
+                diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
             }
 
             return (NamedTypeSymbol)type;

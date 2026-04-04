@@ -1365,6 +1365,12 @@ internal partial class Binder {
 
                 result = new BoundLiteralExpression(expression.syntax, null, CreateErrorType());
                 break;
+            case BoundUnconvertedImplicitEnumFieldExpression:
+                if (reportNoTargetType && !expression.hasAnyErrors)
+                    diagnostics.Push(Error.EnumFieldNoTargetType(expression.syntax.location));
+
+                result = ErrorExpression(expression.syntax, expression);
+                break;
             default:
                 result = expression;
                 break;
@@ -2902,6 +2908,8 @@ internal partial class Binder {
                 return BindCascadeListExpression((CascadeListExpressionSyntax)node, diagnostics);
             case SyntaxKind.StackAllocExpression:
                 return BindStackAllocExpression((StackAllocExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ImplicitEnumFieldExpression:
+                return BindImplicitEnumFieldExpression((ImplicitEnumFieldExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -2989,6 +2997,12 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundExpression BindImplicitEnumFieldExpression(
+        ImplicitEnumFieldExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        return new BoundUnconvertedImplicitEnumFieldExpression(node, node.identifier.text);
     }
 
     private BoundExpression BindStackAllocExpression(
@@ -11934,7 +11948,9 @@ symIsHidden:;
                     );
                 }
 
-                diagnostics = BelteDiagnosticQueue.Discarded;
+                // Implicit enum field errors are handled separately
+                if (expression.kind != BoundKind.UnconvertedImplicitEnumFieldExpression)
+                    diagnostics = BelteDiagnosticQueue.Discarded;
             }
         }
 
@@ -12122,6 +12138,23 @@ symIsHidden:;
             );
         }
 
+        if (source.kind == BoundKind.UnconvertedImplicitEnumFieldExpression) {
+            var fieldExpression = ConvertImplicitEnumFieldExpression(
+                (BoundUnconvertedImplicitEnumFieldExpression)source,
+                destination,
+                conversion,
+                diagnostics
+            );
+
+            return new BoundCastExpression(
+                node,
+                fieldExpression,
+                conversion,
+                null,
+                destination
+            );
+        }
+
         ConstantValue constantValue = null;
 
         if (conversion.exists && conversion.kind is not ConversionKind.ImplicitNullToPointer and not
@@ -12160,6 +12193,32 @@ symIsHidden:;
             destination: destination,
             diagnostics: diagnostics
         );
+    }
+
+    private BoundExpression ConvertImplicitEnumFieldExpression(
+        BoundUnconvertedImplicitEnumFieldExpression node,
+        TypeSymbol targetType,
+        Conversion conversion,
+        BelteDiagnosticQueue diagnostics) {
+        if (!targetType.StrippedType().IsEnumType()) {
+            diagnostics.Push(Error.WrongEnumTargetType(node.syntax.location));
+            return ErrorExpression(node.syntax, node);
+        }
+
+        var enumType = targetType.StrippedType();
+        var symbols = enumType.GetMembers(node.name).Where(s => s.kind == SymbolKind.Field).ToArray();
+
+        if (symbols.Length == 0) {
+            diagnostics.Push(Error.NoSuchMember(node.syntax.location, enumType, node.name));
+            return ErrorExpression(node.syntax, node);
+        } else if (symbols.Length == 1) {
+            var field = symbols[0] as FieldSymbol;
+            var constantValue = field.GetConstantValue(constantFieldsInProgress);
+            var fieldAccess = new BoundFieldAccessExpression(node.syntax, null, field, constantValue, enumType);
+            return CreateConversion(fieldAccess, conversion, targetType, diagnostics);
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
     }
 
     private BoundExpression ConvertNullptrExpression(

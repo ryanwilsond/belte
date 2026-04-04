@@ -93,6 +93,10 @@
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
+  <Node Name="BoundUnconvertedImplicitEnumFieldExpression" Base="BoundExpression">
+    <Field Name="name" Type="string"/>
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="initializer" Type="BoundInitializerList?"/>

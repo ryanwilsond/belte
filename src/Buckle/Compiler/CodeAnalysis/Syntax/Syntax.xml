@@ -547,6 +547,9 @@
     <Field Name="keyword" Type="SyntaxToken" Override="true">
       <Kind Name="EnumKeyword"/>
     </Field>
+    <Field Name="flagsKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="FlagsKeyword"/>
+    </Field>
     <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -960,6 +963,15 @@
     <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="name" Type="SimpleNameSyntax"/>
+  </Node>
+  <Node Name="ImplicitEnumFieldExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ImplicitEnumFieldExpression"/>
+    <Field Name="period" Type="SyntaxToken">
+      <Kind Name="PeriodToken"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="CascadeListExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CascadeListExpression"/>

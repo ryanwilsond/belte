@@ -523,6 +523,12 @@ internal sealed partial class Executor : ModuleBuilder {
                 underlyingType
             );
 
+            if (type.enumFlagsAttribute) {
+                var flagsCtor = typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes);
+                var flagsAttr = new CustomAttributeBuilder(flagsCtor, []);
+                enumBuilder.SetCustomAttribute(flagsAttr);
+            }
+
             _workingEnums.Add(type, enumBuilder);
 
             CreateEnumMemberDefinitions(type);

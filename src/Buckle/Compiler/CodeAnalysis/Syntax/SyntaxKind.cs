@@ -134,6 +134,7 @@ public enum SyntaxKind : ushort {
     EndifKeyword,
     DefineKeyword,
     UndefKeyword,
+    FlagsKeyword,
 
     // Tokens with text
     BadToken,
@@ -186,6 +187,7 @@ public enum SyntaxKind : ushort {
     CascadeListExpression,
     CascadeExpression,
     StackAllocExpression,
+    ImplicitEnumFieldExpression,
 
     // Statements
     EmptyStatement,

@@ -19,7 +19,7 @@ internal abstract partial class SourceEnumConstantSymbol : SourceFieldSymbolWith
         SourceEnumConstantSymbol otherConstant,
         int otherConstantOffset,
         BelteDiagnosticQueue diagnostics) {
-        if ((object)otherConstant == null) {
+        if (otherConstant is null) {
             return new ZeroValuedEnumConstantSymbol(containingEnum, syntax, diagnostics);
         } else {
             return new ImplicitValuedEnumConstantSymbol(

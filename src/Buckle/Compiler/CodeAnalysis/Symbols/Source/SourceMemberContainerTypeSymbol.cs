@@ -93,6 +93,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Warning.ProtectedInSealed(location, this));
 
         _state.NotePartComplete(CompletionParts.TemplateArguments);
+
+        enumFlagsAttribute = syntaxReference.node is EnumDeclarationSyntax e && e.flagsKeyword is not null;
     }
 
     public override string name => _declaration.name;
@@ -128,6 +130,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
     internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
+
+    internal override bool enumFlagsAttribute { get; }
 
     internal bool anyMemberHasAttributes {
         get {
@@ -1473,11 +1477,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 otherSymbol = symbol;
                 otherSymbolOffset = 1;
             } else {
-                otherSymbolOffset++;
+                otherSymbolOffset = Next(otherSymbolOffset);
             }
         }
-    }
 
+        int Next(int offset) {
+            if (enumFlagsAttribute && (offset & (offset - 1)) == 0)
+                return offset << 1;
+
+            return offset + 1;
+        }
+    }
 
     private void AddNonTypeMembers(
         DeclaredMembersAndInitializersBuilder builder,

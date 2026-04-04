@@ -79,6 +79,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal virtual NamedTypeSymbol enumUnderlyingType => null;
 
+    internal virtual bool enumFlagsAttribute => false;
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }

@@ -587,6 +587,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetBaseType(type)
         );
 
+        if (type.enumFlagsAttribute) {
+            var flagsCtor = _assemblyDefinition.MainModule.ImportReference(
+                typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes)
+            );
+
+            var flagsAttr = new CustomAttribute(flagsCtor);
+            typeDefinition.CustomAttributes.Add(flagsAttr);
+        }
+
         GenericParameter[] workingParams = [];
 
         if (type.arity > 0) {

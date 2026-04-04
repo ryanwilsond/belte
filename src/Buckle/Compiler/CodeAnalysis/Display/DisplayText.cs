@@ -315,6 +315,9 @@ public sealed class DisplayText {
             case BoundKind.ConvertedStackAllocExpression:
                 DisplayStackAllocExpression(text, (BoundStackAllocExpressionBase)node);
                 break;
+            case BoundKind.UnconvertedImplicitEnumFieldExpression:
+                DisplayUnconvertedImplicitEnumFieldExpression(text, (BoundUnconvertedImplicitEnumFieldExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -871,6 +874,13 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayUnconvertedImplicitEnumFieldExpression(
+        DisplayText text,
+        BoundUnconvertedImplicitEnumFieldExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        text.Write(CreateIdentifier(node.name));
     }
 
     private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
