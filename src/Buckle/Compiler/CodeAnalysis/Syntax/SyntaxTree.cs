@@ -13,24 +13,25 @@ namespace Buckle.CodeAnalysis.Syntax;
 public partial class SyntaxTree {
     internal static readonly SyntaxTree Dummy = new DummySyntaxTree();
 
-    internal SyntaxTree(SourceText text, SourceCodeKind kind) {
+    internal SyntaxTree(SourceText text, SourceCodeKind kind, ParseOptions options) {
         this.kind = kind;
         this.text = text;
+        this.options = options;
     }
 
     /// <summary>
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root.
     /// </summary>
-    internal static SyntaxTree Create(SourceText text, BelteSyntaxNode root) {
-        return new ParsedSyntaxTree(text, root, true, SourceCodeKind.Regular);
+    internal static SyntaxTree Create(SourceText text, BelteSyntaxNode root, ParseOptions options) {
+        return new ParsedSyntaxTree(text, root, true, SourceCodeKind.Regular, options);
     }
 
     /// <summary>
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root, but does not assign the
     /// given node's syntax tree.
     /// </summary>
-    internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root) {
-        return new ParsedSyntaxTree(null, root, false, SourceCodeKind.Regular);
+    internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root, ParseOptions options) {
+        return new ParsedSyntaxTree(null, root, false, SourceCodeKind.Regular, options);
     }
 
     /// <summary>
@@ -54,14 +55,19 @@ public partial class SyntaxTree {
     /// </summary>
     private protected virtual int _length => text.length;
 
+    internal ParseOptions options { get; }
+
     /// <summary>
     /// Parses text (not necessarily related to a source file).
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    public static SyntaxTree Parse(string text, SourceCodeKind kind = SourceCodeKind.Regular) {
+    public static SyntaxTree Parse(
+        string text,
+        ParseOptions options = null,
+        SourceCodeKind kind = SourceCodeKind.Regular) {
         var sourceText = SourceText.From(text);
-        return Parse(sourceText, kind);
+        return Parse(sourceText, options, kind);
     }
 
     public override string ToString() {
@@ -94,10 +100,10 @@ public partial class SyntaxTree {
     /// <param name="fileName">File name of source file.</param>
     /// <param name="text">Content of source file.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Load(string fileName, string text) {
+    internal static SyntaxTree Load(string fileName, string text, ParseOptions options) {
         var sourceText = SourceText.From(text, fileName);
 
-        return Parse(sourceText);
+        return Parse(sourceText, options);
     }
 
     /// <summary>
@@ -105,11 +111,11 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="fileName">File name of source file.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Load(string fileName) {
+    internal static SyntaxTree Load(string fileName, ParseOptions options) {
         var text = File.ReadAllText(fileName);
         var sourceText = SourceText.From(text, fileName);
 
-        return Parse(sourceText);
+        return Parse(sourceText, options);
     }
 
     /// <summary>
@@ -117,11 +123,14 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Parse(SourceText text, SourceCodeKind kind = SourceCodeKind.Regular) {
-        var lexer = new Lexer(text, kind == SourceCodeKind.Regular);
+    internal static SyntaxTree Parse(
+        SourceText text,
+        ParseOptions options,
+        SourceCodeKind kind = SourceCodeKind.Regular) {
+        var lexer = new Lexer(text, options, kind == SourceCodeKind.Regular);
         var parser = new LanguageParser(lexer);
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(text, compilationUnit, true, kind);
+        var parsedTree = new ParsedSyntaxTree(text, compilationUnit, true, kind, options);
         return parsedTree;
     }
 
@@ -188,11 +197,11 @@ public partial class SyntaxTree {
             oldTree = null;
         }
 
-        var lexer = new Lexer(newText, kind == SourceCodeKind.Regular);
+        var lexer = new Lexer(newText, options, kind == SourceCodeKind.Regular);
         var parser = new LanguageParser(lexer, oldTree?.GetRoot(), workingChanges);
 
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true, kind);
+        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true, kind, options);
         return parsedTree;
     }
 }

@@ -4523,4 +4523,73 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // !
+    // TODO Fix diagnostic locations for directives
+    // [Fact]
+    // public void Reports_Error_BU0374_InvalidDirectivePlacement() {
+    //     var text = @"
+    //         int a = 3; [#if]
+    //     ";
+
+    //     var diagnostics = @"
+    //         preprocessor directives must appear as the first non-whitespace character on a line
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0375_EndifDirectiveExpected() {
+    //     var text = @"
+    //         #if ASDF[]
+    //     ";
+
+    //     var diagnostics = @"
+    //         #endif directive expected
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0376_UnexpectedDirective() {
+    //     var text = @"
+    //         [#asdf]
+    //     ";
+
+    //     var diagnostics = @"
+    //         unexpected preprocessor directive
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0377_DirectiveFollowsToken() {
+    //     var text = @"
+    //         int a = 3;
+    //         [#define] ASDF
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot define/undefine preprocessor symbols after first token in file
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0378_InvalidDirectiveExpression() {
+    //     var text = @"
+    //         #if [3]
+    //         #endif
+    //     ";
+
+    //     var diagnostics = @"
+    //         invalid preprocessor expression
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

@@ -1823,6 +1823,31 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidILOperand, location, message);
     }
 
+    internal static Diagnostic InvalidDirectivePlacement() {
+        var message = $"preprocessor directives must appear as the first non-whitespace character on a line";
+        return CreateError(DiagnosticCode.ERR_InvalidDirectivePlacement, message);
+    }
+
+    internal static Diagnostic EndifDirectiveExpected() {
+        var message = $"#endif directive expected";
+        return CreateError(DiagnosticCode.ERR_EndifDirectiveExpected, message);
+    }
+
+    internal static Diagnostic UnexpectedDirective() {
+        var message = $"unexpected preprocessor directive";
+        return CreateError(DiagnosticCode.ERR_UnexpectedDirective, message);
+    }
+
+    internal static Diagnostic DirectiveFollowsToken() {
+        var message = $"cannot define/undefine preprocessor symbols after first token in file";
+        return CreateError(DiagnosticCode.ERR_DirectiveFollowsToken, message);
+    }
+
+    internal static Diagnostic InvalidDirectiveExpression() {
+        var message = $"invalid preprocessor expression";
+        return CreateError(DiagnosticCode.ERR_InvalidDirectiveExpression, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

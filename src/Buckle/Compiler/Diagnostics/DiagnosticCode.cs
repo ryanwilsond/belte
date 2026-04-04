@@ -382,6 +382,11 @@ public enum DiagnosticCode : ushort {
     ERR_UnknownILOpCode = 371,
     ERR_InvalidILOperandKind = 372,
     ERR_InvalidILOperand = 373,
+    ERR_InvalidDirectivePlacement = 374,
+    ERR_EndifDirectiveExpected = 375,
+    ERR_UnexpectedDirective = 376,
+    ERR_DirectiveFollowsToken = 377,
+    ERR_InvalidDirectiveExpression = 378,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

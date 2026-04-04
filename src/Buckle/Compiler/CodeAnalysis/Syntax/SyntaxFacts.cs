@@ -207,6 +207,10 @@ public static class SyntaxFacts {
             "enum" => SyntaxKind.EnumKeyword,
             "il" => SyntaxKind.ILKeyword,
             "noverify" => SyntaxKind.NoVerifyKeyword,
+            "elif" => SyntaxKind.ElifKeyword,
+            "endif" => SyntaxKind.EndifKeyword,
+            "define" => SyntaxKind.DefineKeyword,
+            "undef" => SyntaxKind.UndefKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -335,6 +339,10 @@ public static class SyntaxFacts {
             SyntaxKind.EnumKeyword => "enum",
             SyntaxKind.ILKeyword => "il",
             SyntaxKind.NoVerifyKeyword => "noverify",
+            SyntaxKind.ElifKeyword => "elif",
+            SyntaxKind.EndifKeyword => "endif",
+            SyntaxKind.DefineKeyword => "define",
+            SyntaxKind.UndefKeyword => "undef",
             _ => null,
         };
     }

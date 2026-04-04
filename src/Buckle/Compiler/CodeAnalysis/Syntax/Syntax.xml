@@ -222,6 +222,107 @@
     <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
       <Kind Name="EndOfDirectiveToken" />
     </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+  </Node>
+  <AbstractNode Name="BranchingDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool"/>
+  </AbstractNode>
+  <AbstractNode Name="ConditionalDirectiveTriviaSyntax" Base="BranchingDirectiveTriviaSyntax">
+    <Field Name="condition" Type="ExpressionSyntax"/>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="conditionValue" Type="bool"/>
+  </AbstractNode>
+  <Node Name="IfDirectiveTriviaSyntax" Base="ConditionalDirectiveTriviaSyntax">
+    <Kind Name="IfDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="ifKeyword" Type="SyntaxToken">
+      <Kind Name="IfKeyword"/>
+    </Field>
+    <Field Name="condition" Type="ExpressionSyntax" Override="true"/>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool" Override="true"/>
+    <Field Name="conditionValue" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="ElifDirectiveTriviaSyntax" Base="ConditionalDirectiveTriviaSyntax">
+    <Kind Name="ElifDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="elifKeyword" Type="SyntaxToken">
+      <Kind Name="ElifKeyword"/>
+    </Field>
+    <Field Name="condition" Type="ExpressionSyntax" Override="true"/>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool" Override="true"/>
+    <Field Name="conditionValue" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="ElseDirectiveTriviaSyntax" Base="BranchingDirectiveTriviaSyntax">
+    <Kind Name="ElseDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="elseKeyword" Type="SyntaxToken">
+      <Kind Name="ElseKeyword"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="EndIfDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="EndIfDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="endIfKeyword" Type="SyntaxToken">
+      <Kind Name="EndifKeyword"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="DefineDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="DefineDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="defineKeyword" Type="SyntaxToken">
+      <Kind Name="DefineKeyword"/>
+    </Field>
+    <Field Name="name" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="UndefDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="UndefDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="undefKeyword" Type="SyntaxToken">
+      <Kind Name="UndefKeyword"/>
+    </Field>
+    <Field Name="name" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
   </Node>
   <Node Name="UsingDirectiveSyntax" Base="SyntaxNode">
     <Kind Name="UsingDirective"/>

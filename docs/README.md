@@ -66,6 +66,9 @@
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
     - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator
     - [6.11](Current/LowLevelFeatures.md#611-inline-il) Inline IL
+  - [7](Current/Preprocessor.md) Preprocessor Directives
+    - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
+    - [7.2](Current/Preprocessor.md#72-control) Control
 
 ___
 

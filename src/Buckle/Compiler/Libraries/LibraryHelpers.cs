@@ -88,7 +88,7 @@ public static class LibraryHelpers {
             using var reader = new StreamReader(stream);
             var text = reader.ReadToEnd().TrimEnd();
 
-            var syntaxTree = SyntaxTree.Load(libraryName, text);
+            var syntaxTree = SyntaxTree.Load(libraryName, text, null);
             syntaxTrees.Add(syntaxTree);
         }
 

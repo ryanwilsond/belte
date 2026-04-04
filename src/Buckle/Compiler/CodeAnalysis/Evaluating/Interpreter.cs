@@ -33,7 +33,7 @@ internal sealed class Interpreter {
         // code. This is not perfect, as the goal is to be a "true" interpreter, but without doing this at once the
         // parser would have to be written to support partial parsing. This would be a large undertaking, but maybe
         // could be done in the future.
-        var parsedSyntaxTree = SyntaxTree.Parse(syntaxTree.text);
+        var parsedSyntaxTree = SyntaxTree.Parse(syntaxTree.text, syntaxTree.options);
         // This represents how much of the text has been evaluated. For diagnostics to have the correct location, each
         // compilation needs to have a copy of the text starting at this index.
         var textOffset = 0;
@@ -56,7 +56,8 @@ internal sealed class Interpreter {
                     root.usings,
                     new SyntaxList<MemberDeclarationSyntax>(member),
                     parsedSyntaxTree.endOfFile
-                )
+                ),
+                syntaxTree.options
             );
 
             previous = Compilation.CreateScript("interpreter", options, newSyntaxTree, previous);
