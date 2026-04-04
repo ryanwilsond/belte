@@ -56,6 +56,8 @@ internal abstract class AssemblySymbol : Symbol {
         ref MetadataTypeName emittedName,
         ConsList<AssemblySymbol> visitedAssemblies);
 
+    internal abstract NamedTypeSymbol LookupDeclaredTopLevelMetadataType(ref MetadataTypeName emittedName);
+
     internal abstract bool GetGuidString(out string guidString);
 
     internal abstract AssemblyMetadata GetMetadata();

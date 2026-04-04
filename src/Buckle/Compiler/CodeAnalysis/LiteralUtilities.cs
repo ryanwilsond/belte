@@ -52,10 +52,10 @@ internal static class LiteralUtilities {
         TypeSymbol targetTypeSymbol,
         out object result) {
         if (sourceTypeSymbol.IsEnumType())
-            sourceTypeSymbol = ((NamedTypeSymbol)sourceTypeSymbol).enumUnderlyingType;
+            sourceTypeSymbol = ((NamedTypeSymbol)sourceTypeSymbol.StrippedType()).enumUnderlyingType;
 
         if (targetTypeSymbol.IsEnumType())
-            targetTypeSymbol = ((NamedTypeSymbol)targetTypeSymbol).enumUnderlyingType;
+            targetTypeSymbol = ((NamedTypeSymbol)targetTypeSymbol.StrippedType()).enumUnderlyingType;
 
         var sourceType = sourceTypeSymbol.StrippedType().specialType;
         var targetType = targetTypeSymbol.StrippedType().specialType;

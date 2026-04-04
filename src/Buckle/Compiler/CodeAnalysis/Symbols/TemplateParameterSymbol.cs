@@ -111,6 +111,15 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return [];
     }
 
+    internal override bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result) {
+        result = this;
+        return true;
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitTemplateParameter(this);
     }

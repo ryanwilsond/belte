@@ -32,11 +32,14 @@ internal sealed partial class AssemblyMetadata : Metadata {
         _initialModules = modules;
     }
 
-    internal AssemblyMetadata(ModuleMetadata manifestModule, Func<string, ModuleMetadata> moduleFactory)
+    internal AssemblyMetadata(ModuleMetadata manifestModule, Func<string, ModuleMetadata> moduleFactory, string path)
         : base(isImageOwner: true, id: MetadataId.CreateNewId()) {
         _initialModules = [manifestModule];
         _moduleFactoryOpt = moduleFactory;
+        location = path;
     }
+
+    internal string location { get; }
 
     internal static AssemblyMetadata CreateFromImage(ImmutableArray<byte> peImage) {
         return Create(ModuleMetadata.CreateFromImage(peImage));
@@ -61,7 +64,8 @@ internal sealed partial class AssemblyMetadata : Metadata {
     internal static AssemblyMetadata CreateFromFile(ModuleMetadata manifestModule, string path) {
         return new AssemblyMetadata(
             manifestModule,
-            moduleName => ModuleMetadata.CreateFromFile(Path.Combine(Path.GetDirectoryName(path) ?? "", moduleName))
+            moduleName => ModuleMetadata.CreateFromFile(Path.Combine(Path.GetDirectoryName(path) ?? "", moduleName)),
+            path
         );
     }
 

@@ -88,7 +88,7 @@ internal sealed partial class CodeGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsReferenceType(TypeSymbol type) {
-        var isReferenceType = (type.isObjectType && !type.IsStructType() &&
+        var isReferenceType = (type.isObjectType && !type.IsStructType() && !type.IsEnumType() &&
                               !IsTrueNullable(type)) || IsReferenceType(type.specialType);
 
         if (type.StrippedType() is TemplateParameterSymbol t)
@@ -3298,7 +3298,19 @@ oneMoreTime:
             if (cast.type.specialType == SpecialType.Nullable) {
                 return;
             } else if (cast.type.specialType == SpecialType.String) {
-                _builder.EmitToString();
+                _builder.EmitToString(OpCode.Call);
+                return;
+            }
+        }
+
+        if (cast.operand.StrippedType().IsEnumType()) {
+            if (cast.type.specialType == SpecialType.String) {
+                var type = cast.operand.StrippedType();
+                var value = AllocateTemp(type);
+                _builder.EmitLocalStore(value);
+                _builder.EmitLocalAddress(value);
+                _builder.EmitWithSymbolToken(OpCode.Constrained, type);
+                _builder.EmitToString(OpCode.Callvirt);
                 return;
             }
         }

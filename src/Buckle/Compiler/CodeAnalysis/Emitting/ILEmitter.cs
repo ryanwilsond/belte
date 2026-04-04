@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -306,7 +307,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         TypeReference GetTypeWithContainingGenerics(NamedTypeSymbol type) {
-            var foundType = _types[type.originalDefinition];
+            var foundType = GetTypeCoreInternal(type);
 
             // Acceptable inside specific contexts like typeof
             if (type.ContainsErrorType())
@@ -342,6 +343,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             return foundType;
         }
+
+        TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
+            if (type is PENamedTypeSymbol t)
+                return ResolveType(null, t.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat));
+
+            return _types[type.originalDefinition];
+        }
     }
 
     internal MethodReference GetMethod(MethodSymbol method) {
@@ -376,6 +384,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             }
 
             return value;
+        }
+
+        if (method is PEMethodSymbol m) {
+            return ResolveMethod(
+                m.containingType.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat),
+                m.metadataName,
+                m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
+            );
         }
 
         return CheckStandardMap(method);
@@ -458,6 +474,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     internal FieldReference GetField(FieldSymbol field) {
+        if (field is PEFieldSymbol f)
+            return GetType(field.containingType).Resolve().Fields.Single(e => e.Name == f.name);
+
         var fieldRef = _fields[field];
         var constructedType = GetType(field.containingType);
 
@@ -1255,6 +1274,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private void ResolveMethods() {
         NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
         NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
+        NetMethodReference.Enum_ToString = ResolveMethod("System.Enum", "ToString", []);
         NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);

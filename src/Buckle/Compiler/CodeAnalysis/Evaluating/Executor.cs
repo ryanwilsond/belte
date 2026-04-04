@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -259,7 +260,7 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeWithContainingGenerics(NamedTypeSymbol type) {
-            var foundType = _types[type.originalDefinition];
+            var foundType = GetTypeCoreInternal(type);
 
             // Acceptable inside specific contexts like typeof
             if (type.ContainsErrorType())
@@ -289,9 +290,26 @@ internal sealed partial class Executor : ModuleBuilder {
 
             return foundType;
         }
+
+        Type GetTypeCoreInternal(NamedTypeSymbol type) {
+            if (type is PENamedTypeSymbol t)
+                return ResolveType(t);
+
+            return _types[type.originalDefinition];
+        }
+    }
+
+    private Type ResolveType(PENamedTypeSymbol type) {
+        var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
+        var assembly = Assembly.LoadFrom(metadata.location);
+        var allTypes = assembly.GetTypes();
+        return assembly.GetType(type.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat));
     }
 
     internal FieldInfo GetField(FieldSymbol field) {
+        if (field is PEFieldSymbol f)
+            return GetType(field.containingType).GetField(f.name);
+
         var foundField = _fields[field.originalDefinition];
 
         var constructedType = GetType(field.containingType);
@@ -315,6 +333,11 @@ internal sealed partial class Executor : ModuleBuilder {
             return value;
         }
 
+        if (method is PEMethodSymbol m) {
+            var containingType = GetType(m.containingType);
+            return containingType.GetMethod(m.name, m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+        }
+
         return CheckStandardMap(method);
     }
 
@@ -327,6 +350,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
             return value;
         }
+
+        if (method is PEMethodSymbol m)
+            return GetType(m.containingType).GetConstructor(m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
 
         return CheckConstructorsStandardMap(method);
     }

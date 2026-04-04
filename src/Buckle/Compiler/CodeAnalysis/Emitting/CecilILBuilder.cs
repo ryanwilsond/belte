@@ -438,8 +438,8 @@ internal sealed class CecilILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
-    internal override void EmitToString() {
-        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Object_ToString);
+    internal override void EmitToString(CodeGeneration.OpCode opCode) {
+        iLProcessor.Emit(ConvertToCil(opCode), ILEmitter.NetMethodReference.Object_ToString);
     }
 
     internal override CodeGeneration.VariableDefinition GetLocal(DataContainerSymbol local) {

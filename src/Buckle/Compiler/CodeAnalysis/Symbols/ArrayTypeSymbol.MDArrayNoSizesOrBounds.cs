@@ -7,5 +7,9 @@ internal abstract partial class ArrayTypeSymbol {
             : base(elementType, rank, array) { }
 
         internal override bool hasDefaultSizesAndLowerBounds => true;
+
+        private protected override ArrayTypeSymbol WithElementTypeCore(TypeWithAnnotations elementTypeWithAnnotations) {
+            return new MDArrayNoSizesOrBounds(elementTypeWithAnnotations, rank, baseType);
+        }
     }
 }

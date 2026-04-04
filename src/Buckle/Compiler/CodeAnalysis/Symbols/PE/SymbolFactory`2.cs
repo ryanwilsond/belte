@@ -30,5 +30,15 @@ internal abstract class SymbolFactory<ModuleSymbol, TypeSymbol> where TypeSymbol
         ImmutableArray<KeyValuePair<TypeSymbol, ImmutableArray<ModifierInfo<TypeSymbol>>>> arguments,
         ImmutableArray<bool> refersToNoPiaLocalType);
 
+    internal abstract TypeSymbol MakePointerTypeSymbol(
+        ModuleSymbol moduleSymbol,
+        TypeSymbol type,
+        ImmutableArray<ModifierInfo<TypeSymbol>> customModifiers);
+
+    internal abstract TypeSymbol MakeFunctionPointerTypeSymbol(
+        ModuleSymbol moduleSymbol,
+        CallingConvention callingConvention,
+        ImmutableArray<ParamInfo<TypeSymbol>> returnAndParamTypes);
+
     internal abstract TypeSymbol GetSpecialType(ModuleSymbol moduleSymbol, SpecialType specialType);
 }

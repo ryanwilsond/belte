@@ -42,7 +42,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {
-        var message = $"{reference}: no such file or invalid file type";
+        var message = $"\"{reference}\": file is not a valid assembly";
         return CreateError(DiagnosticCode.ERR_InvalidReference, null, message);
     }
 
