@@ -6,6 +6,7 @@ internal sealed partial class ILEmitter {
     internal static class NetMethodReference {
         internal static MethodReference Object_Equals_OO;
         internal static MethodReference Object_ToString;
+        internal static MethodReference Enum_ToString;
         internal static MethodReference String_Concat_SS;
         internal static MethodReference String_Concat_SSS;
         internal static MethodReference String_Concat_SSSS;

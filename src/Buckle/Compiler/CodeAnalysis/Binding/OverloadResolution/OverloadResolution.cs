@@ -1864,6 +1864,16 @@ internal sealed partial class OverloadResolution {
     }
 
     private static BetterResult MoreSpecificType(TypeSymbol t1, TypeSymbol t2) {
+        // This should only happen with PE symbols
+        if (t1.IsErrorType() && t2.IsErrorType())
+            return BetterResult.Neither;
+
+        if (t1.IsErrorType())
+            return BetterResult.Right;
+
+        if (t2.IsErrorType())
+            return BetterResult.Left;
+
         var t1IsTypeParameter = t1.IsTemplateParameter();
         var t2IsTypeParameter = t2.IsTemplateParameter();
 

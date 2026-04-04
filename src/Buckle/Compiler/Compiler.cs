@@ -231,7 +231,13 @@ public sealed class Compiler {
 
         LogParseTime(timer, libTime, syntaxTrees.Length);
 
-        diagnostics.PushRange(compilation.Emit(state.outputFilename, state.debugMode, state.time));
+        diagnostics.PushRange(compilation.Emit(
+            state.outputFilename,
+            state.debugMode,
+            state.time,
+            state.verboseMode,
+            state.verbosePath
+        ));
 
         LogCompilationTime(timer);
     }

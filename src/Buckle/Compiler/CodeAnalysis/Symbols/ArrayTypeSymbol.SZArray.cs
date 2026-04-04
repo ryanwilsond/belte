@@ -10,5 +10,9 @@ internal abstract partial class ArrayTypeSymbol {
         internal override bool isSZArray => true;
 
         internal override bool hasDefaultSizesAndLowerBounds => true;
+
+        private protected override ArrayTypeSymbol WithElementTypeCore(TypeWithAnnotations newElementType) {
+            return new SZArray(newElementType, baseType);
+        }
     }
 }

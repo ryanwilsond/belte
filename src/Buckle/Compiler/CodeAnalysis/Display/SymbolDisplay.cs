@@ -180,6 +180,8 @@ public static class SymbolDisplay {
 
         if (namedType is PrimitiveTypeSymbol)
             text.Write(CreateType(namedType.name));
+        else if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) != 0)
+            text.Write(CreateIdentifier(namedType.metadataName));
         else
             text.Write(CreateIdentifier(namedType.name));
 

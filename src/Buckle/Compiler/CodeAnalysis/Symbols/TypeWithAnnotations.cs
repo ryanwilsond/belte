@@ -99,18 +99,21 @@ internal sealed class TypeWithAnnotations {
         else
             return false;
 
-        // TODO This could be more complex
-        // if (!oldTypeSymbol.ApplyNullableTransforms(
-        //     defaultTransformFlag,
-        //     transforms,
-        //     ref position,
-        //     out var newTypeSymbol)) {
-        //     return false;
-        // }
-        var newTypeSymbol = new TypeWithAnnotations(oldTypeSymbol, true).SetIsAnnotated().type;
+        if (!oldTypeSymbol.ApplyNullableTransforms(
+            defaultTransformFlag,
+            transforms,
+            ref position,
+            out var newTypeSymbol)) {
+            return false;
+        }
+
+        // var newTypeSymbol = new TypeWithAnnotations(oldTypeSymbol, true).SetIsAnnotated().type;
 
         if ((object)oldTypeSymbol != newTypeSymbol)
             result = new TypeWithAnnotations(newTypeSymbol, result.isNullable);
+
+        if (result.specialType == SpecialType.Void)
+            return true;
 
         switch (transformFlag) {
             case NullableContextExtensions.AnnotatedAttributeValue:

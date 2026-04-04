@@ -168,7 +168,7 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
                         ref hasUnmanagedModreqPattern
                     );
 
-                    if (!type.hasType)
+                    if (type is null || !type.hasType)
                         continue;
 
                     // if (ConstraintsHelpers.IsObjectConstraint(type, ref bestObjectConstraint))

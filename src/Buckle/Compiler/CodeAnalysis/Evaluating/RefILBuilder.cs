@@ -436,9 +436,9 @@ internal sealed class RefILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
-    internal override void EmitToString() {
-        Log(OpCodes.Call, Executor.MethodInfoCache.Object_ToString);
-        _iLGenerator.Emit(OpCodes.Call, Executor.MethodInfoCache.Object_ToString);
+    internal override void EmitToString(CodeGeneration.OpCode opCode) {
+        Log(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
+        _iLGenerator.Emit(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
     }
 
     internal override VariableDefinition GetLocal(DataContainerSymbol local) {

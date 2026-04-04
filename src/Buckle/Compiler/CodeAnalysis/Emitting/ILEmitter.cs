@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -130,7 +131,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _topLevelTypes = program.GetAllTypes()
             .Where(t => t.kind == SymbolKind.NamedType &&
                 t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or SpecialType.Rect)
+                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or SpecialType.Rect &&
+                t.originalDefinition is not PENamedTypeSymbol)
             .ToArray()
             .Cast<NamedTypeSymbol>()
             .ToImmutableArray();
@@ -298,7 +300,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
-                var containingType = _types[type.containingType.originalDefinition];
+                var containingType = GetTypeCoreInternal(type.containingType);
                 return containingType.GenericParameters[t.ordinal];
             }
 
@@ -306,7 +308,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         TypeReference GetTypeWithContainingGenerics(NamedTypeSymbol type) {
-            var foundType = _types[type.originalDefinition];
+            var foundType = GetTypeCoreInternal(type);
 
             // Acceptable inside specific contexts like typeof
             if (type.ContainsErrorType())
@@ -342,10 +344,34 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             return foundType;
         }
+
+        TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
+            if (type.originalDefinition is PENamedTypeSymbol || type.IsErrorType())
+                return ResolveType(null, type.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat));
+
+            return _types[type.originalDefinition];
+        }
     }
 
     internal MethodReference GetMethod(MethodSymbol method) {
-        if (_methods.TryGetValue(method.originalDefinition, out var value)) {
+        MethodReference value = null;
+        var found = false;
+
+        if (method.originalDefinition is PEMethodSymbol m) {
+            value = ResolveMethod(
+                m.containingType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat),
+                m.metadataName,
+                m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
+            );
+            found = true;
+        }
+
+        if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
+            found = true;
+            value = (MethodReference)val;
+        }
+
+        if (found) {
             var constructedType = GetType(method.containingType);
 
             if (method.arity > 0) {
@@ -458,6 +484,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     internal FieldReference GetField(FieldSymbol field) {
+        if (field is PEFieldSymbol f)
+            return GetType(field.containingType).Resolve().Fields.Single(e => e.Name == f.name);
+
         var fieldRef = _fields[field];
         var constructedType = GetType(field.containingType);
 
@@ -1131,7 +1160,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .Where(t => t.FullName == metadataName)
             .ToArray();
 
-        if (foundTypes.Length == 1) {
+        // TODO Do we actually care about ambiguity
+        if (foundTypes.Length >= 1) {
             return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
         } else if (foundTypes.Length == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
@@ -1149,7 +1179,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .Where(t => t.FullName == typeName)
             .ToArray();
 
-        if (foundTypes.Length == 1) {
+        if (foundTypes.Length >= 1) {
             if (TryResolveMethodCore(foundTypes, typeName, methodName, parameterTypeNames, out var methodRef1))
                 return methodRef1;
 
@@ -1255,6 +1285,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private void ResolveMethods() {
         NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
         NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
+        NetMethodReference.Enum_ToString = ResolveMethod("System.Enum", "ToString", []);
         NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);

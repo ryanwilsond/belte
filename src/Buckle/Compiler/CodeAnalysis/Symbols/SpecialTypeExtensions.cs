@@ -181,4 +181,31 @@ internal static class SpecialTypeExtensions {
                 return 0;
         }
     }
+
+    internal static bool HasShortFormSignatureEncoding(this SpecialType type) {
+        switch (type) {
+            case SpecialType.String:
+            case SpecialType.Object:
+            case SpecialType.Void:
+            case SpecialType.Bool:
+            case SpecialType.Char:
+            case SpecialType.UInt8:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            // TODO
+            // case SpecialType.TypedReference:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+                return true;
+        }
+
+        return false;
+    }
 }

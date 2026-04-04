@@ -165,6 +165,12 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return ExtendedErrorTypeSymbol.ExtractNonErrorType(this);
     }
 
+    internal abstract bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result);
+
     internal TypeSymbol UnderlyingTemplateTypeOrSelf() {
         if (kind != SymbolKind.TemplateParameter)
             return this;
