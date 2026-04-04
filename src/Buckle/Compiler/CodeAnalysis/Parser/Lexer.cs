@@ -35,8 +35,9 @@ internal sealed class Lexer : IDisposable {
     /// <summary>
     /// Creates a new <see cref="Lexer" />
     /// </summary>
-    internal Lexer(SourceText text, bool allowPreprocessorDirectives) {
+    internal Lexer(SourceText text, ParseOptions parseOptions, bool allowPreprocessorDirectives) {
         this.text = text;
+        options = parseOptions;
         _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = [];
         _directives = DirectiveStack.Empty;
@@ -54,6 +55,8 @@ internal sealed class Lexer : IDisposable {
     /// All lexed preprocessor directives so far.
     /// </summary>
     internal DirectiveStack directives => _directives;
+
+    internal ParseOptions options { get; }
 
     private char _current => Peek(0);
 
@@ -227,7 +230,7 @@ internal sealed class Lexer : IDisposable {
                     break;
                 case '#':
                     if (_allowPreprocessorDirectives)
-                        ReadDirective(afterFirstToken, isTrailing);
+                        ReadDirective(afterFirstToken, isTrailing, ref triviaList);
                     else
                         done = true;
 
@@ -809,16 +812,100 @@ internal sealed class Lexer : IDisposable {
         _kind = SyntaxKind.EndOfLineTrivia;
     }
 
-    private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine) {
+    private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine, ref SyntaxListBuilder triviaList) {
+        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine);
+
+        if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
+            ReadExcludedDirectivesAndTrivia(true, ref triviaList);
+    }
+
+    private void ReadExcludedDirectivesAndTrivia(bool endIsActive, ref SyntaxListBuilder triviaList) {
+        while (true) {
+            var text = ReadDisabledText(out var hasFollowingDirective);
+
+            if (text is not null)
+                triviaList.Add(text);
+
+            if (!hasFollowingDirective)
+                break;
+
+            var directive = ReadDirective(false, endIsActive, false, false);
+            var branching = directive as BranchingDirectiveTriviaSyntax;
+
+            if (directive.kind == SyntaxKind.EndIfDirectiveTrivia || (branching is not null && branching.branchTaken))
+                break;
+            else if (directive.kind == SyntaxKind.IfDirectiveTrivia)
+                ReadExcludedDirectivesAndTrivia(false, ref triviaList);
+        }
+    }
+
+    private BelteSyntaxNode ReadDisabledText(out bool followedByDirective) {
+        var lastLineStart = _position;
+        var lines = 0;
+        var allWhitespace = true;
+        var sb = new StringBuilder();
+
+        while (true) {
+            var ch = _current;
+
+            switch (ch) {
+                case '\0':
+                    followedByDirective = false;
+                    return _position > lastLineStart ? SyntaxFactory.DisabledText(sb.ToString()) : null;
+                case '#':
+                    if (!_allowPreprocessorDirectives)
+                        goto default;
+
+                    followedByDirective = true;
+
+                    if (lastLineStart < _position && !allWhitespace)
+                        goto default;
+
+                    var delta = _position - lastLineStart;
+                    _position = lastLineStart;
+                    return delta > 0 ? SyntaxFactory.DisabledText(sb.ToString()) : null;
+                case '\r':
+                case '\n':
+                    sb.Append(ch);
+
+                    if (Peek(1) == '\n')
+                        sb.Append(Peek(1));
+
+                    ReadLineBreak();
+                    lastLineStart = _position;
+                    allWhitespace = true;
+                    lines++;
+                    break;
+                default:
+                    allWhitespace = allWhitespace && char.IsWhiteSpace(ch);
+                    sb.Append(ch);
+                    _position++;
+                    break;
+            }
+        }
+    }
+
+    private BelteSyntaxNode ReadDirective(
+        bool isActive,
+        bool endIsActive,
+        bool afterFirstToken,
+        bool afterNonWhitespaceOnLine) {
         var saveMode = _mode;
         var directiveParser = new DirectiveParser(this, _directives);
-        var directive = directiveParser.ParseDirective(afterFirstToken, afterNonWhitespaceOnLine);
+        var directive = directiveParser.ParseDirective(
+            isActive,
+            endIsActive,
+            afterFirstToken,
+            afterNonWhitespaceOnLine
+        );
 
         var triviaList = afterNonWhitespaceOnLine ? _trailingTriviaCache : _leadingTriviaCache;
         triviaList.Add(directive);
 
         _directives = directive.ApplyDirectives(_directives);
         _mode = saveMode;
+
+        return directive;
     }
 
     private void ReadDirectiveTrailingTrivia(bool includeEndOfLine) {

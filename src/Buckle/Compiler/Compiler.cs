@@ -184,7 +184,7 @@ public sealed class Compiler {
 
             ref var task = ref state.tasks[0];
             var sourceText = new StringText(task.inputFileName, task.fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
+            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions());
             task.stage = CompilerStage.Finished;
 
             var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
@@ -244,7 +244,7 @@ public sealed class Compiler {
             ref var task = ref tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
-                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text, CreateParseOptions());
                 builder.Add(syntaxTree);
                 task.stage = stageToSet;
             }
@@ -303,5 +303,12 @@ public sealed class Compiler {
 
         wrapperThread.Start(abort);
         wrapperThread.Join();
+    }
+
+    private ParseOptions CreateParseOptions() {
+        if (state.debugMode)
+            return new ParseOptions(["DEBUG"]);
+        else
+            return new ParseOptions(["RELEASE"]);
     }
 }

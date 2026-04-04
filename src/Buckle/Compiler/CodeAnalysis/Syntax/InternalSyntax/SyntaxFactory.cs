@@ -59,6 +59,13 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
+    /// Creates a disabled text <see cref="SyntaxTrivia"/>.
+    /// </summary>
+    internal static SyntaxTrivia DisabledText(string text) {
+        return new SyntaxTrivia(SyntaxKind.DisabledTextTrivia, text);
+    }
+
+    /// <summary>
     /// Creates a missing <see cref="SyntaxToken" />.
     /// </summary>
     internal static SyntaxToken Missing(SyntaxKind kind) {

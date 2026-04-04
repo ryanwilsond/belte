@@ -130,6 +130,10 @@ public enum SyntaxKind : ushort {
     EnumKeyword,
     ILKeyword,
     NoVerifyKeyword,
+    ElifKeyword,
+    EndifKeyword,
+    DefineKeyword,
+    UndefKeyword,
 
     // Tokens with text
     BadToken,
@@ -145,6 +149,13 @@ public enum SyntaxKind : ushort {
     MultiLineCommentTrivia,
     SkippedTokensTrivia,
     BadDirectiveTrivia,
+    IfDirectiveTrivia,
+    ElifDirectiveTrivia,
+    ElseDirectiveTrivia,
+    EndIfDirectiveTrivia,
+    DefineDirectiveTrivia,
+    UndefDirectiveTrivia,
+    DisabledTextTrivia,
 
     // Expressions
     ParenthesizedExpression,

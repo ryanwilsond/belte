@@ -71,6 +71,8 @@ internal abstract partial class SyntaxParser : IDisposable {
 
     internal DirectiveStack directives => _lexer.directives;
 
+    internal ParseOptions options => _lexer.options;
+
     public void Dispose() { }
 
     private void PreLex() {
