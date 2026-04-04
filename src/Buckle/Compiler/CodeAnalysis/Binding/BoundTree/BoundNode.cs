@@ -27,6 +27,16 @@ internal abstract class BoundNode {
 
     internal SyntaxNode syntax { get; }
 
+    internal bool hasAnyErrors {
+        get {
+            if (hasErrors || (syntax is not null && syntax.containsDiagnostics))
+                return true;
+
+            var expression = this as BoundExpression;
+            return expression?.type?.StrippedType()?.IsErrorType() == true;
+        }
+    }
+
     internal virtual BoundNode Accept(BoundTreeVisitor visitor) {
         throw new NotImplementedException();
     }

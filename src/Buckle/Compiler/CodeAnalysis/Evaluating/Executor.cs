@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -59,6 +60,8 @@ internal sealed partial class Executor : ModuleBuilder {
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
+    private readonly Dictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
+    private readonly Dictionary<TypeSymbol, Type> _enums = [];
     private readonly Dictionary<MethodSymbol, MethodInfo> _methods = [];
     private readonly Dictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
     private readonly Dictionary<MethodSymbol, ConstructorInfo> _constructors = [];
@@ -231,20 +234,14 @@ internal sealed partial class Executor : ModuleBuilder {
                 return elementType.MakePointerType();
             }
 
-            if (type is FunctionPointerTypeSymbol) {
+            if (type is FunctionPointerTypeSymbol)
                 throw ExceptionUtilities.Unreachable();
-                // var args = functionPointer.signature.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
-
-                // if (functionPointer.signature.returnsVoid) {
-                //     return args.MakeGenericManagedCallVoidFunctionPointerType();
-                // } else {
-                //     var returnType = GetType(functionPointer.signature.returnType);
-                //     return (returnType, args).MakeGenericManagedCallFunctionPointerType();
-                // }
-            }
 
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
+
+            if (type.IsEnumType())
+                return _enums[type.originalDefinition];
 
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
@@ -263,7 +260,11 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeWithContainingGenerics(NamedTypeSymbol type) {
-            var foundType = _types[type.originalDefinition];
+            var foundType = GetTypeCoreInternal(type);
+
+            // Acceptable inside specific contexts like typeof
+            if (type.ContainsErrorType())
+                return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
             var current = type;
@@ -273,38 +274,42 @@ internal sealed partial class Executor : ModuleBuilder {
                 current = current.containingType;
             }
 
-            // Type constructed = null;
             var allTypeArgs = new List<Type>();
 
             while (chain.Count > 0) {
                 var s = chain.Pop();
 
-                // var def = _types[s.originalDefinition];
-
-                // if (constructed is not null)
-                //     def = constructed.GetNestedTypes().Single(t => t.Name == def.Name);
-
                 if (s.arity > 0) {
                     foreach (var arg in s.templateArguments)
                         allTypeArgs.Add(GetType(arg.type.type));
                 }
-
-                // if (allTypeArgs.Count > 0)
-                //     def = def.MakeGenericType(allTypeArgs.ToArray());
-
-                // constructed = def;
             }
 
             if (allTypeArgs.Count > 0)
                 return foundType.MakeGenericType(allTypeArgs.ToArray());
 
             return foundType;
+        }
 
-            // return constructed;
+        Type GetTypeCoreInternal(NamedTypeSymbol type) {
+            if (type is PENamedTypeSymbol t)
+                return ResolveType(t);
+
+            return _types[type.originalDefinition];
         }
     }
 
+    private Type ResolveType(PENamedTypeSymbol type) {
+        var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
+        var assembly = Assembly.LoadFrom(metadata.location);
+        var allTypes = assembly.GetTypes();
+        return assembly.GetType(type.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat));
+    }
+
     internal FieldInfo GetField(FieldSymbol field) {
+        if (field is PEFieldSymbol f)
+            return GetType(field.containingType).GetField(f.name);
+
         var foundField = _fields[field.originalDefinition];
 
         var constructedType = GetType(field.containingType);
@@ -328,6 +333,11 @@ internal sealed partial class Executor : ModuleBuilder {
             return value;
         }
 
+        if (method is PEMethodSymbol m) {
+            var containingType = GetType(m.containingType);
+            return containingType.GetMethod(m.name, m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+        }
+
         return CheckStandardMap(method);
     }
 
@@ -341,6 +351,9 @@ internal sealed partial class Executor : ModuleBuilder {
             return value;
         }
 
+        if (method is PEMethodSymbol m)
+            return GetType(m.containingType).GetConstructor(m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+
         return CheckConstructorsStandardMap(method);
     }
 
@@ -348,8 +361,12 @@ internal sealed partial class Executor : ModuleBuilder {
         randomField = typeof(Executor).GetField("Random", BindingFlags.Public | BindingFlags.Static);
     }
 
+    internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
+        return _program.fixedImplementationTypes[field];
+    }
+
     internal MethodInfo GetNullAssert(TypeSymbol type) {
-        var assertNull = typeof(Executor).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
+        var assertNull = typeof(Belte.Runtime.Utilities).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
         return closedMethod;
     }
@@ -495,6 +512,29 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateTypeBuilder(NamedTypeSymbol type) {
+        if (type.IsEnumType()) {
+            if (_workingEnums.ContainsKey(type.originalDefinition))
+                return;
+
+            var underlyingType = GetType(type.enumUnderlyingType);
+            var enumBuilder = _moduleBuilder.DefineEnum(
+                type.name,
+                GetTypeAttributes(type, false) & TypeAttributes.VisibilityMask,
+                underlyingType
+            );
+
+            if (type.enumFlagsAttribute) {
+                var flagsCtor = typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes);
+                var flagsAttr = new CustomAttributeBuilder(flagsCtor, []);
+                enumBuilder.SetCustomAttribute(flagsAttr);
+            }
+
+            _workingEnums.Add(type, enumBuilder);
+
+            CreateEnumMemberDefinitions(type);
+            return;
+        }
+
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
@@ -511,8 +551,11 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private Type GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null)
+        if (type.baseType is null || type.IsStructType())
             return typeof(ValueType);
+
+        if (type.IsEnumType())
+            return typeof(Enum);
 
         return GetType(type.baseType);
     }
@@ -557,11 +600,12 @@ internal sealed partial class Executor : ModuleBuilder {
             attributes |= TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
-            Accessibility.Private => TypeAttributes.NestedPrivate,
+            Accessibility.Private when isNested => TypeAttributes.NestedPrivate,
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
             Accessibility.Public => TypeAttributes.Public,
             Accessibility.Protected => TypeAttributes.NestedFamily,
-            _ => 0
+            Accessibility.NotApplicable => 0,
+            _ => throw ExceptionUtilities.UnexpectedValue(type.declaredAccessibility)
         };
 
         return attributes;
@@ -598,11 +642,40 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
+    private void CreateEnumMemberDefinitions(NamedTypeSymbol type) {
+        var enumBuilder = _workingEnums[type.originalDefinition];
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            enumBuilder.DefineLiteral(f.name, f.constantValue);
+        }
+
+        var finalEnum = enumBuilder.CreateType();
+        _enums.Add(type, finalEnum);
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            _fields.Add(f, finalEnum.GetField(f.name));
+        }
+    }
+
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
+        if (type.IsEnumType())
+            return;
+
         var typeBuilder = _types[type.originalDefinition];
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (f.isFixedSizeBuffer) {
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeBuilder);
+                    continue;
+                }
+
                 var fieldType = (f.type.typeKind == TypeKind.FunctionPointer)
                     ? typeof(IntPtr)
                     : GetType(f.type, f.refKind != RefKind.None);
@@ -623,6 +696,40 @@ internal sealed partial class Executor : ModuleBuilder {
             if (pair.Item1.containingType.originalDefinition.Equals(type))
                 CreateMethodDefinition(pair.Item1, pair.Item2, typeBuilder);
         }
+    }
+
+    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeBuilder typeBuilder) {
+        var fixedImpl = GetFixedImplementationType(field);
+
+        var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
+        var elementSize = elementType.FixedBufferElementSizeInBytes();
+
+        var nestedBuilder = typeBuilder.DefineNestedType(
+            fixedImpl.name,
+            GetTypeAttributes(fixedImpl, true),
+            GetBaseType(fixedImpl),
+            PackingSize.Unspecified,
+            field.fixedSize * elementSize
+        );
+
+        var nestedBufferField = fixedImpl.fixedElementField;
+        var nestedBufferFieldBuilder = nestedBuilder.DefineField(
+            nestedBufferField.name,
+            GetType(nestedBufferField.type),
+            GetFieldAttributes(nestedBufferField)
+        );
+
+        var adaptedFieldBuilder = typeBuilder.DefineField(
+            field.name,
+            nestedBuilder,
+            GetFieldAttributes(field)
+        );
+
+        _fields.Add(field, adaptedFieldBuilder);
+        _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
+        _types.Add(fixedImpl, nestedBuilder);
+
+        nestedBuilder.CreateType();
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
@@ -690,13 +797,20 @@ internal sealed partial class Executor : ModuleBuilder {
             _methodTypeParameters.Add(method, typeParameters);
         }
 
-        methodBuilder.SetReturnType(GetType(method.returnType, method.returnsByRef));
+        methodBuilder.SetReturnType(GetTypeOrIntPtr(method.returnType, method.returnsByRef));
         methodBuilder.SetParameters(
-            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
+            method.parameters.Select(p => GetTypeOrIntPtr(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
         _methods.Add(method, methodBuilder);
         _methodBodies.Add(method, body);
+
+        Type GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
+            if (type.typeKind == TypeKind.FunctionPointer)
+                return typeof(IntPtr);
+
+            return GetType(type, byRef);
+        }
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
@@ -707,7 +821,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var body = _methodBodies[method];
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false);
         codeGen.Generate();
     }
 
@@ -717,7 +831,7 @@ internal sealed partial class Executor : ModuleBuilder {
         _logger.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder);
+        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false);
         codeGen.Generate();
     }
 
@@ -755,13 +869,6 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     #region Libraries
-
-    public static T AssertNull<T>(T value) {
-        if (value is null)
-            throw new NullReferenceException();
-
-        return value;
-    }
 
     public static void Fill(long r, long g, long b) {
         GraphicsHandler.Fill(r, g, b);
@@ -1027,20 +1134,28 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Sqrt_D", typeof(Math).GetMethod("Sqrt", Flags, [typeof(double)]) },
             { "Math_Truncate_D?", typeof(Belte.Runtime.Math).GetMethod("Truncate", Flags, [typeof(double?)]) },
             { "Math_Truncate_D", typeof(Math).GetMethod("Truncate", Flags, [typeof(double)]) },
+            { "Math_DegToRad_D?", typeof(Belte.Runtime.Math).GetMethod("DegToRad", Flags, [typeof(double?)]) },
+            { "Math_DegToRad_D", typeof(double).GetMethod("DegreesToRadians", Flags, [typeof(double)]) },
+            { "Math_RadToDeg_D?", typeof(Belte.Runtime.Math).GetMethod("RadToDeg", Flags, [typeof(double?)]) },
+            { "Math_RadToDeg_D", typeof(double).GetMethod("RadiansToDegrees", Flags, [typeof(double)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
-            { "LowLevel_CreateCharPtrString_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateCharPtrString", Flags, [typeof(string)]) },
-            { "LowLevel_FreeCharPtrString_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeCharPtrString", Flags, [typeof(char*)]) },
+            { "LowLevel_CreateLPCSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCSTR", Flags, [typeof(string)]) },
+            { "LowLevel_CreateLPCWSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCWSTR", Flags, [typeof(string)]) },
+            { "LowLevel_FreeLPCSTR_U*", typeof(Belte.Runtime.Utilities).GetMethod("FreeLPCSTR", Flags, [typeof(byte*)]) },
+            { "LowLevel_FreeLPCWSTR_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeLPCWSTR", Flags, [typeof(char*)]) },
+            { "LowLevel_ReadLPCSTR_U*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCSTR", Flags, [typeof(byte*)]) },
+            { "LowLevel_ReadLPCWSTR_C*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCWSTR", Flags, [typeof(char*)]) },
             { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
             { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
             { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
-            { "LowLevel_ReadLPCSTR_V*", typeof(Belte.Runtime.Utilities).GetMethod("ReadLPCSTR", Flags, [typeof(void*)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },
             { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
             { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
+            { "String_Length_S", typeof(Belte.Runtime.Utilities).GetMethod("StringLength", Flags, [typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },

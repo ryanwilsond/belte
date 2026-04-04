@@ -1,5 +1,7 @@
 using System;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
@@ -8,7 +10,13 @@ namespace Buckle.CodeAnalysis;
 /// Utilities helping casting values, and utilities related to the <see cref="Convert" /> class.
 /// </summary>
 internal static class LiteralUtilities {
-    internal static bool TryCast(object value, TypeSymbol source, TypeWithAnnotations targetType, out object result) {
+    internal static bool TryCast(
+        object value,
+        TypeSymbol source,
+        TypeWithAnnotations targetType,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics,
+        out object result) {
         if (value is null && !targetType.isNullable) {
             result = null;
             return false;
@@ -19,14 +27,20 @@ internal static class LiteralUtilities {
             return true;
         }
 
-        return TryCast(value, source, targetType.type, out result);
+        return TryCast(value, source, targetType.type, errorLocation, diagnostics, out result);
     }
 
-    internal static bool TryCast(object value, TypeSymbol sourceType, TypeSymbol targetType, out object result) {
+    internal static bool TryCast(
+        object value,
+        TypeSymbol sourceType,
+        TypeSymbol targetType,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics,
+        out object result) {
         try {
             return TryCastCore(value, sourceType, targetType, out result);
         } catch (FormatException) {
-            // TODO consider raising a diagnostic in this case
+            diagnostics.Push(Error.CannotConvertConstantValue(errorLocation, value, targetType));
             result = null;
             return false;
         }
@@ -37,6 +51,12 @@ internal static class LiteralUtilities {
         TypeSymbol sourceTypeSymbol,
         TypeSymbol targetTypeSymbol,
         out object result) {
+        if (sourceTypeSymbol.IsEnumType())
+            sourceTypeSymbol = ((NamedTypeSymbol)sourceTypeSymbol.StrippedType()).enumUnderlyingType;
+
+        if (targetTypeSymbol.IsEnumType())
+            targetTypeSymbol = ((NamedTypeSymbol)targetTypeSymbol.StrippedType()).enumUnderlyingType;
+
         var sourceType = sourceTypeSymbol.StrippedType().specialType;
         var targetType = targetTypeSymbol.StrippedType().specialType;
 
@@ -241,7 +261,7 @@ internal static class LiteralUtilities {
                     SpecialType.UInt32 => unchecked((float)(uint)value),
                     SpecialType.UInt64 => unchecked((float)(ulong)value),
                     SpecialType.Float32 => value,
-                    SpecialType.Float64 => value,
+                    SpecialType.Float64 => unchecked((float)(double)value),
                     SpecialType.Decimal => unchecked((float)(double)value),
                     SpecialType.String => Convert.ToSingle(value),
                     SpecialType.Char => (float)(char)value,
@@ -261,7 +281,7 @@ internal static class LiteralUtilities {
                     SpecialType.UInt32 => unchecked((char)(uint)value),
                     SpecialType.UInt64 => unchecked((char)(ulong)value),
                     SpecialType.Float32 => unchecked((char)(float)value),
-                    SpecialType.Float64 => value,
+                    SpecialType.Float64 => unchecked((char)(double)value),
                     SpecialType.Decimal => unchecked((char)(double)value),
                     SpecialType.String => Convert.ToChar(value),
                     SpecialType.Char => value,
@@ -338,6 +358,7 @@ internal static class LiteralUtilities {
             SpecialType.Float64 => 0D,
             SpecialType.Bool => false,
             SpecialType.Char => '\0',
+            SpecialType.String => "",
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }

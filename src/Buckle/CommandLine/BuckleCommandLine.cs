@@ -450,6 +450,7 @@ public static partial class BuckleCommandLine {
         state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
         state.time = false;
+        state.debugMode = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -495,6 +496,9 @@ public static partial class BuckleCommandLine {
                 case "--dotnet":
                     specifyBuildMode = true;
                     state.buildMode = BuildMode.Dotnet;
+                    break;
+                case "--debug":
+                    state.debugMode = true;
                     break;
                 case "-h":
                 case "--help":
@@ -668,7 +672,7 @@ public static partial class BuckleCommandLine {
         state.includeWarnings = includeWarnings.ToArray();
         state.excludeWarnings = excludeWarnings.ToArray();
 
-        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary || state.buildMode == BuildMode.Dotnet) {
             if (!specifyBuildMode)
                 state.buildMode = BuildMode.Dotnet;
 
@@ -711,6 +715,11 @@ public static partial class BuckleCommandLine {
 
         if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
+
+        foreach (var reference in references) {
+            if (!File.Exists(reference))
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
+        }
 
         if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
             if (specifyOut && specifyModule)

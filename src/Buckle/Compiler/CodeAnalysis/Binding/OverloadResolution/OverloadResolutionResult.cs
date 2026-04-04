@@ -233,7 +233,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         var inferenceFailed = GetFirstMemberKind(MemberResolutionKind.TypeInferenceFailed);
 
         if (inferenceFailed.isNotNull) {
-            diagnostics.Push(Error.BadArity(location, MessageID.IDS_SK_METHOD.Localize(), name, symbols[0].GetArity()));
+            diagnostics.Push(Error.BadArity(location, name, MessageID.IDS_SK_METHOD.Localize(), symbols[0].GetArity()));
             return true;
         }
 

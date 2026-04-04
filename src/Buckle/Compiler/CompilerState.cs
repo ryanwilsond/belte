@@ -22,6 +22,11 @@ public class CompilerState {
     public string[] references;
 
     /// <summary>
+    /// Enable to emit a .NET PDB file.
+    /// </summary>
+    public bool debugMode;
+
+    /// <summary>
     /// Lowest severity to report.
     /// </summary>
     public DiagnosticSeverity severity;

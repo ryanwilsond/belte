@@ -48,3 +48,5 @@ nullable/non-nullable values. Only one overload for each method will be listed.
 | `decimal Tan(decimal)` | Tangent. |
 | `decimal Tanh(decimal)` | Hyperbolic tangent. |
 | `decimal Truncate(decimal)` | Truncation. |
+| `decimal DegToRad(decimal)` | Degrees to radians. |
+| `decimal RadToDeg(decimal)` | Radians to degrees. |

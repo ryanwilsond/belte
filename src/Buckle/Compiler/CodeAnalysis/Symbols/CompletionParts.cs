@@ -3,7 +3,7 @@ using System;
 namespace Buckle.CodeAnalysis.Symbols;
 
 [Flags]
-internal enum CompletionParts : ushort {
+internal enum CompletionParts : uint {
     None = 0,
 
     // For all symbols
@@ -19,20 +19,21 @@ internal enum CompletionParts : ushort {
     // For named type symbols
     StartBaseType = 1 << 4,
     FinishBaseType = 1 << 5,
-    TemplateArguments = 1 << 6,
-    TemplateParameters = 1 << 7,
-    Members = 1 << 8,
-    TypeMembers = 1 << 9,
-    SynthesizedExplicitImplementations = 1 << 10,
-    StartMemberChecks = 1 << 11,
-    FinishMemberChecks = 1 << 12,
-    MembersCompletedChecksStarted = 1 << 13,
-    MembersCompleted = 1 << 14,
+    EnumUnderlyingType = 1 << 6,
+    TemplateArguments = 1 << 7,
+    TemplateParameters = 1 << 8,
+    Members = 1 << 9,
+    TypeMembers = 1 << 10,
+    SynthesizedExplicitImplementations = 1 << 11,
+    StartMemberChecks = 1 << 12,
+    FinishMemberChecks = 1 << 13,
+    MembersCompletedChecksStarted = 1 << 14,
+    MembersCompleted = 1 << 15,
 
-    All = (1 << 15) - 1,
+    All = (1 << 16) - 1,
 
     NamedTypeSymbolWithLocationAll = Attributes | StartBaseType | FinishBaseType | TemplateArguments | TemplateParameters |
-        Members | TypeMembers | SynthesizedExplicitImplementations | StartMemberChecks | FinishMemberChecks,
+        Members | TypeMembers | SynthesizedExplicitImplementations | StartMemberChecks | FinishMemberChecks | EnumUnderlyingType,
 
     NamedTypeSymbolAll = NamedTypeSymbolWithLocationAll | MembersCompletedChecksStarted | MembersCompleted,
 
@@ -42,27 +43,27 @@ internal enum CompletionParts : ushort {
     ImportsAll = StartValidatingImports | FinishValidatingImports,
 
     // For namespaces
-    NameToMembersMap = 1 << 8,
+    NameToMembersMap = 1 << 9,
     NamespaceSymbolAll = NameToMembersMap | MembersCompleted,
 
     // For fields
-    FixedSize = 1 << 8,
-    ConstantValue = 1 << 9,
+    FixedSize = 1 << 9,
+    ConstantValue = 1 << 10,
     FieldSymbolAll = Attributes | Type | FixedSize | ConstantValue,
 
     // For methods
-    StartMethodChecks = 1 << 8,
-    FinishMethodChecks = 1 << 9,
+    StartMethodChecks = 1 << 9,
+    FinishMethodChecks = 1 << 10,
     MethodSymbolAll = Attributes | ReturnTypeAttributes | Parameters | Type | TemplateParameters | StartMethodChecks | FinishMethodChecks,
 
     // For complex parameters
-    StartDefaultSyntaxValue = 1 << 8,
-    EndDefaultSyntaxValue = 1 << 9,
-    EndDefaultSyntaxValueDiagnostics = 1 << 15,
+    StartDefaultSyntaxValue = 1 << 9,
+    EndDefaultSyntaxValue = 1 << 10,
+    EndDefaultSyntaxValueDiagnostics = 1 << 16,
     ComplexParameterSymbolAll = Attributes | StartDefaultSyntaxValue | EndDefaultSyntaxValue | EndDefaultSyntaxValueDiagnostics,
 
     // For template parameters
-    TemplateParameterConstraints = 1 << 10,
+    TemplateParameterConstraints = 1 << 11,
     TemplateParameterSymbolAll = Attributes | TemplateParameterConstraints | StartDefaultSyntaxValue | EndDefaultSyntaxValue,
 
     // For alias symbols

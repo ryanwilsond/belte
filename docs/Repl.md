@@ -1,10 +1,10 @@
 # Using the Repl
 
-The Repl (Read-Eval-Print Loop) is a command-line tool that provides the user with a simple method for testing short
-code snippets, without having to create any files or set up a project.
+The Repl (Read-Eval-Print Loop) is a command-line tool that provides the user with a simple way for testing short
+code snippets, without having to create any files or otherwise set up a project.
 
-The Repl is maintained alongside the compiler, so all language features are supported in the Repl, as well as many
-tools for debugging.
+The Repl is maintained alongside the compiler, so [*most*\*](Current/Overview.md#12-partially-supported-features)
+language features are supported in the Repl, as well as many tools for debugging.
 
 - [Invoking the Repl](#invoking-the-repl)
 - [Interacting with the Repl](#interacting-with-the-repl)

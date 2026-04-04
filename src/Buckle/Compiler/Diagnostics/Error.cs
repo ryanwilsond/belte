@@ -24,10 +24,25 @@ internal static class Error {
             var message = "unsupported: cannot declare a non-type template when building for .NET, transpiling to C#, or executing";
             return CreateError(DiagnosticCode.UNS_NonTypeTemplate, location, message);
         }
+
+        internal static BelteDiagnostic GraphicsDll() {
+            var message = "unsupported: cannot use the graphics project type when building for .NET or transpiling to C#; consider executing instead";
+            return CreateError(DiagnosticCode.UNS_GraphicsDll, null, message);
+        }
+
+        internal static BelteDiagnostic ILOpCode(TextLocation location, string opCode) {
+            var message = $"unsupported: inline IL instruction '{opCode}' not supported";
+            return CreateError(DiagnosticCode.UNS_ILOpCode, location, message);
+        }
+
+        internal static BelteDiagnostic NonIntegralEnum(TextLocation location) {
+            var message = $"unsupported: cannot use non-integral enums when building for .NET, transpiling to C#, or executing";
+            return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
+        }
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {
-        var message = $"{reference}: no such file or invalid file type";
+        var message = $"\"{reference}\": file is not a valid assembly";
         return CreateError(DiagnosticCode.ERR_InvalidReference, null, message);
     }
 
@@ -89,7 +104,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidUnaryOperatorUse(TextLocation location, string op, TypeSymbol operand) {
-        var message = $"unary operator '{op}' is not defined for type '{operand.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        var message = $"unary operator '{op}' is not defined for type '{operand.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidUnaryOperatorUse, location, message);
     }
 
@@ -99,7 +114,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidBinaryOperatorUse(TextLocation location, string op, TypeSymbol left, TypeSymbol right) {
-        var message = $"binary operator '{op}' is not defined for operands of types '{left.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}' and '{right.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        var message = $"binary operator '{op}' is not defined for operands of types '{left.ToNullOrString()}' and '{right.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_InvalidBinaryOperatorUse, location, message);
     }
 
@@ -697,7 +712,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousReference(TextLocation location, string name, Symbol first, Symbol second) {
-        var message = $"'{name}' is an ambiguous reference between '{first}' and '{second}'";
+        var message = $"'{name}' is an ambiguous reference between '{first.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat)}' and '{second.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_AmbiguousReference, location, message);
     }
 
@@ -787,7 +802,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotConvertToStatic(TextLocation location, TypeSymbol type) {
-        var message = $"cannot cast to static type '{type}'";
+        var message = $"cannot cast to static type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_CannotConvertToStatic, location, message);
     }
 
@@ -806,6 +821,10 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic EnumFieldNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the implicit enum field";
+        return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
+    }
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
         var message = $"a field initializer cannot reference non-static member '{symbol}'";
         return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);
@@ -881,9 +900,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadSKKnown, location, message);
     }
 
-    internal static BelteDiagnostic NonInvocableMemberCalled(Symbol symbol) {
-        var message = $"non-invocable member '{symbol}' cannot be used like a method";
-        return CreateError(DiagnosticCode.ERR_NonInvocableMemberCalled, null, message);
+    internal static BelteDiagnostic NonInvocableMemberCalled(TextLocation location, Symbol symbol) {
+        var message = $"non-invocable member '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot be used like a method";
+        return CreateError(DiagnosticCode.ERR_NonInvocableMemberCalled, location, message);
     }
 
     internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
@@ -1096,7 +1115,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ParameterIsStatic(TextLocation location, TypeSymbol type) {
-        var message = $"'{type}': static types cannot be used as parameters";
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static types cannot be used as parameters";
         return CreateError(DiagnosticCode.ERR_ParameterIsStatic, location, message);
     }
 
@@ -1374,7 +1393,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefReturnParameter2(TextLocation location, string name) {
-        var message = $"cannot returns by reference a member of parameter '{name}' because is not a ref parameter";
+        var message = $"cannot return by reference a member of parameter '{name}' because is not a ref parameter";
         return CreateError(DiagnosticCode.ERR_RefReturnParameter2, location, message);
     }
 
@@ -1444,7 +1463,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadUsingType(TextLocation location, NamespaceOrTypeSymbol symbol) {
-        var message = $"a 'using static' directive can only be applied to types; '{symbol}' is a namespace not a type; consider a 'using namespace' directive instead";
+        var message = $"a 'using static' directive can only be applied to types; '{symbol}' is a namespace not a type";
         return CreateError(DiagnosticCode.ERR_BadUsingType, location, message);
     }
 
@@ -1454,12 +1473,12 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadUsingNamespace(TextLocation location, Symbol symbol) {
-        var message = $"a 'using namespace' directive can only be applied to namespaces; '{symbol}' is a type not a namespace; consider a 'using static' directive instead";
+        var message = $"a 'using' directive can only be applied to namespaces; '{symbol}' is a type not a namespace; consider a 'using static' directive instead";
         return CreateError(DiagnosticCode.ERR_BadUsingNamespace, location, message);
     }
 
     internal static BelteDiagnostic BadUsingStaticType(TextLocation location, string kind) {
-        var message = $"'{kind}' type is not valid for 'using static'; only a class or namespace can be used";
+        var message = $"'{kind}' type is not valid for 'using static'; only a class can be used";
         return CreateError(DiagnosticCode.ERR_BadUsingStaticType, location, message);
     }
 
@@ -1554,7 +1573,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic HasNoTemplate(TextLocation location, Symbol symbol, string text) {
-        var message = $"the non-template {text} '{symbol}' cannot be used with template arguments";
+        var message = $"the non-template {text} '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot be used with template arguments";
         return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
     }
 
@@ -1569,7 +1588,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic TemplateIsStatic(TextLocation location, Symbol symbol) {
-        var message = $"'{symbol}': static types cannot be used as type arguments";
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static types cannot be used as type arguments";
         return CreateError(DiagnosticCode.ERR_TemplateIsStatic, location, message);
     }
 
@@ -1719,8 +1738,128 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IllegalFixedType(TextLocation location) {
-        var message = $"fixed size buffer type must be bool or a numeric primitive";
+        var message = $"fixed size buffer type must a non-nullable bool or a non-nullable sized numeric primitive";
         return CreateError(DiagnosticCode.ERR_IllegalFixedType, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCompileTimeExpression(TextLocation location) {
+        var message = $"expression is not computable at compile time";
+        return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpression, location, message);
+    }
+
+    internal static BelteDiagnostic FixedNeedsLValue(TextLocation location) {
+        var message = $"fixed size buffers can only be accessed through locals or fields";
+        return CreateError(DiagnosticCode.ERR_FixedNeedsLValue, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCascadeExpression(TextLocation location) {
+        var message = $"cascade expression must be an assignment or call expression";
+        return CreateError(DiagnosticCode.ERR_InvalidCascadeExpression, location, message);
+    }
+
+    internal static BelteDiagnostic NestedCascadeExpression(TextLocation location) {
+        var message = $"cascade expression must access a direct member of the target receiver";
+        return CreateError(DiagnosticCode.ERR_NestedCascadeExpression, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCompileTimeType(TextLocation location) {
+        var message = $"compile time expression must result in a primitive or struct type";
+        return CreateError(DiagnosticCode.ERR_InvalidCompileTimeType, location, message);
+    }
+
+    internal static BelteDiagnostic BadStackAllocExpression(TextLocation location) {
+        var message = $"a stackalloc expression or local requires a type with a single array size specifier";
+        return CreateError(DiagnosticCode.ERR_BadStackAllocExpression, location, message);
+    }
+
+    internal static BelteDiagnostic NegativeStackAllocSize(TextLocation location) {
+        var message = $"cannot use a negative size with a stackalloc expression or local";
+        return CreateError(DiagnosticCode.ERR_NegativeStackAllocSize, location, message);
+    }
+
+    internal static BelteDiagnostic NoStackAllocTarget(TextLocation location) {
+        var message = $"stackalloc expression can only be used as a data container initializer";
+        return CreateError(DiagnosticCode.ERR_NoStackAllocTarget, location, message);
+    }
+
+    internal static BelteDiagnostic StackAllocInCatchFinally(TextLocation location) {
+        var message = $"a stackalloc expression or local may not be used in a catch or finally block";
+        return CreateError(DiagnosticCode.ERR_StackAllocInCatchFinally, location, message);
+    }
+
+    internal static BelteDiagnostic StackAllocLocalWithInitializer(TextLocation location) {
+        var message = $"a stackalloc local cannot not have an explicit initializer";
+        return CreateError(DiagnosticCode.ERR_StackAllocLocalWithInitializer, location, message);
+    }
+
+    internal static BelteDiagnostic ImplicitlyTypedStackAllocLocal(TextLocation location) {
+        var message = $"a stackalloc local cannot be implicitly typed";
+        return CreateError(DiagnosticCode.ERR_ImplicitlyTypedStackAllocLocal, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidEnumType(TextLocation location) {
+        var message = $"an enum type can only derive from integral primitives or string";
+        return CreateError(DiagnosticCode.ERR_InvalidEnumType, location, message);
+    }
+
+    internal static BelteDiagnostic EnumOverflow(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': the enum value is too large to fit in its type";
+        return CreateError(DiagnosticCode.ERR_EnumOverflow, location, message);
+    }
+
+    internal static BelteDiagnostic UnbalancedILStack(TextLocation location) {
+        var message = $"inline IL block does not have a balanced stack";
+        return CreateError(DiagnosticCode.ERR_UnbalancedILStack, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownILOpCode(TextLocation location, string opCode) {
+        var message = $"unknown IL instruction '{opCode}'";
+        return CreateError(DiagnosticCode.ERR_UnknownILOpCode, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidILOperandKind(TextLocation location, string opCode, string operandKind) {
+        var message = $"IL instruction '{opCode}' expects an operand of type '{operandKind.ToLower()}'";
+        return CreateError(DiagnosticCode.ERR_InvalidILOperandKind, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidILOperand(TextLocation location, string opCode) {
+        var message = $"IL instruction '{opCode}' does not expect an operand";
+        return CreateError(DiagnosticCode.ERR_InvalidILOperand, location, message);
+    }
+
+    internal static Diagnostic InvalidDirectivePlacement() {
+        var message = $"preprocessor directives must appear as the first non-whitespace character on a line";
+        return CreateError(DiagnosticCode.ERR_InvalidDirectivePlacement, message);
+    }
+
+    internal static Diagnostic EndifDirectiveExpected() {
+        var message = $"#endif directive expected";
+        return CreateError(DiagnosticCode.ERR_EndifDirectiveExpected, message);
+    }
+
+    internal static Diagnostic UnexpectedDirective() {
+        var message = $"unexpected preprocessor directive";
+        return CreateError(DiagnosticCode.ERR_UnexpectedDirective, message);
+    }
+
+    internal static Diagnostic DirectiveFollowsToken() {
+        var message = $"cannot define/undefine preprocessor symbols after first token in file";
+        return CreateError(DiagnosticCode.ERR_DirectiveFollowsToken, message);
+    }
+
+    internal static Diagnostic InvalidDirectiveExpression() {
+        var message = $"invalid preprocessor expression";
+        return CreateError(DiagnosticCode.ERR_InvalidDirectiveExpression, message);
+    }
+
+    internal static BelteDiagnostic InvalidImplicitEnum(TextLocation location) {
+        var message = $"enum members with a string underlying type must have explicit values";
+        return CreateError(DiagnosticCode.ERR_InvalidImplicitEnum, location, message);
+    }
+
+    internal static BelteDiagnostic WrongEnumTargetType(TextLocation location) {
+        var message = $"cannot infer enum type from implicit enum field";
+        return CreateError(DiagnosticCode.ERR_WrongEnumTargetType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

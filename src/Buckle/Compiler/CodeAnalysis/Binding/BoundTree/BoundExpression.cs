@@ -43,6 +43,7 @@ internal abstract partial class BoundExpression : BoundNode {
     internal bool NeedsToBeConverted() {
         switch (kind) {
             case BoundKind.UnconvertedInitializerList:
+            case BoundKind.UnconvertedImplicitEnumFieldExpression:
                 return true;
             default:
                 return false;

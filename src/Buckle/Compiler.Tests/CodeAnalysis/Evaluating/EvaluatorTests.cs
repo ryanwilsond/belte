@@ -4,7 +4,8 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> class.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> and
+/// <see cref="Buckle.CodeAnalysis.Evaluating.Executor" /> classes.
 /// </summary>
 public sealed class EvaluatorTests {
     [Theory]
@@ -152,6 +153,7 @@ public sealed class EvaluatorTests {
     [InlineData("return 5 % 2;", 1)]
     [InlineData("return 9 % 5;", 4)]
     [InlineData("return 5 ?? 2;", 5)]
+    [InlineData("return 5 ?! 2;", 2)]
     // Compound assignments
     [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var a = 1; a -= (2 + 3); return a;", -4)]
@@ -172,7 +174,9 @@ public sealed class EvaluatorTests {
     [InlineData("var a = 12; a >>>= 5; return a;", 0)]
     [InlineData("var a = 5; a %= 2; return a;", 1)]
     [InlineData("var a = 5; a ??= 2; return a;", 5)]
+    [InlineData("var a = 5; a ?!= 2; return a;", 2)]
     [InlineData("int a = null; a ??= 2; return a;", 2)]
+    [InlineData("int a = null; a ?!= 2; return a;", null)]
     [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return a;", 6)]
     [InlineData("var a = 1; var b = 2; var c = 3; a += b += c; return b;", 5)]
     [InlineData("var a = 3; return a is null;", false)]
@@ -240,6 +244,7 @@ public sealed class EvaluatorTests {
     [InlineData("string a = (string)(int)3.6; return a;", "3")]
     [InlineData("return (string)null;", null)]
     [InlineData("return (int)null;", null)]
+    [InlineData("int! a = 3; decimal! b = 3.5; return (int!)b == a;", true)]
     [InlineData("lowlevel { any a = new int[] {1, 2, 3}; return ((int[])a)[1]; }", 2)]
     [InlineData("lowlevel { any a = new bool[] {true, false}; return ((bool[])a)[0]; }", true)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[0]; }", 1)]
@@ -252,6 +257,9 @@ public sealed class EvaluatorTests {
     [InlineData("int x = 4; int y = 3; ref int z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("lowlevel { int[] a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
     [InlineData("int M() { ref int F(ref int a) { return ref a; } int b = 3; F(ref b) = 6; return b; } return M();", 6)]
+    // Cascade list expression
+    [InlineData("class A { public int f = 0; } var a = new A()..f=1.0..f=5; return a.f;", 5)]
+    [InlineData("class A { public int f = 0; public void M() { f++; } } var a = new A()..M()..M(); return a.f;", 2)]
     // Initializer list expressions and index expressions
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
     [InlineData("lowlevel { decimal[] a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]
@@ -424,7 +432,20 @@ public sealed class EvaluatorTests {
     [InlineData("class A<type t> { }; var a = new A<A<int>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int>(3);", 3)]
     [InlineData("T Test<type T>() { return null; } return Test<int>();", null)]
+    // Misc for coverage
+    [InlineData("using H = int; H myVar = 3; return myVar;", 3)]
+    [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
+    [InlineData("enum flags A { q, w, e, r, t } return A.t;", 8)]
+    [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
+    [InlineData("class P { int a = 3; public int M(int a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
+    [InlineData("class P { public int M(int a, int b) { return a + b; } public int M(int a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
+    [InlineData("class P { public static T M<type T>() { T a = null; return a; } } return P.M<int>();", null)]
+    // TODO these crash
+    // [InlineData("class P { public static T M<type T>(T b) { T a = b; L(); return a; void L() { a = null; } } } return P.M<int>(3);", null)]
+    // [InlineData("class P { public static T M<type T>(T b) { T a = b; L<bool>(); return a; void L<type T2>() { a = null; } } } return P.M<int>();", null)]
+    [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string lpModuleName); } return null;", null)]
+    [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
-        AssertValue(text, expectedValue);
+        AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
 }

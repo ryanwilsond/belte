@@ -15,6 +15,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
@@ -89,6 +90,15 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol CallingConvention {
+        get {
+            if (_lazyCallingConvention is null)
+                Interlocked.CompareExchange(ref _lazyCallingConvention, GenerateCallingConvention(), null);
+
+            return _lazyCallingConvention;
+        }
+    }
+
     internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
         get {
             if (_lazyEvaluatorMap is null)
@@ -107,6 +117,7 @@ internal static class StandardLibrary {
         yield return Time;
         yield return Random;
         yield return String;
+        yield return CallingConvention;
     }
 
     internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
@@ -125,6 +136,14 @@ internal static class StandardLibrary {
             StaticMethod("Split", StringArray, [("text", SpecialType.String), ("separator", SpecialType.String)]),
             StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
             StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
+            StaticMethod("Length", SpecialType.Int, [("str", SpecialType.String)]),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateCallingConvention() {
+        return StaticClass("CallingConvention", [
+            ConstExprField("Winapi", SpecialType.UInt32, 1),
+            ConstExprField("Cdecl", SpecialType.UInt32, 2),
         ]);
     }
 
@@ -184,10 +203,22 @@ internal static class StandardLibrary {
             CodeAnalysis.DeclarationModifiers.Static
         );
 
-        var createCharPtrString =
+        var createLPCSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
-                    "CreateCharPtrString",
+                    "CreateLPCSTR",
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+            null,
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
+        );
+
+        var createLPCWSTR =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "CreateLPCWSTR",
                     new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))),
                     RefKind.None,
                     CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
@@ -196,16 +227,52 @@ internal static class StandardLibrary {
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
         );
 
-        var freeCharPtrString =
+        var freeLPCSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
-                    "FreeCharPtrString",
+                    "FreeLPCSTR",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "str")]
+        );
+
+        var freeLPCWSTR =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "FreeLPCWSTR",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
                     CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "str")]
+        );
+
+        var readLPCSTR =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "ReadLPCSTR",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "ptr")]
+        );
+
+        var readLPCWSTR =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "ReadLPCWSTR",
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+                null,
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "ptr")]
         );
 
         var getGCPtr =
@@ -244,18 +311,6 @@ internal static class StandardLibrary {
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
         );
 
-        var readLPCSTR =
-            new SynthesizedFinishedMethodSymbol(
-                new SynthesizedSimpleOrdinaryMethodSymbol(
-                    "ReadLPCSTR",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
-                    RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
-                ),
-                null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
-        );
-
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
@@ -263,12 +318,15 @@ internal static class StandardLibrary {
             sort,
             sizeOf,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
-            createCharPtrString,
-            freeCharPtrString,
+            createLPCSTR,
+            createLPCWSTR,
+            freeLPCWSTR,
+            freeLPCSTR,
+            readLPCSTR,
+            readLPCWSTR,
             getGCPtr,
             freeGCHandle,
             getObject,
-            readLPCSTR
         ]);
     }
 
@@ -409,6 +467,10 @@ internal static class StandardLibrary {
             StaticMethod("Tanh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Truncate", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
             StaticMethod("Truncate", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
+            StaticMethod("DegToRad", SpecialType.Decimal, true, [("degrees", SpecialType.Decimal, true)]),
+            StaticMethod("DegToRad", SpecialType.Decimal, [("degrees", SpecialType.Decimal)]),
+            StaticMethod("RadToDeg", SpecialType.Decimal, true, [("radians", SpecialType.Decimal, true)]),
+            StaticMethod("RadToDeg", SpecialType.Decimal, [("radians", SpecialType.Decimal)]),
         ]);
     }
 
@@ -604,8 +666,16 @@ internal static class StandardLibrary {
                 => { return a is null ? null : System.Math.Truncate(Convert.ToDouble(a)); }) },
             { "Math_Truncate_D", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Truncate(Convert.ToDouble(a)); }) },
+            { "Math_DegToRad_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : double.DegreesToRadians(Convert.ToDouble(a)); }) },
+            { "Math_DegToRad_D", new Func<object, object, object, object>((a, b, c)
+                => { return double.DegreesToRadians(Convert.ToDouble(a)); }) },
+            { "Math_RadToDeg_D?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null ? null : double.RadiansToDegrees(Convert.ToDouble(a)); }) },
+            { "Math_RadToDeg_D", new Func<object, object, object, object>((a, b, c)
+                => { return double.RadiansToDegrees(Convert.ToDouble(a)); }) },
             { "Time_Now", new Func<object, object, object, object>((a, b, c)
-                => { return DateTime.Now.Ticks; }) },
+                => { return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond; }) },
             { "Time_Sleep_I", new Func<object, object, object, object>((a, b, c)
                 => { Thread.Sleep(Convert.ToInt32(a)); return null; }) },
             { "String_Ascii_S", new Func<object, object, object, object>((a, b, c)

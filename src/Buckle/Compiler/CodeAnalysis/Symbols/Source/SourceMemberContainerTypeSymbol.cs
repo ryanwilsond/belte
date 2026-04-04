@@ -93,6 +93,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Warning.ProtectedInSealed(location, this));
 
         _state.NotePartComplete(CompletionParts.TemplateArguments);
+
+        enumFlagsAttribute = syntaxReference.node is EnumDeclarationSyntax e && e.flagsKeyword is not null;
     }
 
     public override string name => _declaration.name;
@@ -128,6 +130,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 
     internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
+
+    internal override bool enumFlagsAttribute { get; }
 
     internal bool anyMemberHasAttributes {
         get {
@@ -212,6 +216,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         diagnostics.Free();
                     }
 
+                    break;
+                case CompletionParts.EnumUnderlyingType:
+                    _ = enumUnderlyingType;
                     break;
                 case CompletionParts.TemplateArguments:
                     _ = templateArguments;
@@ -460,6 +467,16 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private void CheckMembersAgainstBaseType(BelteDiagnosticQueue diagnostics) {
         if (baseType?.IsErrorType() == true)
             return;
+
+        switch (typeKind) {
+            case TypeKind.Enum:
+                return;
+            case TypeKind.Class:
+            case TypeKind.Struct:
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(typeKind);
+        }
 
         foreach (var member in GetMembersUnordered()) {
             switch (member.kind) {
@@ -1371,7 +1388,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
             switch (typeKind) {
                 case TypeKind.Struct:
-                    // TODO, but pretty sure we just do nothing here
+                    // TODO, but pretty sure we just do nothing here, same for enum
                     // CheckForStructBadInitializers(builder, diagnostics);
                     // CheckForStructDefaultConstructors(builder.nonTypeMembers, isEnum: false, diagnostics: diagnostics);
                     break;
@@ -1398,6 +1415,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         var syntax = syntaxReference.node;
 
         switch (syntax.kind) {
+            case SyntaxKind.EnumDeclaration:
+                AddEnumMembers(builder, (EnumDeclarationSyntax)syntax, diagnostics);
+                break;
             case SyntaxKind.CompilationUnit:
                 AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
                 break;
@@ -1424,6 +1444,48 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 // if (isStatic)
                 //     diagnostics.Push(Error.ConstructorInStaticClass(syntax.identifier.location));
             }
+        }
+    }
+
+    private void AddEnumMembers(
+        DeclaredMembersAndInitializersBuilder result,
+        EnumDeclarationSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        SourceEnumConstantSymbol otherSymbol = null;
+
+        var otherSymbolOffset = 0;
+
+        foreach (var member in syntax.enumMembers) {
+            SourceEnumConstantSymbol symbol;
+            var valueOpt = member.equalsValue;
+
+            if (valueOpt is not null) {
+                symbol = SourceEnumConstantSymbol.CreateExplicitValuedConstant(this, member, diagnostics);
+            } else {
+                symbol = SourceEnumConstantSymbol.CreateImplicitValuedConstant(
+                    this,
+                    member,
+                    otherSymbol,
+                    otherSymbolOffset,
+                    diagnostics
+                );
+            }
+
+            result.nonTypeMembers.Add(symbol);
+
+            if (valueOpt is not null || otherSymbol is null) {
+                otherSymbol = symbol;
+                otherSymbolOffset = 1;
+            } else {
+                otherSymbolOffset = Next(otherSymbolOffset);
+            }
+        }
+
+        int Next(int offset) {
+            if (enumFlagsAttribute && (offset & (offset - 1)) == 0)
+                return offset << 1;
+
+            return offset + 1;
         }
     }
 
@@ -1565,6 +1627,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         switch (typeKind) {
             case TypeKind.Struct:
+            case TypeKind.Enum:
             case TypeKind.Class:
                 AddSynthesizedConstructorsIfNecessary(builder, declaredMembersAndInitializers);
                 break;
@@ -1654,7 +1717,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Error.ConflictingModifiers(location, "sealed", "static"));
         }
 
-        if (typeKind == TypeKind.Struct)
+        if (typeKind is TypeKind.Struct or TypeKind.Enum)
             mods |= DeclarationModifiers.Sealed;
 
         return mods;

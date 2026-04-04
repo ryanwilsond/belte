@@ -8,16 +8,19 @@
 
 - #### Buckle Docs
 
-  - [Building Buckle](Building.md)
   - [Using Buckle](Buckle.md)
   - [Using the Repl](Repl.md)
+  - [Building Buckle](Building.md)
 
-Many code samples can be viewed at [github.com/ryanwilsond/belte/main/samples](https://github.com/ryanwilsond/belte/blob/main/samples).
+- #### Code Samples
+
+  - [github.com/ryanwilsond/belte/main/samples](https://github.com/ryanwilsond/belte/blob/main/samples).
 
 - #### Belte Language Docs in Its Current State
 
   - [1](Current/Overview.md) Overview
     - [1.1](Current/Overview.md#11-overview) Supported Features
+    - [1.2](Current/Overview.md#12) Partially Supported Features
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
@@ -30,11 +33,14 @@ Many code samples can be viewed at [github.com/ryanwilsond/belte/main/samples](h
     - [3.4](Current/Data.md#34-attributes-and-modifiers) Attributes and Modifiers
     - [3.5](Current/Data.md#35-references) References
     - [3.6](Current/Data.md#36-arrays) Arrays
+    - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions
   - [4](Current/ClassesAndObjects.md) Classes and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
     - [4.4](Current/ClassesAndObjects.md#44-constructors) Constructors
+    - [4.5](Current/ClassesAndObjects.md#45-templates) Templates
+    - [4.6](Current/ClassesAndObjects.md#46-enums) Enums
   - [5](Current/StandardLibrary.md) The Standard Library
     - [5.1](Current/StandardLibrary/Console.md) Console
     - [5.2](Current/StandardLibrary/Math.md) Math
@@ -56,6 +62,13 @@ Many code samples can be viewed at [github.com/ryanwilsond/belte/main/samples](h
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
     - [6.6](Current/LowLevelFeatures.md#66-function-pointers) Function Pointers
     - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
+    - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
+    - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
+    - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator
+    - [6.11](Current/LowLevelFeatures.md#611-inline-il) Inline IL
+  - [7](Current/Preprocessor.md) Preprocessor Directives
+    - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
+    - [7.2](Current/Preprocessor.md#72-control) Control
 
 ___
 

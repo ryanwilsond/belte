@@ -9,4 +9,5 @@ internal enum SymbolDisplayMiscellaneousOptions : byte {
     SimplifyNullable = 1 << 1,
     IncludeBaseList = 1 << 2,
     ExpandTemplateParameter = 1 << 3,
+    NetFormat = 1 << 4,
 }

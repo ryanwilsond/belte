@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -17,7 +19,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly MethodSymbol _updatePoint;
     private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly Dictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
@@ -25,7 +26,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly Predicate<Symbol> _filter;
 
+    private Dictionary<FieldSymbol, NamedTypeSymbol> _lazyFixedImplementationTypes;
     private MethodSymbol _entryPoint;
+    private MethodSymbol _updatePoint;
 
     private MethodCompiler(
         Compilation compilation,
@@ -58,13 +61,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         var globalNamespace = compilation.globalNamespaceInternal;
 
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
-
-        if (compilation.options.buildMode.Evaluating())
-            typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
-        else
-            typeLayouts = [];
-
+        var typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
         var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
 
         if (previousLayouts is not null) {
@@ -76,8 +73,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
         var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
-        if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
-            diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
+        if (!compilation.options.isScript) {
+            if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))
+                diagnostics.Push(Error.SeparateMainAndUpdate(updatePoint.location));
+        }
 
         var methodCompiler = new MethodCompiler(
             compilation,
@@ -91,6 +90,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         );
 
         methodCompiler.CompileNamespace(globalNamespace);
+
+        if (!methodCompiler._diagnostics.AnyErrors())
+            methodCompiler.ComputeCompileTimeExpressions();
+
+        if (compilation.options.isScript && methodCompiler._updatePoint is null)
+            methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
+
+        methodCompiler.InjectSequencePoints();
+
         return methodCompiler.CreateBoundProgram();
     }
 
@@ -113,10 +121,79 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _types.ToImmutableAndFree(),
             _typeLayouts.ToImmutableDictionary(),
             _synthesizedNestedTypes,
+            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
             _entryPoint,
             _updatePoint,
             _compilation.previous?.boundProgram
         );
+    }
+
+    private void ComputeCompileTimeExpressions() {
+        var newMethodBodies = new Dictionary<MethodSymbol, BoundBlockStatement>();
+        var newMethodLayouts = new Dictionary<MethodSymbol, EvaluatorSlotManager>();
+
+        if (!_compilation.options.buildMode.Evaluating()) {
+            var current = _methodBodies;
+            var currentCompilation = _compilation;
+
+            while (currentCompilation is not null) {
+                foreach (var (key, value) in current) {
+                    newMethodBodies.Add(key, EvaluatorSlotRewriter.Rewrite(
+                        key,
+                        value,
+                        _typeLayouts,
+                        _compilation.previous?.boundProgram,
+                        out var manager
+                    ));
+
+                    newMethodLayouts.Add(key, manager);
+                }
+
+                // We have to recompute libraries because they aren't build with evaluator slots in mind
+                currentCompilation = currentCompilation.previous;
+                current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
+            }
+        } else {
+            newMethodBodies = _methodBodies;
+            newMethodLayouts = _methodLayouts;
+        }
+
+        var boundProgram = new BoundProgram(
+            _compilation,
+            newMethodBodies.ToImmutableDictionary(),
+            newMethodLayouts.ToImmutableDictionary(),
+            _types.ToImmutableArray(),
+            _typeLayouts.ToImmutableDictionary(),
+            _synthesizedNestedTypes,
+            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
+            null,
+            null,
+            _compilation.previous?.boundProgram
+        );
+
+        var evaluatorContext = new EvaluatorContext(_compilation.options);
+
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null) {
+                var loweredBody = CompileTimeLowerer.Lower(
+                    method,
+                    body,
+                    _diagnostics,
+                    boundProgram,
+                    evaluatorContext,
+                    _compilation
+                );
+
+                _methodBodies[method] = (BoundBlockStatement)loweredBody;
+            }
+        }
+    }
+
+    private void InjectSequencePoints() {
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null)
+                _methodBodies[method] = SequencePointInjector.Lower(body);
+        }
     }
 
     private void CompileNamespace(NamespaceSymbol symbol) {
@@ -185,6 +262,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     if (f.isConstExpr)
                         f.GetConstantValue(ConstantFieldsInProgress.Empty);
 
+                    if (f.isFixedSizeBuffer)
+                        SetFixedImplementationType(f as SourceMemberFieldSymbol);
+
                     break;
             }
         }
@@ -209,13 +289,28 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         state.Free();
     }
 
+    private void SetFixedImplementationType(SourceMemberFieldSymbol field) {
+        if (_lazyFixedImplementationTypes is null)
+            Interlocked.CompareExchange(ref _lazyFixedImplementationTypes, [], null);
+
+        lock (_lazyFixedImplementationTypes) {
+            if (_lazyFixedImplementationTypes.TryGetValue(field, out _))
+                return;
+
+            var result = new FixedFieldImplementationType(field);
+            _lazyFixedImplementationTypes.Add(field, result);
+        }
+    }
+
     private void CompileMethod(
         MethodSymbol method,
         int methodOrdinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
-        if (method.isAbstract)
+        if (method.isAbstract || method.originalDefinition is PEMethodSymbol)
             return;
+
+        var oldImportChain = state.currentImportChain;
 
         var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
         BoundBlockStatement analyzedInitializers = null;
@@ -230,7 +325,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 method
             );
 
-            processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasErrors;
+            processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasAnyErrors;
 
             RefSafetyAnalysis.Analyze(
                 method,
@@ -245,7 +340,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             currentDiagnostics,
             includeInitializers,
             analyzedInitializers,
-            ref _entryPoint
+            ref _entryPoint,
+            out var importChain
         );
 
         if (body is null || !_emitting || currentDiagnostics.AnyErrors()) {
@@ -253,6 +349,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _methodBodies.Add(method, body);
             return;
         }
+
+        importChain ??= processedInitializers.firstImportChain;
+        state.currentImportChain = importChain;
 
         var loweredBody = LowerBody(
             method,
@@ -267,11 +366,19 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
         if (_compilation.options.buildMode.Evaluating()) {
-            loweredBody = EvaluatorSlotRewriter.Rewrite(method, loweredBody, _typeLayouts, out var slotManager);
+            loweredBody = EvaluatorSlotRewriter.Rewrite(
+                method,
+                loweredBody,
+                _typeLayouts,
+                _compilation.previous?.boundProgram,
+                out var slotManager
+            );
+
             _methodLayouts.Add(method, slotManager);
         }
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
+        state.currentImportChain = oldImportChain;
         _methodBodies.Add(method, loweredBody);
     }
 
@@ -305,7 +412,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         MethodSymbol method,
         TypeCompilationState compilationState,
         BelteDiagnosticQueue diagnostics) {
-        MethodSymbol _ = null;
+        MethodSymbol _1 = null;
 
         return BindMethodBody(
             method,
@@ -313,7 +420,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             diagnostics,
             includeInitializers: false,
             initializersBody: null,
-            entryPoint: ref _
+            entryPoint: ref _1,
+            importChain: out _
         );
     }
 
@@ -323,8 +431,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BelteDiagnosticQueue diagnostics,
         bool includeInitializers,
         BoundBlockStatement initializersBody,
-        ref MethodSymbol entryPoint) {
+        ref MethodSymbol entryPoint,
+        out ImportChain importChain) {
         BoundBlockStatement body = null;
+        importChain = null;
         var syntax = method.GetNonNullSyntaxNode();
         initializersBody ??= new BoundBlockStatement(syntax, [], [], []);
         var builder = ArrayBuilder<BoundStatement>.GetInstance();
@@ -348,6 +458,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
             if (bodyBinder is null)
                 return null;
+
+            importChain = bodyBinder.importChain;
 
             var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
 
@@ -473,6 +585,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (call is not null &&
             call.method != method &&
+            !call.hasAnyErrors &&
             TypeSymbol.Equals(call.method.containingType, method.containingType, TypeCompareKind.ConsiderEverything)) {
             state.ReportConstructorInitializerCycles(method, call.method, syntax, diagnostics);
         }

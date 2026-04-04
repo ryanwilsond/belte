@@ -13,4 +13,5 @@ internal enum CallingConvention : byte {
     Template,
     HasThis,
     ExplicitThis,
+    Unmanaged,
 }

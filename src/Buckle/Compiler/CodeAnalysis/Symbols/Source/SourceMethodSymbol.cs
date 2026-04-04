@@ -224,56 +224,61 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         bool? bestFitMapping = null;
         bool? throwOnUnmappable = null;
 
-        // var position = 1;
-        // TODO Maybe handle this if we need it for DllImport later
-        // foreach (var namedArg in attribute._commonNamedArguments) {
-        //     switch (namedArg.Key) {
-        //         case "EntryPoint":
-        //             importName = namedArg.Value.ValueInternal as string;
-        //             if (!MetadataHelpers.IsValidMetadataIdentifier(importName)) {
-        //                 // Dev10 reports CS0647: "Error emitting attribute ..."
-        //                 diagnostics.Add(ErrorCode.ERR_InvalidNamedArgument, arguments.AttributeSyntaxOpt.ArgumentList.Arguments[position].Location, namedArg.Key);
-        //                 hasErrors = true;
-        //                 importName = null;
-        //             }
+        var position = 1;
+        foreach (var namedArg in attribute._commonNamedArguments) {
+            switch (namedArg.Key) {
+                // TODO Implement as needed
+                // case "EntryPoint":
+                //     importName = namedArg.Value.ValueInternal as string;
+                //     if (!MetadataHelpers.IsValidMetadataIdentifier(importName)) {
+                //         // Dev10 reports CS0647: "Error emitting attribute ..."
+                //         diagnostics.Add(ErrorCode.ERR_InvalidNamedArgument, arguments.AttributeSyntaxOpt.ArgumentList.Arguments[position].Location, namedArg.Key);
+                //         hasErrors = true;
+                //         importName = null;
+                //     }
 
-        //             break;
+                //     break;
 
-        //         case "CharSet":
-        //             // invalid values will be ignored
-        //             charSet = namedArg.Value.DecodeValue<CharSet>(SpecialType.System_Enum);
-        //             break;
+                // case "CharSet":
+                //     // invalid values will be ignored
+                //     charSet = namedArg.Value.DecodeValue<CharSet>(SpecialType.System_Enum);
+                //     break;
 
-        //         case "SetLastError":
-        //             // invalid values will be ignored
-        //             setLastError = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
-        //             break;
+                // case "SetLastError":
+                //     // invalid values will be ignored
+                //     setLastError = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+                //     break;
 
-        //         case "ExactSpelling":
-        //             // invalid values will be ignored
-        //             exactSpelling = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
-        //             break;
+                // case "ExactSpelling":
+                //     // invalid values will be ignored
+                //     exactSpelling = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+                //     break;
 
-        //         case "PreserveSig":
-        //             preserveSig = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
-        //             break;
+                // case "PreserveSig":
+                //     preserveSig = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+                //     break;
 
-        //         case "CallingConvention":
-        //             // invalid values will be ignored
-        //             callingConvention = namedArg.Value.DecodeValue<CallingConvention>(SpecialType.System_Enum);
-        //             break;
+                case "CallingConvention":
+                    // invalid values will be ignored
+                    callingConvention = namedArg.Value.value switch {
+                        1 => CallingConvention.Winapi,
+                        2 => CallingConvention.Cdecl,
+                        _ => CallingConvention.Winapi,
+                    };
+                    // callingConvention = namedArg.Value.DecodeValue<CallingConvention>(SpecialType.UInt32);
+                    break;
 
-        //         case "BestFitMapping":
-        //             bestFitMapping = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
-        //             break;
+                    // case "BestFitMapping":
+                    //     bestFitMapping = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+                    //     break;
 
-        //         case "ThrowOnUnmappableChar":
-        //             throwOnUnmappable = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
-        //             break;
-        //     }
+                    // case "ThrowOnUnmappableChar":
+                    //     throwOnUnmappable = namedArg.Value.DecodeValue<bool>(SpecialType.System_Boolean);
+                    //     break;
+            }
 
-        //     position++;
-        // }
+            position++;
+        }
 
         if (!hasErrors) {
             arguments.GetOrCreateData<MethodWellKnownAttributeData>().SetDllImport(

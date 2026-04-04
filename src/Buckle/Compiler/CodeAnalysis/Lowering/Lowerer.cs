@@ -34,8 +34,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         rewrittenStatement = FlowLowerer.Lower(rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
-        rewrittenStatement = Flatten(method, rewrittenStatement);
-
+        rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
         rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
 
         return (BoundBlockStatement)rewrittenStatement;
@@ -78,6 +77,123 @@ internal sealed class Lowerer : BoundTreeRewriter {
         }
 
         return base.VisitAssignmentOperator(expression);
+    }
+
+    internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
+        /*
+
+        <receiver>.<field>
+
+        ----> <field> is fixed
+
+        &(<receiver>.<field>)
+
+        */
+        var syntax = node.syntax;
+        var result = (BoundFieldAccessExpression)base.VisitFieldAccessExpression(node);
+
+        if (node.field.isFixedSizeBuffer)
+            return Visit(new BoundAddressOfOperator(syntax, result, true, node.type));
+
+        return result;
+    }
+
+    internal override BoundNode VisitAddressOfOperator(BoundAddressOfOperator node) {
+        if (node.isLoweredFixedField)
+            return node;
+
+        return base.VisitAddressOfOperator(node);
+    }
+
+    internal override BoundNode VisitStackAllocExpression(BoundStackAllocExpression node) {
+        /*
+
+        stackalloc <type>[<count>]
+
+        ----> <count> is 0
+
+        nullptr
+
+        */
+        var syntax = node.syntax;
+        var type = node.type;
+
+        if ((int)node.count.constantValue.value == 0)
+            return new BoundLiteralExpression(node.syntax, new ConstantValue(null, SpecialType.None), type);
+
+        var elementType = node.elementType;
+        var rewrittenCount = (BoundExpression)Visit(node.count);
+
+        if (type.typeKind == TypeKind.Pointer) {
+            var stackSize = RewriteStackAllocCountToSize(syntax, rewrittenCount, elementType);
+            return new BoundConvertedStackAllocExpression(syntax, elementType, stackSize, type);
+        } else {
+            throw ExceptionUtilities.UnexpectedValue(type);
+        }
+    }
+
+    private BoundExpression RewriteStackAllocCountToSize(
+        SyntaxNode syntax,
+        BoundExpression countExpression,
+        TypeSymbol elementType) {
+        var uint32 = CorLibrary.GetSpecialType(SpecialType.UInt32);
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var uintptr = CorLibrary.GetSpecialType(SpecialType.UIntPtr);
+
+        var sizeInBytes = elementType.specialType.SizeInBytes();
+        var sizeOfConstant = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
+
+        var sizeOf = new BoundSizeOfOperator(syntax,
+            new BoundTypeExpression(syntax, new TypeWithAnnotations(elementType), null, elementType),
+            sizeOfConstant,
+            int32
+        );
+
+        var sizeConst = sizeOf.constantValue;
+
+        if (sizeConst is not null) {
+            var size = (int)sizeConst.value;
+
+            var countConst = countExpression.constantValue;
+
+            if (countConst is not null) {
+                var count = (int)countConst.value;
+                var folded = unchecked((uint)count * size);
+
+                if (folded < uint.MaxValue) {
+                    return new BoundCastExpression(syntax,
+                        Literal(syntax, (uint)folded, uint32),
+                        Conversion.ExplicitIntegerToPointer,
+                        null,
+                        uintptr
+                    );
+                }
+            }
+        }
+
+        var convertedCount = new BoundCastExpression(syntax,
+            countExpression,
+            Conversion.ExplicitNumeric,
+            null,
+            uint32
+        );
+
+        convertedCount = new BoundCastExpression(syntax,
+            convertedCount,
+            Conversion.ExplicitIntegerToPointer,
+            null,
+            uintptr
+        );
+
+        if ((int?)sizeConst?.value == 1)
+            return convertedCount;
+
+        return Binary(syntax,
+            convertedCount,
+            BinaryOperatorKind.UIntMultiplication,
+            sizeOf,
+            uintptr
+        );
     }
 
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -227,36 +343,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(
                 new BoundPointerIndirectionOperator(syntax,
                     node.receiver,
-                    false,
+                    node.refersToLocation,
                     resultType
                 )
             );
         }
 
-        var size_t = resultType.specialType switch {
-            SpecialType.Int => sizeof(long),
-            SpecialType.Int64 => sizeof(long),
-            SpecialType.Int32 => sizeof(int),
-            SpecialType.Int16 => sizeof(short),
-            SpecialType.Int8 => sizeof(sbyte),
-            SpecialType.UInt64 => sizeof(ulong),
-            SpecialType.UInt32 => sizeof(uint),
-            SpecialType.UInt16 => sizeof(ushort),
-            SpecialType.UInt8 => sizeof(byte),
-            SpecialType.Bool => sizeof(bool),
-            SpecialType.Char => sizeof(char),
-            _ => UIntPtr.Size,
-        };
+        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var sizeInBytes = resultType.specialType.SizeInBytes();
+        var constantValue = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
 
         var binaryType = UIntPtr.Size switch {
             4 => CorLibrary.GetSpecialType(SpecialType.UInt32),
             8 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-            _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
-        };
-
-        object castedSizeT = UIntPtr.Size switch {
-            4 => Convert.ToUInt32(size_t),
-            8 => Convert.ToUInt64(size_t),
             _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
         };
 
@@ -280,9 +379,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
                                 null
                             ),
                             BinaryOperatorKind.UIntMultiplication,
-                            Literal(syntax,
-                                castedSizeT,
-                                binaryType
+                            Cast(syntax,
+                                binaryType,
+                                new BoundSizeOfOperator(syntax,
+                                    new BoundTypeExpression(syntax,
+                                        new TypeWithAnnotations(resultType),
+                                        null,
+                                        resultType
+                                    ),
+                                    constantValue,
+                                    int32
+                                ),
+                                Conversion.ImplicitNumeric,
+                                null
                             ),
                             binaryType
                         ),
@@ -291,7 +400,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     Conversion.ExplicitIntegerToPointer,
                     null
                 ),
-                false,
+                node.refersToLocation,
                 resultType
             )
         );
@@ -362,11 +471,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
             if (op.IsConditional() && (leftIsNullable || rightIsNullable)) {
                 var coalescedLeft = leftIsNullable
-                    ? new BoundNullCoalescingOperator(syntax, left, Literal(syntax, false, type), null, type)
+                    ? new BoundNullCoalescingOperator(syntax, left, Literal(syntax, false, type), false, null, type)
                     : left;
 
                 var coalescedRight = rightIsNullable
-                    ? new BoundNullCoalescingOperator(syntax, right, Literal(syntax, false, type), null, type)
+                    ? new BoundNullCoalescingOperator(syntax, right, Literal(syntax, false, type), false, null, type)
                     : right;
 
                 return VisitBinaryOperator(Binary(syntax, coalescedLeft, op, coalescedRight, type));
@@ -448,17 +557,32 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (HasValue(<left>) ? Value(<left>) : <right>)
 
+        ----> isPropagation
+
+        (HasValue(<left>) ? <right> : <left>)
+
         */
         var syntax = expression.syntax;
 
-        return VisitConditionalOperator(
-            Conditional(syntax,
-                @if: HasValue(syntax, expression.left),
-                @then: Value(syntax, expression.left, expression.left.StrippedType()),
-                @else: expression.right,
-                expression.Type()
-            )
-        );
+        if (expression.isPropagation) {
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.left),
+                    @then: expression.right,
+                    @else: expression.left,
+                    expression.Type()
+                )
+            );
+        } else {
+            return VisitConditionalOperator(
+                Conditional(syntax,
+                    @if: HasValue(syntax, expression.left),
+                    @then: Value(syntax, expression.left, expression.left.StrippedType()),
+                    @else: expression.right,
+                    expression.Type()
+                )
+            );
+        }
     }
 
     internal override BoundNode VisitUnaryOperator(BoundUnaryOperator expression) {
@@ -774,21 +898,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = expression.Type();
         var operandType = operand.Type();
 
-        if (expression.conversion.underlyingConversions == default) {
-            if (expression.conversion.kind is ConversionKind.ImplicitNullToPointer or
-                                              ConversionKind.ExplicitIntegerToPointer or
-                                              ConversionKind.ExplicitPointerToInteger) {
-                return expression;
-            }
+        if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
+            return Visit(operand);
 
-            if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
-                return Visit(operand);
+        if (expression.conversion.underlyingConversions == default) {
+            if (expression.conversion.kind is ConversionKind.ImplicitNullToPointer)
+                return expression;
 
             return base.VisitCastExpression(expression);
         }
-
-        if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
-            return Visit(operand);
 
         if (operandType.IsNullableType() && type.IsNullableType()) {
             return VisitConditionalOperator(
@@ -928,7 +1046,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     expression.right,
                     expression.op.kind,
                     expression.op.method,
-                    ConstantFolding.FoldBinary(expression.left, expression.right, expression.op.kind, expression.Type()),
+                    ConstantFolding.FoldBinary(
+                        expression.left,
+                        expression.right,
+                        expression.op.kind,
+                        expression.Type(),
+                        syntax.location,
+                        BelteDiagnosticQueue.Discarded
+                    ),
                     expression.Type()
                 ),
                 false,
@@ -956,6 +1081,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     syntax,
                     expression.left,
                     expression.right,
+                    expression.isPropagation,
                     null,
                     expression.Type()
                 ),
@@ -965,30 +1091,43 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    internal static BoundBlockStatement Flatten(MethodSymbol method, BoundStatement statement) {
-        var syntax = statement.syntax;
+    internal static BoundBlockStatement Flatten(MethodSymbol method, BoundBlockStatement statement) {
+        return FlattenBlock(method, statement, true);
+    }
+
+    private static BoundBlockStatement FlattenBlock(MethodSymbol method, BoundBlockStatement block, bool needsReturn) {
+        var syntax = block.syntax;
         var statementsBuilder = ArrayBuilder<BoundStatement>.GetInstance();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance();
         var functionsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
 
         var stack = new Stack<BoundStatement>();
-        stack.Push(statement);
+        stack.Push(block);
 
         while (stack.Count > 0) {
             var current = stack.Pop();
 
-            if (current is BoundBlockStatement block) {
-                localsBuilder.AddRange(block.locals);
-                functionsBuilder.AddRange(block.localFunctions);
+            if (current is BoundBlockStatement blockStatement) {
+                localsBuilder.AddRange(blockStatement.locals);
+                functionsBuilder.AddRange(blockStatement.localFunctions);
 
-                foreach (var s in block.statements.Reverse())
+                foreach (var s in blockStatement.statements.Reverse())
                     stack.Push(s);
+            } else if (current is BoundTryStatement tryStatement) {
+                var hasCatch = tryStatement.catchBody is not null;
+                var hasFinally = tryStatement.finallyBody is not null;
+
+                statementsBuilder.Add(tryStatement.Update(
+                    FlattenBlock(method, (BoundBlockStatement)tryStatement.body, false),
+                    hasCatch ? FlattenBlock(method, (BoundBlockStatement)tryStatement.catchBody, false) : null,
+                    hasFinally ? FlattenBlock(method, (BoundBlockStatement)tryStatement.finallyBody, false) : null
+                ));
             } else {
                 statementsBuilder.Add(current);
             }
         }
 
-        if (method.returnsVoid) {
+        if (method.returnsVoid && needsReturn) {
             if (statementsBuilder.Count == 0 || CanFallThrough(statementsBuilder.Last()))
                 statementsBuilder.Add(new BoundReturnStatement(syntax, RefKind.None, null));
         }
@@ -1006,7 +1145,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             boundStatement.kind != BoundKind.GotoStatement;
     }
 
-    private bool ShouldBeTreatedAsNullable(TypeSymbol type) {
+    private static bool ShouldBeTreatedAsNullable(TypeSymbol type) {
         return type.IsNullableType() && CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
     }
 
@@ -1034,7 +1173,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    private BoundNode VisitConstant(BoundExpression expression) {
+    internal static BoundNode VisitConstant(BoundExpression expression) {
         var syntax = expression.syntax;
         var type = expression.Type();
 

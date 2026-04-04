@@ -58,6 +58,8 @@ internal static class AccessCheck {
             case SymbolKind.Local:
             case SymbolKind.TemplateParameter:
             case SymbolKind.Parameter:
+            case SymbolKind.Namespace:
+            case SymbolKind.ErrorType:
             case SymbolKind.Method when ((MethodSymbol)symbol).methodKind == MethodKind.LocalFunction:
                 return true;
             case SymbolKind.FunctionPointerType:
@@ -93,6 +95,8 @@ internal static class AccessCheck {
                     throughType,
                     out failedThroughTypeCheck
                 );
+            case SymbolKind.Alias:
+                return IsSymbolAccessibleCore(((AliasSymbol)symbol).target, within, null, out failedThroughTypeCheck);
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }

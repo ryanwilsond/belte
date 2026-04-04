@@ -5,6 +5,8 @@ using System.Linq;
 using System.Reflection.Emit;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -39,16 +41,27 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override int tryNestingLevel => _tryStack.Count;
 
+    // ? This doesn't actually need to be accurate because this builder doesn't emit sequence points
+    internal override int instructionsEmitted => _iLGenerator.ILOffset;
+
     internal override void Finish() {
         if (_needsEpilogue) {
             MarkLabel(_epilogue);
 
-            if (!_method.returnsVoid)
+            if (!_method.returnsVoid) {
+                Log(OpCodes.Ldloc, _returnLocal);
                 _iLGenerator.Emit(OpCodes.Ldloc, _returnLocal);
+            }
 
-            _iLGenerator.Emit(OpCodes.Ret);
+            Emit(CodeGeneration.OpCode.Ret);
         }
     }
+
+    internal override void DefineHiddenSequencePoint(int instructionIndex) { }
+
+    internal override void DefineSequencePoint(SyntaxTree syntaxTree, TextLocation location, int instructionIndex) { }
+
+    internal override void DefineInitialHiddenSequencePoint() { }
 
     internal override void BeginTry() {
         if (!_needsEpilogue) {
@@ -61,21 +74,30 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         _iLGenerator.BeginExceptionBlock();
+        _logger.WriteLine("Try {");
         _tryStack.Push(new object());
     }
 
     internal override void BeginCatch() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginCatchBlock(typeof(Exception));
+        _logger.WriteLine("} Catch {");
     }
 
     internal override void BeginFinally() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginFinallyBlock();
+        _logger.WriteLine("} Finally {");
     }
 
-    internal override void EndTry() {
+    internal override void EndTry(bool emitEndFinally) {
+        if (emitEndFinally) {
+            Log(OpCodes.Endfinally);
+            _iLGenerator.Emit(OpCodes.Endfinally);
+        }
+
         _iLGenerator.EndExceptionBlock();
+        _logger.WriteLine("} // Try end");
         MarkLabel(_tryStack.Pop());
 
         if (_tryStack.Count > 0)
@@ -86,7 +108,7 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitReturn() {
         if (_tryStack.Count == 0) {
-            _iLGenerator.Emit(OpCodes.Ret);
+            Emit(CodeGeneration.OpCode.Ret);
         } else {
             if (!_method.returnsVoid)
                 Emit(OpCodes.Stloc, _returnLocal);
@@ -101,12 +123,28 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitCalli(FunctionPointerTypeSymbol type) {
-        _iLGenerator.EmitCalli(
-            OpCodes.Calli,
-            System.Runtime.InteropServices.CallingConvention.Winapi,
-            _module.GetType(type.signature.returnType),
-            type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray()
-        );
+        var managed = type.signature.isManaged;
+        var returnType = _module.GetType(type.signature.returnType);
+        var paramTypes = type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray();
+
+        if (managed) {
+            Log(OpCodes.Calli, type.signature);
+            _iLGenerator.EmitCalli(
+                OpCodes.Calli,
+                System.Reflection.CallingConventions.Standard,
+                returnType,
+                paramTypes,
+                null
+            );
+        } else {
+            Log(OpCodes.Calli, type.signature);
+            _iLGenerator.EmitCalli(
+                OpCodes.Calli,
+                System.Runtime.InteropServices.CallingConvention.Winapi,
+                returnType,
+                paramTypes
+            );
+        }
     }
 
     internal override void Emit(CodeGeneration.OpCode opCode) {
@@ -252,6 +290,9 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
 
+        if (from != SpecialType.String && to != SpecialType.String)
+            throw ExceptionUtilities.UnexpectedValue((from, to));
+
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", flags, [typeof(string)]));
@@ -259,19 +300,82 @@ internal sealed class RefILBuilder : ILBuilder {
             case (SpecialType.String, SpecialType.Int):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", flags, [typeof(string)]));
                 break;
-            case (SpecialType.Decimal, SpecialType.Int):
-                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", flags, [typeof(double)]));
-                break;
             case (SpecialType.String, SpecialType.Decimal):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", flags, [typeof(string)]));
                 break;
-            case (SpecialType.Int, SpecialType.Decimal):
-                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", flags, [typeof(long)]));
+            case (SpecialType.String, SpecialType.Char):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToChar", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt8):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToByte", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt16):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToUInt16", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt32):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToUInt32", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.UInt64):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToUInt64", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int8):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToSByte", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int16):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt16", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int32):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt32", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Int64):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt64", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Float32):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToSingle", flags, [typeof(string)]));
+                break;
+            case (SpecialType.String, SpecialType.Float64):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToDouble", flags, [typeof(string)]));
+                break;
+            case (SpecialType.Bool, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(bool)]));
                 break;
             case (SpecialType.Int, SpecialType.String):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(long)]));
                 break;
             case (SpecialType.Decimal, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(double)]));
+                break;
+            case (SpecialType.Char, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(char)]));
+                break;
+            case (SpecialType.UInt8, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(byte)]));
+                break;
+            case (SpecialType.UInt16, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(ushort)]));
+                break;
+            case (SpecialType.UInt32, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(uint)]));
+                break;
+            case (SpecialType.UInt64, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(ulong)]));
+                break;
+            case (SpecialType.Int8, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(sbyte)]));
+                break;
+            case (SpecialType.Int16, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(short)]));
+                break;
+            case (SpecialType.Int32, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(int)]));
+                break;
+            case (SpecialType.Int64, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(long)]));
+                break;
+            case (SpecialType.Float32, SpecialType.String):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(float)]));
+                break;
+            case (SpecialType.Float64, SpecialType.String):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(double)]));
                 break;
             default:
@@ -310,7 +414,9 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitThrowNullCondition() {
+        Log(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
         _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
+        Log(OpCodes.Throw);
         _iLGenerator.Emit(OpCodes.Throw);
     }
 
@@ -330,8 +436,9 @@ internal sealed class RefILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
-    internal override void EmitToString() {
-        _iLGenerator.Emit(OpCodes.Call, Executor.MethodInfoCache.Object_ToString);
+    internal override void EmitToString(CodeGeneration.OpCode opCode) {
+        Log(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
+        _iLGenerator.Emit(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
     }
 
     internal override VariableDefinition GetLocal(DataContainerSymbol local) {
@@ -512,7 +619,7 @@ internal sealed class RefILBuilder : ILBuilder {
         }
     }
 
-    private static System.Reflection.Emit.OpCode ConvertToRef(CodeGeneration.OpCode opCode) {
+    internal static System.Reflection.Emit.OpCode ConvertToRef(CodeGeneration.OpCode opCode) {
         return opCode switch {
             CodeGeneration.OpCode.Nop => OpCodes.Nop,
             CodeGeneration.OpCode.Br => OpCodes.Br,
@@ -641,6 +748,79 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Rethrow => OpCodes.Rethrow,
             CodeGeneration.OpCode.Ldftn => OpCodes.Ldftn,
             CodeGeneration.OpCode.Calli => OpCodes.Calli,
+            CodeGeneration.OpCode.Ldloc => OpCodes.Ldloc,
+            CodeGeneration.OpCode.Sizeof => OpCodes.Sizeof,
+            CodeGeneration.OpCode.Localloc => OpCodes.Localloc,
+            CodeGeneration.OpCode.Ldarg => OpCodes.Ldarg,
+            CodeGeneration.OpCode.Ldarga => OpCodes.Ldarga,
+            CodeGeneration.OpCode.Ldarg_S => OpCodes.Ldarg_S,
+            CodeGeneration.OpCode.Ldarga_S => OpCodes.Ldarga_S,
+            CodeGeneration.OpCode.Ldloca => OpCodes.Ldloca,
+            CodeGeneration.OpCode.Ldloca_S => OpCodes.Ldloca_S,
+            CodeGeneration.OpCode.Stloc => OpCodes.Stloc,
+            CodeGeneration.OpCode.Stloc_S => OpCodes.Stloc_S,
+            CodeGeneration.OpCode.Conv_Ovf_I_Un => OpCodes.Conv_Ovf_I_Un,
+            CodeGeneration.OpCode.Conv_Ovf_I1 => OpCodes.Conv_Ovf_I1,
+            CodeGeneration.OpCode.Conv_Ovf_I1_Un => OpCodes.Conv_Ovf_I1_Un,
+            CodeGeneration.OpCode.Conv_Ovf_I2 => OpCodes.Conv_Ovf_I2,
+            CodeGeneration.OpCode.Conv_Ovf_I2_Un => OpCodes.Conv_Ovf_I2_Un,
+            CodeGeneration.OpCode.Conv_Ovf_I4 => OpCodes.Conv_Ovf_I4,
+            CodeGeneration.OpCode.Conv_Ovf_I4_Un => OpCodes.Conv_Ovf_I4_Un,
+            CodeGeneration.OpCode.Conv_Ovf_I8 => OpCodes.Conv_Ovf_I8,
+            CodeGeneration.OpCode.Conv_Ovf_I8_Un => OpCodes.Conv_Ovf_I8_Un,
+            CodeGeneration.OpCode.Conv_Ovf_U => OpCodes.Conv_Ovf_U,
+            CodeGeneration.OpCode.Conv_Ovf_U_Un => OpCodes.Conv_Ovf_U_Un,
+            CodeGeneration.OpCode.Conv_Ovf_U1 => OpCodes.Conv_Ovf_U1,
+            CodeGeneration.OpCode.Conv_Ovf_U1_Un => OpCodes.Conv_Ovf_U1_Un,
+            CodeGeneration.OpCode.Conv_Ovf_U2 => OpCodes.Conv_Ovf_U2,
+            CodeGeneration.OpCode.Conv_Ovf_U2_Un => OpCodes.Conv_Ovf_U2_Un,
+            CodeGeneration.OpCode.Conv_Ovf_U4 => OpCodes.Conv_Ovf_U4,
+            CodeGeneration.OpCode.Conv_Ovf_U4_Un => OpCodes.Conv_Ovf_U4_Un,
+            CodeGeneration.OpCode.Conv_Ovf_U8 => OpCodes.Conv_Ovf_U8,
+            CodeGeneration.OpCode.Conv_Ovf_U8_Un => OpCodes.Conv_Ovf_U8_Un,
+            CodeGeneration.OpCode.Add_Ovf => OpCodes.Add_Ovf,
+            CodeGeneration.OpCode.Add_Ovf_Un => OpCodes.Add_Ovf_Un,
+            CodeGeneration.OpCode.Arglist => OpCodes.Arglist,
+            CodeGeneration.OpCode.Ckfinite => OpCodes.Ckfinite,
+            CodeGeneration.OpCode.Cpblk => OpCodes.Cpblk,
+            CodeGeneration.OpCode.Cpobj => OpCodes.Cpobj,
+            CodeGeneration.OpCode.Initblk => OpCodes.Initblk,
+            CodeGeneration.OpCode.Ldarg_1 => OpCodes.Ldarg_1,
+            CodeGeneration.OpCode.Ldarg_2 => OpCodes.Ldarg_2,
+            CodeGeneration.OpCode.Ldarg_3 => OpCodes.Ldarg_3,
+            CodeGeneration.OpCode.Ldelem_I => OpCodes.Ldelem_I,
+            CodeGeneration.OpCode.Ldelem_I1 => OpCodes.Ldelem_I1,
+            CodeGeneration.OpCode.Ldelem_I2 => OpCodes.Ldelem_I2,
+            CodeGeneration.OpCode.Ldelem_I4 => OpCodes.Ldelem_I4,
+            CodeGeneration.OpCode.Ldelem_R4 => OpCodes.Ldelem_R4,
+            CodeGeneration.OpCode.Ldelem_U2 => OpCodes.Ldelem_U2,
+            CodeGeneration.OpCode.Ldelem_U4 => OpCodes.Ldelem_U4,
+            CodeGeneration.OpCode.Ldlen => OpCodes.Ldlen,
+            CodeGeneration.OpCode.Ldloc_0 => OpCodes.Ldloc_0,
+            CodeGeneration.OpCode.Ldloc_1 => OpCodes.Ldloc_1,
+            CodeGeneration.OpCode.Ldloc_2 => OpCodes.Ldloc_2,
+            CodeGeneration.OpCode.Ldloc_3 => OpCodes.Ldloc_3,
+            CodeGeneration.OpCode.Ldloc_S => OpCodes.Ldloc_S,
+            CodeGeneration.OpCode.Ldvirtftn => OpCodes.Ldvirtftn,
+            CodeGeneration.OpCode.Mkrefany => OpCodes.Mkrefany,
+            CodeGeneration.OpCode.Mul_Ovf => OpCodes.Mul_Ovf,
+            CodeGeneration.OpCode.Mul_Ovf_Un => OpCodes.Mul_Ovf_Un,
+            CodeGeneration.OpCode.Refanytype => OpCodes.Refanytype,
+            CodeGeneration.OpCode.Refanyval => OpCodes.Refanyval,
+            CodeGeneration.OpCode.Stelem_I2 => OpCodes.Stelem_I2,
+            CodeGeneration.OpCode.Stelem_I4 => OpCodes.Stelem_I4,
+            CodeGeneration.OpCode.Stelem_R4 => OpCodes.Stelem_R4,
+            CodeGeneration.OpCode.Stloc_0 => OpCodes.Stloc_0,
+            CodeGeneration.OpCode.Stloc_1 => OpCodes.Stloc_1,
+            CodeGeneration.OpCode.Stloc_2 => OpCodes.Stloc_2,
+            CodeGeneration.OpCode.Stloc_3 => OpCodes.Stloc_3,
+            CodeGeneration.OpCode.Sub_Ovf => OpCodes.Sub_Ovf,
+            CodeGeneration.OpCode.Sub_Ovf_Un => OpCodes.Sub_Ovf_Un,
+            CodeGeneration.OpCode.Tail => OpCodes.Tailcall,
+            CodeGeneration.OpCode.Unaligned => OpCodes.Unaligned,
+            CodeGeneration.OpCode.Volatile => OpCodes.Volatile,
+            CodeGeneration.OpCode.Starg => OpCodes.Starg,
+            CodeGeneration.OpCode.Starg_S => OpCodes.Starg_S,
             _ => throw new NotImplementedException()
         };
     }

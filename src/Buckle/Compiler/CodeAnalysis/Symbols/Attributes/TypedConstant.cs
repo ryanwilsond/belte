@@ -65,7 +65,7 @@ internal readonly struct TypedConstant : IEquatable<TypedConstant> {
             return false;
         }
 
-        if (type.specialType == specialType) {
+        if (type.specialType == specialType || (type.typeKind == TypeKind.Enum && specialType == SpecialType.Enum)) {
             value = (T)_value;
             return true;
         }

@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -40,6 +42,55 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         } else {
             _parameters = [];
         }
+    }
+
+
+    private FunctionPointerMethodSymbol(
+        CallingConvention callingConvention,
+        ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
+        var retInfo = retAndParamTypes[0];
+        // var returnType = new TypeWithAnnotations(retInfo.type, customModifiers: CSharpCustomModifier.Convert(retInfo.CustomModifiers));
+        var returnType = new TypeWithAnnotations(retInfo.type);
+
+        // RefCustomModifiers = CSharpCustomModifier.Convert(retInfo.RefCustomModifiers);
+        this.callingConvention = callingConvention;
+        returnTypeWithAnnotations = returnType;
+        // refKind = getRefKind(retInfo, RefCustomModifiers, RefKind.RefConst, RefKind.Ref, requiresLocationAllowed: false);
+        refKind = retInfo.isByRef ? RefKind.Ref : RefKind.None;
+        // UseUpdatedEscapeRules = useUpdatedEscapeRules;
+        _parameters = MakeParametersFromMetadata(retAndParamTypes.AsSpan()[1..], this);
+
+        static ImmutableArray<FunctionPointerParameterSymbol> MakeParametersFromMetadata(
+            ReadOnlySpan<ParamInfo<TypeSymbol>> parameterTypes,
+            FunctionPointerMethodSymbol parent) {
+            if (parameterTypes.Length > 0) {
+                var paramsBuilder = ArrayBuilder<FunctionPointerParameterSymbol>.GetInstance(parameterTypes.Length);
+
+                for (var i = 0; i < parameterTypes.Length; i++) {
+                    var param = parameterTypes[i];
+                    // var paramRefCustomMods = CSharpCustomModifier.Convert(param.RefCustomModifiers);
+                    // var paramType = TypeWithAnnotations.Create(param.Type, customModifiers: CSharpCustomModifier.Convert(param.CustomModifiers));
+                    var paramType = new TypeWithAnnotations(param.type);
+                    // var paramRefKind = getRefKind(param, /*paramRefCustomMods, */RefKind.In, RefKind.Out, requiresLocationAllowed: true);
+                    var paramRefKind = param.isByRef ? RefKind.Ref : RefKind.None;
+                    paramsBuilder.Add(new FunctionPointerParameterSymbol(paramType, paramRefKind, i, parent/*, paramRefCustomMods*/));
+                }
+
+                return paramsBuilder.ToImmutableAndFree();
+            } else {
+                return ImmutableArray<FunctionPointerParameterSymbol>.Empty;
+            }
+        }
+    }
+
+    internal static FunctionPointerMethodSymbol CreateFromMetadata(
+        ModuleSymbol containingModule,
+        CallingConvention callingConvention,
+        ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
+        return new FunctionPointerMethodSymbol(
+            callingConvention,
+            retAndParamTypes
+        );
     }
 
     private FunctionPointerMethodSymbol(
@@ -95,11 +146,11 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     }
 
     internal static FunctionPointerMethodSymbol CreateFromSource(
+        CallingConvention callingConvention,
         FunctionPointerSyntax syntax,
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
-        var callingConvention = CallingConvention.Default;
 
         var refKind = RefKind.None;
         TypeWithAnnotations returnType;
@@ -182,6 +233,44 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         return currentHash;
     }
 
+    internal FunctionPointerMethodSymbol ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position) {
+        var madeChanges = returnTypeWithAnnotations.ApplyNullableTransforms(
+            defaultTransformFlag,
+            transforms,
+            ref position,
+            out var newReturnType
+        );
+
+        var newParamTypes = ImmutableArray<TypeOrConstant>.Empty;
+
+        if (!parameters.IsEmpty) {
+            var paramTypesBuilder = ArrayBuilder<TypeOrConstant>.GetInstance(parameters.Length);
+            var madeParamChanges = false;
+
+            foreach (var param in parameters) {
+                madeParamChanges |= param.typeWithAnnotations
+                    .ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newParamType);
+                paramTypesBuilder.Add(new TypeOrConstant(newParamType));
+            }
+
+            if (madeParamChanges) {
+                newParamTypes = paramTypesBuilder.ToImmutableAndFree();
+                madeChanges = true;
+            } else {
+                paramTypesBuilder.Free();
+                newParamTypes = parameterTypesWithAnnotations.Select(p => new TypeOrConstant(p)).ToImmutableArray();
+            }
+        }
+
+        if (madeChanges)
+            return SubstituteParameterSymbols(newReturnType, newParamTypes);
+        else
+            return this;
+    }
+
     internal int GetHashCodeNoParameters() {
         return Hash.Combine(returnType,
             Hash.Combine(((int)callingConvention).GetHashCode(),
@@ -189,6 +278,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     }
 
     internal override CallingConvention callingConvention { get; }
+
+    internal bool isManaged => callingConvention != CallingConvention.Unmanaged;
 
     public override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
 

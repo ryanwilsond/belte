@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -17,6 +18,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private NamedTypeSymbol _lazyDeclaredBase;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private TemplateParameterInfo _lazyTemplateParameterInfo;
+    private SynthesizedEnumValueFieldSymbol _lazyEnumValueField;
+    private NamedTypeSymbol _lazyEnumUnderlyingType = ErrorTypeSymbol.UnknownResultType;
 
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
@@ -93,7 +96,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     internal override NamedTypeSymbol baseType {
         get {
             if (ReferenceEquals(_lazyBaseType, ErrorTypeSymbol.UnknownResultType)) {
-                if (containingType is not null)
+                if (containingType is not null && typeKind != TypeKind.Enum)
                     _ = containingType.baseType;
 
                 if (specialType == SpecialType.Object) {
@@ -114,6 +117,36 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             }
 
             return _lazyBaseType;
+        }
+    }
+
+    internal FieldSymbol enumValueField {
+        get {
+            if (typeKind != TypeKind.Enum)
+                return null;
+
+            if (_lazyEnumValueField is null)
+                Interlocked.CompareExchange(ref _lazyEnumValueField, new SynthesizedEnumValueFieldSymbol(this), null);
+
+            return _lazyEnumValueField;
+        }
+    }
+
+    internal override NamedTypeSymbol enumUnderlyingType {
+        get {
+            if (ReferenceEquals(_lazyEnumUnderlyingType, ErrorTypeSymbol.UnknownResultType)) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if ((object)Interlocked.CompareExchange(ref _lazyEnumUnderlyingType, GetEnumUnderlyingType(diagnostics), ErrorTypeSymbol.UnknownResultType) ==
+                    ErrorTypeSymbol.UnknownResultType) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    _state.NotePartComplete(CompletionParts.EnumUnderlyingType);
+                }
+
+                diagnostics.Free();
+            }
+
+            return _lazyEnumUnderlyingType;
         }
     }
 
@@ -194,8 +227,14 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     private static BaseTypeSyntax GetBaseListOpt(SingleTypeDeclaration decl) {
         if (decl.hasBaseDeclarations) {
-            var typeDeclaration = (ClassDeclarationSyntax)decl.syntaxReference.node;
-            return typeDeclaration.baseType;
+            switch (decl.syntaxReference.node.kind) {
+                case SyntaxKind.ClassDeclaration:
+                    return ((ClassDeclarationSyntax)decl.syntaxReference.node).baseType;
+                case SyntaxKind.EnumDeclaration:
+                    return ((EnumDeclarationSyntax)decl.syntaxReference.node).baseType;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(decl.syntaxReference.node.kind);
+            }
         }
 
         return null;
@@ -203,7 +242,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
         var typeKind = this.typeKind;
-        var declaredBase = GetDeclaredBaseType(basesBeingResolved: null);
+        var declaredBase = typeKind == TypeKind.Enum
+            ? CorLibrary.GetSpecialType(SpecialType.Enum)
+            : GetDeclaredBaseType(basesBeingResolved: null);
 
         if (declaredBase is null) {
             switch (typeKind) {
@@ -251,6 +292,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private NamedTypeSymbol MakeDeclaredBase(
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
+        if (typeKind == TypeKind.Enum)
+            return null;
+
         var decl = _declaration.declarations[0];
         var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
         var baseType = MakeOneDeclaredBase(newBasesBeingResolved, decl, diagnostics);
@@ -339,14 +383,21 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         var i = 0;
 
         var syntax = (TypeDeclarationSyntax)_declaration.declarations[0].syntaxReference.node;
+        var seenNames = new HashSet<string>();
 
         foreach (var templateSyntax in syntax.templateParameterList.parameters) {
+            var identifier = templateSyntax.identifier;
+            var name = identifier.text;
+
             var result = new SourceTemplateParameterSymbol(
                 this,
-                templateSyntax.identifier.text,
+                name,
                 i,
                 new SyntaxReference(templateSyntax)
             );
+
+            if (!seenNames.Add(name))
+                diagnostics.Push(Error.DuplicateTemplateParameter(identifier.location, name));
 
             builder.Add(result);
 
@@ -354,6 +405,36 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         }
 
         return builder.ToImmutableAndFree();
+    }
+
+    private NamedTypeSymbol GetEnumUnderlyingType(BelteDiagnosticQueue diagnostics) {
+        if (typeKind != TypeKind.Enum)
+            return null;
+
+        var compilation = declaringCompilation;
+        var decl = _declaration.declarations[0];
+        var bases = GetBaseListOpt(decl);
+
+        if (bases is not null) {
+            var typeSyntax = bases.type;
+
+            var baseBinder = compilation.GetBinder(bases);
+            var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
+
+            if (!type.specialType.IsValidEnumUnderlyingType()) {
+                diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
+                type = CorLibrary.GetSpecialType(SpecialType.Int);
+            }
+
+            if (type.specialType is SpecialType.Char or SpecialType.String &&
+                declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or BuildMode.Execute or BuildMode.Dotnet) {
+                diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
+            }
+
+            return (NamedTypeSymbol)type;
+        }
+
+        return CorLibrary.GetSpecialType(SpecialType.Int);
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(

@@ -96,7 +96,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 scopeBinder.BindTypeOrImplicitType(
                     typeSyntax,
                     BelteDiagnosticQueue.Discarded,
-                    out var result
+                    out var result,
+                    out _
                 );
 
                 return result;
@@ -226,26 +227,33 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         var diagnostics = BelteDiagnosticQueue.Discarded;
 
         bool isImplicitlyTyped;
+        bool isNonNullable;
         TypeWithAnnotations declarationType;
 
         if (_typeSyntax is null) {
             isImplicitlyTyped = true;
+            isNonNullable = false;
             declarationType = default;
         } else {
             declarationType = scopeBinder.BindTypeOrImplicitType(
                 _typeSyntax.SkipRef(out _),
                 diagnostics,
-                out isImplicitlyTyped
+                out isImplicitlyTyped,
+                out isNonNullable
             );
         }
 
         if (isImplicitlyTyped) {
             var inferredType = InferTypeOfImplicit(diagnostics);
 
-            if (inferredType.hasType && !inferredType.IsVoidType())
+            if (inferredType.hasType && !inferredType.IsVoidType()) {
+                if (isNonNullable && inferredType.IsNullableType())
+                    inferredType = new TypeWithAnnotations(inferredType.nullableUnderlyingTypeOrSelf);
+
                 declarationType = inferredType;
-            else
+            } else {
                 declarationType = new TypeWithAnnotations(scopeBinder.CreateErrorType("var"));
+            }
         }
 
         return declarationType;

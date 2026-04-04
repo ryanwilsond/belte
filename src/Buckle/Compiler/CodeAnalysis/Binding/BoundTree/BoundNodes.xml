@@ -79,8 +79,22 @@
   <Node Name="BoundPointerIndexAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
     <Field Name="index" Type="BoundExpression"/>
+    <Field Name="refersToLocation" Type="bool"/>
+  </Node>
+  <Node Name="BoundSizeOfOperator" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="sourceType" Type="BoundTypeExpression"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundCompileTimeExpression" Base="BoundExpression">
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="conditional" Type="bool"/>
   </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
+  <Node Name="BoundUnconvertedImplicitEnumFieldExpression" Base="BoundExpression">
+    <Field Name="name" Type="string"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
@@ -149,6 +163,7 @@
   <Node Name="BoundNullCoalescingAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
+    <Field Name="isPropagation" Type="bool"/>
   </Node>
   <Node Name="BoundConditionalAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
@@ -218,6 +233,7 @@
   <Node Name="BoundNullCoalescingOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
+    <Field Name="isPropagation" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundObjectCreationExpression" Base="BoundObjectCreationExpressionBase">
@@ -250,10 +266,29 @@
   <Node Name="BoundAddressOfOperator" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="isLoweredFixedField" Type="bool"/>
   </Node>
   <Node Name="BoundUnconvertedAddressOfOperator" Base="BoundExpression">
     <Field Name="operand" Type="BoundMethodGroup"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
+  <Node Name="BoundCascadeListExpression" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="cascades" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="conditionals" Type="ImmutableArray&lt;bool&gt;"/>
+  </Node>
+  <AbstractNode Name="BoundStackAllocExpressionBase" Base="BoundExpression">
+    <Field Name="elementType" Type="TypeSymbol" Null="disallow"/>
+    <Field Name="count" Type="BoundExpression" Null="disallow"/>
+  </AbstractNode>
+  <Node Name="BoundStackAllocExpression" Base="BoundStackAllocExpressionBase">
+    <Field Name="elementType" Type="TypeSymbol" Null="disallow" Override="true"/>
+    <Field Name="count" Type="BoundExpression" Null="disallow" Override="true"/>
+  </Node>
+  <Node Name="BoundConvertedStackAllocExpression" Base="BoundStackAllocExpressionBase">
+    <Field Name="elementType" Type="TypeSymbol" Null="disallow" Override="true"/>
+    <Field Name="count" Type="BoundExpression" Null="disallow" Override="true"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundFunctionPointerCallExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
@@ -298,6 +333,9 @@
     <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="localFunctions" Type="ImmutableArray&lt;LocalFunctionSymbol&gt;"/>
+  </Node>
+  <Node Name="BoundInlineILStatement" Base="BoundStatement">
+    <Field Name="instructions" Type="ImmutableArray&lt;(CodeGeneration.OpCode, ConstantValue, Symbol)&gt;"/>
   </Node>
   <Node Name="BoundExpressionStatement" Base="BoundStatement">
     <Field Name="expression" Type="BoundExpression"/>
@@ -352,5 +390,12 @@
   <Node Name="BoundLocalFunctionStatement" Base="BoundStatement">
     <Field Name="symbol" Type="LocalFunctionSymbol"/>
     <Field Name="body" Type="BoundBlockStatement"/>
+  </Node>
+  <Node Name="BoundSequencePoint" Base="BoundStatement">
+    <Field Name="statement" Type="BoundStatement?"/>
+  </Node>
+  <Node Name="BoundSequencePointWithLocation" Base="BoundStatement">
+    <Field Name="statement" Type="BoundStatement?"/>
+    <Field Name="location" Type="TextLocation"/>
   </Node>
 </Tree>

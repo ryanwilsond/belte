@@ -6,9 +6,11 @@ using System.Linq;
 using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -26,35 +28,39 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
     private readonly bool _isDll;
+    private readonly bool _debugMode;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
     private readonly Dictionary<MethodSymbol, MethodDefinition> _methods = [];
     private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly Dictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
+    private readonly string _tfm;
+    private readonly string _version;
 
     private Dictionary<string, MethodReference> _stlMap;
 
     // <Globals> class members
     private TypeDefinition _globalsClass;
-    private MethodDefinition _nullAssertMethod;
-    // private FieldDefinition _c9;
-    // private MethodDefinition _cMain;
-    // private MethodDefinition _cctor;
-    // private MethodDefinition _ctor;
-    // private MethodDefinition _pcctor;
-    // private MethodDefinition _actualEntryPoint;
-
+    private FieldDefinition _c9;
+    private FieldDefinition _c9__0_0;
+    private MethodDefinition _cInit;
+    private MethodDefinition _cctor;
+    private MethodDefinition _ctor;
+    private MethodDefinition _init;
     internal FieldDefinition randomField;
 
     private ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
         string[] references,
+        bool debugMode,
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
+        _debugMode = debugMode;
         _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -63,30 +69,33 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .OfType<TargetFrameworkAttribute>()
             .FirstOrDefault();
 
-        var tfm = attr.FrameworkName.Split('=')[1].Substring(1);
-        var runtimeDll = DotnetReferenceResolver.ResolveSystemRuntimeDll(tfm);
-        var netstandardDll = DotnetReferenceResolver.ResolveNetStandardDll(tfm);
-        var privateCoreLibDll = DotnetReferenceResolver.ResolvePrivateCoreLibDll(tfm);
+        _tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
 
 #if !DEBUG
 #pragma warning disable IL3000
 #endif
 
-        _belteDllName = typeof(Belte.Runtime.Console).Assembly.Location;
+        var objectDll = typeof(object).Assembly.Location;
+        var consoleDll = typeof(Console).Assembly.Location;
+        _belteDllName = typeof(Belte.Runtime.Utilities).Assembly.Location;
 
         if (string.IsNullOrEmpty(_belteDllName))
             _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
 
+        if (string.IsNullOrEmpty(objectDll))
+            objectDll = Path.Combine(refPackPath, "System.Runtime.dll");
+
+        if (string.IsNullOrEmpty(consoleDll))
+            consoleDll = Path.Combine(refPackPath, "System.Console.dll");
+
         _assemblies = [
-            AssemblyDefinition.ReadAssembly(typeof(object).Assembly.Location),
+            AssemblyDefinition.ReadAssembly(objectDll),
             AssemblyDefinition.ReadAssembly(_belteDllName),
         ];
 
         _backupAssemblies = [
-            AssemblyDefinition.ReadAssembly(typeof(Console).Assembly.Location),
-            // AssemblyDefinition.ReadAssembly(runtimeDll),
-            // AssemblyDefinition.ReadAssembly(netstandardDll),
-            // AssemblyDefinition.ReadAssembly(privateCoreLibDll),
+            AssemblyDefinition.ReadAssembly(consoleDll),
         ];
 
 #if !DEBUG
@@ -119,7 +128,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         ResolveMethods();
         GenerateSTLMap();
 
-        _topLevelTypes = program.types.Where(t => t.containingSymbol.kind == SymbolKind.Namespace).ToImmutableArray();
+        _topLevelTypes = program.GetAllTypes()
+            .Where(t => t.kind == SymbolKind.NamedType &&
+                t.containingSymbol.kind == SymbolKind.Namespace &&
+                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or SpecialType.Rect &&
+                t.originalDefinition is not PENamedTypeSymbol)
+            .ToArray()
+            .Cast<NamedTypeSymbol>()
+            .ToImmutableArray();
 
         var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
@@ -134,9 +150,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string moduleName,
         string[] references,
         string outputPath,
+        bool debugMode,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, diagnostics);
-        emitter.EmitToFile(outputPath);
+        var emitter = new ILEmitter(program, moduleName, references, debugMode, diagnostics);
+
+        if (SupportedProjectType(program, diagnostics))
+            emitter.EmitToFile(outputPath, debugMode);
     }
 
     internal static string EmitToString(
@@ -144,13 +163,55 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string moduleName,
         string[] references,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, diagnostics);
-        return emitter.EmitToString();
+        var emitter = new ILEmitter(program, moduleName, references, false, diagnostics);
+
+        if (SupportedProjectType(program, diagnostics))
+            return emitter.EmitToString();
+
+        return "<unsupported-project-type>";
     }
 
-    private void EmitToFile(string outputPath) {
+    private static bool SupportedProjectType(BoundProgram program, BelteDiagnosticQueue diagnostics) {
+        var options = program.compilation.options;
+
+        if (options.outputKind == OutputKind.GraphicsApplication && !options.isScript) {
+            diagnostics.Push(Error.Unsupported.GraphicsDll());
+            return false;
+        }
+
+        return true;
+    }
+
+    private void EmitToFile(string outputPath, bool debugMode) {
         EmitInternal();
-        _assemblyDefinition.Write(outputPath);
+        EmitRuntimeConfig(outputPath);
+
+        if (debugMode) {
+            var debugPath = Path.ChangeExtension(outputPath, ".pdb");
+
+            using var symbolStream = File.Create(debugPath);
+
+            var writerParameters = new WriterParameters {
+                WriteSymbols = true,
+                SymbolStream = symbolStream,
+                SymbolWriterProvider = new PortablePdbWriterProvider()
+            };
+
+            _assemblyDefinition.Write(outputPath, writerParameters);
+        } else {
+            _assemblyDefinition.Write(outputPath);
+        }
+    }
+
+    private void EmitRuntimeConfig(string outputPath) {
+        var runtimeConfigPath = Path.ChangeExtension(outputPath, ".runtimeconfig.json");
+
+        if (File.Exists(runtimeConfigPath))
+            File.Delete(runtimeConfigPath);
+
+        var content = $"{{\"runtimeOptions\": {{\"tfm\": \"net{_tfm}\",\"framework\": {{\"name\": \"Microsoft.NETCore.App\",\"version\": \"{_version}\"}}}}}}";
+
+        File.WriteAllText(runtimeConfigPath, content);
     }
 
     private string EmitToString() {
@@ -204,7 +265,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         TypeReference GetTypeCore(TypeSymbol type) {
             if (type.specialType == SpecialType.Nullable) {
                 var underlyingType = type.GetNullableUnderlyingType();
-                var genericArgumentType = GetTypeCore(underlyingType);
+                var genericArgumentType = GetType(underlyingType);
 
                 if (!CodeGenerator.IsValueType(underlyingType))
                     return genericArgumentType;
@@ -215,21 +276,133 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             }
 
             if (type is ArrayTypeSymbol array) {
-                var elementType = GetTypeCore(array.elementType);
-                var arrayType = elementType.MakeArrayType(array.rank);
-                return arrayType.Resolve();
+                var elementType = GetType(array.elementType);
+                return elementType.MakeArrayType(array.rank);
             }
 
-            if (type.specialType != SpecialType.None)
-                return _specialTypes[type.specialType];
+            if (type is PointerTypeSymbol pointer) {
+                var elementType = GetType(pointer.pointedAtType);
+                return elementType.MakePointerType();
+            }
+
+            if (type is FunctionPointerTypeSymbol)
+                throw ExceptionUtilities.Unreachable();
+
+            if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
+                return value;
+
+            if (type is TemplateParameterSymbol t) {
+                if (t.templateParameterKind == TemplateParameterKind.Method) {
+                    var containingMethodTypeParameters = _methodTypeParameters[
+                        (MethodSymbol)type.containingSymbol.originalDefinition
+                    ];
+
+                    return containingMethodTypeParameters[t.ordinal];
+                }
+
+                var containingType = GetTypeCoreInternal(type.containingType);
+                return containingType.GenericParameters[t.ordinal];
+            }
+
+            return GetTypeWithContainingGenerics((NamedTypeSymbol)type);
+        }
+
+        TypeReference GetTypeWithContainingGenerics(NamedTypeSymbol type) {
+            var foundType = GetTypeCoreInternal(type);
+
+            // Acceptable inside specific contexts like typeof
+            if (type.ContainsErrorType())
+                return foundType;
+
+            var chain = new Stack<NamedTypeSymbol>();
+            var current = type;
+
+            while (current is not null) {
+                chain.Push(current);
+                current = current.containingType;
+            }
+
+            var allTypeArgs = new List<TypeReference>();
+
+            while (chain.Count > 0) {
+                var s = chain.Pop();
+
+                if (s.arity > 0) {
+                    foreach (var arg in s.templateArguments)
+                        allTypeArgs.Add(GetType(arg.type.type));
+                }
+            }
+
+            if (allTypeArgs.Count > 0) {
+                var typeReference = new GenericInstanceType(foundType);
+
+                foreach (var generic in allTypeArgs)
+                    typeReference.GenericArguments.Add(generic);
+
+                return typeReference;
+            }
+
+            return foundType;
+        }
+
+        TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
+            if (type.originalDefinition is PENamedTypeSymbol || type.IsErrorType())
+                return ResolveType(null, type.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat));
 
             return _types[type.originalDefinition];
         }
     }
 
     internal MethodReference GetMethod(MethodSymbol method) {
-        if (_methods.TryGetValue(method, out var value))
+        MethodReference value = null;
+        var found = false;
+
+        if (method.originalDefinition is PEMethodSymbol m) {
+            value = ResolveMethod(
+                m.containingType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat),
+                m.metadataName,
+                m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
+            );
+            found = true;
+        }
+
+        if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
+            found = true;
+            value = (MethodReference)val;
+        }
+
+        if (found) {
+            var constructedType = GetType(method.containingType);
+
+            if (method.arity > 0) {
+                var generic = new GenericInstanceMethod(value) {
+                    DeclaringType = constructedType
+                };
+
+                foreach (var p in method.templateArguments.Select(t => GetType(t.type.type)).ToArray())
+                    generic.GenericArguments.Add(p);
+
+                return generic;
+            }
+
+            if (constructedType.IsGenericInstance) {
+                var methodRef = new MethodReference(
+                    value.Name,
+                    value.ReturnType,
+                    constructedType) {
+                    HasThis = value.HasThis,
+                    ExplicitThis = value.ExplicitThis,
+                    CallingConvention = value.CallingConvention
+                };
+
+                foreach (var param in value.Parameters)
+                    methodRef.Parameters.Add(new Mono.Cecil.ParameterDefinition(param.ParameterType));
+
+                return methodRef;
+            }
+
             return value;
+        }
 
         return CheckStandardMap(method);
     }
@@ -239,10 +412,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var genericArgumentType = GetType(genericType);
         typeReference.GenericArguments.Add(genericArgumentType);
 
-        // var genericDef = NetTypeReference.Nullable.Resolve();
-
-        // var ctorDef = genericDef.Methods
-        //     .First(m => m.IsConstructor && m.Parameters.Count == 1 && m.Parameters[0].ParameterType.Name == "T");
         var ctorDef = NetMethodReference.Nullable_ctor;
 
         var ctorRef = _assemblyDefinition.MainModule.ImportReference(ctorDef);
@@ -309,16 +478,42 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     internal MethodReference GetNullAssert(TypeSymbol genericType) {
-        var genericMethod = new GenericInstanceMethod(_nullAssertMethod);
+        var genericMethod = new GenericInstanceMethod(NetMethodReference.AssertNull);
         genericMethod.GenericArguments.Add(GetType(genericType));
         return _assemblyDefinition.MainModule.ImportReference(genericMethod);
     }
 
     internal FieldReference GetField(FieldSymbol field) {
-        return _fields[field];
+        if (field is PEFieldSymbol f)
+            return GetType(field.containingType).Resolve().Fields.Single(e => e.Name == f.name);
+
+        var fieldRef = _fields[field];
+        var constructedType = GetType(field.containingType);
+
+        TypeReference fieldType;
+
+        if (fieldRef.FieldType is GenericParameter gp && gp.Type == GenericParameterType.Type) {
+            var index = gp.DeclaringType.GenericParameters.IndexOf(gp);
+            fieldType = ((GenericInstanceType)constructedType).GenericArguments[index];
+        } else {
+            fieldType = fieldRef.FieldType;
+        }
+
+        return new FieldReference(
+            fieldRef.Name,
+            fieldType,
+            constructedType
+        );
+    }
+
+    internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
+        return _program.fixedImplementationTypes[field];
     }
 
     internal override void EmitGlobalsClass() {
+        if (_globalsClass is not null)
+            return;
+
         _globalsClass = new TypeDefinition(
             "",
             "<Globals>",
@@ -348,119 +543,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         cctorILProcessor.Emit(OpCodes.Ret);
 
         _globalsClass.Methods.Insert(0, cctor);
-
-        // AssertObjectNotNull and AssertValueNotNull
-        {
-            _nullAssertMethod = new MethodDefinition(
-                "<AssertObjectNotNull>",
-                MethodAttributes.Static | MethodAttributes.Public,
-                _specialTypes[SpecialType.Void]
-            );
-
-            var nullAssertObjectT = new GenericParameter("T", _nullAssertMethod) {
-                // Attributes = GenericParameterAttributes.ReferenceTypeConstraint
-            };
-
-            _nullAssertMethod.GenericParameters.Add(nullAssertObjectT);
-            _nullAssertMethod.ReturnType = nullAssertObjectT;
-            _nullAssertMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("o", ParameterAttributes.None, nullAssertObjectT));
-
-            _nullAssertMethod.Body.InitLocals = true;
-            var nullAssertObjectILProcessor = _nullAssertMethod.Body.GetILProcessor();
-
-            /*
-
-            public static T AssertObjectNotNull<T>(T o) where T : class {
-                if (o is null)
-                    throw new NullReferenceException();
-
-                return o;
-            }
-
-            */
-            nullAssertObjectILProcessor.Emit(OpCodes.Ldarg_0);
-            nullAssertObjectILProcessor.Emit(OpCodes.Box, nullAssertObjectT);
-            nullAssertObjectILProcessor.Emit(OpCodes.Ldnull);
-            nullAssertObjectILProcessor.Emit(OpCodes.Ceq);
-            nullAssertObjectILProcessor.Emit(OpCodes.Brfalse_S, Instruction.Create(OpCodes.Nop));
-            nullAssertObjectILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
-            nullAssertObjectILProcessor.Emit(OpCodes.Throw);
-            nullAssertObjectILProcessor.Emit(OpCodes.Ldarg_0);
-            nullAssertObjectILProcessor.Emit(OpCodes.Ret);
-
-            nullAssertObjectILProcessor.Body.Instructions[4].Operand = nullAssertObjectILProcessor.Body.Instructions[7];
-
-            _globalsClass.Methods.Add(_nullAssertMethod);
-
-            // _nullAssertValueMethod = new MethodDefinition(
-            //     "<AssertValueNotNull>",
-            //     MethodAttributes.Static | MethodAttributes.Public,
-            //     _specialTypes[SpecialType.Void]
-            // );
-
-            // var nullAssertValueT = new GenericParameter("T", _nullAssertValueMethod) {
-            //     Attributes = GenericParameterAttributes.NotNullableValueTypeConstraint
-            // };
-
-            // _nullAssertValueMethod.GenericParameters.Add(nullAssertValueT);
-            // _nullAssertValueMethod.ReturnType = nullAssertValueT;
-            // _nullAssertValueMethod.Parameters.Add(new Mono.Cecil.ParameterDefinition("v", ParameterAttributes.None, nullAssertValueT));
-
-            // _nullAssertValueMethod.Body.InitLocals = true;
-            // var nullAssertValueILProcessor = _nullAssertValueMethod.Body.GetILProcessor();
-
-            // /*
-
-            // public static T AssertValueNotNull<T>(T? v) where T : struct {
-            //     if (!v.HasValue)
-            //         throw new NullReferenceException();
-
-            //     return v.Value;
-            // }
-
-            // */
-            // var hvTypeReference = new GenericInstanceType(NetTypeReference.Nullable);
-            // hvTypeReference.GenericArguments.Add(nullAssertValueT);
-
-            // var getHasValueDef = NetMethodReference.Nullable_HasValue;
-            // var getHasValueRef = _assemblyDefinition.MainModule.ImportReference(getHasValueDef);
-            // var genericGetHasValue = new MethodReference(getHasValueRef.Name, getHasValueRef.ReturnType, hvTypeReference) {
-            //     HasThis = getHasValueRef.HasThis,
-            //     ExplicitThis = getHasValueRef.ExplicitThis,
-            //     CallingConvention = getHasValueRef.CallingConvention,
-            // };
-
-            // var nullHasValue = _assemblyDefinition.MainModule.ImportReference(genericGetHasValue);
-
-            // var gvTypeReference = new GenericInstanceType(NetTypeReference.Nullable);
-            // gvTypeReference.GenericArguments.Add(nullAssertValueT);
-
-            // var getValueDef = NetMethodReference.Nullable_HasValue;
-            // var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
-            // var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, gvTypeReference) {
-            //     HasThis = getValueRef.HasThis,
-            //     ExplicitThis = getValueRef.ExplicitThis,
-            //     CallingConvention = getValueRef.CallingConvention,
-            // };
-
-            // var nullGetValue = _assemblyDefinition.MainModule.ImportReference(genericGetValue);
-
-            // nullAssertValueILProcessor.Emit(OpCodes.Ldarga_S, 0);
-            // nullAssertValueILProcessor.Emit(OpCodes.Call, nullHasValue);
-            // nullAssertValueILProcessor.Emit(OpCodes.Ldc_I4_0);
-            // nullAssertValueILProcessor.Emit(OpCodes.Ceq);
-            // nullAssertValueILProcessor.Emit(OpCodes.Brfalse_S, Instruction.Create(OpCodes.Nop));
-            // nullAssertValueILProcessor.Emit(OpCodes.Newobj, NetMethodReference.NullReferenceException_ctor);
-            // nullAssertValueILProcessor.Emit(OpCodes.Throw);
-            // nullAssertValueILProcessor.Emit(OpCodes.Ldarga_S, 0);
-            // nullAssertValueILProcessor.Emit(OpCodes.Call, nullGetValue);
-            // nullAssertValueILProcessor.Emit(OpCodes.Ret);
-
-            // nullAssertValueILProcessor.Body.Instructions[4].Operand = nullAssertValueILProcessor.Body.Instructions[7];
-
-            // _globalsClass.Methods.Add(_nullAssertValueMethod);
-        }
-
         _assemblyDefinition.MainModule.Types.Add(_globalsClass);
     }
 
@@ -484,11 +566,16 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (entryPoint is not null) {
             _assemblyDefinition.EntryPoint = _methods[entryPoint];
 
-            // if (_actualEntryPoint is not null) {
-            //     _assemblyDefinition.EntryPoint = _actualEntryPoint;
-
             if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int))
                 _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+        }
+
+        if (_debugMode) {
+            var debuggableAttribute = new CustomAttribute(ResolveMethod("System.Diagnostics.DebuggableAttribute", ".ctor", ["System.Boolean", "System.Boolean"]));
+            debuggableAttribute.ConstructorArguments.Add(new CustomAttributeArgument(_specialTypes[SpecialType.Bool], true));
+            debuggableAttribute.ConstructorArguments.Add(new CustomAttributeArgument(_specialTypes[SpecialType.Bool], true));
+
+            _assemblyDefinition.CustomAttributes.Add(debuggableAttribute);
         }
     }
 
@@ -497,22 +584,65 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetNamespaceName(type),
             type.name,
             GetTypeAttributes(type, isNested),
-            type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
+            GetBaseType(type)
         );
 
-        foreach (var member in type.GetTypeMembers())
-            CreateNestedType(member);
+        if (type.enumFlagsAttribute) {
+            var flagsCtor = _assemblyDefinition.MainModule.ImportReference(
+                typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes)
+            );
 
-        if (_program.nestedTypes.ContainsKey(type)) {
-            foreach (var nestedType in _program.nestedTypes[type])
-                CreateNestedType(nestedType);
+            var flagsAttr = new CustomAttribute(flagsCtor);
+            typeDefinition.CustomAttributes.Add(flagsAttr);
         }
+
+        GenericParameter[] workingParams = [];
+
+        if (type.arity > 0) {
+            workingParams = type.templateParameters.Select(t => new GenericParameter(t.name, typeDefinition)).ToArray();
+
+            foreach (var generic in workingParams)
+                typeDefinition.GenericParameters.Add(generic);
+        }
+
+        CreateNestedTypes(type, typeDefinition, workingParams);
 
         _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
+    }
 
-        void CreateNestedType(NamedTypeSymbol nestedType) {
+    private TypeReference GetBaseType(NamedTypeSymbol type) {
+        if (type.baseType is null || type.IsStructType())
+            return NetTypeReference.ValueType;
+
+        if (type.IsEnumType())
+            return NetTypeReference.Enum;
+
+        return GetType(type.baseType);
+    }
+
+    private void CreateNestedTypes(
+        NamedTypeSymbol type,
+        TypeDefinition typeDefinition,
+        GenericParameter[] workingParams) {
+        foreach (var member in type.GetTypeMembers())
+            CreateNestedType(member, workingParams);
+
+        if (_program.nestedTypes.ContainsKey(type)) {
+            foreach (var nestedType in _program.nestedTypes[type])
+                CreateNestedType(nestedType, workingParams);
+        }
+
+        void CreateNestedType(NamedTypeSymbol nestedType, GenericParameter[] workingParams) {
             var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
+
+            workingParams = workingParams.Concat(
+                nestedType.templateParameters.Select(t => new GenericParameter(t.name, typeDefinition))).ToArray();
+
+            foreach (var generic in workingParams)
+                typeDefinition.GenericParameters.Add(generic);
+
+            CreateNestedTypes(nestedType, nestedDefinition, workingParams);
             typeDefinition.NestedTypes.Add(nestedDefinition);
         }
     }
@@ -524,15 +654,58 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return symbol.containingNamespace.name;
     }
 
+    private void CreateEnumMemberDefinitions(NamedTypeSymbol type, TypeDefinition typeDefinition) {
+        var underlyingType = type.GetEnumUnderlyingType().StrippedType();
+        var underlyingTypeRef = GetType(underlyingType);
+        var underlyingField = (type as SourceNamedTypeSymbol).enumValueField;
+
+        var underlyingFieldDef = new FieldDefinition(
+            underlyingField.name,
+            FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName,
+            underlyingTypeRef
+        );
+
+        typeDefinition.Fields.Add(underlyingFieldDef);
+        _fields.Add(underlyingField, underlyingFieldDef);
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            var fieldDef = new FieldDefinition(
+                f.name,
+                FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal,
+                typeDefinition
+            ) {
+                Constant = f.constantValue
+            };
+
+            typeDefinition.Fields.Add(fieldDef);
+            _fields.Add(f, fieldDef);
+        }
+    }
+
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
         var typeDefinition = _types[type.originalDefinition];
 
+        if (type.IsEnumType()) {
+            CreateEnumMemberDefinitions(type, typeDefinition);
+            return;
+        }
+
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (f.isFixedSizeBuffer) {
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeDefinition);
+                    continue;
+                }
+
                 var fieldDefinition = new FieldDefinition(
                     f.name,
                     GetFieldAttributes(f),
-                    GetType(f.type, f.refKind != RefKind.None)
+                    (f.type.typeKind == TypeKind.FunctionPointer)
+                        ? _specialTypes[SpecialType.IntPtr]
+                        : GetType(f.type, f.refKind != RefKind.None)
                 );
 
                 _fields.Add(f, fieldDefinition);
@@ -543,23 +716,131 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         // Checking program map for methods to make sure synthesized ones are included (such as closure methods)
-        foreach (var pair in _program.methodBodies) {
-            if (pair.Key.containingType.Equals(type)) {
-                // var method =
-                CreateMethodDefinition(pair.Key, pair.Value, typeDefinition);
+        foreach (var pair in _program.GetAllMethodBodies()) {
+            if (pair.Item1.containingType.Equals(type)) {
+                CreateMethodDefinition(pair.Item1, pair.Item2, typeDefinition);
 
-                // if (pair.Key == _program.entryPoint)
-                //     CreateAssemblyResolverDefinition(typeDefinition, method);
+                if (pair.Item1 == _program.entryPoint)
+                    CreateAssemblyResolverDefinition(typeDefinition);
             }
         }
     }
 
-    private MethodDefinition CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeDefinition containingType) {
+    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeDefinition typeDefinition) {
+        var fixedImpl = GetFixedImplementationType(field);
+
+        var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
+        var elementSize = elementType.FixedBufferElementSizeInBytes();
+
+        var nestedType = new TypeDefinition(
+            typeDefinition.Namespace,
+            fixedImpl.name,
+            GetTypeAttributes(fixedImpl, true),
+            GetBaseType(fixedImpl)
+        ) {
+            PackingSize = 0,
+            ClassSize = field.fixedSize * elementSize
+        };
+
+        typeDefinition.NestedTypes.Add(nestedType);
+
+        var nestedBufferField = fixedImpl.fixedElementField;
+
+        var nestedBufferFieldDef = new FieldDefinition(
+            nestedBufferField.name,
+            GetFieldAttributes(nestedBufferField),
+            GetType(nestedBufferField.type)
+        );
+
+        nestedType.Fields.Add(nestedBufferFieldDef);
+
+        var adaptedFieldDef = new FieldDefinition(
+            field.name,
+            GetFieldAttributes(field),
+            nestedType
+        );
+
+        typeDefinition.Fields.Add(adaptedFieldDef);
+
+        _fields.Add(field, adaptedFieldDef);
+        _fields.Add(nestedBufferField, nestedBufferFieldDef);
+        _types.Add(fixedImpl, nestedType);
+    }
+
+    private MethodDefinition CreateMethodDefinition(
+        MethodSymbol method,
+        BoundBlockStatement body,
+        TypeDefinition containingType) {
+        if (method.isExtern)
+            return CreatePInvokeMethodDefinition(method, containingType);
+        else
+            return CreateNormalMethodDefinition(method, body, containingType);
+    }
+
+    private MethodDefinition CreateNormalMethodDefinition(
+        MethodSymbol method,
+        BoundBlockStatement body,
+        TypeDefinition containingType) {
+        var methodDefinition = new MethodDefinition(
+            method.name,
+            GetMethodAttributes(method),
+            GetTypeOrIntPtr(method.returnType, method.returnsByRef)
+        );
+
+        foreach (var parameter in method.parameters) {
+            var parameterDefinition = new Mono.Cecil.ParameterDefinition(
+                parameter.name,
+                ParameterAttributes.None,
+                GetTypeOrIntPtr(parameter.type, parameter.refKind != RefKind.None)
+            );
+
+            methodDefinition.Parameters.Add(parameterDefinition);
+        }
+
+        if (method.arity > 0) {
+            var genericBuilder = ArrayBuilder<GenericParameter>.GetInstance();
+
+            foreach (var templateParameter in method.templateParameters) {
+                var genericParameter = new GenericParameter(templateParameter.name, methodDefinition);
+                methodDefinition.GenericParameters.Add(genericParameter);
+                genericBuilder.Add(genericParameter);
+            }
+
+            _methodTypeParameters.Add(method, genericBuilder.ToArrayAndFree());
+        }
+
+        _methods.Add(method, methodDefinition);
+        _methodBodies.Add(methodDefinition, (method, body));
+        containingType.Methods.Add(methodDefinition);
+
+        return methodDefinition;
+
+        TypeReference GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
+            if (type.typeKind == TypeKind.FunctionPointer)
+                return _specialTypes[SpecialType.IntPtr];
+
+            return GetType(type, byRef);
+        }
+    }
+
+    private MethodDefinition CreatePInvokeMethodDefinition(MethodSymbol method, TypeDefinition containingType) {
+        var dllImportData = method.GetDllImportData();
         var methodDefinition = new MethodDefinition(
             method.name,
             GetMethodAttributes(method),
             GetType(method.returnType, method.returnsByRef)
         );
+
+        var moduleReference = new ModuleReference(dllImportData.moduleName);
+
+        var pInvoke = new PInvokeInfo(
+            GetCallingConvention(dllImportData.callingConvention) | GetCharSet(dllImportData.characterSet),
+            method.name,
+            moduleReference
+        );
+
+        methodDefinition.PInvokeInfo = pInvoke;
+        methodDefinition.IsPreserveSig = true;
 
         foreach (var parameter in method.parameters) {
             var parameterDefinition = new Mono.Cecil.ParameterDefinition(
@@ -572,10 +853,31 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         _methods.Add(method, methodDefinition);
-        _methodBodies.Add(methodDefinition, (method, body));
         containingType.Methods.Add(methodDefinition);
+        _assemblyDefinition.MainModule.ModuleReferences.Add(moduleReference);
 
         return methodDefinition;
+
+        PInvokeAttributes GetCallingConvention(CallingConvention callingConvention) {
+            return callingConvention switch {
+                CallingConvention.Winapi => PInvokeAttributes.CallConvWinapi,
+                CallingConvention.FastCall => PInvokeAttributes.CallConvFastcall,
+                CallingConvention.Cdecl => PInvokeAttributes.CallConvCdecl,
+                CallingConvention.StdCall => PInvokeAttributes.CallConvStdCall,
+                CallingConvention.ThisCall => PInvokeAttributes.CallConvThiscall,
+                _ => throw ExceptionUtilities.UnexpectedValue(callingConvention)
+            };
+        }
+
+        PInvokeAttributes GetCharSet(System.Runtime.InteropServices.CharSet charSet) {
+            return charSet switch {
+                System.Runtime.InteropServices.CharSet.Ansi => PInvokeAttributes.CharSetAnsi,
+                System.Runtime.InteropServices.CharSet.Auto => PInvokeAttributes.CharSetAuto,
+                System.Runtime.InteropServices.CharSet.None => PInvokeAttributes.CharSetNotSpec,
+                System.Runtime.InteropServices.CharSet.Unicode => PInvokeAttributes.CharSetUnicode,
+                _ => throw ExceptionUtilities.UnexpectedValue(charSet),
+            };
+        }
     }
 
     private static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
@@ -587,6 +889,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             attributes |= TypeAttributes.Abstract;
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
+
+        if (type.IsStructType())
+            attributes |= TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
             Accessibility.Private => TypeAttributes.NestedPrivate,
@@ -630,293 +935,232 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (method.isOverride)
             attributes |= MethodAttributes.Virtual;
 
+        switch (method.methodKind) {
+            case MethodKind.Constructor:
+            case MethodKind.StaticConstructor:
+                attributes |= MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
+                break;
+        }
+
         return attributes;
     }
 
     private void EmitMethod(MethodDefinition methodDefinition) {
+        if (methodDefinition.IsAbstract || (methodDefinition.Attributes & MethodAttributes.PInvokeImpl) != 0)
+            return;
+
         var (method, body) = _methodBodies[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode);
 
-        // if (_program.entryPoint == method)
-        //     EmitAssemblyResolver(methodDefinition);
+        if (_program.entryPoint == method)
+            EmitAssemblyResolver(methodDefinition);
 
         codeGen.Generate();
 
-        methodDefinition.Body.OptimizeMacros();
+        methodDefinition.Body.Optimize();
+
+        if (_debugMode) {
+            methodDefinition.DebugInformation.Scope = new ScopeDebugInformation(
+                methodDefinition.Body.Instructions.First(),
+                methodDefinition.Body.Instructions.Last()
+            );
+
+            foreach (CecilVariableDefinition local in ilBuilder.localSlotManager.LocalsInOrder()) {
+                if (local.synthesizedKind == SynthesizedLocalKind.UserDefined) {
+                    methodDefinition.DebugInformation.Scope.Variables.Add(
+                        new VariableDebugInformation(local.variableDefinition, local.name)
+                    );
+                }
+            }
+        }
     }
 
-    /*
-        private void CreateAssemblyResolverDefinition(TypeDefinition mainType, MethodDefinition mainMethod) {
-            var cDefinition = new TypeDefinition(
-                "",
-                "<>AssemblyResolverClass",
-                TypeAttributes.NestedPrivate |
-                TypeAttributes.Sealed |
-                TypeAttributes.BeforeFieldInit,
+    private void CreateAssemblyResolverDefinition(TypeDefinition mainType) {
+        var cDefinition = new TypeDefinition(
+            "",
+            "<>AssemblyResolverClass",
+            TypeAttributes.NestedPrivate |
+            TypeAttributes.Sealed |
+            TypeAttributes.BeforeFieldInit,
+            _specialTypes[SpecialType.Object]
+        );
+
+        _c9 = new FieldDefinition(
+            "<>9",
+            FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
+            cDefinition
+        );
+
+        _c9__0_0 = new FieldDefinition(
+            "<>9__0_0",
+            FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
+            ResolveType(null, "System.ResolveEventHandler")
+        );
+
+        cDefinition.Fields.Add(_c9);
+        cDefinition.Fields.Add(_c9__0_0);
+
+        var cctor = new MethodDefinition(
+            ".cctor",
+            MethodAttributes.Static | MethodAttributes.Private |
+            MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            _specialTypes[SpecialType.Void]
+        );
+
+        var ctor = new MethodDefinition(
+            ".ctor",
+            MethodAttributes.Public |
+            MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+            _specialTypes[SpecialType.Void]
+        );
+
+        var methodDefinition = new MethodDefinition(
+            "<Main>AssemblyResolver",
+            MethodAttributes.HideBySig | MethodAttributes.Assembly,
+            ResolveType(null, "System.Reflection.Assembly")
+        );
+
+        methodDefinition.Parameters.Add(
+            new Mono.Cecil.ParameterDefinition(
+                "s",
+                ParameterAttributes.None,
                 _specialTypes[SpecialType.Object]
-            );
+            )
+        );
 
-            _c9 = new FieldDefinition(
-                "<>9",
-                FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
-                cDefinition
-            );
+        methodDefinition.Parameters.Add(
+            new Mono.Cecil.ParameterDefinition(
+                "e",
+                ParameterAttributes.None,
+                ResolveType(null, "System.ResolveEventArgs")
+            )
+        );
 
-            cDefinition.Fields.Add(_c9);
+        _cInit = methodDefinition;
+        _cctor = cctor;
+        _ctor = ctor;
+        cDefinition.Methods.Add(cctor);
+        cDefinition.Methods.Add(ctor);
+        cDefinition.Methods.Add(_cInit);
 
+        mainType.NestedTypes.Add(cDefinition);
+
+        var moduleInitializerAttributeCtor = ResolveMethod("System.Runtime.CompilerServices.ModuleInitializerAttribute", ".ctor", []);
+        var attr = new CustomAttribute(moduleInitializerAttributeCtor);
+
+        _init = new MethodDefinition(
+            "<>Init",
+            MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static,
+            _specialTypes[SpecialType.Void]
+        );
+
+        _init.CustomAttributes.Add(attr);
+
+        mainType.Methods.Add(_init);
+    }
+
+    private void EmitAssemblyResolver(MethodDefinition mainMethod) {
+        // TODO Maybe instead of finding dlls from compiler, embed and extract them?
+        var cctorBuilder = new CecilILBuilder(null, this, _cctor);
+        var cctorIL = cctorBuilder.iLProcessor;
+
+        cctorIL.Emit(OpCodes.Newobj, _ctor);
+        cctorIL.Emit(OpCodes.Stsfld, _c9);
+        cctorIL.Emit(OpCodes.Ret);
+
+        cctorBuilder.Finish();
+
+        var ctorBuilder = new CecilILBuilder(null, this, _ctor);
+        var ctorIL = ctorBuilder.iLProcessor;
+
+        ctorIL.Emit(OpCodes.Ldarg_0);
+        ctorIL.Emit(OpCodes.Call, ResolveMethod("System.Object", ".ctor", []));
+        ctorIL.Emit(OpCodes.Ret);
+
+        ctorBuilder.Finish();
+
+        var cBuilder = new CecilILBuilder(null, this, _cInit);
+
+        cBuilder.AllocateSlot(_specialTypes[SpecialType.String], LocalSlotConstraints.None);
+        cBuilder.AllocateSlot(_specialTypes[SpecialType.String], LocalSlotConstraints.None);
+
+        var cIL = cBuilder.iLProcessor;
+        var ret = new object();
+
+        cIL.Emit(OpCodes.Ldarg_2);
+        cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.ResolveEventArgs", "get_Name", []));
+        cIL.Emit(OpCodes.Newobj, ResolveMethod("System.Reflection.AssemblyName", ".ctor", ["System.String"]));
+        cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.AssemblyName", "get_Name", []));
+        cIL.Emit(OpCodes.Ldstr, ".dll");
+        cIL.Emit(OpCodes.Call, ResolveMethod("System.String", "Concat", ["System.String", "System.String"]));
+        cIL.Emit(OpCodes.Stloc_0);
+        cIL.Emit(OpCodes.Ldstr, AppContext.BaseDirectory);
+        cIL.Emit(OpCodes.Ldloc_0);
+        cIL.Emit(OpCodes.Call, ResolveMethod("System.IO.Path", "Combine", ["System.String", "System.String"]));
+        cIL.Emit(OpCodes.Stloc_1);
+        cIL.Emit(OpCodes.Ldloc_1);
+        cIL.Emit(OpCodes.Call, ResolveMethod("System.IO.File", "Exists", ["System.String"]));
+        cBuilder.EmitBranch(CodeGeneration.OpCode.Brtrue_S, ret);
+        cIL.Emit(OpCodes.Ldnull);
+        cIL.Emit(OpCodes.Ret);
+        cBuilder.MarkLabel(ret);
+        cIL.Emit(OpCodes.Ldloc_1);
+        cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "LoadFrom", ["System.String"]));
+        cIL.Emit(OpCodes.Ret);
+
+        cBuilder.Finish();
+
+        var amBuilder = new CecilILBuilder(null, this, _init);
+        var amIL = amBuilder.iLProcessor;
+
+        var endAM = new object();
+
+        amIL.Emit(OpCodes.Call, ResolveMethod("System.AppDomain", "get_CurrentDomain", []));
+        amIL.Emit(OpCodes.Ldsfld, _c9__0_0);
+        amIL.Emit(OpCodes.Dup);
+        amBuilder.EmitBranch(CodeGeneration.OpCode.Brtrue_S, endAM);
+        amIL.Emit(OpCodes.Pop);
+        amIL.Emit(OpCodes.Ldsfld, _c9);
+        amIL.Emit(OpCodes.Ldftn, _cInit);
+        amIL.Emit(OpCodes.Newobj, ResolveMethod("System.ResolveEventHandler", ".ctor", ["System.Object", "System.IntPtr"]));
+        amIL.Emit(OpCodes.Dup);
+        amIL.Emit(OpCodes.Stsfld, _c9__0_0);
+        amBuilder.MarkLabel(endAM);
+        amIL.Emit(OpCodes.Callvirt, ResolveMethod("System.AppDomain", "add_AssemblyResolve", ["System.ResolveEventHandler"]));
+        amIL.Emit(OpCodes.Ret);
+
+        amBuilder.Finish();
+
+        var moduleType = _assemblyDefinition.MainModule.Types.First(t => t.Name == "<Module>");
+
+        if (moduleType.Methods.Any(m => m.Name == ".cctor")) {
+            var moduleCCtor = moduleType.Methods.First(m => m.Name == ".cctor");
+            var il = moduleCCtor.Body.GetILProcessor();
+            var finalRet = moduleCCtor.Body.Instructions.Last(i => i.OpCode == OpCodes.Ret);
+
+            il.InsertBefore(finalRet, il.Create(OpCodes.Call, _init));
+        } else {
             var cctor = new MethodDefinition(
                 ".cctor",
-                MethodAttributes.Static | MethodAttributes.Private |
-                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                MethodAttributes.Private |
+                MethodAttributes.Static |
+                MethodAttributes.SpecialName |
+                MethodAttributes.RTSpecialName,
                 _specialTypes[SpecialType.Void]
             );
 
-            var ctor = new MethodDefinition(
-                ".ctor",
-                MethodAttributes.Public |
-                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-                _specialTypes[SpecialType.Void]
-            );
+            moduleType.Methods.Add(cctor);
 
-            var methodDefinition = new MethodDefinition(
-                "<Main>AssemblyResolver",
-                MethodAttributes.HideBySig | MethodAttributes.Assembly,
-                ResolveType(null, "System.Reflection.Assembly")
-            );
+            var mBuilder = new CecilILBuilder(null, this, cctor);
+            var mIL = mBuilder.iLProcessor;
 
-            methodDefinition.Parameters.Add(
-                new Mono.Cecil.ParameterDefinition(
-                    "s",
-                    ParameterAttributes.None,
-                    _specialTypes[SpecialType.Object]
-                )
-            );
+            mIL.Emit(OpCodes.Call, _init);
+            mIL.Emit(OpCodes.Ret);
 
-            methodDefinition.Parameters.Add(
-                new Mono.Cecil.ParameterDefinition(
-                    "e",
-                    ParameterAttributes.None,
-                    ResolveType(null, "System.ResolveEventArgs")
-                )
-            );
-
-            _cMain = methodDefinition;
-            _cctor = cctor;
-            _ctor = ctor;
-            cDefinition.Methods.Add(cctor);
-            cDefinition.Methods.Add(ctor);
-            cDefinition.Methods.Add(_cMain);
-
-            mainType.NestedTypes.Add(cDefinition);
-
-            _pcctor = new MethodDefinition(
-                ".cctor",
-                MethodAttributes.Static | MethodAttributes.Private |
-                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-                _specialTypes[SpecialType.Void]
-            );
-
-            _actualEntryPoint = new MethodDefinition(
-                "<>Main",
-                MethodAttributes.Public | MethodAttributes.HideBySig | MethodAttributes.Static,
-                mainMethod.ReturnType
-            );
-
-            mainType.Methods.Add(_pcctor);
-            mainType.Methods.Add(_actualEntryPoint);
+            mBuilder.Finish();
         }
-
-        private void EmitAssemblyResolver(MethodDefinition mainMethod) {
-            var cctorBuilder = new CecilILBuilder(null, this, _cctor);
-            var cctorIL = cctorBuilder.iLProcessor;
-
-            cctorIL.Emit(OpCodes.Newobj, _ctor);
-            cctorIL.Emit(OpCodes.Stsfld, _c9);
-            cctorIL.Emit(OpCodes.Ret);
-
-            cctorBuilder.Finish();
-
-            var ctorBuilder = new CecilILBuilder(null, this, _ctor);
-            var ctorIL = ctorBuilder.iLProcessor;
-
-            ctorIL.Emit(OpCodes.Ldarg_0);
-            ctorIL.Emit(OpCodes.Call, ResolveMethod("System.Object", ".ctor", []));
-            ctorIL.Emit(OpCodes.Ret);
-
-            ctorBuilder.Finish();
-
-            var cBuilder = new CecilILBuilder(null, this, _cMain);
-
-            cBuilder.AllocateSlot(_assemblyDefinition.MainModule.ImportReference(ResolveType(null, "System.Byte").MakeArrayType(1)), LocalSlotConstraints.None);
-
-            var cIL = cBuilder.iLProcessor;
-            var ret = new object();
-
-            // var targetName = Path.Combine(AppContext.BaseDirectory, "a", _belteDllName);
-            var targetName = Path.Combine("a", "bin", "debug", _belteDllName);
-
-            cIL.Emit(OpCodes.Ldarg_2);
-            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.ResolveEventArgs", "get_Name", []));
-            cIL.Emit(OpCodes.Newobj, ResolveMethod("System.Reflection.AssemblyName", ".ctor", ["System.String"]));
-            cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.AssemblyName", "get_Name", []));
-            cIL.Emit(OpCodes.Ldstr, "Belte.Runtime");
-            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.String", "Contains", ["System.String"]));
-            cBuilder.EmitBranch(CodeGeneration.OpCode.Brfalse_S, ret);
-            cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "GetExecutingAssembly", []));
-            cIL.Emit(OpCodes.Ldstr, targetName);
-            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.Reflection.Assembly", "GetManifestResourceStream", ["System.String"]));
-            cIL.Emit(OpCodes.Dup);
-            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "get_Length", []));
-            cIL.Emit(OpCodes.Conv_Ovf_I);
-            cIL.Emit(OpCodes.Newarr, ResolveType(null, "System.Byte"));
-            cIL.Emit(OpCodes.Stloc_0);
-            cIL.Emit(OpCodes.Ldloc_0);
-            cIL.Emit(OpCodes.Ldc_I4_0);
-            cIL.Emit(OpCodes.Ldloc_0);
-            cIL.Emit(OpCodes.Ldlen);
-            cIL.Emit(OpCodes.Conv_I4);
-            cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "Read", ["System.Byte[]", "System.Int32", "System.Int32"]));
-            cIL.Emit(OpCodes.Pop);
-            cIL.Emit(OpCodes.Ldloc_0);
-            cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "Load", ["System.Byte[]"]));
-            cIL.Emit(OpCodes.Ret);
-            cBuilder.MarkLabel(ret);
-            cIL.Emit(OpCodes.Ldnull);
-            cIL.Emit(OpCodes.Ret);
-
-            cBuilder.Finish();
-
-            // var cBuilder = new CecilILBuilder(null, this, _cMain);
-
-            // cBuilder.AllocateSlot(ResolveType(null, "System.IO.Stream"), LocalSlotConstraints.None);
-            // cBuilder.AllocateSlot(_assemblyDefinition.MainModule.ImportReference(ResolveType(null, "System.Byte").MakeArrayType(1)), LocalSlotConstraints.None);
-            // cBuilder.AllocateSlot(ResolveType(null, "System.Reflection.Assembly"), LocalSlotConstraints.None);
-
-            // var cIL = cBuilder.iLProcessor;
-            // var endTry = new object();
-            // var endFinally = new object();
-            // var ret = new object();
-
-            // cIL.Emit(OpCodes.Ldarg_2);
-            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.ResolveEventArgs", "get_Name", []));
-            // cIL.Emit(OpCodes.Newobj, ResolveMethod("System.Reflection.AssemblyName", ".ctor", ["System.String"]));
-            // cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.AssemblyName", "get_Name", []));
-            // cIL.Emit(OpCodes.Ldstr, "Belte.Runtime");
-            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.String", "Contains", ["System.String"]));
-            // cBuilder.EmitBranch(CodeGeneration.OpCode.Brfalse_S, endTry);
-            // cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "GetExecutingAssembly", []));
-            // cIL.Emit(OpCodes.Ldstr, "Belte.Runtime.dll");
-            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.Reflection.Assembly", "GetManifestResourceStream", ["System.String"]));
-            // cIL.Emit(OpCodes.Stloc_0);
-            // var tryStart = cIL.Create(OpCodes.Ldloc_0);
-            // cIL.Append(tryStart);
-            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "get_Length", []));
-            // cIL.Emit(OpCodes.Conv_Ovf_I);
-            // cIL.Emit(OpCodes.Newarr, ResolveType(null, "System.Byte"));
-            // cIL.Emit(OpCodes.Stloc_1);
-            // cIL.Emit(OpCodes.Ldloc_0);
-            // cIL.Emit(OpCodes.Ldloc_1);
-            // cIL.Emit(OpCodes.Ldc_I4_0);
-            // cIL.Emit(OpCodes.Ldloc_1);
-            // cIL.Emit(OpCodes.Ldlen);
-            // cIL.Emit(OpCodes.Conv_I4);
-            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IO.Stream", "Read", ["System.Byte[]", "System.Int32", "System.Int32"]));
-            // cIL.Emit(OpCodes.Pop);
-            // cIL.Emit(OpCodes.Ldloc_1);
-            // cIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "Load", ["System.Byte[]"]));
-            // cIL.Emit(OpCodes.Stloc_2);
-            // cBuilder.EmitBranch(CodeGeneration.OpCode.Leave_S, ret);
-            // var finallyStart = cIL.Create(OpCodes.Ldloc_0);
-            // cIL.Append(finallyStart);
-            // cBuilder.EmitBranch(CodeGeneration.OpCode.Brfalse_S, endFinally);
-            // cIL.Emit(OpCodes.Ldloc_0);
-            // cIL.Emit(OpCodes.Callvirt, ResolveMethod("System.IDisposable", "Dispose", []));
-            // cBuilder.MarkLabel(endFinally);
-            // var finallyEnd = cIL.Create(OpCodes.Endfinally);
-            // cIL.Append(finallyEnd);
-            // cBuilder.MarkLabel(endTry);
-            // cIL.Emit(OpCodes.Ldnull);
-            // cIL.Emit(OpCodes.Ret);
-            // cBuilder.MarkLabel(ret);
-            // cIL.Emit(OpCodes.Ldloc_2);
-            // cIL.Emit(OpCodes.Ret);
-
-            // _cMain.Body.ExceptionHandlers.Add(new ExceptionHandler(ExceptionHandlerType.Finally) {
-            //     TryStart = tryStart,
-            //     TryEnd = finallyStart,
-            //     HandlerStart = finallyStart,
-            //     HandlerEnd = finallyEnd
-            // });
-
-            // cBuilder.Finish();
-
-            var pcctorBuilder = new CecilILBuilder(null, this, _pcctor);
-            var pcctorIL = pcctorBuilder.iLProcessor;
-
-            var endPcctor = new object();
-
-            // pcctorIL.Emit(OpCodes.Call, ResolveMethod("System.AppDomain", "get_CurrentDomain", []));
-            // pcctorIL.Emit(OpCodes.Ldsfld, _c9__0_0);
-            // pcctorIL.Emit(OpCodes.Dup);
-            // pcctorBuilder.EmitBranch(CodeGeneration.OpCode.Brtrue_S, endPcctor);
-            // pcctorIL.Emit(OpCodes.Pop);
-            // pcctorIL.Emit(OpCodes.Ldsfld, _c9);
-            // pcctorIL.Emit(OpCodes.Ldftn, _cMain);
-            // pcctorIL.Emit(OpCodes.Newobj, ResolveMethod("System.ResolveEventHandler", ".ctor", ["System.Object", "System.IntPtr"]));
-            // pcctorIL.Emit(OpCodes.Dup);
-            // pcctorIL.Emit(OpCodes.Stsfld, _c9__0_0);
-            // pcctorBuilder.MarkLabel(endPcctor);
-            // pcctorIL.Emit(OpCodes.Callvirt, ResolveMethod("System.AppDomain", "add_AssemblyResolve", ["System.ResolveEventHandler"]));
-
-            pcctorIL.Emit(OpCodes.Call, ResolveMethod("System.AppDomain", "get_CurrentDomain", []));
-            pcctorIL.Emit(OpCodes.Ldsfld, _c9);
-            pcctorIL.Emit(OpCodes.Ldftn, _cMain);
-            pcctorIL.Emit(OpCodes.Newobj, ResolveMethod("System.ResolveEventHandler", ".ctor", ["System.Object", "System.IntPtr"]));
-            pcctorIL.Emit(OpCodes.Callvirt, ResolveMethod("System.AppDomain", "add_AssemblyResolve", ["System.ResolveEventHandler"]));
-            pcctorIL.Emit(OpCodes.Ret);
-
-            pcctorBuilder.Finish();
-
-            // ? Debug segment for listing manifest resources
-
-            var amBuilder = new CecilILBuilder(null, this, _actualEntryPoint);
-            var amIL = amBuilder.iLProcessor;
-
-            amBuilder.AllocateSlot(_assemblyDefinition.MainModule.ImportReference(_specialTypes[SpecialType.String].MakeArrayType(1)), LocalSlotConstraints.None);
-            amBuilder.AllocateSlot(ResolveType(null, "System.Int32"), LocalSlotConstraints.None);
-
-            var endLoop = new object();
-            var loopAgain = new object();
-
-            amIL.Emit(OpCodes.Call, ResolveMethod("System.Reflection.Assembly", "GetExecutingAssembly", []));
-            amIL.Emit(OpCodes.Callvirt, ResolveMethod("System.Reflection.Assembly", "GetManifestResourceNames", []));
-            amIL.Emit(OpCodes.Stloc_0);
-            amIL.Emit(OpCodes.Ldc_I4_0);
-            amIL.Emit(OpCodes.Stloc_1);
-            amBuilder.EmitBranch(CodeGeneration.OpCode.Br_S, endLoop);
-            amBuilder.MarkLabel(loopAgain);
-            amIL.Emit(OpCodes.Ldloc_0);
-            amIL.Emit(OpCodes.Ldloc_1);
-            amIL.Emit(OpCodes.Ldelem_Ref);
-            amIL.Emit(OpCodes.Call, ResolveMethod("System.Console", "WriteLine", ["System.String"]));
-            amIL.Emit(OpCodes.Ldloc_1);
-            amIL.Emit(OpCodes.Ldc_I4_1);
-            amIL.Emit(OpCodes.Add);
-            amIL.Emit(OpCodes.Stloc_1);
-            amBuilder.MarkLabel(endLoop);
-            amIL.Emit(OpCodes.Ldloc_1);
-            amIL.Emit(OpCodes.Ldloc_0);
-            amIL.Emit(OpCodes.Ldlen);
-            amIL.Emit(OpCodes.Conv_I4);
-            amBuilder.EmitBranch(CodeGeneration.OpCode.Blt_S, loopAgain);
-
-            amIL.Emit(OpCodes.Call, mainMethod);
-            amIL.Emit(OpCodes.Ret);
-
-            amBuilder.Finish();
-        }
-    */
+    }
 
     private TypeReference ResolveType(string name, string metadataName) {
         var foundTypes = _assemblies
@@ -925,7 +1169,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .Where(t => t.FullName == metadataName)
             .ToArray();
 
-        if (foundTypes.Length == 1) {
+        // TODO Do we actually care about ambiguity
+        if (foundTypes.Length >= 1) {
             return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
         } else if (foundTypes.Length == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
@@ -943,9 +1188,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .Where(t => t.FullName == typeName)
             .ToArray();
 
-        if (foundTypes.Length == 1 &&
-            TryResolveMethodCore(foundTypes, typeName, methodName, parameterTypeNames, out var methodRef1)) {
-            return methodRef1;
+        if (foundTypes.Length >= 1) {
+            if (TryResolveMethodCore(foundTypes, typeName, methodName, parameterTypeNames, out var methodRef1))
+                return methodRef1;
+
+            throw new BelteInternalException($"Required method not found: {typeName} {methodName} {parameterTypeNames.Length}");
         }
 
         var foundType = _backupAssemblies
@@ -1008,6 +1255,18 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             (SpecialType.Type, "System.Type"),
             (SpecialType.Char, "System.Char"),
             (SpecialType.Exception, "System.Exception"),
+            (SpecialType.Int8, "System.SByte"),
+            (SpecialType.UInt8, "System.Byte"),
+            (SpecialType.Int16, "System.Int16"),
+            (SpecialType.UInt16, "System.UInt16"),
+            (SpecialType.Int32, "System.Int32"),
+            (SpecialType.UInt32, "System.UInt32"),
+            (SpecialType.Int64, "System.Int64"),
+            (SpecialType.UInt64, "System.UInt64"),
+            (SpecialType.Float32, "System.Single"),
+            (SpecialType.Float64, "System.Double"),
+            (SpecialType.IntPtr, "System.IntPtr"),
+            (SpecialType.UIntPtr, "System.UIntPtr"),
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
@@ -1018,6 +1277,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetTypeReference.Random = ResolveType(null, "System.Random");
         NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
         NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
+        NetTypeReference.Enum = ResolveType(null, "System.Enum");
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
@@ -1034,6 +1294,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private void ResolveMethods() {
         NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
         NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
+        NetMethodReference.Enum_ToString = ResolveMethod("System.Enum", "ToString", []);
         NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);
@@ -1047,6 +1308,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Convert_ToDouble_I = ResolveMethod("System.Convert", "ToDouble", ["System.Int64"]);
         NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
         NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
+        NetMethodReference.Convert_ToInt32_S = ResolveMethod("System.Convert", "ToInt32", ["System.String"]);
+        NetMethodReference.Convert_ToChar_S = ResolveMethod("System.Convert", "ToChar", ["System.String"]);
+        NetMethodReference.Convert_ToByte_S = ResolveMethod("System.Convert", "ToByte", ["System.String"]);
+        NetMethodReference.Convert_ToUInt16_S = ResolveMethod("System.Convert", "ToUInt16", ["System.String"]);
+        NetMethodReference.Convert_ToUInt32_S = ResolveMethod("System.Convert", "ToUInt32", ["System.String"]);
+        NetMethodReference.Convert_ToUInt64_S = ResolveMethod("System.Convert", "ToUInt64", ["System.String"]);
+        NetMethodReference.Convert_ToSByte_S = ResolveMethod("System.Convert", "ToSByte", ["System.String"]);
+        NetMethodReference.Convert_ToInt16_S = ResolveMethod("System.Convert", "ToInt16", ["System.String"]);
+        NetMethodReference.Convert_ToSingle_S = ResolveMethod("System.Convert", "ToSingle", ["System.String"]);
+        NetMethodReference.Convert_ToString_B = ResolveMethod("System.Convert", "ToString", ["System.Boolean"]);
+        NetMethodReference.Convert_ToString_C = ResolveMethod("System.Convert", "ToString", ["System.Char"]);
+        NetMethodReference.Convert_ToString_UI8 = ResolveMethod("System.Convert", "ToString", ["System.Byte"]);
+        NetMethodReference.Convert_ToString_UI16 = ResolveMethod("System.Convert", "ToString", ["System.UInt16"]);
+        NetMethodReference.Convert_ToString_UI32 = ResolveMethod("System.Convert", "ToString", ["System.UInt32"]);
+        NetMethodReference.Convert_ToString_UI64 = ResolveMethod("System.Convert", "ToString", ["System.UInt64"]);
+        NetMethodReference.Convert_ToString_I8 = ResolveMethod("System.Convert", "ToString", ["System.SByte"]);
+        NetMethodReference.Convert_ToString_I16 = ResolveMethod("System.Convert", "ToString", ["System.Int16"]);
+        NetMethodReference.Convert_ToString_I32 = ResolveMethod("System.Convert", "ToString", ["System.Int32"]);
+        NetMethodReference.Convert_ToString_I64 = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
+        NetMethodReference.Convert_ToString_F32 = ResolveMethod("System.Convert", "ToString", ["System.Single"]);
+        NetMethodReference.Convert_ToString_F64 = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
         NetMethodReference.Random_ctor = ResolveMethod("System.Random", ".ctor", []);
         NetMethodReference.Random_NextInt64_I = ResolveMethod("System.Random", "NextInt64", ["System.Int64"]);
         NetMethodReference.Random_NextDouble = ResolveMethod("System.Random", "NextDouble", []);
@@ -1058,11 +1340,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
         NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T"]);
         NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T"]);
+        NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);
     }
 
     private void GenerateSTLMap() {
         _stlMap = new Dictionary<string, MethodReference>() {
             { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+            { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
+            { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
+            { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
             { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
             { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
             { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
@@ -1071,10 +1357,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
             { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
             { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+            { "Console_Print_[?", ResolveMethod("System.Console", "Write", ["System.Char[]"]) },
             { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
             { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
             { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
             { "Console_PrintLine_O?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+            { "Console_PrintLine_[?", ResolveMethod("System.Console", "WriteLine", ["System.Char[]"]) },
             { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
             { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
             { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
@@ -1095,9 +1383,19 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
             { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
             { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
+            { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
             { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
             { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
             { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
+            { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
+            { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
+            { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
+            { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
+            { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
+            { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
+            { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
+            { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
+            { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
             { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
             { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
             { "Math_Abs_D?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Double>"]) },
@@ -1166,6 +1464,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Math_Tanh_D", ResolveMethod("System.Math", "Tanh", ["System.Double"]) },
             { "Math_Truncate_D?", ResolveMethod("Belte.Runtime.Math", "Truncate", ["System.Nullable`1<System.Double>"]) },
             { "Math_Truncate_D", ResolveMethod("System.Math", "Truncate", ["System.Double"]) },
+            { "Math_DegToRad_D?", ResolveMethod("Belte.Runtime.Math", "DegToRad", ["System.Nullable`1<System.Double>"]) },
+            { "Math_DegToRad_D", ResolveMethod("System.Double", "DegreesToRadians", ["System.Double"]) },
+            { "Math_RadToDeg_D?", ResolveMethod("Belte.Runtime.Math", "RadToDeg", ["System.Nullable`1<System.Double>"]) },
+            { "Math_RadToDeg_D", ResolveMethod("System.Double", "RadiansToDegrees", ["System.Double"]) },
         };
     }
 }

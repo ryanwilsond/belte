@@ -16,7 +16,7 @@ internal static class ConstantValueHelpers {
         var binder = binderFactory.GetBinder(equalsValueClause);
 
         var inProgressBinder = new ConstantFieldsInProgressBinder(new ConstantFieldsInProgress(symbol, dependencies), binder);
-        var boundValue = BindFieldInitializer(inProgressBinder, symbol, equalsValueClause, diagnostics);
+        var boundValue = BindFieldOrEnumInitializer(inProgressBinder, symbol, equalsValueClause, diagnostics);
 
         var value = GetAndValidateConstantValue(
             boundValue.value,
@@ -62,13 +62,21 @@ internal static class ConstantValueHelpers {
         return value;
     }
 
-    private static BoundFieldEqualsValue BindFieldInitializer(
+    private static BoundFieldEqualsValue BindFieldOrEnumInitializer(
         Binder binder,
         FieldSymbol fieldSymbol,
         EqualsValueClauseSyntax initializer,
         BelteDiagnosticQueue diagnostics) {
+        var enumConstant = fieldSymbol as SourceEnumConstantSymbol;
         Binder collisionDetector = new LocalScopeBinder(binder);
         collisionDetector = new ExecutableCodeBinder(initializer, fieldSymbol, collisionDetector);
-        return collisionDetector.BindFieldInitializer(fieldSymbol, initializer, diagnostics);
+        BoundFieldEqualsValue result;
+
+        if (enumConstant is not null)
+            result = collisionDetector.BindEnumConstantInitializer(enumConstant, initializer, diagnostics);
+        else
+            result = collisionDetector.BindFieldInitializer(fieldSymbol, initializer, diagnostics);
+
+        return result;
     }
 }

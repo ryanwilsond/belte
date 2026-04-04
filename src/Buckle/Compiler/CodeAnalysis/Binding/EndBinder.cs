@@ -38,6 +38,8 @@ internal sealed class EndBinder : Binder {
 
     private protected override bool _inExecutableBinder => false;
 
+    internal override ImportChain importChain => null;
+
     internal override Binder GetBinder(SyntaxNode node) {
         return null;
     }

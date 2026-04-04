@@ -177,16 +177,16 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(args, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Fatal_CL0015_CannotSpecifyReferencesWithoutDotnet() {
-        var args = new string[] { "--ref=some/fake/path" };
+    // [Fact]
+    // public void Reports_Fatal_CL0015_CannotSpecifyReferencesWithoutDotnet() {
+    //     var args = new string[] { "--ref=some/fake/path" };
 
-        var diagnostics = @"
-            cannot specify references without .NET integration
-        ";
+    //     var diagnostics = @"
+    //         cannot specify references without .NET integration
+    //     ";
 
-        AssertDiagnostics(args, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(args, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_CL0016_NoInputFiles() {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -11,11 +12,32 @@ namespace Buckle.CodeAnalysis.Binding;
 /// Rewrites BoundStatements and all child BoundStatements, allowing expansion.
 /// </summary>
 internal abstract class BoundTreeExpander {
+    private protected readonly List<string> _localNames = [];
+
+    private protected int _tempCount = 0;
+
+    private protected abstract MethodSymbol _container { get; set; }
+
     private protected static BoundStatement Simplify(SyntaxNode syntax, List<BoundStatement> statements) {
         if (statements.Count == 1)
             return statements[0];
         else
             return Block(syntax, statements.ToArray());
+    }
+
+    private protected SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
+        string name;
+
+        do {
+            name = $"temp{_tempCount++}";
+        } while (_localNames.Contains(name));
+
+        return new SynthesizedDataContainerSymbol(
+            _container,
+            new TypeWithAnnotations(type),
+            SynthesizedLocalKind.ExpanderTemp,
+            name
+        );
     }
 
     private protected virtual List<BoundStatement> ExpandStatement(BoundStatement statement) {
@@ -37,6 +59,9 @@ internal abstract class BoundTreeExpander {
             BoundKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
             BoundKind.ErrorStatement => ExpandErrorStatement((BoundErrorStatement)statement),
             BoundKind.LocalFunctionStatement => ExpandLocalFunctionStatement((BoundLocalFunctionStatement)statement),
+            BoundKind.SequencePoint => ExpandSequencePoint((BoundSequencePoint)statement),
+            BoundKind.SequencePointWithLocation => ExpandSequencePointWithLocation((BoundSequencePointWithLocation)statement),
+            BoundKind.InlineILStatement => ExpandInlineILStatement((BoundInlineILStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -47,6 +72,19 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandNopStatement(BoundNopStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandInlineILStatement(BoundInlineILStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandSequencePoint(BoundSequencePoint statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandSequencePointWithLocation(
+        BoundSequencePointWithLocation statement) {
         return [statement];
     }
 
@@ -129,7 +167,9 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(statement.expression, out var replacement);
 
         if (statements.Count != 0) {
-            statements.Add(new BoundExpressionStatement(statement.syntax, replacement));
+            if (replacement is not null)
+                statements.Add(new BoundExpressionStatement(statement.syntax, replacement));
+
             return statements;
         }
 
@@ -253,12 +293,84 @@ internal abstract class BoundTreeExpander {
             BoundKind.FunctionPointerLoad => ExpandFunctionPointerLoad((BoundFunctionPointerLoad)expression, out replacement),
             BoundKind.FunctionPointerCallExpression => ExpandFunctionPointerCallExpression((BoundFunctionPointerCallExpression)expression, out replacement),
             BoundKind.UnconvertedNullptrExpression => ExpandUnconvertedNullptrExpression((BoundUnconvertedNullptrExpression)expression, out replacement),
+            BoundKind.CompileTimeExpression => ExpandCompileTimeExpression((BoundCompileTimeExpression)expression, out replacement),
+            BoundKind.SizeOfOperator => ExpandSizeOfOperator((BoundSizeOfOperator)expression, out replacement),
+            BoundKind.CascadeListExpression => ExpandCascadeListExpression((BoundCascadeListExpression)expression, out replacement),
+            BoundKind.StackSlotExpression => ExpandStackSlotExpression((BoundStackSlotExpression)expression, out replacement),
+            BoundKind.FieldSlotExpression => ExpandFieldSlotExpression((BoundFieldSlotExpression)expression, out replacement),
+            BoundKind.StackAllocExpression => ExpandStackAllocExpression((BoundStackAllocExpression)expression, out replacement),
+            BoundKind.ConvertedStackAllocExpression => ExpandConvertedStackAllocExpression((BoundConvertedStackAllocExpression)expression, out replacement),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
 
+    private protected virtual List<BoundStatement> ExpandCascadeListExpression(
+        BoundCascadeListExpression expression,
+        out BoundExpression replacement) {
+        List<BoundStatement> statements;
+        BoundExpression newReceiver = null;
+
+        if (expression.receiver is not null)
+            statements = ExpandExpression(expression.receiver, out newReceiver);
+        else
+            statements = [];
+
+        statements.AddRange(ExpandExpressionList(expression.cascades, out var newCascades));
+
+        replacement = expression.Update(
+            newReceiver,
+            newCascades,
+            expression.conditionals,
+            expression.type
+        );
+
+        return statements;
+    }
+
+    private protected virtual List<BoundStatement> ExpandSizeOfOperator(
+        BoundSizeOfOperator expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandStackSlotExpression(
+        BoundStackSlotExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandFieldSlotExpression(
+        BoundFieldSlotExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandStackAllocExpression(
+        BoundStackAllocExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandConvertedStackAllocExpression(
+        BoundConvertedStackAllocExpression expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandMethodGroup(
         BoundMethodGroup expression,
+        out BoundExpression replacement) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandCompileTimeExpression(
+        BoundCompileTimeExpression expression,
         out BoundExpression replacement) {
         replacement = expression;
         return [];
@@ -289,7 +401,7 @@ internal abstract class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandArguments(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newInvokedExpression,
@@ -429,7 +541,14 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newRight, expression.constantValue, expression.type);
+            replacement = expression.Update(
+                newLeft,
+                newRight,
+                expression.isPropagation,
+                expression.constantValue,
+                expression.type
+            );
+
             return statements;
         }
 
@@ -444,7 +563,7 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
         if (statements.Count != 0) {
-            replacement = expression.Update(newLeft, newRight, expression.type);
+            replacement = expression.Update(newLeft, newRight, expression.isPropagation, expression.type);
             return statements;
         }
 
@@ -597,6 +716,7 @@ internal abstract class BoundTreeExpander {
         if (statements.Count != 0) {
             replacement = expression.Update(
                 newOperand,
+                expression.isLoweredFixedField,
                 expression.type
             );
 
@@ -644,7 +764,7 @@ internal abstract class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandArguments(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newReceiver,
@@ -659,18 +779,18 @@ internal abstract class BoundTreeExpander {
         return statements;
     }
 
-    private List<BoundStatement> ExpandArguments(
-        ImmutableArray<BoundExpression> arguments,
+    private protected List<BoundStatement> ExpandExpressionList(
+        ImmutableArray<BoundExpression> expressions,
         out ImmutableArray<BoundExpression> replacement) {
         var statements = new List<BoundStatement>();
-        var replacementArguments = ArrayBuilder<BoundExpression>.GetInstance();
+        var replacementExpressions = ArrayBuilder<BoundExpression>.GetInstance();
 
-        foreach (var argument in arguments) {
-            statements.AddRange(ExpandExpression(argument, out var newArgument));
-            replacementArguments.Add(newArgument);
+        foreach (var expression in expressions) {
+            statements.AddRange(ExpandExpression(expression, out var newExpression));
+            replacementExpressions.Add(newExpression);
         }
 
-        replacement = replacementArguments.ToImmutableAndFree();
+        replacement = replacementExpressions.ToImmutableAndFree();
         return statements;
     }
 
@@ -741,6 +861,7 @@ internal abstract class BoundTreeExpander {
             replacement = expression.Update(
                 newOperand,
                 newIndex,
+                expression.refersToLocation,
                 expression.type
             );
 
@@ -819,7 +940,7 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandObjectCreationExpression(
         BoundObjectCreationExpression expression,
         out BoundExpression replacement) {
-        var statements = ExpandArguments(expression.arguments, out var newArguments);
+        var statements = ExpandExpressionList(expression.arguments, out var newArguments);
 
         replacement = expression.Update(
             expression.constructor,

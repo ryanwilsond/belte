@@ -12,6 +12,13 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
+    public static T AssertNull<T>(T value) {
+        if (value is null)
+            throw new NullReferenceException();
+
+        return value;
+    }
+
     public static void Sort<T>(T array) {
         if (array is null)
             return;
@@ -26,8 +33,12 @@ public static class Utilities {
         return ((Array)(object)array).LongLength;
     }
 
+    public static long StringLength(string str) {
+        return str.Length;
+    }
+
     public static long TimeNow() {
-        return DateTime.Now.Ticks;
+        return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
     }
 
     public static void TimeSleep(long ms) {
@@ -46,12 +57,28 @@ public static class Utilities {
         return text.Split(separator);
     }
 
-    public unsafe static char* CreateCharPtrString(string str) {
-        return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(str);
+    public unsafe static byte* CreateLPCSTR(string str) {
+        return (byte*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(str);
     }
 
-    public unsafe static void FreeCharPtrString(char* str) {
+    public unsafe static char* CreateLPCWSTR(string str) {
+        return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalUni(str);
+    }
+
+    public unsafe static void FreeLPCSTR(byte* str) {
         System.Runtime.InteropServices.Marshal.FreeHGlobal((IntPtr)str);
+    }
+
+    public unsafe static void FreeLPCWSTR(char* str) {
+        System.Runtime.InteropServices.Marshal.FreeHGlobal((IntPtr)str);
+    }
+
+    public unsafe static string ReadLPCSTR(byte* ptr) {
+        return System.Runtime.InteropServices.Marshal.PtrToStringAnsi((IntPtr)ptr);
+    }
+
+    public unsafe static string ReadLPCWSTR(char* ptr) {
+        return System.Runtime.InteropServices.Marshal.PtrToStringUni((IntPtr)ptr);
     }
 
     public unsafe static void* GetGCPtr(object obj) {
@@ -67,15 +94,5 @@ public static class Utilities {
     public unsafe static object GetObject(void* ptr) {
         var handle = System.Runtime.InteropServices.GCHandle.FromIntPtr((IntPtr)ptr);
         return handle.Target;
-    }
-
-    public unsafe static string ReadLPCSTR(void* ptr) {
-        var cPtr = (char*)ptr;
-        var len = 0;
-
-        while (cPtr[len] != '\0')
-            len++;
-
-        return new string(cPtr, 0, len);
     }
 }

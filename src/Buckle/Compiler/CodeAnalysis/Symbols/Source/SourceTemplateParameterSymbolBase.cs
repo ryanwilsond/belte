@@ -78,7 +78,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private protected abstract ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters { get; }
 
     private Binder _withTemplateParametersBinder
-        => (containingSymbol as SourceMethodSymbol).withTemplateParametersBinder;
+        => (containingSymbol as SourceMethodSymbol)?.withTemplateParametersBinder;
 
     internal sealed override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         var bounds = GetBounds(inProgress);

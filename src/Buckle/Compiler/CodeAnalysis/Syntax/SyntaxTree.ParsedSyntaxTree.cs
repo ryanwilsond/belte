@@ -6,8 +6,13 @@ public partial class SyntaxTree {
     private class ParsedSyntaxTree : SyntaxTree {
         private readonly BelteSyntaxNode _root;
 
-        internal ParsedSyntaxTree(SourceText text, BelteSyntaxNode root, bool cloneRoot, SourceCodeKind kind)
-            : base(text, kind) {
+        internal ParsedSyntaxTree(
+            SourceText text,
+            BelteSyntaxNode root,
+            bool cloneRoot,
+            SourceCodeKind kind,
+            ParseOptions options)
+            : base(text, kind, options) {
             _root = cloneRoot ? CloneNodeAsRoot(root) : root;
             endOfFile = _root.GetLastToken(true);
         }

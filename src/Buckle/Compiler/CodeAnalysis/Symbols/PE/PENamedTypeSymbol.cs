@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -140,7 +141,30 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
             if (result == TypeKind.Unknown) {
                 TypeSymbol @base = GetDeclaredBaseType(skipTransformsIfNecessary: true);
-                result = @base is null ? TypeKind.Struct : TypeKind.Class;
+                result = TypeKind.Class;
+
+                if (@base is not null) {
+                    var baseCorTypeId = @base.specialType;
+
+                    switch (baseCorTypeId) {
+                        case SpecialType.Enum:
+                            result = TypeKind.Enum;
+                            break;
+                        // case SpecialType.System_MulticastDelegate:
+                        //     // Delegate
+                        //     result = TypeKind.Delegate;
+                        //     break;
+                        case SpecialType.ValueType:
+                            if (specialType != SpecialType.Enum)
+                                result = TypeKind.Struct;
+
+                            break;
+                    }
+                }
+
+                if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.Enum")
+                    result = TypeKind.Enum;
+
                 _lazyKind = result;
             }
 
@@ -199,6 +223,19 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     internal override Symbol containingSymbol => _container;
 
     internal override NamedTypeSymbol containingType => _container as NamedTypeSymbol;
+
+    internal override NamedTypeSymbol enumUnderlyingType {
+        get {
+            var uncommon = GetUncommonProperties();
+
+            // TODO this check is wrong?
+            // if (uncommon == NoUncommonProperties)
+            //     return null;
+
+            EnsureEnumUnderlyingTypeIsLoaded(uncommon);
+            return uncommon.lazyEnumUnderlyingType;
+        }
+    }
 
     internal override NamedTypeSymbol baseType {
         get {
@@ -266,6 +303,50 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
         return [];
+    }
+
+    private void EnsureEnumUnderlyingTypeIsLoaded(UncommonProperties uncommon) {
+        if (uncommon.lazyEnumUnderlyingType is null && typeKind == TypeKind.Enum) {
+            var moduleSymbol = containingPEModule;
+            var module = moduleSymbol.module;
+            var decoder = new MetadataDecoder(moduleSymbol, this);
+            NamedTypeSymbol underlyingType = null;
+
+            try {
+                foreach (var fieldDef in module.GetFieldsOfTypeOrThrow(_handle)) {
+                    FieldAttributes fieldFlags;
+
+                    try {
+                        fieldFlags = module.GetFieldDefFlagsOrThrow(fieldDef);
+                    } catch (BadImageFormatException) {
+                        continue;
+                    }
+
+                    if ((fieldFlags & FieldAttributes.Static) == 0) {
+                        var fieldInfo = decoder.DecodeFieldSignature(fieldDef);
+                        var type = fieldInfo.type;
+
+                        if (type.specialType.IsValidEnumUnderlyingType() &&
+                            !fieldInfo.isByRef
+                            /*!fieldInfo.customModifiers.AnyRequired()*/) {
+                            if (underlyingType is null) {
+                                underlyingType = (NamedTypeSymbol)type;
+                            } else {
+                                underlyingType = new UnsupportedMetadataTypeSymbol();
+                            }
+                        }
+                    }
+                }
+
+                if (underlyingType is null)
+                    underlyingType = new UnsupportedMetadataTypeSymbol();
+            } catch (BadImageFormatException mrEx) {
+                if (underlyingType is null)
+                    underlyingType = new UnsupportedMetadataTypeSymbol(mrEx);
+            }
+
+            Interlocked.CompareExchange(ref uncommon.lazyEnumUnderlyingType, underlyingType, null);
+        }
     }
 
     private UncommonProperties GetUncommonProperties() {
@@ -476,35 +557,65 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
             members = ArrayBuilder<Symbol>.GetInstance();
 
-            var fieldMembers = ArrayBuilder<PEFieldSymbol>.GetInstance();
-            var nonFieldMembers = ArrayBuilder<Symbol>.GetInstance();
+            if (typeKind == TypeKind.Enum) {
+                EnsureEnumUnderlyingTypeIsLoaded(GetUncommonProperties());
 
-            var privateFieldNameToSymbols = CreateFields(fieldMembers);
-            var methodHandleToSymbol = CreateMethods(nonFieldMembers);
+                var moduleSymbol = containingPEModule;
+                var module = moduleSymbol.module;
 
-            if (typeKind == TypeKind.Struct) {
-                var haveParameterlessConstructor = false;
+                try {
+                    foreach (var fieldDef in module.GetFieldsOfTypeOrThrow(_handle)) {
+                        FieldAttributes fieldFlags;
 
-                foreach (var method in nonFieldMembers.Cast<MethodSymbol>()) {
-                    if (method.IsParameterlessConstructor()) {
-                        haveParameterlessConstructor = true;
-                        break;
+                        try {
+                            fieldFlags = module.GetFieldDefFlagsOrThrow(fieldDef);
+                            if ((fieldFlags & FieldAttributes.Static) == 0) {
+                                continue;
+                            }
+                        } catch (BadImageFormatException) {
+                            fieldFlags = 0;
+                        }
+
+                        if (ModuleExtensions.ShouldImportField(fieldFlags, moduleSymbol.importOptions)) {
+                            var field = new PEFieldSymbol(moduleSymbol, this, fieldDef);
+                            members.Add(field);
+                        }
                     }
+                } catch (BadImageFormatException) { }
+
+                var syntheticCtor = new SynthesizedInstanceConstructorSymbol(this);
+                members.Add(syntheticCtor);
+            } else {
+                var fieldMembers = ArrayBuilder<PEFieldSymbol>.GetInstance();
+                var nonFieldMembers = ArrayBuilder<Symbol>.GetInstance();
+
+                var privateFieldNameToSymbols = CreateFields(fieldMembers);
+                var methodHandleToSymbol = CreateMethods(nonFieldMembers);
+
+                if (typeKind == TypeKind.Struct) {
+                    var haveParameterlessConstructor = false;
+
+                    foreach (var method in nonFieldMembers.Cast<MethodSymbol>()) {
+                        if (method.IsParameterlessConstructor()) {
+                            haveParameterlessConstructor = true;
+                            break;
+                        }
+                    }
+
+                    if (!haveParameterlessConstructor)
+                        nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
                 }
 
-                if (!haveParameterlessConstructor)
-                    nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
+                foreach (var field in fieldMembers)
+                    members.Add(field);
+
+                members.AddRange(nonFieldMembers);
+
+                nonFieldMembers.Free();
+                fieldMembers.Free();
+
+                methodHandleToSymbol.Free();
             }
-
-            foreach (var field in fieldMembers)
-                members.Add(field);
-
-            members.AddRange(nonFieldMembers);
-
-            nonFieldMembers.Free();
-            fieldMembers.Free();
-
-            methodHandleToSymbol.Free();
 
             var membersCount = members.Count;
 

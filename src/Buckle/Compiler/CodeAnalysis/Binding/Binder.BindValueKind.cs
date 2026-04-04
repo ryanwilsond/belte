@@ -20,5 +20,6 @@ internal partial class Binder {
         RefReturn = RefOrOut + 1,
         RefConst = RefersToLocation | RValue,
         AddressOf = RefConst + 1,
+        FixedReceiver = RefConst + 2,
     }
 }

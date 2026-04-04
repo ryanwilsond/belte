@@ -8,6 +8,8 @@ Currently there are no releases of Belte, so to use the compiler you will have t
 
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
+- [Building to a .NET DLL](#building-to-a-net-dll)
+- [Debugging a Program](#debugging-a-program)
 - [Building with .NET](#building-with-net)
 
 ## Options Summary
@@ -157,6 +159,10 @@ Adds a reference when .NET integration is enabled. This reference is a path to a
 and can then be referenced from within the program. This option is only valid in junction with the *-d* or *--dotnet*
 options.
 
+### *--debug*
+
+Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d* option was specified.
+
 ### *--time*
 
 Displays how much time each stage of compilation took.
@@ -178,15 +184,14 @@ Specifies the path the *--verbose* mode will dump files. Defaults to the path Bu
 
 ## Running Programs
 
-There is no setup required. Because interpretation is the default behavior, no command-line arguments are needed, only
-the names of the files to run.
+There is no setup required. No command-line arguments are needed apart from the files to run.
 
 Example:
 
 *Program.blt*
 
 ```belte
-PrintLine("Hello, world!");
+Console.PrintLine("Hello, world!");
 ```
 
 *Command Line*
@@ -200,6 +205,21 @@ buckle Program.blt
 ```
 Hello, world!
 ```
+
+## Building to a .NET DLL
+
+Both the `-d` and `--type=dll` options output a .NET dll. The former outputs a dll alongside a runtime config file so
+that the dll is ready to run by using `dotnet <path/to/dll>`.
+
+The `--type=dll` option outputs a dll that can be referenced by other applications, but is not a runnable application
+itself. There is no entry point.
+
+## Debugging a Program
+
+When [building to a .NET DLL](#building-to-a-net-dll) with the `--debug` flag, a PDB file is produced next to the output
+assembly.
+
+[Here is a sample that you can debug in VSCode](https://github.com/ryanwilsond/belte/tree/staging/samples/Debug/README.md).
 
 ## Building with .NET
 

@@ -29,9 +29,10 @@ public static class SyntaxTreeExtensions {
     /// <returns>SyntaxTokens in order.</returns>
     internal static InternalSyntax.SyntaxList<InternalSyntax.SyntaxToken> ParseTokens(
         SourceText text,
-        bool includeEOF = false) {
+        bool includeEOF = false,
+        ParseOptions options = null) {
         var tokens = new InternalSyntax.SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
-        var lexer = new Lexer(text, true);
+        var lexer = new Lexer(text, options, true);
 
         while (true) {
             var token = lexer.LexNext(LexerMode.Syntax);

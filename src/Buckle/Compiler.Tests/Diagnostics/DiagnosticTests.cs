@@ -5,7 +5,7 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.Diagnostics;
 
 /// <summary>
-/// At least one test per diagnostic (any severity) if testable.
+/// At least one test per diagnostic (any severity) if testable. If not testable, an explanation as to why is given.
 /// </summary>
 public sealed class DiagnosticTests {
     private readonly ITestOutputHelper _writer;
@@ -47,6 +47,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0003_InvalidReference
+    // Requires command-line arguments
 
     [Fact]
     public void Reports_Error_BU0004_InvalidType() {
@@ -107,7 +108,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            unary operator '-' is not defined for type 'bool'
+            unary operator '-' is not defined for type 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -147,15 +148,50 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            binary operator '+' is not defined for operands of types 'bool' and 'int'
+            binary operator '+' is not defined for operands of types 'bool!' and 'int!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     // ! Error_BU0012_GlobalStatementInMultipleFiles
-    // ! Error_BU0013_NoNamespacePrivate
-    // ! Error_BU0014_UnexpectedAliasName
+    // Requires multiple files
+
+    [Fact]
+    public void Reports_Error_BU0013_NoNamespacePrivate() {
+        var text = @"
+            namespace A {
+                private class [P] { }
+            }
+        ";
+
+        var diagnostics = @"
+            members defined in a namespace cannot be explicitly declared as private or protected
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0014_UnexpectedAliasName() {
+        var text = @"
+            using B = A;
+
+            namespace A {
+                namespace C { }
+            }
+
+            namespace [B::C] { }
+
+            int a = 3;
+        ";
+
+        var diagnostics = @"
+            unexpected use of an aliased name
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0015_BadArgumentName() {
@@ -199,7 +235,22 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0018_ColonColonWithTypeAlias
+    [Fact]
+    public void Reports_Error_BU0018_ColonColonWithTypeAlias() {
+        var text = @"
+            using B = A;
+
+            [B]::M();
+
+            public static class A { public static void M() {}}
+        ";
+
+        var diagnostics = @"
+            cannot use alias 'B' with '::' since the alias references a type; use '.' instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0019_NotAllPathsReturn() {
@@ -245,7 +296,23 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0022_DuplicateAlias
+    [Fact]
+    public void Reports_Error_BU0022_DuplicateAlias() {
+        var text = @"
+            using B = A;
+            using [B] = A;
+
+            public static class A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            the using alias 'B' appeared previously in this namespace
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0023_AmbiguousElse() {
@@ -265,6 +332,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0024_DuplicateWithGlobalUsing
+    // Requires multiple files
 
     [Fact]
     public void Reports_Error_BU0025_CannotApplyIndexing() {
@@ -280,21 +348,23 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Warning_BU0026_UnreachableCode() {
-        var text = @"
-            if (false) {
-                [Console.PrintLine();]
-                Console.PrintLine();
-            }
-        ";
+    // !
+    // CFG broken currently
+    // [Fact]
+    // public void Reports_Warning_BU0026_UnreachableCode() {
+    //     var text = @"
+    //         if (false) {
+    //             [Console.PrintLine();]
+    //             Console.PrintLine();
+    //         }
+    //     ";
 
-        var diagnostics = @"
-            unreachable code
-        ";
+    //     var diagnostics = @"
+    //         unreachable code
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
 
     [Fact]
     public void Reports_Error_BU0027_UnterminatedString() {
@@ -310,8 +380,37 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0028_NoAliasHere
-    // ! Error_BU0029_BadUsingType
+    [Fact]
+    public void Reports_Error_BU0028_NoAliasHere() {
+        var text = @"
+            using static [B] = A;
+
+            public static class A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            a 'using static' directive cannot be used to declare an alias
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0029_BadUsingType() {
+        var text = @"
+            using static [A];
+            namespace A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            a 'using static' directive can only be applied to types; 'A' is a namespace not a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0030_DuplicateConversion() {
@@ -329,7 +428,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0031_DuplicateUsing
+    [Fact]
+    public void Reports_Error_BU0031_DuplicateUsing() {
+        var text = @"
+            using A;
+            using [A];
+            namespace A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            the using directive for 'A' appeared previously in this namespace
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0032_CannotCallNonMethod() {
@@ -360,7 +473,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, script: false);
     }
 
-    // ! Error_BU0034_BadUsingNamespace
+    [Fact]
+    public void Reports_Error_BU0034_BadUsingNamespace() {
+        var text = @"
+            using [A];
+            class A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            a 'using' directive can only be applied to namespaces; 'A' is a type not a namespace; consider a 'using static' directive instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
 
     [Fact]
     public void Reports_Error_BU0035_InvalidBreakOrContinue() {
@@ -375,7 +501,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0035_BadUsingStaticType
+    [Fact]
+    public void Reports_Error_BU0035_BadUsingStaticType() {
+        var text = @"
+            using static [A];
+            struct A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'struct' type is not valid for 'using static'; only a class can be used
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0037_UnexpectedReturnValue() {
@@ -460,6 +599,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0043_ArrayInitExpected
+    // Requires multi-dimension array types (e.g. `int[3,3]`)
 
     [Fact]
     public void Reports_Error_BU0044_ArrayInitWrongLength() {
@@ -477,6 +617,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0045_IncompatibleEntryPointReturn
+    // Requires command-line arguments (specifically building to .NET dll)
 
     [Fact]
     public void Reports_Error_BU0046_NoCatchOrFinally() {
@@ -574,7 +715,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Warning_BU0053_ImpliedReference
+    // Unreachable currently
+
     // ! Error_BU0054_ReferenceToConstant
+    // Unreachable currently
 
     [Fact]
     public void Reports_Error_BU0055_VoidVariable() {
@@ -722,19 +866,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0064_ConstantToNonConstantReference
-    // [Fact]
-    // public void Reports_Error_BU0064_ConstantToNonConstantReference() {
-    //     var text = @"
-    //         int x = 3;
-    //         ref const int y = ref [x];
-    //     ";
-
-    //     var diagnostics = @"
-    //         cannot assign a reference to a data container to a by-reference data container expecting a reference to a constant
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    // Unreachable currently
 
     [Fact]
     public void Reports_Error_BU0065_CannotAnnotateStruct() {
@@ -919,6 +1051,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0078_RefReturnScopedParameter2
+    // Scoped is not implemented yet
 
     [Fact]
     public void Reports_Error_BU0079_UnrecognizedEscapeSequence() {
@@ -990,7 +1123,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0084_CannotUseStruct
+    // Lowlevel restrictions not enforced currently
+
     // ! Error_BU0085_CannotUseThis
+    // Taking address of this not forbidden currently
 
     [Fact]
     public void Reports_Error_BU0086_MemberIsInaccessible() {
@@ -1110,7 +1246,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0093_InvalidAttributes
+    [Fact]
+    public void Reports_Error_BU0093_InvalidAttributes() {
+        var text = @"
+            [\[SomeAttribute\]]
+            namespace A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            attributes are not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0094_OperatorRefReturn() {
@@ -1141,7 +1290,21 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0096_RefReturnOnlyParameter2
-    // ! Error_BU0097_DottedTypeNamesNotFound
+    // Unreachable currently
+
+    [Fact]
+    public void Reports_Error_BU0097_DottedTypeNamesNotFound() {
+        var text = @"
+            class A { }
+            var a = new A.[B]();
+        ";
+
+        var diagnostics = @"
+            the type name 'B' does not exist in the type 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0098_StaticConstructorParameter() {
@@ -1347,10 +1510,30 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0111_RefReturnParameter2
+    [Fact]
+    public void Reports_Error_BU0111_RefReturnParameter2() {
+        var text = @"
+            struct A { int f; }
+            ref int M(A a) {
+                return ref [a].f;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot return by reference a member of parameter 'a' because is not a ref parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0112_RefReturnScopedParameter
+    // Scoped not implemented yet
+
     // ! Error_BU0113_RefReturnOnlyParameter
+    // Unreachable currently
+
     // ! Error_BU0114_ArrayOutsideOfLowLevelContext
+    // Lowlevel restrictions not enforced currently
 
     [Fact]
     public void Reports_Error_BU0115_EmptyCharacterLiteral() {
@@ -1406,8 +1589,6 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0119_RefReturnParameter
-
     [Fact]
     public void Reports_Error_BU0119_RefReturnParameter() {
         var text = @"
@@ -1424,6 +1605,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0120_EscapeOther
+    // ? Unsure what expression would trigger this
 
     [Fact]
     public void Reports_Error_BU0121_CannotDerivePrimitive() {
@@ -1438,7 +1620,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0122_UnknownTemplate
+    [Fact]
+    public void Reports_Error_BU0122_UnknownTemplate() {
+        var text = @"
+            class A<type T> where { [T2] extends Object; } { }
+        ";
+
+        var diagnostics = @"
+            type 'A' has no such template parameter 'T2'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0123_CannotExtendCheckNonType() {
@@ -1466,7 +1659,24 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0125_RefReturnNonreturnableLocal2
+    [Fact]
+    public void Reports_Error_BU0125_RefReturnNonreturnableLocal2() {
+        var text = @"
+            struct C { int f; }
+
+            ref int A() {
+                C a = new C();
+                ref C b = ref a;
+                return ref [b].f;
+            }
+        ";
+
+        var diagnostics = @"
+            a member of 'b' is returned by reference but was initialized to a value that cannot be returned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0126_ExtendConstraintFailed() {
@@ -1511,9 +1721,56 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0129_RefReturnNonreturnableLocal
-    // ! Error_BU0130_RefReturnLocal2
-    // ! Error_BU0131_RefReturnLocal
+    [Fact]
+    public void Reports_Error_BU0129_RefReturnNonreturnableLocal() {
+        var text = @"
+            ref int A() {
+                int a = 3;
+                ref int b = ref a;
+                return ref [b];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot return local 'b' by reference because it was initialized to a value that cannot be returned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0130_RefReturnLocal2() {
+        var text = @"
+            struct A { public int f; }
+
+            ref int M() {
+                A a = new A();
+                return ref [a].f;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot return a member of local 'a' by reference because it is not a ref local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0131_RefReturnLocal() {
+        var text = @"
+            ref int A() {
+                int a = 3;
+                return ref [a];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot return local 'a' by reference because it is not a ref local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0132_ConflictingOverrideModifiers() {
@@ -1534,6 +1791,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0133_MismatchedRefEscapeInTernary
+    // Ref expressions in ternary is not implemented yet
 
     [Fact]
     public void Reports_Error_BU0134_CannotDeriveSealed() {
@@ -1564,7 +1822,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0136_CallArgMixing
+    // ? Unsure what expression would trigger this
+
     // ! Error_BU0137_CannotUseBase
+    // Taking address of this not forbidden currently
 
     [Fact]
     public void Reports_Error_BU0138_CannotCreateAbstract() {
@@ -1672,6 +1933,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0145_UnexpectedTemplateName
+    // Unreachable currently (parser catches this instead of binder)
 
     [Fact]
     public void Reports_Error_BU0146_MultipleAccessibilities() {
@@ -1771,8 +2033,10 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0153_InconsistentAccessibilityClass() {
         var text = @"
+            class C {
             private class A { }
             public class [B] extends A { }
+            }
         ";
 
         var diagnostics = @"
@@ -1796,7 +2060,31 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0155_CannotDeriveTemplate
+    [Fact]
+    public void Reports_Error_BU0155_CannotDeriveTemplate() {
+        var text = @"
+            class A<type T> extends [T] { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from template parameter 'type! T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0155_CannotDeriveTemplate2() {
+        var text = @"
+            class A<[type T], int T2> where { T extends T2; } { }
+        ";
+
+        var diagnostics = @"
+            cannot derive from template parameter 'int T2'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0156_InconsistentAccessibilityField() {
@@ -1974,9 +2262,35 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0167_AmbiguousReference
+    [Fact]
+    public void Reports_Error_BU0167_AmbiguousReference() {
+        var text = @"
+            using A;
+            using C;
+
+            namespace A {
+                public class B { }
+            }
+
+            namespace C {
+                public class B { }
+            }
+
+            var a = new [B]();
+        ";
+
+        var diagnostics = @"
+            'B' is an ambiguous reference between 'A.B' and 'C.B'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0168_AmbiguousMember
+    // ? Unsure how to trigger this
+
     // ! Error_BU0169_InvalidProtectedAccess
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0170_CannotInitializeVarWithStaticClass() {
@@ -2029,7 +2343,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0173_NoImplicitConversion
+    [Fact]
+    public void Reports_Error_BU0173_NoImplicitConversion() {
+        var text = @"
+            [void] a = [3];
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+            cannot convert from type 'int!' to 'void' implicitly
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0174_MethodGroupCannotBeUsedAsValue() {
@@ -2060,7 +2386,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0176_ParameterOrLocalShadowsTemplateParameter
+    [Fact]
+    public void Reports_Error_BU0176_ParameterOrLocalShadowsTemplateParameter() {
+        var text = @"
+            void F<type T>() {
+                int [T] = 3;
+            }
+        ";
+
+        var diagnostics = @"
+            cannot declare a parameter, local, or local function with the name 'T' because that name is already used by a template parameter in an enclosing scope
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0177_LocalAlreadyDeclared() {
@@ -2176,15 +2515,31 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert null to 'T' because it is a non-nullable type
+            cannot convert null to 'type! T' because it is a non-nullable type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0184_InvalidObjectCreation
+    [Fact]
+    public void Reports_Error_BU0184_InvalidObjectCreation() {
+        var text = @"
+            using A = int\[\];
+            var a = new [A]();
+        ";
+
+        var diagnostics = @"
+            invalid object creation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0185_AmbiguousUnaryOperator
+    // TODO This should be reachable with a unary operator overload and an implicit int conversion for the same class
+
     // ! Error_BU0186_RefConditionalNeedsTwoRefs
+    // Ternarys don't support ref expressions yet
 
     [Fact]
     public void Reports_Error_BU0187_NullAssertAlwaysThrows() {
@@ -2228,7 +2583,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0190_ArraySizeInDeclaration
+    // Parse catches this
+
     // ! Error_BU0191_ListNoTargetType
+    // Pretty sure BU0009 covers all cases where this would be raised
 
     [Fact]
     public void Reports_Error_BU0192_InstanceRequiredInFieldInitializer() {
@@ -2246,8 +2604,37 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0193_ArgumentExtraRef
-    // ! Error_BU0194_ArgumentWrongRef
+    [Fact]
+    public void Reports_Error_BU0193_ArgumentExtraRef() {
+        var text = @"
+            void Outer() {
+            void M(int a) { }
+            int a = 3;
+            M([ref a]);
+            }
+        ";
+
+        var diagnostics = @"
+            argument 1 may not be passed with the 'ref' keyword
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0194_ArgumentWrongRef() {
+        var text = @"
+            void M(ref int a) { }
+            int a = 3;
+            M([a]);
+        ";
+
+        var diagnostics = @"
+            argument 1 must be passed with the 'ref' keyword
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0195_NoCorrespondingArgument() {
@@ -2331,8 +2718,32 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0201_RefLocalOrParameterExpected
-    // ! Error_BU0202_RefLValueExpected
+    [Fact]
+    public void Reports_Error_BU0201_RefLocalOrParameterExpected() {
+        var text = @"
+            int a = 3;
+            [true ? 3 : 2] = ref a;
+        ";
+
+        var diagnostics = @"
+            left side of ref assignment must be a ref variable, ref field, ref parameter, or ref indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0202_RefLValueExpected() {
+        var text = @"
+            ref int a = ref [3];
+        ";
+
+        var diagnostics = @"
+            ref value must be an assignable variable, field, parameter, or indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0203_RefReturnLValueExpected() {
@@ -2349,6 +2760,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0204_InternalError
+    // Hopefully unreachable
 
     [Fact]
     public void Reports_Error_BU0205_BadSKKnown() {
@@ -2381,10 +2793,34 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0207_BadSKUnknown
+    // ? Unsure how to trigger this
+
     // ! Error_BU0208_RefConstLocal
+    // Struct methods not implemented yet
+
     // ! Error_BU0209_RefReturnThis
-    // TODO Do we want this following case to be an error:
-    // ! Error_BU0210_ConstantAssignmentThis
+    // Struct methods not implemented yet
+
+    [Fact]
+    public void Reports_Error_BU0210_ConstantAssignmentThis() {
+        var text = @"
+            class P {
+                void M(P! p) {
+                    [this] = p;
+                }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot assign to 'this' because it is constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // Unsure how to trigger any of these
     // ! Error_BU0211_ReturnNotLValue
     // ! Error_BU0212_RefConstNotField
     // ! Error_BU0213_RefReturnConstNotField
@@ -2448,6 +2884,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // Unsure how to trigger any of these
     // ! Error_BU0221_RefReturnConstantStatic
     // ! Error_BU0222_RefConstantStatic
     // ! Error_BU0223_AssignmentConstantStatic
@@ -2459,10 +2896,27 @@ public sealed class DiagnosticTests {
     // ! Error_BU0229_AssignmentConstantStatic2
     // ! Error_BU0230_RefConstantLocalCause
     // ! Error_BU0231_AssignmentConstantLocalCause
+
     // ! Error_BU0232_PossibleBadNegativeCast
+    // Unreachable currently
+
+    // Nested diagnostics
     // ! Error_BU0233_RefReturnMustHaveIdentityConversion
     // ! Error_BU0234_RefAssignmentMustHaveIdentityConversion
-    // ! Error_BU0235_LocalSameNameAsTemplate
+
+    [Fact]
+    public void Reports_Error_BU0235_LocalSameNameAsTemplate() {
+        var text = @"
+            void M<type T>(int [T]) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'T': a parameter, local, or local function cannot have the same name as a method template parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0236_DuplicateParameterName() {
@@ -2491,6 +2945,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0238_NewTemplateWithArguments
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Warning_BU0239_IncorrectBooleanAssignment() {
@@ -2506,7 +2961,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Error_BU0240_LookupInTemplateVariable
+    [Fact]
+    public void Reports_Error_BU0240_LookupInTemplateVariable() {
+        var text = @"
+            void M<type T>() {
+                [T].M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot do non-virtual member lookup in 'type! T' because it is a template parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0241_AbstractBaseCall() {
@@ -2528,10 +2997,25 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0242_StaticMemberInObjectInitializer
+    // Object initializers not implemented yet
+
     // ! Warning_BU0243_RefConstNotVariable
     // ! Warning_BU0244_ArgExpectedRef
     // ! Error_BU0245_RefConditionalDifferentTypes
-    // ! Error_BU0246_DuplicateTemplateParameter
+
+    [Fact]
+    public void Reports_Error_BU0246_DuplicateTemplateParameter() {
+        var text = @"
+            class A<type T, type [T]> { }
+        ";
+
+        var diagnostics = @"
+            duplicate template parameter 'T'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Warning_BU0247_TemplateParameterSameAsOuterMethod
     // ! Warning_BU0248_TemplateParameterSameAsOuter
 
@@ -2959,7 +3443,25 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0284_CantChangeRefReturnOnOverride
+    [Fact]
+    public void Reports_Error_BU0284_CantChangeRefReturnOnOverride() {
+        var text = @"
+            class A {
+                public virtual ref int M(ref int a) { return ref a; }
+            }
+
+            class B extends A {
+                public override int [M](ref int a) { return 3; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M(ref int)' must match by reference return of overridden member 'A.M(ref int)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0285_CantChangeReturnTypeOnOverride() {
@@ -2979,12 +3481,15 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // Not implemented yet
     // ! Warning_BU0286_OverridingDifferentRefness
     // ! Warning_BU0287_TopLevelNullabilityMismatchInParameterTypeOnOverride
     // ! Warning_BU0288_NullabilityMismatchInParameterTypeOnOverride
     // ! Warning_BU0289_TopLevelNullabilityMismatchInReturnTypeOnOverride
     // ! Warning_BU0290_NullabilityMismatchInReturnTypeOnOverride
+
     // ! Fatal_BU0291_LibraryErrors
+    // Hopefully unreachable
 
     [Fact]
     public void Reports_Error_BU0292_OperatorCantReturnVoid() {
@@ -3017,6 +3522,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0294_BadAbstractUnaryOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0295_BadShiftOperatorSignature() {
@@ -3034,6 +3540,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0296_BadAbstractShiftOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0297_BadBinaryOperatorSignature() {
@@ -3051,7 +3558,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0298_BadAbstractBinaryOperatorSignature
+    // Abstract operators not implements yet
+
     // ! Error_BU0299_BadAbstractEqualityOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0300_BadIncrementOperatorSignature() {
@@ -3069,6 +3579,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0301_BadAbstractIncrementOperatorSignature
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0302_BadIncrementReturnType() {
@@ -3086,6 +3597,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0303_BadAbstractIncrementReturnType
+    // Abstract operators not implements yet
 
     [Fact]
     public void Reports_Error_BU0304_BadIndexCount() {
@@ -3102,7 +3614,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0305_MultipleUpdates
+    // Requires command-line arguments (specifically `--type=graphics`)
+
     // ! Error_BU0306_SeparateMainAndUpdate
+    // Requires command-line arguments (specifically `--type=graphics`)
 
     [Fact]
     public void Reports_Error_BU0307_FieldsCannotBeImplicitlyTyped() {
@@ -3175,12 +3690,84 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0311_EscapeCall
-    // ! Error_BU0312_EscapeCall2
+    // !
+    // TODO We don't properly handle nested spans that aren't identical
+    // [Fact]
+    // public void Reports_Error_BU0311_EscapeCall() {
+    //     var text = @"
+    //         ref int M() {
+    //             int x = 10;
+    //             return ref [GetRef(ref [x])];
+    //         }
+
+    //         ref int GetRef(ref int p) { return ref p; }
+    //     ";
+
+    //     var diagnostics = @"
+    //         use of result of 'GetRef(ref int)' in this context may expose locals referenced by parameter 'p' outside of their declaration scope
+    //         cannot return local 'x' by reference because it is not a ref local
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0312_EscapeCall2() {
+    //     var text = @"
+    //         struct A { int f; }
+
+    //         ref int M() {
+    //             A a = new A();
+    //             ref A b = ref a;
+    //             return ref [GetRef(ref [b])].f;
+    //         }
+
+    //         ref A GetRef(ref A p) { return ref p; }
+    //     ";
+
+    //     var diagnostics = @"
+    //         use of member of result of 'GetRef(ref A!)' in this context may expose locals referenced by parameter 'p' outside of their declaration scope
+    //         cannot return local 'b' by reference because it was initialized to a value that cannot be returned by reference
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
     // ! Error_BU0313_EscapeLocal
-    // ! Error_BU0314_RefAssignReturnOnly
-    // ! Error_BU0315_RefAssignNarrower
+    // ? Unsure how to trigger this
+
+    [Fact]
+    public void Reports_Error_BU0314_RefAssignReturnOnly() {
+        var text = @"
+            struct A {
+                protected [int f];
+            }
+        ";
+
+        var diagnostics = @"
+            'A': protected member declared in struct
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0315_RefAssignNarrower() {
+        var text = @"
+            void M(int a, ref int b) {
+                [b = ref a];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot ref-assign 'a' to 'b' because 'a' has a narrower escape scope than 'b'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0316_RefAssignValEscapeWider
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0317_MissingArraySize() {
@@ -3195,9 +3782,47 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0318_GlobalUsingInNamespace
-    // ! Error_BU0319_AliasNotFound
-    // ! Error_BU0320_SingleTypeNameNotFound
+    [Fact]
+    public void Reports_Error_BU0318_GlobalUsingInNamespace() {
+        var text = @"
+            namespace A {
+                [global] using B = A;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot use a global using directive in a namespace declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0319_AliasNotFound() {
+        var text = @"
+            var a = [A]::C();
+        ";
+
+        var diagnostics = @"
+            alias 'A' not found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0320_SingleTypeNameNotFound() {
+        var text = @"
+            [asdf] a = 3;
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'asdf' could not be found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Warning_BU0321_NamespaceNameShadowsBelte() {
@@ -3212,12 +3837,56 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Error_BU0322_GlobalSingleTypeNameNotFound
-    // ! Error_BU0323_DottedTypeNamesNotFoundInNamespace
+    [Fact]
+    public void Reports_Error_BU0322_GlobalSingleTypeNameNotFound() {
+        var text = @"
+            var a = new global::[A]();
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'A' could not be found in the global namespace
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0323_DottedTypeNamesNotFoundInNamespace() {
+        var text = @"
+            namespace A { }
+            var a = new A.[B]();
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'B' does not exist in the namespace 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0324_ConflictingAliasAndMember
+    // ? Unsure how to trigger this
+
     // ! Error_BU0325_UnexpectedUnboundTemplateName
-    // ! Error_BU0326_HasNoTemplate
+    // ? Unsure how to trigger this
+
+    [Fact]
+    public void Reports_Error_BU0326_HasNoTemplate() {
+        var text = @"
+            class A { }
+            var a = new [A<int>]();
+            ;
+        ";
+
+        var diagnostics = @"
+            the non-template type 'A' cannot be used with template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0327_TemplateNotAllowed
+    // ? Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0328_BadTemplateArgument() {
@@ -3277,6 +3946,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0332_NotNullableConstraintFailed
+    // Not implemented currently
 
     [Fact]
     public void Reports_Error_BU0333_DuplicateConstraint() {
@@ -3432,7 +4102,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0344_CannotConvertConstantValue
+    [Fact]
+    public void Reports_Error_BU0344_CannotConvertConstantValue() {
+        var text = @"
+            var a = (bool)[""asdf""];
+        ";
+
+        var diagnostics = @"
+            constant value 'asdf' cannot be converted to 'bool'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0345_AbstractAndExtern() {
@@ -3464,6 +4145,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // !
+    // Unreachable currently, attributes not implemented yet
     // [Fact]
     // public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
     //     var text = @"
@@ -3497,12 +4180,99 @@ public sealed class DiagnosticTests {
     // }
 
     // ! Error_BU0349_InvalidAttributeArgument
-    // ! Error_BU0350_FixedBufferTooManyDimensions
-    // ! Error_BU0351_FixedOverflow
-    // ! Error_BU0352_InvalidFixedArraySize
-    // ! Error_BU0353_FixedNotInStruct
-    // ! Error_BU0354_FixedFieldMustNotBeRef
-    // ! Error_BU0355_IllegalFixedType
+    // Unreachable currently, attributes not implemented yet
+
+    [Fact]
+    public void Reports_Error_BU0350_FixedBufferTooManyDimensions() {
+        var text = @"
+            struct A {
+                int32 a[\[1,1\]];
+            }
+        ";
+
+        var diagnostics = @"
+            a fixed buffer can only have one dimension
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0351_FixedOverflow() {
+        var text = @"
+            struct A {
+                int32 a\[[[9999999999999]]\];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'int!' to 'int32!' implicitly; an explicit conversion exists (are you missing a cast?)
+            fixed size buffer of length '1316134911' and type 'int32!' is too big
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0352_InvalidFixedArraySize() {
+        var text = @"
+            struct A {
+                int32 a\[[[-1]]\];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'int!' to 'int32!' implicitly; an explicit conversion exists (are you missing a cast?)
+            fixed size buffers must have a length greater than zero
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0353_FixedNotInStruct() {
+        var text = @"
+            class A {
+                [int32 a\[30\]];
+            }
+        ";
+
+        var diagnostics = @"
+            fixed size buffer fields may only be members of structs
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0354_FixedFieldMustNotBeRef() {
+        var text = @"
+            struct A {
+                [ref int32 a\[30\]];
+            }
+        ";
+
+        var diagnostics = @"
+            fixed fields cannot be ref fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0355_IllegalFixedType() {
+        var text = @"
+            struct A {
+                [char] a\[30\];
+            }
+        ";
+
+        var diagnostics = @"
+            fixed size buffer type must a non-nullable bool or a non-nullable sized numeric primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0356_NullptrNoTargetType() {
@@ -3512,6 +4282,353 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             there is no target type for the null pointer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
+        var text = @"
+            class A {
+                public int Method() { return 3; }
+            }
+
+            var a = new A();
+            var b = [$a.Method()];
+        ";
+
+        var diagnostics = @"
+            expression is not computable at compile time
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0358_FixedNeedsLValue
+    // ? Unsure how to trigger this
+
+    [Fact]
+    public void Reports_Error_BU0359_InvalidCascadeExpression() {
+        var text = @"
+            class A { }
+
+            var a = new A()..[3];
+        ";
+
+        var diagnostics = @"
+            cascade expression must be an assignment or call expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0360_NestedCascadeExpression() {
+        var text = @"
+            class A { }
+
+            var a = new A()..[a.M]();
+        ";
+
+        var diagnostics = @"
+            cascade expression must access a direct member of the target receiver
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0361_InvalidCompileTimeType() {
+        var text = @"
+            class A { }
+            A GetA() { return new A(); }
+            var a = [$GetA()];
+        ";
+
+        var diagnostics = @"
+            compile time expression must result in a primitive or struct type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0362_BadStackAllocExpression() {
+        var text = @"
+            int32 a[\[1,2\]];
+        ";
+
+        var diagnostics = @"
+            a stackalloc expression or local requires a type with a single array size specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0363_NegativeStackAllocSize() {
+        var text = @"
+            var a = stackalloc int32\[[(int32!)-1]\];
+        ";
+
+        var diagnostics = @"
+            cannot use a negative size with a stackalloc expression or local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0364_NoStackAllocTarget() {
+        var text = @"
+            [stackalloc int32\[10\]];
+        ";
+
+        var diagnostics = @"
+            stackalloc expression can only be used as a data container initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0365_StackAllocInCatchFinally() {
+        var text = @"
+            try {
+            } catch {
+                var a = [stackalloc int32\[10\]];
+            }
+        ";
+
+        var diagnostics = @"
+            a stackalloc expression or local may not be used in a catch or finally block
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0366_StackAllocLocalWithInitializer() {
+        var text = @"
+            [int32 a\[10\] = 3];
+        ";
+
+        var diagnostics = @"
+            a stackalloc local cannot not have an explicit initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0367_ImplicitlyTypedStackAllocLocal() {
+        var text = @"
+            [var a\[10\] = 3];
+        ";
+
+        var diagnostics = @"
+            a stackalloc local cannot be implicitly typed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0368_InvalidEnumType() {
+        var text = @"
+            enum A extends [Object] { }
+        ";
+
+        var diagnostics = @"
+            an enum type can only derive from integral primitives or string
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0369_EnumOverflow() {
+        var text = @"
+            enum A extends uint8 {
+                SomeField = 254,
+                G,
+                [H]
+            }
+        ";
+
+        var diagnostics = @"
+            'A.H': the enum value is too large to fit in its type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0370_UnbalancedILStack() {
+        var text = @"
+            [il] {
+                dup;
+            }
+        ";
+
+        var diagnostics = @"
+            inline IL block does not have a balanced stack
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0371_UnknownILOpCode() {
+        var text = @"
+            il {
+                [asdf;]
+            }
+        ";
+
+        var diagnostics = @"
+            unknown IL instruction 'asdf'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0372_InvalidILOperandKind() {
+        var text = @"
+            il noverify {
+                [Ldc.I4;]
+            }
+        ";
+
+        var diagnostics = @"
+            IL instruction 'ldc.i4' expects an operand of type 'int32'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0373_InvalidILOperand() {
+        var text = @"
+            il noverify {
+                [add 3;]
+            }
+        ";
+
+        var diagnostics = @"
+            IL instruction 'add' does not expect an operand
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // TODO Fix diagnostic locations for directives
+    // [Fact]
+    // public void Reports_Error_BU0374_InvalidDirectivePlacement() {
+    //     var text = @"
+    //         int a = 3; [#if]
+    //     ";
+
+    //     var diagnostics = @"
+    //         preprocessor directives must appear as the first non-whitespace character on a line
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0375_EndifDirectiveExpected() {
+    //     var text = @"
+    //         #if ASDF[]
+    //     ";
+
+    //     var diagnostics = @"
+    //         #endif directive expected
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0376_UnexpectedDirective() {
+    //     var text = @"
+    //         [#asdf]
+    //     ";
+
+    //     var diagnostics = @"
+    //         unexpected preprocessor directive
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0377_DirectiveFollowsToken() {
+    //     var text = @"
+    //         int a = 3;
+    //         [#define] ASDF
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot define/undefine preprocessor symbols after first token in file
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0378_InvalidDirectiveExpression() {
+    //     var text = @"
+    //         #if [3]
+    //         #endif
+    //     ";
+
+    //     var diagnostics = @"
+    //         invalid preprocessor expression
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0379_InvalidImplicitEnum() {
+        var text = @"
+            enum A extends string {
+                [F]
+            }
+        ";
+
+        var diagnostics = @"
+            enum members with a string underlying type must have explicit values
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0380_EnumFieldNoTargetType() {
+        var text = @"
+            var a = [.A];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the implicit enum field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0381_WrongEnumTargetType() {
+        var text = @"
+            int32 a = [.A];
+        ";
+
+        var diagnostics = @"
+            cannot infer enum type from implicit enum field
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

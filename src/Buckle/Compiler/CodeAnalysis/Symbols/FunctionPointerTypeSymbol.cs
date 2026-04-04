@@ -18,13 +18,29 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
+        var callingConvention = (syntax.callingConvention?.kind) switch {
+            null => CallingConvention.Default,
+            SyntaxKind.TildeToken => CallingConvention.Unmanaged,
+            _ => throw ExceptionUtilities.Unreachable(),// Should be caught in the parser
+        };
+
         return new FunctionPointerTypeSymbol(
             FunctionPointerMethodSymbol.CreateFromSource(
+                callingConvention,
                 syntax,
                 typeBinder,
                 diagnostics,
                 basesBeingResolved
             )
+        );
+    }
+
+    internal static FunctionPointerTypeSymbol CreateFromMetadata(
+        ModuleSymbol containingModule,
+        CallingConvention callingConvention,
+        ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
+        return new FunctionPointerTypeSymbol(
+            FunctionPointerMethodSymbol.CreateFromMetadata(containingModule, callingConvention, retAndParamTypes)
         );
     }
 
@@ -93,6 +109,17 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() => [];
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) => [];
     internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionPointerType(this, a);
+
+    internal override bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result) {
+        var newSignature = signature.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position);
+        var madeChanges = (object)signature != newSignature;
+        result = madeChanges ? new FunctionPointerTypeSymbol(newSignature) : this;
+        return madeChanges;
+    }
 
     internal override bool Equals(TypeSymbol t2, TypeCompareKind compareKind) {
         if (ReferenceEquals(this, t2))

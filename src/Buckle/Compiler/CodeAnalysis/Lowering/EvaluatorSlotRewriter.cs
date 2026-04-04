@@ -3,12 +3,14 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly BoundProgram _previous;
 
     private int _lateTempCount;
 
@@ -16,8 +18,10 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
 
     private EvaluatorSlotRewriter(
         MethodSymbol method,
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts) {
+        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        BoundProgram previous) {
         _typeLayouts = typeLayouts;
+        _previous = previous;
         localSlotManager = new EvaluatorSlotManager(method);
     }
 
@@ -25,8 +29,9 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         MethodSymbol method,
         BoundStatement statement,
         Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        BoundProgram previous,
         out EvaluatorSlotManager slotManager) {
-        var rewriter = new EvaluatorSlotRewriter(method, typeLayouts);
+        var rewriter = new EvaluatorSlotRewriter(method, typeLayouts, previous);
         rewriter.AssignParameterSlots(method);
         var rewrittenBlock = (BoundBlockStatement)rewriter.Visit(statement);
 
@@ -87,6 +92,9 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
             );
         }
 
+        if (local.isRef && node.declaration.initializer.IsLiteralNull())
+            _lateTempCount++;
+
         return Visit(new BoundExpressionStatement(syntax,
             Assignment(node.syntax,
                 new BoundDataContainerExpression(syntax, local, null, local.type),
@@ -118,7 +126,12 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         var field = node.field;
         var receiver = (BoundExpression)Visit(node.receiver);
         var receiverType = (receiver?.StrippedType() ?? field.containingType).originalDefinition;
-        var layout = _typeLayouts[(NamedTypeSymbol)receiverType];
+
+        if (!_typeLayouts.TryGetValue((NamedTypeSymbol)receiverType, out var layout)) {
+            if (!_previous.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)receiverType, out layout))
+                throw ExceptionUtilities.Unreachable();
+        }
+
         var slot = layout.GetLocal(field).slot;
         return new BoundFieldSlotExpression(node.syntax, node, receiver, field, slot, node.Type());
     }
@@ -131,6 +144,25 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression node) {
         _lateTempCount++;
         return base.VisitArrayCreationExpression(node);
+    }
+
+    internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
+        var structStack = new Stack<NamedTypeSymbol>();
+
+        if (node.Type().IsStructType())
+            structStack.Push((NamedTypeSymbol)node.Type());
+
+        while (structStack.Count > 0) {
+            _lateTempCount++;
+            var structType = structStack.Pop();
+
+            foreach (var member in structType.GetMembers()) {
+                if (member is FieldSymbol f && f.type.IsStructType())
+                    structStack.Push((NamedTypeSymbol)f.type);
+            }
+        }
+
+        return base.VisitCompileTimeExpression(node);
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {

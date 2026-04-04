@@ -277,16 +277,17 @@ public static partial class SyntaxFactory {
         );
     }
 
-    public static CompilationUnitSyntax ParseCompilationUnit(string text, int offset = 0) {
-        using var lexer = MakeLexer(text, offset);
+    public static CompilationUnitSyntax ParseCompilationUnit(string text, int offset = 0, ParseOptions options = null) {
+        using var lexer = MakeLexer(text, offset, options);
         using var parser = MakeParser(lexer);
         var node = parser.ParseCompilationUnit();
         return (CompilationUnitSyntax)node.CreateRed();
     }
 
-    private static Lexer MakeLexer(string text, int offset) {
+    private static Lexer MakeLexer(string text, int offset, ParseOptions options) {
         return new Lexer(
             MakeSourceText(text, offset),
+            options,
             false
         );
     }
