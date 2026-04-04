@@ -13,16 +13,20 @@ internal static partial class OpCodeExtensions {
         var pop = GetPopCount(refOpCode.StackBehaviourPop);
 
         if (push == -1) {
-            if (opCode is OpCode.Call or OpCode.Calli or OpCode.Callvirt)
-                push = methodSymbolOpt.returnsVoid ? 0 : 1;
-            else
+            if (opCode is OpCode.Call or OpCode.Calli or OpCode.Callvirt) {
+                if (methodSymbolOpt is not null)
+                    push = methodSymbolOpt.returnsVoid == true ? 0 : 1;
+            } else {
                 throw ExceptionUtilities.UnexpectedValue(opCode);
+            }
         }
 
         if (pop == -1) {
             if (opCode is OpCode.Call or OpCode.Calli or OpCode.Callvirt) {
-                pop = methodSymbolOpt.parameterCount +
-                    ((methodSymbolOpt.isStatic || methodSymbolOpt.methodKind == MethodKind.LocalFunction) ? 0 : 1);
+                if (methodSymbolOpt is not null) {
+                    pop = methodSymbolOpt.parameterCount +
+                        ((methodSymbolOpt.isStatic || methodSymbolOpt.methodKind == MethodKind.LocalFunction) ? 0 : 1);
+                }
             } else {
                 throw ExceptionUtilities.UnexpectedValue(opCode);
             }
