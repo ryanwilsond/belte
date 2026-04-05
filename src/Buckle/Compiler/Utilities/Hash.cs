@@ -111,4 +111,22 @@ internal static class Hash {
 
         return hash;
     }
+
+    internal static int CombineValues<T>(ImmutableArray<T> values, int maxItemsToHash = int.MaxValue) {
+        if (values.IsDefaultOrEmpty)
+            return 0;
+
+        var hashCode = 0;
+        var count = 0;
+
+        foreach (var value in values) {
+            if (count++ >= maxItemsToHash)
+                break;
+
+            if (value is not null)
+                hashCode = Combine(value.GetHashCode(), hashCode);
+        }
+
+        return hashCode;
+    }
 }

@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -14,9 +16,8 @@ internal partial class BoundDecisionDag {
             if (_reachableLabels is null) {
                 var result = ImmutableHashSet.CreateBuilder<LabelSymbol>(SymbolEqualityComparer.ConsiderEverything);
                 foreach (var node in topologicallySortedNodes) {
-                    // if (node is BoundLeafDecisionDagNode leaf) {
-                    //     result.Add(leaf.Label);
-                    // }
+                    if (node is BoundLeafDecisionDagNode leaf)
+                        result.Add(leaf.label);
                 }
 
                 _reachableLabels = result.ToImmutableHashSet();
@@ -37,73 +38,90 @@ internal partial class BoundDecisionDag {
 
     internal static void AddSuccessors(ref TemporaryArray<BoundDecisionDagNode> builder, BoundDecisionDagNode node) {
         switch (node) {
-            // case BoundEvaluationDecisionDagNode p:
-            //     builder.Add(p.Next);
-            //     return;
-            // case BoundTestDecisionDagNode p:
-            //     builder.Add(p.WhenFalse);
-            //     builder.Add(p.WhenTrue);
-            //     return;
-            // case BoundLeafDecisionDagNode d:
-            //     return;
-            // case BoundWhenDecisionDagNode w:
-            //     builder.Add(w.WhenTrue);
-            //     builder.AddIfNotNull(w.WhenFalse);
-            //     return;
+            case BoundEvaluationDecisionDagNode p:
+                builder.Add(p.next);
+                return;
+            case BoundTestDecisionDagNode p:
+                builder.Add(p.whenFalse);
+                builder.Add(p.whenTrue);
+                return;
+            case BoundLeafDecisionDagNode d:
+                return;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
     }
 
     internal BoundDecisionDag SimplifyDecisionDagIfConstantInput(BoundExpression input) {
-        // if (input.constantValue is null) {
-        //     return this;
-        // } else {
-        //     var inputConstant = input.constantValue;
+        if (input.constantValue is null) {
+            return this;
+        } else {
+            var inputConstant = input.constantValue;
 
-        //     return Rewrite(makeReplacement);
+            return Rewrite(MakeReplacement);
 
-        //     BoundDecisionDagNode MakeReplacement(
-        //         BoundDecisionDagNode dag,
-        //         IReadOnlyDictionary<BoundDecisionDagNode, BoundDecisionDagNode> replacement) {
-        //         if (dag is BoundTestDecisionDagNode p) {
-        //             // This is the key to the optimization. The result of a top-level test might be known if the input is constant.
-        //             switch (knownResult(p.Test)) {
-        //                 case true:
-        //                     return replacement[p.WhenTrue];
-        //                 case false:
-        //                     return replacement[p.WhenFalse];
-        //             }
-        //         }
+            BoundDecisionDagNode MakeReplacement(
+                BoundDecisionDagNode dag,
+                IReadOnlyDictionary<BoundDecisionDagNode, BoundDecisionDagNode> replacement) {
+                if (dag is BoundTestDecisionDagNode p) {
+                    switch (KnownResult(p.test)) {
+                        case true:
+                            return replacement[p.whenTrue];
+                        case false:
+                            return replacement[p.whenFalse];
+                    }
+                }
 
-        //         return TrivialReplacement(dag, replacement);
-        //     }
+                return TrivialReplacement(dag, replacement);
+            }
 
-        //     // Is the decision's result known because the input is a constant?
-        //     bool? knownResult(BoundDagTest choice) {
-        //         if (!choice.Input.IsOriginalInput) {
-        //             // This is a test of something other than the main input; result unknown
-        //             return null;
-        //         }
+            bool? KnownResult(BoundDagTest choice) {
+                if (!choice.input.isOriginalInput) {
+                    return null;
+                }
 
-        //         switch (choice) {
-        //             case BoundDagExplicitNullTest d:
-        //                 return inputConstant.IsNull;
-        //             case BoundDagNonNullTest d:
-        //                 return !inputConstant.IsNull;
-        //             case BoundDagValueTest d:
-        //                 return d.Value == inputConstant;
-        //             case BoundDagTypeTest d:
-        //                 return inputConstant.IsNull ? (bool?)false : null;
-        //             case BoundDagRelationalTest d:
-        //                 var f = ValueSetFactory.ForType(input.Type);
-        //                 if (f is null) return null;
-        //                 return f.Related(d.Relation.Operator(), inputConstant, d.Value);
-        //             default:
-        //                 throw ExceptionUtilities.UnexpectedValue(choice);
-        //         }
-        //     }
-        // }
-        return null;
+                switch (choice) {
+                    case BoundDagExplicitNullTest d:
+                        return ConstantValue.IsNull(inputConstant);
+                    case BoundDagNonNullTest d:
+                        return !ConstantValue.IsNull(inputConstant);
+                    case BoundDagValueTest d:
+                        return d.value == inputConstant;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(choice);
+                }
+            }
+        }
+    }
+
+    internal BoundDecisionDag Rewrite(
+        Func<BoundDecisionDagNode, IReadOnlyDictionary<BoundDecisionDagNode, BoundDecisionDagNode>, BoundDecisionDagNode> makeReplacement) {
+        var sortedNodes = topologicallySortedNodes;
+        var replacement = PooledDictionary<BoundDecisionDagNode, BoundDecisionDagNode>.GetInstance();
+
+        for (var i = sortedNodes.Length - 1; i >= 0; i--) {
+            var node = sortedNodes[i];
+            var newNode = makeReplacement(node, replacement);
+            replacement.Add(node, newNode);
+        }
+
+        var newRoot = replacement[rootNode];
+        replacement.Free();
+        return Update(newRoot);
+    }
+
+    internal static BoundDecisionDagNode TrivialReplacement(
+        BoundDecisionDagNode dag,
+        IReadOnlyDictionary<BoundDecisionDagNode, BoundDecisionDagNode> replacement) {
+        switch (dag) {
+            case BoundEvaluationDecisionDagNode p:
+                return p.Update(p.evaluation, replacement[p.next]);
+            case BoundTestDecisionDagNode p:
+                return p.Update(p.test, replacement[p.whenTrue], replacement[p.whenFalse]);
+            case BoundLeafDecisionDagNode p:
+                return p;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(dag);
+        }
     }
 }

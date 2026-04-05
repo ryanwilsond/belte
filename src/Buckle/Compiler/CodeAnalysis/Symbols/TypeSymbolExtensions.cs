@@ -65,6 +65,10 @@ internal static class TypeSymbolExtensions {
         return type.ToDisplayString(format);
     }
 
+    internal static TypeSymbol EnumUnderlyingTypeOrSelf(this TypeSymbol type) {
+        return type.GetEnumUnderlyingType() ?? type;
+    }
+
     internal static bool IsPointerOrFunctionPointer(this TypeSymbol type) {
         switch (type.typeKind) {
             case TypeKind.Pointer:

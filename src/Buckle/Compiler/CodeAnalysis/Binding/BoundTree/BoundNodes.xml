@@ -395,12 +395,34 @@
   <AbstractNode Name="BoundDagTest" Base="BoundNode">
     <Field Name="input" Type="BoundDagTemp"/>
   </AbstractNode>
+  <Node Name="BoundLeafDecisionDagNode" Base="BoundDecisionDagNode">
+    <Field Name="label" Type="LabelSymbol"/>
+  </Node>
+  <Node Name="BoundDagNonNullTest" Base="BoundDagTest">
+    <Field Name="isExplicitTest" Type="bool"/>
+  </Node>
+  <Node Name="BoundDagAssignmentEvaluation" Base="BoundDagEvaluation">
+    <Field Name="target" Type="BoundDagTemp"/>
+  </Node>
   <Node Name="BoundDagTemp" Base="BoundNode">
     <Field Name="type" Type="TypeSymbol" Null="disallow"/>
     <Field Name="source" Type="BoundDagEvaluation?"/>
     <Field Name="index" Type="int"/>
   </Node>
+  <Node Name="BoundEvaluationDecisionDagNode" Base="BoundDecisionDagNode">
+    <Field Name="evaluation" Type="BoundDagEvaluation" Null="disallow"/>
+    <Field Name="next" Type="BoundDecisionDagNode" Null="disallow"/>
+  </Node>
+  <Node Name="BoundTestDecisionDagNode" Base="BoundDecisionDagNode">
+    <Field Name="test" Type="BoundDagTest" Null="disallow"/>
+    <Field Name="whenTrue" Type="BoundDecisionDagNode" Null="disallow"/>
+    <Field Name="whenFalse" Type="BoundDecisionDagNode" Null="disallow"/>
+  </Node>
   <AbstractNode Name="BoundDagEvaluation" Base="BoundDagTest"/>
+  <Node Name="BoundDagExplicitNullTest" Base="BoundDagTest"/>
+  <Node Name="BoundDagValueTest" Base="BoundDagTest">
+    <Field Name="value" Type="ConstantValue" Null="disallow"/>
+  </Node>
   <Node Name="BoundDiscardPattern" Base="BoundPattern"/>
   <Node Name="BoundIfStatement" Base="BoundStatement">
     <Field Name="condition" Type="BoundExpression"/>
