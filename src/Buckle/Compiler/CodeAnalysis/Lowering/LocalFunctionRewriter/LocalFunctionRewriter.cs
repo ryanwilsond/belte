@@ -550,6 +550,36 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         return rewritten;
     }
 
+    internal override BoundNode VisitInlineILStatement(BoundInlineILStatement node) {
+        var builder = ArrayBuilder<(CodeGeneration.OpCode, ConstantValue, Symbol)>.GetInstance();
+
+        foreach (var instruction in node.instructions) {
+            if (instruction.Item1 is CodeGeneration.OpCode.Call) {
+                var method = instruction.Item3 as MethodSymbol;
+                var args = ImmutableArray<BoundExpression>.Empty;
+                var refKinds = ImmutableArray<RefKind>.Empty;
+
+                if (method.methodKind == MethodKind.LocalFunction) {
+                    RemapLocalFunction(
+                        node.syntax,
+                        method,
+                        out var _,
+                        out var newMethod,
+                        ref args,
+                        ref refKinds
+                    );
+
+                    builder.Add((instruction.Item1, instruction.Item2, newMethod));
+                    continue;
+                }
+            }
+
+            builder.Add(instruction);
+        }
+
+        return node.Update(builder.ToImmutableAndFree());
+    }
+
     internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
         if (_frames.TryGetValue(node, out var frame)) {
             return IntroduceFrame(node, frame,

@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|as|global)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|as|global|il|noverify)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -95,7 +95,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|struct|constructor|extends|where|namespace|using)\\b"
+                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",

@@ -8,6 +8,7 @@ internal static class SpecialTypeExtensions {
             case SpecialType.String:
             case SpecialType.Bool:
             case SpecialType.Int:
+            case SpecialType.Enum:
             case SpecialType.Decimal:
             case SpecialType.Type:
             case SpecialType.Char:
@@ -28,6 +29,10 @@ internal static class SpecialTypeExtensions {
             default:
                 return false;
         }
+    }
+
+    internal static bool IsValidEnumUnderlyingType(this SpecialType specialType) {
+        return IsIntegral(specialType) || specialType == SpecialType.String || specialType == SpecialType.Char;
     }
 
     internal static bool IsObjectType(this SpecialType specialType) {
@@ -104,6 +109,24 @@ internal static class SpecialTypeExtensions {
         }
     }
 
+    internal static bool IsIntegral(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Int:
+            case SpecialType.Char:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static bool IsLowLevelNumeric(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Int8:
@@ -157,5 +180,32 @@ internal static class SpecialTypeExtensions {
             default:
                 return 0;
         }
+    }
+
+    internal static bool HasShortFormSignatureEncoding(this SpecialType type) {
+        switch (type) {
+            case SpecialType.String:
+            case SpecialType.Object:
+            case SpecialType.Void:
+            case SpecialType.Bool:
+            case SpecialType.Char:
+            case SpecialType.UInt8:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            // TODO
+            // case SpecialType.TypedReference:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+                return true;
+        }
+
+        return false;
     }
 }

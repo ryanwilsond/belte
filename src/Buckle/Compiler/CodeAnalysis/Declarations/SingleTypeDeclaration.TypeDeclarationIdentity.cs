@@ -28,6 +28,9 @@ internal sealed partial class SingleTypeDeclaration {
                 return false;
             }
 
+            if (thisDecl.kind == DeclarationKind.Enum)
+                return false;
+
             return true;
         }
 

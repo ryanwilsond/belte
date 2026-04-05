@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -130,7 +131,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _topLevelTypes = program.GetAllTypes()
             .Where(t => t.kind == SymbolKind.NamedType &&
                 t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or SpecialType.Rect)
+                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or SpecialType.Rect &&
+                t.originalDefinition is not PENamedTypeSymbol)
             .ToArray()
             .Cast<NamedTypeSymbol>()
             .ToImmutableArray();
@@ -298,7 +300,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
-                var containingType = _types[type.containingType.originalDefinition];
+                var containingType = GetTypeCoreInternal(type.containingType);
                 return containingType.GenericParameters[t.ordinal];
             }
 
@@ -306,10 +308,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         TypeReference GetTypeWithContainingGenerics(NamedTypeSymbol type) {
-            var foundType = _types[type.originalDefinition];
+            var foundType = GetTypeCoreInternal(type);
 
             // Acceptable inside specific contexts like typeof
-            if (type.ContainsTemplateParameter() || type.ContainsErrorType())
+            if (type.ContainsErrorType())
                 return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
@@ -342,10 +344,34 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             return foundType;
         }
+
+        TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
+            if (type.originalDefinition is PENamedTypeSymbol || type.IsErrorType())
+                return ResolveType(null, type.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat));
+
+            return _types[type.originalDefinition];
+        }
     }
 
     internal MethodReference GetMethod(MethodSymbol method) {
-        if (_methods.TryGetValue(method.originalDefinition, out var value)) {
+        MethodReference value = null;
+        var found = false;
+
+        if (method.originalDefinition is PEMethodSymbol m) {
+            value = ResolveMethod(
+                m.containingType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat),
+                m.metadataName,
+                m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
+            );
+            found = true;
+        }
+
+        if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
+            found = true;
+            value = (MethodReference)val;
+        }
+
+        if (found) {
             var constructedType = GetType(method.containingType);
 
             if (method.arity > 0) {
@@ -458,6 +484,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     internal FieldReference GetField(FieldSymbol field) {
+        if (field is PEFieldSymbol f)
+            return GetType(field.containingType).Resolve().Fields.Single(e => e.Name == f.name);
+
         var fieldRef = _fields[field];
         var constructedType = GetType(field.containingType);
 
@@ -555,8 +584,17 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetNamespaceName(type),
             type.name,
             GetTypeAttributes(type, isNested),
-            type.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(type.baseType)
+            GetBaseType(type)
         );
+
+        if (type.enumFlagsAttribute) {
+            var flagsCtor = _assemblyDefinition.MainModule.ImportReference(
+                typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes)
+            );
+
+            var flagsAttr = new CustomAttribute(flagsCtor);
+            typeDefinition.CustomAttributes.Add(flagsAttr);
+        }
 
         GenericParameter[] workingParams = [];
 
@@ -571,7 +609,16 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
+    }
 
+    private TypeReference GetBaseType(NamedTypeSymbol type) {
+        if (type.baseType is null || type.IsStructType())
+            return NetTypeReference.ValueType;
+
+        if (type.IsEnumType())
+            return NetTypeReference.Enum;
+
+        return GetType(type.baseType);
     }
 
     private void CreateNestedTypes(
@@ -607,8 +654,44 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return symbol.containingNamespace.name;
     }
 
+    private void CreateEnumMemberDefinitions(NamedTypeSymbol type, TypeDefinition typeDefinition) {
+        var underlyingType = type.GetEnumUnderlyingType().StrippedType();
+        var underlyingTypeRef = GetType(underlyingType);
+        var underlyingField = (type as SourceNamedTypeSymbol).enumValueField;
+
+        var underlyingFieldDef = new FieldDefinition(
+            underlyingField.name,
+            FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName,
+            underlyingTypeRef
+        );
+
+        typeDefinition.Fields.Add(underlyingFieldDef);
+        _fields.Add(underlyingField, underlyingFieldDef);
+
+        foreach (var member in type.GetMembers()) {
+            if (member is not FieldSymbol f)
+                continue;
+
+            var fieldDef = new FieldDefinition(
+                f.name,
+                FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal,
+                typeDefinition
+            ) {
+                Constant = f.constantValue
+            };
+
+            typeDefinition.Fields.Add(fieldDef);
+            _fields.Add(f, fieldDef);
+        }
+    }
+
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
         var typeDefinition = _types[type.originalDefinition];
+
+        if (type.IsEnumType()) {
+            CreateEnumMemberDefinitions(type, typeDefinition);
+            return;
+        }
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
@@ -653,7 +736,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             typeDefinition.Namespace,
             fixedImpl.name,
             GetTypeAttributes(fixedImpl, true),
-            fixedImpl.typeKind == TypeKind.Struct ? NetTypeReference.ValueType : GetType(fixedImpl.baseType)
+            GetBaseType(fixedImpl)
         ) {
             PackingSize = 0,
             ClassSize = field.fixedSize * elementSize
@@ -1086,7 +1169,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .Where(t => t.FullName == metadataName)
             .ToArray();
 
-        if (foundTypes.Length == 1) {
+        // TODO Do we actually care about ambiguity
+        if (foundTypes.Length >= 1) {
             return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
         } else if (foundTypes.Length == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
@@ -1104,7 +1188,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .Where(t => t.FullName == typeName)
             .ToArray();
 
-        if (foundTypes.Length == 1) {
+        if (foundTypes.Length >= 1) {
             if (TryResolveMethodCore(foundTypes, typeName, methodName, parameterTypeNames, out var methodRef1))
                 return methodRef1;
 
@@ -1193,6 +1277,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetTypeReference.Random = ResolveType(null, "System.Random");
         NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
         NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
+        NetTypeReference.Enum = ResolveType(null, "System.Enum");
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
@@ -1209,6 +1294,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private void ResolveMethods() {
         NetMethodReference.Object_Equals_OO = ResolveMethod("System.Object", "Equals", ["System.Object", "System.Object"]);
         NetMethodReference.Object_ToString = ResolveMethod("System.Object", "ToString", []);
+        NetMethodReference.Enum_ToString = ResolveMethod("System.Enum", "ToString", []);
         NetMethodReference.String_Concat_SS = ResolveMethod("System.String", "Concat", ["System.String", "System.String"]);
         NetMethodReference.String_Concat_SSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String"]);
         NetMethodReference.String_Concat_SSSS = ResolveMethod("System.String", "Concat", ["System.String", "System.String", "System.String", "System.String"]);

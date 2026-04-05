@@ -36,6 +36,10 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
         return AddSequencePoint(node);
     }
 
+    internal override BoundNode VisitInlineILStatement(BoundInlineILStatement node) {
+        return AddSequencePoint(node);
+    }
+
     internal override BoundNode VisitReturnStatement(BoundReturnStatement node) {
         if (node.syntax.kind != SyntaxKind.ReturnStatement) {
             if (node.syntax.kind == SyntaxKind.BlockStatement) {

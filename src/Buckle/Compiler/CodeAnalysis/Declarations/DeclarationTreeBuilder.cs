@@ -290,6 +290,58 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return VisitTypeDeclaration(node, DeclarationKind.Struct);
     }
 
+    internal override SingleNamespaceOrTypeDeclaration VisitEnumDeclaration(EnumDeclarationSyntax node) {
+        var members = node.members;
+
+        var declFlags = node.attributeLists.Any() ?
+            SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes :
+            SingleTypeDeclaration.TypeDeclarationFlags.None;
+
+        if (node.baseType is not null)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+
+        var memberNames = GetEnumMemberNames(node, ref declFlags);
+
+        var diagnostics = BelteDiagnosticQueue.GetInstance();
+        var modifiers = ModifierHelpers.CreateModifiers(node.modifiers, diagnostics, out _);
+
+        return new SingleTypeDeclaration(
+            kind: DeclarationKind.Enum,
+            name: node.identifier.text,
+            arity: 0,
+            modifiers: modifiers,
+            declFlags: declFlags,
+            syntaxReference: new SyntaxReference(node),
+            nameLocation: node.identifier.location,
+            memberNames: memberNames,
+            children: ImmutableArray<SingleTypeDeclaration>.Empty,
+            diagnostics: diagnostics.ToImmutableAndFree()
+        );
+    }
+
+    private BoxedMemberNames GetEnumMemberNames(
+        EnumDeclarationSyntax enumDeclaration,
+        ref SingleTypeDeclaration.TypeDeclarationFlags declFlags) {
+        var members = enumDeclaration.enumMembers;
+        var cnt = members.Count;
+
+        if (cnt != 0)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasAnyNonTypeMembers;
+
+        var anyMemberHasAttributes = members.Any(static m => m.attributeLists.Any());
+
+        if (anyMemberHasAttributes)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.AnyMemberHasAttributes;
+
+        return GetOrComputeMemberNames(
+            enumDeclaration,
+            static (memberNamesBuilder, members) => {
+                foreach (var member in members)
+                    memberNamesBuilder.Add(member.identifier.text);
+            },
+            members);
+    }
+
     private SingleTypeDeclaration VisitTypeDeclaration(TypeDeclarationSyntax node, DeclarationKind kind) {
         var declFlags = node.attributeLists.Any()
             ? SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes

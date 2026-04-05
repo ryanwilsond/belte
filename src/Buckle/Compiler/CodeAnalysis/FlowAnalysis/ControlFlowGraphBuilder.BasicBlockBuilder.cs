@@ -40,6 +40,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
+                    case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LocalFunctionStatement:
                         _statements.Add(statement);

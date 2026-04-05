@@ -218,7 +218,7 @@ public abstract class SourceText {
     /// <param name="span"><see cref="TextSpan" /> to check.</param>
     /// <returns>If the <see cref="TextSpan" /> is at the end of the text.</returns>
     public bool IsAtEndOfInput(TextSpan span) {
-        if (span.start == length)
+        if (span.start >= length)
             return true;
 
         return false;

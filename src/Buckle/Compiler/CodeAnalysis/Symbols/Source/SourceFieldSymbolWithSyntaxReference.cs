@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -19,7 +20,16 @@ internal abstract class SourceFieldSymbolWithSyntaxReference : SourceFieldSymbol
         : base(containingType) {
         this.name = name;
         this.syntaxReference = syntaxReference;
-        location = ((VariableDeclarationSyntax)syntaxReference.node).identifier.location;
+        switch (syntaxReference.node.kind) {
+            case SyntaxKind.VariableDeclaration:
+                location = ((VariableDeclarationSyntax)syntaxReference.node).identifier.location;
+                break;
+            case SyntaxKind.EnumMemberDeclaration:
+                location = ((EnumMemberDeclarationSyntax)syntaxReference.node).identifier.location;
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(syntaxReference.node.kind);
+        }
     }
 
     public override string name { get; }

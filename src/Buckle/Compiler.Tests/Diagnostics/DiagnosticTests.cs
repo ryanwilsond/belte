@@ -4531,4 +4531,204 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0368_InvalidEnumType() {
+        var text = @"
+            enum A extends [Object] { }
+        ";
+
+        var diagnostics = @"
+            an enum type can only derive from integral primitives or string
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0369_EnumOverflow() {
+        var text = @"
+            enum A extends uint8 {
+                SomeField = 254,
+                G,
+                [H]
+            }
+        ";
+
+        var diagnostics = @"
+            'A.H': the enum value is too large to fit in its type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0370_UnbalancedILStack() {
+        var text = @"
+            [il] {
+                dup;
+            }
+        ";
+
+        var diagnostics = @"
+            inline IL block does not have a balanced stack
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0371_UnknownILOpCode() {
+        var text = @"
+            il {
+                [asdf;]
+            }
+        ";
+
+        var diagnostics = @"
+            unknown IL instruction 'asdf'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0372_InvalidILOperandKind() {
+        var text = @"
+            il noverify {
+                [Ldc.I4;]
+            }
+        ";
+
+        var diagnostics = @"
+            IL instruction 'ldc.i4' expects an operand of type 'int32'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0373_InvalidILOperand() {
+        var text = @"
+            il noverify {
+                [add 3;]
+            }
+        ";
+
+        var diagnostics = @"
+            IL instruction 'add' does not expect an operand
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // TODO Fix diagnostic locations for directives
+    // [Fact]
+    // public void Reports_Error_BU0374_InvalidDirectivePlacement() {
+    //     var text = @"
+    //         int a = 3; [#if]
+    //     ";
+
+    //     var diagnostics = @"
+    //         preprocessor directives must appear as the first non-whitespace character on a line
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0375_EndifDirectiveExpected() {
+    //     var text = @"
+    //         #if ASDF[]
+    //     ";
+
+    //     var diagnostics = @"
+    //         #endif directive expected
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0376_UnexpectedDirective() {
+    //     var text = @"
+    //         [#asdf]
+    //     ";
+
+    //     var diagnostics = @"
+    //         unexpected preprocessor directive
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0377_DirectiveFollowsToken() {
+    //     var text = @"
+    //         int a = 3;
+    //         [#define] ASDF
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot define/undefine preprocessor symbols after first token in file
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0378_InvalidDirectiveExpression() {
+    //     var text = @"
+    //         #if [3]
+    //         #endif
+    //     ";
+
+    //     var diagnostics = @"
+    //         invalid preprocessor expression
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0379_InvalidImplicitEnum() {
+        var text = @"
+            enum A extends string {
+                [F]
+            }
+        ";
+
+        var diagnostics = @"
+            enum members with a string underlying type must have explicit values
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0380_EnumFieldNoTargetType() {
+        var text = @"
+            var a = [.A];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the implicit enum field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0381_WrongEnumTargetType() {
+        var text = @"
+            int32 a = [.A];
+        ";
+
+        var diagnostics = @"
+            cannot infer enum type from implicit enum field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

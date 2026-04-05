@@ -115,6 +115,30 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         visitor.VisitArrayType(this);
     }
 
+    internal override bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result) {
+        var oldElementType = elementTypeWithAnnotations;
+
+        if (!oldElementType.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newElementType)) {
+            result = this;
+            return false;
+        }
+
+        result = WithElementType(newElementType);
+        return true;
+    }
+
+    internal ArrayTypeSymbol WithElementType(TypeWithAnnotations elementTypeWithAnnotations) {
+        return elementTypeWithAnnotations.IsSameAs(elementTypeWithAnnotations)
+            ? this
+            : WithElementTypeCore(elementTypeWithAnnotations);
+    }
+
+    private protected abstract ArrayTypeSymbol WithElementTypeCore(TypeWithAnnotations elementTypeWithAnnotations);
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

@@ -93,6 +93,10 @@
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
+  <Node Name="BoundUnconvertedImplicitEnumFieldExpression" Base="BoundExpression">
+    <Field Name="name" Type="string"/>
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="initializer" Type="BoundInitializerList?"/>
@@ -329,6 +333,9 @@
     <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="localFunctions" Type="ImmutableArray&lt;LocalFunctionSymbol&gt;"/>
+  </Node>
+  <Node Name="BoundInlineILStatement" Base="BoundStatement">
+    <Field Name="instructions" Type="ImmutableArray&lt;(CodeGeneration.OpCode, ConstantValue, Symbol)&gt;"/>
   </Node>
   <Node Name="BoundExpressionStatement" Base="BoundStatement">
     <Field Name="expression" Type="BoundExpression"/>

@@ -307,7 +307,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         int methodOrdinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
-        if (method.isAbstract)
+        if (method.isAbstract || method.originalDefinition is PEMethodSymbol)
             return;
 
         var oldImportChain = state.currentImportChain;

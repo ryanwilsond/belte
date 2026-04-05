@@ -116,7 +116,7 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitArrayCreate(ArrayTypeSymbol type);
 
-    internal abstract void EmitToString();
+    internal abstract void EmitToString(OpCode opCode);
 
     internal abstract VariableDefinition AllocateSlot(TypeSymbol type, LocalSlotConstraints constraints);
 

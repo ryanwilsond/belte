@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -224,7 +225,13 @@ internal sealed class Evaluator {
             if (type.IsStructType()) {
                 var structValue = CreateStruct(type);
                 _context.AddStaticType(type, structValue);
-                return value;
+                return structValue;
+            }
+
+            if (type.IsEnumType()) {
+                var enumValue = CreateEnum(type);
+                _context.AddStaticType(type, enumValue);
+                return enumValue;
             }
 
             var ptr = CreateObject(type);
@@ -235,11 +242,14 @@ internal sealed class Evaluator {
 
         return EvaluatorValue.None;
     }
-
     private EvaluatorValue CreateObject(NamedTypeSymbol type) {
         var heapObject = CreateHeapObject(type);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         return EvaluatorValue.HeapPtr(index);
+    }
+
+    private EvaluatorValue CreateEnum(NamedTypeSymbol type) {
+        return EvaluatorValue.Struct(CreateHeapObject(type));
     }
 
     private EvaluatorValue CreateStruct(NamedTypeSymbol type) {
@@ -249,7 +259,7 @@ internal sealed class Evaluator {
     private HeapObject CreateHeapObject(NamedTypeSymbol type) {
         if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout)) {
             _program.TryGetTypeLayoutIncludingParents(type, out _);
-            throw new BelteInternalException($"Failed to get type layout ({type})");
+            throw new BelteInternalException($"Failed to get type layout ({type}).");
         }
 
         var fields = layout.LocalsInOrder();
@@ -261,7 +271,10 @@ internal sealed class Evaluator {
             if (type.templateSubstitution is not null)
                 fieldType = type.templateSubstitution.SubstituteType(field.type).type.type;
 
-            heapObject.fields[field.slot] = GetDefaultValue(fieldType);
+            heapObject.fields[field.slot] = GetDefaultValue(
+                fieldType,
+                (field.symbol as FieldSymbol)?.constantValue
+            );
         }
 
         if (type.arity > 0) {
@@ -458,6 +471,8 @@ internal sealed class Evaluator {
                         }
 
                         return _lastValue;
+                    case BoundKind.InlineILStatement:
+                        throw new BelteEvaluatorException("Inline IL is not supported in the Evaluator.", ((InlineILStatementSyntax)s.syntax).keyword.location);
                     default:
                         throw ExceptionUtilities.UnexpectedValue(s.kind);
                 }
@@ -525,7 +540,8 @@ internal sealed class Evaluator {
             BoundKind.ThrowExpression => EvaluateThrowExpression((BoundThrowExpression)node, abort),
             BoundKind.CompileTimeExpression => EvaluateCompileTimeExpression((BoundCompileTimeExpression)node, used, abort),
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
-            BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("stackalloc is not supported in the Evaluator", node.syntax.location),
+            BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("Stackalloc is not supported in the Evaluator.", node.syntax.location),
+            BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -569,7 +585,7 @@ internal sealed class Evaluator {
             var heapObject = _context.heap[thisParameter.ptr];
 
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-                throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
             var field = layout.GetLocal(type.StrippedType());
             return EvaluatorValue.Type(heapObject.fields[field.slot].type);
@@ -607,7 +623,7 @@ internal sealed class Evaluator {
             var heapObject = _context.heap[thisParameter.ptr];
 
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-                throw new BelteInternalException($"Failed to get type layout ({heapObject.type})");
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
             var field = layout.GetLocal(node.type);
             return heapObject.fields[field.slot];
@@ -622,7 +638,7 @@ internal sealed class Evaluator {
 
         if (used || isRefLocal) {
             if (!_context.TryGetGlobal(node.dataContainer, out var value))
-                throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist");
+                throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist.");
 
             if (isRefLocal)
                 return value.loc[value.ptr];
@@ -787,6 +803,8 @@ internal sealed class Evaluator {
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 return value;
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
             case ConversionKind.ImplicitNumeric:
@@ -803,8 +821,18 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateConvertCallOrNumericConversion(BoundCastExpression node, EvaluatorValue value) {
-        var fromType = NormalizeNumericType(node.operand.Type().specialType);
-        var toType = NormalizeNumericType(node.Type().specialType);
+        var fromTypeSymbol = node.operand.Type();
+
+        if (fromTypeSymbol.IsEnumType())
+            fromTypeSymbol = ((NamedTypeSymbol)fromTypeSymbol).enumUnderlyingType;
+
+        var toTypeSymbol = node.Type();
+
+        if (toTypeSymbol.IsEnumType())
+            toTypeSymbol = ((NamedTypeSymbol)toTypeSymbol).enumUnderlyingType;
+
+        var fromType = NormalizeNumericType(fromTypeSymbol.specialType);
+        var toType = NormalizeNumericType(toTypeSymbol.specialType);
 
         switch (toType) {
             case SpecialType.Bool:
@@ -831,6 +859,7 @@ internal sealed class Evaluator {
                     SpecialType.Float32 => Convert.ToString(value.single),
                     SpecialType.Float64 => Convert.ToString(value.@double),
                     SpecialType.Pointer => Convert.ToString(value.ptr),
+                    SpecialType.String => value.@string,
                     SpecialType.FunctionPointer => Convert.ToString(value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
@@ -845,6 +874,7 @@ internal sealed class Evaluator {
                     SpecialType.Int64 => unchecked((char)value.int64),
                     SpecialType.UInt8 => (char)value.uint8,
                     SpecialType.UInt16 => (char)value.uint16,
+                    SpecialType.Char => value.@char,
                     SpecialType.UInt32 => unchecked((char)value.uint32),
                     SpecialType.UInt64 => unchecked((char)value.uint64),
                     SpecialType.Float32 => unchecked((char)value.single),
@@ -860,6 +890,7 @@ internal sealed class Evaluator {
                 value.int8 = fromType switch {
                     SpecialType.String => Convert.ToSByte(value.@string),
                     SpecialType.Char => unchecked((sbyte)value.@char),
+                    SpecialType.Int8 => value.int8,
                     SpecialType.Int16 => unchecked((sbyte)value.int16),
                     SpecialType.Int32 => unchecked((sbyte)value.int32),
                     SpecialType.Int64 => unchecked((sbyte)value.int64),
@@ -881,6 +912,7 @@ internal sealed class Evaluator {
                     SpecialType.String => Convert.ToInt16(value.@string),
                     SpecialType.Char => unchecked((short)value.@char),
                     SpecialType.Int8 => unchecked((short)value.int8),
+                    SpecialType.Int16 => value.int16,
                     SpecialType.Int32 => unchecked((short)value.int32),
                     SpecialType.Int64 => unchecked((short)value.int64),
                     SpecialType.UInt8 => (short)value.uint8,
@@ -902,6 +934,7 @@ internal sealed class Evaluator {
                     SpecialType.Char => unchecked((int)value.@char),
                     SpecialType.Int8 => (int)value.int8,
                     SpecialType.Int16 => (int)value.int16,
+                    SpecialType.Int32 => value.int32,
                     SpecialType.Int64 => unchecked((int)value.int32),
                     SpecialType.UInt8 => (int)value.uint8,
                     SpecialType.UInt16 => (int)value.uint16,
@@ -926,6 +959,7 @@ internal sealed class Evaluator {
                     SpecialType.UInt8 => (long)value.uint8,
                     SpecialType.UInt16 => (long)value.uint16,
                     SpecialType.UInt32 => (long)value.uint32,
+                    SpecialType.Int64 => value.int64,
                     SpecialType.UInt64 => unchecked((long)value.uint64),
                     SpecialType.Float32 => unchecked((long)value.@single),
                     SpecialType.Float64 => unchecked((long)value.@double),
@@ -941,6 +975,7 @@ internal sealed class Evaluator {
                     SpecialType.String => Convert.ToByte(value.@string),
                     SpecialType.Char => unchecked((byte)value.@char),
                     SpecialType.Int8 => unchecked((byte)value.int8),
+                    SpecialType.UInt8 => value.uint8,
                     SpecialType.Int16 => unchecked((byte)value.int16),
                     SpecialType.Int32 => unchecked((byte)value.int32),
                     SpecialType.Int64 => unchecked((byte)value.int64),
@@ -962,6 +997,7 @@ internal sealed class Evaluator {
                     SpecialType.Char => (ushort)value.@char,
                     SpecialType.Int8 => unchecked((ushort)value.int8),
                     SpecialType.Int16 => unchecked((ushort)value.int16),
+                    SpecialType.UInt16 => value.uint16,
                     SpecialType.Int32 => unchecked((ushort)value.int32),
                     SpecialType.Int64 => unchecked((ushort)value.int64),
                     SpecialType.UInt8 => (ushort)value.uint8,
@@ -983,6 +1019,7 @@ internal sealed class Evaluator {
                     SpecialType.Int8 => unchecked((uint)value.int8),
                     SpecialType.Int16 => unchecked((uint)value.int16),
                     SpecialType.Int32 => unchecked((uint)value.int32),
+                    SpecialType.UInt32 => value.uint32,
                     SpecialType.Int64 => unchecked((uint)value.int64),
                     SpecialType.UInt8 => (uint)value.uint8,
                     SpecialType.UInt16 => (uint)value.uint16,
@@ -1004,6 +1041,7 @@ internal sealed class Evaluator {
                     SpecialType.Int16 => unchecked((ulong)value.int16),
                     SpecialType.Int32 => unchecked((ulong)value.int32),
                     SpecialType.Int64 => unchecked((ulong)value.int64),
+                    SpecialType.UInt64 => value.uint64,
                     SpecialType.UInt8 => (ulong)value.uint8,
                     SpecialType.UInt16 => (ulong)value.uint16,
                     SpecialType.UInt32 => (ulong)value.uint32,
@@ -1028,6 +1066,7 @@ internal sealed class Evaluator {
                     SpecialType.UInt16 => (float)value.uint16,
                     SpecialType.UInt32 => unchecked((float)value.uint32),
                     SpecialType.UInt64 => unchecked((float)value.uint64),
+                    SpecialType.Float32 => value.single,
                     SpecialType.Float64 => unchecked((float)value.@double),
                     SpecialType.Pointer => unchecked((float)value.ptr),
                     SpecialType.FunctionPointer => unchecked((float)value.ptr),
@@ -1049,6 +1088,7 @@ internal sealed class Evaluator {
                     SpecialType.UInt32 => (double)value.uint32,
                     SpecialType.UInt64 => unchecked((double)value.uint64),
                     SpecialType.Float32 => (double)value.single,
+                    SpecialType.Float64 => value.@double,
                     SpecialType.Pointer => (double)value.ptr,
                     SpecialType.FunctionPointer => (double)value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
@@ -1195,7 +1235,7 @@ internal sealed class Evaluator {
 
         if (depth == sizes.Length - 1) {
             for (var i = 0; i < length; i++)
-                elements[i] = GetDefaultValue(type.elementType);
+                elements[i] = GetDefaultValue(type.elementType, null);
         } else {
             for (var i = 0; i < length; i++) {
                 var array = CreateArray(type, sizes, depth + 1);
@@ -1207,12 +1247,19 @@ internal sealed class Evaluator {
         return new HeapObject(type, elements);
     }
 
-    private EvaluatorValue GetDefaultValue(TypeSymbol type) {
+    private EvaluatorValue GetDefaultValue(TypeSymbol type, object constantValueForEnum) {
         if (type.IsStructType())
             return CreateStruct((NamedTypeSymbol)type);
 
         if (type is PointerTypeSymbol)
             return EvaluatorValue.Literal(value: 0);
+
+        if (type.IsEnumType()) {
+            return EvaluatorValue.Literal(
+                constantValueForEnum,
+                (type as NamedTypeSymbol).enumUnderlyingType.StrippedType().specialType
+            );
+        }
 
         return (!type.IsNullableType() && type.IsVerifierValue())
             ? EvaluatorValue.Literal(type.specialType)
@@ -1640,6 +1687,19 @@ internal sealed class Evaluator {
             return right;
 
         var operandType = operatorKind.OperandTypes();
+
+        if (operandType is BinaryOperatorKind.Enum or
+            BinaryOperatorKind.EnumAndUnderlying or BinaryOperatorKind.UnderlyingAndEnum) {
+            operandType = GetEnumPromotedType(node.left.StrippedType().GetEnumUnderlyingType().StrippedType().specialType) switch {
+                SpecialType.Int32 => BinaryOperatorKind.Int,
+                SpecialType.UInt32 => BinaryOperatorKind.UInt,
+                SpecialType.Int64 => BinaryOperatorKind.Int,
+                SpecialType.UInt64 => BinaryOperatorKind.UInt,
+                SpecialType.Int => BinaryOperatorKind.Int,
+                SpecialType.String => BinaryOperatorKind.String,
+                _ => throw ExceptionUtilities.Unreachable(),
+            };
+        }
 
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
             if (node.right.IsLiteralNull())
@@ -2212,7 +2272,7 @@ internal sealed class Evaluator {
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
         if (method.isExtern)
-            throw new BelteEvaluatorException("extern method calls are not supported in the Evaluator", node.syntax.location);
+            throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
 
         var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
 
@@ -2284,7 +2344,7 @@ internal sealed class Evaluator {
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
         if (method.isExtern)
-            throw new BelteEvaluatorException("extern method calls are not supported in the Evaluator", node.syntax.location);
+            throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
 
         method = ResolveVirtualMethod(method, receiver, thisParameter);
 
@@ -2364,7 +2424,7 @@ internal sealed class Evaluator {
         EvaluatorValue[] arguments,
         ValueWrapper<bool> abort) {
         if (!_program.TryGetMethodBodyIncludingParents(method, out var body))
-            throw new BelteInternalException($"Failed to get method body ({method})");
+            throw new BelteInternalException($"Failed to get method body ({method}).");
 
         if (!_program.TryGetMethodLayoutIncludingParents(method, out var layout)) {
             layout = new EvaluatorSlotManager(method);
@@ -2756,7 +2816,7 @@ internal sealed class Evaluator {
         }
 
         if (_context.graphicsThread is null)
-            throw new BelteEvaluatorException("All Graphics calls must come after Graphics.Initialize", location);
+            throw new BelteEvaluatorException("All Graphics calls must come after Graphics.Initialize.", location);
 
         while (_context.graphicsHandler?.GraphicsDevice is null)
             Thread.SpinWait(1);
@@ -2764,7 +2824,7 @@ internal sealed class Evaluator {
         switch (mapKey) {
             case "Graphics_LoadTexture_S": {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist.", location);
 
                     result = LoadTexture(path);
                 }
@@ -2773,7 +2833,7 @@ internal sealed class Evaluator {
             case "Graphics_LoadTexture_SIII": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load texture path does not exist.", location);
 
                     var r = evaluatedArguments[1].int64;
                     var g = evaluatedArguments[2].int64;
@@ -2786,7 +2846,7 @@ internal sealed class Evaluator {
             case "Graphics_LoadSprite_SV?V?I?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
 
                     var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
                     var sprite = CreateObject(spriteType);
@@ -2846,7 +2906,7 @@ internal sealed class Evaluator {
             case "Graphics_LoadText_S?SV?DD?I?I?I?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load text: path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
                     var textType = CorLibrary.GetSpecialType(SpecialType.Text);
                     var textPtr = CreateObject(textType);
@@ -2866,7 +2926,7 @@ internal sealed class Evaluator {
                     text[0].data = _context.graphicsHandler.LoadText(path, fontSize);
 
                     if (text[0].data is not DynamicSpriteFont spriteFont)
-                        throw new BelteEvaluatorException("Failed to create text object", location);
+                        throw new BelteEvaluatorException("Failed to create text object.", location);
 
                     result = textPtr;
                 }
@@ -3017,7 +3077,7 @@ internal sealed class Evaluator {
                 break;
             case "Graphics_LoadSound_S": {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
-                        ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist", location);
+                        ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
                     var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
                     var soundPtr = CreateObject(soundType);
@@ -3085,7 +3145,7 @@ internal sealed class Evaluator {
             var texturePointer = CreateObject(textureType);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))
-                ?? throw new BelteEvaluatorException("Failed to load texture", location);
+                ?? throw new BelteEvaluatorException("Failed to load texture.", location);
 
             texture.fields[0].data = texture2D;
             texture.fields[1].int64 = texture2D.Width;

@@ -4,7 +4,8 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.CodeAnalysis.Evaluating;
 
 /// <summary>
-/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> class.
+/// Tests on the <see cref="Buckle.CodeAnalysis.Evaluating.Evaluator" /> and
+/// <see cref="Buckle.CodeAnalysis.Evaluating.Executor" /> classes.
 /// </summary>
 public sealed class EvaluatorTests {
     [Theory]
@@ -433,6 +434,9 @@ public sealed class EvaluatorTests {
     [InlineData("T Test<type T>() { return null; } return Test<int>();", null)]
     // Misc for coverage
     [InlineData("using H = int; H myVar = 3; return myVar;", 3)]
+    [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
+    [InlineData("enum flags A { q, w, e, r, t } return A.t;", 8)]
+    [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
     [InlineData("class P { int a = 3; public int M(int a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
     [InlineData("class P { public int M(int a, int b) { return a + b; } public int M(int a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
     [InlineData("class P { public static T M<type T>() { T a = null; return a; } } return P.M<int>();", null)]
@@ -442,6 +446,6 @@ public sealed class EvaluatorTests {
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
-        AssertValue(text, expectedValue);
+        AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
 }

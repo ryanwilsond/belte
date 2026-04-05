@@ -238,11 +238,17 @@ internal sealed class SourceWriter {
 
             CloseBlock();
 
+            var valueFields = GetValueFields(abstractNode);
             var nodeFields = GetNodeOrNodeListFields(abstractNode);
 
             foreach (var field in nodeFields) {
                 WriteLine();
                 WriteLine($"internal abstract {field.Type} {field.Name} {{ get; }}");
+            }
+
+            foreach (var field in valueFields) {
+                WriteLine();
+                WriteLine($"internal abstract {OverrideModifier(field)}{field.Type} {field.Name} {{ get; }}");
             }
 
             CloseBlock();
@@ -525,7 +531,9 @@ internal sealed class SourceWriter {
             Write("=> node.Update(");
             Write(CommaJoin(nd.fields.Select(f => IsAnyNodeList(f.Type)
                     ? $"VisitList(node.{f.Name})"
-                    : $"({f.Type})Visit(node.{f.Name})"
+                    : IsNode(f.Type)
+                        ? $"({f.Type})Visit(node.{f.Name})"
+                        : $"node.{f.Name}"
                 )));
             WriteLine(");");
             Unindent();
@@ -590,12 +598,19 @@ internal sealed class SourceWriter {
             WriteLine($"internal {node.Name}(SyntaxNode parent, GreenNode green, int position)");
             WriteLine("  : base(parent, green, position) { }");
 
+            var valueFields = GetValueFields(abstractNode);
             var nodeFields = GetNodeOrNodeListFields(abstractNode);
 
             foreach (var field in nodeFields) {
                 var fieldType = GetRedFieldType(field);
                 WriteLine();
                 WriteLine($"public abstract {fieldType} {field.Name} {{ get; }}");
+            }
+            
+            foreach (var field in valueFields) {
+                var fieldType = GetRedFieldType(field);
+                WriteLine($"public abstract {OverrideModifier(field)}{fieldType} {field.Name} {{ get; }}");
+                WriteLine();
             }
 
             CloseBlock();
@@ -762,10 +777,15 @@ internal sealed class SourceWriter {
     private List<Field> GetNodeOrNodeListFields(TreeType node)
         => node is AbstractNode an
             ? an.fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
-
             : node is Node nd
                 ? nd.fields.Where(n => IsNodeOrNodeList(n.Type)).ToList()
+                : new List<Field>();
 
+    private List<Field> GetValueFields(TreeType node)
+        => node is AbstractNode an
+            ? an.fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList()
+            : node is Node nd
+                ? nd.fields.Where(n => !IsNodeOrNodeList(n.Type)).ToList()
                 : new List<Field>();
 
     private string GetChildPosition(int i) => i == 0 ? "this.position" : $"GetChildPosition({i})";
@@ -787,12 +807,20 @@ internal sealed class SourceWriter {
         CloseBlock();
     }
 
+    private bool IsValueField(Field field) {
+        return !IsNodeOrNodeList(field.Type);
+    }
+
     private void WriteRedFactoryMethods(Node node) {
+        var valueFields = node.fields.Where(n => IsValueField(n)).ToList();
+        var nodeFields = node.fields.Where(n => !IsValueField(n)).ToList();
+
         var allArguments = CommaJoin(node.fields.Select(f => $"{GetRedFieldType(f)} {f.Name}"));
         var requiredArguments = CommaJoin(
             node.fields.Where(f => !IsOptional(f)).Select(f => $"{GetRedFieldType(f)} {f.Name}")
         );
-        var allParameters = CommaJoin(node.fields.Select(f =>
+        
+        var allParameters = CommaJoin(nodeFields.Select(f =>
             IsNodeList(f.Type)
                 ? $"{f.Name}?.node?.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
             IsSeparatedNodeList(f.Type)
@@ -800,8 +828,9 @@ internal sealed class SourceWriter {
             (!IsNode(f.Type) || f.Type == "SyntaxToken")
                 ? $"(Syntax.InternalSyntax.{f.Type}){f.Name}.node" :
             $"(Syntax.InternalSyntax.{f.Type}){f.Name}.green"
-        ));
-        var requiredParameters = CommaJoin(node.fields.Select(f => IsOptional(f) ? "null" :
+        ), valueFields.Select(f => f.Name));
+
+        var requiredParameters = CommaJoin(nodeFields.Select(f => IsOptional(f) ? "null" :
             IsNodeList(f.Type)
                 ? $"{f.Name}?.node?.ToGreenList<Syntax.InternalSyntax.{GetElementType(f.Type)}>()" :
             IsSeparatedNodeList(f.Type)
@@ -809,7 +838,7 @@ internal sealed class SourceWriter {
             (!IsNode(f.Type) || f.Type == "SyntaxToken")
                 ? $"(Syntax.InternalSyntax.{f.Type}){f.Name}.node" :
             $"(Syntax.InternalSyntax.{f.Type}){f.Name}.green"
-        ));
+        ), valueFields.Select(f => IsOptional(f) ? "null" : f.Name));
 
         var fullDeclaration = $"public static {node.Name} {StripPost(node.Name, "Syntax")}({allArguments}";
         var fullBody = $"=> ({node.Name})Syntax.InternalSyntax.SyntaxFactory." +

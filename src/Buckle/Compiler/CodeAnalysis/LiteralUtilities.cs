@@ -51,6 +51,12 @@ internal static class LiteralUtilities {
         TypeSymbol sourceTypeSymbol,
         TypeSymbol targetTypeSymbol,
         out object result) {
+        if (sourceTypeSymbol.IsEnumType())
+            sourceTypeSymbol = ((NamedTypeSymbol)sourceTypeSymbol.StrippedType()).enumUnderlyingType;
+
+        if (targetTypeSymbol.IsEnumType())
+            targetTypeSymbol = ((NamedTypeSymbol)targetTypeSymbol.StrippedType()).enumUnderlyingType;
+
         var sourceType = sourceTypeSymbol.StrippedType().specialType;
         var targetType = targetTypeSymbol.StrippedType().specialType;
 
@@ -352,6 +358,7 @@ internal static class LiteralUtilities {
             SpecialType.Float64 => 0D,
             SpecialType.Bool => false,
             SpecialType.Char => '\0',
+            SpecialType.String => "",
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }

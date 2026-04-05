@@ -23,6 +23,7 @@ internal static class SignatureTypeCodeExtensions {
             SignatureTypeCode.Char => SpecialType.Char,
             SignatureTypeCode.String => SpecialType.String,
             SignatureTypeCode.Object => SpecialType.Object,
+            SignatureTypeCode.TypedReference => SpecialType.TypedReference,
             _ => throw ExceptionUtilities.UnexpectedValue(typeCode),
         };
     }

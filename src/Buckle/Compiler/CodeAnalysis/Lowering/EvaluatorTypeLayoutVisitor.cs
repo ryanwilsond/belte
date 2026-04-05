@@ -75,6 +75,6 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
             }
         }
 
-        _typeLayouts.Add(symbol, typeLayout);
+        _typeLayouts.TryAdd(symbol, typeLayout);
     }
 }

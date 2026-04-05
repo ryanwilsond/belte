@@ -131,6 +131,14 @@ public enum SyntaxKind : ushort {
     DefaultKeyword,
     SwitchKeyword,
     GotoKeyword,
+    EnumKeyword,
+    ILKeyword,
+    NoVerifyKeyword,
+    ElifKeyword,
+    EndifKeyword,
+    DefineKeyword,
+    UndefKeyword,
+    FlagsKeyword,
 
     // Tokens with text
     BadToken,
@@ -146,6 +154,13 @@ public enum SyntaxKind : ushort {
     MultiLineCommentTrivia,
     SkippedTokensTrivia,
     BadDirectiveTrivia,
+    IfDirectiveTrivia,
+    ElifDirectiveTrivia,
+    ElseDirectiveTrivia,
+    EndIfDirectiveTrivia,
+    DefineDirectiveTrivia,
+    UndefDirectiveTrivia,
+    DisabledTextTrivia,
 
     // Expressions
     ParenthesizedExpression,
@@ -176,10 +191,13 @@ public enum SyntaxKind : ushort {
     CascadeListExpression,
     CascadeExpression,
     StackAllocExpression,
+    ImplicitEnumFieldExpression,
 
     // Statements
     EmptyStatement,
     BlockStatement,
+    InlineILStatement,
+    ILInstruction,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
@@ -215,6 +233,8 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    EnumDeclaration,
+    EnumMemberDeclaration,
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,

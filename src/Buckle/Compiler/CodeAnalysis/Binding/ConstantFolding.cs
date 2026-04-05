@@ -67,6 +67,15 @@ internal static class ConstantFolding {
         if (left is null || right is null)
             return null;
 
+        if (leftType.IsEnumType())
+            leftType = ((NamedTypeSymbol)leftType).enumUnderlyingType;
+
+        if (rightType.IsEnumType())
+            rightType = ((NamedTypeSymbol)rightType).enumUnderlyingType;
+
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         var leftValue = left.value;
         var rightValue = right.value;
         var specialType = type.StrippedType().specialType;

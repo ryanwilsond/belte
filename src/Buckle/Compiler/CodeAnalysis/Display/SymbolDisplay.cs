@@ -163,6 +163,9 @@ public static class SymbolDisplay {
                 case TypeKind.Primitive:
                     text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
                     break;
+                case TypeKind.Enum:
+                    text.Write(CreateKeyword(SyntaxKind.EnumKeyword));
+                    break;
                 case TypeKind.Error:
                     text.Write(CreateKeyword("?"));
                     break;
@@ -171,12 +174,19 @@ public static class SymbolDisplay {
             }
 
             text.Write(CreateSpace());
+
+            if (namedType.enumFlagsAttribute) {
+                text.Write(CreateKeyword(SyntaxKind.FlagsKeyword));
+                text.Write(CreateSpace());
+            }
         }
 
         DisplayContainedNames(text, namedType, format);
 
         if (namedType is PrimitiveTypeSymbol)
             text.Write(CreateType(namedType.name));
+        else if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) != 0)
+            text.Write(CreateIdentifier(namedType.metadataName));
         else
             text.Write(CreateIdentifier(namedType.name));
 

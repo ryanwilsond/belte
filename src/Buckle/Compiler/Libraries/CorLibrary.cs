@@ -12,7 +12,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 28;
+    private const int TotalSpecialTypes = 30;
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
     private const int TotalWellKnownMembers = 3;
 
@@ -165,6 +165,8 @@ internal sealed class CorLibrary {
 
     private void RegisterNonPrimitiveCorTypes() {
         RegisterSpecialType(new PrimitiveTypeSymbol("Array", SpecialType.Array));
+        RegisterSpecialType(new PrimitiveTypeSymbol("Enum", SpecialType.Enum));
+        RegisterSpecialType(new PrimitiveTypeSymbol("TypedReference", SpecialType.TypedReference));
 
         RegisterSpecialType(new SynthesizedSimpleNamedTypeSymbol(
             "Nullable",

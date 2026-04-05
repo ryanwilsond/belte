@@ -716,6 +716,11 @@ public static partial class BuckleCommandLine {
         if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
 
+        foreach (var reference in references) {
+            if (!File.Exists(reference))
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
+        }
+
         if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
             if (specifyOut && specifyModule)
                 diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyOutAndModuleWithDll());

@@ -27,12 +27,22 @@ internal static class Error {
 
         internal static BelteDiagnostic GraphicsDll() {
             var message = "unsupported: cannot use the graphics project type when building for .NET or transpiling to C#; consider executing instead";
-            return CreateError(DiagnosticCode.UNS_NonTypeTemplate, null, message);
+            return CreateError(DiagnosticCode.UNS_GraphicsDll, null, message);
+        }
+
+        internal static BelteDiagnostic ILOpCode(TextLocation location, string opCode) {
+            var message = $"unsupported: inline IL instruction '{opCode}' not supported";
+            return CreateError(DiagnosticCode.UNS_ILOpCode, location, message);
+        }
+
+        internal static BelteDiagnostic NonIntegralEnum(TextLocation location) {
+            var message = $"unsupported: cannot use non-integral enums when building for .NET, transpiling to C#, or executing";
+            return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
         }
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {
-        var message = $"{reference}: no such file or invalid file type";
+        var message = $"\"{reference}\": file is not a valid assembly";
         return CreateError(DiagnosticCode.ERR_InvalidReference, null, message);
     }
 
@@ -811,6 +821,10 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic EnumFieldNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the implicit enum field";
+        return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
+    }
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
         var message = $"a field initializer cannot reference non-static member '{symbol}'";
         return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);
@@ -1811,6 +1825,71 @@ internal static class Error {
     internal static BelteDiagnostic SwitchCaseSubsumed(TextLocation location) {
         var message = $"the switch case is unreachable";
         return CreateError(DiagnosticCode.ERR_SwitchCaseSubsumed, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidEnumType(TextLocation location) {
+        var message = $"an enum type can only derive from integral primitives or string";
+        return CreateError(DiagnosticCode.ERR_InvalidEnumType, location, message);
+    }
+
+    internal static BelteDiagnostic EnumOverflow(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': the enum value is too large to fit in its type";
+        return CreateError(DiagnosticCode.ERR_EnumOverflow, location, message);
+    }
+
+    internal static BelteDiagnostic UnbalancedILStack(TextLocation location) {
+        var message = $"inline IL block does not have a balanced stack";
+        return CreateError(DiagnosticCode.ERR_UnbalancedILStack, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownILOpCode(TextLocation location, string opCode) {
+        var message = $"unknown IL instruction '{opCode}'";
+        return CreateError(DiagnosticCode.ERR_UnknownILOpCode, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidILOperandKind(TextLocation location, string opCode, string operandKind) {
+        var message = $"IL instruction '{opCode}' expects an operand of type '{operandKind.ToLower()}'";
+        return CreateError(DiagnosticCode.ERR_InvalidILOperandKind, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidILOperand(TextLocation location, string opCode) {
+        var message = $"IL instruction '{opCode}' does not expect an operand";
+        return CreateError(DiagnosticCode.ERR_InvalidILOperand, location, message);
+    }
+
+    internal static Diagnostic InvalidDirectivePlacement() {
+        var message = $"preprocessor directives must appear as the first non-whitespace character on a line";
+        return CreateError(DiagnosticCode.ERR_InvalidDirectivePlacement, message);
+    }
+
+    internal static Diagnostic EndifDirectiveExpected() {
+        var message = $"#endif directive expected";
+        return CreateError(DiagnosticCode.ERR_EndifDirectiveExpected, message);
+    }
+
+    internal static Diagnostic UnexpectedDirective() {
+        var message = $"unexpected preprocessor directive";
+        return CreateError(DiagnosticCode.ERR_UnexpectedDirective, message);
+    }
+
+    internal static Diagnostic DirectiveFollowsToken() {
+        var message = $"cannot define/undefine preprocessor symbols after first token in file";
+        return CreateError(DiagnosticCode.ERR_DirectiveFollowsToken, message);
+    }
+
+    internal static Diagnostic InvalidDirectiveExpression() {
+        var message = $"invalid preprocessor expression";
+        return CreateError(DiagnosticCode.ERR_InvalidDirectiveExpression, message);
+    }
+
+    internal static BelteDiagnostic InvalidImplicitEnum(TextLocation location) {
+        var message = $"enum members with a string underlying type must have explicit values";
+        return CreateError(DiagnosticCode.ERR_InvalidImplicitEnum, location, message);
+    }
+
+    internal static BelteDiagnostic WrongEnumTargetType(TextLocation location) {
+        var message = $"cannot infer enum type from implicit enum field";
+        return CreateError(DiagnosticCode.ERR_WrongEnumTargetType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

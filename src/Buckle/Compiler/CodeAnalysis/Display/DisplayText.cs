@@ -146,6 +146,9 @@ public sealed class DisplayText {
             case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
+            case BoundKind.InlineILStatement:
+                DisplayInlineILStatement(text, (BoundInlineILStatement)node);
+                break;
             case BoundKind.TypeExpression:
                 DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
@@ -311,6 +314,9 @@ public sealed class DisplayText {
             case BoundKind.StackAllocExpression:
             case BoundKind.ConvertedStackAllocExpression:
                 DisplayStackAllocExpression(text, (BoundStackAllocExpressionBase)node);
+                break;
+            case BoundKind.UnconvertedImplicitEnumFieldExpression:
+                DisplayUnconvertedImplicitEnumFieldExpression(text, (BoundUnconvertedImplicitEnumFieldExpression)node);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -538,6 +544,36 @@ public sealed class DisplayText {
             DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
         }
 
+        text.WriteLine();
+    }
+
+    private static void DisplayInlineILStatement(DisplayText text, BoundInlineILStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ILKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+
+        text.indent++;
+
+        foreach (var instruction in node.instructions) {
+            text.Write(CreateKeyword(instruction.Item1.ToString().ToLower()));
+
+            if (instruction.Item2 is not null) {
+                text.Write(CreateSpace());
+                DisplayConstant(text, instruction.Item2);
+            }
+
+            if (instruction.Item3 is not null) {
+                text.Write(CreateSpace());
+                SymbolDisplay.AppendToDisplayText(text, instruction.Item3);
+            }
+
+            text.WriteLine();
+        }
+
+        text.indent--;
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         text.WriteLine();
     }
 
@@ -838,6 +874,13 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayUnconvertedImplicitEnumFieldExpression(
+        DisplayText text,
+        BoundUnconvertedImplicitEnumFieldExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        text.Write(CreateIdentifier(node.name));
     }
 
     private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {

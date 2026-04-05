@@ -222,6 +222,107 @@
     <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
       <Kind Name="EndOfDirectiveToken" />
     </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+  </Node>
+  <AbstractNode Name="BranchingDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool"/>
+  </AbstractNode>
+  <AbstractNode Name="ConditionalDirectiveTriviaSyntax" Base="BranchingDirectiveTriviaSyntax">
+    <Field Name="condition" Type="ExpressionSyntax"/>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="conditionValue" Type="bool"/>
+  </AbstractNode>
+  <Node Name="IfDirectiveTriviaSyntax" Base="ConditionalDirectiveTriviaSyntax">
+    <Kind Name="IfDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="ifKeyword" Type="SyntaxToken">
+      <Kind Name="IfKeyword"/>
+    </Field>
+    <Field Name="condition" Type="ExpressionSyntax" Override="true"/>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool" Override="true"/>
+    <Field Name="conditionValue" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="ElifDirectiveTriviaSyntax" Base="ConditionalDirectiveTriviaSyntax">
+    <Kind Name="ElifDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="elifKeyword" Type="SyntaxToken">
+      <Kind Name="ElifKeyword"/>
+    </Field>
+    <Field Name="condition" Type="ExpressionSyntax" Override="true"/>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool" Override="true"/>
+    <Field Name="conditionValue" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="ElseDirectiveTriviaSyntax" Base="BranchingDirectiveTriviaSyntax">
+    <Kind Name="ElseDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="elseKeyword" Type="SyntaxToken">
+      <Kind Name="ElseKeyword"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+    <Field Name="branchTaken" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="EndIfDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="EndIfDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="endIfKeyword" Type="SyntaxToken">
+      <Kind Name="EndifKeyword"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="DefineDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="DefineDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="defineKeyword" Type="SyntaxToken">
+      <Kind Name="DefineKeyword"/>
+    </Field>
+    <Field Name="name" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
+  </Node>
+  <Node Name="UndefDirectiveTriviaSyntax" Base="DirectiveTriviaSyntax">
+    <Kind Name="UndefDirectiveTrivia"/>
+    <Field Name="hash" Type="SyntaxToken" Override="true">
+      <Kind Name="HashToken"/>
+    </Field>
+    <Field Name="undefKeyword" Type="SyntaxToken">
+      <Kind Name="UndefKeyword"/>
+    </Field>
+    <Field Name="name" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="endOfDirective" Type="SyntaxToken" Override="true">
+      <Kind Name="EndOfDirectiveToken"/>
+    </Field>
+    <Field Name="isActive" Type="bool" Override="true"/>
   </Node>
   <Node Name="UsingDirectiveSyntax" Base="SyntaxNode">
     <Kind Name="UsingDirective"/>
@@ -439,6 +540,40 @@
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
+  <Node Name="EnumDeclarationSyntax" Base="TypeDeclarationSyntax">
+    <Kind Name="EnumDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="EnumKeyword"/>
+    </Field>
+    <Field Name="flagsKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="FlagsKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="openBrace" Type="SyntaxToken" Override="true">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true" Optional="true"/>
+    <Field Name="enumMembers" Type="SeparatedSyntaxList&lt;EnumMemberDeclarationSyntax&gt;"/>
+    <Field Name="closeBrace" Type="SyntaxToken" Override="true">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="EnumMemberDeclarationSyntax" Base="MemberDeclarationSyntax">
+    <Kind Name="EnumMemberDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="equalsValue" Type="EqualsValueClauseSyntax" Optional="true"/>
+  </Node>
   <Node Name="ConstructorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="ConstructorDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
@@ -543,6 +678,45 @@
     <Field Name="statements" Type="SyntaxList&lt;StatementSyntax&gt;"/>
     <Field Name="closeBrace" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="InlineILStatementSyntax" Base="StatementSyntax">
+    <Kind Name="InlineILStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ILKeyword"/>
+    </Field>
+    <Field Name="noverifyKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="NoVerifyKeyword"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="instructions" Type="SyntaxList&lt;ILInstructionSyntax&gt;"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="ILInstructionSyntax" Base="SyntaxNode">
+    <Kind Name="ILInstruction"/>
+    <Field Name="opCode" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="periodOne" Type="SyntaxToken" Optional="true">
+      <Kind Name="PeriodToken"/>
+    </Field>
+    <Field Name="opCodeSuffixOne" Type="SyntaxToken" Optional="true"/>
+    <Field Name="periodTwo" Type="SyntaxToken" Optional="true">
+      <Kind Name="PeriodToken"/>
+    </Field>
+    <Field Name="opCodeSuffixTwo" Type="SyntaxToken" Optional="true"/>
+    <Field Name="periodThree" Type="SyntaxToken" Optional="true">
+      <Kind Name="PeriodToken"/>
+    </Field>
+    <Field Name="opCodeSuffixThree" Type="SyntaxToken" Optional="true"/>
+    <Field Name="literal" Type="SyntaxToken" Optional="true"/>
+    <Field Name="symbol" Type="TypeSyntax" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
   <Node Name="BreakStatementSyntax" Base="StatementSyntax">
@@ -860,6 +1034,15 @@
     <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="name" Type="SimpleNameSyntax"/>
+  </Node>
+  <Node Name="ImplicitEnumFieldExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ImplicitEnumFieldExpression"/>
+    <Field Name="period" Type="SyntaxToken">
+      <Kind Name="PeriodToken"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="CascadeListExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CascadeListExpression"/>

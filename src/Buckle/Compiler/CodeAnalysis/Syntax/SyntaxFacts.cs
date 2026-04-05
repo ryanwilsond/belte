@@ -208,6 +208,14 @@ public static class SyntaxFacts {
             "case" => SyntaxKind.CaseKeyword,
             "default" => SyntaxKind.DefaultKeyword,
             "goto" => SyntaxKind.GotoKeyword,
+            "enum" => SyntaxKind.EnumKeyword,
+            "il" => SyntaxKind.ILKeyword,
+            "noverify" => SyntaxKind.NoVerifyKeyword,
+            "elif" => SyntaxKind.ElifKeyword,
+            "endif" => SyntaxKind.EndifKeyword,
+            "define" => SyntaxKind.DefineKeyword,
+            "undef" => SyntaxKind.UndefKeyword,
+            "flags" => SyntaxKind.FlagsKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -337,6 +345,14 @@ public static class SyntaxFacts {
             SyntaxKind.CaseKeyword => "case",
             SyntaxKind.DefaultKeyword => "default",
             SyntaxKind.GotoKeyword => "goto",
+            SyntaxKind.EnumKeyword => "enum",
+            SyntaxKind.ILKeyword => "il",
+            SyntaxKind.NoVerifyKeyword => "noverify",
+            SyntaxKind.ElifKeyword => "elif",
+            SyntaxKind.EndifKeyword => "endif",
+            SyntaxKind.DefineKeyword => "define",
+            SyntaxKind.UndefKeyword => "undef",
+            SyntaxKind.FlagsKeyword => "flags",
             _ => null,
         };
     }

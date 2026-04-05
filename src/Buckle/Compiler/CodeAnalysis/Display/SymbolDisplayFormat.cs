@@ -34,14 +34,20 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
     );
 
-    // TODO Reevaluate whether or not QualifiedNameFormat should include namespaces
-    // Currently we don't use namespaces enough to "feel" out the error messages
     public static readonly SymbolDisplayFormat NamespaceQualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes | SymbolDisplayQualificationStyle.IncludeContainingNamespaces,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+    );
+
+    public static readonly SymbolDisplayFormat NetNamespaceQualifiedNameFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes | SymbolDisplayQualificationStyle.IncludeContainingNamespaces,
+        templateOptions: SymbolDisplayTemplateOptions.None,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.NetFormat
     );
 
     public static readonly SymbolDisplayFormat FullyQualifiedNameFormat = new SymbolDisplayFormat(

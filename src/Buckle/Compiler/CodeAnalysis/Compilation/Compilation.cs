@@ -51,18 +51,28 @@ public sealed partial class Compilation {
     private AssemblySymbol _lazyAssembly;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
+    private ReferenceManager _referenceManager;
 
     private Compilation(
         string assemblyName,
         CompilationOptions options,
         Compilation previous,
         SyntaxAndDeclarationManager syntax,
+        ReferenceManager referenceManager,
         NamespaceSymbol namespaceOpt = null) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
         _specialNamespace = namespaceOpt;
+
+        if (previous?.declarationDiagnostics is not null)
+            declarationDiagnostics.PushRange(previous.declarationDiagnostics);
+
+        if (referenceManager is not null)
+            _referenceManager = referenceManager;
+        else
+            _referenceManager = new ReferenceManager(options.references, declarationDiagnostics);
     }
 
     public string assemblyName { get; }
@@ -124,6 +134,7 @@ public sealed partial class Compilation {
                 var modules = ArrayBuilder<ModuleSymbol>.GetInstance();
                 GetAllUnaliasedModules(modules);
                 builder.AddRange(modules.SelectDistinct(m => m.globalNamespace));
+                builder.AddRange(_referenceManager.GetGlobalNamespaces());
 
                 if (_specialNamespace is not null)
                     builder.Add(_specialNamespace);
@@ -309,7 +320,7 @@ public sealed partial class Compilation {
     }
 
     internal Compilation AddNamespace(NamespaceSymbol namespaceSymbol) {
-        return new Compilation(assemblyName, options, previous, _syntax, namespaceSymbol);
+        return new Compilation(assemblyName, options, previous, _syntax, _referenceManager, namespaceSymbol);
     }
 
     internal void Evaluate(
@@ -368,7 +379,7 @@ public sealed partial class Compilation {
         }
     }
 
-    public BelteDiagnosticQueue Emit(string outputPath, bool debugMode, bool logTime) {
+    public BelteDiagnosticQueue Emit(string outputPath, bool debugMode, bool logTime, bool verbose, string verbosePath) {
         if (options.buildMode == BuildMode.Independent) {
             var fatal = new BelteDiagnosticQueue();
             fatal.Push(Fatal.Unsupported.IndependentCompilation());
@@ -383,6 +394,11 @@ public sealed partial class Compilation {
 
         if (diagnostics.AnyErrors())
             return diagnostics;
+
+        if (verbose && options.enableOutput) {
+            EmitCFG(verbosePath);
+            EmitBoundProgram(verbosePath);
+        }
 
         if (options.buildMode == BuildMode.Dotnet)
             ILEmitter.Emit(program, assemblyName, options.references, outputPath, debugMode, diagnostics);
@@ -760,7 +776,7 @@ public sealed partial class Compilation {
     }
 
     private Compilation Update(SyntaxAndDeclarationManager syntax) {
-        return new Compilation(assemblyName, options, previous, syntax);
+        return new Compilation(assemblyName, options, previous, syntax, _referenceManager);
     }
 
     private BinderFactory AddNewFactory(
@@ -803,7 +819,8 @@ public sealed partial class Compilation {
             assemblyName,
             options,
             previous,
-            new SyntaxAndDeclarationManager([], null)
+            new SyntaxAndDeclarationManager([], null),
+            null
         );
 
         if (syntaxTrees is not null)

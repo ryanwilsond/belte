@@ -61,6 +61,16 @@ internal abstract class TypeNameDecoder<ModuleSymbol, TypeSymbol>
         return _factory.MakeUnboundIfGeneric(_moduleSymbol, type);
     }
 
+    private protected TypeSymbol MakePointerTypeSymbol(TypeSymbol type, ImmutableArray<ModifierInfo<TypeSymbol>> customModifiers) {
+        return _factory.MakePointerTypeSymbol(_moduleSymbol, type, customModifiers);
+    }
+
+    private protected TypeSymbol MakeFunctionPointerTypeSymbol(
+        CallingConvention callingConvention,
+        ImmutableArray<ParamInfo<TypeSymbol>> retAndParamInfos) {
+        return _factory.MakeFunctionPointerTypeSymbol(_moduleSymbol, callingConvention, retAndParamInfos);
+    }
+
     private protected TypeSymbol SubstituteTypeParameters(
         TypeSymbol genericType,
         ImmutableArray<KeyValuePair<TypeSymbol, ImmutableArray<ModifierInfo<TypeSymbol>>>> arguments,

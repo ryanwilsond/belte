@@ -103,6 +103,15 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         return _list.Any();
     }
 
+    internal bool Any(Func<T, bool> predicate) {
+        for (var i = 0; i < Count; i++) {
+            if (predicate(this[i]))
+                return true;
+        }
+
+        return false;
+    }
+
     internal bool Any(SyntaxKind kind) {
         return IndexOf(kind) >= 0;
     }
