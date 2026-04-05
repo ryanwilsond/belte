@@ -177,6 +177,43 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         }
     }
 
+    internal override void VisitSwitchStatement(SwitchStatementSyntax node) {
+        AddToMap(node.expression, _enclosing);
+        Visit(node.expression, _enclosing);
+
+        var switchBinder = SwitchBinder.Create(_enclosing, node);
+        AddToMap(node, switchBinder);
+
+        foreach (var section in node.sections)
+            Visit(section, switchBinder);
+    }
+
+    internal override void VisitSwitchSection(SwitchSectionSyntax node) {
+        var patternBinder = new ExpressionVariableBinder(node, _enclosing);
+        AddToMap(node, patternBinder);
+
+        foreach (var label in node.Labels) {
+            switch (label.kind) {
+                case SyntaxKind.MultiCaseSwitchLabel: {
+                        var switchLabel = (MultiCaseSwitchLabelSyntax)label;
+
+                        foreach (var value in switchLabel.values)
+                            Visit(value);
+
+                        break;
+                    }
+                case SyntaxKind.CaseSwitchLabel: {
+                        var switchLabel = (CaseSwitchLabelSyntax)label;
+                        Visit(switchLabel.value, patternBinder);
+                        break;
+                    }
+            }
+        }
+
+        foreach (var statement in node.statements)
+            Visit(statement, patternBinder);
+    }
+
     internal override void VisitAttribute(AttributeSyntax node) {
         var attrBinder = new ExpressionVariableBinder(node, _enclosing);
         AddToMap(node, attrBinder);

@@ -61,6 +61,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.LocalFunctionStatement => ExpandLocalFunctionStatement((BoundLocalFunctionStatement)statement),
             BoundKind.SequencePoint => ExpandSequencePoint((BoundSequencePoint)statement),
             BoundKind.SequencePointWithLocation => ExpandSequencePointWithLocation((BoundSequencePointWithLocation)statement),
+            BoundKind.SwitchStatement => ExpandSwitchStatement((BoundSwitchStatement)statement),
             BoundKind.InlineILStatement => ExpandInlineILStatement((BoundInlineILStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
@@ -69,6 +70,34 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandErrorStatement(BoundErrorStatement statement) {
         // Even though there is potential for expanding the childBoundNodes, it will be an error anyways so why bother
         return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandSwitchStatement(BoundSwitchStatement statement) {
+        var sections = new List<BoundSwitchSection>();
+
+        foreach (var section in statement.switchSections) {
+            var statements = new List<BoundStatement>();
+
+            foreach (var childStatement in section.statements)
+                statements.AddRange(ExpandStatement(childStatement));
+
+            sections.Add(section.Update(section.locals, section.switchLabels, section.statements));
+        }
+
+        var outerStatements = new List<BoundStatement>();
+
+        outerStatements.AddRange(ExpandExpression(statement.expression, out var replacementExpression));
+        outerStatements.Add(statement.Update(
+            replacementExpression,
+            statement.innerLocals,
+            statement.innerLocalFunctions,
+            sections.ToImmutableArray(),
+            statement.reachabilityDecisionDag,
+            statement.defaultLabel,
+            statement.breakLabel
+        ));
+
+        return outerStatements;
     }
 
     private protected virtual List<BoundStatement> ExpandNopStatement(BoundNopStatement statement) {

@@ -39,7 +39,7 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundGotoStatement Goto(SyntaxNode syntax, LabelSymbol label) {
-        return new BoundGotoStatement(syntax, label);
+        return new BoundGotoStatement(syntax, label, null);
     }
 
     internal static BoundConditionalGotoStatement GotoIf(SyntaxNode syntax, LabelSymbol @goto, BoundExpression @if) {

@@ -34,6 +34,21 @@ internal sealed partial class Conversions {
         return ListExpressionTypeKind.None;
     }
 
+    internal Conversion ClassifyImplicitUserDefinedConversionForSwitchType(
+        TypeSymbol sourceType,
+        out TypeSymbol switchGoverningType) {
+        var result = AnalyzeImplicitUserDefinedConversionForSwitchGoverningType(sourceType);
+
+        if (result.kind == UserDefinedConversionResultKind.Valid) {
+            var analysis = result.results[result.best];
+            switchGoverningType = analysis.toType;
+        } else {
+            switchGoverningType = null;
+        }
+
+        return new Conversion(result, isImplicit: true);
+    }
+
     private Conversion GetImplicitNullptrExpressionConversion(
         BoundUnconvertedNullptrExpression ptrExpression,
         TypeSymbol destination) {
@@ -858,7 +873,7 @@ internal sealed partial class Conversions {
         return candidateIndex;
     }
 
-    private UserDefinedConversionResult AnalyzeImplicitUserDefinedConversionForV6SwitchGoverningType(
+    private UserDefinedConversionResult AnalyzeImplicitUserDefinedConversionForSwitchGoverningType(
         TypeSymbol source) {
         var d = ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)>.GetInstance();
         ComputeUserDefinedImplicitConversionTypeSet(source, t: null, d: d);

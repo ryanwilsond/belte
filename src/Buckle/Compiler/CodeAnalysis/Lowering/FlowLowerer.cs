@@ -240,6 +240,15 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
         return Goto(statement.syntax, statement.label);
     }
 
+    internal override BoundNode VisitSwitchStatement(BoundSwitchStatement node) {
+        /*
+
+        TODO
+
+        */
+        return Nop();
+    }
+
     private SynthesizedLabelSymbol GenerateLabel() {
         return new SynthesizedLabelSymbol($"Label{++_labelCount}");
     }
