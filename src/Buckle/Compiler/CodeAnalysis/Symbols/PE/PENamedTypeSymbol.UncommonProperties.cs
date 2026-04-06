@@ -5,7 +5,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class PENamedTypeSymbol {
     private sealed class UncommonProperties {
-        internal ImmutableArray<PEFieldSymbol> lazyInstanceEnumFields;
         internal NamedTypeSymbol lazyEnumUnderlyingType;
         // internal ImmutableArray<AttributeData> lazyCustomAttributes;
         // internal ImmutableArray<string> lazyConditionalAttributeSymbols;

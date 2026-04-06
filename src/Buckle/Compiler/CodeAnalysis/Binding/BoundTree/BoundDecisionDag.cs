@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -92,6 +93,13 @@ internal partial class BoundDecisionDag {
                 }
             }
         }
+    }
+
+    internal bool ContainsAnySynthesizedNodes() {
+        return topologicallySortedNodes.Any(
+            static node => node is BoundEvaluationDecisionDagNode e &&
+                e.evaluation.kind == BoundKind.DagAssignmentEvaluation
+        );
     }
 
     internal BoundDecisionDag Rewrite(

@@ -1817,8 +1817,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_LabelNotFound, location, message);
     }
 
-    internal static BelteDiagnostic DuplicateCaseLabel(TextLocation location, string name) {
-        var message = $"the switch statement contains multiple cases with the label value '{name}'";
+    internal static BelteDiagnostic DuplicateCaseLabel(TextLocation location, string value) {
+        var message = $"the switch statement contains multiple cases with the label value '{value}'";
         return CreateError(DiagnosticCode.ERR_DuplicateCaseLabel, location, message);
     }
 

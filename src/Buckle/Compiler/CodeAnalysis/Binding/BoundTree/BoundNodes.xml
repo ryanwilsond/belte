@@ -380,6 +380,11 @@
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="pattern" Type="BoundPattern"/>
   </Node>
+  <Node Name="BoundSwitchDispatch" Base="BoundStatement">
+    <Field Name="expression" Type="BoundExpression" Null="disallow" />
+    <Field Name="cases" Type="ImmutableArray&lt;(ConstantValue value, LabelSymbol label)&gt;" />
+    <Field Name="defaultLabel" Type="LabelSymbol" Null="disallow" />
+  </Node>
   <AbstractNode Name="BoundPattern" Base="BoundNode">
     <Field Name="InputType" Type="TypeSymbol" Null="disallow"/>
     <Field Name="NarrowedType" Type="TypeSymbol" Null="disallow"/>

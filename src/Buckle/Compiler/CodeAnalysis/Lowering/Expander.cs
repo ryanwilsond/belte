@@ -51,7 +51,7 @@ internal sealed class Expander : BoundTreeExpander {
             switch (cascade.kind) {
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)cascade;
-                        var replacementReceiver = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+                        var replacementReceiver = Local(syntax, tempLocal);
                         statements.AddRange(ExpandExpressionList(call.arguments, out var arguments));
 
                         statements.Add(
@@ -135,7 +135,7 @@ internal sealed class Expander : BoundTreeExpander {
             }
         }
 
-        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        replacement = Local(syntax, tempLocal);
         return statements;
 
         static BoundExpression MakeReplacementReceiver(
@@ -146,12 +146,12 @@ internal sealed class Expander : BoundTreeExpander {
             return isConditional
                 ? new BoundConditionalAccessExpression(
                     syntax,
-                    new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                    Local(syntax, tempLocal),
                     leftAccess,
                     leftAccess.type)
                 : new BoundFieldAccessExpression(
                     syntax,
-                    new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                    Local(syntax, tempLocal),
                     leftAccess.field,
                     leftAccess.constantValue,
                     leftAccess.type
@@ -201,7 +201,7 @@ internal sealed class Expander : BoundTreeExpander {
             );
 
             replacement = new BoundFieldAccessExpression(syntax,
-                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                Local(syntax, tempLocal),
                 expression.field,
                 expression.constantValue,
                 expression.field.type
@@ -229,7 +229,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
 
             _accessDepth = savedAccessDepth;
             return statements;
@@ -338,7 +338,7 @@ internal sealed class Expander : BoundTreeExpander {
                 new BoundDataContainerDeclaration(syntax, tempLocal, callReplacement)
             ));
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
 
             return statements;
         }
@@ -410,7 +410,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
             _operatorDepth--;
             _conditionalDepth = savedConditionalDepth;
             return statements;
@@ -469,7 +469,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
             _operatorDepth--;
             _conditionalDepth = savedConditionalDepth;
             return statements;
@@ -499,7 +499,7 @@ internal sealed class Expander : BoundTreeExpander {
             new BoundExpressionStatement(syntax, expression)
         ]);
 
-        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        replacement = Local(syntax, tempLocal);
         return statements;
     }
 
@@ -532,7 +532,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
             _operatorDepth--;
             return statements;
         }
@@ -571,7 +571,7 @@ internal sealed class Expander : BoundTreeExpander {
         foreach (var pair in expression.items) {
             statements.Add(new BoundExpressionStatement(syntax, new BoundCallExpression(
                 syntax,
-                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                Local(syntax, tempLocal),
                 method,
                 [pair.Item1, pair.Item2],
                 [RefKind.None, RefKind.None],
@@ -581,7 +581,7 @@ internal sealed class Expander : BoundTreeExpander {
             )));
         }
 
-        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        replacement = Local(syntax, tempLocal);
         return statements;
     }
 
@@ -598,7 +598,7 @@ internal sealed class Expander : BoundTreeExpander {
             new BoundDataContainerDeclaration(syntax, tempLocal, receiverReplacement))
         );
 
-        var receiverLocal = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        var receiverLocal = Local(syntax, tempLocal);
 
         BoundExpression newAccess;
 

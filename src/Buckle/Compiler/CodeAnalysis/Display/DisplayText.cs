@@ -318,6 +318,9 @@ public sealed class DisplayText {
             case BoundKind.UnconvertedImplicitEnumFieldExpression:
                 DisplayUnconvertedImplicitEnumFieldExpression(text, (BoundUnconvertedImplicitEnumFieldExpression)node);
                 break;
+            case BoundKind.SwitchDispatch:
+                DisplaySwitchDispatch(text, (BoundSwitchDispatch)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -443,6 +446,21 @@ public sealed class DisplayText {
 
     private static void DisplayNamespaceExpression(DisplayText text, BoundNamespaceExpression node) {
         SymbolDisplay.AppendToDisplayText(text, node.namespaceSymbol, SymbolDisplayFormat.BoundDisplayFormat);
+    }
+
+    private static void DisplaySwitchDispatch(DisplayText text, BoundSwitchDispatch node) {
+        text.Write(CreateKeyword("<switch_dispatch>"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation("->"));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateSpace());
+        text.Write(CreateLiteral($"{node.cases.Length} cases"));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {

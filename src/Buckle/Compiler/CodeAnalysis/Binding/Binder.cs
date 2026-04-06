@@ -7222,6 +7222,26 @@ internal partial class Binder {
 
     #region Operators
 
+    internal static BinaryOperatorKind RelationalOperatorType(TypeSymbol type) {
+        return type.specialType switch {
+            SpecialType.Float32 => BinaryOperatorKind.Float32,
+            SpecialType.Float64 => BinaryOperatorKind.Float64,
+            SpecialType.Decimal => BinaryOperatorKind.Float64,
+            SpecialType.Char => BinaryOperatorKind.Char,
+            SpecialType.Int8 => BinaryOperatorKind.Int,
+            SpecialType.UInt8 => BinaryOperatorKind.Int,
+            SpecialType.UInt16 => BinaryOperatorKind.Int,
+            SpecialType.Int16 => BinaryOperatorKind.Int,
+            SpecialType.Int32 => BinaryOperatorKind.Int,
+            SpecialType.UInt32 => BinaryOperatorKind.UInt,
+            SpecialType.Int64 => BinaryOperatorKind.Int,
+            SpecialType.UInt64 => BinaryOperatorKind.UInt,
+            SpecialType.String => BinaryOperatorKind.String,
+            SpecialType.Bool => BinaryOperatorKind.Bool,
+            _ => BinaryOperatorKind.Error,
+        };
+    }
+
     private BoundExpression BindBinaryExpression(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         if (IsSimpleBinaryOperator(node))
             return BindSimpleBinaryOperator(node, diagnostics);

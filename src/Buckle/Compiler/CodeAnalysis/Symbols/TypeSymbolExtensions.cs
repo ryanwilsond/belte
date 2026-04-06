@@ -168,10 +168,8 @@ internal static class TypeSymbolExtensions {
         if (type.IsNullableType())
             type = type.GetNullableUnderlyingType();
 
-        if (!isTargetTypeOfUserDefinedOp) {
-            // type = type.EnumUnderlyingTypeOrSelf();
-            // TODO enums
-        }
+        if (!isTargetTypeOfUserDefinedOp)
+            type = type.EnumUnderlyingTypeOrSelf();
 
         switch (type.specialType) {
             case SpecialType.Int8:

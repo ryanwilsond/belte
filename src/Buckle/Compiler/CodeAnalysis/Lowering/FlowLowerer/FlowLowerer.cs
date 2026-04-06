@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -6,16 +7,24 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class FlowLowerer : BoundTreeRewriter {
+internal sealed partial class FlowLowerer : BoundTreeRewriter {
+    private readonly List<string> _localNames = [];
+    private int _tempCount = 0;
+    private MethodSymbol _container;
+
     private readonly BelteDiagnosticQueue _diagnostics;
     private int _labelCount;
 
-    private FlowLowerer(BelteDiagnosticQueue diagnostics) {
+    private FlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
+        _container = method;
         _diagnostics = diagnostics;
     }
 
-    internal static BoundStatement Lower(BoundStatement statement, BelteDiagnosticQueue diagnostics) {
-        var lowerer = new FlowLowerer(diagnostics);
+    internal static BoundStatement Lower(
+        MethodSymbol method,
+        BoundStatement statement,
+        BelteDiagnosticQueue diagnostics) {
+        var lowerer = new FlowLowerer(method, diagnostics);
         return (BoundStatement)lowerer.Visit(statement);
     }
 
@@ -241,15 +250,25 @@ internal sealed class FlowLowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitSwitchStatement(BoundSwitchStatement node) {
-        /*
-
-        TODO
-
-        */
-        return Nop();
+        return SwitchStatementLocalRewriter.Rewrite(this, node);
     }
 
-    private SynthesizedLabelSymbol GenerateLabel() {
-        return new SynthesizedLabelSymbol($"Label{++_labelCount}");
+    private SynthesizedLabelSymbol GenerateLabel(string suffix = null) {
+        return new SynthesizedLabelSymbol($"Label{++_labelCount}{suffix}");
+    }
+
+    private SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
+        string name;
+
+        do {
+            name = $"temp{_tempCount++}";
+        } while (_localNames.Contains(name));
+
+        return new SynthesizedDataContainerSymbol(
+            _container,
+            new TypeWithAnnotations(type),
+            SynthesizedLocalKind.ExpanderTemp,
+            name
+        );
     }
 }

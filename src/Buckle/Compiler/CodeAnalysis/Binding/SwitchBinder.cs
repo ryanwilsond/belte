@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -58,8 +59,9 @@ internal class SwitchBinder : LocalScopeBinder {
                     var node = ((SourceLabelSymbol)label).identifierNodeOrToken.AsNode();
 
                     if (node is not null)
-                        result.Add(node, label);
+                        result.TryAdd(node, label);
                 }
+
                 _labelsByNode = result;
             }
 
@@ -378,7 +380,6 @@ internal class SwitchBinder : LocalScopeBinder {
         var functions = GetDeclaredLocalFunctionsForScope(node);
 
         var decisionDag = DecisionDagBuilder.CreateDecisionDagForSwitchStatement(
-            compilation: compilation,
             syntax: node,
             switchGoverningExpression: boundSwitchGoverningExpression,
             switchSections: switchSections,
@@ -558,7 +559,10 @@ internal class SwitchBinder : LocalScopeBinder {
 
                             if (label.pattern is BoundConstantPattern cp && cp.constantValue is not null &&
                                 FindMatchingSwitchCaseLabel(cp.constantValue, (BelteSyntaxNode)syntax) != label.label) {
-                                diagnostics.Push(Error.DuplicateCaseLabel(syntax.location, cp.constantValue.ToString()));
+                                diagnostics.Push(Error.DuplicateCaseLabel(
+                                    syntax.location,
+                                    DisplayText.FormatLiteral(cp.constantValue.value)
+                                ));
                             } else if (!label.pattern.hasErrors && !anyPreviousErrors) {
                                 diagnostics.Push(Error.SwitchCaseSubsumed(location));
                             }

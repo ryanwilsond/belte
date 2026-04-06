@@ -4651,10 +4651,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0383_SwitchTypeValueExpected() {
         var text = @"
             class A { }
-            var a = new A();
-            switch (3) {
-                case [a]:
-            }
+            switch ([new A()]) { }
         ";
 
         var diagnostics = @"
@@ -4667,15 +4664,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0384_SwitchExpressionValueExpected() {
         var text = @"
-            class A { }
-            var a = new A();
-            switch (3) {
-                case [a]:
-            }
+            switch ([null]) { }
         ";
 
         var diagnostics = @"
-            the switch expression must be a value; found 'a'
+            the switch expression must be a value; found 'null'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -4686,12 +4679,12 @@ public sealed class DiagnosticTests {
         var text = @"
             switch (3) {
                 case 1:
-                    goto [case 5];
+                    [goto case 5;]
             }
         ";
 
         var diagnostics = @"
-            no such label 'case 5' within the scope of the goto statement
+            no such label 'case 5:' within the scope of the goto statement
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -4703,32 +4696,16 @@ public sealed class DiagnosticTests {
             switch (3) {
                 case 1:
                 [case 1:]
-                    ;
             }
         ";
 
         var diagnostics = @"
-            the switch statement contains multiple cases with the label value 'case 1'
+            the switch statement contains multiple cases with the label value '1'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0387_SwitchCaseSubsumed() {
-        var text = @"
-            switch (3) {
-                case 1, 2:
-                    ;
-                [case 1:]
-                    ;
-            }
-        ";
-
-        var diagnostics = @"
-            the switch case is unreachable
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Error_BU0387_SwitchCaseSubsumed
+    // Unreachable currently
 }

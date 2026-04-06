@@ -100,6 +100,18 @@ internal static partial class BoundFactory {
         return new BoundCastExpression(syntax, expression, conversion, constant, type);
     }
 
+    internal static BoundDataContainerExpression Local(SyntaxNode syntax, DataContainerSymbol symbol) {
+        return new BoundDataContainerExpression(syntax, symbol, null, symbol.type);
+    }
+
+    internal static BoundExpression CreateCast(
+        SyntaxNode syntax,
+        TypeSymbol type,
+        BoundExpression expression) {
+        var conversion = Conversion.Classify(expression.type, type);
+        return Cast(syntax, type, expression, conversion, null);
+    }
+
     internal static BoundConditionalOperator Conditional(
         SyntaxNode syntax,
         BoundExpression @if,

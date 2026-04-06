@@ -13,32 +13,27 @@ internal sealed partial class DecisionDagBuilder {
     private static readonly ObjectPool<PooledDictionary<DagState, DagState>> UniqueStatePool =
         PooledDictionary<DagState, DagState>.CreatePool(DagStateEquivalence.Instance);
 
-    private readonly Compilation _compilation;
-    private readonly Conversions _conversions;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly LabelSymbol _defaultLabel;
     private readonly bool _forLowering;
 
     private DecisionDagBuilder(
-        Compilation compilation,
         LabelSymbol defaultLabel,
         bool forLowering,
         BelteDiagnosticQueue diagnostics) {
-        _compilation = compilation;
         _diagnostics = diagnostics;
         _defaultLabel = defaultLabel;
         _forLowering = forLowering;
     }
 
     internal static BoundDecisionDag CreateDecisionDagForSwitchStatement(
-        Compilation compilation,
         SyntaxNode syntax,
         BoundExpression switchGoverningExpression,
         ImmutableArray<BoundSwitchSection> switchSections,
         LabelSymbol defaultLabel,
         BelteDiagnosticQueue diagnostics,
         bool forLowering = false) {
-        var builder = new DecisionDagBuilder(compilation, defaultLabel, forLowering, diagnostics);
+        var builder = new DecisionDagBuilder(defaultLabel, forLowering, diagnostics);
         return builder.CreateDecisionDagForSwitchStatement(syntax, switchGoverningExpression, switchSections);
     }
 
