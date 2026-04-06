@@ -5,7 +5,7 @@ class Cloud {
     decimal speed;
     decimal depth;
 
-    public constructor(Vec2 position, ref Texture texture, decimal speed, decimal depth) {
+    public constructor(Vec2 position, Texture texture, decimal speed, decimal depth) {
         this.speed = speed;
         this.depth = depth;
         this.position = position;

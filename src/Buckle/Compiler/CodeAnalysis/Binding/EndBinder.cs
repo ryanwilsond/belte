@@ -66,6 +66,13 @@ internal sealed class EndBinder : Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override BoundStatement BindSwitchStatementCore(
+        SwitchStatementSyntax node,
+        Binder originalBinder,
+        BelteDiagnosticQueue diagnostics) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal override bool IsAccessibleHelper(
         Symbol symbol,
         TypeSymbol accessThroughType,

@@ -390,6 +390,12 @@ public enum DiagnosticCode : ushort {
     ERR_InvalidImplicitEnum = 379,
     ERR_EnumFieldNoTargetType = 380,
     ERR_WrongEnumTargetType = 381,
+    ERR_InvalidGotoCase = 382,
+    ERR_SwitchTypeValueExpected = 383,
+    ERR_SwitchExpressionValueExpected = 384,
+    ERR_LabelNotFound = 385,
+    ERR_DuplicateCaseLabel = 386,
+    ERR_SwitchCaseSubsumed = 387,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

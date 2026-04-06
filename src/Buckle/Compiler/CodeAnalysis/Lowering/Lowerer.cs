@@ -31,7 +31,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         var rewrittenStatement = Optimizer.Optimize(statement);
 
-        rewrittenStatement = FlowLowerer.Lower(rewrittenStatement, diagnostics);
+        rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);

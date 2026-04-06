@@ -65,6 +65,10 @@ internal static class TypeSymbolExtensions {
         return type.ToDisplayString(format);
     }
 
+    internal static TypeSymbol EnumUnderlyingTypeOrSelf(this TypeSymbol type) {
+        return type.GetEnumUnderlyingType() ?? type;
+    }
+
     internal static bool IsPointerOrFunctionPointer(this TypeSymbol type) {
         switch (type.typeKind) {
             case TypeKind.Pointer:
@@ -158,5 +162,36 @@ internal static class TypeSymbolExtensions {
 
         var name = @namespace.name;
         return (name.Length == length) && (string.Compare(name, 0, namespaceName, offset, length, comparison) == 0);
+    }
+
+    internal static bool IsValidSwitchType(this TypeSymbol type, bool isTargetTypeOfUserDefinedOp = false) {
+        if (type.IsNullableType())
+            type = type.GetNullableUnderlyingType();
+
+        if (!isTargetTypeOfUserDefinedOp)
+            type = type.EnumUnderlyingTypeOrSelf();
+
+        switch (type.specialType) {
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Char:
+            case SpecialType.String:
+            case SpecialType.Type:
+                return true;
+            case SpecialType.Bool:
+                return !isTargetTypeOfUserDefinedOp;
+        }
+
+        return false;
     }
 }

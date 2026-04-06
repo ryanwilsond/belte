@@ -4633,4 +4633,79 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0382_InvalidGotoCase() {
+        var text = @"
+            [goto default;]
+        ";
+
+        var diagnostics = @"
+            a goto is only valid inside a switch statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0383_SwitchTypeValueExpected() {
+        var text = @"
+            class A { }
+            switch ([new A()]) { }
+        ";
+
+        var diagnostics = @"
+            a switch expression or case label must be a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0384_SwitchExpressionValueExpected() {
+        var text = @"
+            switch ([null]) { }
+        ";
+
+        var diagnostics = @"
+            the switch expression must be a value; found 'null'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0385_LabelNotFound() {
+        var text = @"
+            switch (3) {
+                case 1:
+                    [goto case 5;]
+            }
+        ";
+
+        var diagnostics = @"
+            no such label 'case 5:' within the scope of the goto statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0386_DuplicateCaseLabel() {
+        var text = @"
+            switch (3) {
+                case 1:
+                [case 1:]
+            }
+        ";
+
+        var diagnostics = @"
+            the switch statement contains multiple cases with the label value '1'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0387_SwitchCaseSubsumed
+    // Unreachable currently
 }

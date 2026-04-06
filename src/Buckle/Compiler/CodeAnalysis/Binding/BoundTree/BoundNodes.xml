@@ -360,7 +360,75 @@
   </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>
+    <Field Name="caseExpression" Type="BoundExpression?"/>
   </Node>
+  <Node Name="BoundSwitchStatement" Base="BoundStatement">
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="innerLocalFunctions" Type="ImmutableArray&lt;LocalFunctionSymbol&gt;"/>
+    <Field Name="switchSections" Type="ImmutableArray&lt;BoundSwitchSection&gt;"/>
+    <Field Name="reachabilityDecisionDag" Type="BoundDecisionDag" Null="disallow" SkipInVisitor="true"/>
+    <Field Name="defaultLabel" Type="BoundSwitchLabel?"/>
+    <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundSwitchSection" Base="BoundStatement">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="switchLabels" Type="ImmutableArray&lt;BoundSwitchLabel&gt;"/>
+    <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
+  </Node>
+  <Node Name="BoundSwitchLabel" Base="BoundNode">
+    <Field Name="label" Type="LabelSymbol"/>
+    <Field Name="pattern" Type="BoundPattern"/>
+  </Node>
+  <Node Name="BoundSwitchDispatch" Base="BoundStatement">
+    <Field Name="expression" Type="BoundExpression" Null="disallow" />
+    <Field Name="cases" Type="ImmutableArray&lt;(ConstantValue value, LabelSymbol label)&gt;" />
+    <Field Name="defaultLabel" Type="LabelSymbol" Null="disallow" />
+  </Node>
+  <AbstractNode Name="BoundPattern" Base="BoundNode">
+    <Field Name="InputType" Type="TypeSymbol" Null="disallow"/>
+    <Field Name="NarrowedType" Type="TypeSymbol" Null="disallow"/>
+  </AbstractNode>
+  <Node Name="BoundConstantPattern" Base="BoundPattern">
+    <Field Name="value" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue" Null="disallow"/>
+  </Node>
+  <Node Name="BoundDecisionDag" Base="BoundNode">
+    <Field Name="rootNode" Type="BoundDecisionDagNode" Null="disallow"/>
+  </Node>
+  <AbstractNode Name="BoundDecisionDagNode" Base="BoundNode"/>
+  <AbstractNode Name="BoundDagTest" Base="BoundNode">
+    <Field Name="input" Type="BoundDagTemp"/>
+  </AbstractNode>
+  <Node Name="BoundLeafDecisionDagNode" Base="BoundDecisionDagNode">
+    <Field Name="label" Type="LabelSymbol"/>
+  </Node>
+  <Node Name="BoundDagNonNullTest" Base="BoundDagTest">
+    <Field Name="isExplicitTest" Type="bool"/>
+  </Node>
+  <Node Name="BoundDagAssignmentEvaluation" Base="BoundDagEvaluation">
+    <Field Name="target" Type="BoundDagTemp"/>
+  </Node>
+  <Node Name="BoundDagTemp" Base="BoundNode">
+    <Field Name="type" Type="TypeSymbol" Null="disallow"/>
+    <Field Name="source" Type="BoundDagEvaluation?"/>
+    <Field Name="index" Type="int"/>
+  </Node>
+  <Node Name="BoundEvaluationDecisionDagNode" Base="BoundDecisionDagNode">
+    <Field Name="evaluation" Type="BoundDagEvaluation" Null="disallow"/>
+    <Field Name="next" Type="BoundDecisionDagNode" Null="disallow"/>
+  </Node>
+  <Node Name="BoundTestDecisionDagNode" Base="BoundDecisionDagNode">
+    <Field Name="test" Type="BoundDagTest" Null="disallow"/>
+    <Field Name="whenTrue" Type="BoundDecisionDagNode" Null="disallow"/>
+    <Field Name="whenFalse" Type="BoundDecisionDagNode" Null="disallow"/>
+  </Node>
+  <AbstractNode Name="BoundDagEvaluation" Base="BoundDagTest"/>
+  <Node Name="BoundDagExplicitNullTest" Base="BoundDagTest"/>
+  <Node Name="BoundDagValueTest" Base="BoundDagTest">
+    <Field Name="value" Type="ConstantValue" Null="disallow"/>
+  </Node>
+  <Node Name="BoundDiscardPattern" Base="BoundPattern"/>
   <Node Name="BoundIfStatement" Base="BoundStatement">
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="consequence" Type="BoundStatement"/>

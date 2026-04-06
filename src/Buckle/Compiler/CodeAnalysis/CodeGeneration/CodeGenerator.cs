@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
@@ -473,7 +474,7 @@ internal sealed partial class CodeGenerator {
         }
     }
 
-    private void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
+    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
         var value = constant.value;
 
         if (value is null) {
@@ -673,9 +674,89 @@ internal sealed partial class CodeGenerator {
             case BoundKind.InlineILStatement:
                 EmitInlineILStatement((BoundInlineILStatement)statement);
                 break;
+            case BoundKind.SwitchDispatch:
+                EmitSwitchDispatch((BoundSwitchDispatch)statement);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(statement.kind);
         }
+    }
+
+    private void EmitSwitchDispatch(BoundSwitchDispatch dispatch) {
+        EmitSwitchHeader(
+            dispatch.expression,
+            dispatch.cases.Select(p => new KeyValuePair<ConstantValue, object>(p.value, p.label)).ToArray(),
+            dispatch.defaultLabel
+        );
+    }
+
+    private void EmitSwitchHeader(
+        BoundExpression expression,
+        KeyValuePair<ConstantValue, object>[] switchCaseLabels,
+        LabelSymbol fallThroughLabel) {
+        VariableDefinition temp = null;
+        LocalOrParameter key;
+
+        switch (expression.kind) {
+            case BoundKind.DataContainerExpression:
+                var local = ((BoundDataContainerExpression)expression).dataContainer;
+
+                if (local.refKind == RefKind.None && !IsStackLocal(local)) {
+                    key = _builder.GetLocal(local);
+                    break;
+                }
+
+                goto default;
+            case BoundKind.ParameterExpression:
+                var parameter = (BoundParameterExpression)expression;
+                if (parameter.parameter.refKind == RefKind.None) {
+                    key = ParameterSlot(parameter.parameter);
+                    break;
+                }
+                goto default;
+
+            default:
+                EmitExpression(expression, true);
+                temp = AllocateTemp(expression.type);
+                _builder.EmitLocalStore(temp);
+                key = temp;
+                break;
+        }
+
+        if (expression.type.specialType == SpecialType.String) {
+            // if (lengthBasedSwitchStringJumpTableOpt is null) {
+            EmitStringSwitchJumpTable(switchCaseLabels, fallThroughLabel, key, expression.syntax, expression.type);
+            // } else {
+            // this.EmitLengthBasedStringSwitchJumpTable(lengthBasedSwitchStringJumpTableOpt, fallThroughLabel, key, expression.Syntax, expression.Type);
+            // }
+        } else {
+            EmitIntegerSwitchJumpTable(
+                switchCaseLabels,
+                fallThroughLabel,
+                key,
+                expression.type.EnumUnderlyingTypeOrSelf().specialType
+            );
+        }
+
+        FreeOptTemp(temp);
+    }
+
+    private void EmitStringSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] switchCaseLabels,
+        LabelSymbol fallThroughLabel,
+        LocalOrParameter key,
+        SyntaxNode syntaxNode,
+        TypeSymbol keyType) {
+        // TODO
+    }
+
+    private void EmitIntegerSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] caseLabels,
+        object fallThroughLabel,
+        LocalOrParameter key,
+        SpecialType keyTypeCode) {
+        var emitter = new SwitchIntegralJumpTableEmitter(this, _builder, caseLabels, fallThroughLabel, keyTypeCode, key);
+        emitter.EmitJumpTable();
     }
 
     private void EmitNopStatement() {
