@@ -474,7 +474,7 @@ internal sealed partial class CodeGenerator {
         }
     }
 
-    private void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
+    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
         var value = constant.value;
 
         if (value is null) {
@@ -755,9 +755,8 @@ internal sealed partial class CodeGenerator {
         object fallThroughLabel,
         LocalOrParameter key,
         SpecialType keyTypeCode) {
-        // TODO
-        // var emitter = new SwitchIntegralJumpTableEmitter(this, caseLabels, fallThroughLabel, keyTypeCode, key);
-        // emitter.EmitJumpTable();
+        var emitter = new SwitchIntegralJumpTableEmitter(this, _builder, caseLabels, fallThroughLabel, keyTypeCode, key);
+        emitter.EmitJumpTable();
     }
 
     private void EmitNopStatement() {

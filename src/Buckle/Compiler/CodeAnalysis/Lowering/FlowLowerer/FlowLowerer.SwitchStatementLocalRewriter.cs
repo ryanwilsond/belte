@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -47,16 +47,13 @@ internal sealed partial class FlowLowerer {
             var outerVariables = ArrayBuilder<DataContainerSymbol>.GetInstance();
             var loweredSwitchGoverningExpression = (BoundExpression)_flowLowerer.Visit(node.expression);
 
-            // if (!node.WasCompilerGenerated && _localRewriter.Instrument) {
-            //     var instrumentedExpression = _localRewriter.Instrumenter.InstrumentSwitchStatementExpression(node, loweredSwitchGoverningExpression, _factory);
-            //     if (loweredSwitchGoverningExpression.ConstantValueOpt == null) {
-            //         loweredSwitchGoverningExpression = instrumentedExpression;
-            //     } else {
-            //         // If the expression is a constant, we leave it alone (the decision dag lowering code needs
-            //         // to see that constant). But we add an additional leading statement with the instrumented expression.
-            //         result.Add(_factory.ExpressionStatement(instrumentedExpression));
-            //     }
-            // }
+            // var instrumentedExpression = _localRewriter.Instrumenter.InstrumentSwitchStatementExpression(node, loweredSwitchGoverningExpression, _factory);
+            if (loweredSwitchGoverningExpression.constantValue is null) {
+                // loweredSwitchGoverningExpression = instrumentedExpression;
+            } else {
+                // result.Add(new BoundExpressionStatement(node.syntax, instrumentedExpression));
+                result.Add(new BoundExpressionStatement(node.syntax, loweredSwitchGoverningExpression));
+            }
 
             outerVariables.AddRange(node.innerLocals);
 
@@ -75,6 +72,21 @@ internal sealed partial class FlowLowerer {
             }
 
             (var loweredDag, var switchSections) = LowerDecisionDag(decisionDag);
+
+            var allTemps = _tempAllocator.AllTemps();
+            outerVariables.AddRange(allTemps);
+
+            foreach (var temp in allTemps) {
+                result.Add(new BoundLocalDeclarationStatement(node.syntax,
+                    new BoundDataContainerDeclaration(node.syntax,
+                        temp,
+                        BoundFactory.Literal(node.syntax,
+                            temp.type.IsNullableType() ? null : LiteralUtilities.GetDefaultValue(temp.type.specialType),
+                            temp.type
+                        )
+                    ))
+                );
+            }
 
             // if (_whenNodeIdentifierLocal is not null)
             //     outerVariables.Add(_whenNodeIdentifierLocal);
@@ -102,8 +114,6 @@ internal sealed partial class FlowLowerer {
                 // TODO Is this the same as above?
                 result.Add(new BoundBlockStatement(section.syntax, statements, section.locals, []));
             }
-
-            outerVariables.AddRange(_tempAllocator.AllTemps());
 
             if (_generateInstrumentation)
                 result.Add(BoundSequencePoint.CreateHidden());

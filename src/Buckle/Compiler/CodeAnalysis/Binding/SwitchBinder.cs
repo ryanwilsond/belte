@@ -190,6 +190,9 @@ internal class SwitchBinder : LocalScopeBinder {
                     }
 
                     break;
+                default:
+                    labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, labelSyntax, null));
+                    break;
             }
         }
     }
