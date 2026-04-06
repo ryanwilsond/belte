@@ -19,5 +19,9 @@ internal abstract partial class ArrayTypeSymbol {
         internal override ImmutableArray<int> lowerBounds { get; }
 
         internal override bool hasDefaultSizesAndLowerBounds => false;
+
+        private protected override ArrayTypeSymbol WithElementTypeCore(TypeWithAnnotations elementTypeWithAnnotations) {
+            return new MDArrayWithSizesAndBounds(elementTypeWithAnnotations, rank, sizes, lowerBounds, baseType);
+        }
     }
 }

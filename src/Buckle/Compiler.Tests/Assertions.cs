@@ -1,5 +1,6 @@
 using System;
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -32,49 +33,63 @@ internal static class Assertions {
     /// </summary>
     /// <param name="text">Belte code.</param>
     /// <param name="expectedValue">Expected result.</param>
-    internal static void AssertValue(string text, object expectedValue) {
+    internal static void AssertValue(string text, object expectedValue, bool evaluator = true, bool executor = true) {
         var syntaxTree = SyntaxTree.Parse(text);
 
-        var evalCompilation = Compilation.CreateScript(
-            "Tests",
-            DefaultEvalOptions,
-            syntaxTree,
-            BaseCompilation
-        );
+        object execResult = null;
+        EvaluationResult evalResult = null;
+        object computedValue = null;
 
-        var execCompilation = Compilation.CreateScript(
-            "Tests",
-            DefaultExecOptions,
-            syntaxTree,
-            BaseCompilation
-        );
+        if (executor) {
+            var execCompilation = Compilation.CreateScript(
+                "Tests",
+                DefaultExecOptions,
+                syntaxTree,
+                BaseCompilation
+            );
 
-        var evalResult = evalCompilation.Evaluate(false);
+            var execDiags = execCompilation.Execute(false, false, null, out execResult);
+            Assert.Empty(execDiags.Errors().ToArray());
 
-        if (evalResult.value is double && Convert.ToDouble(expectedValue).CompareTo(evalResult.value) == 0)
+            computedValue = execResult;
+        }
+
+        if (evaluator) {
+            var evalCompilation = Compilation.CreateScript(
+                "Tests",
+                DefaultEvalOptions,
+                syntaxTree,
+                BaseCompilation
+            );
+
+            evalResult = evalCompilation.Evaluate(false);
+            Assert.Empty(evalResult.diagnostics.Errors().ToArray());
+
+            computedValue = evalResult.value;
+        }
+
+        if (computedValue is double && Convert.ToDouble(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToDouble(expectedValue);
-        else if (evalResult.value is long && Convert.ToInt64(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is long && Convert.ToInt64(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToInt64(expectedValue);
-        else if (evalResult.value is short && Convert.ToInt16(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is short && Convert.ToInt16(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToInt16(expectedValue);
-        else if (evalResult.value is sbyte && Convert.ToSByte(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is sbyte && Convert.ToSByte(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToSByte(expectedValue);
-        else if (evalResult.value is ushort && Convert.ToUInt16(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is ushort && Convert.ToUInt16(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToUInt16(expectedValue);
-        else if (evalResult.value is byte && Convert.ToByte(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is byte && Convert.ToByte(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToByte(expectedValue);
-        else if (evalResult.value is uint && Convert.ToUInt32(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is uint && Convert.ToUInt32(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToUInt32(expectedValue);
-        else if (evalResult.value is ulong && Convert.ToUInt64(expectedValue).CompareTo(evalResult.value) == 0)
+        else if (computedValue is ulong && Convert.ToUInt64(expectedValue).CompareTo(computedValue) == 0)
             expectedValue = Convert.ToUInt64(expectedValue);
 
-        Assert.Empty(evalResult.diagnostics.Errors().ToArray());
-        Assert.Equal(expectedValue, evalResult.value);
+        if (evaluator)
+            Assert.Equal(expectedValue, evalResult.value);
 
-        var execDiags = execCompilation.Execute(false, false, null, out var execResult);
-
-        Assert.Empty(execDiags.Errors().ToArray());
-        Assert.Equal(expectedValue, execResult);
+        if (executor)
+            Assert.Equal(expectedValue, execResult);
     }
 
     /// <summary>
@@ -160,6 +175,9 @@ internal static class Assertions {
         }
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
+
+        // All this does is ensure predictable ordering
+        diagnostics = BelteDiagnosticQueue.CleanDiagnostics(diagnostics);
 
         for (var i = 0; i < expectedDiagnostics.Length; i++) {
             var diagnostic = diagnostics.Pop();

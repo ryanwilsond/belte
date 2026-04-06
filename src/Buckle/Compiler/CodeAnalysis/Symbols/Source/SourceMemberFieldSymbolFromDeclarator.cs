@@ -97,13 +97,14 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
         var typeOnly = typeSyntax.SkipRef(out var refKind);
 
-        type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped);
+        type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped, out _);
 
         if (isImplicitlyTyped) {
             var location = typeOnly is IdentifierNameSyntax
                 ? typeOnly.location
                 : ((FieldDeclarationSyntax)syntaxNode.parent).modifiers
-                    .Last(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword).location;
+                    ?.Last(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword)?.location
+                        ?? typeOnly.location;
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());

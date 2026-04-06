@@ -47,6 +47,13 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
         return null;
     }
 
+    internal NamespaceOrTypeSymbol StrippedTypeOrSelf() {
+        if (this is TypeSymbol t)
+            return t.StrippedType();
+
+        return this;
+    }
+
     internal virtual NamedTypeSymbol LookupMetadataType(ref MetadataTypeName emittedTypeName) {
         var scope = this;
 

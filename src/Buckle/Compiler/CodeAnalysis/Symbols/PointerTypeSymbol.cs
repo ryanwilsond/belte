@@ -85,6 +85,26 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         return Hash.Combine(current, indirections);
     }
 
+    internal override bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result) {
+        var oldPointedAtType = pointedAtTypeWithAnnotations;
+
+        if (!oldPointedAtType.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newPointedAtType)) {
+            result = this;
+            return false;
+        }
+
+        result = WithPointedAtType(newPointedAtType);
+        return true;
+    }
+
+    internal PointerTypeSymbol WithPointedAtType(TypeWithAnnotations newPointedAtType) {
+        return pointedAtTypeWithAnnotations.IsSameAs(newPointedAtType) ? this : new PointerTypeSymbol(newPointedAtType);
+    }
+
     internal override bool Equals(TypeSymbol t2, TypeCompareKind comparison) {
         return Equals(t2 as PointerTypeSymbol, comparison);
     }

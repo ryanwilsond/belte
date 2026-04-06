@@ -12,6 +12,10 @@ This may change.
 - [6.5](#65-pointers) Pointers
 - [6.6](#66-function-pointers) Function Pointers
 - [6.7](#67-extern-methods) Extern Methods
+- [6.8](#68-fixed-size-buffers) Fixed Size Buffers
+- [6.9](#69-sizeof-operator) Sizeof Operator
+- [6.10](#610-stackalloc-operator) Stackalloc Operator
+- [6.11](#611-inline-il) Inline IL
 
 Additionally, the [Standard Library contains a class named LowLevel that provides
 various helper methods](StandardLibrary/LowLevel.md).
@@ -69,6 +73,7 @@ C-style arrays.
 
 ```belte
 int![]! v = { 1, 2, 3 };
+int![]! v = { 1, 2, 3 };
 ```
 
 Arrays are heap allocated and have no members. To sort or get the length of the
@@ -93,7 +98,8 @@ int[] v = { 1, 2, 3 };
 
 To allow for better interop, several numeric types can be used to specify
 specific sizes. These being `int8`, `uint8`, `int16`, `uint16`, `int32`,
-`uint32`, `int64`, `uint64`, `float32`, `float64`.
+`uint32`, `int64`, `uint64`, `float32`, `float64`. These types are always
+non-nullable.
 
 All arithmetic upcasts to `int` and `decimal`, so casting is required in cases
 such as:
@@ -191,7 +197,7 @@ For example:
 ```belte
 void* myPtr = ...;
 // Offset the pointer by 8 bytes
-myPtr = (void*)((int64!)myPtr + 8);
+myPtr = (void*)((int64)myPtr + 8);
 ```
 
 Indexing an operator will automatically offset the pointer and then dereference
@@ -206,7 +212,7 @@ The above example is equivalent to:
 
 ```belte
 char* myPtr = ...;
-char! myChar = *((char*)((int64!)myPtr + 10 * LowLevel.SizeOf<char!>()));
+char! myChar = *((char*)((int64)myPtr + 10 * sizeof(char!)));
 ```
 
 ## 6.6 Function Pointers
@@ -221,7 +227,7 @@ can then be called like a normal method:
 var myPtr = &MyMethod;
 var myInt = myPtr(); // myInt = 4
 
-int32! MyMethod() {
+int32 MyMethod() {
   return 4;
 }
 ```
@@ -236,13 +242,15 @@ int32 MyMethod(bool arg1, string arg2) { ... }
 ```
 
 Function pointers are treated the same as normal pointers in that they can be
-freely cast. This is helpful when trying to call a function given a vtable.
+freely cast. This is helpful when trying to call a function given a vtable. To
+declare an unmanaged function pointer (such as with a COM interface vtable),
+mark it as such with a `~`.
 Consider this example of calling the first function of a vtable:
 
 ```belte
 void** vtable = ...;
 
-((void()*)vtable[0])();
+((void()*~)vtable[0])();
 ```
 
 For clarity, the function pointer set to a temporary:
@@ -250,7 +258,7 @@ For clarity, the function pointer set to a temporary:
 ```belte
 void** vtable = ...;
 
-var MyFunction = (void()*)vtable[0];
+var MyFunction = (void()*~)vtable[0];
 MyFunction();
 ```
 
@@ -270,3 +278,168 @@ The method is resolved at runtime, meaning if it cannot be found an exception
 will be thrown.
 
 Extern methods use the `UniCode` char set and the `stdcall` calling convention.
+
+## 6.8 Fixed Size Buffers
+
+Arbitrary blobs of memory can be reserved with fixed size buffers. Fixed size
+buffers are struct fields specifying a numeric type and a quantity:
+
+```belte
+struct MyStruct {
+  int32 field[32];
+}
+```
+
+In the above example, `field` reserves a contiguous piece of memory 128 bytes
+long (`sizeof(int32) * 32 = 128`).
+
+The field is then treated as a pointer to the start of the blob, which can then
+be indexed:
+
+```belte
+var myStruct = new MyStruct();
+myStruct.field[0] = 5;
+myStruct.field[1] = 10;
+...
+
+struct MyStruct {
+  int32 field[32];
+}
+```
+
+The type pointed at by the buffer can be `bool!`, `uint8`, `int8`, `uint16`,
+`int16`, `uint32`, `int32`, `uint64`, `int64`, `float32`, `float64`, or `char!`.
+Note that `int` and `decimal` are not valid types in this context because their
+size is not publicly defined.
+
+## 6.9 Sizeof Operator
+
+The `sizeof(T)` operator is the shorthand form of `$?LowLevel.SizeOf<T>()`. It
+operates on a type. If the type has a known size at compile time, it replaces
+the operator with that value as an `int32!`. Otherwise, it computes the size at
+runtime. Size is calculated in terms of number of bytes.
+
+The following statements are equivalent:
+
+```belte
+var myInt = sizeof(bool!);
+var myInt = $?LowLevel.SizeOf<bool>();
+var myInt = (int32)1;
+```
+
+The following table shows all types with a known size at compile time. All other
+types compute their size at runtime.
+
+| Type | Size |
+|-|-|
+| `bool!` | 1 |
+| `int8` | 1 |
+| `uint8` | 1 |
+| `char!` | 2 |
+| `int16` | 2 |
+| `uint16` | 2 |
+| `int32` | 4 |
+| `uint32` | 4 |
+| `float32` | 4 |
+| `int64` | 8 |
+| `uint64` | 8 |
+| `float64` | 8 |
+
+Note that taking the size of a reference type will return the size of the
+reference itself, not the object. Similarly, taking the size of a pointer
+returns the pointer size, not the size of the pointed at type.
+
+## 6.10 Stackalloc Operator
+
+Similar to fixed sized buffers for fields, the `stackalloc T[s]` operator can be
+used to create a segment of memory for indexing where the size of the memory
+is `sizeof(T) * s`. The memory is allocated on the stack. The operator results
+in a pointer to the start of the memory.
+
+```belte
+int32* ptr = stackalloc int32[10];
+ptr[0] = 5;
+ptr[1] = 10;
+...
+```
+
+### 6.10.1 Stackalloc Locals
+
+A C-style shorthand is available for stackalloc expressions. The following are
+equivalent:
+
+```belte
+int32 ptr[10];
+int32* ptr = stackalloc int32[10];
+```
+
+## 6.11 Inline IL
+
+For performance critical code paths or when you are trying to emit specific
+instructions with no language equivalent, an inline IL block can be used:
+
+```belte
+int32 a = 0;
+
+il {
+  ldc.i4.0;
+  stloc.0;
+}
+```
+
+Symbols can be referenced like normal:
+
+```belte
+int32 a = 0;
+
+il {
+  call Func
+  stloc.0;
+}
+
+int32 Func() {
+  return 10;
+}
+```
+
+### 6.11.1 Verification
+
+The instructions in the IL block are minimally verified. All instructions must
+provide the proper number and kind of arguments.
+
+Additionally, the stack must be balanced within the block. To bypass this check,
+the `noverify` modifier can be used:
+
+```belte
+il noverify {
+  add;
+}
+```
+
+### 6.11.2 Unsupported Instructions
+
+The inline IL allows most CIL instructions. The following instructions are not
+currently supported:
+
+- All branch instructions
+- `endfault`
+- `endfilter`
+- `endfinally`
+- `jmp`
+- `leave`
+- `leave.s`
+- `no.`
+- `ret`
+- `rethrow`
+- `switch`
+- `throw`
+
+The `jmp`, `switch`, and branch instructions are unsupported because there is
+currently no way to get instruction addresses or define labels.
+
+The `endfault`, `endfilter`, `endfinally`, `leave`, `leave.s`, `no.`, `rethrow`,
+and `throw` instructions are not supported because there is currently no way to
+specify exception handling blocks within the inline IL.
+
+The `ret` instruction is unsupported to ensure the IL remains localized to it's
+block and has a zero delta stack balance.

@@ -6,6 +6,7 @@
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
 - [3.5](#35-references) References
 - [3.6](#36-arrays) Arrays
+- [3.7](#37-compile-time-expressions) Compile-Time Expressions
 
 ## 3.1 Data Types
 
@@ -48,13 +49,16 @@ In addition, nullability affects casting:
 
 ## 3.2 Operators
 
+### 3.2.1 Operator Precedence
+
 Operators are used to interact with data. Each operator takes in one or more operands to perform on. Operators follow a
 strict order of precedence:
 
 | Operators | Category |
 |-|-|
-| a\[i\], a?\[i\], f(x), (T)y, x.y, x?.y, x++, x--, x!, new, typeof | Primary |
-| +x, -x, !x, ~x, ++x, --x | Unary |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, new, typeof, nameof, sizeof | Primary |
+| +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
+| x..y, x?..y | Cascade |
 | x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
@@ -66,8 +70,63 @@ strict order of precedence:
 | x \| y | Bitwise Logical OR |
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
-| x ?? y | Null-Coalescing |
+| x ?? y, x ?! y | Null-Coalescing |
 | c ? t : f | Tertiary Conditional |
+
+### 3.2.2 Uncommon Operators
+
+#### 3.2.2.1 `x!`
+
+`x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
+
+#### 3.2.2.2 `a?[i]`
+
+`a?[i]` is a conditional indexer. If `a` is null, the index is not performed.
+
+This operator is syntax sugar for `a is null ? null : a![i]`.
+
+#### 3.2.2.3 `x?.y`
+
+`x?.y` is a conditional member access. If `a` is null, the access is not performed.
+
+This operator is syntax sugar for `x is null ? null : x!.y`.
+
+#### 3.2.2.4 `x ?? y`
+
+`x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result.
+
+This operator is syntax sugar for `x is null ? y : null`.
+
+#### 3.2.2.5 `x ?! y`
+
+`x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result.
+
+This operator is syntax sugar for `x is null ? null : y`.
+
+#### 3.2.2.6 `x..y`
+
+`x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
+discarded.
+
+For example:
+
+```belte
+var a = new Obj()..M()..f=3;
+```
+
+The above example is equivalent to:
+
+```belte
+var temp = new Obj();
+temp.M();
+temp.f = 3;
+var a = temp;
+```
+
+#### 3.2.2.7 `x?..y`
+
+`x?..y` is a conditional [cascade expression](#3226-xy). The field assignment or call expression `y` is only performed
+if `x` is not null.
 
 ## 3.3 Variables and Constants
 
@@ -157,3 +216,116 @@ a[2] = 6;
 
 Note that this functionality will eventually be moved to be exclusive to low-level contexts, and be replaced with more
 powerful collection types.
+
+## 3.7 Compile-Time Expressions
+
+To evaluate an expression at compile-time, you can precede it with `$` or `$?`. The `$` operator tells the compiler to
+evaluate the expression at compile time. The `$?` operator tells the compiler to try and evaluate the expression at
+compile time, and if it cannot be evaluated ignore the failure and compile the expression as normal.
+
+Not all expressions are able to be evaluated at compile time. If the type of the expression is an object, pointer, or
+function pointer, the compiler does not attempt to evaluate the expression.
+
+If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
+If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
+expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
+evaluate.
+
+### 3.7.1 Examples
+
+For example:
+
+```belte
+int myInt = $Add(4, 5);
+
+int Add(int x, int y) {
+  return x + y;
+}
+```
+
+In the above example, the program produced by the compiler will evaluate the expression `Add(4, 5)` and put the result,
+`9`, in its place:
+
+```belte
+int myInt = 9;
+
+int Add(int x, int y) {
+  return x + y;
+}
+```
+
+Some expressions are not computable at compile-time. One possibility is that the expression tries to use data from
+outside the scope of the expression:
+
+```belte
+var myClass = new MyClass();
+var myInt = $myClass.GetF(); // Fails to compute
+
+class MyClass {
+  public int f = 10;
+
+  public int GetF() {
+    return f;
+  }
+}
+```
+
+In the above example, the expression cannot be computed at compile-time because it references local `myClass` which is
+defined outside of the scope of the compile-time expression.
+
+If you want to ignore any compile-time evaluation errors and continue you can use `$?`:
+
+```belte
+var myClass = new MyClass();
+var myInt = $?myClass.GetF();
+
+class MyClass {
+  public int f = 10;
+
+  public int GetF() {
+    return f;
+  }
+}
+```
+
+The above example will not replace the `myInt` declaration with anything and will retain its original initializer of
+`myClass.GetF()` because the compile-time evaluation failed.
+
+### 3.7.2 Side Effects
+
+Because whether or not an expression is evaluatable at compile time cannot always be predetermined, it is important to
+note that there may be side effects to expressions marked to evaluate even if the expression fails, such as file IO.
+
+For example:
+
+```belte
+$ExampleMethod();
+
+void ExampleMethod() {
+  File.AppendText("path/to/file.txt", "Some line of text");
+  throw new Exception();
+}
+```
+
+In the above example, the compilation will fail because `ExampleMethod` threw an uncaught exception, but the preceding
+file write still happened.
+
+Consider this more insidious example:
+
+```belte
+$?ExampleMethod();
+
+void ExampleMethod() {
+  File.AppendText("path/to/file.txt", "Some line of text");
+  throw new Exception();
+}
+```
+
+In this example, the compilation will succeed because the conditional `$?` operator was used. The file write will
+happen, and then the exception thrown will cause the compile time expression to fail to evaluate, meaning the compiler
+will emit the original expression.
+
+The result is that if you compile and then run this program, the file write will happen twice.
+
+The compiler cannot verify whether or not an expression has side effects, so the usage of the compile-time expression
+operator is not restricted to prevent them from happening.

@@ -53,7 +53,7 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         for (var i = 0; i < diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];
 
-            if (diagnostic.location is null) {
+            if (diagnostic.location?.span is null) {
                 specialDiagnostics.Push(diagnostic);
                 diagnosticList.RemoveAt(i--);
             }

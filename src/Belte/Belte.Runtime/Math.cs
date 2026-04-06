@@ -237,4 +237,18 @@ public static class Math {
 
         return System.Math.Truncate(a.Value);
     }
+
+    public static double? DegToRad(double? a) {
+        if (a is null)
+            return null;
+
+        return double.DegreesToRadians(a.Value);
+    }
+
+    public static double? RadToDeg(double? a) {
+        if (a is null)
+            return null;
+
+        return double.RadiansToDegrees(a.Value);
+    }
 }

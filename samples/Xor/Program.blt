@@ -4,9 +4,6 @@
 
     https://florian.github.io//xor-trick/
 
-    This sample doesn't really highlight anything in the language in particular, I just wanted to implement it,
-    which is why I didn't include this in the sample list.
-
 */
 
 int XorList(List<int> arr) {

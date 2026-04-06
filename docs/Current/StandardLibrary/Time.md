@@ -10,5 +10,5 @@ The Belte public interface for the String class can be found [here](../../../src
 
 | Signature | Description |
 |-|-|
-| `int! Now()` | Returns the ticks of the current date time. |
-| `void Sleep(int! milliseconds)` | Sleeps a certain number of milliseconds. |
+| `int! Now()` | Returns the milliseconds of the current date time. |
+| `void Sleep(int!)` | Sleeps a certain number of milliseconds. |

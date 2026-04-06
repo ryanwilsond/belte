@@ -196,10 +196,11 @@ public sealed partial class BelteRepl : Repl {
 
         Console.ForegroundColor = state.colorTheme.@default;
     }
+
     private protected override void EvaluateSubmission(string text) {
         // ONLY use this when evaluating previous submissions, where incremental compilation would do nothing
         // Otherwise, this is much slower than the 0 arity overload
-        var syntaxTree = SyntaxTree.Parse(text, SourceCodeKind.Script);
+        var syntaxTree = SyntaxTree.Parse(text, null, SourceCodeKind.Script);
         EvaluateSubmissionInternal(syntaxTree);
     }
 
@@ -288,7 +289,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private void ClearTree() {
-        state.tree = SyntaxTree.Parse("", SourceCodeKind.Script);
+        state.tree = SyntaxTree.Parse("", null, SourceCodeKind.Script);
         // This should always be empty by now, but just in case there was a race condition
         _changes.Clear();
     }
@@ -345,7 +346,10 @@ public sealed partial class BelteRepl : Repl {
             }
         }
 
-        var diagnostics = compilation.GetDiagnostics();
+        var diagnostics = compilation.GetParseDiagnostics();
+
+        if (!diagnostics.AnyErrors())
+            diagnostics = compilation.GetDiagnostics();
 
         if (state.showWarnings)
             handle.diagnostics.PushRange(diagnostics);
@@ -846,6 +850,12 @@ public sealed partial class BelteRepl : Repl {
             }
 
             foreach (var symbol in currentSymbols) {
+                // TODO This prevents crashes but cuts off the symbol list
+                // Would be nice if we had scroll-ability
+                // This does refresh automatically if the console is resized though so not a huge deal
+                if (index + 1 >= writer.height)
+                    break;
+
                 writer.SetCursorPosition(9, index++);
 
                 if (targetIndex == index - 3)

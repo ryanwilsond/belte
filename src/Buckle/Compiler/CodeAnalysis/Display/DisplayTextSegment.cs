@@ -108,6 +108,14 @@ public sealed class DisplayTextSegment {
     }
 
     /// <summary>
+    /// Creates a comment.
+    /// </summary>
+    /// <param name="text">Text to be treated as a comment. // is inserted.</param>
+    public static DisplayTextSegment CreateComment(string text) {
+        return new DisplayTextSegment($"// {text}", Classification.Comment);
+    }
+
+    /// <summary>
     /// Creates a string escape sequence.
     /// </summary>
     /// <param name="text">Text to be treated as an escape sequence.</param>

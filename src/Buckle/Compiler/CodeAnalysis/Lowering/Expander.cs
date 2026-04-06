@@ -3,6 +3,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -12,10 +13,6 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Expands expressions to make them simpler to handle by the <see cref="Lowerer" />.
 /// </summary>
 internal sealed class Expander : BoundTreeExpander {
-    private readonly List<string> _localNames = [];
-    private MethodSymbol _container;
-
-    private int _tempCount = 0;
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
     private int _conditionalDepth = 0;
@@ -25,8 +22,141 @@ internal sealed class Expander : BoundTreeExpander {
         _container = container;
     }
 
+    private protected override MethodSymbol _container { get; set; }
+
     internal BoundStatement Expand(BoundStatement statement) {
         return Simplify(statement.syntax, ExpandStatement(statement));
+    }
+
+    private protected override List<BoundStatement> ExpandCascadeListExpression(
+        BoundCascadeListExpression expression,
+        out BoundExpression replacement) {
+        var syntax = expression.syntax;
+        var statements = ExpandExpression(expression.receiver, out var newReceiver);
+        var tempLocal = GenerateTempLocal(expression.Type());
+
+        statements.Add(
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
+                syntax,
+                tempLocal,
+                newReceiver
+            ))
+        );
+
+        for (var i = 0; i < expression.cascades.Length; i++) {
+            var cascade = expression.cascades[i];
+            var isConditional = expression.conditionals[i];
+            // TODO How to represent conditional receiver on call?
+
+            switch (cascade.kind) {
+                case BoundKind.CallExpression: {
+                        var call = (BoundCallExpression)cascade;
+                        var replacementReceiver = Local(syntax, tempLocal);
+                        statements.AddRange(ExpandExpressionList(call.arguments, out var arguments));
+
+                        statements.Add(
+                            new BoundExpressionStatement(syntax,
+                                call.Update(
+                                    replacementReceiver,
+                                    call.method,
+                                    arguments,
+                                    call.argumentRefKinds,
+                                    call.defaultArguments,
+                                    call.resultKind,
+                                    call.type
+                                )
+                            )
+                        );
+                    }
+
+                    break;
+                case BoundKind.CompoundAssignmentOperator: {
+                        var assignment = (BoundCompoundAssignmentOperator)cascade;
+                        var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        statements.AddRange(ExpandExpression(assignment.right, out var right));
+
+                        statements.Add(
+                            new BoundExpressionStatement(syntax,
+                                assignment.Update(
+                                    MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
+                                    right,
+                                    assignment.op,
+                                    assignment.leftPlaceholder,
+                                    assignment.leftConversion,
+                                    assignment.finalPlaceholder,
+                                    assignment.finalConversion,
+                                    assignment.resultKind,
+                                    assignment.originalUserDefinedOperators,
+                                    assignment.type
+                                )
+                            )
+                        );
+                    }
+
+                    break;
+                case BoundKind.NullCoalescingAssignmentOperator: {
+                        var assignment = (BoundNullCoalescingAssignmentOperator)cascade;
+                        var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        statements.AddRange(ExpandExpression(assignment.right, out var right));
+
+                        statements.Add(
+                            new BoundExpressionStatement(syntax,
+                                assignment.Update(
+                                    MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
+                                    right,
+                                    assignment.isPropagation,
+                                    assignment.type
+                                )
+                            )
+                        );
+                    }
+
+                    break;
+                case BoundKind.AssignmentOperator: {
+                        var assignment = (BoundAssignmentOperator)cascade;
+                        var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        statements.AddRange(ExpandExpression(assignment.right, out var right));
+
+                        statements.Add(
+                            new BoundExpressionStatement(syntax,
+                                assignment.Update(
+                                    MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
+                                    right,
+                                    assignment.isRef,
+                                    assignment.type
+                                )
+                            )
+                        );
+                    }
+
+                    break;
+                default:
+                    throw ExceptionUtilities.Unreachable();
+            }
+        }
+
+        replacement = Local(syntax, tempLocal);
+        return statements;
+
+        static BoundExpression MakeReplacementReceiver(
+            SyntaxNode syntax,
+            bool isConditional,
+            SynthesizedDataContainerSymbol tempLocal,
+            BoundFieldAccessExpression leftAccess) {
+            return isConditional
+                ? new BoundConditionalAccessExpression(
+                    syntax,
+                    Local(syntax, tempLocal),
+                    leftAccess,
+                    leftAccess.type)
+                : new BoundFieldAccessExpression(
+                    syntax,
+                    Local(syntax, tempLocal),
+                    leftAccess.field,
+                    leftAccess.constantValue,
+                    leftAccess.type
+                );
+        }
     }
 
     private protected override List<BoundStatement> ExpandLocalFunctionStatement(
@@ -71,7 +201,7 @@ internal sealed class Expander : BoundTreeExpander {
             );
 
             replacement = new BoundFieldAccessExpression(syntax,
-                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                Local(syntax, tempLocal),
                 expression.field,
                 expression.constantValue,
                 expression.field.type
@@ -99,7 +229,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
 
             _accessDepth = savedAccessDepth;
             return statements;
@@ -178,6 +308,7 @@ internal sealed class Expander : BoundTreeExpander {
                         syntax,
                         newLeft,
                         newRight,
+                        expression.isPropagation,
                         expression.Type()
                     )
                 )
@@ -207,7 +338,7 @@ internal sealed class Expander : BoundTreeExpander {
                 new BoundDataContainerDeclaration(syntax, tempLocal, callReplacement)
             ));
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
 
             return statements;
         }
@@ -279,7 +410,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
             _operatorDepth--;
             _conditionalDepth = savedConditionalDepth;
             return statements;
@@ -338,7 +469,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
             _operatorDepth--;
             _conditionalDepth = savedConditionalDepth;
             return statements;
@@ -368,7 +499,7 @@ internal sealed class Expander : BoundTreeExpander {
             new BoundExpressionStatement(syntax, expression)
         ]);
 
-        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        replacement = Local(syntax, tempLocal);
         return statements;
     }
 
@@ -401,7 +532,7 @@ internal sealed class Expander : BoundTreeExpander {
                 ))
             );
 
-            replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+            replacement = Local(syntax, tempLocal);
             _operatorDepth--;
             return statements;
         }
@@ -440,7 +571,7 @@ internal sealed class Expander : BoundTreeExpander {
         foreach (var pair in expression.items) {
             statements.Add(new BoundExpressionStatement(syntax, new BoundCallExpression(
                 syntax,
-                new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type),
+                Local(syntax, tempLocal),
                 method,
                 [pair.Item1, pair.Item2],
                 [RefKind.None, RefKind.None],
@@ -450,7 +581,7 @@ internal sealed class Expander : BoundTreeExpander {
             )));
         }
 
-        replacement = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        replacement = Local(syntax, tempLocal);
         return statements;
     }
 
@@ -467,7 +598,7 @@ internal sealed class Expander : BoundTreeExpander {
             new BoundDataContainerDeclaration(syntax, tempLocal, receiverReplacement))
         );
 
-        var receiverLocal = new BoundDataContainerExpression(syntax, tempLocal, null, tempLocal.type);
+        var receiverLocal = Local(syntax, tempLocal);
 
         BoundExpression newAccess;
 
@@ -491,20 +622,5 @@ internal sealed class Expander : BoundTreeExpander {
         );
 
         return statements;
-    }
-
-    private SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
-        string name;
-
-        do {
-            name = $"temp{_tempCount++}";
-        } while (_localNames.Contains(name));
-
-        return new SynthesizedDataContainerSymbol(
-            _container,
-            new TypeWithAnnotations(type),
-            SynthesizedLocalKind.ExpanderTemp,
-            name
-        );
     }
 }

@@ -40,6 +40,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
+                    case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LocalFunctionStatement:
                         _statements.Add(statement);
@@ -47,6 +48,11 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.TryStatement:
                         BuildTryRegion((BoundTryStatement)statement);
                         break;
+                    case BoundKind.SequencePoint:
+                        if (((BoundSequencePoint)statement).statement is null)
+                            break;
+
+                        goto default;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(statement.kind);
                 }

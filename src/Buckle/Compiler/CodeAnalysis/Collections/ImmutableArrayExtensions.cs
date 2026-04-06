@@ -312,6 +312,9 @@ internal static class ImmutableArrayExtensions {
         TArg arg)
         => WhereAsArrayImpl(array, predicateWithoutArg: null, predicate, arg);
 
+    internal static ImmutableArray<T> WhereAsArray<T>(this ImmutableArray<T> array, Func<T, bool> predicate)
+        => WhereAsArrayImpl<T, object?>(array, predicate, predicateWithArg: null, arg: null);
+
     private static ImmutableArray<T> WhereAsArrayImpl<T, TArg>(
         ImmutableArray<T> array,
         Func<T, bool>? predicateWithoutArg,

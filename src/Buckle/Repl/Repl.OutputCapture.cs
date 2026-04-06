@@ -22,6 +22,8 @@ public abstract partial class Repl {
         /// <value>Ascii.</value>
         public override Encoding Encoding { get { return Encoding.UTF8; } }
 
+        internal int height => Console.WindowHeight;
+
         public override void Write(string output) {
             Console.Write(output);
         }

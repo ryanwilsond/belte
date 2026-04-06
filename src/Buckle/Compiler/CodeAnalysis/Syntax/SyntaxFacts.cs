@@ -53,6 +53,7 @@ public static class SyntaxFacts {
             case SyntaxKind.PipePipeToken:
                 return 4;
             case SyntaxKind.QuestionQuestionToken:
+            case SyntaxKind.QuestionExclamationToken:
                 return 3;
             default:
                 return 0;
@@ -68,6 +69,8 @@ public static class SyntaxFacts {
         switch (type) {
             case SyntaxKind.TypeOfKeyword:
             case SyntaxKind.NameOfKeyword:
+            case SyntaxKind.SizeOfKeyword:
+            case SyntaxKind.StackAllocKeyword:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.PeriodToken:
@@ -79,6 +82,10 @@ public static class SyntaxFacts {
             case SyntaxKind.ExclamationToken:
             case SyntaxKind.NewKeyword:
                 return 18;
+            // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
+            case SyntaxKind.PeriodPeriodToken:
+            case SyntaxKind.QuestionPeriodPeriodToken:
+                return 15;
             default:
                 return 0;
         }
@@ -99,6 +106,8 @@ public static class SyntaxFacts {
             case SyntaxKind.TildeToken:
             case SyntaxKind.AmpersandToken:
             case SyntaxKind.AsteriskToken:
+            case SyntaxKind.DollarToken:
+            case SyntaxKind.DollarQuestionToken:
                 return 17;
             default:
                 return 0;
@@ -163,6 +172,7 @@ public static class SyntaxFacts {
             "isnt" => SyntaxKind.IsntKeyword,
             "typeof" => SyntaxKind.TypeOfKeyword,
             "nameof" => SyntaxKind.NameOfKeyword,
+            "sizeof" => SyntaxKind.SizeOfKeyword,
             "struct" => SyntaxKind.StructKeyword,
             "class" => SyntaxKind.ClassKeyword,
             "new" => SyntaxKind.NewKeyword,
@@ -193,6 +203,19 @@ public static class SyntaxFacts {
             "explicit" => SyntaxKind.ExplicitKeyword,
             "extern" => SyntaxKind.ExternKeyword,
             "pinned" => SyntaxKind.PinnedKeyword,
+            "stackalloc" => SyntaxKind.StackAllocKeyword,
+            "switch" => SyntaxKind.SwitchKeyword,
+            "case" => SyntaxKind.CaseKeyword,
+            "default" => SyntaxKind.DefaultKeyword,
+            "goto" => SyntaxKind.GotoKeyword,
+            "enum" => SyntaxKind.EnumKeyword,
+            "il" => SyntaxKind.ILKeyword,
+            "noverify" => SyntaxKind.NoVerifyKeyword,
+            "elif" => SyntaxKind.ElifKeyword,
+            "endif" => SyntaxKind.EndifKeyword,
+            "define" => SyntaxKind.DefineKeyword,
+            "undef" => SyntaxKind.UndefKeyword,
+            "flags" => SyntaxKind.FlagsKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -205,6 +228,8 @@ public static class SyntaxFacts {
     internal static string GetText(SyntaxKind type) {
         return type switch {
             SyntaxKind.PeriodToken => ".",
+            SyntaxKind.PeriodPeriodToken => "..",
+            SyntaxKind.QuestionPeriodPeriodToken => "?..",
             SyntaxKind.CommaToken => ",",
             SyntaxKind.PlusToken => "+",
             SyntaxKind.MinusToken => "-",
@@ -240,6 +265,7 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanToken => ">",
             SyntaxKind.PercentToken => "%",
             SyntaxKind.QuestionQuestionToken => "??",
+            SyntaxKind.QuestionExclamationToken => "?!",
             SyntaxKind.LessThanEqualsToken => "<=",
             SyntaxKind.GreaterThanEqualsToken => ">=",
             SyntaxKind.AmpersandEqualsToken => "&=",
@@ -255,10 +281,13 @@ public static class SyntaxFacts {
             SyntaxKind.LessThanLessThanEqualsToken => "<<=",
             SyntaxKind.PercentEqualsToken => "%=",
             SyntaxKind.QuestionQuestionEqualsToken => "??=",
+            SyntaxKind.QuestionExclamationEqualsToken => "?!=",
             SyntaxKind.QuestionPeriodToken => "?.",
             SyntaxKind.QuestionOpenBracketToken => "?[",
             SyntaxKind.HashToken => "#",
             SyntaxKind.MinusGreaterThanToken => "->",
+            SyntaxKind.DollarToken => "$",
+            SyntaxKind.DollarQuestionToken => "$?",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",
@@ -280,6 +309,7 @@ public static class SyntaxFacts {
             SyntaxKind.IsntKeyword => "isnt",
             SyntaxKind.TypeOfKeyword => "typeof",
             SyntaxKind.NameOfKeyword => "nameof",
+            SyntaxKind.SizeOfKeyword => "sizeof",
             SyntaxKind.StructKeyword => "struct",
             SyntaxKind.ClassKeyword => "class",
             SyntaxKind.NewKeyword => "new",
@@ -310,6 +340,19 @@ public static class SyntaxFacts {
             SyntaxKind.ExplicitKeyword => "explicit",
             SyntaxKind.ExternKeyword => "extern",
             SyntaxKind.PinnedKeyword => "pinned",
+            SyntaxKind.StackAllocKeyword => "stackalloc",
+            SyntaxKind.SwitchKeyword => "switch",
+            SyntaxKind.CaseKeyword => "case",
+            SyntaxKind.DefaultKeyword => "default",
+            SyntaxKind.GotoKeyword => "goto",
+            SyntaxKind.EnumKeyword => "enum",
+            SyntaxKind.ILKeyword => "il",
+            SyntaxKind.NoVerifyKeyword => "noverify",
+            SyntaxKind.ElifKeyword => "elif",
+            SyntaxKind.EndifKeyword => "endif",
+            SyntaxKind.DefineKeyword => "define",
+            SyntaxKind.UndefKeyword => "undef",
+            SyntaxKind.FlagsKeyword => "flags",
             _ => null,
         };
     }
@@ -345,6 +388,7 @@ public static class SyntaxFacts {
                 => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
+            SyntaxKind.QuestionExclamationEqualsToken => SyntaxKind.QuestionExclamationToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
@@ -370,6 +414,7 @@ public static class SyntaxFacts {
                 => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
             SyntaxKind.PercentToken => SyntaxKind.PercentEqualsToken,
             SyntaxKind.QuestionQuestionToken => SyntaxKind.QuestionQuestionEqualsToken,
+            SyntaxKind.QuestionExclamationToken => SyntaxKind.QuestionExclamationEqualsToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }

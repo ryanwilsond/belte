@@ -35,6 +35,7 @@ public enum SyntaxKind : ushort {
     ColonColonToken,
     PeriodToken,
     HashToken,
+    DollarToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -66,10 +67,16 @@ public enum SyntaxKind : ushort {
     QuestionPeriodToken,
     QuestionOpenBracketToken,
     MinusGreaterThanToken,
+    DollarQuestionToken,
+    PeriodPeriodToken,
+    QuestionPeriodPeriodToken,
+    QuestionExclamationToken,
+    QuestionExclamationEqualsToken,
 
     // Keywords
     TypeOfKeyword,
     NameOfKeyword,
+    SizeOfKeyword,
     NullKeyword,
     NullptrKeyword,
     TrueKeyword,
@@ -119,6 +126,19 @@ public enum SyntaxKind : ushort {
     ExplicitKeyword,
     ExternKeyword,
     PinnedKeyword,
+    StackAllocKeyword,
+    CaseKeyword,
+    DefaultKeyword,
+    SwitchKeyword,
+    GotoKeyword,
+    EnumKeyword,
+    ILKeyword,
+    NoVerifyKeyword,
+    ElifKeyword,
+    EndifKeyword,
+    DefineKeyword,
+    UndefKeyword,
+    FlagsKeyword,
 
     // Tokens with text
     BadToken,
@@ -134,6 +154,13 @@ public enum SyntaxKind : ushort {
     MultiLineCommentTrivia,
     SkippedTokensTrivia,
     BadDirectiveTrivia,
+    IfDirectiveTrivia,
+    ElifDirectiveTrivia,
+    ElseDirectiveTrivia,
+    EndIfDirectiveTrivia,
+    DefineDirectiveTrivia,
+    UndefDirectiveTrivia,
+    DisabledTextTrivia,
 
     // Expressions
     ParenthesizedExpression,
@@ -155,33 +182,44 @@ public enum SyntaxKind : ushort {
     LiteralExpression,
     TypeOfExpression,
     NameOfExpression,
+    SizeOfExpression,
     CallExpression,
     ReferenceExpression,
     MemberAccessExpression,
     ObjectCreationExpression,
     ArrayCreationExpression,
+    CascadeListExpression,
+    CascadeExpression,
+    StackAllocExpression,
+    ImplicitEnumFieldExpression,
 
     // Statements
     EmptyStatement,
     BlockStatement,
+    InlineILStatement,
+    ILInstruction,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
-    // Jump statements
+    // Control flow statements
     BreakStatement,
     ContinueStatement,
     ReturnStatement,
     WhileStatement,
     DoWhileStatement,
     ForStatement,
-
-    // Checked statements
     IfStatement,
     ElseClause,
     TryStatement,
     CatchClause,
     FinallyClause,
+    SwitchStatement,
+    SwitchSection,
+    CaseSwitchLabel,
+    DefaultSwitchLabel,
+    MultiCaseSwitchLabel,
+    GotoStatement,
 
     // Directives
     UsingDirective,
@@ -195,6 +233,8 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    EnumDeclaration,
+    EnumMemberDeclaration,
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,

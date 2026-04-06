@@ -19,6 +19,8 @@ internal sealed class TypeCompilationState {
     private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
     private Dictionary<MethodSymbol, MethodSymbol> _wrappers;
 
+    internal ImportChain currentImportChain;
+
     internal TypeCompilationState(
         NamedTypeSymbol type,
         Compilation compilation,

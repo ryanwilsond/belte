@@ -35,6 +35,9 @@ internal static partial class ConstraintsHelpers {
                         var constraintTypeParameter = (TemplateParameterSymbol)strippedConstraintType;
                         ConsList<TemplateParameterSymbol> constraintsInProgress;
 
+                        if (constraintTypeParameter.underlyingType.specialType != SpecialType.Type)
+                            diagnostics.Push(Error.CannotDeriveTemplate(errorLocation, constraintTypeParameter));
+
                         if (constraintTypeParameter.containingSymbol == templateParameter.containingSymbol) {
                             if (inProgress.ContainsReference(constraintTypeParameter)) {
                                 diagnostics.Push(
@@ -101,6 +104,10 @@ internal static partial class ConstraintsHelpers {
                         break;
                     case TypeKind.Array:
                         constraintEffectiveBase = CorLibrary.GetSpecialType(SpecialType.Array);
+                        constraintDeducedBase = constraintType.type;
+                        break;
+                    case TypeKind.Enum:
+                        constraintEffectiveBase = CorLibrary.GetSpecialType(SpecialType.Enum);
                         constraintDeducedBase = constraintType.type;
                         break;
                     case TypeKind.Error:
@@ -450,7 +457,10 @@ internal static partial class ConstraintsHelpers {
                         binary.left.type,
                         EvaluateConstraintCore(binary.right, names, templateArguments, diagnostics),
                         binary.right.type,
-                        binary.operatorKind, binary.left.Type());
+                        binary.operatorKind,
+                        binary.left.Type(),
+                        binary.syntax.location,
+                        diagnostics);
                 case BoundKind.IsOperator:
                     var isOperator = (BoundIsOperator)expression;
                     return ConstantFolding.FoldIs(
@@ -462,6 +472,7 @@ internal static partial class ConstraintsHelpers {
                     return ConstantFolding.FoldNullCoalescing(
                         EvaluateConstraintCore(nullCoalescing.left, names, templateArguments, diagnostics),
                         EvaluateConstraintCore(nullCoalescing.right, names, templateArguments, diagnostics),
+                        nullCoalescing.isPropagation,
                         nullCoalescing.Type());
                 case BoundKind.NullAssertOperator:
                     var nullAssert = (BoundNullAssertOperator)expression;
@@ -535,7 +546,8 @@ internal static partial class ConstraintsHelpers {
         if (templateArgument.isConstant)
             return true;
 
-        if (templateArgument.type.IsVoidType()) {
+        if (templateArgument.type.IsVoidType() ||
+            templateArgument.type.type.StrippedType().IsPointerOrFunctionPointer()) {
             diagnostics.Push(Error.BadTemplateArgument(location, templateArgument.type.type));
             return false;
         }

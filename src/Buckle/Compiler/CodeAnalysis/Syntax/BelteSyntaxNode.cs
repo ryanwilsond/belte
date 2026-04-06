@@ -23,7 +23,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
 
     internal abstract void Accept(SyntaxVisitor visitor);
 
-    private static SyntaxTree ComputeSyntaxTree(BelteSyntaxNode node) {
+    private static SyntaxTree ComputeSyntaxTree(BelteSyntaxNode node, ParseOptions options = null) {
         ArrayBuilder<BelteSyntaxNode> nodes = null;
         SyntaxTree tree;
 
@@ -36,7 +36,7 @@ public abstract class BelteSyntaxNode : SyntaxNode {
             var parent = node.parent;
 
             if (parent is null) {
-                Interlocked.CompareExchange(ref node._syntaxTree, SyntaxTree.CreateWithoutClone(node), null);
+                Interlocked.CompareExchange(ref node._syntaxTree, SyntaxTree.CreateWithoutClone(node, options), null);
                 tree = node._syntaxTree;
                 break;
             }

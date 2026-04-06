@@ -170,6 +170,20 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
+        foreach (var directive in compilationUnit.usings) {
+            if (directive.globalKeyword is not null) {
+                hasGlobalUsings = true;
+
+                // TODO Do we care about this
+                // if (hasUsings && !reportedGlobalUsingOutOfOrder) {
+                //     reportedGlobalUsingOutOfOrder = true;
+                //     diagnostics.Add(ErrorCode.ERR_GlobalUsingOutOfOrder, directive.globalKeyword.GetLocation());
+                // }
+            } else {
+                hasUsings = true;
+            }
+        }
+
         return new RootSingleNamespaceDeclaration(
             hasGlobalUsings: hasGlobalUsings,
             hasUsings: hasUsings,
@@ -185,6 +199,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         switch (name.kind) {
             case SyntaxKind.TemplateName:
                 return false;
+            case SyntaxKind.AliasQualifiedName:
+                return true;
             case SyntaxKind.QualifiedName:
                 var qualifiedName = (QualifiedNameSyntax)name;
                 return ContainsAlias(qualifiedName.left);
@@ -197,6 +213,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         switch (name.kind) {
             case SyntaxKind.TemplateName:
                 return true;
+            case SyntaxKind.AliasQualifiedName:
+                return ContainsTemplate(((AliasQualifiedNameSyntax)name).name);
             case SyntaxKind.QualifiedName:
                 var qualifiedName = (QualifiedNameSyntax)name;
                 return ContainsTemplate(qualifiedName.left) || ContainsTemplate(qualifiedName.right);
@@ -247,7 +265,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].text));
 
         foreach (var directive in node.usings) {
-            if (directive.globalKeyword.kind == SyntaxKind.GlobalKeyword) {
+            if (directive.globalKeyword?.kind == SyntaxKind.GlobalKeyword) {
                 diagnostics.Push(Error.GlobalUsingInNamespace(directive.globalKeyword.location));
                 break;
             }
@@ -270,6 +288,58 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
     internal override SingleNamespaceOrTypeDeclaration VisitStructDeclaration(StructDeclarationSyntax node) {
         return VisitTypeDeclaration(node, DeclarationKind.Struct);
+    }
+
+    internal override SingleNamespaceOrTypeDeclaration VisitEnumDeclaration(EnumDeclarationSyntax node) {
+        var members = node.members;
+
+        var declFlags = node.attributeLists.Any() ?
+            SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes :
+            SingleTypeDeclaration.TypeDeclarationFlags.None;
+
+        if (node.baseType is not null)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+
+        var memberNames = GetEnumMemberNames(node, ref declFlags);
+
+        var diagnostics = BelteDiagnosticQueue.GetInstance();
+        var modifiers = ModifierHelpers.CreateModifiers(node.modifiers, diagnostics, out _);
+
+        return new SingleTypeDeclaration(
+            kind: DeclarationKind.Enum,
+            name: node.identifier.text,
+            arity: 0,
+            modifiers: modifiers,
+            declFlags: declFlags,
+            syntaxReference: new SyntaxReference(node),
+            nameLocation: node.identifier.location,
+            memberNames: memberNames,
+            children: ImmutableArray<SingleTypeDeclaration>.Empty,
+            diagnostics: diagnostics.ToImmutableAndFree()
+        );
+    }
+
+    private BoxedMemberNames GetEnumMemberNames(
+        EnumDeclarationSyntax enumDeclaration,
+        ref SingleTypeDeclaration.TypeDeclarationFlags declFlags) {
+        var members = enumDeclaration.enumMembers;
+        var cnt = members.Count;
+
+        if (cnt != 0)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasAnyNonTypeMembers;
+
+        var anyMemberHasAttributes = members.Any(static m => m.attributeLists.Any());
+
+        if (anyMemberHasAttributes)
+            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.AnyMemberHasAttributes;
+
+        return GetOrComputeMemberNames(
+            enumDeclaration,
+            static (memberNamesBuilder, members) => {
+                foreach (var member in members)
+                    memberNamesBuilder.Add(member.identifier.text);
+            },
+            members);
     }
 
     private SingleTypeDeclaration VisitTypeDeclaration(TypeDeclarationSyntax node, DeclarationKind kind) {

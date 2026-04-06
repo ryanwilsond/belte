@@ -8,6 +8,7 @@ public enum SpecialType : byte {
     None,
     Object,
     Array,
+    Enum,
     Any,
     String,
     Bool,
@@ -40,4 +41,6 @@ public enum SpecialType : byte {
     Rect,
     Texture,
     Sound,
+    ValueType,
+    TypedReference,
 }

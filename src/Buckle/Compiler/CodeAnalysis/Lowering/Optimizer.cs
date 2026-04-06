@@ -31,7 +31,8 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
             // TODO This only works on surface level and breaks on nested trys
             // TODO Will have to rewrite the CFG builder from scratch fix trys later
-            if (!reachableStatements.Contains(statement) && statement.kind != BoundKind.TryStatement) {
+            if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
+                BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
                 var statementToRemove = statement;
                 PotentiallyReportDeadCode(statementToRemove);
                 builder.RemoveAt(i);
@@ -51,8 +52,9 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
                 return;
 
-            if (seenScopes.Add(syntax.parent))
-                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+            // TODO CFG is broken so these warnings are not being triggered correctly
+            // if (seenScopes.Add(syntax.parent))
+            //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
         }
     }
 

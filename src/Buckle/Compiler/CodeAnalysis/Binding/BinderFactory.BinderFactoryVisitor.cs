@@ -115,6 +115,28 @@ internal sealed partial class BinderFactory {
             }
         }
 
+        internal override Binder VisitEnumDeclaration(EnumDeclarationSyntax parent) {
+            var inBody = LookupPosition.IsBetweenTokens(_position, parent.openBrace, parent.closeBrace);
+            // TODO Attributes
+            // LookupPosition.IsInAttributeSpecification(_position, parent.attributeLists);
+
+            if (!inBody)
+                return VisitCore(parent.parent);
+
+            var key = CreateBinderCacheKey(parent, usage: NodeUsage.Normal);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                var outer = VisitCore(parent.parent);
+                var container = ((NamespaceOrTypeSymbol)outer.containingMember)
+                    .GetSourceTypeMember(parent.identifier.text, 0, SyntaxKind.EnumDeclaration, parent);
+
+                resultBinder = new InContainerBinder(container, outer);
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
         internal override Binder VisitNamespaceDeclaration(NamespaceDeclarationSyntax parent) {
             if (!SyntaxFacts.IsInNamespaceDeclaration(_position, parent))
                 return VisitCore(parent.parent);

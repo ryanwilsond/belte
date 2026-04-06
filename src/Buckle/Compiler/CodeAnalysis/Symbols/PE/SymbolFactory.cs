@@ -107,4 +107,21 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
         return new TypeWithAnnotations(type);
         // return TypeWithAnnotations.Create(type, NullableAnnotation.Oblivious, CSharpCustomModifier.Convert(customModifiers));
     }
+
+    internal override TypeSymbol MakeFunctionPointerTypeSymbol(
+        PEModuleSymbol moduleSymbol,
+        CallingConvention callingConvention,
+        ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
+        return FunctionPointerTypeSymbol.CreateFromMetadata(moduleSymbol, callingConvention, retAndParamTypes);
+    }
+
+    internal override TypeSymbol MakePointerTypeSymbol(
+        PEModuleSymbol moduleSymbol,
+        TypeSymbol type,
+        ImmutableArray<ModifierInfo<TypeSymbol>> customModifiers) {
+        if (type is UnsupportedMetadataTypeSymbol)
+            return type;
+
+        return new PointerTypeSymbol(CreateType(type, customModifiers));
+    }
 }

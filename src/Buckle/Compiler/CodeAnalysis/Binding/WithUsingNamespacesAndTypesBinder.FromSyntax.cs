@@ -10,8 +10,12 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder {
         private readonly BelteSyntaxNode _declarationSyntax;
         private ImmutableArray<NamespaceOrTypeAndUsingDirective> _lazyUsings;
 
-        internal FromSyntax(SourceNamespaceSymbol declaringSymbol, BelteSyntaxNode declarationSyntax, Binder next)
-            : base(next) {
+        internal FromSyntax(
+            SourceNamespaceSymbol declaringSymbol,
+            BelteSyntaxNode declarationSyntax,
+            Binder next,
+            bool withImportChainEntry)
+            : base(next, withImportChainEntry) {
             _declaringSymbol = declaringSymbol;
             _declarationSyntax = declarationSyntax;
         }
@@ -26,6 +30,10 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder {
             }
 
             return _lazyUsings;
+        }
+
+        private protected override Imports GetImports() {
+            return _declaringSymbol.GetImports(_declarationSyntax, basesBeingResolved: null);
         }
     }
 }

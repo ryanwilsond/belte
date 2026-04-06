@@ -104,6 +104,7 @@ internal sealed partial class OverloadResolution {
                 result.results.Clear();
                 var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
                 CorLibrary.GetAllBuiltInBinaryOperators(kind, operators);
+                GetEnumOperations(kind, left, right, operators);
                 CandidateOperators(operators, left, right, result.results);
                 operators.Free();
             }
@@ -133,6 +134,7 @@ internal sealed partial class OverloadResolution {
                 result.results.Clear();
                 var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
                 CorLibrary.GetAllBuiltInUnaryOperators(kind, operators);
+                GetEnumOperations(kind, operand, operators);
                 CandidateOperators(operators, operand, result.results);
                 operators.Free();
             }
@@ -197,6 +199,137 @@ internal sealed partial class OverloadResolution {
             result.Clear();
 
             PerformObjectCreationOverloadResolution(results, constructors, arguments, true);
+        }
+    }
+
+    private void GetEnumOperations(
+        UnaryOperatorKind kind,
+        BoundExpression operand,
+        ArrayBuilder<UnaryOperatorSignature> operators) {
+        var enumType = operand.type;
+
+        if (enumType is null)
+            return;
+
+        enumType = enumType.StrippedType();
+
+        if (!enumType.IsValidEnumType())
+            return;
+
+        var nullableEnum = CorLibrary.GetOrCreateNullableType(enumType);
+
+        switch (kind) {
+            case UnaryOperatorKind.PostfixIncrement:
+            case UnaryOperatorKind.PostfixDecrement:
+            case UnaryOperatorKind.PrefixIncrement:
+            case UnaryOperatorKind.PrefixDecrement:
+            case UnaryOperatorKind.BitwiseComplement:
+                operators.Add(new UnaryOperatorSignature(kind | UnaryOperatorKind.Enum, enumType, enumType));
+                operators.Add(new UnaryOperatorSignature(kind | UnaryOperatorKind.Lifted | UnaryOperatorKind.Enum, nullableEnum, nullableEnum));
+                break;
+        }
+    }
+
+    private void GetEnumOperations(BinaryOperatorKind kind, BoundExpression left, BoundExpression right, ArrayBuilder<BinaryOperatorSignature> results) {
+        switch (kind) {
+            case BinaryOperatorKind.Multiplication:
+            case BinaryOperatorKind.Division:
+            case BinaryOperatorKind.Modulo:
+            case BinaryOperatorKind.RightShift:
+            case BinaryOperatorKind.UnsignedRightShift:
+            case BinaryOperatorKind.LeftShift:
+            case BinaryOperatorKind.ConditionalAnd:
+            case BinaryOperatorKind.ConditionalOr:
+                return;
+        }
+
+        var leftType = left.type;
+
+        if (leftType is not null)
+            leftType = leftType.StrippedType();
+
+        var rightType = right.type;
+
+        if (rightType is not null)
+            rightType = rightType.StrippedType();
+
+        bool useIdentityConversion;
+        switch (kind) {
+            case BinaryOperatorKind.And:
+            case BinaryOperatorKind.Or:
+            case BinaryOperatorKind.Xor:
+                useIdentityConversion = false;
+                break;
+            case BinaryOperatorKind.Addition:
+                useIdentityConversion = true;
+                break;
+            case BinaryOperatorKind.Subtraction:
+                useIdentityConversion = true;
+                break;
+            case BinaryOperatorKind.Equal:
+            case BinaryOperatorKind.NotEqual:
+            case BinaryOperatorKind.GreaterThan:
+            case BinaryOperatorKind.LessThan:
+            case BinaryOperatorKind.GreaterThanOrEqual:
+            case BinaryOperatorKind.LessThanOrEqual:
+                useIdentityConversion = true;
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
+
+        if (leftType is not null)
+            GetEnumOperation(kind, leftType, right, results);
+
+        if (rightType is not null && (leftType is null ||
+            !(useIdentityConversion ? Conversions.HasIdentityConversion(rightType, leftType) : rightType.Equals(leftType)))) {
+            GetEnumOperation(kind, rightType, right, results);
+        }
+    }
+
+
+    private void GetEnumOperation(
+        BinaryOperatorKind kind,
+        TypeSymbol enumType,
+        BoundExpression right,
+        ArrayBuilder<BinaryOperatorSignature> operators) {
+        if (!enumType.IsValidEnumType())
+            return;
+
+        var underlying = enumType.GetEnumUnderlyingType();
+
+        var nullableEnum = CorLibrary.GetOrCreateNullableType(enumType);
+        var nullableUnderlying = CorLibrary.GetOrCreateNullableType(underlying);
+
+        switch (kind) {
+            case BinaryOperatorKind.Addition:
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.EnumAndUnderlyingAddition, enumType, underlying, enumType));
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.UnderlyingAndEnumAddition, underlying, enumType, enumType));
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.LiftedEnumAndUnderlyingAddition, nullableEnum, nullableUnderlying, nullableEnum));
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.LiftedUnderlyingAndEnumAddition, nullableUnderlying, nullableEnum, nullableEnum));
+                break;
+            case BinaryOperatorKind.Subtraction:
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.EnumSubtraction, enumType, enumType, underlying));
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.EnumAndUnderlyingSubtraction, enumType, underlying, enumType));
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.LiftedEnumSubtraction, nullableEnum, nullableEnum, nullableUnderlying));
+                operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.LiftedEnumAndUnderlyingSubtraction, nullableEnum, nullableUnderlying, nullableEnum));
+                break;
+            case BinaryOperatorKind.Equal:
+            case BinaryOperatorKind.NotEqual:
+            case BinaryOperatorKind.GreaterThan:
+            case BinaryOperatorKind.LessThan:
+            case BinaryOperatorKind.GreaterThanOrEqual:
+            case BinaryOperatorKind.LessThanOrEqual:
+                var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+                operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Enum, enumType, enumType, boolean));
+                operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Lifted | BinaryOperatorKind.Enum, nullableEnum, nullableEnum, boolean));
+                break;
+            case BinaryOperatorKind.And:
+            case BinaryOperatorKind.Or:
+            case BinaryOperatorKind.Xor:
+                operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Enum, enumType, enumType, enumType));
+                operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Lifted | BinaryOperatorKind.Enum, nullableEnum, nullableEnum, nullableEnum));
+                break;
         }
     }
 
@@ -1731,6 +1864,16 @@ internal sealed partial class OverloadResolution {
     }
 
     private static BetterResult MoreSpecificType(TypeSymbol t1, TypeSymbol t2) {
+        // This should only happen with PE symbols
+        if (t1.IsErrorType() && t2.IsErrorType())
+            return BetterResult.Neither;
+
+        if (t1.IsErrorType())
+            return BetterResult.Right;
+
+        if (t2.IsErrorType())
+            return BetterResult.Left;
+
         var t1IsTypeParameter = t1.IsTemplateParameter();
         var t2IsTypeParameter = t2.IsTemplateParameter();
 
@@ -2156,20 +2299,14 @@ internal sealed partial class OverloadResolution {
         ref bool hasAnyRefOmittedArgument) {
         var paramRefKind = parameter.refKind;
 
-        if (paramRefKind == RefKind.Ref) {
-            if (argRefKind == RefKind.None)
-                return RefKind.None;
-
-            if (argRefKind == RefKind.Ref)
-                return RefKind.Ref;
-        } else if (paramRefKind == RefKind.RefConst && argRefKind is RefKind.None or RefKind.Ref) {
+        if (paramRefKind == RefKind.RefConst && argRefKind is RefKind.None or RefKind.Ref)
             return argRefKind;
-        }
 
-        if (paramRefKind == RefKind.Ref && argRefKind == RefKind.None) {
-            hasAnyRefOmittedArgument = true;
-            return RefKind.None;
-        }
+        // TODO Consider allowing this for COM interop?
+        // if (paramRefKind == RefKind.Ref && argRefKind == RefKind.None) {
+        //     hasAnyRefOmittedArgument = true;
+        //     return RefKind.None;
+        // }
 
         return paramRefKind;
     }

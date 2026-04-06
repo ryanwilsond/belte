@@ -6,19 +6,17 @@
 
 ## Samples List
 
-Each sub-directory contains a single sample. In every sample, execution starts in the `Program.blt` file. (Note that
-this is a convention, and not required.)
-
-| Directory | Command Example | Description |
+| Directory | Command to Run | Description |
 |-|-|-|
 | [samples/HelloWorld](HelloWorld/Program.blt) | `buckle samples/HelloWorld` | Hello, world! program. |
 | [samples/Echo](Echo/Program.blt) | `buckle samples/Echo -- arg1 arg2` | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | `buckle samples/GuessingGame` | Random number guessing game. |
-| [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | 2D pong game. |
+| [samples/Xor](Xor/Program.blt) | `buckle samples/Xor` | Findings missing numbers from list using xor. |
 | [samples/Donut](Donut/Program.blt) | `buckle samples/Donut` | ASCII spinning donut. |
+| [samples/Pong](Pong/Program.blt) | `buckle samples/Pong --type=graphics` | 2D pong game. |
 | [samples/Snake](Snake/Program.blt) | `buckle samples/Snake --type=graphics` | Snake game. |
-| [samples/Platformer](Platformer/Program.blt) | `buckle samples/Platformer --type=graphics` | Platformer game. |
 | [samples/Win32](Win32/Program.blt) | `buckle samples/Win32` | Win32 api window. |
+| [samples/Socket](Socket/Program.blt) | `buckle samples/Socket` | Simple socket connection. |
 
 ## Running a Sample Using the Executor or Evaluator
 
@@ -44,6 +42,18 @@ If something goes wrong, the Evaluator provides much better debug information, a
 (which is why the Executor is the default end point). To use the Evaluator, add the `--evaluate` flag.
 
 ## Compiling a Sample
+
+Use the `-d` option to output a .NET dll that is ready to run. You can optionally specify an output path for the dll
+with `-o <path/to/dll>`. Run the dll using `dotnet <path/to/dll>`.
+
+E.g.
+
+```bash
+buckle samples/Donut -d -o donut.dll
+dotnet donut.dll
+```
+
+### Building using `dotnet build`
 
 > Note: using `dotnet build` or `dotnet run` commands builds the Buckle compiler before building the sample project,
 > potentially slowing down build times

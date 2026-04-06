@@ -56,6 +56,10 @@ internal static class SyntaxNodeExtensions {
             return;
 
         var children = node.AsNode().ChildNodesAndTokens();
+
+        if (children.Count == 0)
+            return;
+
         var lastChild = children.Last();
 
         foreach (var child in children)

@@ -12,6 +12,8 @@ internal static partial class DeclarationKindExtensions {
                 return TypeKind.Class;
             case DeclarationKind.Struct:
                 return TypeKind.Struct;
+            case DeclarationKind.Enum:
+                return TypeKind.Enum;
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);
         }

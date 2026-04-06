@@ -17,4 +17,17 @@ internal static class DictionaryExtensions {
             return value;
         }
     }
+
+    internal static TValue GetOrAdd<TKey, TValue>(
+        this Dictionary<TKey, TValue> dictionary,
+        TKey key,
+        TValue value)
+        where TKey : notnull {
+        if (dictionary.TryGetValue(key, out var existingValue)) {
+            return existingValue;
+        } else {
+            dictionary.Add(key, value);
+            return value;
+        }
+    }
 }

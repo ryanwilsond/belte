@@ -144,6 +144,10 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return typeKind == TypeKind.Struct;
     }
 
+    internal bool IsEnumType() {
+        return typeKind == TypeKind.Enum;
+    }
+
     internal bool IsTemplateParameter() {
         return typeKind == TypeKind.TemplateParameter;
     }
@@ -160,6 +164,12 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     internal TypeSymbol GetNonErrorGuess() {
         return ExtendedErrorTypeSymbol.ExtractNonErrorType(this);
     }
+
+    internal abstract bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result);
 
     internal TypeSymbol UnderlyingTemplateTypeOrSelf() {
         if (kind != SymbolKind.TemplateParameter)
@@ -218,7 +228,12 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Error:
                 return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
             case TypeKind.Array:
+            case TypeKind.Enum:
+            case TypeKind.Pointer:
+            case TypeKind.FunctionPointer:
                 return baseType;
+            case TypeKind.Primitive:
+                return null;
             default:
                 throw ExceptionUtilities.UnexpectedValue(typeKind);
         }

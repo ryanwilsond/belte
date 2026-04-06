@@ -17,6 +17,7 @@ internal sealed partial class BoundProgram {
         ImmutableArray<NamedTypeSymbol> types,
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes,
+        ImmutableDictionary<FieldSymbol, NamedTypeSymbol> fixedImplementationTypes,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
         BoundProgram previous = null) {
@@ -29,6 +30,7 @@ internal sealed partial class BoundProgram {
         this.entryPoint = entryPoint;
         this.updatePoint = updatePoint;
         this.previous = previous;
+        this.fixedImplementationTypes = fixedImplementationTypes;
     }
 
     internal Compilation compilation { get; }
@@ -42,6 +44,8 @@ internal sealed partial class BoundProgram {
     internal ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts { get; }
 
     internal MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> nestedTypes { get; }
+
+    internal ImmutableDictionary<FieldSymbol, NamedTypeSymbol> fixedImplementationTypes { get; }
 
     internal MethodSymbol entryPoint { get; }
 

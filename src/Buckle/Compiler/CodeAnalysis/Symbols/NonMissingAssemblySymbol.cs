@@ -73,4 +73,24 @@ internal abstract class NonMissingAssemblySymbol : AssemblySymbol {
         System.Diagnostics.Debug.Assert(TypeSymbol.Equals(result1, result, TypeCompareKind.ConsiderEverything));
         return result1;
     }
+
+    internal sealed override NamedTypeSymbol? LookupDeclaredTopLevelMetadataType(ref MetadataTypeName emittedName) {
+        NamedTypeSymbol result = null;
+
+        result = LookupTopLevelMetadataTypeInCache(ref emittedName);
+
+        if (result is not null) {
+            if (!result.IsErrorType() && (object)result.containingAssembly == (object)this)
+                return result;
+
+            return null;
+        } else {
+            result = LookupDeclaredTopLevelMetadataTypeInModules(ref emittedName);
+
+            if (result is null)
+                return null;
+
+            return CacheTopLevelMetadataType(ref emittedName, result);
+        }
+    }
 }

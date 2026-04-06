@@ -369,18 +369,434 @@ tryAgain:
         ref BlobReader ppSig,
         SignatureTypeCode typeCode,
         out bool refersToNoPiaLocalType) {
-        // TODO
+        TypeSymbol typeSymbol;
+        int paramPosition;
+        ImmutableArray<ModifierInfo<TypeSymbol>> modifiers;
+
         refersToNoPiaLocalType = false;
-        return null;
+
+        switch (typeCode) {
+            case SignatureTypeCode.Void:
+            case SignatureTypeCode.Boolean:
+            case SignatureTypeCode.SByte:
+            case SignatureTypeCode.Byte:
+            case SignatureTypeCode.Int16:
+            case SignatureTypeCode.UInt16:
+            case SignatureTypeCode.Int32:
+            case SignatureTypeCode.UInt32:
+            case SignatureTypeCode.Int64:
+            case SignatureTypeCode.UInt64:
+            case SignatureTypeCode.Single:
+            case SignatureTypeCode.Double:
+            case SignatureTypeCode.Char:
+            case SignatureTypeCode.String:
+            case SignatureTypeCode.IntPtr:
+            case SignatureTypeCode.UIntPtr:
+            case SignatureTypeCode.Object:
+            case SignatureTypeCode.TypedReference:
+                typeSymbol = GetSpecialType(typeCode.ToSpecialType());
+                break;
+            case SignatureTypeCode.TypeHandle:
+                typeSymbol = GetSymbolForTypeHandleOrThrow(
+                    ppSig.ReadTypeHandle(),
+                    out refersToNoPiaLocalType,
+                    allowTypeSpec: false,
+                    requireShortForm: true
+                );
+
+                break;
+            case SignatureTypeCode.Array:
+                int countOfDimensions;
+                int countOfSizes;
+                int countOfLowerBounds;
+
+                modifiers = DecodeModifiersOrThrow(ref ppSig, out typeCode);
+                typeSymbol = DecodeTypeOrThrow(ref ppSig, typeCode, out refersToNoPiaLocalType);
+
+                if (!ppSig.TryReadCompressedInteger(out countOfDimensions) ||
+                    !ppSig.TryReadCompressedInteger(out countOfSizes)) {
+                    throw new UnsupportedSignatureContent();
+                }
+
+                ImmutableArray<int> sizes;
+
+                if (countOfSizes == 0) {
+                    sizes = [];
+                } else {
+                    var builder = ArrayBuilder<int>.GetInstance(countOfSizes);
+
+                    for (var i = 0; i < countOfSizes; i++) {
+                        if (ppSig.TryReadCompressedInteger(out var size))
+                            builder.Add(size);
+                        else
+                            throw new UnsupportedSignatureContent();
+                    }
+
+                    sizes = builder.ToImmutableAndFree();
+                }
+
+                if (!ppSig.TryReadCompressedInteger(out countOfLowerBounds))
+                    throw new UnsupportedSignatureContent();
+
+                ImmutableArray<int> lowerBounds = default;
+
+                if (countOfLowerBounds == 0) {
+                    lowerBounds = [];
+                } else {
+                    var builder = countOfLowerBounds != countOfDimensions ? ArrayBuilder<int>.GetInstance(countOfLowerBounds, 0) : null;
+
+                    for (var i = 0; i < countOfLowerBounds; i++) {
+                        if (ppSig.TryReadCompressedSignedInteger(out var lowerBound)) {
+                            if (lowerBound != 0) {
+                                builder ??= ArrayBuilder<int>.GetInstance(countOfLowerBounds, 0);
+                                builder[i] = lowerBound;
+                            }
+                        } else {
+                            throw new UnsupportedSignatureContent();
+                        }
+                    }
+
+                    if (builder is not null)
+                        lowerBounds = builder.ToImmutableAndFree();
+                }
+
+                typeSymbol = GetMDArrayTypeSymbol(countOfDimensions, typeSymbol, modifiers, sizes, lowerBounds);
+                break;
+            case SignatureTypeCode.SZArray:
+                modifiers = DecodeModifiersOrThrow(ref ppSig, out typeCode);
+                typeSymbol = DecodeTypeOrThrow(ref ppSig, typeCode, out refersToNoPiaLocalType);
+                typeSymbol = GetSZArrayTypeSymbol(typeSymbol, modifiers);
+                break;
+            case SignatureTypeCode.Pointer:
+                modifiers = DecodeModifiersOrThrow(ref ppSig, out typeCode);
+                typeSymbol = DecodeTypeOrThrow(ref ppSig, typeCode, out refersToNoPiaLocalType);
+                typeSymbol = MakePointerTypeSymbol(typeSymbol, modifiers);
+                break;
+            case SignatureTypeCode.GenericTypeParameter:
+                if (!ppSig.TryReadCompressedInteger(out paramPosition))
+                    throw new UnsupportedSignatureContent();
+
+                typeSymbol = GetGenericTypeParamSymbol(paramPosition);
+                break;
+            case SignatureTypeCode.GenericMethodParameter:
+                if (!ppSig.TryReadCompressedInteger(out paramPosition))
+                    throw new UnsupportedSignatureContent();
+
+                typeSymbol = GetGenericMethodTypeParamSymbol(paramPosition);
+                break;
+            case SignatureTypeCode.GenericTypeInstance:
+                typeSymbol = DecodeGenericTypeInstanceOrThrow(ref ppSig, out refersToNoPiaLocalType);
+                break;
+            case SignatureTypeCode.FunctionPointer:
+                var signatureHeader = ppSig.ReadSignatureHeader();
+                var parameters = DecodeSignatureParametersOrThrow(
+                    ref ppSig,
+                    signatureHeader,
+                    typeParameterCount: out var typeParamCount,
+                    shouldProcessAllBytes: false,
+                    isFunctionPointerSignature: true
+                );
+
+                if (typeParamCount != 0)
+                    throw new UnsupportedSignatureContent();
+
+                typeSymbol = MakeFunctionPointerTypeSymbol(
+                    CallingConventionUtilities.FromSignatureConvention(signatureHeader.CallingConvention),
+                    ImmutableArray.Create(parameters)
+                );
+
+                break;
+            default:
+                throw new UnsupportedSignatureContent();
+        }
+
+        return typeSymbol;
+    }
+
+    private TypeSymbol GetGenericTypeParamSymbol(int position) {
+        var type = _typeContextOpt;
+
+        while (type is not null && (type.metadataArity - type.arity) > position)
+            type = type.containingSymbol as PENamedTypeSymbol;
+
+        if (type is null || type.metadataArity <= position)
+            return new UnsupportedMetadataTypeSymbol();
+
+        position -= type.metadataArity - type.arity;
+        return type.templateParameters[position];
+    }
+
+    private TypeSymbol GetGenericMethodTypeParamSymbol(int position) {
+        if (_methodContextOpt is null)
+            return new UnsupportedMetadataTypeSymbol();
+
+        var typeParameters = _methodContextOpt.templateParameters;
+
+        if (typeParameters.Length <= position)
+            return new UnsupportedMetadataTypeSymbol();
+
+        return typeParameters[position];
+    }
+
+    internal TypeSymbol GetSymbolForTypeHandleOrThrow(
+        EntityHandle handle,
+        out bool isNoPiaLocalType,
+        bool allowTypeSpec,
+        bool requireShortForm) {
+        if (handle.IsNil)
+            throw new UnsupportedSignatureContent();
+
+        TypeSymbol typeSymbol;
+        switch (handle.Kind) {
+            case HandleKind.TypeDefinition:
+                typeSymbol = GetTypeOfTypeDef((TypeDefinitionHandle)handle, out isNoPiaLocalType, isContainingType: false);
+                break;
+            case HandleKind.TypeReference:
+                typeSymbol = GetTypeOfTypeRef((TypeReferenceHandle)handle, out isNoPiaLocalType);
+                break;
+            case HandleKind.TypeSpecification:
+                if (!allowTypeSpec)
+                    throw new UnsupportedSignatureContent();
+
+                isNoPiaLocalType = false;
+                typeSymbol = GetTypeOfTypeSpec((TypeSpecificationHandle)handle);
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(handle.Kind);
+        }
+
+        if (requireShortForm && typeSymbol.specialType.HasShortFormSignatureEncoding())
+            throw new UnsupportedSignatureContent();
+
+        return typeSymbol;
     }
 
     private TypeSymbol GetTypeOfTypeDef(
         TypeDefinitionHandle typeDef,
         out bool isNoPiaLocalType,
         bool isContainingType) {
+        try {
+            var cache = GetTypeHandleToTypeMap();
+
+            if (cache is not null && cache.TryGetValue(typeDef, out var result)) {
+                if (!module.IsNestedTypeDefOrThrow(typeDef) && module.IsNoPiaLocalType(typeDef))
+                    isNoPiaLocalType = true;
+                else
+                    isNoPiaLocalType = false;
+
+                return result;
+            }
+
+            MetadataTypeName mdName;
+            var name = module.GetTypeDefNameOrThrow(typeDef);
+
+            if (module.IsNestedTypeDefOrThrow(typeDef)) {
+                var containerTypeDef = module.GetContainingTypeOrThrow(typeDef);
+
+                if (containerTypeDef.IsNil) {
+                    isNoPiaLocalType = false;
+                    return GetUnsupportedMetadataTypeSymbol();
+                }
+
+                var container = GetTypeOfTypeDef(containerTypeDef, out isNoPiaLocalType, isContainingType: true);
+
+                if (isNoPiaLocalType) {
+                    if (!isContainingType)
+                        isNoPiaLocalType = false;
+
+                    return GetUnsupportedMetadataTypeSymbol();
+                }
+
+                mdName = MetadataTypeName.FromTypeName(name);
+                return LookupNestedTypeDefSymbol(container, ref mdName);
+            }
+
+            var namespaceName = module.GetTypeDefNamespaceOrThrow(typeDef);
+
+            mdName = namespaceName.Length > 0
+                ? MetadataTypeName.FromNamespaceAndTypeName(namespaceName, name)
+                : MetadataTypeName.FromTypeName(name);
+
+            if (module.IsNoPiaLocalType(
+                typeDef,
+                out var interfaceGuid,
+                out var scope,
+                out var identifier)) {
+                isNoPiaLocalType = true;
+
+                if (!module.HasGenericParametersOrThrow(typeDef)) {
+                    var localTypeName = MetadataTypeName.FromNamespaceAndTypeName(mdName.namespaceName, mdName.typeName, forcedArity: 0);
+                    result = SubstituteNoPiaLocalType(typeDef,
+                        ref localTypeName,
+                        interfaceGuid,
+                        scope,
+                        identifier);
+                    return result;
+                }
+
+                result = GetUnsupportedMetadataTypeSymbol();
+
+                if (cache is not null)
+                    result = cache.GetOrAdd(typeDef, result);
+
+                return result;
+            }
+
+            isNoPiaLocalType = false;
+            result = LookupTopLevelTypeDefSymbol(ref mdName, out isNoPiaLocalType);
+            return result;
+        } catch (BadImageFormatException mrEx) {
+            isNoPiaLocalType = false;
+            return GetUnsupportedMetadataTypeSymbol(mrEx);
+        }
+    }
+
+    private TypeSymbol SubstituteNoPiaLocalType(
+        TypeDefinitionHandle typeDef,
+        ref MetadataTypeName name,
+        string interfaceGuid,
+        string scope,
+        string identifier) {
+        TypeSymbol result;
+        try {
+            bool isInterface = module.IsInterfaceOrThrow(typeDef);
+            TypeSymbol baseType = null;
+
+            if (!isInterface) {
+                var baseToken = module.GetBaseTypeOfTypeOrThrow(typeDef);
+
+                if (!baseToken.IsNil)
+                    baseType = GetTypeOfToken(baseToken);
+            }
+
+            result = SubstituteNoPiaLocalType(
+                ref name,
+                isInterface,
+                baseType,
+                interfaceGuid,
+                scope,
+                identifier,
+                moduleSymbol.containingAssembly
+            );
+        } catch (BadImageFormatException mrEx) {
+            result = GetUnsupportedMetadataTypeSymbol(mrEx);
+        }
+
+        var cache = GetTypeHandleToTypeMap();
+        var newresult = cache.GetOrAdd(typeDef, result);
+        return newresult;
+    }
+
+    internal static NamedTypeSymbol SubstituteNoPiaLocalType(
+        ref MetadataTypeName name,
+        bool isInterface,
+        TypeSymbol baseType,
+        string interfaceGuid,
+        string scope,
+        string identifier,
+        AssemblySymbol referringAssembly) {
+        NamedTypeSymbol result = null;
+
+        var interfaceGuidValue = new Guid();
+        var haveInterfaceGuidValue = false;
+        var scopeGuidValue = new Guid();
+        var haveScopeGuidValue = false;
+
+        if (isInterface && interfaceGuid is not null) {
+            haveInterfaceGuidValue = Guid.TryParse(interfaceGuid, out interfaceGuidValue);
+
+            if (haveInterfaceGuidValue) {
+                scope = null;
+                identifier = null;
+            }
+        }
+
+        if (scope is not null)
+            haveScopeGuidValue = Guid.TryParse(scope, out scopeGuidValue);
+
+        foreach (var assembly in referringAssembly.GetNoPiaResolutionAssemblies()) {
+            if (ReferenceEquals(assembly, referringAssembly))
+                continue;
+
+            var candidate = assembly.LookupDeclaredTopLevelMetadataType(ref name);
+
+            if (candidate is null ||
+                candidate.declaredAccessibility != Accessibility.Public) {
+                continue;
+            }
+
+            var haveCandidateGuidValue = false;
+            var candidateGuidValue = new Guid();
+
+            switch (candidate.typeKind) {
+                // case TypeKind.Interface:
+                //     if (!isInterface) {
+                //         continue;
+                //     }
+
+                //     // Get candidate's Guid
+                //     if (candidate.GetGuidString(out candidateGuid) && candidateGuid != null) {
+                //         haveCandidateGuidValue = Guid.TryParse(candidateGuid, out candidateGuidValue);
+                //     }
+
+                //     break;
+
+                // case TypeKind.Delegate:
+                case TypeKind.Enum:
+                case TypeKind.Struct:
+                    if (isInterface)
+                        continue;
+
+                    var baseSpecialType = candidate.baseType?.specialType ?? SpecialType.None;
+
+                    if (baseSpecialType == SpecialType.None || baseSpecialType != (baseType?.specialType ?? SpecialType.None)) {
+                        continue;
+                    }
+
+                    break;
+
+                default:
+                    continue;
+            }
+
+            if (haveInterfaceGuidValue || haveCandidateGuidValue) {
+                if (!haveInterfaceGuidValue || !haveCandidateGuidValue ||
+                    candidateGuidValue != interfaceGuidValue) {
+                    continue;
+                }
+            } else {
+                if (!haveScopeGuidValue || identifier == null || !identifier.Equals(name.fullName)) {
+                    continue;
+                }
+
+                haveCandidateGuidValue = false;
+
+                if (assembly.GetGuidString(out var candidateGuid) && candidateGuid is not null)
+                    haveCandidateGuidValue = Guid.TryParse(candidateGuid, out candidateGuidValue);
+
+                if (!haveCandidateGuidValue || scopeGuidValue != candidateGuidValue)
+                    continue;
+            }
+
+            if (result is not null) {
+                // TODO
+                // result = new NoPiaAmbiguousCanonicalTypeSymbol(referringAssembly, result, candidate);
+                break;
+            }
+
+            result = candidate;
+        }
+
         // TODO
-        isNoPiaLocalType = false;
-        return null;
+        // result ??= new NoPiaMissingCanonicalTypeSymbol(
+        //     referringAssembly,
+        //     name.fullName,
+        //     interfaceGuid,
+        //     scope,
+        //     identifier
+        // );
+
+        return result;
     }
 
     private TypeSymbol GetTypeOfTypeRef(TypeReferenceHandle typeRef, out bool isNoPiaLocalType) {

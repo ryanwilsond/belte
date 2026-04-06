@@ -847,6 +847,10 @@ internal sealed partial class PEModule : IDisposable {
         };
     }
 
+    private static BlobHandle GetMethodSignatureOrThrow(MetadataReader metadataReader, MethodDefinitionHandle methodDef) {
+        return metadataReader.GetMethodDefinition(methodDef).Signature;
+    }
+
     private static BlobHandle GetSignatureOrThrow(MetadataReader metadataReader, MemberReferenceHandle memberRef) {
         return metadataReader.GetMemberReference(memberRef).Signature;
     }
@@ -1295,6 +1299,69 @@ internal sealed partial class PEModule : IDisposable {
 
     internal GenericParameterHandleCollection GetGenericParametersForMethodOrThrow(MethodDefinitionHandle methodDef) {
         return metadataReader.GetMethodDefinition(methodDef).GetGenericParameters();
+    }
+
+    internal TypeDefinitionHandle GetContainingTypeOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetDeclaringType();
+    }
+
+    internal string GetTypeDefNamespaceOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetString(metadataReader.GetTypeDefinition(typeDef).Namespace);
+    }
+
+    internal bool HasGenericParametersOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetGenericParameters().Count > 0;
+    }
+
+    internal bool IsInterfaceOrThrow(TypeDefinitionHandle typeDef) {
+        // TODO interfaces
+        // return metadataReader.GetTypeDefinition(typeDef).Attributes.IsInterface();
+        return false;
+    }
+
+    internal bool IsNoPiaLocalType(
+        TypeDefinitionHandle typeDef,
+        out string interfaceGuid,
+        out string scope,
+        out string identifier) {
+        if (!IsNoPiaLocalType(typeDef, out var typeIdentifierInfo)) {
+            interfaceGuid = null;
+            scope = null;
+            identifier = null;
+
+            return false;
+        }
+
+        interfaceGuid = null;
+        scope = null;
+        identifier = null;
+
+        try {
+            // if (GetTypeDefFlagsOrThrow(typeDef).IsInterface()) {
+            //     HasGuidAttribute(typeDef, out interfaceGuid);
+            // }
+
+            if (typeIdentifierInfo.signatureIndex == 1) {
+                var valueBlob = GetCustomAttributeValueOrThrow(typeIdentifierInfo.handle);
+
+                if (!valueBlob.IsNil) {
+                    var reader = metadataReader.GetBlobReader(valueBlob);
+
+                    if (reader.Length > 4) {
+                        if (reader.ReadInt16() == 1) {
+                            if (!CrackStringInAttributeValue(out scope, ref reader) ||
+                                !CrackStringInAttributeValue(out identifier, ref reader)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return true;
+        } catch (BadImageFormatException) {
+            return false;
+        }
     }
 
     internal void GetParamPropsOrThrow(

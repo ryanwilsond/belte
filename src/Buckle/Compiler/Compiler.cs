@@ -129,6 +129,15 @@ public sealed class Compiler {
         //      2) Evaluator is only better than Executor for trivially simple programs
         var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
 
+        var options = new CompilationOptions(
+            buildMode,
+            _options.outputKind,
+            _options.arguments,
+            _options.isScript,
+            _options.enableOutput,
+            _options.references
+        );
+
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {
                 ReportAndReturnLibraryErrors();
@@ -138,7 +147,7 @@ public sealed class Compiler {
             var libTime = LogLibraryLoadTime(timer);
 
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
-            var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
+            var compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
@@ -175,10 +184,10 @@ public sealed class Compiler {
 
             ref var task = ref state.tasks[0];
             var sourceText = new StringText(task.inputFileName, task.fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular);
+            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions());
             task.stage = CompilerStage.Finished;
 
-            var compilation = Compilation.CreateScript(state.moduleName, _options, syntaxTree, corLibrary);
+            var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
@@ -222,7 +231,13 @@ public sealed class Compiler {
 
         LogParseTime(timer, libTime, syntaxTrees.Length);
 
-        diagnostics.PushRange(compilation.Emit(state.outputFilename, state.time));
+        diagnostics.PushRange(compilation.Emit(
+            state.outputFilename,
+            state.debugMode,
+            state.time,
+            state.verboseMode,
+            state.verbosePath
+        ));
 
         LogCompilationTime(timer);
     }
@@ -235,7 +250,7 @@ public sealed class Compiler {
             ref var task = ref tasks[i];
 
             if (task.stage == CompilerStage.Raw) {
-                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text);
+                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text, CreateParseOptions());
                 builder.Add(syntaxTree);
                 task.stage = stageToSet;
             }
@@ -294,5 +309,12 @@ public sealed class Compiler {
 
         wrapperThread.Start(abort);
         wrapperThread.Join();
+    }
+
+    private ParseOptions CreateParseOptions() {
+        if (state.debugMode)
+            return new ParseOptions(["DEBUG"]);
+        else
+            return new ParseOptions(["RELEASE"]);
     }
 }

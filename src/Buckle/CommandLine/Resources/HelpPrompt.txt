@@ -20,6 +20,7 @@ Options:
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).
   --ref=<file>|--reference=<file>     Specify a reference (used with .NET integration only).
+  --debug                     Emit a .NET PDB file for debugging.
 
   --type=[console|graphics|dll]         Specify the type of Belte project (default console).
 

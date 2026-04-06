@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -6,9 +7,22 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal abstract partial class WithUsingAliasesBinder : Binder {
+    private ImportChain _lazyImportChain;
+
     private protected WithUsingAliasesBinder(WithUsingNamespacesAndTypesBinder next) : base(next) { }
 
     internal abstract override ImmutableArray<AliasAndUsingDirective> usingAliases { get; }
+
+    internal override ImportChain importChain {
+        get {
+            if (_lazyImportChain is null)
+                Interlocked.CompareExchange(ref _lazyImportChain, BuildImportChain(), null);
+
+            return _lazyImportChain;
+        }
+    }
+
+    private protected abstract ImportChain BuildImportChain();
 
     private protected abstract ImmutableDictionary<string, AliasAndUsingDirective> GetUsingAliasesMap(
         ConsList<TypeSymbol> basesBeingResolved

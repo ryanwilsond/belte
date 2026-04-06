@@ -7,7 +7,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
     );
 
     public static readonly SymbolDisplayFormat ObjectCreationFormat = new SymbolDisplayFormat(
@@ -32,6 +32,22 @@ public sealed class SymbolDisplayFormat {
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+    );
+
+    public static readonly SymbolDisplayFormat NamespaceQualifiedNameFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes | SymbolDisplayQualificationStyle.IncludeContainingNamespaces,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+    );
+
+    public static readonly SymbolDisplayFormat NetNamespaceQualifiedNameFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes | SymbolDisplayQualificationStyle.IncludeContainingNamespaces,
+        templateOptions: SymbolDisplayTemplateOptions.None,
+        memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.NetFormat
     );
 
     public static readonly SymbolDisplayFormat FullyQualifiedNameFormat = new SymbolDisplayFormat(

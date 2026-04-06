@@ -29,7 +29,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     public abstract int arity { get; }
 
-    public override bool isObjectType => !isPrimitiveType;
+    public override bool isObjectType
+        => !isPrimitiveType && !IsStructType() && !TypeSymbolExtensions.IsPointerOrFunctionPointer(this);
 
     public override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
 
@@ -43,6 +44,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
             return false;
         }
     }
+
+    internal virtual FieldSymbol fixedElementField => null;
 
     internal abstract bool mangleName { get; }
 
@@ -73,6 +76,10 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
     internal abstract NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved);
 
     internal bool knownToHaveNoDeclaredBaseCycles => _hasNoBaseCycles;
+
+    internal virtual NamedTypeSymbol enumUnderlyingType => null;
+
+    internal virtual bool enumFlagsAttribute => false;
 
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
@@ -202,6 +209,50 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         ImmutableArray<TypeOrConstant> templateArguments,
         bool unbound) {
         return new ConstructedNamedTypeSymbol(this, templateArguments, unbound);
+    }
+
+    internal override bool ApplyNullableTransforms(
+        byte defaultTransformFlag,
+        ImmutableArray<byte> transforms,
+        ref int position,
+        out TypeSymbol result) {
+        if (!isTemplateType) {
+            result = this;
+            return true;
+        }
+
+        var allTypeArguments = ArrayBuilder<TypeOrConstant>.GetInstance();
+        GetAllTypeArguments(allTypeArguments);
+
+        var haveChanges = false;
+
+        for (var i = 0; i < allTypeArguments.Count; i++) {
+            var oldTypeArgument = allTypeArguments[i].type;
+
+            if (!oldTypeArgument.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newTypeArgument)) {
+                allTypeArguments.Free();
+                result = this;
+                return false;
+            } else if (!oldTypeArgument.IsSameAs(newTypeArgument)) {
+                allTypeArguments[i] = new TypeOrConstant(newTypeArgument);
+                haveChanges = true;
+            }
+        }
+
+        result = haveChanges ? WithTypeArguments(allTypeArguments.ToImmutable()) : this;
+        allTypeArguments.Free();
+        return true;
+    }
+
+    internal NamedTypeSymbol WithTypeArguments(ImmutableArray<TypeOrConstant> allTypeArguments) {
+        var definition = originalDefinition;
+        var substitution = new TemplateMap(definition.GetAllTypeParameters(), allTypeArguments);
+        return substitution.SubstituteNamedType(definition);
+    }
+
+    internal void GetAllTypeArguments(ArrayBuilder<TypeOrConstant> builder) {
+        containingType?.GetAllTypeArguments(builder);
+        builder.AddRange(templateArguments);
     }
 
     internal NamedTypeSymbol AsUnboundTemplateType() {

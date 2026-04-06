@@ -92,4 +92,10 @@ public static class Math {
 
     public static decimal Truncate(decimal value);
     public static decimal! Truncate(decimal! value);
+
+    public static decimal DegToRad(decimal degrees);
+    public static decimal! DegToRad(decimal! degrees);
+
+    public static decimal RadToDeg(decimal radians);
+    public static decimal! RadToDeg(decimal! radians);
 }

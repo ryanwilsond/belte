@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -41,6 +43,7 @@ internal sealed partial class CodeGenerator {
     private readonly List<(int instructionIndex, LabelSymbol target)> _unhandledGotos = [];
     private readonly SyntaxNode _methodBodySyntax;
     private readonly ILEmitStyle _ilEmitStyle;
+    private readonly bool _emitPdbSequencePoints;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
@@ -48,20 +51,23 @@ internal sealed partial class CodeGenerator {
         ModuleBuilder module,
         MethodSymbol method,
         BoundBlockStatement methodBody,
-        ILBuilder iLBuilder) {
+        ILBuilder iLBuilder,
+        bool debugMode) {
         _module = module;
         _method = method;
         _body = methodBody;
         _builder = iLBuilder;
-        // TODO Make this dynamic when debugging is added
-        // ? This is only here for better compat with Evaluator which uses debug-only slot information
-        _ilEmitStyle = ILEmitStyle.Release;
+        _ilEmitStyle = debugMode ? ILEmitStyle.Debug : ILEmitStyle.Release;
+        _emitPdbSequencePoints = debugMode;
 
         var sourceMethod = method as SourceMemberMethodSymbol;
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
     }
 
     internal void Generate() {
+        if (_emitPdbSequencePoints && _method.isImplicitlyDeclared)
+            _builder.DefineInitialHiddenSequencePoint();
+
         EmitBlock(_body);
         _builder.Finish();
         _expressionTemps?.Free();
@@ -83,7 +89,7 @@ internal sealed partial class CodeGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsReferenceType(TypeSymbol type) {
-        var isReferenceType = (type.isObjectType && !type.IsStructType() &&
+        var isReferenceType = (type.isObjectType && !type.IsStructType() && !type.IsEnumType() &&
                               !IsTrueNullable(type)) || IsReferenceType(type.specialType);
 
         if (type.StrippedType() is TemplateParameterSymbol t)
@@ -94,7 +100,7 @@ internal sealed partial class CodeGenerator {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool IsValueType(TypeSymbol type) {
-        var isValueType = (type.isPrimitiveType || type.IsStructType() ||
+        var isValueType = (type.isPrimitiveType || type.IsStructType() || type.IsEnumType() ||
                            IsTrueNullable(type)) && IsValueType(type.specialType);
 
         // TODO Double check there is no edge case where a primitive constraint can result in a reference type
@@ -239,6 +245,21 @@ internal sealed partial class CodeGenerator {
 
         _builder.EmitCalli(ptrInvocation.functionPointer);
         EmitCallCleanup(method, useKind);
+    }
+
+    private void EmitStackAllocExpression(BoundConvertedStackAllocExpression expression, bool used) {
+        if (used) {
+            EmitStackAlloc(expression.type, expression.count);
+        } else {
+            EmitExpression(expression.count, used: false);
+        }
+    }
+
+    private void EmitStackAlloc(TypeSymbol type, BoundExpression count) {
+        EmitExpression(count, used: true);
+        _builder.Emit(OpCode.Localloc);
+        // TODO If we ever encode to metadata we need to keep track of this
+        // _sawStackalloc = true;
     }
 
     internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
@@ -401,6 +422,15 @@ internal sealed partial class CodeGenerator {
             );
 
         _builder.EmitWithSymbolToken(field.refKind == RefKind.None ? OpCode.Ldflda : OpCode.Ldfld, field);
+
+        if (field.isFixedSizeBuffer) {
+            var fixedImpl = _module.GetFixedImplementationType(field as SourceFixedFieldSymbol);
+            var fixedElementField = fixedImpl.fixedElementField;
+
+            if (fixedElementField is not null)
+                _builder.EmitWithSymbolToken(OpCode.Ldflda, fixedElementField);
+        }
+
         return tempOpt;
     }
 
@@ -444,7 +474,7 @@ internal sealed partial class CodeGenerator {
         }
     }
 
-    private void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
+    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
         var value = constant.value;
 
         if (value is null) {
@@ -456,7 +486,9 @@ internal sealed partial class CodeGenerator {
             return;
         }
 
-        switch (type.specialType) {
+        var discriminator = type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
+
+        switch (discriminator) {
             case SpecialType.Int:
             case SpecialType.Int64:
                 EmitLongConstant((long)value);
@@ -525,7 +557,7 @@ internal sealed partial class CodeGenerator {
 
                 break;
             default:
-                throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+                throw ExceptionUtilities.UnexpectedValue(discriminator);
         }
     }
 
@@ -610,7 +642,7 @@ internal sealed partial class CodeGenerator {
     private void EmitStatement(BoundStatement statement) {
         switch (statement.kind) {
             case BoundKind.NopStatement:
-                EmitNopStatement((BoundNopStatement)statement);
+                EmitNopStatement();
                 break;
             case BoundKind.GotoStatement:
                 EmitGotoStatement((BoundGotoStatement)statement);
@@ -633,13 +665,103 @@ internal sealed partial class CodeGenerator {
             case BoundKind.ExpressionStatement:
                 EmitExpression(((BoundExpressionStatement)statement).expression, false);
                 break;
+            case BoundKind.SequencePoint:
+                EmitSequencePoint((BoundSequencePoint)statement);
+                break;
+            case BoundKind.SequencePointWithLocation:
+                EmitSequencePointWithLocation((BoundSequencePointWithLocation)statement);
+                break;
+            case BoundKind.InlineILStatement:
+                EmitInlineILStatement((BoundInlineILStatement)statement);
+                break;
+            case BoundKind.SwitchDispatch:
+                EmitSwitchDispatch((BoundSwitchDispatch)statement);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(statement.kind);
         }
     }
 
-    private void EmitNopStatement(BoundNopStatement _) {
-        _builder.Emit(OpCode.Nop);
+    private void EmitSwitchDispatch(BoundSwitchDispatch dispatch) {
+        EmitSwitchHeader(
+            dispatch.expression,
+            dispatch.cases.Select(p => new KeyValuePair<ConstantValue, object>(p.value, p.label)).ToArray(),
+            dispatch.defaultLabel
+        );
+    }
+
+    private void EmitSwitchHeader(
+        BoundExpression expression,
+        KeyValuePair<ConstantValue, object>[] switchCaseLabels,
+        LabelSymbol fallThroughLabel) {
+        VariableDefinition temp = null;
+        LocalOrParameter key;
+
+        switch (expression.kind) {
+            case BoundKind.DataContainerExpression:
+                var local = ((BoundDataContainerExpression)expression).dataContainer;
+
+                if (local.refKind == RefKind.None && !IsStackLocal(local)) {
+                    key = _builder.GetLocal(local);
+                    break;
+                }
+
+                goto default;
+            case BoundKind.ParameterExpression:
+                var parameter = (BoundParameterExpression)expression;
+                if (parameter.parameter.refKind == RefKind.None) {
+                    key = ParameterSlot(parameter.parameter);
+                    break;
+                }
+                goto default;
+
+            default:
+                EmitExpression(expression, true);
+                temp = AllocateTemp(expression.type);
+                _builder.EmitLocalStore(temp);
+                key = temp;
+                break;
+        }
+
+        if (expression.type.specialType == SpecialType.String) {
+            // if (lengthBasedSwitchStringJumpTableOpt is null) {
+            EmitStringSwitchJumpTable(switchCaseLabels, fallThroughLabel, key, expression.syntax, expression.type);
+            // } else {
+            // this.EmitLengthBasedStringSwitchJumpTable(lengthBasedSwitchStringJumpTableOpt, fallThroughLabel, key, expression.Syntax, expression.Type);
+            // }
+        } else {
+            EmitIntegerSwitchJumpTable(
+                switchCaseLabels,
+                fallThroughLabel,
+                key,
+                expression.type.EnumUnderlyingTypeOrSelf().specialType
+            );
+        }
+
+        FreeOptTemp(temp);
+    }
+
+    private void EmitStringSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] switchCaseLabels,
+        LabelSymbol fallThroughLabel,
+        LocalOrParameter key,
+        SyntaxNode syntaxNode,
+        TypeSymbol keyType) {
+        // TODO
+    }
+
+    private void EmitIntegerSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] caseLabels,
+        object fallThroughLabel,
+        LocalOrParameter key,
+        SpecialType keyTypeCode) {
+        var emitter = new SwitchIntegralJumpTableEmitter(this, _builder, caseLabels, fallThroughLabel, keyTypeCode, key);
+        emitter.EmitJumpTable();
+    }
+
+    private void EmitNopStatement() {
+        if (_ilEmitStyle == ILEmitStyle.Debug)
+            _builder.Emit(OpCode.Nop);
     }
 
     private void EmitLabelStatement(BoundLabelStatement statement) {
@@ -874,6 +996,9 @@ oneMoreTime:
     }
 
     private static bool CanPassToBrfalse(TypeSymbol ts) {
+        if (ts.IsEnumType())
+            return true;
+
         var st = ts.specialType;
 
         if (st == SpecialType.Decimal)
@@ -901,21 +1026,112 @@ oneMoreTime:
     }
 
     private void EmitTryStatement(BoundTryStatement statement) {
+        var hasCatch = statement.catchBody is not null;
+        var hasFinally = statement.finallyBody is not null;
+
         _builder.BeginTry();
 
         EmitBlock((BoundBlockStatement)statement.body);
 
-        if (statement.catchBody is not null) {
+        if (hasCatch) {
             _builder.BeginCatch();
             EmitBlock((BoundBlockStatement)statement.catchBody);
         }
 
-        if (statement.finallyBody is not null) {
+        if (hasFinally) {
             _builder.BeginFinally();
             EmitBlock((BoundBlockStatement)statement.finallyBody);
         }
 
-        _builder.EndTry();
+        _builder.EndTry(hasFinally);
+    }
+
+    private void EmitSequencePoint(BoundSequencePoint node) {
+        var syntax = node.syntax;
+
+        var statement = node.statement;
+        var instructionsEmitted = 0;
+        var index = _builder.instructionsEmitted;
+
+        if (statement is not null)
+            instructionsEmitted = EmitStatementAndCountInstructions(statement);
+
+        if (instructionsEmitted == 0 && syntax is not null && _ilEmitStyle == ILEmitStyle.Debug)
+            _builder.Emit(OpCode.Nop);
+
+        if (_emitPdbSequencePoints) {
+            if (syntax is null)
+                EmitHiddenSequencePoint(index);
+            else
+                EmitSequencePoint(syntax, index);
+        }
+    }
+
+    private void EmitHiddenSequencePoint(int instructionIndex) {
+        _builder.DefineHiddenSequencePoint(instructionIndex);
+    }
+
+    private void EmitSequencePoint(SyntaxNode syntax, int instructionIndex) {
+        EmitSequencePoint(syntax.syntaxTree, syntax.location, instructionIndex);
+    }
+
+    private void EmitSequencePoint(SyntaxTree syntaxTree, TextLocation location, int instructionIndex) {
+        _builder.DefineSequencePoint(syntaxTree, location, instructionIndex);
+    }
+
+    private int EmitStatementAndCountInstructions(BoundStatement statement) {
+        var n = _builder.instructionsEmitted;
+        EmitStatement(statement);
+        return _builder.instructionsEmitted - n;
+    }
+
+    private void EmitSequencePointWithLocation(BoundSequencePointWithLocation node) {
+        var location = node.location;
+
+        var statement = node.statement;
+        var instructionsEmitted = 0;
+        var index = _builder.instructionsEmitted;
+
+        if (statement is not null)
+            instructionsEmitted = EmitStatementAndCountInstructions(statement);
+
+        if (instructionsEmitted == 0 && location is not null && _ilEmitStyle == ILEmitStyle.Debug)
+            _builder.Emit(OpCode.Nop);
+
+        if (location is not null && _emitPdbSequencePoints)
+            EmitSequencePoint(node.syntax.syntaxTree, location, index);
+    }
+
+    private void EmitInlineILStatement(BoundInlineILStatement statement) {
+        foreach (var (opCode, constant, symbol) in statement.instructions) {
+            if (opCode == OpCode.Calli) {
+                _builder.EmitCalli(symbol as FunctionPointerTypeSymbol);
+                continue;
+            }
+
+            if (symbol is not null) {
+                switch (symbol) {
+                    case FieldSymbol field:
+                        _builder.EmitWithSymbolToken(opCode, field);
+                        continue;
+                    case MethodSymbol method:
+                        _builder.EmitWithSymbolToken(opCode, method);
+                        continue;
+                    case TypeSymbol type:
+                        _builder.EmitWithSymbolToken(opCode, type);
+                        continue;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+                }
+            }
+
+            _builder.Emit(opCode);
+
+            if (constant is not null) {
+                var type = CorLibrary.GetSpecialType(constant.specialType);
+                EmitConstantValue(constant, type);
+            }
+        }
     }
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
@@ -1038,6 +1254,11 @@ oneMoreTime:
                     EmitTypeOfExpression((BoundTypeOfExpression)expression);
 
                 break;
+            case BoundKind.SizeOfOperator:
+                if (used)
+                    EmitSizeOfExpression((BoundSizeOfOperator)expression);
+
+                break;
             case BoundKind.TypeExpression:
                 EmitTypeExpression((BoundTypeExpression)expression);
                 break;
@@ -1049,6 +1270,9 @@ oneMoreTime:
                 break;
             case BoundKind.FunctionPointerCallExpression:
                 EmitCalli((BoundFunctionPointerCallExpression)expression, used ? UseKind.UsedAsValue : UseKind.Unused);
+                break;
+            case BoundKind.ConvertedStackAllocExpression:
+                EmitStackAllocExpression((BoundConvertedStackAllocExpression)expression, used);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
@@ -1114,6 +1338,11 @@ oneMoreTime:
         _builder.EmitGetTypeFromHandle(type);
     }
 
+    private void EmitSizeOfExpression(BoundSizeOfOperator boundSizeOfOperator) {
+        var type = boundSizeOfOperator.sourceType.type;
+        _builder.EmitWithSymbolToken(OpCode.Sizeof, type);
+    }
+
     private void EmitThrowExpression(BoundThrowExpression expression, bool used) {
         var thrown = expression.expression;
 
@@ -1137,6 +1366,9 @@ oneMoreTime:
 
         if (((ArrayTypeSymbol)expression.receiver.StrippedType()).isSZArray) {
             var elementType = expression.type;
+
+            if (elementType.IsEnumType())
+                elementType = ((NamedTypeSymbol)elementType).enumUnderlyingType;
 
             switch (elementType.specialType) {
                 case SpecialType.Int:
@@ -1351,10 +1583,9 @@ oneMoreTime:
                     }
 
                     return;
-                case "SizeOf": {
-                        _builder.EmitSizeOf(method.templateArguments[0].type.type);
-                        EmitCallCleanup(method, useKind);
-                    }
+                case "SizeOf":
+                    if (useKind != UseKind.Unused)
+                        _builder.EmitWithSymbolToken(OpCode.Sizeof, method.templateArguments[0].type.type);
 
                     return;
             }
@@ -2116,6 +2347,7 @@ oneMoreTime:
 
             EmitExpression(binary.right, true);
             EmitBinaryOperatorInstruction(binary);
+            EmitConversionToEnumUnderlyingType(binary);
         } while (stack.Count > 0);
 
         stack.Free();
@@ -2125,6 +2357,51 @@ oneMoreTime:
         EmitExpression(expression.left, true);
         EmitExpression(expression.right, true);
         EmitBinaryOperatorInstruction(expression);
+        EmitConversionToEnumUnderlyingType(expression);
+    }
+
+    private void EmitConversionToEnumUnderlyingType(BoundBinaryOperator expression) {
+        TypeSymbol enumType;
+
+        switch (expression.operatorKind.Operator() | expression.operatorKind.OperandTypes()) {
+            case BinaryOperatorKind.EnumAndUnderlyingAddition:
+            case BinaryOperatorKind.EnumSubtraction:
+            case BinaryOperatorKind.EnumAndUnderlyingSubtraction:
+                enumType = expression.left.type;
+                break;
+            case BinaryOperatorKind.EnumAnd:
+            case BinaryOperatorKind.EnumOr:
+            case BinaryOperatorKind.EnumXor:
+                enumType = null;
+                break;
+            case BinaryOperatorKind.UnderlyingAndEnumSubtraction:
+            case BinaryOperatorKind.UnderlyingAndEnumAddition:
+                enumType = expression.right.type;
+                break;
+            default:
+                enumType = null;
+                break;
+        }
+
+        if (enumType is null)
+            return;
+
+        var type = enumType.GetEnumUnderlyingType().specialType;
+
+        switch (type) {
+            case SpecialType.UInt8:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt8);
+                break;
+            case SpecialType.Int8:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int8);
+                break;
+            case SpecialType.Int16:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int16);
+                break;
+            case SpecialType.UInt16:
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt16);
+                break;
+        }
     }
 
     private void EmitBinaryOperatorInstruction(BoundBinaryOperator expression) {
@@ -2199,6 +2476,11 @@ oneMoreTime:
         var type = opKind.OperandTypes();
 
         switch (type) {
+            case BinaryOperatorKind.Enum:
+            case BinaryOperatorKind.EnumAndUnderlying:
+                return IsUnsigned(GetEnumPromotedType(op.left.type.GetEnumUnderlyingType().specialType));
+            case BinaryOperatorKind.UnderlyingAndEnum:
+                return IsUnsigned(GetEnumPromotedType(op.right.type.GetEnumUnderlyingType().specialType));
             case BinaryOperatorKind.UInt:
                 return true;
             default:
@@ -2588,6 +2870,9 @@ oneMoreTime:
     private void EmitVectorElementStore(ArrayTypeSymbol arrayType) {
         var elementType = arrayType.elementType;
 
+        if (elementType.IsEnumType())
+            elementType = ((NamedTypeSymbol)elementType).enumUnderlyingType;
+
         switch (elementType.specialType) {
             case SpecialType.Bool:
                 _builder.Emit(OpCode.Stelem_I1);
@@ -2632,6 +2917,9 @@ oneMoreTime:
     }
 
     private void EmitIndirectStore(TypeSymbol type) {
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         switch (type.specialType) {
             case SpecialType.Bool:
             case SpecialType.Int8:
@@ -2674,6 +2962,23 @@ oneMoreTime:
 
                 break;
         }
+    }
+
+    private void EmitEnumConversion(BoundCastExpression conversion) {
+        var fromType = conversion.operand.type;
+
+        if (fromType.IsEnumType())
+            fromType = ((NamedTypeSymbol)fromType).enumUnderlyingType;
+
+        var fromPredefTypeKind = fromType.specialType;
+        var toType = conversion.type;
+
+        if (toType.IsEnumType())
+            toType = ((NamedTypeSymbol)toType).enumUnderlyingType;
+
+        var toPredefTypeKind = toType.specialType;
+
+        EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
     }
 
     private VariableDefinition EmitAssignmentDuplication(
@@ -2994,12 +3299,25 @@ oneMoreTime:
 
         switch (type.specialType) {
             case SpecialType.Int:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Char:
             case SpecialType.Decimal:
             case SpecialType.Bool:
                 return true;
         }
 
-        return false;
+        return type.IsEnumType();
     }
 
     private void EmitParameterLoad(BoundParameterExpression expression) {
@@ -3061,7 +3379,19 @@ oneMoreTime:
             if (cast.type.specialType == SpecialType.Nullable) {
                 return;
             } else if (cast.type.specialType == SpecialType.String) {
-                _builder.EmitToString();
+                _builder.EmitToString(OpCode.Call);
+                return;
+            }
+        }
+
+        if (cast.operand.StrippedType().IsEnumType()) {
+            if (cast.type.specialType == SpecialType.String) {
+                var type = cast.operand.StrippedType();
+                var value = AllocateTemp(type);
+                _builder.EmitLocalStore(value);
+                _builder.EmitLocalAddress(value);
+                _builder.EmitWithSymbolToken(OpCode.Constrained, type);
+                _builder.EmitToString(OpCode.Callvirt);
                 return;
             }
         }
@@ -3084,6 +3414,10 @@ oneMoreTime:
             case ConversionKind.ExplicitReference:
             case ConversionKind.AnyUnboxing:
                 EmitExplicitReferenceConversion(cast);
+                break;
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
+                EmitEnumConversion(cast);
                 break;
             case ConversionKind.Implicit:
             case ConversionKind.Explicit:
@@ -3419,6 +3753,9 @@ oneMoreTime:
     }
 
     private void EmitLoadIndirect(TypeSymbol type) {
+        if (type.IsEnumType())
+            type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
         switch (type.specialType) {
             case SpecialType.Int:
             case SpecialType.Int64:

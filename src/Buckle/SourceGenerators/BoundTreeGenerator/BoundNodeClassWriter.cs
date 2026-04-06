@@ -67,6 +67,7 @@ internal sealed partial class BoundNodeClassWriter {
         WriteUsing("System.Runtime.CompilerServices");
         WriteUsing("Buckle.CodeAnalysis.Symbols");
         WriteUsing("Buckle.CodeAnalysis.Syntax");
+        WriteUsing("Buckle.CodeAnalysis.Text");
         WriteUsing("Buckle.Diagnostics");
         WriteLine();
     }

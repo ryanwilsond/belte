@@ -100,8 +100,18 @@ internal abstract class Symbol : ISymbol {
             if (!isDefinition)
                 return originalDefinition.declaringCompilation;
 
-            if (this is AssemblySymbol assembly)
-                return assembly.declaringCompilation;
+            switch (kind) {
+                case SymbolKind.ErrorType:
+                case SymbolKind.Assembly:
+                    return null;
+            }
+
+            switch (containingModule) {
+                case SourceModuleSymbol sourceModuleSymbol:
+                    return sourceModuleSymbol.declaringCompilation;
+                case PEModuleSymbol:
+                    return containingSymbol?.declaringCompilation;
+            }
 
             return containingSymbol.declaringCompilation;
         }

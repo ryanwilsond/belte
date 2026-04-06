@@ -9,6 +9,7 @@ public enum TypeKind : byte {
     Array,
     Class,
     Struct,
+    Enum,
     Primitive,
     TemplateParameter,
     Error,

@@ -52,6 +52,8 @@ internal sealed class PEAssembly {
 
     internal AssemblyIdentity identity => _identity;
 
+    internal string location => _owner.location;
+
     internal bool ContainsNoPiaLocalTypes() {
         if (_lazyContainsNoPiaLocalTypes == ThreeState.Unknown) {
             foreach (var module in modules) {

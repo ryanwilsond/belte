@@ -11,6 +11,6 @@ internal sealed class TypeofBinder : Binder {
     }
 
     private protected override bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {
-        return _allowedMap != null && _allowedMap.TryGetValue(syntax, out var allowed) && allowed;
+        return _allowedMap is not null && _allowedMap.TryGetValue(syntax, out var allowed) && allowed;
     }
 }

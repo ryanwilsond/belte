@@ -38,6 +38,8 @@ internal sealed class EndBinder : Binder {
 
     private protected override bool _inExecutableBinder => false;
 
+    internal override ImportChain importChain => null;
+
     internal override Binder GetBinder(SyntaxNode node) {
         return null;
     }
@@ -61,6 +63,13 @@ internal sealed class EndBinder : Binder {
     }
 
     internal override BoundDoWhileStatement BindDoWhileParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override BoundStatement BindSwitchStatementCore(
+        SwitchStatementSyntax node,
+        Binder originalBinder,
+        BelteDiagnosticQueue diagnostics) {
         throw ExceptionUtilities.Unreachable();
     }
 

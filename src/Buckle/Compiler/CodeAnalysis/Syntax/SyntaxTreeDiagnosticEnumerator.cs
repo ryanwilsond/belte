@@ -74,9 +74,9 @@ tryAgain:
             if (slotIndex < node.slotCount - 1) {
                 slotIndex++;
                 var child = node.GetSlot(slotIndex);
-                if (child is null) {
+
+                if (child is null)
                     goto tryAgain;
-                }
 
                 if (!child.containsDiagnostics) {
                     _position += child.fullWidth;
@@ -86,9 +86,8 @@ tryAgain:
                 _stack.UpdateSlotIndexForStackTop(slotIndex);
                 _stack.PushNodeOrToken(child);
             } else {
-                if (node.slotCount == 0) {
+                if (node.slotCount == 0)
                     _position += node.width;
-                }
 
                 _stack.Pop();
             }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Text;
@@ -5,6 +6,7 @@ using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
@@ -144,6 +146,9 @@ public sealed class DisplayText {
             case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
+            case BoundKind.InlineILStatement:
+                DisplayInlineILStatement(text, (BoundInlineILStatement)node);
+                break;
             case BoundKind.TypeExpression:
                 DisplayTypeExpression(text, (BoundTypeExpression)node);
                 break;
@@ -155,6 +160,12 @@ public sealed class DisplayText {
                 break;
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
+                break;
+            case BoundKind.SequencePoint:
+                DisplaySequencePoint(text, (BoundSequencePoint)node);
+                break;
+            case BoundKind.SequencePointWithLocation:
+                DisplaySequencePointWithLocation(text, (BoundSequencePointWithLocation)node);
                 break;
             case BoundKind.GlobalStatement:
                 DisplayGlobalStatement(text, (BoundGlobalStatement)node);
@@ -291,6 +302,25 @@ public sealed class DisplayText {
             case BoundKind.FunctionPointerCallExpression:
                 DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
                 break;
+            case BoundKind.CompileTimeExpression:
+                DisplayCompileTimeExpression(text, (BoundCompileTimeExpression)node);
+                break;
+            case BoundKind.SizeOfOperator:
+                DisplaySizeOfOperator(text, (BoundSizeOfOperator)node);
+                break;
+            case BoundKind.CascadeListExpression:
+                DisplayCascadeListExpression(text, (BoundCascadeListExpression)node);
+                break;
+            case BoundKind.StackAllocExpression:
+            case BoundKind.ConvertedStackAllocExpression:
+                DisplayStackAllocExpression(text, (BoundStackAllocExpressionBase)node);
+                break;
+            case BoundKind.UnconvertedImplicitEnumFieldExpression:
+                DisplayUnconvertedImplicitEnumFieldExpression(text, (BoundUnconvertedImplicitEnumFieldExpression)node);
+                break;
+            case BoundKind.SwitchDispatch:
+                DisplaySwitchDispatch(text, (BoundSwitchDispatch)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -418,6 +448,21 @@ public sealed class DisplayText {
         SymbolDisplay.AppendToDisplayText(text, node.namespaceSymbol, SymbolDisplayFormat.BoundDisplayFormat);
     }
 
+    private static void DisplaySwitchDispatch(DisplayText text, BoundSwitchDispatch node) {
+        text.Write(CreateKeyword("<switch_dispatch>"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation("->"));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreateSpace());
+        text.Write(CreateLiteral($"{node.cases.Length} cases"));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         text.Write(CreateSpace());
@@ -436,6 +481,41 @@ public sealed class DisplayText {
     private static void DisplayContinueStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
         text.WriteLine();
+    }
+
+    private static void DisplaySequencePoint(DisplayText text, BoundSequencePoint node) {
+        if (node.syntax?.location is not null)
+            DisplaySequencePointComment(text, node.syntax.location);
+
+        if (node.statement is null)
+            DisplayNopStatement(text);
+        else
+            DisplayNode(text, node.statement);
+    }
+
+    private static void DisplaySequencePointWithLocation(DisplayText text, BoundSequencePointWithLocation node) {
+        DisplaySequencePointComment(text, node.location);
+
+        if (node.statement is null)
+            DisplayNopStatement(text);
+        else
+            DisplayNode(text, node.statement);
+    }
+
+    private static void DisplaySequencePointComment(DisplayText text, TextLocation location) {
+        var span = location.span;
+        var startLine = location.text.GetLineIndex(span.start);
+        var endLine = location.text.GetLineIndex(span.end);
+
+        for (var i = startLine; i <= endLine; i++) {
+            var line = location.text.GetLines()[i];
+            var start = Math.Max(line.start, span.start);
+            var end = Math.Min(line.end, span.end);
+            var lineSpan = TextSpan.FromBounds(start, end);
+            var lineText = location.text.ToString(lineSpan);
+            text.Write(CreateComment(lineText));
+            text.WriteLine();
+        }
     }
 
     private static void DisplayGlobalStatement(DisplayText text, BoundGlobalStatement node) {
@@ -482,6 +562,36 @@ public sealed class DisplayText {
             DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
         }
 
+        text.WriteLine();
+    }
+
+    private static void DisplayInlineILStatement(DisplayText text, BoundInlineILStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ILKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+
+        text.indent++;
+
+        foreach (var instruction in node.instructions) {
+            text.Write(CreateKeyword(instruction.Item1.ToString().ToLower()));
+
+            if (instruction.Item2 is not null) {
+                text.Write(CreateSpace());
+                DisplayConstant(text, instruction.Item2);
+            }
+
+            if (instruction.Item3 is not null) {
+                text.Write(CreateSpace());
+                SymbolDisplay.AppendToDisplayText(text, instruction.Item3);
+            }
+
+            text.WriteLine();
+        }
+
+        text.indent--;
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
         text.WriteLine();
     }
 
@@ -772,6 +882,46 @@ public sealed class DisplayText {
         DisplayArguments(text, node.arguments);
     }
 
+    private static void DisplayCompileTimeExpression(DisplayText text, BoundCompileTimeExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.DollarToken));
+        DisplayNode(text, node.expression);
+    }
+
+    private static void DisplaySizeOfOperator(DisplayText text, BoundSizeOfOperator node) {
+        text.Write(CreateKeyword(SyntaxKind.SizeOfKeyword));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayUnconvertedImplicitEnumFieldExpression(
+        DisplayText text,
+        BoundUnconvertedImplicitEnumFieldExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        text.Write(CreateIdentifier(node.name));
+    }
+
+    private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
+        text.Write(CreateKeyword(SyntaxKind.StackAllocKeyword));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.elementType);
+        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        DisplayNode(text, node.count);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayCascadeListExpression(DisplayText text, BoundCascadeListExpression node) {
+        DisplayNode(text, node.receiver);
+
+        for (var i = 0; i < node.cascades.Length; i++) {
+            var cascade = node.cascades[i];
+            var isConditional = node.conditionals[i];
+            var opKind = isConditional ? SyntaxKind.QuestionPeriodPeriodToken : SyntaxKind.PeriodPeriodToken;
+            text.Write(CreatePunctuation(opKind));
+            DisplayNode(text, cascade);
+        }
+    }
+
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
         DisplayNode(text, node.operand);
@@ -945,13 +1095,25 @@ public sealed class DisplayText {
     }
 
     private static void DisplayNullCoalescingOperator(DisplayText text, BoundNullCoalescingOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionToken, false);
+        DisplayBinaryAdjacentExpression(
+            text,
+            node.left,
+            node.right,
+            node.isPropagation ? SyntaxKind.QuestionExclamationToken : SyntaxKind.QuestionQuestionToken,
+            false
+        );
     }
 
     private static void DisplayNullCoalescingAssignmentOperator(
         DisplayText text,
         BoundNullCoalescingAssignmentOperator node) {
-        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.QuestionQuestionEqualsToken, false);
+        DisplayBinaryAdjacentExpression(
+            text,
+            node.left,
+            node.right,
+            node.isPropagation ? SyntaxKind.QuestionExclamationEqualsToken : SyntaxKind.QuestionQuestionEqualsToken,
+            false
+        );
     }
 
     private static void DisplayDataContainerExpression(DisplayText text, BoundDataContainerExpression node) {
@@ -963,6 +1125,8 @@ public sealed class DisplayText {
     }
 
     private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
     }
 
