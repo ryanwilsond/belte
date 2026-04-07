@@ -32,7 +32,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                 _blockFromStatement.Add(statement, block);
 
                 if (statement is BoundLabelStatement labelStatement)
-                    _blockFromLabel.Add(labelStatement.label, block);
+                    _blockFromLabel.TryAdd(labelStatement.label, block);
             }
         }
 
@@ -82,6 +82,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
+                    case BoundKind.SwitchDispatch:
                     case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LabelStatement:

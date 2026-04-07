@@ -7224,6 +7224,91 @@ internal partial class Binder {
 
     #region Operators
 
+    internal static bool? ExpressionOfTypeMatchesPatternType(
+        Conversions conversions,
+        TypeSymbol expressionType,
+        TypeSymbol patternType,
+        out Conversion conversion,
+        ConstantValue operandConstantValue = null,
+        bool operandCouldBeNull = false) {
+        if (expressionType.Equals(patternType, TypeCompareKind.AllIgnoreOptions)) {
+            conversion = Conversion.Identity;
+            return true;
+        }
+
+        conversion = conversions.ClassifyBuiltInConversion(expressionType, patternType);
+        return GetIsOperatorConstantResult(expressionType, patternType, conversion.kind, operandConstantValue, operandCouldBeNull);
+    }
+
+    internal static bool? GetIsOperatorConstantResult(
+        TypeSymbol operandType,
+        TypeSymbol targetType,
+        ConversionKind conversionKind,
+        ConstantValue operandConstantValue,
+        bool operandCouldBeNull = true) {
+        if (ConstantValue.IsNull(operandConstantValue))
+            return false;
+
+        operandCouldBeNull =
+            operandCouldBeNull &&
+            operandType.IsNullableType() &&
+            (operandConstantValue is null || ConstantValue.IsNull(operandConstantValue));
+
+        switch (conversionKind) {
+            case ConversionKind.None:
+                if (!operandType.ContainsTemplateParameter() && !targetType.ContainsTemplateParameter())
+                    return false;
+
+                if (operandType.IsVerifierValue() && targetType.IsClassType() && targetType.specialType != SpecialType.Enum ||
+                    targetType.IsVerifierValue() && operandType.IsClassType() && operandType.specialType != SpecialType.Enum) {
+                    return false;
+                }
+
+                return null;
+            case ConversionKind.ImplicitNumeric:
+            case ConversionKind.ExplicitNumeric:
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ImplicitConstant:
+            case ConversionKind.ImplicitUserDefined:
+            case ConversionKind.ExplicitUserDefined:
+                return false;
+            case ConversionKind.ExplicitEnum:
+                if (operandType.IsEnumType() && targetType.IsEnumType())
+                    goto case ConversionKind.None;
+
+                return false;
+            case ConversionKind.ExplicitNullable:
+                if (targetType.IsNullableType())
+                    return false;
+
+                if (Conversions.HasIdentityConversion(operandType.GetNullableUnderlyingType(), targetType))
+                    return operandCouldBeNull ? null : true;
+
+                return false;
+            case ConversionKind.ImplicitReference:
+                return operandCouldBeNull ? null : true;
+            case ConversionKind.ExplicitReference:
+            case ConversionKind.AnyUnboxing:
+                return null;
+            case ConversionKind.Identity:
+                return operandCouldBeNull ? null : true;
+            case ConversionKind.AnyBoxing:
+                return operandCouldBeNull ? null : true;
+            case ConversionKind.ImplicitNullable:
+                return operandType.Equals(targetType.GetNullableUnderlyingType(), TypeCompareKind.AllIgnoreOptions)
+                    ? true : false;
+            default:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitPointerToPointer:
+            case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ExplicitIntegerToPointer:
+            case ConversionKind.ImplicitNullToPointer:
+            case ConversionKind.NullLiteral:
+            case ConversionKind.DefaultLiteral:
+                throw ExceptionUtilities.UnexpectedValue(conversionKind);
+        }
+    }
+
     internal static BinaryOperatorKind RelationalOperatorType(TypeSymbol type) {
         return type.specialType switch {
             SpecialType.Float32 => BinaryOperatorKind.Float32,
@@ -7237,6 +7322,7 @@ internal partial class Binder {
             SpecialType.Int32 => BinaryOperatorKind.Int,
             SpecialType.UInt32 => BinaryOperatorKind.UInt,
             SpecialType.Int64 => BinaryOperatorKind.Int,
+            SpecialType.Int => BinaryOperatorKind.Int,
             SpecialType.UInt64 => BinaryOperatorKind.UInt,
             SpecialType.String => BinaryOperatorKind.String,
             SpecialType.Bool => BinaryOperatorKind.Bool,

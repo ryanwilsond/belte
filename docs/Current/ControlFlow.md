@@ -4,6 +4,7 @@
 - [2.2](#22-entry-point) Entry Point
 - [2.3](#23-conditionals) Conditionals
 - [2.4](#24-loops) Loops
+- [2.5](#25-switch) Switch
 
 ## 2.1 Functions
 
@@ -322,4 +323,70 @@ Output (note no `6`):
 7
 8
 9
+```
+
+## 2.5 Switch
+
+Switch statements can be used when comparing an expression to a set of known values called cases. Each case is separated
+by a label. Switch statements can switch over primitive integral types and strings.
+
+```belte
+int a = ...
+
+switch (a) {
+  case 1:
+    Console.PrintLine("a was 1");
+  case 2:
+    Console.PrintLine("a was 2");
+  ...
+}
+```
+
+To share code across multiple cases, empty case labels can be stacked or a case label can contain multiple values. Both
+of these are equivalent.
+
+```belte
+switch (...) {
+  case 1, 2, 3:
+    ...
+}
+```
+
+```belte
+switch (...) {
+  case 1:
+  case 2:
+  case 3:
+    ...
+}
+```
+
+Additionally, a default label can be used to catch any values not covered by the cases:
+
+```belte
+switch (...) {
+  case 1:
+  case 2:
+  case 3:
+    ...
+  default:
+    ...
+}
+```
+
+Cases do not fall through, but you can use gotos to move around the case labels:
+
+```belte
+switch (...) {
+  case 1:
+    ...
+    goto default;
+  case 2:
+    ...
+    goto case 3;
+  case 3:
+    ...
+  default:
+    ...
+}
 ```

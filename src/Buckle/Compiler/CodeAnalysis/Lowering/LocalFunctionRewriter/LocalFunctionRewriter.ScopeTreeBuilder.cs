@@ -125,7 +125,7 @@ internal sealed partial class LocalFunctionRewriter {
 
         internal override BoundNode VisitLabelStatement(BoundLabelStatement node) {
             _labelsInScope.Peek().Add(node.label);
-            _scopesAfterLabel.Add(node.label, ArrayBuilder<Scope>.GetInstance());
+            _scopesAfterLabel.TryAdd(node.label, ArrayBuilder<Scope>.GetInstance());
             return base.VisitLabelStatement(node);
         }
 

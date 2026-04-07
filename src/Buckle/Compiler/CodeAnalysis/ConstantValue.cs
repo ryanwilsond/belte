@@ -69,6 +69,27 @@ internal partial class ConstantValue {
         return value is long || value is bool;
     }
 
+    internal bool IsNegativeNumeric() {
+        switch (specialType) {
+            case SpecialType.Int8:
+                return (sbyte)value < 0;
+            case SpecialType.Int16:
+                return (short)value < 0;
+            case SpecialType.Int32:
+                return (int)value < 0;
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return (long)value < 0;
+            case SpecialType.Float32:
+                return (float)value < 0;
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return (double)value < 0;
+            default:
+                return false;
+        }
+    }
+
     public override int GetHashCode() {
         return RuntimeHelpers.GetHashCode(this);
     }

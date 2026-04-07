@@ -49,6 +49,41 @@ internal sealed partial class Conversions {
         return new Conversion(result, isImplicit: true);
     }
 
+    internal bool HasIdentityOrImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (HasIdentityConversionInternal(source, destination)) {
+            return true;
+        }
+
+        return HasImplicitReferenceConversion(source, destination);
+    }
+
+    internal bool HasImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (!source.isObjectType && !source.IsArray())
+            return false;
+
+        if (destination.specialType == SpecialType.Object)
+            return true;
+
+        switch (source.typeKind) {
+            case TypeKind.Class:
+                if (destination.IsClassType() && Conversion.IsBaseClass(source, destination))
+                    return true;
+
+                return false;
+                // TODO These types:
+                // case TypeKind.TypeParameter:
+                //     return HasImplicitReferenceTypeParameterConversion((TypeParameterSymbol)source, destination);
+                // case TypeKind.Array:
+                //     return HasImplicitConversionFromArray(source, destination);
+        }
+
+        return false;
+    }
+
+    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
+        return type1.Equals(type2, TypeCompareKind.IgnoreArraySizesAndLowerBounds);
+    }
+
     private Conversion GetImplicitNullptrExpressionConversion(
         BoundUnconvertedNullptrExpression ptrExpression,
         TypeSymbol destination) {

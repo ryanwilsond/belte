@@ -146,6 +146,11 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         return base.VisitArrayCreationExpression(node);
     }
 
+    internal override BoundNode VisitSwitchDispatch(BoundSwitchDispatch node) {
+        _lateTempCount++;
+        return base.VisitSwitchDispatch(node);
+    }
+
     internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
         var structStack = new Stack<NamedTypeSymbol>();
 

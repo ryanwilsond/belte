@@ -420,6 +420,11 @@ public sealed class EvaluatorTests {
     [InlineData("try { int a = 56/1; return a; } catch { return 3; }", 56)]
     [InlineData("int a = 3; try { int x = 0; int b = 56/x; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 6)]
     [InlineData("int a = 3; try { int b = 56/1; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 59)]
+    // Switch statements
+    [InlineData("var a = 3; int b = 1; switch (a) { case 3: b = 5; } return b;", 5)]
+    [InlineData("var a = 3; int b = 1; switch (a) { case 4: b = 5; } return b;", 1)]
+    [InlineData("var a = 3; int b = 1; switch (a) { case 3: goto case 5; case 5: goto default; default: b = 6; } return b;", 6)]
+    [InlineData("var a = 3; int b = 1; switch (a) { case 1: case 2: case 3: case 4: b = 6; } return b;", 6)]
     // Templates
     // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
     // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]

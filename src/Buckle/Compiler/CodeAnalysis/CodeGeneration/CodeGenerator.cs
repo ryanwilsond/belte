@@ -581,7 +581,7 @@ internal sealed partial class CodeGenerator {
         EmitIntConstant(value);
     }
 
-    private void EmitLongConstant(long value) {
+    internal void EmitLongConstant(long value) {
         if (value >= int.MinValue && value <= int.MaxValue) {
             EmitIntConstant((int)value);
             _builder.Emit(OpCode.Conv_I8);
@@ -593,7 +593,7 @@ internal sealed partial class CodeGenerator {
         }
     }
 
-    private void EmitIntConstant(int value) {
+    internal void EmitIntConstant(int value) {
         var code = OpCode.Nop;
 
         switch (value) {
@@ -3456,7 +3456,14 @@ oneMoreTime:
             _builder.EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
     }
 
-    private void EmitNumericConversion(SpecialType from, SpecialType to) {
+    internal void EmitLoad(LocalOrParameter localOrParameter) {
+        if (localOrParameter.local is { } local)
+            _builder.EmitLocalLoad(local);
+        else
+            _builder.EmitLoadArgument(localOrParameter.parameterIndex);
+    }
+
+    internal void EmitNumericConversion(SpecialType from, SpecialType to) {
         // TODO Handle as if checked?
         from = NormalizeNumericType(from);
         to = NormalizeNumericType(to);

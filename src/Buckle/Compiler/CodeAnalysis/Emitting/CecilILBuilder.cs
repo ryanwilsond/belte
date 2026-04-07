@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -17,6 +18,7 @@ internal sealed class CecilILBuilder : ILBuilder {
     private const int HiddenLine = 0xFEEFEE;
 
     private readonly List<(int instructionIndex, object target)> _unhandledGotos;
+    private readonly List<(int instructionIndex, object[] targets)> _unhandledSwitches;
     private readonly ILEmitter _module;
     private readonly MethodSymbol _method;
     private readonly MethodDefinition _definition;
@@ -35,6 +37,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         definition.Body.InitLocals = true;
         iLProcessor = definition.Body.GetILProcessor();
         _unhandledGotos = [];
+        _unhandledSwitches = [];
         _documents = [];
         _localSlotManager = new CecilLocalSlotManager();
         _tryStack = new Stack<object>();
@@ -57,6 +60,20 @@ internal sealed class CecilILBuilder : ILBuilder {
             var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
             var instructionFix = iLProcessor.Body.Instructions[instructionIndex];
             instructionFix.Operand = targetInstruction;
+        }
+
+        foreach (var (instructionIndex, targets) in _unhandledSwitches) {
+            var builder = ArrayBuilder<Instruction>.GetInstance();
+
+            foreach (var target in targets) {
+                var targetLabel = target;
+                var targetInstructionIndex = ((CecilLabelInfo)_labels[targetLabel]).targetInstructionIndex;
+                var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
+                builder.Add(targetInstruction);
+            }
+
+            var instructionFix = iLProcessor.Body.Instructions[instructionIndex];
+            instructionFix.Operand = builder.ToArrayAndFree();
         }
     }
 
@@ -516,6 +533,11 @@ internal sealed class CecilILBuilder : ILBuilder {
         var cOpCode = ConvertToCil(opCode);
         _unhandledGotos.Add((_count, label));
         iLProcessor.Emit(cOpCode, Instruction.Create(OpCodes.Nop));
+    }
+
+    internal override void EmitSwitch(object[] labels) {
+        _unhandledSwitches.Add((_count, labels));
+        iLProcessor.Emit(OpCodes.Switch, labels.Select(l => Instruction.Create(OpCodes.Nop)).ToArray());
     }
 
     private static Mono.Cecil.Cil.OpCode ConvertToCil(CodeGeneration.OpCode opCode) {

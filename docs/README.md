@@ -26,6 +26,7 @@
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
     - [2.3](Current/ControlFlow.md#23-conditionals) Conditionals
     - [2.4](Current/ControlFlow.md#24-loops) Loops
+    - [2.5](Current/ControlFlow.md#25-switch) Switch
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
     - [3.2](Current/Data.md#32-operators) Operators

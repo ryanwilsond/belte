@@ -60,6 +60,14 @@ internal static class LiteralUtilities {
         var sourceType = sourceTypeSymbol.StrippedType().specialType;
         var targetType = targetTypeSymbol.StrippedType().specialType;
 
+        return TrySpecialCastCore(value, sourceType, targetType, out result);
+    }
+
+    internal static bool TrySpecialCastCore(
+        object value,
+        SpecialType sourceType,
+        SpecialType targetType,
+        out object result) {
         switch (targetType) {
             case SpecialType.Bool:
                 result = Convert.ToBoolean(value);

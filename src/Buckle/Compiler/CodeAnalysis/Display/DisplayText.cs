@@ -461,6 +461,7 @@ public sealed class DisplayText {
         text.Write(CreateLiteral($"{node.cases.Length} cases"));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+        text.WriteLine();
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {

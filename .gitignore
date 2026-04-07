@@ -18,5 +18,6 @@
 *.Generated.cs
 *.log
 *.etl
+*.lscache
 
 */project-words

@@ -198,7 +198,7 @@ public sealed class IssueTests {
             }
         ";
 
-        AssertExceptions(text, _writer, new BelteNullReferenceException(null));
+        AssertExceptions(text, _writer, new BelteNullConditionException(null));
     }
 
     [Fact]

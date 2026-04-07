@@ -438,7 +438,7 @@ internal sealed class Evaluator {
                         var condition = EvaluateExpression(cgs.condition, true, abort);
 
                         if (condition.kind == ValueKind.Null)
-                            throw new BelteNullReferenceException(cgs.condition.syntax.location);
+                            throw new BelteNullConditionException(cgs.condition.syntax.location);
 
                         if (condition.@bool == cgs.jumpIfTrue)
                             index = labelToIndex[cgs.label];
@@ -446,33 +446,60 @@ internal sealed class Evaluator {
                             index++;
 
                         break;
-                    case BoundKind.ReturnStatement:
-                        _hasValue = true;
-                        returned = true;
+                    case BoundKind.ReturnStatement: {
+                            _hasValue = true;
+                            returned = true;
 
-                        if (method.returnsVoid) {
-                            if (_lastValue.Equals(EvaluatorValue.None) || !_isScript)
-                                _hasValue = false;
+                            if (method.returnsVoid) {
+                                if (_lastValue.Equals(EvaluatorValue.None) || !_isScript)
+                                    _hasValue = false;
 
-                            return _lastValue;
-                        }
+                                return _lastValue;
+                            }
 
-                        var returnStatement = (BoundReturnStatement)s;
-                        var expression = returnStatement.expression;
+                            var returnStatement = (BoundReturnStatement)s;
+                            var expression = returnStatement.expression;
 
-                        if (returnStatement.refKind == RefKind.None) {
-                            _lastValue = EvaluateExpression(expression, true, abort);
-                        } else {
-                            _lastValue = EvaluateAddress(
-                                expression,
-                                method.refKind == RefKind.RefConst ? AddressKind.ReadOnlyStrict : AddressKind.Writeable,
-                                abort
-                            );
+                            if (returnStatement.refKind == RefKind.None) {
+                                _lastValue = EvaluateExpression(expression, true, abort);
+                            } else {
+                                _lastValue = EvaluateAddress(
+                                    expression,
+                                    method.refKind == RefKind.RefConst ? AddressKind.ReadOnlyStrict : AddressKind.Writeable,
+                                    abort
+                                );
+                            }
                         }
 
                         return _lastValue;
                     case BoundKind.InlineILStatement:
                         throw new BelteEvaluatorException("Inline IL is not supported in the Evaluator.", ((InlineILStatementSyntax)s.syntax).keyword.location);
+                    case BoundKind.SwitchDispatch: {
+                            // TODO This is currently just a linear scan of the cases which is the slowest approach
+                            // This is a lot of the time faster than computing a more optimal bucket strategy and only is worse with large switches
+                            _lastValue = EvaluatorValue.None;
+                            var dispatch = (BoundSwitchDispatch)s;
+                            var expression = EvaluateExpression(dispatch.expression, true, abort);
+
+                            index = labelToIndex[dispatch.defaultLabel];
+
+                            foreach (var (value, label) in dispatch.cases) {
+                                var comparison = EvaluateEqualityOperator(
+                                    false,
+                                    true,
+                                    expression,
+                                    EvaluatorValue.Literal(value.value, value.specialType),
+                                    RelationalOperatorType(dispatch.expression.StrippedType())
+                                );
+
+                                if (comparison.@bool) {
+                                    index = labelToIndex[label];
+                                    break;
+                                }
+                            }
+                        }
+
+                        break;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(s.kind);
                 }
@@ -1702,45 +1729,13 @@ internal sealed class Evaluator {
         }
 
         if (op is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual) {
-            if (node.right.IsLiteralNull())
-                return EvaluatorValue.Literal(left.kind == ValueKind.Null == (op == BinaryOperatorKind.Equal));
-
-            switch (operandType) {
-                case BinaryOperatorKind.Int:
-                    left.@bool = left.int64 == right.int64;
-                    break;
-                case BinaryOperatorKind.UInt:
-                    left.@bool = left.uint64 == right.uint64;
-                    break;
-                case BinaryOperatorKind.Float64:
-                    left.@bool = left.@double == right.@double;
-                    break;
-                case BinaryOperatorKind.Float32:
-                    left.@bool = left.@single == right.@single;
-                    break;
-                case BinaryOperatorKind.Bool:
-                    left.@bool = left.@bool == right.@bool;
-                    break;
-                case BinaryOperatorKind.String:
-                    left.@bool = left.@string == right.@string;
-                    break;
-                case BinaryOperatorKind.Object:
-                    left.@bool = left.ptr == right.ptr;
-                    break;
-                case BinaryOperatorKind.Type:
-                    left.@bool = ((TypeSymbol)left.type).Equals(
-                        (TypeSymbol)right.type, SymbolEqualityComparer.ConsiderEverything
-                    );
-
-                    break;
-            }
-
-            left.kind = ValueKind.Bool;
-
-            if (op == BinaryOperatorKind.NotEqual)
-                left.@bool = !left.@bool;
-
-            return left;
+            return EvaluateEqualityOperator(
+                node.right.IsLiteralNull(),
+                op == BinaryOperatorKind.Equal,
+                left,
+                right,
+                operandType
+            );
         }
 
         switch (op) {
@@ -2059,6 +2054,53 @@ internal sealed class Evaluator {
             default:
                 throw ExceptionUtilities.UnexpectedValue(operatorKind);
         }
+
+        return left;
+    }
+
+    private static EvaluatorValue EvaluateEqualityOperator(
+        bool rightIsLiteralNull,
+        bool isEqual,
+        EvaluatorValue left,
+        EvaluatorValue right,
+        BinaryOperatorKind operandType) {
+        if (rightIsLiteralNull)
+            return EvaluatorValue.Literal(left.kind == ValueKind.Null == isEqual);
+
+        switch (operandType) {
+            case BinaryOperatorKind.Int:
+                left.@bool = left.int64 == right.int64;
+                break;
+            case BinaryOperatorKind.UInt:
+                left.@bool = left.uint64 == right.uint64;
+                break;
+            case BinaryOperatorKind.Float64:
+                left.@bool = left.@double == right.@double;
+                break;
+            case BinaryOperatorKind.Float32:
+                left.@bool = left.@single == right.@single;
+                break;
+            case BinaryOperatorKind.Bool:
+                left.@bool = left.@bool == right.@bool;
+                break;
+            case BinaryOperatorKind.String:
+                left.@bool = left.@string == right.@string;
+                break;
+            case BinaryOperatorKind.Object:
+                left.@bool = left.ptr == right.ptr;
+                break;
+            case BinaryOperatorKind.Type:
+                left.@bool = ((TypeSymbol)left.type).Equals(
+                    (TypeSymbol)right.type, SymbolEqualityComparer.ConsiderEverything
+                );
+
+                break;
+        }
+
+        left.kind = ValueKind.Bool;
+
+        if (!isEqual)
+            left.@bool = !left.@bool;
 
         return left;
     }

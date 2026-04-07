@@ -31,13 +31,13 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
             // TODO This only works on surface level and breaks on nested trys
             // TODO Will have to rewrite the CFG builder from scratch fix trys later
-            if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
-                BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
-                var statementToRemove = statement;
-                PotentiallyReportDeadCode(statementToRemove);
-                builder.RemoveAt(i);
-                i--;
-            }
+            // if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
+            //     BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
+            //     var statementToRemove = statement;
+            //     PotentiallyReportDeadCode(statementToRemove);
+            //     builder.RemoveAt(i);
+            //     i--;
+            // }
         }
 
         return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
@@ -48,13 +48,8 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
                 return;
 
-            // TODO Eventually replace this with a proper FlowAnalysisPass on BoundNode.WasCompilerGenerated
-            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
-                return;
-
-            // TODO CFG is broken so these warnings are not being triggered correctly
-            // if (seenScopes.Add(syntax.parent))
-            //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
+            if (seenScopes.Add(syntax.parent))
+                diagnostics.Push(Warning.UnreachableCode(syntax.location));
         }
     }
 

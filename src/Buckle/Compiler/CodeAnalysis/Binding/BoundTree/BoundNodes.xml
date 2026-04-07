@@ -400,6 +400,12 @@
   <AbstractNode Name="BoundDagTest" Base="BoundNode">
     <Field Name="input" Type="BoundDagTemp"/>
   </AbstractNode>
+  <Node Name="BoundDagTypeTest" Base="BoundDagTest">
+    <Field Name="type" Type="TypeSymbol" Null="disallow"/>
+  </Node>
+  <Node Name="BoundDagTypeEvaluation" Base="BoundDagEvaluation">
+    <Field Name="type" Type="TypeSymbol" Null="disallow"/>
+  </Node>
   <Node Name="BoundLeafDecisionDagNode" Base="BoundDecisionDagNode">
     <Field Name="label" Type="LabelSymbol"/>
   </Node>

@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -497,6 +498,22 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         EmitWithSymbolToken(cOpCode, ((RefLabelInfo)labelInfo).label);
+    }
+
+    internal override void EmitSwitch(object[] labels) {
+        var builder = ArrayBuilder<Label>.GetInstance();
+
+        foreach (var label in labels) {
+            if (!_labels.TryGetValue(label, out var labelInfo)) {
+                labelInfo = new RefLabelInfo(_iLGenerator);
+                _labelCounts.Add(((RefLabelInfo)labelInfo).label);
+                _labels.Add(label, labelInfo);
+            }
+
+            builder.Add(((RefLabelInfo)labelInfo).label);
+        }
+
+        _iLGenerator.Emit(OpCodes.Switch, builder.ToArrayAndFree());
     }
 
     internal override VariableDefinition AllocateSlot(
