@@ -399,6 +399,7 @@ public enum DiagnosticCode : ushort {
     ERR_MultipleFileScopedNamespaces = 388,
     ERR_FileScopedAndNormalNamespace = 389,
     ERR_FileScopedNamespaceNotFirstMember = 390,
+    ERR_EntryConstructor = 391,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

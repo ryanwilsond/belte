@@ -1907,6 +1907,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FileScopedNamespaceNotFirstMember, location, message);
     }
 
+    internal static BelteDiagnostic EntryConstructor(TextLocation location) {
+        var message = $"entry point type cannot define instance constructors";
+        return CreateError(DiagnosticCode.ERR_EntryConstructor, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

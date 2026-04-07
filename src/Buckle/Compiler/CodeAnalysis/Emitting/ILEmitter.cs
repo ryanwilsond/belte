@@ -582,10 +582,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is not null) {
-            _assemblyDefinition.EntryPoint = _methods[entryPoint];
-
-            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int))
+            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int)) {
                 _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+            } else {
+                if (entryPoint.isStatic)
+                    _assemblyDefinition.EntryPoint = _methods[entryPoint];
+                else
+                    CreateStaticEntryPoint(entryPoint);
+            }
         }
 
         if (_debugMode) {
@@ -595,6 +599,37 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             _assemblyDefinition.CustomAttributes.Add(debuggableAttribute);
         }
+    }
+
+    private void CreateStaticEntryPoint(MethodSymbol entryPoint) {
+        var instanceEntry = _methods[entryPoint];
+
+        var staticClass = new TypeDefinition(
+            "",
+            "<s_Program>",
+            TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed,
+            _specialTypes[SpecialType.Object]
+        );
+
+        var staticEntry = new MethodDefinition(
+            "Main",
+            MethodAttributes.Static | MethodAttributes.Public,
+            GetType(entryPoint.returnType)
+        );
+
+        staticClass.Methods.Add(staticEntry);
+
+        var staticBuilder = new CecilILBuilder(null, this, staticEntry);
+        var il = staticBuilder.iLProcessor;
+
+        il.Emit(OpCodes.Newobj, GetMethod(entryPoint.containingType.instanceConstructors[0]));
+        il.Emit(OpCodes.Callvirt, instanceEntry);
+        il.Emit(OpCodes.Ret);
+
+        staticBuilder.Finish();
+
+        _assemblyDefinition.MainModule.Types.Add(staticClass);
+        _assemblyDefinition.EntryPoint = staticEntry;
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {

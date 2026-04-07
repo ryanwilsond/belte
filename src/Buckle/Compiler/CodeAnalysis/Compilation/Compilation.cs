@@ -717,6 +717,15 @@ public sealed partial class Compilation {
                 diagnostics.Push(Error.MainAndGlobals(methods[0].location));
         }
 
+        if (entryPoint is not null && !entryPoint.isStatic) {
+            var containingConstructors = entryPoint.containingType.instanceConstructors;
+
+            if (containingConstructors.Length != 1 ||
+                containingConstructors[0] is not SynthesizedInstanceConstructorSymbol) {
+                diagnostics.Push(Error.EntryConstructor(entryPoint.containingType.location));
+            }
+        }
+
         return entryPoint;
     }
 

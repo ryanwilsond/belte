@@ -4753,4 +4753,20 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0391_EntryConstructor() {
+        var text = @"
+            public class [Program] {
+                public constructor(int a) { }
+                public void Main() { }
+            }
+        ";
+
+        var diagnostics = @"
+            entry point type cannot define instance constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
 }
