@@ -667,18 +667,33 @@ public sealed partial class Compilation {
 
     private MethodSymbol FindEntryPoint(SynthesizedEntryPoint simpleEntryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
-        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
 
-        foreach (var type in classes) {
-            foreach (var member in type.GetMembers(WellKnownMemberNames.EntryPointMethodName)) {
-                if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
-                    builder.Add(m);
-            }
-        }
+        AddEntryPointCandidates(
+            builder,
+            GetSymbolsWithName(WellKnownMemberNames.EntryPointMethodName, SymbolFilter.Member)
+        );
 
         builder.AddIfNotNull(simpleEntryPoint);
         var entryPointCandidates = builder.ToImmutableAndFree();
         return SelectEntryPoint(simpleEntryPoint, entryPointCandidates, diagnostics, options.isScript);
+
+        static void AddEntryPointCandidates(
+            ArrayBuilder<MethodSymbol> entryPointCandidates,
+            IEnumerable<Symbol> members) {
+            foreach (var member in members) {
+                if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
+                    entryPointCandidates.Add(m);
+            }
+        }
+    }
+
+    internal IEnumerable<Symbol> GetSymbolsWithName(string name, SymbolFilter filter) {
+        ArgumentNullException.ThrowIfNull(name);
+
+        if (filter == SymbolFilter.None)
+            throw new ArgumentException(nameof(filter));
+
+        return new NameSymbolSearcher(this, filter, name).GetSymbolsWithName();
     }
 
     internal static MethodSymbol SelectEntryPoint(

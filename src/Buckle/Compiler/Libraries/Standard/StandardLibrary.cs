@@ -15,6 +15,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyInt;
     private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
@@ -90,6 +91,15 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol Int {
+        get {
+            if (_lazyInt is null)
+                Interlocked.CompareExchange(ref _lazyInt, GenerateInt(), null);
+
+            return _lazyInt;
+        }
+    }
+
     internal static SynthesizedFinishedNamedTypeSymbol CallingConvention {
         get {
             if (_lazyCallingConvention is null)
@@ -117,6 +127,7 @@ internal static class StandardLibrary {
         yield return Time;
         yield return Random;
         yield return String;
+        yield return Int;
         yield return CallingConvention;
     }
 
@@ -137,6 +148,16 @@ internal static class StandardLibrary {
             StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
             StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
             StaticMethod("Length", SpecialType.Int, [("str", SpecialType.String)]),
+            StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("str", SpecialType.String, true)]),
+            StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
+            StaticMethod("IsDigit", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
+            StaticMethod("Substring", SpecialType.String, true, [("text", SpecialType.String, true), ("start", SpecialType.Int, true), ("length", SpecialType.Int, true)]),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateInt() {
+        return StaticClass("Int", [
+            StaticMethod("Parse", SpecialType.Int, true, [("text", SpecialType.String, true)]),
         ]);
     }
 
@@ -682,6 +703,20 @@ internal static class StandardLibrary {
                 => { return char.TryParse((string)a, out var result) ? (long)result : null; }) },
             { "String_Char_I", new Func<object, object, object, object>((a, b, c)
                 => { return Convert.ToChar(a); }) },
+            { "String_IsNullOrWhiteSpace_S?", new Func<object, object, object, object>((a, b, c)
+                => { return string.IsNullOrWhiteSpace((string)a); }) },
+            { "String_IsNullOrWhiteSpace_C?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || char.IsWhiteSpace((char)a); }) },
+            { "String_IsDigit_C?", new Func<object, object, object, object>((a, b, c)
+                => { return a is not null && char.IsDigit((char)a); }) },
+            { "String_Substring_S?I?I?", new Func<object, object, object, object>((a, b, c)
+                => { if (a is null) return null;
+                     if (c is null) return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b));
+                     return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b), unchecked((int)(long)c)); }) },
+            { "Int_Parse_S?", new Func<object, object, object, object>((a, b, c)
+                => { if (a is null) return null;
+                     if (long.TryParse((string)a, out var result)) return result;
+                     return null; }) },
         };
     }
 }

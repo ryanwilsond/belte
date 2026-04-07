@@ -147,6 +147,16 @@ internal sealed partial class BinderFactory {
             return VisitNamespaceDeclaration(parent, _position, inBody, inUsing);
         }
 
+        internal override Binder VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax parent) {
+            if (!SyntaxFacts.IsInNamespaceDeclaration(_position, parent))
+                return VisitCore(parent.parent);
+
+            var inBody = _position >= parent.semicolon.endPosition;
+            var inUsing = IsInUsing(parent);
+
+            return VisitNamespaceDeclaration(parent, _position, inBody, inUsing);
+        }
+
         internal Binder VisitNamespaceDeclaration(
             BaseNamespaceDeclarationSyntax parent,
             int position,

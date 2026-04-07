@@ -100,10 +100,12 @@ internal sealed partial class Conversions {
         BoundUnconvertedImplicitEnumFieldExpression node,
         TypeSymbol targetType) {
         if (targetType.StrippedType().IsEnumType()) {
-            if (targetType.IsNullableType())
-                return new Conversion(ConversionKind.ImplicitNullable, [Conversion.ImplicitEnum]);
+            var conversion = Conversion.Identity;
 
-            return Conversion.ImplicitEnum;
+            if (targetType.IsNullableType())
+                conversion = new Conversion(ConversionKind.ImplicitNullable, [conversion]);
+
+            return conversion;
         }
 
         return Conversion.None;
@@ -199,7 +201,12 @@ internal sealed partial class Conversions {
     }
 
     internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target) {
-        return FastClassifyConversion(source, target);
+        var conversion = FastClassifyConversion(source, target);
+
+        if (conversion.exists)
+            return conversion;
+
+        return Conversion.Classify(source, target);
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {

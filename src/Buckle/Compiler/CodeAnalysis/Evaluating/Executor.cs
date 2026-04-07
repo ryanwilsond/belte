@@ -689,6 +689,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 _fields.Add(f, fieldBuilder);
             } else if (member is NamedTypeSymbol t) {
                 CreateMemberDefinitions(t);
+            } else if (member is MethodSymbol m && m.isAbstract) {
+                CreateMethodDefinition(m, null, typeBuilder);
             }
         }
 
@@ -803,7 +805,9 @@ internal sealed partial class Executor : ModuleBuilder {
         );
 
         _methods.Add(method, methodBuilder);
-        _methodBodies.Add(method, body);
+
+        if (body is not null)
+            _methodBodies.Add(method, body);
 
         Type GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
             if (type.typeKind == TypeKind.FunctionPointer)
@@ -1156,6 +1160,11 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
             { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
             { "String_Length_S", typeof(Belte.Runtime.Utilities).GetMethod("StringLength", Flags, [typeof(string)]) },
+            { "String_IsNullOrWhiteSpace_S?", typeof(string).GetMethod("IsNullOrWhiteSpace", Flags, [typeof(string)]) },
+            { "String_IsNullOrWhiteSpace_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsNullOrWhiteSpace", Flags, [typeof(char?)]) },
+            { "String_IsDigit_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsDigit", Flags, [typeof(char?)]) },
+            { "String_Substring_S?I?I?", typeof(Belte.Runtime.Utilities).GetMethod("Substring", Flags, [typeof(string), typeof(long?), typeof(long?)]) },
+            { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },

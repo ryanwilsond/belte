@@ -546,18 +546,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0039_ArrayInitToNonArrayType() {
-        var text = @"
-            int a = [{ 1, 2, 3 }];
-        ";
+    // !
+    // Unreachable currently
 
-        var diagnostics = @"
-            can only use array initializer expressions to assign to array types; try using a new expression instead
-        ";
+    // [Fact]
+    // public void Reports_Error_BU0039_ArrayInitToNonArrayType() {
+    //     var text = @"
+    //         int a = [{ 1, 2, 3 }];
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     var diagnostics = @"
+    //         can only use array initializer expressions to assign to array types; try using a new expression instead
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0040_NoInitOnImplicit() {
@@ -4708,4 +4711,46 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0387_SwitchCaseSubsumed
     // Unreachable currently
+
+    [Fact]
+    public void Reports_Error_BU0388_MultipleFileScopedNamespaces() {
+        var text = @"
+            namespace A;
+            namespace [B];
+        ";
+
+        var diagnostics = @"
+            file can only contain one file-scoped namespace declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0389_FileScopedAndNormalNamespace() {
+        var text = @"
+            namespace A;
+            namespace [B] { }
+        ";
+
+        var diagnostics = @"
+            file can not contain both file-scoped and normal namespace declarations
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0390_FileScopedNamespaceNotFirstMember() {
+        var text = @"
+            namespace A { }
+            namespace [B];
+        ";
+
+        var diagnostics = @"
+            file-scoped namespace must precede all other members in a file
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

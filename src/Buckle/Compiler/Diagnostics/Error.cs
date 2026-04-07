@@ -1892,6 +1892,21 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_WrongEnumTargetType, location, message);
     }
 
+    internal static BelteDiagnostic MultipleFileScopedNamespaces(TextLocation location) {
+        var message = $"file can only contain one file-scoped namespace declaration";
+        return CreateError(DiagnosticCode.ERR_MultipleFileScopedNamespaces, location, message);
+    }
+
+    internal static BelteDiagnostic FileScopedAndNormalNamespace(TextLocation location) {
+        var message = $"file can not contain both file-scoped and normal namespace declarations";
+        return CreateError(DiagnosticCode.ERR_FileScopedAndNormalNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic FileScopedNamespaceNotFirstMember(TextLocation location) {
+        var message = $"file-scoped namespace must precede all other members in a file";
+        return CreateError(DiagnosticCode.ERR_FileScopedNamespaceNotFirstMember, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

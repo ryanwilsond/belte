@@ -144,6 +144,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal MergedTypeDeclaration mergedDeclaration => _declaration;
+
     internal ImmutableArray<ImmutableArray<FieldInitializer>> instanceInitializers
         => GetMembersAndInitializers().instanceInitializers;
 

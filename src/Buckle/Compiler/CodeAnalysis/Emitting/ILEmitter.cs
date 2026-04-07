@@ -548,8 +548,26 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitInternal() {
         foreach (var type in _topLevelTypes) {
-            var typeDefinition = CreateNamedTypeDefinition(type);
-            _assemblyDefinition.MainModule.Types.Add(typeDefinition);
+            var baseStack = new Stack<NamedTypeSymbol>();
+            var current = type;
+
+            while (current is not null) {
+                if (current.specialType is SpecialType.Object or SpecialType.Exception)
+                    break;
+
+                baseStack.Push(current);
+                current = current.baseType;
+            }
+
+            while (baseStack.Count > 0) {
+                var baseType = baseStack.Pop();
+
+                if (_types.ContainsKey(baseType.originalDefinition))
+                    continue;
+
+                var typeDefinition = CreateNamedTypeDefinition(baseType);
+                _assemblyDefinition.MainModule.Types.Add(typeDefinition);
+            }
         }
 
         foreach (var type in _topLevelTypes)
@@ -712,6 +730,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 typeDefinition.Fields.Add(fieldDefinition);
             } else if (member is NamedTypeSymbol t) {
                 CreateMemberDefinitions(t);
+            } else if (member is MethodSymbol m && m.isAbstract) {
+                CreateMethodDefinition(m, null, typeDefinition);
             }
         }
 
@@ -810,7 +830,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         _methods.Add(method, methodDefinition);
-        _methodBodies.Add(methodDefinition, (method, body));
+
+        if (body is not null)
+            _methodBodies.Add(methodDefinition, (method, body));
+
         containingType.Methods.Add(methodDefinition);
 
         return methodDefinition;
@@ -1384,6 +1407,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
             { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
             { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
+            { "String_IsNullOrWhiteSpace_S?", ResolveMethod("System.String", "IsNullOrWhiteSpace", ["System.String"]) },
+            { "String_IsNullOrWhiteSpace_C?", ResolveMethod("Belte.Runtime.Utilities", "IsNullOrWhiteSpace", ["System.Nullable`1<System.Char>"]) },
+            { "String_IsDigit_C?", ResolveMethod("Belte.Runtime.Utilities", "IsDigit", ["System.Nullable`1<System.Char>"]) },
+            { "String_Substring_S?I?I?", ResolveMethod("Belte.Runtime.Utilities", "Substring", ["System.String", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
             { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
             { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
             { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },

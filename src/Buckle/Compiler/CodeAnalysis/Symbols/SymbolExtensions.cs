@@ -21,6 +21,22 @@ internal static class SymbolExtensions {
         return SyntaxTree.Dummy.GetRoot();
     }
 
+    internal static bool IsTypeOrTypeAlias(this Symbol symbol) {
+        switch (symbol.kind) {
+            case SymbolKind.ArrayType:
+            case SymbolKind.ErrorType:
+            case SymbolKind.NamedType:
+            case SymbolKind.PointerType:
+            case SymbolKind.FunctionPointerType:
+            case SymbolKind.TemplateParameter:
+                return true;
+            case SymbolKind.Alias:
+                return IsTypeOrTypeAlias(((AliasSymbol)symbol).target);
+            default:
+                return false;
+        }
+    }
+
     internal static Symbol ConstructedFrom(this Symbol symbol) {
         switch (symbol.kind) {
             case SymbolKind.NamedType:

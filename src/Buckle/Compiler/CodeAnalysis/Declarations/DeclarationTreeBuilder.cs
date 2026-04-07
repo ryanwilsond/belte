@@ -227,6 +227,10 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return VisitBaseNamespaceDeclaration(node);
     }
 
+    internal override SingleNamespaceOrTypeDeclaration VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax node) {
+        return VisitBaseNamespaceDeclaration(node);
+    }
+
     private SingleNamespaceDeclaration VisitBaseNamespaceDeclaration(BaseNamespaceDeclarationSyntax node) {
         var children = VisitNamespaceChildren(node, node.members, ((CoreInternalSyntax.BaseNamespaceDeclarationSyntax)node.green).members);
 
@@ -251,6 +255,22 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         }
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+        if (node is FileScopedNamespaceDeclarationSyntax) {
+            if (node.parent is FileScopedNamespaceDeclarationSyntax) {
+                diagnostics.Push(Error.MultipleFileScopedNamespaces(node.name.location));
+            } else if (node.parent is NamespaceDeclarationSyntax) {
+                diagnostics.Push(Error.FileScopedAndNormalNamespace(node.name.location));
+            } else {
+                var compilationUnit = (CompilationUnitSyntax)node.parent;
+
+                if (node != compilationUnit.members[0])
+                    diagnostics.Push(Error.FileScopedNamespaceNotFirstMember(node.name.location));
+            }
+        } else {
+            if (node.parent is FileScopedNamespaceDeclarationSyntax)
+                diagnostics.Push(Error.FileScopedAndNormalNamespace(node.name.location));
+        }
 
         if (ContainsTemplate(node.name))
             diagnostics.Push(Error.UnexpectedTemplateName(node.name.location));

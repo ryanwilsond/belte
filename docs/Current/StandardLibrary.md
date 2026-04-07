@@ -15,3 +15,4 @@ need importing).
   - [5.7.1](StandardLibrary/List.md) List
   - [5.7.2](StandardLibrary/Dictionary.md) Dictionary
 - [5.8](StandardLibrary/LowLevel.md) LowLevel
+- [5.9](StandardLibrary/Int.md) Int

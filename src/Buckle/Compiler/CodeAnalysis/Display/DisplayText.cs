@@ -483,8 +483,8 @@ public sealed class DisplayText {
         text.WriteLine();
     }
 
-    private static void DisplaySequencePoint(DisplayText text, BoundSequencePoint node) {
-        if (node.syntax?.location is not null)
+    private static void DisplaySequencePoint(DisplayText text, BoundSequencePoint node, bool showSyntax = false) {
+        if (showSyntax && node.syntax?.location is not null)
             DisplaySequencePointComment(text, node.syntax.location);
 
         if (node.statement is null)
@@ -493,8 +493,12 @@ public sealed class DisplayText {
             DisplayNode(text, node.statement);
     }
 
-    private static void DisplaySequencePointWithLocation(DisplayText text, BoundSequencePointWithLocation node) {
-        DisplaySequencePointComment(text, node.location);
+    private static void DisplaySequencePointWithLocation(
+        DisplayText text,
+        BoundSequencePointWithLocation node,
+        bool showSyntax = false) {
+        if (showSyntax)
+            DisplaySequencePointComment(text, node.location);
 
         if (node.statement is null)
             DisplayNopStatement(text);

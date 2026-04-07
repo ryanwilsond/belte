@@ -1690,8 +1690,9 @@ internal partial class Binder {
                 []
             );
         } else {
-            diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
-            result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, false);
+            // TODO Would be nice if lists could accept empty/non-inferred array initializers
+            // diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
+            result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
         }
 
         return CheckValue(result, valueKind, diagnostics);
@@ -3461,8 +3462,9 @@ internal partial class Binder {
             var intType = CorLibrary.GetSpecialType(SpecialType.Int);
             var charType = CorLibrary.GetSpecialType(SpecialType.Char);
 
-            if (argument.type is not null && argument.type.IsNullableType())
-                intType = CorLibrary.GetNullableType(SpecialType.Int);
+            // TODO Allow nullable indexing here? Would necessitate a runtime wrapper around System.String.get_Chars
+            // if (argument.type is not null && argument.type.IsNullableType())
+            //     intType = CorLibrary.GetNullableType(SpecialType.Int);
 
             var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
 
@@ -7944,6 +7946,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         if (resultRight.constantValue is not null &&
             resultRight.constantValue.specialType.IsNumeric() &&
+            resultRight.constantValue.specialType != SpecialType.Char &&
             Convert.ToDouble(resultRight.constantValue.value) == 0 &&
             resultOperatorKind.Operator() == BinaryOperatorKind.Division) {
             diagnostics.Push(Error.DivideByZero(location));
@@ -12521,8 +12524,7 @@ symIsHidden:;
         } else if (symbols.Length == 1) {
             var field = symbols[0] as FieldSymbol;
             var constantValue = field.GetConstantValue(constantFieldsInProgress);
-            var fieldAccess = new BoundFieldAccessExpression(node.syntax, null, field, constantValue, enumType);
-            return CreateConversion(fieldAccess, conversion, targetType, diagnostics);
+            return new BoundFieldAccessExpression(node.syntax, null, field, constantValue, enumType);
         } else {
             throw ExceptionUtilities.Unreachable();
         }

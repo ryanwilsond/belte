@@ -10,7 +10,9 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         NamespaceOrTypeSymbol containingSymbol,
         MergedTypeDeclaration declaration,
         BelteDiagnosticQueue diagnostics)
-        : base(containingSymbol, declaration, diagnostics) { }
+        : base(containingSymbol, declaration, diagnostics) {
+        _state.NotePartComplete(CompletionParts.EnumUnderlyingType);
+    }
 
     internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
 

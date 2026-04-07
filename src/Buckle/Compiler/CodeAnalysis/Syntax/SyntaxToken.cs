@@ -58,6 +58,8 @@ public sealed class SyntaxToken {
     /// </summary>
     public int position { get; }
 
+    internal int endPosition => node is not null ? position + node.fullWidth : 0;
+
     /// <summary>
     /// The slot index of this token in relation to the parent.
     /// </summary>

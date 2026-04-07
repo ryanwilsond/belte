@@ -573,6 +573,7 @@ internal sealed class Lexer : IDisposable {
                     } else {
                         goto default;
                     }
+
                     break;
                 default:
                     _position++;
@@ -605,6 +606,7 @@ internal sealed class Lexer : IDisposable {
                         _position++;
                         done = true;
                     }
+
                     break;
                 case '\'' when isCharacter:
                     _position++;
@@ -654,12 +656,17 @@ internal sealed class Lexer : IDisposable {
                             sb.Append('\\');
                             _position++;
                             break;
+                        case '0':
+                            sb.Append('\0');
+                            _position++;
+                            break;
                         case '\0':
                             break;
                         default:
                             AddDiagnostic(Error.UnrecognizedEscapeSequence(_current), _position - 1, 2);
                             break;
                     }
+
                     break;
                 default:
                     sb.Append(_current);

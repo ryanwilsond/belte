@@ -1,10 +1,18 @@
 
 public static class String {
-    public static string![]! Split(string! text, string! separator);
-
     public static int Ascii(string! chr);
 
     public static string! Char(int! ascii);
 
+    public static bool! IsDigit(char chr);
+
+    public static bool! IsNullOrWhiteSpace(string str);
+
+    public static bool! IsNullOrWhiteSpace(char str);
+
     public static int! Length(string! str);
+
+    public static string![]! Split(string! text, string! separator);
+
+    public static string Substring(string text, int start, int length);
 }

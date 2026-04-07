@@ -396,6 +396,9 @@ public enum DiagnosticCode : ushort {
     ERR_LabelNotFound = 385,
     ERR_DuplicateCaseLabel = 386,
     ERR_SwitchCaseSubsumed = 387,
+    ERR_MultipleFileScopedNamespaces = 388,
+    ERR_FileScopedAndNormalNamespace = 389,
+    ERR_FileScopedNamespaceNotFirstMember = 390,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

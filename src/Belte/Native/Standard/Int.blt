@@ -1,0 +1,4 @@
+
+public static class Int {
+    public static int Parse(string text);
+}

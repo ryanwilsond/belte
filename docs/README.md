@@ -54,6 +54,7 @@
       - [5.7.1](Current/StandardLibrary/List.md) List
       - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
     - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
+    - [5.9](Current/StandardLibrary/Int.md) Int
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
     - [6.2](Current/LowLevelFeatures.md#62-structures) Structures

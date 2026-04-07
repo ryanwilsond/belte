@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|as|global|il|noverify)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -146,8 +146,20 @@
                     "match": "\\b((?<=class\\s+)|(?<=\\:\\s*))([a-zA-Z_]+\\w*)\\b"
                 },
                 {
+                    "name": "entity.name.struct.belte",
+                    "match": "\\b((?<=struct\\s+)|(?<=\\:\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.enum.belte",
+                    "match": "\\b((?<=enum\\s+(?:flags\\s+)?)|(?<=\\:\\s*))(?!flags\\b)([a-zA-Z_]\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.namespace.belte",
+                    "match": "\\b((?<=namespace\\s+)|(?<=\\:\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
                     "name": "entity.name.operator.belte",
-                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|is|isnt|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
+                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
                 },
                 {
                     "name": "entity.name.type.belte",

@@ -652,6 +652,10 @@ public static class SyntaxFacts {
         return IsBetweenTokens(position, namespaceDecl.keyword, namespaceDecl.closeBrace);
     }
 
+    internal static bool IsInNamespaceDeclaration(int position, FileScopedNamespaceDeclarationSyntax namespaceDecl) {
+        return position >= namespaceDecl.span.start;
+    }
+
     internal static bool IsSimpleProgramTopLevelStatement(GlobalStatementSyntax syntax) {
         // TODO Conider making scripts not use simple programs at all
         return IsTopLevelStatement(syntax) /*&& syntax.syntaxTree.kind == SourceCodeKind.Regular*/;
