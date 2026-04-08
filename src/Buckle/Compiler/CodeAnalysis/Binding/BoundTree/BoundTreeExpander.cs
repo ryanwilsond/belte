@@ -48,6 +48,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
             BoundKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
             BoundKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
+            BoundKind.ForEachStatement => ExpandForEachStatement((BoundForEachStatement)statement),
             BoundKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
             BoundKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
             BoundKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
@@ -196,6 +197,11 @@ internal abstract class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandForStatement(BoundForStatement statement) {
         // For loops have to be expanded after they have been lowered
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandForEachStatement(BoundForEachStatement statement) {
+        // For each loops have to be expanded after they have been lowered
         return [statement];
     }
 

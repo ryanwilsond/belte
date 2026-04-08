@@ -131,7 +131,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _topLevelTypes = program.GetAllTypes()
             .Where(t => t.kind == SymbolKind.NamedType &&
                 t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or SpecialType.Rect &&
+                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or
+                                 SpecialType.Rect or SpecialType.Enumerator &&
                 t.originalDefinition is not PENamedTypeSymbol)
             .ToArray()
             .Cast<NamedTypeSymbol>()
@@ -349,6 +350,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (type.originalDefinition is PENamedTypeSymbol || type.IsErrorType())
                 return ResolveType(null, type.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat));
 
+            if (_types.TryGetValue(type.originalDefinition, out var found))
+                return found;
+
+            CreateTypeDefinitionAndBases(type);
             return _types[type.originalDefinition];
         }
     }
@@ -546,29 +551,32 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _assemblyDefinition.MainModule.Types.Add(_globalsClass);
     }
 
-    private void EmitInternal() {
-        foreach (var type in _topLevelTypes) {
-            var baseStack = new Stack<NamedTypeSymbol>();
-            var current = type;
+    private void CreateTypeDefinitionAndBases(NamedTypeSymbol type) {
+        var baseStack = new Stack<NamedTypeSymbol>();
+        var current = type;
 
-            while (current is not null) {
-                if (current.specialType is SpecialType.Object or SpecialType.Exception)
-                    break;
+        while (current is not null) {
+            if (current.specialType is SpecialType.Object or SpecialType.Exception)
+                break;
 
-                baseStack.Push(current);
-                current = current.baseType;
-            }
-
-            while (baseStack.Count > 0) {
-                var baseType = baseStack.Pop();
-
-                if (_types.ContainsKey(baseType.originalDefinition))
-                    continue;
-
-                var typeDefinition = CreateNamedTypeDefinition(baseType);
-                _assemblyDefinition.MainModule.Types.Add(typeDefinition);
-            }
+            baseStack.Push(current);
+            current = current.baseType;
         }
+
+        while (baseStack.Count > 0) {
+            var baseType = baseStack.Pop();
+
+            if (_types.ContainsKey(baseType.originalDefinition))
+                continue;
+
+            var typeDefinition = CreateNamedTypeDefinition(baseType);
+            _assemblyDefinition.MainModule.Types.Add(typeDefinition);
+        }
+    }
+
+    private void EmitInternal() {
+        foreach (var type in _topLevelTypes)
+            CreateTypeDefinitionAndBases(type);
 
         foreach (var type in _topLevelTypes)
             CreateMemberDefinitions(type);

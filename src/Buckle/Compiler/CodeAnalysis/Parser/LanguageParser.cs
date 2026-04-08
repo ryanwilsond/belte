@@ -753,7 +753,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         switch (parameterList.parameters.Count) {
             case 1:
-                if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableUnaryOperator(opKind)) {
+                if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableUnaryOperator(opKind) &&
+                    !SyntaxFacts.IsOverloadableMethod(operatorToken)) {
                     operatorToken = AddDiagnostic(
                         operatorToken,
                         Error.ExpectedOverloadableUnaryOperator()
@@ -781,10 +782,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                         operatorToken,
                         Error.IncorrectBinaryOperatorArgs(SyntaxFacts.GetText(opKind))
                     );
-                } else if (SyntaxFacts.IsOverloadableUnaryOperator(opKind)) {
+                } else if (SyntaxFacts.IsOverloadableUnaryOperator(opKind) ||
+                    SyntaxFacts.IsOverloadableMethod(operatorToken)) {
                     operatorToken = AddDiagnostic(
                         operatorToken,
-                        Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind))
+                        Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind) ?? operatorToken.text)
                     );
                 } else {
                     operatorToken = AddDiagnostic(
@@ -1198,7 +1200,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         bool CanReuseStatement(SyntaxList<AttributeListSyntax> attributes) {
             return _isIncrementalAndFactoryContextMatches &&
                    currentNode is Syntax.StatementSyntax &&
-                   attributes.Count == 0;
+                   attributes?.Count == 0;
         }
     }
 
@@ -1546,6 +1548,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private StatementSyntax ParseForStatement() {
+        if (PeekIsForEachStatement())
+            return ParseForEachStatement();
+
         var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
 
@@ -1568,6 +1573,61 @@ internal sealed partial class LanguageParser : SyntaxParser {
             condition,
             semicolon,
             step,
+            closeParenthesis,
+            body
+        );
+    }
+
+    private bool PeekIsForEachStatement() {
+        var offset = 0;
+
+        if (Peek(offset++).kind != SyntaxKind.ForKeyword)
+            return false;
+
+        if (Peek(offset).kind == SyntaxKind.OpenParenToken)
+            offset++;
+
+        if (Peek(offset++).kind != SyntaxKind.IdentifierToken)
+            return false;
+
+        if (Peek(offset).kind == SyntaxKind.CommaToken)
+            offset++;
+
+        if (Peek(offset).kind == SyntaxKind.IdentifierToken)
+            offset++;
+
+        if (Peek(offset).kind != SyntaxKind.InKeyword)
+            return false;
+
+        return true;
+    }
+
+    private StatementSyntax ParseForEachStatement() {
+        var keyword = EatToken();
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var valueIdentifier = Match(SyntaxKind.IdentifierToken);
+
+        SyntaxToken comma = null;
+        SyntaxToken indexIdentifier = null;
+
+        if (currentToken.kind == SyntaxKind.CommaToken) {
+            comma = EatToken();
+            indexIdentifier = Match(SyntaxKind.IdentifierToken);
+        }
+
+        var inKeyword = Match(SyntaxKind.InKeyword);
+        var expression = ParseExpression();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+        var body = ParseStatement();
+
+        return SyntaxFactory.ForEachStatement(
+            keyword,
+            openParenthesis,
+            valueIdentifier,
+            comma,
+            indexIdentifier,
+            inKeyword,
+            expression,
             closeParenthesis,
             body
         );
@@ -2636,27 +2696,29 @@ done:
                 interpolations.Add(ParseInterpolation(group));
         }
 
+        var leading = originalToken.GetLeadingTrivia();
         var openQuote = SyntaxFactory.Token(
             SyntaxKind.InterpolatedStringStartToken,
-            2,
+            2 + (leading?.fullWidth ?? 0),
             originalText[0..2],
             null,
-            originalToken.GetLeadingTrivia(),
+            leading,
             null
         );
 
+        var trailing = originalToken.GetTrailingTrivia();
         var closeQuote = hasCloseQuote
             ? SyntaxFactory.Token(
                 SyntaxKind.InterpolatedStringEndToken,
-                1,
+                1 + (trailing?.fullWidth ?? 0),
                 originalText[^1].ToString(),
                 null,
                 null,
-                originalToken.GetTrailingTrivia())
+                trailing)
             : SyntaxFactory.Missing(
                 SyntaxKind.InterpolatedStringEndToken,
                 null,
-                originalToken.GetTrailingTrivia());
+                trailing);
 
         return SyntaxFactory.InterpolatedStringExpression(openQuote, interpolations.ToList(), closeQuote);
     }

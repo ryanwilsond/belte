@@ -94,7 +94,8 @@ internal sealed partial class Executor : ModuleBuilder {
         _topLevelTypes = program.GetAllTypes()
             .Where(t => t.kind == SymbolKind.NamedType &&
                 t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary)
+                t.specialType is SpecialType.None or SpecialType.List or
+                                 SpecialType.Dictionary or SpecialType.Enumerator)
             .ToArray()
             .Cast<NamedTypeSymbol>()
             .ToImmutableArray();
@@ -299,6 +300,12 @@ internal sealed partial class Executor : ModuleBuilder {
             if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
                 return baked;
 
+            if (_types.TryGetValue(type.originalDefinition, out var found))
+                return found;
+
+            if (_topLevelTypes.Contains(type.originalDefinition))
+                CreateTypeBuilderAndBases(type);
+
             return _types[type.originalDefinition];
         }
     }
@@ -306,7 +313,6 @@ internal sealed partial class Executor : ModuleBuilder {
     private Type ResolveType(PENamedTypeSymbol type) {
         var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
         var assembly = Assembly.LoadFrom(metadata.location);
-        var allTypes = assembly.GetTypes();
         return assembly.GetType(type.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat));
     }
 
@@ -429,25 +435,28 @@ internal sealed partial class Executor : ModuleBuilder {
         return closedMethod;
     }
 
+    private void CreateTypeBuilderAndBases(NamedTypeSymbol type) {
+        var baseStack = new Stack<NamedTypeSymbol>();
+        var current = type;
+
+        while (current is not null) {
+            if (current.specialType is SpecialType.Object or SpecialType.Exception)
+                break;
+
+            baseStack.Push(current);
+            current = current.baseType;
+        }
+
+        while (baseStack.Count > 0)
+            CreateTypeBuilder(baseStack.Pop());
+    }
+
     private void EmitInternal() {
         GenerateSTLMap();
         CompleteSpecialTypes();
 
-        foreach (var type in _topLevelTypes) {
-            var baseStack = new Stack<NamedTypeSymbol>();
-            var current = type;
-
-            while (current is not null) {
-                if (current.specialType is SpecialType.Object or SpecialType.Exception)
-                    break;
-
-                baseStack.Push(current);
-                current = current.baseType;
-            }
-
-            while (baseStack.Count > 0)
-                CreateTypeBuilder(baseStack.Pop());
-        }
+        foreach (var type in _topLevelTypes)
+            CreateTypeBuilderAndBases(type);
 
         foreach (var type in _topLevelTypes)
             CreateMemberDefinitions(type);

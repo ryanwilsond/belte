@@ -43,4 +43,5 @@ public enum SpecialType : byte {
     Sound,
     ValueType,
     TypedReference,
+    Enumerator,
 }

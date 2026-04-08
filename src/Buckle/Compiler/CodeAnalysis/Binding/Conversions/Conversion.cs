@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -180,8 +181,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
-            if (underlyingConversion.isIdentity && !source.IsEnumType() && !target.IsEnumType())
+            if (underlyingConversion.isIdentity && !source.IsEnumType() &&
+                !target.IsEnumType() && !source.IsVerifierValue()) {
                 return underlyingConversion;
+            }
 
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);

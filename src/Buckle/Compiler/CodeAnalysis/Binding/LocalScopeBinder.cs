@@ -161,11 +161,23 @@ internal class LocalScopeBinder : Binder {
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
             case SyntaxKind.ReturnStatement:
+            case SyntaxKind.GotoStatement:
+            case SyntaxKind.ThrowExpression:
                 ExpressionVariableFinder.FindExpressionVariables(
                     this,
                     locals,
                     innerStatement,
                     enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder
+                );
+
+                break;
+            case SyntaxKind.SwitchStatement:
+                var switchStatement = (SwitchStatementSyntax)innerStatement;
+                ExpressionVariableFinder.FindExpressionVariables(
+                    this,
+                    locals,
+                    innerStatement,
+                    enclosingBinder.GetBinder(switchStatement.expression) ?? enclosingBinder
                 );
 
                 break;

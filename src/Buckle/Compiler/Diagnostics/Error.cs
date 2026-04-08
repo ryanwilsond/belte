@@ -1917,6 +1917,21 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_StructLayoutCycle, location, message);
     }
 
+    internal static BelteDiagnostic InvalidForEachExpression(TextLocation location) {
+        var message = $"for iterator expression must be an array or string or define the iter operator or define the length and [] operators";
+        return CreateError(DiagnosticCode.ERR_InvalidForEachExpression, location, message);
+    }
+
+    internal static BelteDiagnostic LengthMustReturnInt(TextLocation location) {
+        var message = $"length operator must return 'int!'";
+        return CreateError(DiagnosticCode.ERR_LengthMustReturnInt, location, message);
+    }
+
+    internal static BelteDiagnostic IterMustReturnEnumerator(TextLocation location) {
+        var message = $"iter operator must return 'Enumerator!'";
+        return CreateError(DiagnosticCode.ERR_LengthMustReturnInt, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

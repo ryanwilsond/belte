@@ -139,6 +139,7 @@ public enum SyntaxKind : ushort {
     DefineKeyword,
     UndefKeyword,
     FlagsKeyword,
+    InKeyword,
 
     // Tokens with text
     BadToken,
@@ -215,6 +216,7 @@ public enum SyntaxKind : ushort {
     WhileStatement,
     DoWhileStatement,
     ForStatement,
+    ForEachStatement,
     IfStatement,
     ElseClause,
     TryStatement,

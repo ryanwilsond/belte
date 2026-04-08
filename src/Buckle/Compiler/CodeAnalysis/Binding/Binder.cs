@@ -10385,6 +10385,7 @@ symIsHidden:;
             SyntaxKind.WhileStatement => BindWhileStatement((WhileStatementSyntax)node, diagnostics),
             SyntaxKind.DoWhileStatement => BindDoWhileStatement((DoWhileStatementSyntax)node, diagnostics),
             SyntaxKind.ForStatement => BindForStatement((ForStatementSyntax)node, diagnostics),
+            SyntaxKind.ForEachStatement => BindForEachStatement((ForEachStatementSyntax)node, diagnostics),
             SyntaxKind.BreakStatement => BindBreakStatement((BreakStatementSyntax)node, diagnostics),
             SyntaxKind.ContinueStatement => BindContinueStatement((ContinueStatementSyntax)node, diagnostics),
             SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
@@ -10583,6 +10584,55 @@ symIsHidden:;
     private BoundForStatement BindForStatement(ForStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var loopBinder = GetBinder(node);
         return loopBinder.BindForParts(diagnostics, loopBinder);
+    }
+
+    private BoundStatement BindForEachStatement(ForEachStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var loopBinder = GetBinder(node);
+        return GetBinder(node.expression)
+            .WrapWithVariablesIfAny(node.expression, loopBinder.BindForEachParts(diagnostics, loopBinder));
+    }
+
+    internal virtual BoundForEachStatement BindForEachParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindForEachParts(diagnostics, originalBinder);
+    }
+
+    internal virtual BoundStatement BindForEachDeconstruction(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindForEachDeconstruction(diagnostics, originalBinder);
+    }
+
+    private protected bool BindForEachCollection(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        ref BoundExpression collectionExpr,
+        BelteDiagnosticQueue diagnostics,
+        out TypeWithAnnotations inferredType) {
+        var type = collectionExpr.StrippedType();
+        var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
+        var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
+        var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+        var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+
+        if (type.IsArray()) {
+            inferredType = ((ArrayTypeSymbol)type).elementTypeWithAnnotations;
+            return false;
+        } else if (type.specialType == SpecialType.String) {
+            inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
+            return false;
+        } else if (lengthOps.Any() && worseIndexOp is not null) {
+            inferredType = (bestIndexOp ?? worseIndexOp).returnTypeWithAnnotations;
+            return false;
+        } else if (iterOps.Any()) {
+            inferredType = ((NamedTypeSymbol)((MethodSymbol)iterOps.Single()).returnType).templateArguments[0].type;
+            return false;
+        } else {
+            diagnostics.Push(Error.InvalidForEachExpression(collectionSyntax.location));
+            inferredType = new TypeWithAnnotations(CreateErrorType());
+            return true;
+        }
     }
 
     private BoundStatement BindBreakStatement(BreakStatementSyntax node, BelteDiagnosticQueue diagnostics) {

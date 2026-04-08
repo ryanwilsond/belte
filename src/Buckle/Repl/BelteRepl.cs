@@ -163,6 +163,9 @@ public sealed partial class BelteRepl : Repl {
 
         for (var i = 0; i < texts.Count; i++) {
             var line = texts[i].text;
+            var ln = line.Length;
+            var exp = fullText.Substring(offset, line.Length);
+            var expln = exp.Length;
 
             if (fullText.Substring(offset, line.Length) == line) {
                 offset += line.Length;
