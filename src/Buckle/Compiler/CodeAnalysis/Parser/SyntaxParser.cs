@@ -474,7 +474,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             : Error.UnexpectedTokenExpectedOthers(unexpected, kind1, kind2);
     }
 
-    private static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
+    private protected static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
         return unexpected == SyntaxKind.EndOfFileToken
             ? Error.ExpectedTokenAtEOF(expected)
             : Error.UnexpectedTokenExpectedAnother(unexpected, expected);

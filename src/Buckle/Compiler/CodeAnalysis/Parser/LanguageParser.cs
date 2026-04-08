@@ -1703,6 +1703,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNumericLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
+            case SyntaxKind.InterpolatedStringLiteralToken:
+                return ParseInterpolatedStringLiteral();
             case SyntaxKind.CharacterLiteralToken:
                 return ParseCharacterLiteral();
             case SyntaxKind.NullKeyword:
@@ -2482,6 +2484,71 @@ done:
     private ExpressionSyntax ParseStringLiteral() {
         var stringToken = Match(SyntaxKind.StringLiteralToken);
         return SyntaxFactory.Literal(stringToken);
+    }
+
+    private ExpressionSyntax ParseInterpolatedStringLiteral() {
+        var originalToken = EatToken();
+        var originalText = originalToken.text;
+        var interpolations = SyntaxListBuilder<InterpolatedStringContentSyntax>.Create();
+
+        var tempLexer = new Lexer(SourceText.From(originalText), options, allowPreprocessorDirectives: false);
+        var groups = tempLexer.RereadInterpolatedString();
+
+        foreach (var group in groups) {
+            if (group.Length == 1 && group[0].kind == SyntaxKind.InterpolatedStringLiteralToken)
+                interpolations.Add(SyntaxFactory.InterpolatedStringText(group[0]));
+            else
+                interpolations.Add(ParseInterpolation(group));
+        }
+
+        return SyntaxFactory.InterpolatedStringExpression(interpolations.ToList());
+    }
+
+    private InterpolationSyntax ParseInterpolation(SyntaxToken[] tokens) {
+        var openBrace = tokens[0];
+
+        ExpressionSyntax expression = null;
+
+        if (tokens.Length > 1) {
+            var tempLexer = new Lexer(SourceText.From(tokens[1].text), options, allowPreprocessorDirectives: false);
+            var tempParser = new LanguageParser(tempLexer, oldTree: null, changes: null);
+
+            expression = tempParser.ParseExpression(true);
+            var report = true;
+
+            while (tempParser._currentToken.kind != SyntaxKind.EndOfFileToken) {
+                var unexpected = tempParser.EatToken(stallDiagnostics: true);
+
+                if (report) {
+                    report = false;
+                    expression = tempParser.AddDiagnostic(
+                        tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected)),
+                        Error.UnexpectedToken(unexpected.kind),
+                        unexpected.GetLeadingTriviaWidth(),
+                        unexpected.width
+                    );
+                } else {
+                    expression = tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected));
+                }
+            }
+        }
+
+        SyntaxToken closeBrace;
+
+        if (tokens.Length == 3) {
+            closeBrace = tokens[2];
+        } else {
+            var unexpectedToken = EatToken();
+
+            closeBrace = AddDiagnostic(
+                AddLeadingSkippedSyntax(SyntaxFactory.Missing(SyntaxKind.CloseBraceToken), unexpectedToken),
+                GetUnexpectedTokenError(unexpectedToken.kind, SyntaxKind.CloseBraceToken),
+                unexpectedToken.GetLeadingTriviaWidth(),
+                unexpectedToken.width
+            );
+        }
+
+        return SyntaxFactory.Interpolation(openBrace, expression, closeBrace);
     }
 
     private ExpressionSyntax ParseCharacterLiteral() {

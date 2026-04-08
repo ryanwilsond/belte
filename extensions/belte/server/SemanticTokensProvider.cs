@@ -66,7 +66,7 @@ internal class SemanticTokensHandler : SemanticTokensHandlerBase {
                 tokenType = SemanticTokenType.Keyword;
             else if (kind == SyntaxKind.NumericLiteralToken)
                 tokenType = SemanticTokenType.Number;
-            else if (kind is SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken)
+            else if (kind is SyntaxKind.StringLiteralToken or SyntaxKind.CharacterLiteralToken or SyntaxKind.InterpolatedStringLiteralToken)
                 tokenType = SemanticTokenType.String;
             else if (kind.IsComment())
                 tokenType = SemanticTokenType.Comment;
