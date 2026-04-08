@@ -771,7 +771,7 @@ internal sealed class Lexer : IDisposable {
 
         _position += 2;
 
-        while (true) {
+        while (_current != '\0') {
             var inner = ReadStringContent(false, true, out var normalEnd);
             var tokenWidth = _position - _start;
             var tokenValue = inner.ToString();

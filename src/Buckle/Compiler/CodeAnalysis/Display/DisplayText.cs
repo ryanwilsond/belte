@@ -321,6 +321,9 @@ public sealed class DisplayText {
             case BoundKind.SwitchDispatch:
                 DisplaySwitchDispatch(text, (BoundSwitchDispatch)node);
                 break;
+            case BoundKind.InterpolatedStringExpression:
+                DisplayInterpolatedStringExpression(text, (BoundInterpolatedStringExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -462,6 +465,18 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
         text.WriteLine();
+    }
+
+    private static void DisplayInterpolatedStringExpression(DisplayText text, BoundInterpolatedStringExpression node) {
+        foreach (var expression in node.contents) {
+            if (expression.constantValue?.specialType == SpecialType.String) {
+                DisplayNode(expression);
+            } else {
+                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+                DisplayNode(expression);
+                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+            }
+        }
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {

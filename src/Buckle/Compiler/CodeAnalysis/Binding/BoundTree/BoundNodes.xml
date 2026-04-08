@@ -215,6 +215,10 @@
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
+    <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundMethodGroup" Base="BoundExpression">
     <Field Name="name" Type="string"/>
     <Field Name="methods" Type="ImmutableArray&lt;MethodSymbol&gt;"/>

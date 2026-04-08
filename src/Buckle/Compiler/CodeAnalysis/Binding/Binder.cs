@@ -2920,6 +2920,8 @@ internal partial class Binder {
                 return BindStackAllocExpression((StackAllocExpressionSyntax)node, diagnostics);
             case SyntaxKind.ImplicitEnumFieldExpression:
                 return BindImplicitEnumFieldExpression((ImplicitEnumFieldExpressionSyntax)node, diagnostics);
+            case SyntaxKind.InterpolatedStringExpression:
+                return BindInterpolatedString((InterpolatedStringExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -7087,6 +7089,89 @@ internal partial class Binder {
 
     private BoundStatement BindEmptyStatement(EmptyStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         return new BoundNopStatement(node);
+    }
+
+    private BoundExpression BindInterpolatedString(
+        InterpolatedStringExpressionSyntax expression,
+        BelteDiagnosticQueue diagnostics) {
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+        var stringType = CorLibrary.GetSpecialType(SpecialType.String);
+        ConstantValue resultConstant = null;
+        var isResultConstant = true;
+
+        if (expression.contents.Count == 0) {
+            resultConstant = new ConstantValue(string.Empty, SpecialType.String);
+            return new BoundInterpolatedStringExpression(
+                expression,
+                builder.ToImmutableAndFree(),
+                resultConstant,
+                stringType
+            );
+        }
+
+        foreach (var content in expression.contents) {
+            switch (content.kind) {
+                case SyntaxKind.Interpolation: {
+                        var interpolation = (InterpolationSyntax)content;
+                        var value = BindValue(interpolation.expression, diagnostics, BindValueKind.RValue);
+
+                        builder.Add(value);
+
+                        if (!isResultConstant ||
+                            value.constantValue is null ||
+                            interpolation is null ||
+                            !(value.constantValue is { specialType: SpecialType.String })) {
+                            isResultConstant = false;
+                            continue;
+                        }
+
+                        resultConstant = (resultConstant is null)
+                            ? value.constantValue
+                            : FoldStringConcatenation(resultConstant, value.constantValue);
+
+                        continue;
+                    }
+                case SyntaxKind.InterpolatedStringText: {
+                        var text = ((InterpolatedStringTextSyntax)content).token.value;
+
+                        var constantValue = new ConstantValue(text, SpecialType.String);
+                        builder.Add(new BoundLiteralExpression(content, constantValue, stringType));
+
+                        if (isResultConstant) {
+                            resultConstant = resultConstant is null
+                                ? constantValue
+                                : FoldStringConcatenation(resultConstant, constantValue);
+                        }
+
+                        continue;
+                    }
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(content.kind);
+            }
+        }
+
+        if (!isResultConstant)
+            resultConstant = null;
+
+        return new BoundInterpolatedStringExpression(
+            expression,
+            builder.ToImmutableAndFree(),
+            resultConstant,
+            stringType
+        );
+
+        static ConstantValue FoldStringConcatenation(ConstantValue left, ConstantValue right) {
+            if (left is null || right is null)
+                return null;
+
+            if (left.specialType != SpecialType.String || right.specialType != SpecialType.String)
+                return null;
+
+            return new ConstantValue(
+                (string)left.value + (string)right.value,
+                SpecialType.String
+            );
+        }
     }
 
     private BoundExpression BindLiteralExpression(
