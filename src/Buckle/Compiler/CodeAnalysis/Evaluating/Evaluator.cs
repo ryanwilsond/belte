@@ -484,12 +484,16 @@ internal sealed class Evaluator {
                             index = labelToIndex[dispatch.defaultLabel];
 
                             foreach (var (value, label) in dispatch.cases) {
+                                var op = RelationalOperatorType(
+                                    dispatch.expression.StrippedType().EnumUnderlyingTypeOrSelf().StrippedType()
+                                );
+
                                 var comparison = EvaluateEqualityOperator(
                                     false,
                                     true,
                                     expression,
                                     EvaluatorValue.Literal(value.value, value.specialType),
-                                    RelationalOperatorType(dispatch.expression.StrippedType())
+                                    op
                                 );
 
                                 if (comparison.@bool) {
@@ -848,6 +852,27 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateConvertCallOrNumericConversion(BoundCastExpression node, EvaluatorValue value) {
+        if (node.operand.StrippedType().IsEnumType()) {
+            if (node.type.specialType == SpecialType.String) {
+                var type = node.operand.StrippedType();
+                var underlyingType = type.GetEnumUnderlyingType().StrippedType();
+                var op = RelationalOperatorType(underlyingType);
+
+                foreach (var member in type.GetMembers()) {
+                    if (member is FieldSymbol f && f.isStatic) {
+                        if (EvaluateEqualityOperator(
+                            false,
+                            true,
+                            value,
+                            EvaluatorValue.Literal(f.constantValue, underlyingType.specialType),
+                            op).@bool) {
+                            return EvaluatorValue.Literal(f.name);
+                        }
+                    }
+                }
+            }
+        }
+
         var fromTypeSymbol = node.operand.Type();
 
         if (fromTypeSymbol.IsEnumType())
@@ -1395,13 +1420,20 @@ internal sealed class Evaluator {
             return EvaluatorValue.None;
 
         if (value.kind == ValueKind.Null)
-            return value;
+            return EvaluatorValue.Null;
 
-        var operandType = operand.Type();
-        var targetType = node.Type();
+        var operandType = operand.StrippedType();
+        var targetType = node.StrippedType();
 
         if (operandType.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType))
             return value;
+
+        if (value.kind == ValueKind.HeapPtr) {
+            var type = _context.heap[value.ptr].type;
+
+            if (type.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType))
+                return value;
+        }
 
         return EvaluatorValue.Null;
     }
@@ -2085,6 +2117,9 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.String:
                 left.@bool = left.@string == right.@string;
+                break;
+            case BinaryOperatorKind.Char:
+                left.@bool = left.@char == right.@char;
                 break;
             case BinaryOperatorKind.Object:
                 left.@bool = left.ptr == right.ptr;

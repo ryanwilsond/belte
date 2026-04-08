@@ -1029,6 +1029,33 @@
     <Kind Name="LiteralExpression"/>
     <Field Name="token" Type="SyntaxToken"/>
   </Node>
+  <Node Name="InterpolatedStringExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="InterpolatedStringExpression"/>
+    <Field Name="stringStart" Type="SyntaxToken">
+      <Kind Name="InterpolatedStringStartToken"/>
+    </Field>
+    <Field Name="contents" Type="SyntaxList&lt;InterpolatedStringContentSyntax&gt;"/>
+    <Field Name="stringEnd" Type="SyntaxToken">
+      <Kind Name="InterpolatedStringEndToken"/>
+    </Field>
+  </Node>
+  <AbstractNode Name="InterpolatedStringContentSyntax" Base="SyntaxNode"/>
+  <Node Name="InterpolatedStringTextSyntax" Base="InterpolatedStringContentSyntax">
+    <Kind Name="InterpolatedStringText"/>
+    <Field Name="token" Type="SyntaxToken">
+      <Kind Name="StringLiteralToken"/>
+    </Field>
+  </Node>
+  <Node Name="InterpolationSyntax" Base="InterpolatedStringContentSyntax">
+    <Kind Name="Interpolation"/>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
   <Node Name="MemberAccessExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="MemberAccessExpression"/>
     <Field Name="expression" Type="ExpressionSyntax"/>

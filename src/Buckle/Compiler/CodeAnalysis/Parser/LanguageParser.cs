@@ -34,6 +34,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _bracketStack.Push(SyntaxKind.None);
     }
 
+    private bool _isIncrementalAndFactoryContextMatches {
+        get {
+            if (!_isIncremental)
+                return false;
+
+            var current = currentNode;
+            return current is not null;
+        }
+    }
+
     /// <summary>
     /// Parses the entirety of a single file.
     /// </summary>
@@ -311,6 +321,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private UsingDirectiveSyntax ParseUsingDirective() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.UsingDirective)
+            return (UsingDirectiveSyntax)EatNode();
+
         var globalKeyword = currentToken.kind == SyntaxKind.GlobalKeyword ? EatToken() : null;
         var keyword = Match(SyntaxKind.UsingKeyword);
         var staticKeyword = currentToken.kind == SyntaxKind.StaticKeyword ? EatToken() : null;
@@ -360,6 +373,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private MemberDeclarationSyntax ParseMember(bool allowGlobalStatements = false) {
+        if (_isIncrementalAndFactoryContextMatches &&
+            CanReuseMemberDeclaration(_currentNodeKind, allowGlobalStatements)) {
+            return (MemberDeclarationSyntax)EatNode();
+        }
+
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
 
@@ -392,6 +410,29 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     return ParseGlobalStatement(attributeLists, modifiers);
                 else
                     return ParseFieldDeclaration(attributeLists, modifiers);
+        }
+    }
+
+    private bool CanReuseMemberDeclaration(SyntaxKind kind, bool isGlobal) {
+        switch (kind) {
+            case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.StructDeclaration:
+            case SyntaxKind.EnumDeclaration:
+            case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.ConstructorDeclaration:
+            case SyntaxKind.NamespaceDeclaration:
+            case SyntaxKind.FileScopedNamespaceDeclaration:
+                return true;
+            case SyntaxKind.FieldDeclaration:
+            case SyntaxKind.MethodDeclaration:
+                if (!isGlobal)
+                    return true;
+
+                return currentNode?.parent is Syntax.CompilationUnitSyntax;
+            case SyntaxKind.GlobalStatement:
+                return isGlobal;
+            default:
+                return false;
         }
     }
 
@@ -521,6 +562,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private EnumMemberDeclarationSyntax ParseEnumMember() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.EnumMemberDeclaration)
+            return (EnumMemberDeclarationSyntax)EatNode();
+
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
         var identifier = Match(SyntaxKind.IdentifierToken);
@@ -871,11 +915,60 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ParameterListSyntax ParseParameterList() {
+        if (_isIncrementalAndFactoryContextMatches && CanReuseParameterList(currentNode as Syntax.ParameterListSyntax))
+            return (ParameterListSyntax)EatNode();
+
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var parameters = ParseParameters();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.ParameterList(openParenthesis, parameters, closeParenthesis);
+    }
+
+    private static bool CanReuseParameterList(Syntax.ParameterListSyntax list) {
+        if (list is null)
+            return false;
+
+        if (list.openParenthesis.isFabricated)
+            return false;
+
+        if (list.closeParenthesis.isFabricated)
+            return false;
+
+        foreach (var parameter in list.parameters) {
+            if (!CanReuseParameter(parameter))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool CanReuseParameter(Syntax.ParameterSyntax parameter) {
+        if (parameter is null)
+            return false;
+
+        if (parameter.defaultValue is not null)
+            return false;
+
+        return true;
+    }
+
+    private static bool CanReuseBracketedParameterList(Syntax.TemplateParameterListSyntax list) {
+        if (list is null)
+            return false;
+
+        if (list.openAngleBracket.isFabricated)
+            return false;
+
+        if (list.closeAngleBracket.isFabricated)
+            return false;
+
+        foreach (var parameter in list.parameters) {
+            if (!CanReuseParameter(parameter))
+                return false;
+        }
+
+        return true;
     }
 
     private FunctionPointerParameterListSyntax ParseFunctionPointerParameterList() {
@@ -887,6 +980,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private TemplateParameterListSyntax ParseTemplateParameterList() {
+        if (_isIncrementalAndFactoryContextMatches &&
+            CanReuseBracketedParameterList(currentNode as Syntax.TemplateParameterListSyntax)) {
+            return (TemplateParameterListSyntax)EatNode();
+        }
+
         var openAngleBracket = Match(SyntaxKind.LessThanToken);
 
         _bracketStack.Push(SyntaxKind.GreaterThanToken);
@@ -952,6 +1050,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ParameterSyntax ParseParameter() {
+        if (_isIncrementalAndFactoryContextMatches && CanReuseParameter(currentNode as Syntax.ParameterSyntax))
+            return (ParameterSyntax)EatNode();
+
         var attributes = ParseAttributeLists();
         var modifiers = ParseParameterModifiers();
         var type = ParseType(false);
@@ -1073,6 +1174,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers,
         out bool consumedAttributeLists,
         out bool consumedModifiers) {
+        if (CanReuseStatement(attributeLists)) {
+            var reused = (StatementSyntax)EatNode();
+            consumedAttributeLists = true;
+            consumedModifiers = reused.kind == SyntaxKind.BlockStatement;
+            return reused;
+        }
+
         var saved = _context;
         _context |= ParserContext.InStatement;
 
@@ -1086,6 +1194,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _context = saved;
 
         return statement;
+
+        bool CanReuseStatement(SyntaxList<AttributeListSyntax> attributes) {
+            return _isIncrementalAndFactoryContextMatches &&
+                   currentNode is Syntax.StatementSyntax &&
+                   attributes.Count == 0;
+        }
     }
 
     private StatementSyntax ParseStatementInternal(
@@ -1537,6 +1651,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private StatementSyntax ParseBlockStatement(SyntaxList<SyntaxToken> modifiers = null) {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.BlockStatement)
+            return (BlockStatementSyntax)EatNode();
+
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var statements = ParseStatements(SyntaxKind.CloseBraceToken);
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
@@ -1703,6 +1820,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNumericLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
+            case SyntaxKind.InterpolatedStringLiteralToken:
+                return ParseInterpolatedStringLiteral();
+            case SyntaxKind.InterpolatedStringStartToken:
+            case SyntaxKind.InterpolatedStringEndToken:
+                throw ExceptionUtilities.UnexpectedValue(currentToken.kind);
             case SyntaxKind.CharacterLiteralToken:
                 return ParseCharacterLiteral();
             case SyntaxKind.NullKeyword:
@@ -2347,6 +2469,9 @@ done:
     }
 
     private BracketedArgumentListSyntax ParseBracketedArgumentList() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.BracketedArgumentList)
+            return (BracketedArgumentListSyntax)EatNode();
+
         var openBracket = MatchTwo(SyntaxKind.OpenBracketToken, SyntaxKind.QuestionOpenBracketToken);
         _bracketStack.Push(SyntaxKind.CloseBracketToken);
         var arguments = ParseArguments(SyntaxKind.CloseBracketToken);
@@ -2357,6 +2482,9 @@ done:
     }
 
     private ArgumentListSyntax ParseArgumentList() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.ArgumentList)
+            return (ArgumentListSyntax)EatNode();
+
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var arguments = ParseArguments(SyntaxKind.CloseParenToken);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
@@ -2424,6 +2552,12 @@ done:
     }
 
     private AttributeListSyntax ParseAttributeList() {
+        if (_isIncrementalAndFactoryContextMatches &&
+            _currentNodeKind == SyntaxKind.AttributeList &&
+            (_context & ParserContext.InExpression) == 0) {
+            return (AttributeListSyntax)EatNode();
+        }
+
         var openBracket = EatToken();
 
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
@@ -2453,6 +2587,9 @@ done:
     }
 
     private AttributeSyntax ParseAttribute() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.Attribute)
+            return (AttributeSyntax)EatNode();
+
         var name = ParseQualifiedName();
         var arguments = currentToken.kind == SyntaxKind.OpenParenToken ? ParseArgumentList() : null;
         return SyntaxFactory.Attribute(name, arguments);
@@ -2482,6 +2619,97 @@ done:
     private ExpressionSyntax ParseStringLiteral() {
         var stringToken = Match(SyntaxKind.StringLiteralToken);
         return SyntaxFactory.Literal(stringToken);
+    }
+
+    private ExpressionSyntax ParseInterpolatedStringLiteral() {
+        var originalToken = EatToken();
+        var originalText = originalToken.text;
+        var interpolations = SyntaxListBuilder<InterpolatedStringContentSyntax>.Create();
+
+        var tempLexer = new Lexer(SourceText.From(originalText), options, allowPreprocessorDirectives: false);
+        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote);
+
+        foreach (var group in groups) {
+            if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken)
+                interpolations.Add(SyntaxFactory.InterpolatedStringText(group[0]));
+            else
+                interpolations.Add(ParseInterpolation(group));
+        }
+
+        var openQuote = SyntaxFactory.Token(
+            SyntaxKind.InterpolatedStringStartToken,
+            2,
+            originalText[0..2],
+            null,
+            originalToken.GetLeadingTrivia(),
+            null
+        );
+
+        var closeQuote = hasCloseQuote
+            ? SyntaxFactory.Token(
+                SyntaxKind.InterpolatedStringEndToken,
+                1,
+                originalText[^1].ToString(),
+                null,
+                null,
+                originalToken.GetTrailingTrivia())
+            : SyntaxFactory.Missing(
+                SyntaxKind.InterpolatedStringEndToken,
+                null,
+                originalToken.GetTrailingTrivia());
+
+        return SyntaxFactory.InterpolatedStringExpression(openQuote, interpolations.ToList(), closeQuote);
+    }
+
+    private InterpolationSyntax ParseInterpolation(SyntaxToken[] tokens) {
+        var openBrace = tokens[0];
+        ExpressionSyntax expression = null;
+        SyntaxToken closeBrace;
+
+        if (tokens.Length == 2 && tokens[1].kind == SyntaxKind.CloseBraceToken) {
+            closeBrace = tokens[1];
+        } else {
+            if (tokens.Length > 1) {
+                var tempLexer = new Lexer(SourceText.From(tokens[1].text), options, allowPreprocessorDirectives: false);
+                var tempParser = new LanguageParser(tempLexer, oldTree: null, changes: null);
+
+                expression = tempParser.ParseExpression(true);
+                var report = true;
+
+                while (tempParser._currentToken.kind != SyntaxKind.EndOfFileToken) {
+                    var unexpected = tempParser.EatToken(stallDiagnostics: true);
+
+                    if (report) {
+                        report = false;
+                        expression = tempParser.AddDiagnostic(
+                            tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected)),
+                            Error.UnexpectedToken(unexpected.kind),
+                            unexpected.GetLeadingTriviaWidth(),
+                            unexpected.width
+                        );
+                    } else {
+                        expression = tempParser.WithFutureDiagnostics(
+                            tempParser.AddTrailingSkippedSyntax(expression, unexpected)
+                        );
+                    }
+                }
+            }
+
+            if (tokens.Length == 3) {
+                closeBrace = tokens[2];
+            } else {
+                var unexpectedToken = EatToken();
+
+                closeBrace = AddDiagnostic(
+                    AddLeadingSkippedSyntax(SyntaxFactory.Missing(SyntaxKind.CloseBraceToken), unexpectedToken),
+                    GetUnexpectedTokenError(unexpectedToken.kind, SyntaxKind.CloseBraceToken),
+                    unexpectedToken.GetLeadingTriviaWidth(),
+                    unexpectedToken.width
+                );
+            }
+        }
+
+        return SyntaxFactory.Interpolation(openBrace, expression, closeBrace);
     }
 
     private ExpressionSyntax ParseCharacterLiteral() {
@@ -2531,6 +2759,9 @@ done:
     }
 
     private IdentifierNameSyntax ParseIdentifierName(bool allowGlobal = false) {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.IdentifierName)
+            return (IdentifierNameSyntax)EatNode();
+
         var identifier = (allowGlobal && currentToken.kind == SyntaxKind.GlobalKeyword)
             ? EatToken()
             : Match(SyntaxKind.IdentifierToken);

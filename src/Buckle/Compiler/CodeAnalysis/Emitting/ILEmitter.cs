@@ -602,6 +602,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private void CreateStaticEntryPoint(MethodSymbol entryPoint) {
+        var hasArgs = entryPoint.parameterCount > 0;
         var instanceEntry = _methods[entryPoint];
 
         var staticClass = new TypeDefinition(
@@ -617,12 +618,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetType(entryPoint.returnType)
         );
 
+        if (hasArgs) {
+            staticEntry.Parameters.Add(new Mono.Cecil.ParameterDefinition(
+                "args",
+                ParameterAttributes.None,
+                GetType(entryPoint.parameters[0].type)
+            ));
+        }
+
         staticClass.Methods.Add(staticEntry);
 
         var staticBuilder = new CecilILBuilder(null, this, staticEntry);
         var il = staticBuilder.iLProcessor;
 
         il.Emit(OpCodes.Newobj, GetMethod(entryPoint.containingType.instanceConstructors[0]));
+
+        if (hasArgs)
+            il.Emit(OpCodes.Ldarg_0);
+
         il.Emit(OpCodes.Callvirt, instanceEntry);
         il.Emit(OpCodes.Ret);
 

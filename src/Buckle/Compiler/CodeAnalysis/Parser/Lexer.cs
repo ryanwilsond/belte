@@ -7,6 +7,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -500,6 +501,11 @@ internal sealed class Lexer : IDisposable {
             case '\'':
                 ReadStringLiteral(true);
                 break;
+            case 'f':
+                if (TryReadInterpolatedString())
+                    break;
+
+                goto default;
             case '0':
             case '1':
             case '2':
@@ -587,8 +593,34 @@ internal sealed class Lexer : IDisposable {
     private void ReadStringLiteral(bool isCharacter) {
         var saved = _position;
         _position++;
+
+        var sb = ReadStringContent(isCharacter, false, true, out _);
+
+        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+
+        if (isCharacter) {
+            if (isCharacter && sb.Length == 0) {
+                AddDiagnostic(Error.EmptyCharacterLiteral(), saved, 2);
+                _value = null;
+            } else if (isCharacter && sb.Length > 1) {
+                AddDiagnostic(Error.CharacterLiteralTooLong(), saved, sb.Length + 2);
+                _value = sb[0];
+            } else {
+                _value = sb[0];
+            }
+        } else {
+            _value = sb.ToString();
+        }
+    }
+
+    private StringBuilder ReadStringContent(
+        bool isCharacter,
+        bool isInterpolation,
+        bool consumeEndQuote,
+        out bool normalEnd) {
         var sb = new StringBuilder();
         var done = false;
+        normalEnd = false;
 
         while (!done) {
             switch (_current) {
@@ -603,11 +635,28 @@ internal sealed class Lexer : IDisposable {
                         sb.Append(_current);
                         _position += 2;
                     } else {
-                        _position++;
+                        if (consumeEndQuote)
+                            _position++;
+
                         done = true;
+                        normalEnd = true;
                     }
 
                     break;
+                case '{':
+                case '}':
+                    if (isInterpolation) {
+                        if (_lookahead == _current) {
+                            sb.Append(_current);
+                            _position += 2;
+                        } else {
+                            done = true;
+                        }
+
+                        break;
+                    }
+
+                    goto default;
                 case '\'' when isCharacter:
                     _position++;
                     done = true;
@@ -675,22 +724,139 @@ internal sealed class Lexer : IDisposable {
             }
         }
 
-        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+        return sb;
+    }
 
-        if (isCharacter) {
-            if (isCharacter && sb.Length == 0) {
-                AddDiagnostic(Error.EmptyCharacterLiteral(), saved, 2);
-                _value = null;
-            } else if (isCharacter && sb.Length > 1) {
-                AddDiagnostic(Error.CharacterLiteralTooLong(), saved, sb.Length + 2);
-                _value = sb[0];
-            } else {
-                _value = sb[0];
-            }
-        } else {
-            _value = sb.ToString();
+    private bool TryReadInterpolatedString() {
+        if (Peek(1) == '"') {
+            ReadInterpolatedString();
+            return true;
         }
 
+        return false;
+    }
+
+    private void ReadInterpolatedString() {
+        _position += 2;
+
+        var sb = new StringBuilder();
+
+        while (true) {
+            var inner = ReadStringContent(false, true, true, out var normalEnd);
+            sb.Append(inner);
+
+            if (normalEnd || _current != '{')
+                break;
+
+            var bracketStack = 0;
+
+            while (_current != '\0') {
+                if (_current == '{')
+                    bracketStack++;
+                else if (_current == '}')
+                    bracketStack--;
+
+                sb.Append(_current);
+
+                if (_current == '}' && bracketStack == 0) {
+                    _position++;
+                    break;
+                } else {
+                    _position++;
+                }
+            }
+        }
+
+        _kind = SyntaxKind.InterpolatedStringLiteralToken;
+        _value = sb.ToString();
+    }
+
+    internal static SyntaxToken DereadInterpolatedString(InterpolatedStringExpressionSyntax interpolatedString) {
+        var text = interpolatedString.ToString();
+
+        return SyntaxFactory.Token(
+            SyntaxKind.InterpolatedStringLiteralToken,
+            text,
+            text,
+            interpolatedString.GetFirstToken().GetLeadingTrivia(),
+            interpolatedString.GetLastToken().GetTrailingTrivia()
+        );
+    }
+
+    internal SyntaxToken[][] RereadInterpolatedString(out bool hasCloseQuote) {
+        hasCloseQuote = false;
+        var groups = ArrayBuilder<SyntaxToken[]>.GetInstance();
+
+        _position += 2;
+        var startPosition = _position;
+        _start = _position;
+
+        while (_current != '\0') {
+            var inner = ReadStringContent(false, true, false, out var normalEnd);
+            hasCloseQuote = normalEnd;
+            var tokenWidth = _position - _start;
+
+            if (normalEnd && tokenWidth == 0)
+                break;
+
+            var tokenValue = inner.ToString();
+            var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
+            _trailingTriviaCache.Clear();
+            var tokenText = text.ToString(new TextSpan(startPosition, tokenWidth));
+            groups.Add([Create(SyntaxKind.StringLiteralToken, tokenText, tokenValue, diagnostics)]);
+
+            if (normalEnd || _current != '{')
+                break;
+
+            var groupBuilder = ArrayBuilder<SyntaxToken>.GetInstance();
+            var bracketStack = 0;
+            var sb = new StringBuilder();
+            var sbStart = _position;
+
+            while (_current != '\0') {
+                if (bracketStack == 0 && _current == '{') {
+                    bracketStack++;
+                    var token = LexNext(LexerMode.Syntax);
+                    groupBuilder.Add(token);
+                    sbStart = _position;
+                    continue;
+                }
+
+                if (_current == '{')
+                    bracketStack++;
+                else if (_current == '}')
+                    bracketStack--;
+
+                var earlyEof = _current == '\0';
+
+                if (earlyEof || (_current == '}' && bracketStack == 0)) {
+                    var sbWidth = _position - sbStart;
+
+                    if (sbWidth > 0) {
+                        var sbValue = sb.ToString();
+                        var diag = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
+                        _trailingTriviaCache.Clear();
+                        var sbText = text.ToString(new TextSpan(sbStart, sbWidth));
+                        groupBuilder.Add(Create(SyntaxKind.StringLiteralToken, sbText, sbValue, diag));
+                    }
+
+                    if (!earlyEof) {
+                        var token = LexNext(LexerMode.Syntax);
+                        groupBuilder.Add(token);
+                    }
+
+                    break;
+                } else {
+                    sb.Append(_current);
+                    _position++;
+                }
+            }
+
+            groups.Add(groupBuilder.ToArrayAndFree());
+            startPosition = _position;
+        }
+
+        return groups.ToArrayAndFree();
     }
 
     private void ReadNumericLiteral() {

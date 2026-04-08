@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
@@ -620,6 +621,121 @@ internal sealed class Expander : BoundTreeExpander {
             null,
             access.Type()
         );
+
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandInterpolatedStringExpression(
+        BoundInterpolatedStringExpression expression,
+        out BoundExpression replacement) {
+        var syntax = expression.syntax;
+        var stringType = CorLibrary.GetSpecialType(SpecialType.String);
+        var nullableStringType = CorLibrary.GetNullableType(SpecialType.String);
+        var statements = new List<BoundStatement>();
+        var tempLocal = GenerateTempLocal(stringType);
+        replacement = Local(syntax, tempLocal);
+        statements.Add(new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+            tempLocal,
+            Literal(syntax, string.Empty, stringType)
+        )));
+
+        // ? Null turns into empty strings instead of nulling the entire result
+
+        foreach (var content in expression.contents) {
+            BoundExpression right;
+
+            if (content.constantValue?.specialType == SpecialType.String) {
+                right = Literal(syntax, content.constantValue.value, stringType);
+            } else {
+                statements.AddRange(ExpandExpression(content, out var replacementContent));
+
+                if (replacementContent.IsLiteralNull())
+                    continue;
+
+                if (replacementContent.StrippedType().specialType == SpecialType.String) {
+                    right = replacementContent;
+                } else if (replacementContent.Type().IsVerifierValue()) {
+                    if (!replacementContent.Type().IsNullableType()) {
+                        right = CreateCast(syntax, stringType, replacementContent);
+                    } else {
+                        var conversion = Conversion.Classify(replacementContent.StrippedType(), stringType);
+                        right = new BoundConditionalOperator(syntax,
+                            new BoundIsOperator(syntax,
+                                replacementContent,
+                                Literal(syntax, null, nullableStringType),
+                                false,
+                                null,
+                                CorLibrary.GetSpecialType(SpecialType.Bool)
+                            ),
+                            false,
+                            Literal(syntax, string.Empty, stringType),
+                            Cast(syntax,
+                                stringType,
+                                Lowerer.CreateNullableGetValueCall(syntax, replacementContent, replacementContent.StrippedType()),
+                                conversion,
+                                null
+                            ),
+                            null,
+                            stringType
+                        );
+                    }
+                } else {
+                    var toString = (MethodSymbol)CorLibrary.GetSpecialType(SpecialType.Object)
+                        .GetMembers("ToString").Single(m => m is MethodSymbol);
+
+                    var toStringTemp = GenerateTempLocal(nullableStringType);
+                    right = Local(syntax, toStringTemp);
+
+                    statements.Add(new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        toStringTemp,
+                        new BoundConditionalOperator(syntax,
+                            new BoundIsOperator(syntax,
+                                replacementContent,
+                                Literal(syntax, null, nullableStringType),
+                                false,
+                                null,
+                                CorLibrary.GetSpecialType(SpecialType.Bool)
+                            ),
+                            false,
+                            Literal(syntax, null, nullableStringType),
+                            new BoundCallExpression(syntax,
+                                replacementContent,
+                                toString,
+                                [],
+                                [],
+                                BitVector.Empty,
+                                LookupResultKind.Viable,
+                                nullableStringType
+                            ),
+                            null,
+                            nullableStringType
+                        )
+                    )));
+                }
+            }
+
+            if (right.Type().IsNullableType()) {
+                right = new BoundNullCoalescingOperator(syntax,
+                    right,
+                    Literal(syntax, string.Empty, stringType),
+                    false,
+                    null,
+                    stringType
+                );
+            }
+
+            statements.Add(new BoundExpressionStatement(syntax, Assignment(syntax,
+                replacement,
+                Binary(syntax,
+                    replacement,
+                    BinaryOperatorKind.StringConcatenation,
+                    right,
+                    stringType
+                ),
+                false,
+                stringType
+            )));
+        }
 
         return statements;
     }

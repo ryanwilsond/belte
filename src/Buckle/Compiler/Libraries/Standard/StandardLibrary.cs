@@ -526,9 +526,9 @@ internal static class StandardLibrary {
             { "Console_ResetColor", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
             { "Console_SetForegroundColor_I", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)a; return null; }) },
+                => { if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)(long)a; return null; }) },
             { "Console_SetBackgroundColor_I", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
+                => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)(long)a; return null; }) },
             { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition(a is null ? System.Console.CursorLeft : Convert.ToInt32(a), b is null ? System.Console.CursorTop : Convert.ToInt32(b)); } return null; }) },
             { "Console_SetCursorVisibility_B", new Func<object, object, object, object>((a, b, c)
@@ -709,6 +709,8 @@ internal static class StandardLibrary {
                 => { return a is null || char.IsWhiteSpace((char)a); }) },
             { "String_IsDigit_C?", new Func<object, object, object, object>((a, b, c)
                 => { return a is not null && char.IsDigit((char)a); }) },
+            { "String_Length_S", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).Length; }) },
             { "String_Substring_S?I?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (a is null) return null;
                      if (c is null) return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b));

@@ -146,6 +146,7 @@ public enum SyntaxKind : ushort {
     NumericLiteralToken,
     StringLiteralToken,
     CharacterLiteralToken,
+    InterpolatedStringLiteralToken,
 
     // Trivia
     EndOfLineTrivia,
@@ -192,6 +193,11 @@ public enum SyntaxKind : ushort {
     CascadeExpression,
     StackAllocExpression,
     ImplicitEnumFieldExpression,
+    InterpolatedStringExpression,
+    InterpolatedStringText,
+    Interpolation,
+    InterpolatedStringStartToken,
+    InterpolatedStringEndToken,
 
     // Statements
     EmptyStatement,

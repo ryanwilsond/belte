@@ -13,8 +13,8 @@ internal abstract partial class SyntaxParser : IDisposable {
         new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
 
     private protected readonly Lexer _lexer;
+    private protected readonly bool _isIncremental;
     private readonly LexerMode _mode;
-    private readonly bool _isIncremental;
     private readonly Blender _firstBlender;
     private readonly List<Diagnostic> _futureDiagnostics;
 
@@ -59,13 +59,20 @@ internal abstract partial class SyntaxParser : IDisposable {
     // Used for reusing nodes from the old tree. Just validate and call EatNode to reuse an old node.
     internal SyntaxNode currentNode {
         get {
-            var node = _currentNode.node;
+            var node = _currentNode?.node;
 
             if (node is not null)
                 return node;
 
             ReadCurrentNode();
-            return _currentNode.node;
+            return _currentNode?.node;
+        }
+    }
+
+    private protected SyntaxKind _currentNodeKind {
+        get {
+            var cn = currentNode;
+            return cn is not null ? cn.kind : SyntaxKind.None;
         }
     }
 
@@ -303,8 +310,8 @@ internal abstract partial class SyntaxParser : IDisposable {
         _futureDiagnostics.Add(diagnostic);
     }
 
-    private protected SyntaxNode EatNode() {
-        var saved = currentNode;
+    private protected GreenNode EatNode() {
+        var saved = currentNode.green;
 
         if (_tokenOffset >= _blendedTokens.Length)
             AddTokenSlot();
@@ -474,7 +481,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             : Error.UnexpectedTokenExpectedOthers(unexpected, kind1, kind2);
     }
 
-    private static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
+    private protected static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
         return unexpected == SyntaxKind.EndOfFileToken
             ? Error.ExpectedTokenAtEOF(expected)
             : Error.UnexpectedTokenExpectedAnother(unexpected, expected);
