@@ -10606,11 +10606,27 @@ symIsHidden:;
         ref BoundExpression collectionExpr,
         BelteDiagnosticQueue diagnostics,
         out TypeWithAnnotations inferredType) {
-        if (collectionExpr.StrippedType().IsArray()) {
-            inferredType = ((ArrayTypeSymbol)collectionExpr.StrippedType()).elementTypeWithAnnotations;
+        var type = collectionExpr.StrippedType();
+        var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
+        var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
+        var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+        var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+
+        if (type.IsArray()) {
+            inferredType = ((ArrayTypeSymbol)type).elementTypeWithAnnotations;
             return false;
-        } else if (collectionExpr.StrippedType().specialType == SpecialType.String) {
+        } else if (type.specialType == SpecialType.String) {
             inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
+            return false;
+        } else if (lengthOps.Any() && worseIndexOp is not null) {
+            inferredType = (bestIndexOp ?? worseIndexOp).returnTypeWithAnnotations;
+            return false;
+        } else if (iterOps.Any()) {
+            inferredType = ((NamedTypeSymbol)((MethodSymbol)iterOps.Single()).returnType).templateArguments[0].type;
             return false;
         } else {
             diagnostics.Push(Error.InvalidForEachExpression(collectionSyntax.location));

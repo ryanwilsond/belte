@@ -1,0 +1,6 @@
+
+public abstract class Enumerator<type T> {
+    public abstract bool! MoveNext();
+
+    public abstract T Current();
+}

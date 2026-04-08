@@ -2640,7 +2640,8 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_[?": {
+                case "LowLevel_Length_[?":
+                case "LowLevel_Length_[": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind != ValueKind.HeapPtr) {

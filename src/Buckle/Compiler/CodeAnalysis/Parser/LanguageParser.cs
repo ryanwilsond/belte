@@ -753,7 +753,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         switch (parameterList.parameters.Count) {
             case 1:
-                if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableUnaryOperator(opKind)) {
+                if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableUnaryOperator(opKind) &&
+                    !SyntaxFacts.IsOverloadableMethod(operatorToken)) {
                     operatorToken = AddDiagnostic(
                         operatorToken,
                         Error.ExpectedOverloadableUnaryOperator()
@@ -781,10 +782,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                         operatorToken,
                         Error.IncorrectBinaryOperatorArgs(SyntaxFacts.GetText(opKind))
                     );
-                } else if (SyntaxFacts.IsOverloadableUnaryOperator(opKind)) {
+                } else if (SyntaxFacts.IsOverloadableUnaryOperator(opKind) ||
+                    SyntaxFacts.IsOverloadableMethod(operatorToken)) {
                     operatorToken = AddDiagnostic(
                         operatorToken,
-                        Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind))
+                        Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind) ?? operatorToken.text)
                     );
                 } else {
                     operatorToken = AddDiagnostic(

@@ -35,6 +35,7 @@ internal static class SpecialTypes {
         { "global::Texture", SpecialType.Texture },
         { "global::Sound", SpecialType.Sound },
         { "global::Exception", SpecialType.Exception },
+        { "global::Enumerator`1", SpecialType.Enumerator },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

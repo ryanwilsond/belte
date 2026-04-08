@@ -4793,7 +4793,37 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            for iterator expression must be an array or string
+            for iterator expression must be an array or string or define the iter operator or define the length and [] operators
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0394_LengthMustReturnInt() {
+        var text = @"
+            public class A {
+                public static bool [operator] length(A a) { return true; }
+            }
+        ";
+
+        var diagnostics = @"
+            length operator must return 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0395_IterMustReturnEnumerator() {
+        var text = @"
+            public class A {
+                public static bool [operator] iter(A a) { return true; }
+            }
+        ";
+
+        var diagnostics = @"
+            iter operator must return 'Enumerator!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

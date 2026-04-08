@@ -88,13 +88,17 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             case WellKnownMemberNames.DecrementOperatorName:
                 CheckIncrementSignature(diagnostics);
                 break;
-
             case WellKnownMemberNames.LeftShiftOperatorName:
             case WellKnownMemberNames.RightShiftOperatorName:
             case WellKnownMemberNames.UnsignedRightShiftOperatorName:
                 CheckShiftSignature(diagnostics);
                 break;
-
+            case WellKnownMemberNames.LengthOperatorName:
+                CheckLengthSignature(diagnostics);
+                break;
+            case WellKnownMemberNames.IterOperatorName:
+                CheckIterSignature(diagnostics);
+                break;
             case WellKnownMemberNames.EqualityOperatorName:
             case WellKnownMemberNames.InequalityOperatorName:
                 if (isAbstract || isVirtual)
@@ -174,6 +178,30 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         CheckReturnIsNotVoid(diagnostics);
     }
 
+    private void CheckLengthSignature(BelteDiagnosticQueue diagnostics) {
+        if (!MatchesContainingType(GetParameterType(0).StrippedType())) {
+            if (isAbstract || isVirtual)
+                diagnostics.Push(Error.BadAbstractUnaryOperatorSignature(location));
+            else
+                diagnostics.Push(Error.BadUnaryOperatorSignature(location));
+        }
+
+        if (returnType.specialType != SpecialType.Int)
+            diagnostics.Push(Error.LengthMustReturnInt(location));
+    }
+
+    private void CheckIterSignature(BelteDiagnosticQueue diagnostics) {
+        if (!MatchesContainingType(GetParameterType(0).StrippedType())) {
+            if (isAbstract || isVirtual)
+                diagnostics.Push(Error.BadAbstractUnaryOperatorSignature(location));
+            else
+                diagnostics.Push(Error.BadUnaryOperatorSignature(location));
+        }
+
+        if (returnType.specialType != SpecialType.Enumerator)
+            diagnostics.Push(Error.IterMustReturnEnumerator(location));
+    }
+
     private bool MatchesContainingType(TypeSymbol type) {
         return IsContainingType(type) || ((isAbstract || isVirtual) && IsSelfConstrainedTypeParameter(type));
     }
@@ -206,6 +234,8 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             case WellKnownMemberNames.UnaryPlusOperatorName:
             case WellKnownMemberNames.LogicalNotOperatorName:
             case WellKnownMemberNames.BitwiseNotOperatorName:
+            case WellKnownMemberNames.LengthOperatorName:
+            case WellKnownMemberNames.IterOperatorName:
                 return parameterCount == 1;
             default:
                 return parameterCount == 2;

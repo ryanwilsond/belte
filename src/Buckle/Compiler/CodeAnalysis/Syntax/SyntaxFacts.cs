@@ -467,11 +467,25 @@ public static class SyntaxFacts {
         };
     }
 
+    internal static bool IsOverloadableMethod(this InternalSyntax.SyntaxToken token) {
+        if (token.kind != SyntaxKind.IdentifierToken)
+            return false;
+
+        return token.text switch {
+            "length" or "iter" => true,
+            _ => false,
+        };
+    }
+
     /// <summary>
     /// Gets the associations operator name of an operator declaration using the operator token and parameter count.
     /// </summary>
     internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
-        return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+        return GetOperatorMemberNameCore(
+            syntax.parameterList.parameters.Count,
+            syntax.operatorToken.kind,
+            syntax.operatorToken.text
+        );
     }
 
     internal static string GetOperatorMemberName(ConversionDeclarationSyntax syntax) {
@@ -484,10 +498,22 @@ public static class SyntaxFacts {
     }
 
     internal static string GetOperatorMemberName(InternalSyntax.OperatorDeclarationSyntax syntax) {
-        return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+        return GetOperatorMemberNameCore(
+            syntax.parameterList.parameters.Count,
+            syntax.operatorToken.kind,
+            syntax.operatorToken.text
+        );
     }
 
-    private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind) {
+    private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind, string text) {
+        if (kind == SyntaxKind.IdentifierToken) {
+            return text switch {
+                "length" => WellKnownMemberNames.LengthOperatorName,
+                "iter" => WellKnownMemberNames.IterOperatorName,
+                _ => null,
+            };
+        }
+
         return kind switch {
             SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
             SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,

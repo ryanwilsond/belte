@@ -230,7 +230,7 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
         for (<value>, <index> in <collection>)
             <body>
 
-        ---->
+        ----> <collection> is array or string
 
         {
             var temp = <collection>
@@ -243,56 +243,123 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
             }
         }
 
+        ----> <collection> defines length and [] operators
+
+        {
+            var temp = <collection>
+            var length = temp.op_Length()
+            <index> = 0;
+
+            for (; <index> < length; index++) {
+                <value> = temp.op_Index(<index>)
+                <body>
+            }
+        }
+
+        ----> <collection> defines iter operator
+
+        {
+            var temp = <collection>
+            var iter = temp.op_Iter()
+            <index> = 0;
+
+            for (; iter.MoveNext(); index++) {
+                <value> = iter.Current()
+                <body>
+            }
+        }
         */
         var syntax = node.syntax;
-        var isString = node.expression.StrippedType().specialType == SpecialType.String;
-        var temp = GenerateTempLocal(node.expression.type);
-        var length = GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
-        var lengthInit = isString
-            ? Call(syntax, (MethodSymbol)StandardLibrary.String.GetMembers("Length").Single(), Local(syntax, temp))
-            : Call(syntax,
+        var type = node.expression.StrippedType();
+        var isString = type.specialType == SpecialType.String;
+        var isArray = type.IsArray();
+        var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
+        var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
+        var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+        var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+
+        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var temp = GenerateTempLocal(type);
+        var lengthOrIter = (isArray || isString || lengthOps.Any())
+            ? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int))
+            : GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
+
+        var lengthOrIterInit = isArray
+            ? Call(syntax,
                 ((MethodSymbol)StandardLibrary.LowLevel.GetMembers("Length").Single())
                     .Construct([new TypeOrConstant(node.expression.type)]),
-                Local(syntax, temp));
-        BoundExpression indexer = isString
-            ? new BoundIndexerAccessExpression(syntax,
+                Local(syntax, temp))
+            : isString
+                ? Call(syntax,
+                    (MethodSymbol)StandardLibrary.String.GetMembers("Length").Single(),
+                    Local(syntax, temp))
+                : lengthOps.Any()
+                    ? Call(syntax, (MethodSymbol)lengthOps[0], Local(syntax, temp))
+                    : Call(syntax, (MethodSymbol)iterOps[0], Local(syntax, temp));
+
+        BoundExpression condition = (isString || isArray || lengthOps.Any())
+            ? Binary(syntax,
+                Local(syntax, index),
+                BinaryOperatorKind.IntLessThan,
+                Local(syntax, lengthOrIter),
+                CorLibrary.GetSpecialType(SpecialType.Bool))
+            : InstanceCall(syntax,
+                Local(syntax, lengthOrIter),
+                (MethodSymbol)lengthOrIter.type.GetMembers("MoveNext").Single());
+
+        BoundExpression indexer = isArray
+            ? new BoundArrayAccessExpression(syntax,
                 Local(syntax, temp),
-                Local(syntax, node.indexLocal),
-                null,
+                Local(syntax, index),
                 null,
                 node.valueLocal.type)
-            : new BoundArrayAccessExpression(syntax,
-                Local(syntax, temp),
-                Local(syntax, node.indexLocal),
-                null,
-                node.valueLocal.type);
+            : isString
+                ? new BoundIndexerAccessExpression(syntax,
+                    Local(syntax, temp),
+                    Local(syntax, index),
+                    null,
+                    null,
+                    node.valueLocal.type)
+                : lengthOps.Any()
+                    ? Call(syntax,
+                        bestIndexOp ?? worseIndexOp,
+                        Local(syntax, temp),
+                        bestIndexOp is not null
+                            ? Local(syntax, index)
+                            : CreateCast(syntax,
+                                CorLibrary.GetNullableType(SpecialType.Int),
+                                Local(syntax, index)))
+                    : InstanceCall(syntax,
+                        Local(syntax, lengthOrIter),
+                        (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
 
         return Visit(
             Block(syntax,
                 node.locals,
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                     temp,
-                    node.expression
+                    node.expression.Type().IsNullableType()
+                        ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
+                        : node.expression
                 )),
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
-                    length,
-                    lengthInit
+                    lengthOrIter,
+                    lengthOrIterInit
                 )),
                 new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
-                    node.indexLocal,
-                    Literal(syntax, 0, node.indexLocal.type)
+                    index,
+                    Literal(syntax, 0L, index.type)
                 )),
                 new BoundForStatement(syntax,
                     [],
                     new BoundNopStatement(syntax),
                     [],
-                    Binary(syntax,
-                        Local(syntax, node.indexLocal),
-                        BinaryOperatorKind.IntLessThan,
-                        Local(syntax, length),
-                        CorLibrary.GetSpecialType(SpecialType.Bool)
-                    ),
-                    new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, node.indexLocal))),
+                    condition,
+                    new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
                     Block(syntax,
                         new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                             node.valueLocal,
