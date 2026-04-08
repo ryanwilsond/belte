@@ -401,6 +401,7 @@ public enum DiagnosticCode : ushort {
     ERR_FileScopedNamespaceNotFirstMember = 390,
     ERR_EntryConstructor = 391,
     ERR_StructLayoutCycle = 392,
+    ERR_InvalidForEachExpression = 393,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

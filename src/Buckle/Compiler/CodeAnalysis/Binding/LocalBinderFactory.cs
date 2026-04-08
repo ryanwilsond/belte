@@ -350,6 +350,24 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         VisitPossibleEmbeddedStatement(node.body, binder);
     }
 
+    internal override void VisitForEachStatement(ForEachStatementSyntax node) {
+        var patternBinder = new ExpressionVariableBinder(node.expression, _enclosing);
+
+        AddToMap(node.expression, patternBinder);
+        Visit(node.expression, patternBinder);
+
+        var binder = new ForEachLoopBinder(patternBinder, node);
+        AddToMap(node, binder);
+
+        // TODO Do we care about recovery here
+        // if (node is ForEachStatementSyntax forEachVariable && !forEachVariable.variable.IsDeconstructionLeft()) {
+        //     // We will bind this expression for error recovery, anything could be there
+        //     Visit(forEachVariable.Variable, binder);
+        // }
+
+        VisitPossibleEmbeddedStatement(node.body, binder);
+    }
+
     internal override void VisitIfStatement(IfStatementSyntax node) {
         var enclosing = _enclosing;
 

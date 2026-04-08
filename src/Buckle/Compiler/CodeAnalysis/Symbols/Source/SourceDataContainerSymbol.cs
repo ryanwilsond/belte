@@ -143,6 +143,31 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             initializerBinder ?? scopeBinder
         );
     }
+    internal static SourceDataContainerSymbol MakeDeconstructionLocal(
+        Symbol containingSymbol,
+        Binder scopeBinder,
+        Binder nodeBinder,
+        TypeSyntax closestTypeSyntax,
+        SyntaxToken identifierToken,
+        DataContainerDeclarationKind kind,
+        SyntaxNode deconstruction) {
+        return closestTypeSyntax is null || closestTypeSyntax.SkipRef(out _).isImplicitlyTyped
+            ? new DeconstructionLocalSymbol(
+                containingSymbol,
+                scopeBinder,
+                nodeBinder,
+                closestTypeSyntax,
+                identifierToken,
+                kind,
+                deconstruction)
+            : new SourceDataContainerSymbol(
+                containingSymbol,
+                scopeBinder,
+                allowRefKind: false,
+                closestTypeSyntax,
+                identifierToken,
+                SyntaxTokenList.Empty);
+    }
 
     internal sealed override ImmutableArray<AttributeData> GetAttributes() {
         return GetAttributesBag().attributes;
@@ -163,7 +188,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
     }
 
     private OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
-        return OneOrMany.Create(((LocalDeclarationStatementSyntax)GetDeclarationSyntax().parent).attributeLists);
+        return OneOrMany.Create((GetDeclarationSyntax().parent as LocalDeclarationStatementSyntax)?.attributeLists);
     }
 
     internal sealed override SyntaxNode GetDeclarationSyntax() {

@@ -128,6 +128,9 @@ public sealed class DisplayText {
             case BoundKind.ForStatement:
                 DisplayForStatement(text, (BoundForStatement)node);
                 break;
+            case BoundKind.ForEachStatement:
+                DisplayForEachStatement(text, (BoundForEachStatement)node);
+                break;
             case BoundKind.GotoStatement:
                 DisplayGotoStatement(text, (BoundGotoStatement)node);
                 break;
@@ -699,6 +702,31 @@ public sealed class DisplayText {
         DisplayNode(text, node.condition);
         text.Write(CreateSpace());
         DisplayNode(text, node.step);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+        DisplayNestedStatement(text, node.body);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        text.WriteLine();
+    }
+
+    private static void DisplayForEachStatement(DisplayText text, BoundForEachStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ForKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        SymbolDisplay.AppendToDisplayText(text, node.valueLocal);
+
+        if (node.indexLocal is not null) {
+            text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+            text.Write(CreateSpace());
+            SymbolDisplay.AppendToDisplayText(text, node.indexLocal);
+        }
+
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.InKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(node.expression);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));

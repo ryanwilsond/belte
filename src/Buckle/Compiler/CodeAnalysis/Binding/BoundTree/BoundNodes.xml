@@ -362,6 +362,14 @@
     <Field Name="step" Type="BoundStatement?"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
+  <Node Name="BoundForEachStatement" Base="BoundLoopStatement">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="valueLocal" Type="DataContainerSymbol"/>
+    <Field Name="indexLocal" Type="DataContainerSymbol?"/>
+    <Field Name="body" Type="BoundStatement"/>
+  </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="caseExpression" Type="BoundExpression?"/>

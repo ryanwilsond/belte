@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -218,6 +219,89 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
                     whileBlock,
                     breakLabel,
                     GenerateLabel()
+                )
+            )
+        );
+    }
+
+    internal override BoundNode VisitForEachStatement(BoundForEachStatement node) {
+        /*
+
+        for (<value>, <index> in <collection>)
+            <body>
+
+        ---->
+
+        {
+            var temp = <collection>
+            var length = LowLevel.Length<>(temp)
+            <index> = 0;
+
+            for (; <index> < length; index++) {
+                <value> = temp[<index>]
+                <body>
+            }
+        }
+
+        */
+        var syntax = node.syntax;
+        var isString = node.expression.StrippedType().specialType == SpecialType.String;
+        var temp = GenerateTempLocal(node.expression.type);
+        var length = GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var lengthInit = isString
+            ? Call(syntax, (MethodSymbol)StandardLibrary.String.GetMembers("Length").Single(), Local(syntax, temp))
+            : Call(syntax,
+                ((MethodSymbol)StandardLibrary.LowLevel.GetMembers("Length").Single())
+                    .Construct([new TypeOrConstant(node.expression.type)]),
+                Local(syntax, temp));
+        BoundExpression indexer = isString
+            ? new BoundIndexerAccessExpression(syntax,
+                Local(syntax, temp),
+                Local(syntax, node.indexLocal),
+                null,
+                null,
+                node.valueLocal.type)
+            : new BoundArrayAccessExpression(syntax,
+                Local(syntax, temp),
+                Local(syntax, node.indexLocal),
+                null,
+                node.valueLocal.type);
+
+        return Visit(
+            Block(syntax,
+                node.locals,
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                    temp,
+                    node.expression
+                )),
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                    length,
+                    lengthInit
+                )),
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                    node.indexLocal,
+                    Literal(syntax, 0, node.indexLocal.type)
+                )),
+                new BoundForStatement(syntax,
+                    [],
+                    new BoundNopStatement(syntax),
+                    [],
+                    Binary(syntax,
+                        Local(syntax, node.indexLocal),
+                        BinaryOperatorKind.IntLessThan,
+                        Local(syntax, length),
+                        CorLibrary.GetSpecialType(SpecialType.Bool)
+                    ),
+                    new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, node.indexLocal))),
+                    Block(syntax,
+                        new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                            node.valueLocal,
+                            indexer
+                        )),
+                        node.body
+                    ),
+                    node.breakLabel,
+                    node.continueLabel
                 )
             )
         );

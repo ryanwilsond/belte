@@ -4785,4 +4785,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0393_InvalidForEachExpression() {
+        var text = @"
+            for (val in [3]) { }
+        ";
+
+        var diagnostics = @"
+            for iterator expression must be an array or string
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

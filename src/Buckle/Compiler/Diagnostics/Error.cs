@@ -1917,6 +1917,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_StructLayoutCycle, location, message);
     }
 
+    internal static BelteDiagnostic InvalidForEachExpression(TextLocation location) {
+        var message = $"for iterator expression must be an array or string";
+        return CreateError(DiagnosticCode.ERR_InvalidForEachExpression, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -6,4 +6,5 @@ internal enum DataContainerDeclarationKind : byte {
     Variable,
     Constant,
     ConstantExpression,
+    ForEachLocal,
 }

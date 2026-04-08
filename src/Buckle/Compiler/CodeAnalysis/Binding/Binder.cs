@@ -10385,6 +10385,7 @@ symIsHidden:;
             SyntaxKind.WhileStatement => BindWhileStatement((WhileStatementSyntax)node, diagnostics),
             SyntaxKind.DoWhileStatement => BindDoWhileStatement((DoWhileStatementSyntax)node, diagnostics),
             SyntaxKind.ForStatement => BindForStatement((ForStatementSyntax)node, diagnostics),
+            SyntaxKind.ForEachStatement => BindForEachStatement((ForEachStatementSyntax)node, diagnostics),
             SyntaxKind.BreakStatement => BindBreakStatement((BreakStatementSyntax)node, diagnostics),
             SyntaxKind.ContinueStatement => BindContinueStatement((ContinueStatementSyntax)node, diagnostics),
             SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
@@ -10583,6 +10584,39 @@ symIsHidden:;
     private BoundForStatement BindForStatement(ForStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var loopBinder = GetBinder(node);
         return loopBinder.BindForParts(diagnostics, loopBinder);
+    }
+
+    private BoundStatement BindForEachStatement(ForEachStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var loopBinder = GetBinder(node);
+        return GetBinder(node.expression)
+            .WrapWithVariablesIfAny(node.expression, loopBinder.BindForEachParts(diagnostics, loopBinder));
+    }
+
+    internal virtual BoundForEachStatement BindForEachParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindForEachParts(diagnostics, originalBinder);
+    }
+
+    internal virtual BoundStatement BindForEachDeconstruction(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindForEachDeconstruction(diagnostics, originalBinder);
+    }
+
+    private protected bool BindForEachCollection(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        ref BoundExpression collectionExpr,
+        BelteDiagnosticQueue diagnostics,
+        out TypeWithAnnotations inferredType) {
+        if (collectionExpr.StrippedType().IsArray()) {
+            inferredType = ((ArrayTypeSymbol)collectionExpr.StrippedType()).elementTypeWithAnnotations;
+            return false;
+        } else if (collectionExpr.StrippedType().specialType == SpecialType.String) {
+            inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
+            return false;
+        } else {
+            diagnostics.Push(Error.InvalidForEachExpression(collectionSyntax.location));
+            inferredType = new TypeWithAnnotations(CreateErrorType());
+            return true;
+        }
     }
 
     private BoundStatement BindBreakStatement(BreakStatementSyntax node, BelteDiagnosticQueue diagnostics) {
