@@ -7113,6 +7113,10 @@ internal partial class Binder {
             switch (content.kind) {
                 case SyntaxKind.Interpolation: {
                         var interpolation = (InterpolationSyntax)content;
+
+                        if (interpolation.expression is null)
+                            continue;
+
                         var value = BindValue(interpolation.expression, diagnostics, BindValueKind.RValue);
 
                         builder.Add(value);

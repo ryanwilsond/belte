@@ -104,7 +104,9 @@ public static class Classifier {
         var isIdentifier = kind == SyntaxKind.IdentifierToken;
         var isString = kind is SyntaxKind.StringLiteralToken or
                                SyntaxKind.CharacterLiteralToken or
-                               SyntaxKind.InterpolatedStringLiteralToken;
+                               SyntaxKind.InterpolatedStringLiteralToken or
+                               SyntaxKind.InterpolatedStringStartToken or
+                               SyntaxKind.InterpolatedStringEndToken;
         var isComment = kind.IsComment();
 
         if (isTypeName)

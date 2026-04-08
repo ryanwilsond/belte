@@ -425,6 +425,12 @@ public sealed class EvaluatorTests {
     [InlineData("var a = 3; int b = 1; switch (a) { case 4: b = 5; } return b;", 1)]
     [InlineData("var a = 3; int b = 1; switch (a) { case 3: goto case 5; case 5: goto default; default: b = 6; } return b;", 6)]
     [InlineData("var a = 3; int b = 1; switch (a) { case 1: case 2: case 3: case 4: b = 6; } return b;", 6)]
+    // String interpolation
+    [InlineData("var a = 3; return f\"a is {a}\";", "a is 3")]
+    [InlineData("int a = null; return f\"a is {a}\";", "a is ")]
+    [InlineData("return f\"a is {null}\";", "a is ")]
+    [InlineData("List<int> a = null; return f\"a is {a}\";", "a is ")]
+    [InlineData("class A { public override string ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
     // Templates
     // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
     // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]

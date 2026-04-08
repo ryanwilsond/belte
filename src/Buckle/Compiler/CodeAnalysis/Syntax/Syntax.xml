@@ -1031,13 +1031,19 @@
   </Node>
   <Node Name="InterpolatedStringExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="InterpolatedStringExpression"/>
+    <Field Name="stringStart" Type="SyntaxToken">
+      <Kind Name="InterpolatedStringStartToken"/>
+    </Field>
     <Field Name="contents" Type="SyntaxList&lt;InterpolatedStringContentSyntax&gt;"/>
+    <Field Name="stringEnd" Type="SyntaxToken">
+      <Kind Name="InterpolatedStringEndToken"/>
+    </Field>
   </Node>
   <AbstractNode Name="InterpolatedStringContentSyntax" Base="SyntaxNode"/>
   <Node Name="InterpolatedStringTextSyntax" Base="InterpolatedStringContentSyntax">
     <Kind Name="InterpolatedStringText"/>
     <Field Name="token" Type="SyntaxToken">
-      <Kind Name="InterpolatedStringLiteralToken"/>
+      <Kind Name="StringLiteralToken"/>
     </Field>
   </Node>
   <Node Name="InterpolationSyntax" Base="InterpolatedStringContentSyntax">

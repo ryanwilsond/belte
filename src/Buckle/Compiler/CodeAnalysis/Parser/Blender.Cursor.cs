@@ -42,6 +42,12 @@ internal sealed partial class Blender {
         internal Cursor MoveToFirstChild() {
             var node = currentNodeOrToken.AsNode();
 
+            if (node.kind == SyntaxKind.InterpolatedStringExpression) {
+                var greenToken = Lexer.DereadInterpolatedString((InterpolatedStringExpressionSyntax)node.green);
+                var redToken = new Syntax.SyntaxToken(node.parent, greenToken, node.position, _indexInParent);
+                return new Cursor(redToken, _indexInParent);
+            }
+
             if (node.slotCount > 0) {
                 var child = Syntax.ChildSyntaxList.ItemInternal(node, 0);
 

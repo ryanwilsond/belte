@@ -196,6 +196,8 @@ public enum SyntaxKind : ushort {
     InterpolatedStringExpression,
     InterpolatedStringText,
     Interpolation,
+    InterpolatedStringStartToken,
+    InterpolatedStringEndToken,
 
     // Statements
     EmptyStatement,

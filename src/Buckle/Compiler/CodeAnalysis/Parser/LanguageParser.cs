@@ -34,6 +34,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _bracketStack.Push(SyntaxKind.None);
     }
 
+    private bool _isIncrementalAndFactoryContextMatches {
+        get {
+            if (!_isIncremental)
+                return false;
+
+            var current = currentNode;
+            return current is not null;
+        }
+    }
+
     /// <summary>
     /// Parses the entirety of a single file.
     /// </summary>
@@ -1073,6 +1083,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers,
         out bool consumedAttributeLists,
         out bool consumedModifiers) {
+        if (CanReuseStatement(attributeLists)) {
+            var reused = (StatementSyntax)EatNode();
+            consumedAttributeLists = true;
+            consumedModifiers = reused.kind == SyntaxKind.BlockStatement;
+            return reused;
+        }
+
         var saved = _context;
         _context |= ParserContext.InStatement;
 
@@ -1086,6 +1103,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _context = saved;
 
         return statement;
+
+        bool CanReuseStatement(SyntaxList<AttributeListSyntax> attributes) {
+            return _isIncrementalAndFactoryContextMatches &&
+                   currentNode is Syntax.StatementSyntax &&
+                   attributes.Count == 0;
+        }
     }
 
     private StatementSyntax ParseStatementInternal(
@@ -1705,6 +1728,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseStringLiteral();
             case SyntaxKind.InterpolatedStringLiteralToken:
                 return ParseInterpolatedStringLiteral();
+            case SyntaxKind.InterpolatedStringStartToken:
+            case SyntaxKind.InterpolatedStringEndToken:
+                throw ExceptionUtilities.UnexpectedValue(currentToken.kind);
             case SyntaxKind.CharacterLiteralToken:
                 return ParseCharacterLiteral();
             case SyntaxKind.NullKeyword:
@@ -2492,60 +2518,86 @@ done:
         var interpolations = SyntaxListBuilder<InterpolatedStringContentSyntax>.Create();
 
         var tempLexer = new Lexer(SourceText.From(originalText), options, allowPreprocessorDirectives: false);
-        var groups = tempLexer.RereadInterpolatedString();
+        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote);
 
         foreach (var group in groups) {
-            if (group.Length == 1 && group[0].kind == SyntaxKind.InterpolatedStringLiteralToken)
+            if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken)
                 interpolations.Add(SyntaxFactory.InterpolatedStringText(group[0]));
             else
                 interpolations.Add(ParseInterpolation(group));
         }
 
-        return SyntaxFactory.InterpolatedStringExpression(interpolations.ToList());
+        var openQuote = SyntaxFactory.Token(
+            SyntaxKind.InterpolatedStringStartToken,
+            2,
+            originalText[0..2],
+            null,
+            originalToken.GetLeadingTrivia(),
+            null
+        );
+
+        var closeQuote = hasCloseQuote
+            ? SyntaxFactory.Token(
+                SyntaxKind.InterpolatedStringEndToken,
+                1,
+                originalText[^1].ToString(),
+                null,
+                null,
+                originalToken.GetTrailingTrivia())
+            : SyntaxFactory.Missing(
+                SyntaxKind.InterpolatedStringEndToken,
+                null,
+                originalToken.GetTrailingTrivia());
+
+        return SyntaxFactory.InterpolatedStringExpression(openQuote, interpolations.ToList(), closeQuote);
     }
 
     private InterpolationSyntax ParseInterpolation(SyntaxToken[] tokens) {
         var openBrace = tokens[0];
-
         ExpressionSyntax expression = null;
-
-        if (tokens.Length > 1) {
-            var tempLexer = new Lexer(SourceText.From(tokens[1].text), options, allowPreprocessorDirectives: false);
-            var tempParser = new LanguageParser(tempLexer, oldTree: null, changes: null);
-
-            expression = tempParser.ParseExpression(true);
-            var report = true;
-
-            while (tempParser._currentToken.kind != SyntaxKind.EndOfFileToken) {
-                var unexpected = tempParser.EatToken(stallDiagnostics: true);
-
-                if (report) {
-                    report = false;
-                    expression = tempParser.AddDiagnostic(
-                        tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected)),
-                        Error.UnexpectedToken(unexpected.kind),
-                        unexpected.GetLeadingTriviaWidth(),
-                        unexpected.width
-                    );
-                } else {
-                    expression = tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected));
-                }
-            }
-        }
-
         SyntaxToken closeBrace;
 
-        if (tokens.Length == 3) {
-            closeBrace = tokens[2];
+        if (tokens.Length == 2 && tokens[1].kind == SyntaxKind.CloseBraceToken) {
+            closeBrace = tokens[1];
         } else {
-            var unexpectedToken = EatToken();
+            if (tokens.Length > 1) {
+                var tempLexer = new Lexer(SourceText.From(tokens[1].text), options, allowPreprocessorDirectives: false);
+                var tempParser = new LanguageParser(tempLexer, oldTree: null, changes: null);
 
-            closeBrace = AddDiagnostic(
-                AddLeadingSkippedSyntax(SyntaxFactory.Missing(SyntaxKind.CloseBraceToken), unexpectedToken),
-                GetUnexpectedTokenError(unexpectedToken.kind, SyntaxKind.CloseBraceToken),
-                unexpectedToken.GetLeadingTriviaWidth(),
-                unexpectedToken.width
-            );
+                expression = tempParser.ParseExpression(true);
+                var report = true;
+
+                while (tempParser._currentToken.kind != SyntaxKind.EndOfFileToken) {
+                    var unexpected = tempParser.EatToken(stallDiagnostics: true);
+
+                    if (report) {
+                        report = false;
+                        expression = tempParser.AddDiagnostic(
+                            tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected)),
+                            Error.UnexpectedToken(unexpected.kind),
+                            unexpected.GetLeadingTriviaWidth(),
+                            unexpected.width
+                        );
+                    } else {
+                        expression = tempParser.WithFutureDiagnostics(
+                            tempParser.AddTrailingSkippedSyntax(expression, unexpected)
+                        );
+                    }
+                }
+            }
+
+            if (tokens.Length == 3) {
+                closeBrace = tokens[2];
+            } else {
+                var unexpectedToken = EatToken();
+
+                closeBrace = AddDiagnostic(
+                    AddLeadingSkippedSyntax(SyntaxFactory.Missing(SyntaxKind.CloseBraceToken), unexpectedToken),
+                    GetUnexpectedTokenError(unexpectedToken.kind, SyntaxKind.CloseBraceToken),
+                    unexpectedToken.GetLeadingTriviaWidth(),
+                    unexpectedToken.width
+                );
+            }
         }
 
         return SyntaxFactory.Interpolation(openBrace, expression, closeBrace);

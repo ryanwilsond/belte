@@ -26,7 +26,7 @@ To convert from one data type to another, a cast can be used. If a cast is impli
 no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(int)"123"`).
 
 | From | To | Cast Type | Notes |
-|-|-|-|
+|-|-|-|-|
 | Integer | Decimal | Implicit | |
 | Integer | String | Explicit | |
 | Integer | Bool | None | |
@@ -43,9 +43,28 @@ no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(i
 In addition, nullability affects casting:
 
 | From | To | Cast Type | Notes |
-|-|-|-|
+|-|-|-|-|
 | type | type! | Explicit | Can throw |
 | type! | type | Implicit | |
+
+### 3.1.2 String Interpolation
+
+Prefixing a string literal with `f` allows expressions to be embedded into the string, denoted by enclosing brace pairs.
+
+The expressions within a string will automatically be casted to a string if they are a primitive. Otherwise
+`Object.ToString()` is called on the expression.
+
+For example:
+
+```belte
+var a = 3;
+var b = f"A equals {a}"; // b = "A equals 3"
+```
+
+```belte
+var a = new List<int>({ 1, 2, 3 });
+var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
+```
 
 ## 3.2 Operators
 
