@@ -69,6 +69,13 @@ internal abstract partial class SyntaxParser : IDisposable {
         }
     }
 
+    private protected SyntaxKind _currentNodeKind {
+        get {
+            var cn = currentNode;
+            return cn is not null ? cn.kind : SyntaxKind.None;
+        }
+    }
+
     internal DirectiveStack directives => _lexer.directives;
 
     internal ParseOptions options => _lexer.options;

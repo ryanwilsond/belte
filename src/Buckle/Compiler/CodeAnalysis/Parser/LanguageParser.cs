@@ -321,6 +321,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private UsingDirectiveSyntax ParseUsingDirective() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.UsingDirective)
+            return (UsingDirectiveSyntax)EatNode();
+
         var globalKeyword = currentToken.kind == SyntaxKind.GlobalKeyword ? EatToken() : null;
         var keyword = Match(SyntaxKind.UsingKeyword);
         var staticKeyword = currentToken.kind == SyntaxKind.StaticKeyword ? EatToken() : null;
@@ -370,6 +373,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private MemberDeclarationSyntax ParseMember(bool allowGlobalStatements = false) {
+        if (_isIncrementalAndFactoryContextMatches &&
+            CanReuseMemberDeclaration(_currentNodeKind, allowGlobalStatements)) {
+            return (MemberDeclarationSyntax)EatNode();
+        }
+
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
 
@@ -402,6 +410,29 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     return ParseGlobalStatement(attributeLists, modifiers);
                 else
                     return ParseFieldDeclaration(attributeLists, modifiers);
+        }
+    }
+
+    private bool CanReuseMemberDeclaration(SyntaxKind kind, bool isGlobal) {
+        switch (kind) {
+            case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.StructDeclaration:
+            case SyntaxKind.EnumDeclaration:
+            case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.ConstructorDeclaration:
+            case SyntaxKind.NamespaceDeclaration:
+            case SyntaxKind.FileScopedNamespaceDeclaration:
+                return true;
+            case SyntaxKind.FieldDeclaration:
+            case SyntaxKind.MethodDeclaration:
+                if (!isGlobal)
+                    return true;
+
+                return currentNode?.parent is Syntax.CompilationUnitSyntax;
+            case SyntaxKind.GlobalStatement:
+                return isGlobal;
+            default:
+                return false;
         }
     }
 
@@ -531,6 +562,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private EnumMemberDeclarationSyntax ParseEnumMember() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.EnumMemberDeclaration)
+            return (EnumMemberDeclarationSyntax)EatNode();
+
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
         var identifier = Match(SyntaxKind.IdentifierToken);
@@ -881,11 +915,60 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ParameterListSyntax ParseParameterList() {
+        if (_isIncrementalAndFactoryContextMatches && CanReuseParameterList(currentNode as Syntax.ParameterListSyntax))
+            return (ParameterListSyntax)EatNode();
+
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var parameters = ParseParameters();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.ParameterList(openParenthesis, parameters, closeParenthesis);
+    }
+
+    private static bool CanReuseParameterList(Syntax.ParameterListSyntax list) {
+        if (list is null)
+            return false;
+
+        if (list.openParenthesis.isFabricated)
+            return false;
+
+        if (list.closeParenthesis.isFabricated)
+            return false;
+
+        foreach (var parameter in list.parameters) {
+            if (!CanReuseParameter(parameter))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool CanReuseParameter(Syntax.ParameterSyntax parameter) {
+        if (parameter is null)
+            return false;
+
+        if (parameter.defaultValue is not null)
+            return false;
+
+        return true;
+    }
+
+    private static bool CanReuseBracketedParameterList(Syntax.TemplateParameterListSyntax list) {
+        if (list is null)
+            return false;
+
+        if (list.openAngleBracket.isFabricated)
+            return false;
+
+        if (list.closeAngleBracket.isFabricated)
+            return false;
+
+        foreach (var parameter in list.parameters) {
+            if (!CanReuseParameter(parameter))
+                return false;
+        }
+
+        return true;
     }
 
     private FunctionPointerParameterListSyntax ParseFunctionPointerParameterList() {
@@ -897,6 +980,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private TemplateParameterListSyntax ParseTemplateParameterList() {
+        if (_isIncrementalAndFactoryContextMatches &&
+            CanReuseBracketedParameterList(currentNode as Syntax.TemplateParameterListSyntax)) {
+            return (TemplateParameterListSyntax)EatNode();
+        }
+
         var openAngleBracket = Match(SyntaxKind.LessThanToken);
 
         _bracketStack.Push(SyntaxKind.GreaterThanToken);
@@ -962,6 +1050,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ParameterSyntax ParseParameter() {
+        if (_isIncrementalAndFactoryContextMatches && CanReuseParameter(currentNode as Syntax.ParameterSyntax))
+            return (ParameterSyntax)EatNode();
+
         var attributes = ParseAttributeLists();
         var modifiers = ParseParameterModifiers();
         var type = ParseType(false);
@@ -1560,6 +1651,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private StatementSyntax ParseBlockStatement(SyntaxList<SyntaxToken> modifiers = null) {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.BlockStatement)
+            return (BlockStatementSyntax)EatNode();
+
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var statements = ParseStatements(SyntaxKind.CloseBraceToken);
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
@@ -2375,6 +2469,9 @@ done:
     }
 
     private BracketedArgumentListSyntax ParseBracketedArgumentList() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.BracketedArgumentList)
+            return (BracketedArgumentListSyntax)EatNode();
+
         var openBracket = MatchTwo(SyntaxKind.OpenBracketToken, SyntaxKind.QuestionOpenBracketToken);
         _bracketStack.Push(SyntaxKind.CloseBracketToken);
         var arguments = ParseArguments(SyntaxKind.CloseBracketToken);
@@ -2385,6 +2482,9 @@ done:
     }
 
     private ArgumentListSyntax ParseArgumentList() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.ArgumentList)
+            return (ArgumentListSyntax)EatNode();
+
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var arguments = ParseArguments(SyntaxKind.CloseParenToken);
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
@@ -2452,6 +2552,12 @@ done:
     }
 
     private AttributeListSyntax ParseAttributeList() {
+        if (_isIncrementalAndFactoryContextMatches &&
+            _currentNodeKind == SyntaxKind.AttributeList &&
+            (_context & ParserContext.InExpression) == 0) {
+            return (AttributeListSyntax)EatNode();
+        }
+
         var openBracket = EatToken();
 
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
@@ -2481,6 +2587,9 @@ done:
     }
 
     private AttributeSyntax ParseAttribute() {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.Attribute)
+            return (AttributeSyntax)EatNode();
+
         var name = ParseQualifiedName();
         var arguments = currentToken.kind == SyntaxKind.OpenParenToken ? ParseArgumentList() : null;
         return SyntaxFactory.Attribute(name, arguments);
@@ -2650,6 +2759,9 @@ done:
     }
 
     private IdentifierNameSyntax ParseIdentifierName(bool allowGlobal = false) {
+        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.IdentifierName)
+            return (IdentifierNameSyntax)EatNode();
+
         var identifier = (allowGlobal && currentToken.kind == SyntaxKind.GlobalKeyword)
             ? EatToken()
             : Match(SyntaxKind.IdentifierToken);
