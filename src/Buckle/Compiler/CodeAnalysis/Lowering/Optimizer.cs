@@ -29,15 +29,19 @@ internal sealed class Optimizer : BoundTreeRewriter {
         for (var i = 0; i < builder.Count; i++) {
             var statement = builder[i];
 
+            // TODO CFG not updated for switches
+            if (InSwitch(statement.syntax))
+                continue;
+
             // TODO This only works on surface level and breaks on nested trys
             // TODO Will have to rewrite the CFG builder from scratch fix trys later
-            // if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
-            //     BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
-            //     var statementToRemove = statement;
-            //     PotentiallyReportDeadCode(statementToRemove);
-            //     builder.RemoveAt(i);
-            //     i--;
-            // }
+            if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
+                BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
+                var statementToRemove = statement;
+                PotentiallyReportDeadCode(statementToRemove);
+                builder.RemoveAt(i);
+                i--;
+            }
         }
 
         return new BoundBlockStatement(block.syntax, builder.ToImmutable(), block.locals, block.localFunctions);
@@ -48,8 +52,22 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
                 return;
 
-            if (seenScopes.Add(syntax.parent))
-                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
+                return;
+
+            // if (seenScopes.Add(syntax.parent))
+            //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
+        }
+
+        bool InSwitch(SyntaxNode node) {
+            while (node is not null) {
+                if (node.kind == SyntaxKind.SwitchSection)
+                    return true;
+
+                node = node.parent;
+            }
+
+            return false;
         }
     }
 

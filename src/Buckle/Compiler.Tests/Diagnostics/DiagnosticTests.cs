@@ -4769,4 +4769,20 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer, script: false);
     }
+
+    [Fact]
+    public void Reports_Error_BU0392_StructLayoutCycle() {
+        var text = @"
+            struct A { public B [b]; }
+            struct B { public A [a]; }
+            ;
+        ";
+
+        var diagnostics = @"
+            struct member 'A.b' of type 'B' causes a cycle in the struct layout
+            struct member 'B.a' of type 'A' causes a cycle in the struct layout
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -342,26 +342,8 @@ switch (a) {
 }
 ```
 
-To share code across multiple cases, empty case labels can be stacked or a case label can contain multiple values. Both
-of these are equivalent.
-
-```belte
-switch (...) {
-  case 1, 2, 3:
-    ...
-}
-```
-
-```belte
-switch (...) {
-  case 1:
-  case 2:
-  case 3:
-    ...
-}
-```
-
-Additionally, a default label can be used to catch any values not covered by the cases:
+To share code across multiple cases, empty case labels can be stacked. Additionally, a default label can be used to
+catch any values not covered by the cases:
 
 ```belte
 switch (...) {

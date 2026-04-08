@@ -474,7 +474,7 @@ internal sealed partial class CodeGenerator {
         }
     }
 
-    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type) {
+    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type, bool promoteToLong = true) {
         var value = constant.value;
 
         if (value is null) {
@@ -494,22 +494,46 @@ internal sealed partial class CodeGenerator {
                 EmitLongConstant((long)value);
                 break;
             case SpecialType.Int8:
-                EmitLongConstant((sbyte)value);
+                if (promoteToLong)
+                    EmitLongConstant((sbyte)value);
+                else
+                    EmitIntConstant((sbyte)value);
+
                 break;
             case SpecialType.Int16:
-                EmitLongConstant((short)value);
+                if (promoteToLong)
+                    EmitLongConstant((short)value);
+                else
+                    EmitIntConstant((short)value);
+
                 break;
             case SpecialType.Int32:
-                EmitLongConstant((int)value);
+                if (promoteToLong)
+                    EmitLongConstant((int)value);
+                else
+                    EmitIntConstant((int)value);
+
                 break;
             case SpecialType.UInt8:
-                EmitLongConstant((byte)value);
+                if (promoteToLong)
+                    EmitLongConstant((byte)value);
+                else
+                    EmitIntConstant((byte)value);
+
                 break;
             case SpecialType.UInt16:
-                EmitLongConstant((ushort)value);
+                if (promoteToLong)
+                    EmitLongConstant((ushort)value);
+                else
+                    EmitIntConstant((ushort)value);
+
                 break;
             case SpecialType.UInt32:
-                EmitLongConstant((uint)value);
+                if (promoteToLong)
+                    EmitLongConstant((uint)value);
+                else
+                    EmitIntConstant(unchecked((int)(uint)value));
+
                 break;
             case SpecialType.UInt64:
                 EmitLongConstant((long)(ulong)value);
@@ -1056,7 +1080,7 @@ oneMoreTime:
         if (statement is not null)
             instructionsEmitted = EmitStatementAndCountInstructions(statement);
 
-        if (instructionsEmitted == 0 && syntax is not null && _ilEmitStyle == ILEmitStyle.Debug)
+        if (instructionsEmitted == 0 && _ilEmitStyle == ILEmitStyle.Debug)
             _builder.Emit(OpCode.Nop);
 
         if (_emitPdbSequencePoints) {

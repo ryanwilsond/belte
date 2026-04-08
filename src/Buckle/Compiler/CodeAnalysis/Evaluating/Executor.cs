@@ -60,6 +60,7 @@ internal sealed partial class Executor : ModuleBuilder {
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
+    private readonly Dictionary<NamedTypeSymbol, Type> _bakedTypes = [];
     private readonly Dictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
     private readonly Dictionary<TypeSymbol, Type> _enums = [];
     private readonly Dictionary<MethodSymbol, MethodInfo> _methods = [];
@@ -295,6 +296,9 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type is PENamedTypeSymbol t)
                 return ResolveType(t);
 
+            if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
+                return baked;
+
             return _types[type.originalDefinition];
         }
     }
@@ -461,25 +465,72 @@ internal sealed partial class Executor : ModuleBuilder {
                 EmitConstructor(cb);
         }
 
-        var comeBackTo = new List<(TypeSymbol, TypeBuilder)>();
+        BakeTypes();
+    }
 
-        foreach (var (typeSymbol, typeBuilder) in _types) {
-            if (typeSymbol.Equals(_programNamedType.originalDefinition)) {
-                _programType = typeBuilder.CreateType();
+    private void BakeTypes() {
+        // Topologically sorts struct types tracking dependencies (field types) so that when the struct is created it's
+        // layout is fully known
+        var deps = new Dictionary<TypeSymbol, List<NamedTypeSymbol>>();
+
+        foreach (var type in _types.Keys) {
+            if (!type.IsStructType())
                 continue;
+
+            var list = new List<NamedTypeSymbol>();
+
+            foreach (var member in type.GetMembers()) {
+                if (member is FieldSymbol f) {
+                    if (f.type is NamedTypeSymbol nt &&
+                        nt.IsStructType() &&
+                        _types.ContainsKey(nt.originalDefinition)) {
+
+                        list.Add(nt.originalDefinition);
+                    }
+                }
             }
 
-            // ? This is to work around sequential struct ordering
-            // TODO In the long term we will want a more robust dependency graph most likely
-            try {
-                typeBuilder.CreateType();
-            } catch (TypeLoadException) {
-                comeBackTo.Add((typeSymbol, typeBuilder));
-            }
+            deps[type.originalDefinition] = list;
         }
 
-        foreach (var (typeSymbol, typeBuilder) in comeBackTo)
-            typeBuilder.CreateType();
+        var result = new List<TypeSymbol>();
+        var visited = new List<TypeSymbol>();
+
+        void Visit(TypeSymbol t) {
+            if (visited.Contains(t))
+                return;
+
+            if (deps.TryGetValue(t, out var children)) {
+                foreach (var dep in children)
+                    Visit(dep);
+            }
+
+            visited.Add(t);
+            result.Add(t);
+        }
+
+        foreach (var type in _types.Keys) {
+            if (type.IsStructType())
+                Visit(type.originalDefinition);
+        }
+
+        foreach (var type in result) {
+            var tb = _types[type];
+            var baked = tb.CreateType();
+            _bakedTypes[(NamedTypeSymbol)type] = baked;
+        }
+
+        foreach (var (type, tb) in _types) {
+            if (!type.IsStructType()) {
+                if (type.Equals(_programNamedType.originalDefinition)) {
+                    _programType = tb.CreateType();
+                    continue;
+                }
+
+                var baked = tb.CreateType();
+                _bakedTypes[(NamedTypeSymbol)type] = baked;
+            }
+        }
     }
 
     private void CompleteSpecialTypes() {

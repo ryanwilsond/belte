@@ -1145,7 +1145,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
             boundStatement.kind != BoundKind.GotoStatement;
     }
 
-    private static bool ShouldBeTreatedAsNullable(TypeSymbol type) {
+    internal static bool ShouldBeTreatedAsNullable(TypeSymbol type) {
         return type.IsNullableType() && CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
     }
 

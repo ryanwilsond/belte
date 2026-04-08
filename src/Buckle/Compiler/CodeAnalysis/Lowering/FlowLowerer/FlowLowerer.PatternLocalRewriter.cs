@@ -44,7 +44,8 @@ internal sealed partial class FlowLowerer {
 
                         if (conversion.exists) {
                             if (conversion.kind == ConversionKind.ExplicitNullable &&
-                                inputType.GetNullableUnderlyingType().Equals(output.type, TypeCompareKind.AllIgnoreOptions)) {
+                                inputType.GetNullableUnderlyingType().Equals(output.type, TypeCompareKind.AllIgnoreOptions) &&
+                                Lowerer.ShouldBeTreatedAsNullable(inputType)) {
                                 evaluated = Lowerer.CreateNullableGetValueCall(_node, input, inputType.GetNullableUnderlyingType());
                             } else {
                                 evaluated = Cast(_node, type, input, conversion, null);

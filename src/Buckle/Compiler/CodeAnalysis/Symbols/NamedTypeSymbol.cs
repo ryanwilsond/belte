@@ -81,6 +81,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal virtual bool enumFlagsAttribute => false;
 
+    internal virtual bool knownCircularStruct => false;
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
@@ -107,6 +109,16 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal void SetKnownToHaveNoDeclaredBaseCycles() {
         _hasNoBaseCycles = true;
+    }
+
+    internal int AllTemplateArgumentsCount() {
+        var count = templateArguments.Length;
+        var outer = containingType;
+
+        if (outer is not null)
+            count += outer.AllTemplateArgumentsCount();
+
+        return count;
     }
 
     internal void AddOperators(string name, ArrayBuilder<MethodSymbol> operators) {

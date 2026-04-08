@@ -60,6 +60,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private ThreeState _lazyAnyMemberHasAttributes;
+    private int _lazyKnownCircularStruct;
 
     private bool _fieldDefinitionsNoted;
 
@@ -151,6 +152,28 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal ImmutableArray<ImmutableArray<FieldInitializer>> staticInitializers
         => GetMembersAndInitializers().staticInitializers;
+
+    internal override bool knownCircularStruct {
+        get {
+            if (_lazyKnownCircularStruct == (int)ThreeState.Unknown) {
+                if (typeKind != TypeKind.Struct) {
+                    Interlocked.CompareExchange(ref _lazyKnownCircularStruct, (int)ThreeState.False, (int)ThreeState.Unknown);
+                } else {
+                    var diagnostics = BelteDiagnosticQueue.GetInstance();
+                    var value = (int)CheckStructCircularity(diagnostics).ToThreeState();
+
+                    if (Interlocked.CompareExchange(ref _lazyKnownCircularStruct, value, (int)ThreeState.Unknown) ==
+                        (int)ThreeState.Unknown) {
+                        AddDeclarationDiagnostics(diagnostics);
+                    }
+
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazyKnownCircularStruct == (int)ThreeState.True;
+        }
+    }
 
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
@@ -364,6 +387,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckMemberNameConflicts(diagnostics);
         CheckSpecialMemberErrors(diagnostics);
         CheckTemplateParameterNameConflicts(diagnostics);
+
+        _ = knownCircularStruct;
+
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
     }
@@ -1966,6 +1992,86 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private bool CheckStructCircularity(BelteDiagnosticQueue diagnostics) {
+        CheckFiniteFlatteningGraph(diagnostics);
+        return HasStructCircularity(diagnostics);
+    }
+
+    private bool HasStructCircularity(BelteDiagnosticQueue diagnostics) {
+        foreach (var valuesByName in GetMembersByName().Values) {
+            foreach (var member in valuesByName) {
+                if (member.kind != SymbolKind.Field)
+                    continue;
+
+                var field = (FieldSymbol)member;
+
+                if (field.isStatic)
+                    continue;
+
+                var type = field.NonPointerType();
+
+                if ((type is not null) &&
+                    (type.typeKind == TypeKind.Struct) &&
+                    BaseTypeAnalysis.StructDependsOn((NamedTypeSymbol)type, this)) {
+                    diagnostics.Push(Error.StructLayoutCycle(field.location, field, type));
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void CheckFiniteFlatteningGraph(BelteDiagnosticQueue diagnostics) {
+        if (AllTemplateArgumentsCount() == 0)
+            return;
+
+        var instanceMap = new Dictionary<NamedTypeSymbol, NamedTypeSymbol>(ReferenceEqualityComparer.Instance) {
+            { this, this }
+        };
+
+        foreach (var m in GetMembersUnordered()) {
+            if (m is not FieldSymbol f || !f.isStatic || f.type.typeKind != TypeKind.Struct)
+                continue;
+
+            var type = (NamedTypeSymbol)f.type;
+
+            if (InfiniteFlatteningGraph(this, type, instanceMap)) {
+                diagnostics.Push(Error.StructLayoutCycle(f.location, f, type));
+                return;
+            }
+        }
+    }
+
+    private static bool InfiniteFlatteningGraph(SourceMemberContainerTypeSymbol top, NamedTypeSymbol t, Dictionary<NamedTypeSymbol, NamedTypeSymbol> instanceMap) {
+        if (!t.ContainsTemplateParameter())
+            return false;
+
+        var tOriginal = t.originalDefinition;
+
+        if (instanceMap.TryGetValue(tOriginal, out var oldInstance)) {
+            return (!Equals(oldInstance, t, TypeCompareKind.IgnoreNullability)) && ReferenceEquals(tOriginal, top);
+        } else {
+            instanceMap.Add(tOriginal, t);
+
+            try {
+                foreach (var m in t.GetMembersUnordered()) {
+                    if (m is not FieldSymbol f || !f.isStatic || f.type.typeKind != TypeKind.Struct)
+                        continue;
+
+                    var type = (NamedTypeSymbol)f.type;
+
+                    if (InfiniteFlatteningGraph(top, type, instanceMap))
+                        return true;
+                }
+
+                return false;
+            } finally {
+                instanceMap.Remove(tOriginal);
+            }
+        }
     }
 
 

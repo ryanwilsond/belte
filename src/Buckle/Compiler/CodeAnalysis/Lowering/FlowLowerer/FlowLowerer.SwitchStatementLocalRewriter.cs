@@ -78,7 +78,7 @@ internal sealed partial class FlowLowerer {
             foreach (var temp in temps) {
                 // TODO This never stays, we are only doing this for the declaration trigger in the code generator
                 // Meaning there is probably a better way to mark the declaration without emitting a useless instruction
-                result.Add(new BoundLocalDeclarationStatement(node.syntax,
+                result.Insert(0, new BoundLocalDeclarationStatement(node.syntax,
                     new BoundDataContainerDeclaration(node.syntax,
                         temp,
                         BoundFactory.Literal(node.syntax,

@@ -1912,6 +1912,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_EntryConstructor, location, message);
     }
 
+    internal static BelteDiagnostic StructLayoutCycle(TextLocation location, Symbol member, Symbol type) {
+        var message = $"struct member '{member}' of type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' causes a cycle in the struct layout";
+        return CreateError(DiagnosticCode.ERR_StructLayoutCycle, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

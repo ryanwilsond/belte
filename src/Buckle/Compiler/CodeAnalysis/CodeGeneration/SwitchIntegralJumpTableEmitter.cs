@@ -205,7 +205,7 @@ internal partial struct SwitchIntegralJumpTableEmitter {
 
     private void EmitCondBranchForSwitch(OpCode branchCode, ConstantValue constant, object targetLabel) {
         _generator.EmitLoad(_key);
-        _generator.EmitConstantValue(constant, CorLibrary.GetSpecialType(constant.specialType));
+        _generator.EmitConstantValue(constant, CorLibrary.GetSpecialType(constant.specialType), false);
         _builder.EmitBranch(branchCode, targetLabel, GetReverseBranchCode(branchCode));
     }
 
@@ -215,7 +215,7 @@ internal partial struct SwitchIntegralJumpTableEmitter {
         if (LiteralUtilities.GetDefaultValue(constant.specialType) == constant.value) {
             _builder.EmitBranch(OpCode.Brfalse, targetLabel);
         } else {
-            _generator.EmitConstantValue(constant, CorLibrary.GetSpecialType(constant.specialType));
+            _generator.EmitConstantValue(constant, CorLibrary.GetSpecialType(constant.specialType), false);
             _builder.EmitBranch(OpCode.Beq, targetLabel);
         }
     }
@@ -224,7 +224,7 @@ internal partial struct SwitchIntegralJumpTableEmitter {
         _generator.EmitLoad(_key);
 
         if (LiteralUtilities.GetDefaultValue(startConstant.specialType) != startConstant.value) {
-            _generator.EmitConstantValue(startConstant, CorLibrary.GetSpecialType(startConstant.specialType));
+            _generator.EmitConstantValue(startConstant, CorLibrary.GetSpecialType(startConstant.specialType), false);
             _builder.Emit(OpCode.Sub);
         }
 
@@ -256,7 +256,7 @@ internal partial struct SwitchIntegralJumpTableEmitter {
         _generator.EmitLoad(_key);
 
         if (LiteralUtilities.GetDefaultValue(startConstant.specialType) != startConstant.value) {
-            _generator.EmitConstantValue(startConstant, CorLibrary.GetSpecialType(startConstant.specialType));
+            _generator.EmitConstantValue(startConstant, CorLibrary.GetSpecialType(startConstant.specialType), false);
             _builder.Emit(OpCode.Sub);
         }
 
