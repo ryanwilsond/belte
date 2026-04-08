@@ -9,8 +9,8 @@
 int XorList(List<int> arr) {
     var result = 0;
 
-    for (var i = 0; i < arr.Length(); i++)
-        result ^= arr[i];
+    for (item in arr)
+        result ^= item;
 
     return result;
 }
@@ -18,9 +18,9 @@ int XorList(List<int> arr) {
 List<int> PartitionList(List<int> list, int lsb) {
     var result = new List<int>();
 
-    for (var i = 0; i < list.Length(); i++) {
-        if ((list[i] & lsb) == 0)
-            result.Append(list[i]);
+    for (item in list) {
+        if ((item & lsb) == 0)
+            result.Append(item);
     }
 
     return result;
