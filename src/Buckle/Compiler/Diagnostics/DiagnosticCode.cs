@@ -406,6 +406,7 @@ public enum DiagnosticCode : ushort {
     ERR_IterMustReturnEnumerator = 395,
     ERR_UnexpectedParameterList = 396,
     ERR_InvalidParameterList = 397,
+    ERR_NamespaceUnexpected = 398,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

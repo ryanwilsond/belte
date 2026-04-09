@@ -17,6 +17,7 @@ internal sealed partial class BinderFactory {
         NamedTypeBodyOrTemplateParameters = 1 << 1,
         NamedTypeBase = 1 << 2,
 
+        CompilationUnitUsings = 1 << 0,
         CompilationUnitScript = 1 << 1,
     }
 }

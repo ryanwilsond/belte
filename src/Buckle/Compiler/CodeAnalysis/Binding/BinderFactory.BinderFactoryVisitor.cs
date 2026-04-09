@@ -67,18 +67,21 @@ internal sealed partial class BinderFactory {
 
             // TODO We should probably set this up in case the compilation bounces from scripts to normal
             // var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
-            var key = new BinderCacheKey(node, NodeUsage.Normal);
+            var extraInfo = inUsing ? NodeUsage.CompilationUnitUsings : NodeUsage.Normal;
+            var key = new BinderCacheKey(node, extraInfo);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
                 // TODO The SubmissionBinder is what fetches locals from previous compilations
                 // So is this fine as is, or should there still be some _inScript check
                 result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
+
                 result = AddInImportsBinders(
                     (SourceNamespaceSymbol)_compilation.sourceModule.globalNamespace,
                     node,
                     result,
                     inUsing
                 );
+
                 result = new InContainerBinder(_compilation.globalNamespaceInternal, result);
 
                 if (_inScript)

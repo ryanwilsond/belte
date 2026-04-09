@@ -5,10 +5,18 @@ namespace Buckle.CodeAnalysis;
 
 internal static class SyntaxKindExtensions {
     internal static DeclarationKind ToDeclarationKind(this SyntaxKind syntaxKind) {
-        return syntaxKind switch {
-            SyntaxKind.ClassDeclaration => DeclarationKind.Class,
-            SyntaxKind.StructDeclaration => DeclarationKind.Struct,
-            _ => throw ExceptionUtilities.UnexpectedValue(syntaxKind)
-        };
+        switch (syntaxKind) {
+            case SyntaxKind.ClassDeclaration:
+                return DeclarationKind.Class;
+            case SyntaxKind.StructDeclaration:
+                return DeclarationKind.Struct;
+            case SyntaxKind.NamespaceDeclaration:
+            case SyntaxKind.FileScopedNamespaceDeclaration:
+                return DeclarationKind.Namespace;
+            case SyntaxKind.EnumDeclaration:
+                return DeclarationKind.Enum;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(syntaxKind);
+        }
     }
 }

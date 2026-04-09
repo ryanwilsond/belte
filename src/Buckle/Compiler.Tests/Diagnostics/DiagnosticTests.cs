@@ -4858,4 +4858,19 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0398_NamespaceUnexpected() {
+        var text = @"
+            namespace A;
+
+            int [a] = 3;
+        ";
+
+        var diagnostics = @"
+            namespaces cannot directly contain fields, methods, or statements
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

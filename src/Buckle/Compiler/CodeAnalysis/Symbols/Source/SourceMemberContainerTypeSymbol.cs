@@ -145,6 +145,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal override bool isImplicitClass => _declaration.declarations[0].kind == DeclarationKind.ImplicitClass;
+
+    internal override bool isImplicitlyDeclared => isImplicitClass;
+
     internal MergedTypeDeclaration mergedDeclaration => _declaration;
 
     internal ImmutableArray<ImmutableArray<FieldInitializer>> instanceInitializers
@@ -1449,6 +1453,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case SyntaxKind.CompilationUnit:
                 AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
                 break;
+            case SyntaxKind.NamespaceDeclaration:
+            case SyntaxKind.FileScopedNamespaceDeclaration:
+                AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).members, diagnostics);
+                break;
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)syntax;
@@ -1537,6 +1545,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case SyntaxKind.FieldDeclaration: {
                         var fieldSyntax = (FieldDeclarationSyntax)m;
 
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(fieldSyntax.declaration.identifier.location));
+
                         var modifiers = SourceMemberFieldSymbol.MakeModifiers(
                             this,
                             fieldSyntax.declaration.identifier,
@@ -1568,6 +1579,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(methodSyntax.identifier.location));
+
                         var method = SourceOrdinaryMethodSymbol.CreateMethodSymbol(
                             this,
                             methodSyntax,
@@ -1579,6 +1594,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     break;
                 case SyntaxKind.ConstructorDeclaration: {
                         var constructorSyntax = (ConstructorDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(constructorSyntax.constructorKeyword.location));
 
                         var constructor = SourceConstructorSymbol.CreateConstructorSymbol(
                             this,
@@ -1592,6 +1610,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case SyntaxKind.OperatorDeclaration: {
                         var operatorSyntax = (OperatorDeclarationSyntax)m;
 
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(operatorSyntax.operatorKeyword.location));
+
                         var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
                             this,
                             operatorSyntax,
@@ -1603,6 +1624,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     break;
                 case SyntaxKind.ConversionDeclaration: {
                         var conversionSyntax = (ConversionDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(conversionSyntax.operatorKeyword.location));
 
                         var method = SourceUserDefinedConversionSymbol.CreateUserDefinedConversionSymbol(
                             this,
@@ -1620,6 +1644,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     if (reportMisplacedGlobalCode &&
                         !SyntaxFacts.IsSimpleProgramTopLevelStatement((GlobalStatementSyntax)m)) {
                         // TODO Report misplaced global code? (Think the MethodCompiler handles this actually...)
+                        // diagnostics.Push(Error.NamespaceUnexpected(globalStatement.location));
                     }
 
                     break;

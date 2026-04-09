@@ -1942,6 +1942,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidParameterList, location, message);
     }
 
+    internal static BelteDiagnostic NamespaceUnexpected(TextLocation location) {
+        var message = $"namespaces cannot directly contain fields, methods, or statements";
+        return CreateError(DiagnosticCode.ERR_NamespaceUnexpected, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

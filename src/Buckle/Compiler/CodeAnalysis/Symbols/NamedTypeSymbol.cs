@@ -83,6 +83,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal virtual bool knownCircularStruct => false;
 
+    internal virtual bool isImplicitClass => false;
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
