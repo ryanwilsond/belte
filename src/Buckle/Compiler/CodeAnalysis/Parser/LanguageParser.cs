@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -182,6 +181,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private bool PeekIsType(int offset, out int finalOffset, out bool hasName, out bool isTemplate) {
+        // TODO This should be replaced by a ScanType method that actually eats tokens so it is more accurate
         finalOffset = offset;
         hasName = false;
         isTemplate = false;
@@ -197,19 +197,32 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return false;
         }
 
-        if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken)
+        if (Peek(finalOffset).kind == SyntaxKind.IdentifierToken) {
             finalOffset++;
 
-        if (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
-            ScanPossibleTemplateArgumentList(finalOffset, out var lastToken, out var isDefinite);
+            while (true) {
+                var currentOffset = finalOffset;
 
-            if (isDefinite) {
-                while (Peek(finalOffset) != lastToken && Peek(finalOffset).kind != SyntaxKind.EndOfFileToken)
-                    finalOffset++;
+                if (Peek(finalOffset).kind == SyntaxKind.PeriodToken &&
+                    Peek(finalOffset + 1)?.kind == SyntaxKind.IdentifierToken) {
+                    finalOffset += 2;
+                }
+
+                if (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
+                    ScanPossibleTemplateArgumentList(finalOffset, out var lastToken, out var isDefinite);
+
+                    if (isDefinite) {
+                        while (Peek(finalOffset) != lastToken && Peek(finalOffset).kind != SyntaxKind.EndOfFileToken)
+                            finalOffset++;
+
+                        finalOffset++;
+                        isTemplate = true;
+                    }
+                }
+
+                if (currentOffset == finalOffset)
+                    break;
             }
-
-            finalOffset++;
-            isTemplate = true;
         }
 
         while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
