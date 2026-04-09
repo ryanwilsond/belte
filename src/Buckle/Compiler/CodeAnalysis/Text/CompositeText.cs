@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -14,8 +15,9 @@ internal sealed class CompositeText : SourceText {
     private readonly int _length;
     private readonly int[] _segmentOffsets;
 
-    private CompositeText(ImmutableArray<SourceText> segments) {
+    private CompositeText(ImmutableArray<SourceText> segments, Encoding encoding) {
         _segments = segments;
+        this.encoding = encoding;
 
         foreach (var segment in _segments)
             _length += segment.length;
@@ -30,6 +32,8 @@ internal sealed class CompositeText : SourceText {
     }
 
     public override int length => _length;
+
+    internal override Encoding encoding { get; }
 
     public override char this[int index] {
         get {
@@ -82,7 +86,7 @@ internal sealed class CompositeText : SourceText {
             segmentOffset = 0;
         }
 
-        return ToSourceText(newSegments);
+        return ToSourceText(newSegments, this);
     }
 
     /// <summary>
@@ -98,15 +102,15 @@ internal sealed class CompositeText : SourceText {
     /// <summary>
     /// Converts an array of segments to a <see cref="SourceText" />.
     /// </summary>
-    internal static SourceText ToSourceText(ArrayBuilder<SourceText> segments) {
+    internal static SourceText ToSourceText(ArrayBuilder<SourceText> segments, SourceText original) {
         ReduceSegmentCountIfNecessary(segments);
 
         if (segments.Count == 0)
-            return From("");
+            return From("", original.encoding);
         else if (segments.Count == 1)
             return segments[0];
         else
-            return new CompositeText(segments.ToImmutable());
+            return new CompositeText(segments.ToImmutable(), original.encoding);
     }
 
     private protected override void EnsureLines() {
@@ -182,7 +186,8 @@ internal sealed class CompositeText : SourceText {
                 }
 
                 if (count > 1) {
-                    var writer = SourceTextWriter.Create(combinedLength);
+                    var encoding = segments[0].encoding;
+                    var writer = SourceTextWriter.Create(combinedLength, encoding);
 
                     while (count > 0) {
                         segments[i].Write(writer);

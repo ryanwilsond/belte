@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
@@ -16,6 +17,8 @@ public abstract class SourceText {
     /// <see cref="LargeTextWriter" /> instead of a <see cref="StringTextWriter" />.
     /// </summary>
     internal const int LargeObjectHeapLimitInChars = 40 * 1024;
+
+    internal static Encoding DefaultEncoding = Encoding.UTF8;
 
     private const int CharBufferSize = 32 * 1024;
     private const int CharBufferCount = 5;
@@ -42,14 +45,16 @@ public abstract class SourceText {
     /// </summary>
     public virtual int lineCount => GetLines().Length;
 
+    internal abstract Encoding encoding { get; }
+
     /// <summary>
     /// Creates a <see cref="SourceText" /> from a text, not necessarily relating to a source file.
     /// </summary>
     /// <param name="text">Text.</param>
     /// <param name="fileName">Optional filename if sourced from a file.</param>
     /// <returns>New <see cref="SourceText" />.</returns>
-    public static SourceText From(string text, string fileName = "") {
-        return new StringText(fileName, text);
+    public static SourceText From(string text, Encoding encoding = null, string fileName = "") {
+        return new StringText(fileName, encoding ?? DefaultEncoding, text);
     }
 
     /// <summary>
@@ -151,7 +156,7 @@ public abstract class SourceText {
             }
 
             if (newTextLength > 0) {
-                var segment = From(change.newText);
+                var segment = From(change.newText, encoding);
                 CompositeText.AddSegments(segments, segment);
             }
 
@@ -167,7 +172,7 @@ public abstract class SourceText {
             CompositeText.AddSegments(segments, subText);
         }
 
-        var newText = CompositeText.ToSourceText(segments);
+        var newText = CompositeText.ToSourceText(segments, this);
         segments.Free();
 
         if (newText is not null) {
@@ -259,7 +264,7 @@ public abstract class SourceText {
         var spanLength = span.length;
 
         if (spanLength == 0)
-            return From("");
+            return From("", encoding);
         else if (spanLength == length && span.start == 0)
             return this;
         else

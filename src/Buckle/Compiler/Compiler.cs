@@ -183,7 +183,7 @@ public sealed class Compiler {
             var libTime = LogLibraryLoadTime(timer);
 
             ref var task = ref state.tasks[0];
-            var sourceText = new StringText(task.inputFileName, task.fileContent.text);
+            var sourceText = new StringText(task.inputFileName, SourceText.DefaultEncoding, task.fileContent.text);
             var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions());
             task.stage = CompilerStage.Finished;
 
