@@ -445,7 +445,10 @@ public sealed partial class Compilation {
         return Interpreter.Interpret(_syntax.syntaxTrees[0], options, abort, logTime);
     }
 
-    public string EmitToString(out BelteDiagnosticQueue diagnostics, BuildMode? alternateBuildMode = null) {
+    public string EmitToString(
+        out BelteDiagnosticQueue diagnostics,
+        BuildMode? alternateBuildMode = null,
+        bool programOnly = false) {
         var buildMode = alternateBuildMode ?? options.buildMode;
         diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -453,10 +456,17 @@ public sealed partial class Compilation {
         if (diagnostics.AnyErrors())
             return null;
 
-        if (buildMode == BuildMode.CSharpTranspile)
+        if (buildMode == BuildMode.CSharpTranspile) {
             return CSharpEmitter.EmitToString(program, assemblyName, diagnostics);
-        else if (buildMode == BuildMode.Dotnet)
-            return ILEmitter.EmitToString(program, assemblyName, options.references, diagnostics);
+        } else if (buildMode == BuildMode.Dotnet) {
+            return ILEmitter.EmitToString(
+                program,
+                assemblyName,
+                programOnly,
+                options.references,
+                diagnostics
+            );
+        }
 
         return null;
     }

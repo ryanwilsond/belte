@@ -336,13 +336,13 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showCS) {
-            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile);
+            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile, true);
             writer.Write(code);
         }
 
         if (state.showIL) {
             try {
-                var code = compilation.EmitToString(out _, BuildMode.Dotnet);
+                var code = compilation.EmitToString(out _, BuildMode.Dotnet, true);
                 writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));

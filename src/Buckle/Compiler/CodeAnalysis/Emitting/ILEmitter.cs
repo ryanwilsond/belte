@@ -20,6 +20,9 @@ using Shared;
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter : ModuleBuilder {
+    private readonly MethodReference _belteCompilerGeneratedAttributeCtor;
+    private readonly TypeReference _belteCompilerGeneratedAttribute;
+
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly AssemblyDefinition _assemblyDefinition;
     private readonly List<AssemblyDefinition> _assemblies;
@@ -144,6 +147,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
+
+        _belteCompilerGeneratedAttributeCtor = _assemblyDefinition.MainModule.ImportReference(
+            typeof(BelteCompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes)
+        );
+
+        _belteCompilerGeneratedAttribute = _assemblyDefinition.MainModule.ImportReference(
+            typeof(BelteCompilerGeneratedAttribute)
+        );
     }
 
     internal static void Emit(
@@ -162,12 +173,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal static string EmitToString(
         BoundProgram program,
         string moduleName,
+        bool programOnly,
         string[] references,
         BelteDiagnosticQueue diagnostics) {
         var emitter = new ILEmitter(program, moduleName, references, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
-            return emitter.EmitToString();
+            return emitter.EmitToString(programOnly);
 
         return "<unsupported-project-type>";
     }
@@ -215,15 +227,17 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         File.WriteAllText(runtimeConfigPath, content);
     }
 
-    private string EmitToString() {
+    private string EmitToString(bool programOnly) {
         EmitInternal();
 
         var stringWriter = new StringWriter();
 
         using (var indentedTextWriter = new System.CodeDom.Compiler.IndentedTextWriter(stringWriter, "    ")) {
             foreach (var type in _topLevelTypes) {
-                var typeDefinition = _types[type.originalDefinition];
-                WriteType(stringWriter, indentedTextWriter, typeDefinition);
+                if (!programOnly || type.IsFromCompilation(_program.compilation)) {
+                    var typeDefinition = _types[type.originalDefinition];
+                    WriteType(stringWriter, indentedTextWriter, typeDefinition);
+                }
             }
 
             stringWriter.Flush();
@@ -231,7 +245,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         return stringWriter.ToString();
 
-        static void WriteType(
+        void WriteType(
             StringWriter writer,
             System.CodeDom.Compiler.IndentedTextWriter indentedTextWriter,
             TypeDefinition typeDefinition) {
@@ -242,17 +256,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             indentedTextWriter.WriteLine();
 
             foreach (var method in typeDefinition.Methods) {
-                using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.ToString())) {
-                    foreach (var instruction in method.Body.Instructions)
-                        indentedTextWriter.WriteLine(instruction);
-                }
+                if (!method.IsAbstract && !IsBelteCompilerGenerated(method)) {
+                    using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.ToString())) {
+                        foreach (var instruction in method.Body.Instructions)
+                            indentedTextWriter.WriteLine(instruction);
+                    }
 
-                indentedTextWriter.WriteLine();
+                    indentedTextWriter.WriteLine();
+                }
             }
 
-            foreach (var nestedType in typeDefinition.NestedTypes)
-                WriteType(writer, indentedTextWriter, nestedType);
+            foreach (var nestedType in typeDefinition.NestedTypes) {
+                if (!IsBelteCompilerGenerated(nestedType))
+                    WriteType(writer, indentedTextWriter, nestedType);
+            }
         }
+    }
+
+    private bool IsBelteCompilerGenerated(ICustomAttributeProvider symbol) {
+        return symbol.CustomAttributes.Any(
+            a => a.AttributeType.FullName == _belteCompilerGeneratedAttribute.FullName
+        );
     }
 
     internal TypeReference GetType(TypeSymbol type, bool byRef = false) {
@@ -1065,6 +1089,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _specialTypes[SpecialType.Object]
         );
 
+        cDefinition.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
+
         _c9 = new FieldDefinition(
             "<>9",
             FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
@@ -1087,6 +1113,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _specialTypes[SpecialType.Void]
         );
 
+        cctor.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
+
         var ctor = new MethodDefinition(
             ".ctor",
             MethodAttributes.Public |
@@ -1094,11 +1122,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _specialTypes[SpecialType.Void]
         );
 
+        ctor.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
+
         var methodDefinition = new MethodDefinition(
             "<Main>AssemblyResolver",
             MethodAttributes.HideBySig | MethodAttributes.Assembly,
             ResolveType(null, "System.Reflection.Assembly")
         );
+
+        methodDefinition.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
 
         methodDefinition.Parameters.Add(
             new Mono.Cecil.ParameterDefinition(
@@ -1134,6 +1166,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _specialTypes[SpecialType.Void]
         );
 
+        _init.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
         _init.CustomAttributes.Add(attr);
 
         mainType.Methods.Add(_init);

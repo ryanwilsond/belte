@@ -40,6 +40,7 @@ internal sealed partial class CodeGenerator {
     private readonly BoundBlockStatement _body;
     private readonly ILBuilder _builder;
     private readonly HashSet<DataContainerSymbol> _stackLocals = [];
+    private readonly HashSet<DataContainerSymbol> _evaluatorProxies = [];
     private readonly List<(int instructionIndex, LabelSymbol target)> _unhandledGotos = [];
     private readonly SyntaxNode _methodBodySyntax;
     private readonly ILEmitStyle _ilEmitStyle;
@@ -1297,6 +1298,12 @@ oneMoreTime:
                 break;
             case BoundKind.ConvertedStackAllocExpression:
                 EmitStackAllocExpression((BoundConvertedStackAllocExpression)expression, used);
+                break;
+            case BoundKind.StackSlotExpression:
+                EmitStackSlotExpression((BoundStackSlotExpression)expression, used);
+                break;
+            case BoundKind.FieldSlotExpression:
+                EmitFieldSlotExpression((BoundFieldSlotExpression)expression, used);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
@@ -2775,6 +2782,8 @@ oneMoreTime:
     }
 
     private void EmitAssignmentOperator(BoundAssignmentOperator expression, UseKind useKind) {
+        EmitLocalDeclarationIfApplicable(expression);
+
         if (TryEmitAssignmentInPlace(expression, useKind != UseKind.Unused))
             return;
 
@@ -2783,6 +2792,23 @@ oneMoreTime:
         var temp = EmitAssignmentDuplication(expression, useKind, lhsUsesStack);
         EmitStore(expression);
         EmitAssignmentPostfix(expression, temp, useKind);
+    }
+
+    private void EmitLocalDeclarationIfApplicable(BoundAssignmentOperator expression) {
+        if (expression.left is BoundStackSlotExpression stackSlot) {
+            var local = stackSlot.symbol as DataContainerSymbol;
+
+            if (local is not null && _evaluatorProxies.Add(local)) {
+                _builder.DeclareLocal(
+                    local.type,
+                    local,
+                    local.name,
+                    local.synthesizedKind,
+                    local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+                    false
+                );
+            }
+        }
     }
 
     private void EmitAssignmentPostfix(
@@ -2831,6 +2857,10 @@ oneMoreTime:
             case BoundKind.FieldAccessExpression:
                 EmitFieldStore((BoundFieldAccessExpression)expression, assignment.isRef);
                 break;
+            case BoundKind.FieldSlotExpression:
+                var left = (BoundFieldSlotExpression)expression;
+                EmitFieldStore(left.field, assignment.isRef);
+                break;
             case BoundKind.DataContainerExpression:
                 var local = (BoundDataContainerExpression)expression;
 
@@ -2841,6 +2871,26 @@ oneMoreTime:
                         break;
                     else
                         _builder.EmitLocalStore(local.dataContainer);
+                }
+
+                break;
+            case BoundKind.StackSlotExpression:
+                var symbol = ((BoundStackSlotExpression)expression).symbol;
+
+                if (symbol is DataContainerSymbol dataContainer) {
+                    if (dataContainer.refKind != RefKind.None && !assignment.isRef) {
+                        EmitIndirectStore(dataContainer.type);
+                    } else {
+                        if (IsStackLocal(dataContainer))
+                            break;
+                        else
+                            _builder.EmitLocalStore(dataContainer);
+                    }
+                } else if (symbol is ParameterSymbol parameter) {
+                    EmitParameterStore(parameter, assignment.isRef);
+                    break;
+                } else {
+                    throw ExceptionUtilities.Unreachable();
                 }
 
                 break;
@@ -2922,8 +2972,10 @@ oneMoreTime:
     }
 
     private void EmitFieldStore(BoundFieldAccessExpression fieldAccess, bool refAssign) {
-        var field = fieldAccess.field;
+        EmitFieldStore(fieldAccess.field, refAssign);
+    }
 
+    private void EmitFieldStore(FieldSymbol field, bool refAssign) {
         if (field.refKind != RefKind.None && !refAssign) {
             EmitIndirectStore(field.type);
         } else {
@@ -2932,10 +2984,14 @@ oneMoreTime:
     }
 
     private void EmitParameterStore(BoundParameterExpression parameter, bool refAssign) {
-        if (parameter.parameter.refKind != RefKind.None && !refAssign) {
-            EmitIndirectStore(parameter.parameter.type);
+        EmitParameterStore(parameter.parameter, refAssign);
+    }
+
+    private void EmitParameterStore(ParameterSymbol parameter, bool refAssign) {
+        if (parameter.refKind != RefKind.None && !refAssign) {
+            EmitIndirectStore(parameter.type);
         } else {
-            var slot = ParameterSlot(parameter.parameter);
+            var slot = ParameterSlot(parameter);
             _builder.EmitStoreArgument(slot);
         }
     }
@@ -3045,12 +3101,46 @@ oneMoreTime:
                 }
 
                 break;
+            case BoundKind.FieldSlotExpression: {
+                    var left = (BoundFieldSlotExpression)assignmentTarget;
+
+                    if (left.field.refKind != RefKind.None && !assignmentOperator.isRef) {
+                        EmitFieldLoadNoIndirection(left.field, left.receiver, used: true);
+                        lhsUsesStack = true;
+                    } else if (!left.field.isStatic) {
+                        var temp = EmitReceiverRef(left.receiver, AddressKind.Writeable);
+                        lhsUsesStack = true;
+                    }
+                }
+
+                break;
             case BoundKind.ParameterExpression: {
                     var left = (BoundParameterExpression)assignmentTarget;
 
                     if (left.parameter.refKind != RefKind.None && !assignmentOperator.isRef) {
                         _builder.EmitLoadArgument(ParameterSlot(left.parameter));
                         lhsUsesStack = true;
+                    }
+                }
+
+                break;
+            case BoundKind.StackSlotExpression: {
+                    var left = (BoundStackSlotExpression)assignmentTarget;
+
+                    if (left.symbol is DataContainerSymbol dataContainer) {
+                        if (dataContainer.refKind != RefKind.None && !assignmentOperator.isRef) {
+                            if (!IsStackLocal(dataContainer))
+                                _builder.EmitLocalLoad(dataContainer);
+
+                            lhsUsesStack = true;
+                        }
+                    } else if (left.symbol is ParameterSymbol parameter) {
+                        if (parameter.refKind != RefKind.None && !assignmentOperator.isRef) {
+                            _builder.EmitLoadArgument(ParameterSlot(parameter));
+                            lhsUsesStack = true;
+                        }
+                    } else {
+                        throw ExceptionUtilities.Unreachable();
                     }
                 }
 
@@ -3209,20 +3299,26 @@ oneMoreTime:
         return false;
     }
 
-    private void EmitFieldLoad(BoundFieldAccessExpression expression, bool used) {
-        var field = expression.field;
+    private void EmitFieldSlotExpression(BoundFieldSlotExpression expression, bool used) {
+        EmitFieldLoad(expression.field, expression.receiver, used);
+    }
 
+    private void EmitFieldLoad(BoundFieldAccessExpression expression, bool used) {
+        EmitFieldLoad(expression.field, expression.receiver, used);
+    }
+
+    private void EmitFieldLoad(FieldSymbol field, BoundExpression receiver, bool used) {
         if (!used) {
             if (field.isCapturedFrame)
                 return;
 
-            if (!field.isStatic && expression.receiver.type.IsVerifierValue() && field.refKind == RefKind.None) {
-                EmitExpression(expression.receiver, used: false);
+            if (!field.isStatic && receiver.type.IsVerifierValue() && field.refKind == RefKind.None) {
+                EmitExpression(receiver, used: false);
                 return;
             }
         }
 
-        EmitFieldLoadNoIndirection(expression, used);
+        EmitFieldLoadNoIndirection(field, receiver, used);
 
         if (field.refKind != RefKind.None)
             EmitLoadIndirect(field.type);
@@ -3231,12 +3327,13 @@ oneMoreTime:
     }
 
     private void EmitFieldLoadNoIndirection(BoundFieldAccessExpression fieldAccess, bool used) {
-        var field = fieldAccess.field;
+        EmitFieldLoadNoIndirection(fieldAccess.field, fieldAccess.receiver, used);
+    }
 
+    private void EmitFieldLoadNoIndirection(FieldSymbol field, BoundExpression receiver, bool used) {
         if (field.isStatic) {
             _builder.EmitWithSymbolToken(OpCode.Ldsfld, field);
         } else {
-            var receiver = fieldAccess.receiver;
             var fieldType = field.type;
 
             if (IsValueType(fieldType) && (object)fieldType == (object)receiver.type) {
@@ -3345,7 +3442,10 @@ oneMoreTime:
     }
 
     private void EmitParameterLoad(BoundParameterExpression expression) {
-        var parameter = expression.parameter;
+        EmitParameterLoad(expression.parameter);
+    }
+
+    private void EmitParameterLoad(ParameterSymbol parameter) {
         var slot = ParameterSlot(parameter);
         _builder.EmitLoadArgument(slot);
 
@@ -3355,8 +3455,30 @@ oneMoreTime:
         }
     }
 
+    private void EmitStackSlotExpression(BoundStackSlotExpression expression, bool used) {
+        var symbol = expression.symbol;
+
+        switch (symbol.kind) {
+            case SymbolKind.Local:
+                EmitLocalLoad((DataContainerSymbol)symbol, used);
+                break;
+            case SymbolKind.Parameter:
+                if (used)
+                    EmitParameterLoad((ParameterSymbol)symbol);
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+
+        }
+    }
+
     private void EmitLocalLoad(BoundDataContainerExpression expression, bool used) {
-        var local = expression.dataContainer;
+        EmitLocalLoad(expression.dataContainer, used);
+    }
+
+    private void EmitLocalLoad(DataContainerSymbol dataContainer, bool used) {
+        var local = dataContainer;
         var isRefLocal = local.refKind != RefKind.None;
 
         if (IsStackLocal(local)) {

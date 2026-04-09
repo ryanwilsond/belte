@@ -1701,11 +1701,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 break;
         }
 
-        if (!hasStaticConstructor)
+        if (!hasStaticConstructor && HasNonConstExprInitializer(declaredMembersAndInitializers.staticInitializers))
             builder.AddNonTypeMember(new SynthesizedStaticConstructor(this), declaredMembersAndInitializers);
 
         if (!hasConstructor && !isStatic)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
+
+        static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
+            return initializers.Any(
+                static siblings => siblings.Any(static initializer => !initializer.field.isConstExpr)
+            );
+        }
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
