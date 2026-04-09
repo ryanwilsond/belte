@@ -26,6 +26,7 @@
     <Content Remove="../../Belte/Native/Standard/Collections/List.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/Enumerator.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/Dictionary.blt" />
+    <Content Remove="../../Belte/Native/Standard/Collections/KeyValuePair.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentException.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentNullException.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
@@ -53,6 +54,7 @@
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/List.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Enumerator.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Dictionary.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/KeyValuePair.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentNullException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentOutOfRangeException.blt" />

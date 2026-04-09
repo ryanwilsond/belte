@@ -366,9 +366,25 @@ indexable using the `[]` operator, an `iter` operator can be defined to return a
 class implements `length`, `[]`, and the `iter` operators, the for loop will prefer using `length` and `[]`.
 
 The `Enumerator<type T>` returned by the `iter` operator must implement the `bool! MoveNext()` and `T Current()`
-methods.
+methods. The value type is the template argument of the `Enumerator` returned by the `iter` operator.
 
-The value type is the template argument of the `Enumerator` returned by the `iter` operator:
+The [`Dictionary<type TKey, type TValue>` type from the standard library](StandardLibrary/Dictionary.md) is a good
+example of a type that uses an enumerator. The `Dictionary<type TKey, type TValue` enumerator returns a
+`KeyValuePair<TKey, TValue>`.
+
+```belte
+var a = {
+  4: "string 1",
+  5: "string 2",
+  6: "string 3",
+  7: "string 4"
+};
+
+for (pair in a)
+  Console.PrintLine(f"[{pair.key}, {pair.value}]");
+```
+
+Here is a definition example:
 
 ```belte
 var a = new A();

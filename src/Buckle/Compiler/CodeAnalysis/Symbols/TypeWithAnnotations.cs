@@ -90,9 +90,9 @@ internal sealed class TypeWithAnnotations {
         var oldTypeSymbol = type;
         byte transformFlag;
 
-        if (CodeGenerator.IsValueType(oldTypeSymbol))
-            transformFlag = NullableContextExtensions.ObliviousAttributeValue;
-        else if (transforms.IsDefault)
+        // if (CodeGenerator.IsValueType(oldTypeSymbol))
+        //     transformFlag = NullableContextExtensions.ObliviousAttributeValue;
+        if (transforms.IsDefault)
             transformFlag = defaultTransformFlag;
         else if (position < transforms.Length)
             transformFlag = transforms[position++];

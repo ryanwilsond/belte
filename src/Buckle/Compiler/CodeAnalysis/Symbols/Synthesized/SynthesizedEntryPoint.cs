@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -118,10 +119,15 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         var syntaxNode = this.syntaxNode;
         Binder result = new EndBinder(compilation, syntaxNode.syntaxTree.text);
 
+        var previousNamespaces = new Stack<NamespaceSymbol>();
+
         for (var current = compilation; current is not null; current = current.previous) {
             // TODO Also add usings binders for previous?
-            result = new InContainerBinder(current.globalNamespaceInternal, result);
+            previousNamespaces.Push(current.globalNamespaceInternal);
         }
+
+        while (previousNamespaces.Count != 0)
+            result = new InContainerBinder(previousNamespaces.Pop(), result);
 
         var declaringSymbol = (SourceNamespaceSymbol)compilation.sourceModule.globalNamespace;
         result = WithUsingAliasesBinder.Create(declaringSymbol, syntaxNode, WithUsingNamespacesAndTypesBinder.Create(declaringSymbol, syntaxNode, result));

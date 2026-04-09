@@ -45,8 +45,9 @@ new List<int>();
 
 | Signature | Description |
 |-|-|
-| `ref T operator[](List<T>, int)` | Gets the value at the given index. |
-| `implicit operator List<T>(T[])` | Creates a list from an array. |
+| `static ref T operator[](List<T>, int)` | Gets the value at the given index. |
+| `static int! operator length(List<T>)` | Used in [iterating for loops](../ControlFlow.md#2443-indexed-collections). |
+| `static implicit operator List<T>(T[])` | Creates a list from an array. |
 
 For example, to index a list:
 

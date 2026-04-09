@@ -9,8 +9,7 @@ internal abstract partial class PENamedTypeSymbol {
             NamespaceOrTypeSymbol container,
             TypeDefinitionHandle handle,
             string emittedNamespaceName)
-            : base(moduleSymbol, container, handle, emittedNamespaceName, 0, out _) {
-        }
+            : base(moduleSymbol, container, handle, emittedNamespaceName, 0, out _) { }
 
         public override int arity => 0;
 

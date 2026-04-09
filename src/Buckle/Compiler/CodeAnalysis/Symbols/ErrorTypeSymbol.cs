@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -110,8 +111,14 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         } else {
             var templateParameters = new TemplateParameterSymbol[arity];
 
-            for (var i = 0; i < arity; i++)
-                templateParameters[i] = new ErrorTemplateParameterSymbol(this, "", i);
+            for (var i = 0; i < arity; i++) {
+                templateParameters[i] = new ErrorTemplateParameterSymbol(
+                    this,
+                    "",
+                    i,
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type))
+                );
+            }
 
             return templateParameters.AsImmutableOrNull();
         }

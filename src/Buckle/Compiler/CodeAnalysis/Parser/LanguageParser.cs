@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -199,14 +200,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (Peek(finalOffset).kind is SyntaxKind.IdentifierToken)
             finalOffset++;
 
-        while (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
+        if (Peek(finalOffset).kind == SyntaxKind.LessThanToken) {
+            ScanPossibleTemplateArgumentList(finalOffset, out var lastToken, out var isDefinite);
+
+            if (isDefinite) {
+                while (Peek(finalOffset) != lastToken && Peek(finalOffset).kind != SyntaxKind.EndOfFileToken)
+                    finalOffset++;
+            }
+
+            finalOffset++;
             isTemplate = true;
-            finalOffset++;
-
-            while (Peek(finalOffset).kind is not SyntaxKind.GreaterThanToken and not SyntaxKind.EndOfFileToken)
-                finalOffset++;
-
-            finalOffset++;
         }
 
         while (Peek(finalOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken)
@@ -736,7 +739,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private MemberDeclarationSyntax ParseOperatorOrConversionDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
-        if (_currentToken.kind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword)
+        if (currentToken.kind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword)
             return ParseConversionDeclaration(attributeLists, modifiers);
 
         var type = ParseType();
@@ -2115,6 +2118,29 @@ done:
         return ScanTypeFlags.NotType;
     }
 
+    private void ScanPossibleTemplateArgumentList(
+        int offset,
+        out SyntaxToken lastTokenOfType,
+        out bool isDefinitelyTemplateArgumentList) {
+        var resetPoint = GetResetPoint();
+
+        for (; offset > 0; offset--)
+            EatToken();
+
+        var list = ParseTemplateArgumentList();
+
+        Reset(resetPoint);
+
+        if (!list.containsDiagnostics) {
+            isDefinitelyTemplateArgumentList = true;
+            lastTokenOfType = list.GetLastToken();
+            return;
+        }
+
+        lastTokenOfType = null;
+        isDefinitelyTemplateArgumentList = false;
+    }
+
     private ScanTypeFlags ScanFunctionPointerType(out SyntaxToken lastTokenOfType) {
         var parenthesisStack = 0;
         var parenOffset = 0;
@@ -2738,7 +2764,7 @@ done:
                 expression = tempParser.ParseExpression(true);
                 var report = true;
 
-                while (tempParser._currentToken.kind != SyntaxKind.EndOfFileToken) {
+                while (tempParser.currentToken.kind != SyntaxKind.EndOfFileToken) {
                     var unexpected = tempParser.EatToken(stallDiagnostics: true);
 
                     if (report) {

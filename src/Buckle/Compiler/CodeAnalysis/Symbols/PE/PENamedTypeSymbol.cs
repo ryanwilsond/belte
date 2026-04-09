@@ -514,19 +514,20 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 if (skipTransformsIfNecessary)
                     return baseType;
 
-                var moduleSymbol = containingPEModule;
+                // TODO Would we ever want to make the type nullable in the base list?
+                // var moduleSymbol = containingPEModule;
                 // TypeSymbol decodedType = DynamicTypeDecoder.TransformType(baseType, 0, _handle, moduleSymbol);
                 // decodedType = NativeIntegerTypeDecoder.TransformType(decodedType, _handle, moduleSymbol, this);
                 // decodedType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(decodedType, _handle, moduleSymbol);
 
-                baseType = (NamedTypeSymbol)NullableTypeDecoder.TransformType(
-                    // new TypeWithAnnotations(decodedType),
-                    new TypeWithAnnotations(baseType),
-                    _handle,
-                    moduleSymbol,
-                    accessSymbol: this,
-                    nullableContext: this
-                ).type;
+                // baseType = (NamedTypeSymbol)NullableTypeDecoder.TransformType(
+                //     // new TypeWithAnnotations(decodedType),
+                //     new TypeWithAnnotations(baseType),
+                //     _handle,
+                //     moduleSymbol,
+                //     accessSymbol: this,
+                //     nullableContext: this
+                // ).type;
             }
 
             Interlocked.CompareExchange(ref _lazyDeclaredBaseType, baseType, ErrorTypeSymbol.UnknownResultType);

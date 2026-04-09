@@ -122,6 +122,10 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         throw new KeyNotFoundException();
     }
 
+    public static Enumerator<KeyValuePair<TKey, TValue>>! operator iter(Dictionary<TKey, TValue> dictionary) {
+        return new DictionaryEnumerator(dictionary);
+    }
+
     private const int! FindEntry(TKey key) {
         if (key is null)
             throw new ArgumentNullException();
@@ -229,5 +233,37 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         public int! next;
         public TKey key;
         public TValue value;
+    }
+
+    private class DictionaryEnumerator extends Enumerator<KeyValuePair<TKey, TValue>> {
+        private const Dictionary<TKey, TValue> _dictionary;
+        private int! _index = 0;
+        private KeyValuePair<TKey, TValue> _current;
+
+        public constructor(Dictionary<TKey, TValue> dictionary) {
+            _dictionary = dictionary;
+        }
+
+        public override KeyValuePair<TKey, TValue> Current() {
+            return _current;
+        }
+
+        public override bool! MoveNext() {
+            while ((uint32)_index < (uint32)_dictionary._count) {
+                ref Entry reference = ref _dictionary._entries[_index++];
+
+                if (reference.next >= -1) {
+                    _current = new KeyValuePair<TKey, TValue>()
+                        ..key = reference.key
+                        ..value = reference.value;
+
+                    return true;
+                }
+            }
+
+            _index = _dictionary._count + 1;
+            _current = new KeyValuePair<TKey, TValue>();
+            return false;
+        }
     }
 }

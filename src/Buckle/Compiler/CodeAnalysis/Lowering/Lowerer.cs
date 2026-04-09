@@ -19,15 +19,15 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly Expander _expander;
 
-    private Lowerer(MethodSymbol container) {
-        _expander = new Expander(container);
+    private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
+        _expander = new Expander(container, diagnostics);
     }
 
     internal static BoundBlockStatement Lower(
         MethodSymbol method,
         BoundStatement statement,
         BelteDiagnosticQueue diagnostics) {
-        var lowerer = new Lowerer(method);
+        var lowerer = new Lowerer(method, diagnostics);
 
         var rewrittenStatement = Optimizer.Optimize(statement);
 

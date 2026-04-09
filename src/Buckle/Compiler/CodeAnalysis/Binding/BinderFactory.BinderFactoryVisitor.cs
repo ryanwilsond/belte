@@ -70,7 +70,7 @@ internal sealed partial class BinderFactory {
             var key = new BinderCacheKey(node, NodeUsage.Normal);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
-                // TODO The SubmissionBinder is what fetches types from previous compilations (so the CorLibrary)
+                // TODO The SubmissionBinder is what fetches locals from previous compilations
                 // So is this fine as is, or should there still be some _inScript check
                 result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
                 result = AddInImportsBinders(

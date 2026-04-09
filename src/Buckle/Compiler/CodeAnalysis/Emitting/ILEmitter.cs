@@ -261,6 +261,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (byRef)
             typeRef = typeRef.MakeByReferenceType();
 
+        if (typeRef.IsGenericParameter)
+            return typeRef;
+
         return _assemblyDefinition.MainModule.ImportReference(typeRef);
 
         TypeReference GetTypeCore(TypeSymbol type) {
@@ -492,21 +495,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (field is PEFieldSymbol f)
             return GetType(field.containingType).Resolve().Fields.Single(e => e.Name == f.name);
 
-        var fieldRef = _fields[field];
+        var fieldRef = _fields[field.originalDefinition];
         var constructedType = GetType(field.containingType);
-
-        TypeReference fieldType;
-
-        if (fieldRef.FieldType is GenericParameter gp && gp.Type == GenericParameterType.Type) {
-            var index = gp.DeclaringType.GenericParameters.IndexOf(gp);
-            fieldType = ((GenericInstanceType)constructedType).GenericArguments[index];
-        } else {
-            fieldType = fieldRef.FieldType;
-        }
 
         return new FieldReference(
             fieldRef.Name,
-            fieldType,
+            _assemblyDefinition.MainModule.ImportReference(fieldRef.FieldType),
             constructedType
         );
     }
@@ -679,9 +673,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 typeDefinition.GenericParameters.Add(generic);
         }
 
+        _types.Add(type.originalDefinition, typeDefinition);
+
         CreateNestedTypes(type, typeDefinition, workingParams);
 
-        _types.Add(type.originalDefinition, typeDefinition);
         return typeDefinition;
     }
 
@@ -711,10 +706,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
 
             workingParams = workingParams.Concat(
-                nestedType.templateParameters.Select(t => new GenericParameter(t.name, typeDefinition))).ToArray();
+                nestedType.templateParameters.Select(t => new GenericParameter(t.name, nestedDefinition))).ToArray();
 
             foreach (var generic in workingParams)
-                typeDefinition.GenericParameters.Add(generic);
+                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Name, nestedDefinition));
 
             CreateNestedTypes(nestedType, nestedDefinition, workingParams);
             typeDefinition.NestedTypes.Add(nestedDefinition);
@@ -722,10 +717,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private string GetNamespaceName(Symbol symbol) {
-        if (symbol.containingNamespace is null || symbol.containingNamespace.isGlobalNamespace)
-            return "";
+        var namespaceName = symbol.containingNamespace.isGlobalNamespace ? "" : symbol.containingNamespace?.name ?? "";
 
-        return symbol.containingNamespace.name;
+        if (symbol.IsFromCompilation(_program.compilation))
+            return namespaceName;
+
+        if (namespaceName == "")
+            return "Belte";
+
+        return $"Belte.{namespaceName}";
     }
 
     private void CreateEnumMemberDefinitions(NamedTypeSymbol type, TypeDefinition typeDefinition) {

@@ -113,7 +113,7 @@ internal abstract class Symbol : ISymbol {
                     return containingSymbol?.declaringCompilation;
             }
 
-            return containingSymbol.declaringCompilation;
+            return null;
         }
     }
 

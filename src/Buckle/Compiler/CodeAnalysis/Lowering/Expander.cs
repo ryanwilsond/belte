@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -14,13 +15,16 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Expands expressions to make them simpler to handle by the <see cref="Lowerer" />.
 /// </summary>
 internal sealed class Expander : BoundTreeExpander {
+    private readonly BelteDiagnosticQueue _diagnostics;
+
     private int _compoundAssignmentDepth = 0;
     private int _operatorDepth = 0;
     private int _conditionalDepth = 0;
     private int _accessDepth = 0;
 
-    internal Expander(MethodSymbol container) {
+    internal Expander(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
         _container = container;
+        _diagnostics = diagnostics;
     }
 
     private protected override MethodSymbol _container { get; set; }
@@ -656,9 +660,24 @@ internal sealed class Expander : BoundTreeExpander {
                     right = replacementContent;
                 } else if (replacementContent.Type().IsVerifierValue()) {
                     if (!replacementContent.Type().IsNullableType()) {
-                        right = CreateCast(syntax, stringType, replacementContent);
+                        var conversion = Conversion.Classify(replacementContent.Type(), stringType);
+
+                        if (!conversion.exists) {
+                            _diagnostics.Push(
+                                Error.CannotConvert(syntax.location, replacementContent.Type(), stringType)
+                            );
+                        }
+
+                        right = Cast(syntax, stringType, replacementContent, conversion, null);
                     } else {
                         var conversion = Conversion.Classify(replacementContent.StrippedType(), stringType);
+
+                        if (!conversion.exists) {
+                            _diagnostics.Push(
+                                Error.CannotConvert(syntax.location, replacementContent.StrippedType(), stringType)
+                            );
+                        }
+
                         right = new BoundConditionalOperator(syntax,
                             new BoundIsOperator(syntax,
                                 replacementContent,

@@ -5,9 +5,11 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
     private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly HashSet<NamedTypeSymbol> _visited;
 
     private EvaluatorTypeLayoutVisitor() {
         _typeLayouts = [];
+        _visited = [];
     }
 
     internal static Dictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(
@@ -29,6 +31,9 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
     }
 
     internal override void VisitNamedType(NamedTypeSymbol symbol) {
+        if (!_visited.Add(symbol))
+            return;
+
         var typeLayout = new EvaluatorSlotManager(symbol);
         var current = symbol;
         var types = new Stack<NamedTypeSymbol>();

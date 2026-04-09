@@ -800,7 +800,9 @@ public sealed partial class Compilation {
     }
 
     private Compilation Update(SyntaxAndDeclarationManager syntax) {
-        return new Compilation(assemblyName, options, previous, syntax, _referenceManager);
+        var compilation = new Compilation(assemblyName, options, previous, syntax, _referenceManager);
+        compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
+        return compilation;
     }
 
     private BinderFactory AddNewFactory(
@@ -916,8 +918,10 @@ public sealed partial class Compilation {
 
         var displayText = new DisplayText();
 
-        foreach (var pair in program.methodBodies)
-            CompilationExtensions.EmitTree(pair.Key, displayText, program);
+        foreach (var pair in program.methodBodies) {
+            if (pair.Key.IsFromCompilation(this))
+                CompilationExtensions.EmitTree(pair.Key, displayText, program);
+        }
 
         using var streamWriter = new StreamWriter(boundProgramPath);
         var segments = displayText.Flush();

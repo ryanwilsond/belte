@@ -254,6 +254,11 @@ internal sealed partial class Executor : ModuleBuilder {
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
+                if (_types.TryGetValue(type.containingType.originalDefinition, out var found))
+                    return found.GenericTypeParameters[t.ordinal];
+
+                CreateTypeBuilderAndBases(type.containingType);
+
                 var containingType = _types[type.containingType.originalDefinition];
                 return containingType.GenericTypeParameters[t.ordinal];
             }
@@ -324,7 +329,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var constructedType = GetType(field.containingType);
 
-        if (!constructedType.ContainsGenericParameters && constructedType.GenericTypeArguments.Length > 0)
+        if (constructedType.IsConstructedGenericType)
             return TypeBuilder.GetField(constructedType, foundField);
 
         return foundField;
@@ -334,7 +339,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_methods.TryGetValue(method.originalDefinition, out var value)) {
             var constructedType = GetType(method.containingType);
 
-            if (!constructedType.ContainsGenericParameters && constructedType.GenericTypeArguments.Length > 0)
+            if (constructedType.IsConstructedGenericType)
                 value = TypeBuilder.GetMethod(constructedType, value);
 
             if (method.arity > 0)
@@ -355,7 +360,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_constructors.TryGetValue(method.originalDefinition, out var value)) {
             var constructedType = GetType(method.containingType);
 
-            if (!constructedType.ContainsGenericParameters && constructedType.GenericTypeArguments.Length > 0)
+            if (constructedType.IsConstructedGenericType)
                 value = TypeBuilder.GetConstructor(constructedType, value);
 
             return value;
@@ -578,7 +583,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
             var underlyingType = GetType(type.enumUnderlyingType);
             var enumBuilder = _moduleBuilder.DefineEnum(
-                type.name,
+                GetTypeName(type),
                 GetTypeAttributes(type, false) & TypeAttributes.VisibilityMask,
                 underlyingType
             );
@@ -598,7 +603,14 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
-        var typeBuilder = _moduleBuilder.DefineType(type.name, GetTypeAttributes(type, false), GetBaseType(type));
+        var typeBuilder = _moduleBuilder.DefineType(
+            GetTypeName(type),
+            GetTypeAttributes(type, false),
+            GetBaseType(type)
+        );
+
+        _types.Add(type.originalDefinition, typeBuilder);
+
         string[] workingParams = [];
 
         if (type.arity > 0) {
@@ -607,7 +619,6 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         CreateNestedTypes(type, typeBuilder, workingParams);
-        _types.Add(type.originalDefinition, typeBuilder);
     }
 
     private Type GetBaseType(NamedTypeSymbol type) {
@@ -631,7 +642,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         void AddNestedType(NamedTypeSymbol nestedType, string[] workingParams) {
             var nestedBuilder = typeBuilder.DefineNestedType(
-                nestedType.name,
+                GetTypeName(nestedType),
                 GetTypeAttributes(nestedType, true),
                 GetBaseType(nestedType)
             );
@@ -644,6 +655,13 @@ internal sealed partial class Executor : ModuleBuilder {
             CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             _types.Add(nestedType.originalDefinition, nestedBuilder);
         }
+    }
+
+    private string GetTypeName(NamedTypeSymbol type) {
+        if (type.IsFromCompilation(_program.compilation))
+            return type.name;
+
+        return $"Belte.{type.name}";
     }
 
     private TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
