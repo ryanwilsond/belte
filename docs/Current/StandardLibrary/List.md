@@ -2,7 +2,8 @@
 
 The List template is a dynamic array implementation.
 
-The Belte public interface for the List template can be found [here](../../../src/Belte/Native/Standard/Collections/List.blt).
+The Belte public interface for the List template can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Collections/List.blt).
 
 - [5.7.1.1](#5711-constructors) Constructors
 - [5.7.1.2](#5712-methods) Methods

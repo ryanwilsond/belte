@@ -2,10 +2,12 @@
 
 The Console class provides a way to interact with the console.
 
-The Belte public interface for the Console class can be found [here](../../../src/Belte/Native/Standard/Console.blt).
+The Belte public interface for the Console class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Console.blt).
 
 - [5.1.1](#511-methods) Methods
 - [5.1.2](#512-classes) Classes
+  - [5.1.2.1](#5121-color) Color
 
 ## 5.1.1 Methods
 

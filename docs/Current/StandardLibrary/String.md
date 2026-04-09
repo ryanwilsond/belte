@@ -2,7 +2,8 @@
 
 The String class provides static `string` helpers.
 
-The Belte public interface for the String class can be found [here](../../../src/Belte/Native/Standard/String.blt).
+The Belte public interface for the String class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/String.blt).
 
 - [5.4.1](#541-methods) Methods
 

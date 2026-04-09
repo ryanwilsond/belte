@@ -2,7 +2,8 @@
 
 The Time class provides a way to get the current time and sleep.
 
-The Belte public interface for the String class can be found [here](../../../src/Belte/Native/Standard/Time.blt).
+The Belte public interface for the String class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Time.blt).
 
 - [5.5.1](#551-methods) Methods
 

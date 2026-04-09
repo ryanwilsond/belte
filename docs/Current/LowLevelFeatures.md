@@ -8,17 +8,24 @@ This may change.
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structures) Structures
 - [6.3](#63-arrays) Arrays
+  - [6.3.1](#631-initializer-lists) Initializer Lists
 - [6.4](#64-numerics) Numerics
 - [6.5](#65-pointers) Pointers
+  - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
+  - [6.5.2](#652-pointer-arithmetic) Pointer Arithmetic
 - [6.6](#66-function-pointers) Function Pointers
 - [6.7](#67-extern-methods) Extern Methods
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
+  - [6.10.1](#6101-stackalloc-locals) Stackalloc Locals
 - [6.11](#611-inline-il) Inline IL
+  - [6.11.1](#6111-verification) Verification
+  - [6.11.2](#6112-unsupported-instructions) Unsupported Instructions
+- [6.12](#612-pinned-locals) Pinned Locals
 
-Additionally, the [Standard Library contains a class named LowLevel that provides
-various helper methods](StandardLibrary/LowLevel.md).
+Additionally, the
+[Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
 
 ## 6.1 Low-Level Contexts
 
@@ -477,3 +484,11 @@ specify exception handling blocks within the inline IL.
 
 The `ret` instruction is unsupported to ensure the IL remains localized to it's
 block and has a zero delta stack balance.
+
+## 6.12 Pinned Locals
+
+Locals can be pinned meaning the object they refer to will not be moved around on the heap by the garbage collector:
+
+```belte
+pinned var myLocal = new List<int>();
+```

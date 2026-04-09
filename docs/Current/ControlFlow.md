@@ -1,10 +1,26 @@
 # 2 Control Flow
 
 - [2.1](#21-functions) Functions
+  - [2.1.1](#211-nested-functions) Nested Functions
+  - [2.1.2](#212-overloads) Overloads
+  - [2.1.3](#213-default-arguments) Default Arguments
+  - [2.1.4](#214-named-arguments) Named Arguments
+  - [2.1.5](#215-template-arguments) Template Arguments
 - [2.2](#22-entry-point) Entry Point
+  - [2.2.1](#221-main) Main
+  - [2.2.2](#222-program-and-update) Program And Update
 - [2.3](#23-conditionals) Conditionals
 - [2.4](#24-loops) Loops
+  - [2.4.1](#241-while-loops) While Loops
+  - [2.4.2](#242-do-while-loops) Do-While Loops
+  - [2.4.3](#243-for-loops) For Loops
+  - [2.4.4](#244-for-each-loops) For Each Loops
+    - [2.4.4.1](#2441-string-collections) String Collections
+    - [2.4.4.2](#2442-array-collections) Array Collections
+    - [2.4.4.3](#2443-indexed-collections) Indexed Collections
+    - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
 - [2.5](#25-switch) Switch
+- [2.6](#26-exceptions) Exceptions
 
 ## 2.1 Functions
 
@@ -527,3 +543,13 @@ switch (...) {
     ...
 }
 ```
+
+## 2.6 Exceptions
+
+To break from the normal flow of the program, usually in the case of an error, an exception can be thrown:
+
+```belte
+throw new Exception();
+```
+
+This will crash the program. Throw expressions only accept objects that are or derive from `Exception`.

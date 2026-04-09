@@ -1,16 +1,30 @@
 # 3 Data
 
 - [3.1](#31-data-types) Data Types
+  - [3.1.1](#311-casts) Casts
+  - [3.1.2](#312-string-interpolation) String Interpolation
 - [3.2](#32-operators) Operators
+  - [3.2.1](#321-operator-precedence) Operator Precedence
+  - [3.2.2](#322-uncommon-operators) Uncommon Operators
+    - [3.2.2.1](#3221-x) `x!`
+    - [3.2.2.2](#3222-ai) `a?[i]`
+    - [3.2.2.3](#3223-xy) `x?.y`
+    - [3.2.2.4](#3224-x--y) `x ?? y`
+    - [3.2.2.5](#3225-x--y) `x ?! y`
+    - [3.2.2.6](#3226-xy) `x..y`
+    - [3.2.2.7](#3227-xy) `x?..y`
 - [3.3](#33-variables-and-constants) Variables and Constants
+  - [3.3.1](#331-implicit-typing) Implicit Typing
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
 - [3.5](#35-references) References
 - [3.6](#36-arrays) Arrays
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
+  - [3.7.1](#371-examples) Examples
+  - [3.7.2](#372-side-effects) Side Effects
 
 ## 3.1 Data Types
 
-Apart from classes, there are five distinct data types:
+Apart from classes, there are many primitive types. The most common ones include:
 
 | Name | Identifier | Values |
 |-|-|-|
@@ -19,6 +33,18 @@ Apart from classes, there are five distinct data types:
 | Boolean | `bool` | `true` or `false` |
 | String | `string` | Spans of characters, no length limit |
 | Any | `any` | Any integer, decimal, boolean, or string value |
+| Type | `type` | Represents a type |
+
+Each of these can be set to `null` to represent they do not have a known value if they are nullable. Most types are
+nullable by default unless suffixed with `!`. Sized numerics, pointers, function pointers, structs, and type template
+arguments are always non-nullable.
+
+Apart from these, many types exist for specific contexts:
+
+- See also [arrays and initializer lists](LowLevelFeatures.md#63-arrays).
+- See also [initializer dictionaries](StandardLibrary/Dictionary.md#5724-initializer-dictionaries).
+- See also [sized numeric types](LowLevelFeatures.md#64-numerics).
+- See also [pointer and function pointer types](LowLevelFeatures.md#65-pointers).
 
 ### 3.1.1 Casts
 
@@ -82,7 +108,7 @@ strict order of precedence:
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y, is, isnt | Relational and Type-Testing |
+| x < y, x > y, x <= y, x >= y, is, isnt, as | Relational and Type-Testing |
 | x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |

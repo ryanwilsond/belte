@@ -2,7 +2,8 @@
 
 The Random class provides a way to get certain random values.
 
-The Belte public interface for the Random class can be found [here](../../../src/Belte/Native/Standard/Random.blt).
+The Belte public interface for the Random class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Random.blt).
 
 - [5.3.1](#531-methods) Methods
 

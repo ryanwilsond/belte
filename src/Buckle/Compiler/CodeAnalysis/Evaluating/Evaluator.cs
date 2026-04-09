@@ -433,7 +433,6 @@ internal sealed class Evaluator {
                         index = labelToIndex[gs.label];
                         break;
                     case BoundKind.ConditionalGotoStatement:
-                        _lastValue = EvaluatorValue.None;
                         var cgs = (BoundConditionalGotoStatement)s;
                         var condition = EvaluateExpression(cgs.condition, true, abort);
 
@@ -445,6 +444,7 @@ internal sealed class Evaluator {
                         else
                             index++;
 
+                        _lastValue = EvaluatorValue.None;
                         break;
                     case BoundKind.ReturnStatement: {
                             _hasValue = true;
@@ -1459,6 +1459,8 @@ internal sealed class Evaluator {
                     throw new BelteInvalidPointerIndirection(node.syntax.location);
                 else
                     value = value.loc[value.ptr];
+            } else if (value.kind == ValueKind.Null) {
+                throw new BelteInvalidPointerIndirection(node.syntax.location);
             } else {
                 throw ExceptionUtilities.UnexpectedValue(value.kind);
             }
@@ -2445,7 +2447,8 @@ internal sealed class Evaluator {
 
             var newMethod = typeToLookup
                 .GetMembersUnordered()
-                .Where(s => s is MethodSymbol m && m.overriddenMethod == method)
+                .Where(s => s is MethodSymbol m &&
+                    m.overriddenMethod?.originalDefinition?.Equals(method.originalDefinition) == true)
                 .FirstOrDefault() as MethodSymbol;
 
             if (newMethod is not null)

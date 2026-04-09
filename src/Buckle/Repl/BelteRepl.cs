@@ -870,13 +870,16 @@ public sealed partial class BelteRepl : Repl {
                 WriteDisplayText(pageText);
             }
 
-            if (currentSymbols.Length > 0 && currentGlobals.Count > 0) {
+            if (currentSymbols.Length > 0 && currentGlobals.Count > 0 && !(index + 1 >= writer.height)) {
                 Console.BackgroundColor = state.colorTheme.background;
                 writer.SetCursorPosition(0, index);
                 writer.WriteLine("Globals:");
             }
 
             foreach (var global in currentGlobals) {
+                if (index + 1 >= writer.height)
+                    break;
+
                 writer.SetCursorPosition(9, index++);
 
                 if (targetIndex == index - 3)

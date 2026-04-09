@@ -1,29 +1,16 @@
 # 1 Overview
 
-The Belte language is syntactically very similar to C#; Belte is a "C-Style" language that supports both object-oriented
-and procedural paradigms.
+The Belte language is syntactically very similar to C#; Belte is a "C-Style" language that focuses on the
+object-oriented paradigm.
 
-Currently, the Belte compiler, Buckle, supports interpretation and execution with .NET integration.
-You can read more about using the compiler [here](../Buckle.md).
+Currently, the Belte compiler, Buckle, supports interpretation and building to a .NET executable.
 
-- [1.1](#11-supported-features) Supported Features
-- [1.2](#12-partially-supported-features) Partially Supported Features
+> [Using the compiler CLI](../Buckle.md)
 
-## 1.1 Supported Features
+- [1.1](#11-endpoint-specific-features) Endpoint Specific Features
+- [1.2](#12-keywords) Keywords
 
-The following list gives an exceptionally brief overview of what the language is currently capable of.
-
-- Multi-file compilations
-- Functions/methods
-- Basic data types and arrays
-- Structs, classes, and enums
-- Inheritance, templating, and operator overloading
-- A simple Standard Library
-  - Which includes complex types such as List and Dictionary
-- .NET DLL references
-- Lowlevel features meant for interop (pointers, dll imports, etc.)
-
-## 1.2 Partially Supported Features
+## 1.1 Endpoint Specific Features
 
 Some features are not supported across all endpoints for various reasons.
 
@@ -44,3 +31,88 @@ implemented.
 | Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | .NET DLL references | ✕ | ✕ | ✓ | Currently unsupported in the Executor, incompatible with the Evaluator |
+
+## 1.2 Keywords
+
+All keywords are reserved names and cannot be used as identifiers. No type names are reserved.
+
+Some keywords have multiple meanings depending on context. Those keywords will be disambiguated in the list below.
+
+- [abstract](ClassesAndObjects.md#432-static--constexpr)
+- [as](Data.md#32-operators)
+- [base](ClassesAndObjects.md#413-base-access)
+- [break](ControlFlow.md#245-break)
+- [case](ControlFlow.md#25-switch)
+- [class](ClassesAndObjects.md#41-classes)
+- [constexpr](ClassesAndObjects.md#433-static--constexpr)
+- [const](Data.md#33-variables-and-constants) (locals)
+- [const](ClassesAndObjects.md#434-const) (methods)
+- [constructor](ClassesAndObjects.md#44-constructors)
+- [continue](ControlFlow.md#246-continue)
+- [default](ControlFlow.md#25-switch)
+- [define](Preprocessor.md#71-defineundef)
+- [do](ControlFlow.md#242-do-while-loops)
+- [elif](Preprocessor.md#72-control)
+- [else](ControlFlow.md#23-conditionals)
+- [endif](Preprocessor.md#72-control)
+- [enum](ClassesAndObjects.md#46-enums)
+- [explicit](ClassesAndObjects.md#4232-casts)
+- [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
+- [extends](ClassesAndObjects.md#4512-special-constraints) (template constraints)
+- [extern](LowLevelFeatures.md#67-extern-methods)
+- [false](Data.md#31-data-types)
+- [flags](ClassesAndObjects.md#461-flags)
+- [for](ControlFlow.md#243-for-loops) (for loop)
+- [for](ControlFlow.md#244-for-each-loops) (for each loop)
+- [global](ClassesAndObjects.md#483-global-using-directive) (global using)
+- [global](ClassesAndObjects.md#482-global-disambiguation) (global disambiguation)
+- [goto](ControlFlow.md#25-switch)
+- [if](ControlFlow.md#23-conditionals) (conditional)
+- [if](Preprocessor.md#72-control) (preprocessor)
+- [il](LowLevelFeatures.md#611-inline-il)
+- [implicit](ClassesAndObjects.md#4232-casts)
+- [in](ControlFlow.md#244-for-each-loops)
+- [is](Data.md#32-operators)
+- [isnt](Data.md#32-operators)
+- [lowlevel](LowLevelFeatures.md#61-low-level-contexts)
+- [nameof](Data.md#32-operators)
+- [namespace](ClassesAndObjects.md#47-namespaces)
+- [new](ClassesAndObjects.md#411-declaring-and-using-classes) (instantiation)
+- [new](ClassesAndObjects.md#432-overriding-modifiers) (modifier)
+- [notnull](ClassesAndObjects.md#4512-special-constraints)
+- [noverify](LowLevelFeatures.md#6111-verification)
+- [null](Data.md#31-data-types)
+- [nullptr](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
+- [operator](ClassesAndObjects.md#423-operators) (normal operators)
+- [operator](ControlFlow.md#244-for-each-loops) (for each operators)
+- [override](ClassesAndObjects.md#432-overriding-modifiers)
+- [pinned](LowLevelFeatures.md#612-pinned-locals)
+- [primitive](ClassesAndObjects.md#4512-special-constraints)
+- [private](ClassesAndObjects.md#431-accessibility-modifiers)
+- [protected](ClassesAndObjects.md#431-accessibility-modifiers)
+- [public](ClassesAndObjects.md#431-accessibility-modifiers)
+- [ref](Data.md#35-references)
+- [return](ControlFlow.md#21-functions)
+- [sealed](ClassesAndObjects.md#435-sealed--abstract) (classes)
+- [sealed](ClassesAndObjects.md#432-overriding-modifiers) (members)
+- [sizeof](LowLevelFeatures.md#69-sizeof-operator)
+- [stackalloc](LowLevelFeatures.md#610-stackalloc-operator)
+- [static](ClassesAndObjects.md#433-static--constexpr) (modifier)
+- [static](ClassesAndObjects.md#48-using-directives) (using directive)
+- [struct](LowLevelFeatures.md#62-structures)
+- [switch](ControlFlow.md#25-switch)
+- [this](ClassesAndObjects.md#411-declaring-and-using-classes)
+- [throw](ControlFlow.md#26-exceptions)
+- [true](Data.md#31-data-types)
+- [typeof](Data.md#32-operators)
+- [undef](Preprocessor.md#71-defineundef)
+- [using](ClassesAndObjects.md#48-using-directives)
+- [virtual](ClassesAndObjects.md#432-overriding-modifiers)
+- [where](ClassesAndObjects.md#451-constraint-clauses)
+- [while](ControlFlow.md#241-while-loops)
+
+The following keywords are reserved names but are not yet used:
+
+- catch
+- finally
+- try

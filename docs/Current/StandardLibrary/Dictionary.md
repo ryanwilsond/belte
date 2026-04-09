@@ -2,7 +2,8 @@
 
 A Dictionary template is an ordered hashmap implementation.
 
-The Belte public interface for the Dictionary template can be found [here](../../../src/Belte/Native/Standard/Collections/Dictionary.blt).
+The Belte public interface for the Dictionary template can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Collections/Dictionary.blt).
 
 - [5.7.2.1](#5721-constructors) Constructors
 - [5.7.2.2](#5722-methods) Methods
@@ -17,7 +18,7 @@ the key type, the second corresponds to the value type.
 | Signature | Description |
 |-|-|
 | `new Dictionary<type TKey, type TValue>()` | Creates an empty dictionary. |
-| `Dictionary<type TKey, type TValue>(int!) | Creates an empty dictionary with a starting capacity. |
+| `Dictionary<type TKey, type TValue>(int!)` | Creates an empty dictionary with a starting capacity. |
 | `new Dictionary<type TKey, type TValue>(EqualityComparer<TKey>)` | Creates an empty dictionary with a custom equality comparer. |
 | `new Dictionary<type TKey, type TValue>(int!, EqualityComparer<TKey>)` | Creates an empty dictionary with a starting capacity and a custom equality comparer. |
 | `new Dictionary<type TKey, type TValue>(Dictionary<TKey, TValue>)` | Copies the given dictionary. |

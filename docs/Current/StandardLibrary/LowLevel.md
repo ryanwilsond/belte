@@ -4,7 +4,8 @@ The LowLevel class provides various helpers for users who are writing
 "lower level" code. Calling these methods does not require being inside a
 `lowlevel` context.
 
-The Belte public interface for the String class can be found [here](../../../src/Belte/Native/Standard/LowLevel.blt).
+The Belte public interface for the LowLevel class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/LowLevel.blt).
 
 - [5.8.1](#581-methods) Methods
 
