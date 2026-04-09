@@ -715,6 +715,7 @@
     <Field Name="opCodeSuffixThree" Type="SyntaxToken" Optional="true"/>
     <Field Name="literal" Type="SyntaxToken" Optional="true"/>
     <Field Name="symbol" Type="TypeSyntax" Optional="true"/>
+    <Field Name="parameterList" Type="FunctionPointerParameterListSyntax" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>

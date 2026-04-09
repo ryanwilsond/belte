@@ -20,7 +20,7 @@
 
   - [1](Current/Overview.md) Overview
     - [1.1](Current/Overview.md#11-overview) Supported Features
-    - [1.2](Current/Overview.md#12) Partially Supported Features
+    - [1.2](Current/Overview.md#12-partially-supported-features) Partially Supported Features
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
@@ -71,6 +71,7 @@
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control
+  - [8](Current/Interop.md) .NET DLL References
 
 ___
 

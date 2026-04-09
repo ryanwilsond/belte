@@ -4828,4 +4828,34 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0396_UnexpectedParameterList() {
+        var text = @"
+            il noverify {
+                box int[(bool)];
+            }
+        ";
+
+        var diagnostics = @"
+            unexpected parameter list (operand is not a method)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0397_InvalidParameterList() {
+        var text = @"
+            il noverify {
+                call [Math.Sin](bool);
+            }
+        ";
+
+        var diagnostics = @"
+            no overload for method 'Sin' matches the parameter list
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

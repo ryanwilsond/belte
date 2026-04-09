@@ -150,10 +150,6 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                         case SpecialType.Enum:
                             result = TypeKind.Enum;
                             break;
-                        // case SpecialType.System_MulticastDelegate:
-                        //     // Delegate
-                        //     result = TypeKind.Delegate;
-                        //     break;
                         case SpecialType.ValueType:
                             if (specialType != SpecialType.Enum)
                                 result = TypeKind.Struct;
@@ -164,6 +160,9 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
                 if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.Enum")
                     result = TypeKind.Enum;
+
+                if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.ValueType")
+                    result = TypeKind.Struct;
 
                 _lazyKind = result;
             }

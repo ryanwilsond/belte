@@ -1929,7 +1929,17 @@ internal static class Error {
 
     internal static BelteDiagnostic IterMustReturnEnumerator(TextLocation location) {
         var message = $"iter operator must return 'Enumerator!'";
-        return CreateError(DiagnosticCode.ERR_LengthMustReturnInt, location, message);
+        return CreateError(DiagnosticCode.ERR_IterMustReturnEnumerator, location, message);
+    }
+
+    internal static BelteDiagnostic UnexpectedParameterList(TextLocation location) {
+        var message = $"unexpected parameter list (operand is not a method)";
+        return CreateError(DiagnosticCode.ERR_UnexpectedParameterList, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidParameterList(TextLocation location, string name) {
+        var message = $"no overload for method '{name}' matches the parameter list";
+        return CreateError(DiagnosticCode.ERR_InvalidParameterList, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

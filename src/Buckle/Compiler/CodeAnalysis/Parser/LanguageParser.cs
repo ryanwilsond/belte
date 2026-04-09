@@ -271,8 +271,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         if (!hasBrackets &&
             Peek(finalOffset).kind != SyntaxKind.IdentifierToken &&
-            Peek(finalOffset - 2).kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword &&
-            Peek(finalOffset - 1).kind == SyntaxKind.IdentifierToken) {
+            Peek(finalOffset - 2)?.kind is SyntaxKind.ConstKeyword or SyntaxKind.ConstexprKeyword &&
+            Peek(finalOffset - 1)?.kind == SyntaxKind.IdentifierToken) {
             hasName = true;
             finalOffset--;
         }
@@ -1335,6 +1335,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 symbol = ParseLastCaseName();
         }
 
+        var parameterList = symbol is not null && currentToken.kind == SyntaxKind.OpenParenToken
+            ? ParseFunctionPointerParameterList()
+            : null;
+
         var semicolon = Match(SyntaxKind.SemicolonToken);
 
         return SyntaxFactory.ILInstruction(
@@ -1347,6 +1351,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             opCodeSuffixThree,
             literal,
             symbol,
+            parameterList,
             semicolon
         );
     }

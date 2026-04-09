@@ -10682,6 +10682,7 @@ symIsHidden:;
                 opCode,
                 instructionSyntax.literal,
                 instructionSyntax.symbol,
+                instructionSyntax.parameterList,
                 diagnostics,
                 displayString,
                 out hasErrors
@@ -11152,6 +11153,7 @@ symIsHidden:;
         OpCode opCode,
         SyntaxToken literal,
         TypeSyntax symbol,
+        FunctionPointerParameterListSyntax parameterList,
         BelteDiagnosticQueue diagnostics,
         string displayString,
         out bool hasErrors) {
@@ -11204,10 +11206,12 @@ symIsHidden:;
             case OperandKind.Token:
             case OperandKind.TypeToken: {
                     var boundSymbol = BindType(symbol, diagnostics);
+                    CreateParameterListError();
                     return (null, boundSymbol.type);
                 }
             case OperandKind.Class: {
                     var boundSymbol = BindType(symbol, diagnostics);
+                    CreateParameterListError();
 
                     if (boundSymbol.type.typeKind != TypeKind.Class) {
                         diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
@@ -11227,17 +11231,19 @@ symIsHidden:;
                     }
 
                     var constructors = ((NamedTypeSymbol)boundSymbol.type).instanceConstructors;
+                    constructors = LookForSignature(constructors, true);
 
-                    if (constructors.Length != 1) {
+                    if (constructors.Length > 1) {
                         diagnostics.Push(Error.AmbiguousMethodOverload(symbol.location, constructors.ToArray()));
                         hasErrors = true;
                         return (null, null);
                     }
 
-                    return (null, constructors[0]);
+                    return (null, constructors.FirstOrDefault());
                 }
             case OperandKind.Field: {
                     var boundSymbol = BindMethodGroup(symbol, false, false, diagnostics);
+                    CreateParameterListError();
 
                     if (boundSymbol is not BoundFieldAccessExpression f) {
                         diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
@@ -11256,16 +11262,19 @@ symIsHidden:;
                         return (null, null);
                     }
 
-                    if (m.methods.Length != 1) {
-                        diagnostics.Push(Error.AmbiguousMethodOverload(symbol.location, m.methods.ToArray()));
+                    var methods = LookForSignature(m.methods, !boundSymbol.hasAnyErrors);
+
+                    if (methods.Length > 1) {
+                        diagnostics.Push(Error.AmbiguousMethodOverload(symbol.location, methods.ToArray()));
                         hasErrors = true;
                         return (null, null);
                     }
 
-                    return (null, m.methods[0]);
+                    return (null, methods.FirstOrDefault());
                 }
             case OperandKind.FunctionPointer: {
                     var boundSymbol = BindType(symbol, diagnostics);
+                    CreateParameterListError();
 
                     if (boundSymbol.type.typeKind != TypeKind.FunctionPointer) {
                         diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
@@ -11277,6 +11286,7 @@ symIsHidden:;
                 }
             case OperandKind.ValueType: {
                     var boundSymbol = BindType(symbol, diagnostics);
+                    CreateParameterListError();
 
                     if (!boundSymbol.type.IsVerifierValue()) {
                         diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
@@ -11288,6 +11298,50 @@ symIsHidden:;
                 }
             default:
                 throw ExceptionUtilities.UnexpectedValue(operandKind);
+        }
+
+        void CreateParameterListError() {
+            if (parameterList is not null)
+                diagnostics.Push(Error.UnexpectedParameterList(parameterList.location));
+        }
+
+        ImmutableArray<MethodSymbol> LookForSignature(ImmutableArray<MethodSymbol> candidates, bool diagnose) {
+            if (parameterList is null)
+                return candidates;
+
+            var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            var parameterTypes = ParameterHelpers.MakeFunctionPointerParameters(
+                this,
+                null,
+                parameterList.parameters,
+                diagnostics
+            ).SelectAsArray(p => p.type);
+            var parameterCount = parameterTypes.Length;
+
+            builder.AddRange(candidates.Where(c => c.parameterCount == parameterCount));
+
+            if (builder.Count == 0 && diagnose) {
+                diagnostics.Push(Error.WrongArgumentCount(symbol.location, candidates[0].name, parameterCount));
+                return builder.ToImmutableAndFree();
+            }
+
+            for (var i = 0; i < builder.Count; i++) {
+                var method = builder[i];
+
+                if (!parameterTypes.SequenceEqual(
+                    method.GetParameterTypes().SelectAsArray(p => p.type),
+                    TypeCompareKind.ConsiderEverything,
+                    (param1, param2, compareKind) => param1.Equals(param2, compareKind))) {
+                    builder.RemoveAt(i);
+                    i--;
+                }
+            }
+
+            if (builder.Count == 0 && diagnose)
+                diagnostics.Push(Error.InvalidParameterList(symbol.location, candidates[0].name));
+
+            return builder.ToImmutableAndFree();
         }
     }
 

@@ -20,6 +20,7 @@ The following list gives an exceptionally brief overview of what the language is
 - Inheritance, templating, and operator overloading
 - A simple Standard Library
   - Which includes complex types such as List and Dictionary
+- .NET DLL references
 - Lowlevel features meant for interop (pointers, dll imports, etc.)
 
 ## 1.2 Partially Supported Features
@@ -40,5 +41,6 @@ implemented.
 | Non-integral enums | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
-| Externs/DLL imports | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
+| Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
+| .NET DLL references | ✕ | ✕ | ✓ | Currently unsupported in the Executor, incompatible with the Evaluator |

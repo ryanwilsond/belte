@@ -264,6 +264,8 @@ MyFunction();
 
 ## 6.7 Extern Methods
 
+> To call code in .NET (managed) DLLs, consider using a [.NET DLL reference](Interop.md)
+
 To call into a unmanaged DLL, an extern method with a `DllImport` attribute can
 be declared and called like a typical method:
 
@@ -277,7 +279,14 @@ SomeMethod();
 The method is resolved at runtime, meaning if it cannot be found an exception
 will be thrown.
 
-Extern methods use the `UniCode` char set and the `stdcall` calling convention.
+Extern methods use the `UniCode` char set and the `stdcall` calling convention
+by default. The calling convention can be specified using the
+`CallingConvention` type:
+
+```belte
+[DllImport("example.dll", CallingConvention: CallingConvention.Cdecl)]
+static extern void SomeMethod();
+```
 
 ## 6.8 Fixed Size Buffers
 
@@ -399,6 +408,31 @@ il {
 
 int32 Func() {
   return 10;
+}
+```
+
+Instructions with a method operand optionally allow a parameter list to
+disambiguate the symbol.
+
+```belte
+il {
+  call Console.PrintLine();
+}
+```
+
+```belte
+il {
+  ldstr "Hello, world!";
+  call Console.PrintLine(string);
+}
+```
+
+Instructions involving a constructor call also allow a parameter list, but the
+operand is the type to construct.
+
+```belte
+il {
+  newobj MyClass(int, bool);
 }
 ```
 
