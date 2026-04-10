@@ -321,7 +321,7 @@ public static partial class BuckleCommandLine {
 
             var dirName = Path.GetDirectoryName(compiler.state.outputFilename);
 
-            if (!Directory.Exists(dirName))
+            if (!string.IsNullOrEmpty(dirName) && !Directory.Exists(dirName))
                 diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(dirName));
 
             return;

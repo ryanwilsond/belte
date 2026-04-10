@@ -409,6 +409,7 @@ public enum DiagnosticCode : ushort {
     ERR_NamespaceUnexpected = 398,
     ERR_NullErasureOnNonNullableType = 399,
     ERR_NullErasureOnTypeWithNoDefault = 400,
+    ERR_NullErasureOnNull = 401,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

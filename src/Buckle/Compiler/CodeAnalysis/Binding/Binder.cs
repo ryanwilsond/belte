@@ -8705,6 +8705,12 @@ internal partial class Binder {
 
     private BoundExpression BindNullErasureOperator(PostfixExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var operand = BindExpression(node.operand, diagnostics);
+
+        if (operand.IsLiteralNull() || operand.kind == BoundKind.UnconvertedNullptrExpression) {
+            diagnostics.Push(Error.NullErasureOnNull(node.location));
+            return new BoundNullErasureOperator(node, operand, null, null, CreateErrorType(), true);
+        }
+
         var operandType = operand.Type();
 
         if (!operandType.IsNullableType()) {

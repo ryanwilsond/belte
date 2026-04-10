@@ -1957,6 +1957,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullErasureOnTypeWithNoDefault, location, message);
     }
 
+    internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
+        var message = $"cannot apply a null erasure operator to a null literal";
+        return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

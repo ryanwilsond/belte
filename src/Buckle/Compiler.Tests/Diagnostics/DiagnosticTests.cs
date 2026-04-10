@@ -4902,4 +4902,30 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0401_NullErasureOnNull() {
+        var text = @"
+            [null?];
+        ";
+
+        var diagnostics = @"
+            cannot apply a null erasure operator to a null literal
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0401_NullErasureOnNull2() {
+        var text = @"
+            [nullptr?];
+        ";
+
+        var diagnostics = @"
+            cannot apply a null erasure operator to a null literal
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
