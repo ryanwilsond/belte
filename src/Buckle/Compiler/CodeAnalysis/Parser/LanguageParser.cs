@@ -1661,6 +1661,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         while (true) {
+            if (currentToken.kind == SyntaxKind.QuestionToken && !IsStartOfTernary()) {
+                var operatorToken = EatToken();
+                left = SyntaxFactory.PostfixExpression(left, operatorToken);
+                continue;
+            }
+
+            break;
+        }
+
+        while (true) {
             var tokensToCombine = 1;
             var precedence = currentToken.kind.GetBinaryPrecedence();
 
@@ -1720,6 +1730,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         return left;
+
+        bool IsStartOfTernary() {
+            var resetPoint = GetResetPoint();
+
+            var opToken = EatToken();
+            ParseOperatorExpression(opToken.kind.GetTernaryPrecedence());
+
+            if (currentToken.kind == opToken.kind.GetTernaryOperatorPair()) {
+                Reset(resetPoint);
+                return true;
+            }
+
+            Reset(resetPoint);
+            return false;
+        }
     }
 
     private ExpressionSyntax ParsePrimaryExpressionInternal(int parentPrecedence) {

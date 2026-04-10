@@ -216,30 +216,6 @@ internal sealed class Expander : BoundTreeExpander {
             return statements;
         }
 
-        if (_conditionalDepth > 0 && _accessDepth <= 1) {
-            var statements = ExpandExpression(expression.receiver, out var newReceiver);
-            var tempLocal = GenerateTempLocal(expression.Type());
-
-            statements.Add(
-                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
-                    syntax,
-                    tempLocal,
-                    new BoundFieldAccessExpression(
-                        syntax,
-                        newReceiver,
-                        expression.field,
-                        expression.constantValue,
-                        expression.Type()
-                    )
-                ))
-            );
-
-            replacement = Local(syntax, tempLocal);
-
-            _accessDepth = savedAccessDepth;
-            return statements;
-        }
-
         _accessDepth--;
         return base.ExpandFieldAccessExpression(expression, out replacement);
     }
@@ -612,6 +588,18 @@ internal sealed class Expander : BoundTreeExpander {
         } else if (access is BoundArrayAccessExpression a) {
             statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
             newAccess = new BoundArrayAccessExpression(syntax, receiverLocal, indexReplacement, null, a.Type());
+        } else if (access is BoundCallExpression c) {
+            statements.AddRange(ExpandExpressionList(c.arguments, out var replacementArguments));
+            newAccess = new BoundCallExpression(
+                syntax,
+                receiverLocal,
+                c.method,
+                replacementArguments,
+                c.argumentRefKinds,
+                c.defaultArguments,
+                c.resultKind,
+                c.Type()
+            );
         } else {
             throw ExceptionUtilities.Unreachable();
         }
@@ -626,6 +614,7 @@ internal sealed class Expander : BoundTreeExpander {
             access.Type()
         );
 
+        statements.AddRange(ExpandExpression(replacement, out replacement));
         return statements;
     }
 

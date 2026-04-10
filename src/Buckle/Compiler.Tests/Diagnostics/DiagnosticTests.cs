@@ -4873,4 +4873,33 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0399_NullErasureOnNonNullableType() {
+        var text = @"
+            int! a = 3;
+            int! b = [a?];
+        ";
+
+        var diagnostics = @"
+            cannot apply a null erasure operator to an expression with type 'int!' as it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0400_NullErasureOnTypeWithNoDefault() {
+        var text = @"
+            class A { }
+            A a = new A();
+            A! b = [a?];
+        ";
+
+        var diagnostics = @"
+            cannot apply a null erasure operator to an expression with type 'A' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -234,6 +234,11 @@
     <Field Name="throwIfNull" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundNullErasureOperator" Base="BoundExpression">
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="defaultValue" Type="ConstantValue?"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundNullCoalescingOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>

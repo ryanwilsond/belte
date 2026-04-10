@@ -350,6 +350,29 @@ internal static class LiteralUtilities {
         return dec;
     }
 
+    internal static bool TypeHasDefaultValue(SpecialType type) {
+        switch (type) {
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Bool:
+            case SpecialType.Char:
+            case SpecialType.String:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static object GetDefaultValue(SpecialType type) {
         return type switch {
             SpecialType.Int => 0L,

@@ -51,12 +51,13 @@
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
         - [3.2.2.1](Current/Data.md#3221-x) `x!`
-        - [3.2.2.2](Current/Data.md#3222-ai) `a?[i]`
-        - [3.2.2.3](Current/Data.md#3223-xy) `x?.y`
-        - [3.2.2.4](Current/Data.md#3224-x--y) `x ?? y`
-        - [3.2.2.5](Current/Data.md#3225-x--y) `x ?! y`
-        - [3.2.2.6](Current/Data.md#3226-xy) `x..y`
-        - [3.2.2.7](Current/Data.md#3227-xy) `x?..y`
+        - [3.2.2.2](Current/Data.md#3222-x) `x?`
+        - [3.2.2.3](Current/Data.md#3223-ai) `a?[i]`
+        - [3.2.2.4](Current/Data.md#3224-xy) `x?.y`
+        - [3.2.2.5](Current/Data.md#3225-x--y) `x ?? y`
+        - [3.2.2.6](Current/Data.md#3226-x--y) `x ?! y`
+        - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
+        - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
     - [3.3](Current/Data.md#33-variables-and-constants) Variables and Constants
       - [3.3.1](Current/Data.md#331-implicit-typing) Implicit Typing
     - [3.4](Current/Data.md#34-attributes-and-modifiers) Attributes and Modifiers

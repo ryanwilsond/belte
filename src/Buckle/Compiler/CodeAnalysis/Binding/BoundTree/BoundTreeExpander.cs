@@ -208,7 +208,7 @@ internal abstract class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandExpressionStatement(BoundExpressionStatement statement) {
         var statements = ExpandExpression(statement.expression, out var replacement);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || statement.expression != replacement) {
             if (replacement is not null)
                 statements.Add(new BoundExpressionStatement(statement.syntax, replacement));
 
@@ -227,6 +227,13 @@ internal abstract class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandConditionalGotoStatement(BoundConditionalGotoStatement statement) {
+        var statements = ExpandExpression(statement.condition, out var conditionReplacement);
+
+        if (statements.Count > 0 || statement.condition != conditionReplacement) {
+            statements.Add(statement.Update(statement.label, conditionReplacement, statement.jumpIfTrue));
+            return statements;
+        }
+
         return [statement];
     }
 
@@ -309,6 +316,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.NullCoalescingOperator => ExpandNullCoalescingOperator((BoundNullCoalescingOperator)expression, out replacement),
             BoundKind.NullCoalescingAssignmentOperator => ExpandNullCoalescingAssignmentOperator((BoundNullCoalescingAssignmentOperator)expression, out replacement),
             BoundKind.NullAssertOperator => ExpandNullAssertOperator((BoundNullAssertOperator)expression, out replacement),
+            BoundKind.NullErasureOperator => ExpandNullErasureOperator((BoundNullErasureOperator)expression, out replacement),
             BoundKind.AddressOfOperator => ExpandAddressOfOperator((BoundAddressOfOperator)expression, out replacement),
             BoundKind.PointerIndirectionOperator => ExpandPointerIndirectionOperator((BoundPointerIndirectionOperator)expression, out replacement),
             BoundKind.ErrorExpression => ExpandErrorExpression((BoundErrorExpression)expression, out replacement),
@@ -512,7 +520,7 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.expression, out var newExpression);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || newExpression != expression.expression) {
             replacement = expression.Update(
                 newExpression,
                 expression.type
@@ -531,7 +539,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(
                 newLeft,
                 newRight,
@@ -554,7 +562,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(
                 newLeft,
                 newRight,
@@ -576,7 +584,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(
                 newLeft,
                 newRight,
@@ -598,7 +606,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(
                 newLeft,
                 newRight,
@@ -620,7 +628,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(newLeft, newRight, expression.isPropagation, expression.type);
             return statements;
         }
@@ -640,13 +648,8 @@ internal abstract class BoundTreeExpander {
             replacementItems.Add(itemReplacement);
         }
 
-        if (statements.Count != 0) {
-            replacement = expression.Update(replacementItems.ToImmutableAndFree(), expression.type);
-            return statements;
-        }
-
-        replacement = expression;
-        return [];
+        replacement = expression.Update(replacementItems.ToImmutableAndFree(), expression.type);
+        return statements;
     }
 
     private protected virtual List<BoundStatement> ExpandInitializerDictionary(
@@ -661,13 +664,8 @@ internal abstract class BoundTreeExpander {
             replacementItems.Add((item1Replacement, item2Replacement));
         }
 
-        if (statements.Count != 0) {
-            replacement = expression.Update(replacementItems.ToImmutableAndFree(), expression.type);
-            return statements;
-        }
-
-        replacement = expression;
-        return [];
+        replacement = expression.Update(replacementItems.ToImmutableAndFree(), expression.type);
+        return statements;
     }
 
     private protected virtual List<BoundStatement> ExpandLiteralExpression(
@@ -690,7 +688,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(newLeft, newRight, expression.isRef, expression.type);
             return statements;
         }
@@ -704,7 +702,7 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.operand != newOperand) {
             replacement = expression.Update(
                 newOperand,
                 expression.operatorKind,
@@ -725,7 +723,7 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.operand != newOperand) {
             replacement = expression.Update(
                 expression.operatorKind,
                 newOperand,
@@ -751,10 +749,30 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.operand != newOperand) {
             replacement = expression.Update(
                 newOperand,
                 expression.throwIfNull,
+                expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandNullErasureOperator(
+        BoundNullErasureOperator expression,
+        out BoundExpression replacement) {
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+
+        if (statements.Count != 0 || expression.operand != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.defaultValue,
                 expression.constantValue,
                 expression.type
             );
@@ -771,7 +789,7 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.operand != newOperand) {
             replacement = expression.Update(
                 newOperand,
                 expression.isLoweredFixedField,
@@ -790,7 +808,7 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.operand != newOperand) {
             replacement = expression.Update(
                 newOperand,
                 expression.refersToLocation,
@@ -857,7 +875,7 @@ internal abstract class BoundTreeExpander {
         out BoundExpression replacement) {
         var statements = ExpandExpression(expression.operand, out var newOperand);
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.operand != newOperand) {
             replacement = expression.Update(
                 newOperand,
                 expression.conversion,
@@ -878,7 +896,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.receiver, out var newOperand);
         statements.AddRange(ExpandExpression(expression.index, out var newIndex));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.receiver != newOperand || expression.index != newIndex) {
             replacement = expression.Update(newOperand, newIndex, expression.constantValue, expression.type);
             return statements;
         }
@@ -893,7 +911,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.receiver, out var newOperand);
         statements.AddRange(ExpandExpression(expression.index, out var newIndex));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.receiver != newOperand || expression.index != newIndex) {
             replacement = expression.Update(
                 newOperand,
                 newIndex,
@@ -915,7 +933,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.receiver, out var newOperand);
         statements.AddRange(ExpandExpression(expression.index, out var newIndex));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.receiver != newOperand || expression.index != newIndex) {
             replacement = expression.Update(
                 newOperand,
                 newIndex,
@@ -936,7 +954,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.left, out var newLeft);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(
                 newLeft,
                 newRight,
@@ -978,7 +996,8 @@ internal abstract class BoundTreeExpander {
         statements.AddRange(ExpandExpression(expression.trueExpression, out var newTrueExpression));
         statements.AddRange(ExpandExpression(expression.falseExpression, out var newFalseExpression));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.condition != newCondition ||
+            expression.trueExpression != newTrueExpression || expression.falseExpression != newFalseExpression) {
             replacement = expression.Update(
                 newCondition,
                 expression.isRef,
@@ -1032,8 +1051,14 @@ internal abstract class BoundTreeExpander {
         if (!expression.field.isStatic) {
             var statements = ExpandExpression(expression.receiver, out var newReceiver);
 
-            if (statements.Count != 0) {
-                replacement = expression.Update(newReceiver, expression.field, expression.constantValue, expression.type);
+            if (statements.Count != 0 || expression.receiver != newReceiver) {
+                replacement = expression.Update(
+                    newReceiver,
+                    expression.field,
+                    expression.constantValue,
+                    expression.type
+                );
+
                 return statements;
             }
         }
@@ -1048,7 +1073,7 @@ internal abstract class BoundTreeExpander {
         var statements = ExpandExpression(expression.receiver, out var newReceiver);
         statements.AddRange(ExpandExpression(expression.accessExpression, out var newAccess));
 
-        if (statements.Count != 0) {
+        if (statements.Count != 0 || expression.receiver != newReceiver || expression.accessExpression != newAccess) {
             replacement = expression.Update(newReceiver, newAccess, expression.type);
             return statements;
         }

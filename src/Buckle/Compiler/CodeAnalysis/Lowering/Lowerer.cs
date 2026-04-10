@@ -30,7 +30,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var lowerer = new Lowerer(method, diagnostics);
 
         var rewrittenStatement = Optimizer.Optimize(statement);
-
         rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
@@ -823,6 +822,27 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
 
         return base.VisitNullAssertOperator(expression);
+    }
+
+    internal override BoundNode VisitNullErasureOperator(BoundNullErasureOperator expression) {
+        /*
+
+        <operand>?
+
+        ---->
+
+        <operand> ?? <default value>
+
+        */
+        var syntax = expression.syntax;
+
+        return Visit(new BoundNullCoalescingOperator(syntax,
+            expression.operand,
+            Literal(syntax, expression.defaultValue.value, expression.type),
+            false,
+            expression.constantValue,
+            expression.type
+        ));
     }
 
     internal static BoundExpression CreateNullableGetValueCall(

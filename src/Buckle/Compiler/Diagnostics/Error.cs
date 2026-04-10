@@ -1947,6 +1947,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NamespaceUnexpected, location, message);
     }
 
+    internal static BelteDiagnostic NullErasureOnNonNullableType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot apply a null erasure operator to an expression with type '{type}' as it is a non-nullable type";
+        return CreateError(DiagnosticCode.ERR_NullErasureOnNonNullableType, location, message);
+    }
+
+    internal static BelteDiagnostic NullErasureOnTypeWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot apply a null erasure operator to an expression with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_NullErasureOnTypeWithNoDefault, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -269,6 +269,9 @@ public sealed class DisplayText {
             case BoundKind.NullAssertOperator:
                 DisplayNullAssertOperator(text, (BoundNullAssertOperator)node);
                 break;
+            case BoundKind.NullErasureOperator:
+                DisplayNullErasureOperator(text, (BoundNullErasureOperator)node);
+                break;
             case BoundKind.ConditionalOperator:
                 DisplayConditionalOperator(text, (BoundConditionalOperator)node);
                 break;
@@ -1200,6 +1203,11 @@ public sealed class DisplayText {
     private static void DisplayNullAssertOperator(DisplayText text, BoundNullAssertOperator node) {
         DisplayNode(text, node.operand);
         text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+    }
+
+    private static void DisplayNullErasureOperator(DisplayText text, BoundNullErasureOperator node) {
+        DisplayNode(text, node.operand);
+        text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
     }
 
     private static void DisplayFieldEqualsValue(DisplayText text, BoundFieldEqualsValue node) {

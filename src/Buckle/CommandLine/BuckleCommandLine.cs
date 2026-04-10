@@ -113,9 +113,9 @@ public static partial class BuckleCommandLine {
             return SuccessExitCode;
 
         if (!state.noOut)
-            CleanOutputFiles(compiler);
+            CleanOutputFiles(compiler, diagnostics);
 
-        ReadInputFiles(compiler, out diagnostics);
+        ReadInputFiles(compiler, diagnostics);
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
@@ -314,10 +314,15 @@ public static partial class BuckleCommandLine {
         return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
-    private static void CleanOutputFiles(Compiler compiler) {
+    private static void CleanOutputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         if (compiler.state.finishStage == CompilerStage.Finished) {
             if (File.Exists(compiler.state.outputFilename))
                 File.Delete(compiler.state.outputFilename);
+
+            var dirName = Path.GetDirectoryName(compiler.state.outputFilename);
+
+            if (!Directory.Exists(dirName))
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(dirName));
 
             return;
         }
@@ -326,9 +331,7 @@ public static partial class BuckleCommandLine {
             File.Delete(file.outputFilename);
     }
 
-    private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
-        diagnostics = new DiagnosticQueue<Diagnostic>();
-
+    private static void ReadInputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         for (var i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
             var opened = false;

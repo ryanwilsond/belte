@@ -7,12 +7,13 @@
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
     - [3.2.2.1](#3221-x) `x!`
-    - [3.2.2.2](#3222-ai) `a?[i]`
-    - [3.2.2.3](#3223-xy) `x?.y`
-    - [3.2.2.4](#3224-x--y) `x ?? y`
-    - [3.2.2.5](#3225-x--y) `x ?! y`
-    - [3.2.2.6](#3226-xy) `x..y`
-    - [3.2.2.7](#3227-xy) `x?..y`
+    - [3.2.2.2](#3222-x) `x?`
+    - [3.2.2.3](#3223-ai) `a?[i]`
+    - [3.2.2.4](#3224-xy) `x?.y`
+    - [3.2.2.5](#3225-x--y) `x ?? y`
+    - [3.2.2.6](#3226-x--y) `x ?! y`
+    - [3.2.2.7](#3227-xy) `x..y`
+    - [3.2.2.8](#3228-xy) `x?..y`
 - [3.3](#33-variables-and-constants) Variables and Constants
   - [3.3.1](#331-implicit-typing) Implicit Typing
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
@@ -101,7 +102,7 @@ strict order of precedence:
 
 | Operators | Category |
 |-|-|
-| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, new, typeof, nameof, sizeof | Primary |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x?, new, typeof, nameof, sizeof | Primary |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
 | x ** y | Power |
@@ -124,31 +125,36 @@ strict order of precedence:
 
 `x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
 
-#### 3.2.2.2 `a?[i]`
+#### 3.2.2.2 `x?`
+
+`x?` is a null erasure. If `x` is null, the exception results in the default value of the type of `x`, where the type
+of `x` must be a primitive.
+
+#### 3.2.2.3 `a?[i]`
 
 `a?[i]` is a conditional indexer. If `a` is null, the index is not performed.
 
 This operator is syntax sugar for `a is null ? null : a![i]`.
 
-#### 3.2.2.3 `x?.y`
+#### 3.2.2.4 `x?.y`
 
 `x?.y` is a conditional member access. If `a` is null, the access is not performed.
 
 This operator is syntax sugar for `x is null ? null : x!.y`.
 
-#### 3.2.2.4 `x ?? y`
+#### 3.2.2.5 `x ?? y`
 
 `x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result.
 
 This operator is syntax sugar for `x is null ? y : null`.
 
-#### 3.2.2.5 `x ?! y`
+#### 3.2.2.6 `x ?! y`
 
 `x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result.
 
 This operator is syntax sugar for `x is null ? null : y`.
 
-#### 3.2.2.6 `x..y`
+#### 3.2.2.7 `x..y`
 
 `x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
 discarded.
@@ -168,9 +174,9 @@ temp.f = 3;
 var a = temp;
 ```
 
-#### 3.2.2.7 `x?..y`
+#### 3.2.2.8 `x?..y`
 
-`x?..y` is a conditional [cascade expression](#3226-xy). The field assignment or call expression `y` is only performed
+`x?..y` is a conditional [cascade expression](#3227-xy). The field assignment or call expression `y` is only performed
 if `x` is not null.
 
 ## 3.3 Variables and Constants

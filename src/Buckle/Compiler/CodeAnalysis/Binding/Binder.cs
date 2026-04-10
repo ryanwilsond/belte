@@ -2046,16 +2046,21 @@ internal partial class Binder {
 
         var hasResolutionErrors = false;
 
-        if (expression.kind == BoundKind.MethodGroup && kind == BindValueKind.AddressOf)
+        var underlyingExpression = expression is BoundConditionalAccessExpression c
+            ? c.accessExpression
+            : expression;
+
+        if (underlyingExpression.kind == BoundKind.MethodGroup && kind == BindValueKind.AddressOf)
             return expression;
 
-        if (expression.kind == BoundKind.MethodGroup && kind != BindValueKind.RValueOrMethodGroup) {
-            var methodGroup = (BoundMethodGroup)expression;
+        if (underlyingExpression.kind == BoundKind.MethodGroup && kind != BindValueKind.RValueOrMethodGroup) {
+            var methodGroup = (BoundMethodGroup)underlyingExpression;
             var resolution = ResolveMethodGroup(methodGroup, analyzedArguments: null);
             Symbol otherSymbol = null;
             var resolvedToMethodGroup = resolution.methodGroup is not null;
 
-            if (!expression.hasAnyErrors) diagnostics.PushRange(resolution.diagnostics);
+            if (!expression.hasAnyErrors)
+                diagnostics.PushRange(resolution.diagnostics);
 
             hasResolutionErrors = resolution.hasAnyErrors;
 
@@ -5989,9 +5994,31 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
         boundExpression = CheckValue(boundExpression, BindValueKind.RValueOrMethodGroup, diagnostics);
-        var name = boundExpression.kind == BoundKind.MethodGroup ? GetName(node.expression) : null;
+        var underlyingExpression = boundExpression is BoundConditionalAccessExpression c
+            ? c.accessExpression
+            : boundExpression;
+        var name = underlyingExpression.kind == BoundKind.MethodGroup ? GetName(node.expression) : null;
         BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
-        return BindCallExpression(node, node.expression, name, boundExpression, analyzedArguments, diagnostics);
+
+        var call = BindCallExpression(
+            node,
+            node.expression,
+            name,
+            underlyingExpression,
+            analyzedArguments,
+            diagnostics
+        );
+
+        if (boundExpression is BoundConditionalAccessExpression cond) {
+            return new BoundConditionalAccessExpression(
+                cond.syntax,
+                cond.receiver,
+                call,
+                CorLibrary.GetOrCreateNullableType(call.type)
+            );
+        }
+
+        return call;
     }
 
     private BoundExpression BindCallExpression(
@@ -8676,11 +8703,42 @@ internal partial class Binder {
         return new BoundNullAssertOperator(node, operand, true, constantValue, resultType);
     }
 
+    private BoundExpression BindNullErasureOperator(PostfixExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindExpression(node.operand, diagnostics);
+        var operandType = operand.Type();
+
+        if (!operandType.IsNullableType()) {
+            diagnostics.Push(Error.NullErasureOnNonNullableType(node.location, operandType));
+            return new BoundNullErasureOperator(node, operand, null, null, operandType, true);
+        }
+
+        var resultType = operandType.StrippedType();
+        var constantValue = operand.constantValue;
+
+        if (!LiteralUtilities.TypeHasDefaultValue(resultType.specialType)) {
+            diagnostics.Push(Error.NullErasureOnTypeWithNoDefault(node.location, operandType));
+            return new BoundNullErasureOperator(node, operand, null, null, operandType, true);
+        }
+
+        var defaultValue = new ConstantValue(
+            LiteralUtilities.GetDefaultValue(resultType.specialType),
+            resultType.specialType
+        );
+
+        if (ConstantValue.IsNull(constantValue))
+            constantValue = defaultValue;
+
+        return new BoundNullErasureOperator(node, operand, defaultValue, constantValue, resultType);
+    }
+
     private BoundExpression BindIncrementOrNullAssertOperator(
         PostfixExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         if (node.operatorToken.kind == SyntaxKind.ExclamationToken)
             return BindNullAssertOperator(node, diagnostics);
+
+        if (node.operatorToken.kind == SyntaxKind.QuestionToken)
+            return BindNullErasureOperator(node, diagnostics);
 
         return BindIncrementOperator(node, node.operand, node.operatorToken, diagnostics);
     }

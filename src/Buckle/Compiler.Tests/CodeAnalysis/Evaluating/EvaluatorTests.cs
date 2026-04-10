@@ -154,6 +154,12 @@ public sealed class EvaluatorTests {
     [InlineData("return 9 % 5;", 4)]
     [InlineData("return 5 ?? 2;", 5)]
     [InlineData("return 5 ?! 2;", 2)]
+    [InlineData("int a = 3; return a?;", 3)]
+    [InlineData("int a = null; return a?;", 0)]
+    [InlineData("string a = \"t\"; return a?;", "t")]
+    [InlineData("string a = null; return a?;", "")]
+    [InlineData("bool a = true; return a?;", true)]
+    [InlineData("bool a = null; return a?;", false)]
     // Compound assignments
     [InlineData("var a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var a = 1; a -= (2 + 3); return a;", -4)]
