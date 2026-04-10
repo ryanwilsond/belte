@@ -741,7 +741,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private string GetNamespaceName(Symbol symbol) {
-        var namespaceName = symbol.containingNamespace.isGlobalNamespace ? "" : symbol.containingNamespace?.name ?? "";
+        var namespaceName = symbol.containingNamespace?.isGlobalNamespace == true ? "" : symbol.containingNamespace?.name ?? "";
 
         if (symbol.IsFromCompilation(_program.compilation))
             return namespaceName;
