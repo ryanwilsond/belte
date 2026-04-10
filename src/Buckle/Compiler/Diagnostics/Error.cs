@@ -154,7 +154,7 @@ internal static class Error {
     }
 
     internal static Diagnostic AmbiguousElse() {
-        var message = "ambiguous which if-statement this else-clause belongs to; use curly braces";
+        var message = "ambiguous which statement this else-clause belongs to; use curly braces";
         return CreateError(DiagnosticCode.ERR_AmbiguousElse, message);
     }
 
@@ -1960,6 +1960,16 @@ internal static class Error {
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
         var message = $"cannot apply a null erasure operator to a null literal";
         return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);
+    }
+
+    internal static BelteDiagnostic NullBindingRequiresNullable(TextLocation location) {
+        var message = $"the source expression type of a null-binding contract must be nullable";
+        return CreateError(DiagnosticCode.ERR_NullBindingRequiresNullable, location, message);
+    }
+
+    internal static BelteDiagnostic NullBindingOnNull(TextLocation location) {
+        var message = $"cannot create a null-binding contract on a null literal";
+        return CreateError(DiagnosticCode.ERR_NullBindingOnNull, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -10446,6 +10446,7 @@ symIsHidden:;
             SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
             SyntaxKind.LocalFunctionStatement => BindLocalFunctionStatement((LocalFunctionStatementSyntax)node, diagnostics),
             SyntaxKind.IfStatement => BindIfStatement((IfStatementSyntax)node, diagnostics),
+            SyntaxKind.NullBindingStatement => BindNullBindingStatement((NullBindingStatementSyntax)node, diagnostics),
             SyntaxKind.WhileStatement => BindWhileStatement((WhileStatementSyntax)node, diagnostics),
             SyntaxKind.DoWhileStatement => BindDoWhileStatement((DoWhileStatementSyntax)node, diagnostics),
             SyntaxKind.ForStatement => BindForStatement((ForStatementSyntax)node, diagnostics),
@@ -10595,6 +10596,7 @@ symIsHidden:;
                 goto case SyntaxKind.ExpressionStatement;
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
+            case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
                 binder = GetBinder(node);
                 return binder.WrapWithVariablesIfAny(node, binder.BindStatement(node, diagnostics));
@@ -10626,13 +10628,26 @@ symIsHidden:;
     }
 
     private BoundIfStatement BindIfStatement(IfStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        var condition = BindBooleanExpression(node.condition, diagnostics);
+        var condition = BindBooleanExpression(node.expression, diagnostics);
         var consequence = BindPossibleEmbeddedStatement(node.then, diagnostics);
         var alternative = (node.elseClause is null)
             ? null
             : BindPossibleEmbeddedStatement(node.elseClause.body, diagnostics);
 
         return new BoundIfStatement(node, condition, consequence, alternative);
+    }
+
+    private BoundNullBindingStatement BindNullBindingStatement(
+        NullBindingStatementSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var binder = GetBinder(node);
+        return binder.BindNullBindingParts(diagnostics, binder);
+    }
+
+    internal virtual BoundNullBindingStatement BindNullBindingParts(
+        BelteDiagnosticQueue diagnostics,
+        Binder originalBinder) {
+        return next.BindNullBindingParts(diagnostics, originalBinder);
     }
 
     private BoundWhileStatement BindWhileStatement(WhileStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -10662,6 +10677,12 @@ symIsHidden:;
 
     internal virtual BoundStatement BindForEachDeconstruction(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         return next.BindForEachDeconstruction(diagnostics, originalBinder);
+    }
+
+    internal virtual BoundStatement BindNullBindingDeconstruction(
+        BelteDiagnosticQueue diagnostics,
+        Binder originalBinder) {
+        return next.BindNullBindingDeconstruction(diagnostics, originalBinder);
     }
 
     private protected bool BindForEachCollection(
@@ -10697,6 +10718,28 @@ symIsHidden:;
             inferredType = new TypeWithAnnotations(CreateErrorType());
             return true;
         }
+    }
+
+    private protected bool BindNullBindingSource(
+        SyntaxNode syntax,
+        SyntaxNode sourceSyntax,
+        ref BoundExpression sourceExpr,
+        BelteDiagnosticQueue diagnostics,
+        out TypeWithAnnotations inferredType) {
+        if (sourceExpr.IsLiteralNull() || sourceExpr.kind == BoundKind.UnconvertedNullptrExpression) {
+            diagnostics.Push(Error.NullBindingOnNull(sourceSyntax.location));
+            inferredType = new TypeWithAnnotations(CreateErrorType());
+            return true;
+        }
+
+        if (!sourceExpr.Type().IsNullableType()) {
+            diagnostics.Push(Error.NullBindingRequiresNullable(sourceSyntax.location));
+            inferredType = new TypeWithAnnotations(sourceExpr.Type());
+            return true;
+        }
+
+        inferredType = new TypeWithAnnotations(sourceExpr.StrippedType());
+        return false;
     }
 
     private BoundStatement BindBreakStatement(BreakStatementSyntax node, BelteDiagnosticQueue diagnostics) {

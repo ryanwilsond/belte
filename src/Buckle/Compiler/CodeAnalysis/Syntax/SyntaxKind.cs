@@ -228,6 +228,7 @@ public enum SyntaxKind : ushort {
     DefaultSwitchLabel,
     MultiCaseSwitchLabel,
     GotoStatement,
+    NullBindingStatement,
 
     // Directives
     UsingDirective,

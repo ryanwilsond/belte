@@ -410,6 +410,8 @@ public enum DiagnosticCode : ushort {
     ERR_NullErasureOnNonNullableType = 399,
     ERR_NullErasureOnTypeWithNoDefault = 400,
     ERR_NullErasureOnNull = 401,
+    ERR_NullBindingRequiresNullable = 402,
+    ERR_NullBindingOnNull = 403,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

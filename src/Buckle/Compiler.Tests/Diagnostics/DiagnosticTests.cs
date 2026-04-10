@@ -325,7 +325,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            ambiguous which if-statement this else-clause belongs to; use curly braces
+            ambiguous which statement this else-clause belongs to; use curly braces
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -4924,6 +4924,50 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot apply a null erasure operator to a null literal
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0402_NullBindingRequiresNullable() {
+        var text = @"
+            int! a = 3;
+
+            if ([a] -> x!) {
+            }
+        ";
+
+        var diagnostics = @"
+            the source expression type of a null-binding contract must be nullable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0403_NullBindingOnNull() {
+        var text = @"
+            if ([null] -> x!) {
+            }
+        ";
+
+        var diagnostics = @"
+            cannot create a null-binding contract on a null literal
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0403_NullBindingOnNull2() {
+        var text = @"
+            if ([nullptr] -> x!) {
+            }
+        ";
+
+        var diagnostics = @"
+            cannot create a null-binding contract on a null literal
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -10,6 +10,7 @@
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
 - [2.3](#23-conditionals) Conditionals
+  - [2.3.1](#231-null-binding-contracts) Null-Binding Contracts
 - [2.4](#24-loops) Loops
   - [2.4.1](#241-while-loops) While Loops
   - [2.4.2](#242-do-while-loops) Do-While Loops
@@ -230,6 +231,33 @@ if (a > b) {
 } else {
   int difference = b - a;
   Console.PrintLine("a is " + (string)difference + " less than b");
+}
+```
+
+### 2.3.1 Null-Binding Contracts
+
+A null-binding contract can be used to declare a temporary local within an `if` scope predicated on the fact that the
+local is not null.
+
+```belte
+int a = 3;
+
+if (a -> x!) {
+  int! b = x;
+}
+```
+
+If the source expression is null, the block does not run. Otherwise, a non-nullable temporary is created for the block.
+
+Similar to an ordinary if statement, an else block can be defined that runs only if the source expression is null.
+
+```belte
+int a = 3;
+
+if (a -> x!) {
+  int! b = x;
+} else {
+  int b = a;
 }
 ```
 

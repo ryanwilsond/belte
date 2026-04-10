@@ -160,6 +160,7 @@ internal class LocalScopeBinder : Binder {
                 break;
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
+            case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
             case SyntaxKind.GotoStatement:
             case SyntaxKind.ThrowExpression:

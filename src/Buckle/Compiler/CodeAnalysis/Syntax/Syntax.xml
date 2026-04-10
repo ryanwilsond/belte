@@ -810,20 +810,58 @@
     </Field>
     <Field Name="body" Type="StatementSyntax"/>
   </Node>
-  <Node Name="IfStatementSyntax" Base="StatementSyntax">
-    <Kind Name="IfStatement"/>
+  <AbstractNode Name="BaseIfStatementSyntax" Base="StatementSyntax">
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="IfKeyword"/>
     </Field>
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="condition" Type="ExpressionSyntax"/>
+    <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
     <Field Name="then" Type="StatementSyntax"/>
     <Field Name="elseClause" Type="ElseClauseSyntax" Optional="true"/>
+  </AbstractNode>
+  <Node Name="IfStatementSyntax" Base="BaseIfStatementSyntax">
+    <Kind Name="IfStatement"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="IfKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Override="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax" Override="true"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Override="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="then" Type="StatementSyntax" Override="true"/>
+    <Field Name="elseClause" Type="ElseClauseSyntax" Optional="true" Override="true"/>
+  </Node>
+  <Node Name="NullBindingStatementSyntax" Base="BaseIfStatementSyntax">
+    <Kind Name="NullBindingStatement"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="IfKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Override="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax" Override="true"/>
+    <Field Name="op" Type="SyntaxToken">
+      <Kind Name="MinusGreaterThanToken"/>
+    </Field>
+    <Field Name="target" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="exclamation" Type="SyntaxToken">
+      <Kind Name="ExclamationToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Override="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="then" Type="StatementSyntax" Override="true"/>
+    <Field Name="elseClause" Type="ElseClauseSyntax" Optional="true" Override="true"/>
   </Node>
   <Node Name="ElseClauseSyntax" Base="SyntaxNode">
     <Kind Name="ElseClause"/>

@@ -99,6 +99,7 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             case SyntaxKind.LocalFunctionStatement:
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
+            case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
                 embeddedScopeDesignator = statement;
                 return new EmbeddedStatementBinder(enclosing, statement);
@@ -368,11 +369,40 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         VisitPossibleEmbeddedStatement(node.body, binder);
     }
 
+    internal override void VisitNullBindingStatement(NullBindingStatementSyntax node) {
+        var enclosing = _enclosing;
+
+        while (true) {
+            var patternBinder = new ExpressionVariableBinder(node.expression, enclosing);
+
+            AddToMap(node.expression, patternBinder);
+            Visit(node.expression, patternBinder);
+
+            enclosing = new NullBindingBinder(patternBinder, node);
+            AddToMap(node, enclosing);
+
+            VisitPossibleEmbeddedStatement(node.then, enclosing);
+
+            if (node.elseClause is null)
+                break;
+
+            var elseStatementSyntax = node.elseClause.body;
+
+            if (elseStatementSyntax is NullBindingStatementSyntax nullBindingStatementSyntax) {
+                node = nullBindingStatementSyntax;
+                enclosing = GetBinderForPossibleEmbeddedStatement(node, enclosing);
+            } else {
+                VisitPossibleEmbeddedStatement(elseStatementSyntax, enclosing);
+                break;
+            }
+        }
+    }
+
     internal override void VisitIfStatement(IfStatementSyntax node) {
         var enclosing = _enclosing;
 
         while (true) {
-            Visit(node.condition, enclosing);
+            Visit(node.expression, enclosing);
             VisitPossibleEmbeddedStatement(node.then, enclosing);
 
             if (node.elseClause is null)

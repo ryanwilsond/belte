@@ -122,6 +122,9 @@ public sealed class DisplayText {
             case BoundKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
                 break;
+            case BoundKind.NullBindingStatement:
+                DisplayNullBindingStatement(text, (BoundNullBindingStatement)node);
+                break;
             case BoundKind.WhileStatement:
                 DisplayWhileStatement(text, (BoundWhileStatement)node);
                 break;
@@ -758,6 +761,35 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.condition);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+        DisplayNestedStatement(text, node.consequence);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+
+        if (node.alternative is not null) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.ElseKeyword));
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.WriteLine();
+            DisplayNestedStatement(text, node.alternative);
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        }
+
+        text.WriteLine();
+    }
+
+    private static void DisplayNullBindingStatement(DisplayText text, BoundNullBindingStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.IfKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.MinusGreaterThanToken));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.valueLocal);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));

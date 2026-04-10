@@ -73,6 +73,7 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
                 case DataContainerDeclarationKind.Constant:
                 case DataContainerDeclarationKind.ConstantExpression:
                 case DataContainerDeclarationKind.ForEachLocal:
+                case DataContainerDeclarationKind.NullBindingLocal:
                     return false;
                 default:
                     return true;

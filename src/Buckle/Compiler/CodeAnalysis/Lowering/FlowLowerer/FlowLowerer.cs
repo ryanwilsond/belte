@@ -224,6 +224,58 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
         );
     }
 
+    internal override BoundNode VisitNullBindingStatement(BoundNullBindingStatement node) {
+        /*
+
+        if (<source> -> <target>!)
+            <body>
+        <elseClause>
+
+        ---->
+
+        {
+            var temp = <source>
+
+            if (temp isnt null) {
+                <target> = temp!
+                <body>
+            } <elseClause>
+        }
+
+        */
+        var syntax = node.syntax;
+        var temp = GenerateTempLocal(node.expression.Type());
+        var condition = new BoundIsOperator(
+            syntax,
+            Local(syntax, temp),
+            Literal(syntax, null, temp.type),
+            true,
+            null,
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
+
+        return Visit(
+            Block(syntax,
+                node.locals,
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                    temp,
+                    node.expression
+                )),
+                new BoundIfStatement(syntax,
+                    condition,
+                    Block(syntax,
+                        new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                            node.valueLocal,
+                            new BoundNullAssertOperator(syntax, Local(syntax, temp), true, null, node.valueLocal.type)
+                        )),
+                        node.consequence
+                    ),
+                    node.alternative
+                )
+            )
+        );
+    }
+
     internal override BoundNode VisitForEachStatement(BoundForEachStatement node) {
         /*
 

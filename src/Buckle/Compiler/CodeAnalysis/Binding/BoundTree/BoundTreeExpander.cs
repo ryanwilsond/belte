@@ -46,6 +46,7 @@ internal abstract class BoundTreeExpander {
             BoundKind.BlockStatement => ExpandBlockStatement((BoundBlockStatement)statement),
             BoundKind.LocalDeclarationStatement => ExpandLocalDeclarationStatement((BoundLocalDeclarationStatement)statement),
             BoundKind.IfStatement => ExpandIfStatement((BoundIfStatement)statement),
+            BoundKind.NullBindingStatement => ExpandNullBindingStatement((BoundNullBindingStatement)statement),
             BoundKind.WhileStatement => ExpandWhileStatement((BoundWhileStatement)statement),
             BoundKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
             BoundKind.ForEachStatement => ExpandForEachStatement((BoundForEachStatement)statement),
@@ -202,6 +203,11 @@ internal abstract class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandForEachStatement(BoundForEachStatement statement) {
         // For each loops have to be expanded after they have been lowered
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandNullBindingStatement(BoundNullBindingStatement statement) {
+        // Null-binding contract statements have to be expanded after they have been lowered
         return [statement];
     }
 

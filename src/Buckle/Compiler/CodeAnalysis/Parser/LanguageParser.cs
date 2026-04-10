@@ -1049,7 +1049,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.SemicolonToken:
                 return ParseEmptyStatement();
             case SyntaxKind.IfKeyword:
-                return ParseIfStatement();
+                return ParseIfOrNullBindingStatement();
             case SyntaxKind.WhileKeyword:
                 return ParseWhileStatement();
             case SyntaxKind.ForKeyword:
@@ -1486,10 +1486,27 @@ internal sealed partial class LanguageParser : SyntaxParser {
         );
     }
 
-    private StatementSyntax ParseIfStatement() {
+    private StatementSyntax ParseIfOrNullBindingStatement() {
         var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
+
+        var saved = _context;
+        _context |= ParserContext.InIfCondition;
+
         var condition = ParseExpression();
+
+        _context = saved;
+
+        SyntaxToken minusGreaterThan = null;
+        SyntaxToken target = null;
+        SyntaxToken exclamation = null;
+
+        if (currentToken.kind == SyntaxKind.MinusGreaterThanToken) {
+            minusGreaterThan = EatToken();
+            target = Match(SyntaxKind.IdentifierToken);
+            exclamation = Match(SyntaxKind.ExclamationToken);
+        }
+
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var then = ParseStatement();
 
@@ -1499,10 +1516,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var inner = then;
         var offset = 0;
 
-        while (inner.kind == SyntaxKind.IfStatement) {
+        while (inner.kind is SyntaxKind.IfStatement or SyntaxKind.NullBindingStatement) {
             nestedIf = true;
-            var innerIf = (IfStatementSyntax)inner;
-            offset += innerIf.GetSlotOffset(4);
+            var innerIf = (BaseIfStatementSyntax)inner;
+            offset += innerIf.GetSlotOffset(inner.kind == SyntaxKind.IfStatement ? 4 : 7);
 
             if (innerIf.elseClause is not null && innerIf.then.kind != SyntaxKind.BlockStatement) {
                 var elseOffset = offset + innerIf.then.fullWidth + innerIf.elseClause.GetLeadingTriviaWidth();
@@ -1515,7 +1532,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 );
             }
 
-            if (innerIf.then.kind == SyntaxKind.IfStatement)
+            if (innerIf.then.kind is SyntaxKind.IfStatement or SyntaxKind.NullBindingStatement)
                 inner = innerIf.then;
             else
                 break;
@@ -1532,7 +1549,20 @@ internal sealed partial class LanguageParser : SyntaxParser {
             );
         }
 
-        return SyntaxFactory.IfStatement(keyword, openParenthesis, condition, closeParenthesis, then, elseClause);
+        if (minusGreaterThan is null)
+            return SyntaxFactory.IfStatement(keyword, openParenthesis, condition, closeParenthesis, then, elseClause);
+
+        return SyntaxFactory.NullBindingStatement(
+            keyword,
+            openParenthesis,
+            condition,
+            minusGreaterThan,
+            target,
+            exclamation,
+            closeParenthesis,
+            then,
+            elseClause
+        );
     }
 
     private ElseClauseSyntax ParseElseClause() {
@@ -1818,6 +1848,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (precedence == 0 || precedence <= parentPrecedence)
                 break;
 
+            if (startToken.kind == SyntaxKind.MinusGreaterThanToken && IsNullBindingContractTarget())
+                return left;
+
             left = ParseCorrectPrimaryOperator(left);
             left = ParsePrimaryExpression(precedence, left);
 
@@ -1836,7 +1869,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     return ParseIndexExpression(expression);
                 case SyntaxKind.PeriodToken:
                 case SyntaxKind.QuestionPeriodToken:
-                case SyntaxKind.MinusGreaterThanToken:
+                case SyntaxKind.MinusGreaterThanToken when !IsNullBindingContractTarget():
                     return ParseMemberAccessExpression(expression);
                 case SyntaxKind.PeriodPeriodToken:
                 case SyntaxKind.QuestionPeriodPeriodToken:
@@ -1848,6 +1881,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 default:
                     return expression;
             }
+        }
+
+        bool IsNullBindingContractTarget() {
+            if ((_context & ParserContext.InIfCondition) != 0) {
+                if (Peek(1).kind == SyntaxKind.IdentifierToken &&
+                    Peek(2).kind == SyntaxKind.ExclamationToken &&
+                    Peek(3).kind == SyntaxKind.CloseParenToken) {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 

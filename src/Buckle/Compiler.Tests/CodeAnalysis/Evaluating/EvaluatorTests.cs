@@ -316,6 +316,9 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; if (a == 4) { a = 10; } return a;", 0)]
     [InlineData("int a = 0; if (a == 0) { a = 10; } else { a = 5; } return a;", 10)]
     [InlineData("int a = 0; if (a == 4) { a = 10; } else { a = 5; } return a;", 5)]
+    // Null-Binding statements
+    [InlineData("int a = 10; int! b = 0; if (a -> x!) { b = x; } return b;", 10)]
+    [InlineData("int a = null; int! b = 0; if (a -> x!) { b = x; } return b;", 0)]
     // Local function statements
     [InlineData("int A() { int B() { return 2; } return B() + 1; } return A();", 3)]
     [InlineData("int A() { int B() { int A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]

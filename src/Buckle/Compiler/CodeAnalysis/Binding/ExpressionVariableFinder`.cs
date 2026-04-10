@@ -34,7 +34,11 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
     }
 
     internal override void VisitIfStatement(IfStatementSyntax node) {
-        VisitNodeToBind(node.condition);
+        VisitNodeToBind(node.expression);
+    }
+
+    internal override void VisitNullBindingStatement(NullBindingStatementSyntax node) {
+        VisitNodeToBind(node.expression);
     }
 
     internal override void VisitBinaryExpression(BinaryExpressionSyntax node) {

@@ -375,6 +375,14 @@
     <Field Name="indexLocal" Type="DataContainerSymbol?"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
+  <Node Name="BoundNullBindingStatement" Base="BoundStatement">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="valueLocal" Type="DataContainerSymbol"/>
+    <Field Name="consequence" Type="BoundStatement"/>
+    <Field Name="alternative" Type="BoundStatement?"/>
+  </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="caseExpression" Type="BoundExpression?"/>
