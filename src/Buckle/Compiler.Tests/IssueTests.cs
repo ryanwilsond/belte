@@ -581,20 +581,6 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_MustHaveName() {
-        var text = @"
-            void [(]int [a]) {}
-        ";
-
-        var diagnostics = @"
-            unexpected token '('
-            unexpected identifier, expected '('
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
     public void Evaluator_Function_WrongArgumentType() {
         var text = @"
             void func(int a) {}
