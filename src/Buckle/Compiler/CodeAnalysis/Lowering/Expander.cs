@@ -63,6 +63,21 @@ internal sealed class Expander : BoundTreeExpander {
             var isConditional = expression.conditionals[i];
 
             switch (cascade.kind) {
+                case BoundKind.ConditionalAccessExpression: {
+                        var condAccess = (BoundConditionalAccessExpression)cascade;
+
+                        statements.AddRange(
+                            ExpandStatement(new BoundExpressionStatement(syntax,
+                                condAccess.Update(
+                                    Local(syntax, tempLocal),
+                                    condAccess.accessExpression,
+                                    condAccess.type
+                                )
+                            ))
+                        );
+                    }
+
+                    break;
                 case BoundKind.CallExpression: {
                         // TODO Conditional cascade
                         var call = (BoundCallExpression)cascade;
@@ -87,7 +102,10 @@ internal sealed class Expander : BoundTreeExpander {
                     break;
                 case BoundKind.CompoundAssignmentOperator: {
                         var assignment = (BoundCompoundAssignmentOperator)cascade;
-                        var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        var leftAccess = isConditional
+                            ? (BoundFieldAccessExpression)(assignment.left as BoundConditionalAccessExpression)
+                                .accessExpression
+                            : (BoundFieldAccessExpression)assignment.left;
 
                         statements.AddRange(
                             ExpandStatement(new BoundExpressionStatement(syntax,
@@ -110,7 +128,10 @@ internal sealed class Expander : BoundTreeExpander {
                     break;
                 case BoundKind.NullCoalescingAssignmentOperator: {
                         var assignment = (BoundNullCoalescingAssignmentOperator)cascade;
-                        var leftAccess = (BoundFieldAccessExpression)assignment.left;
+                        var leftAccess = isConditional
+                            ? (BoundFieldAccessExpression)(assignment.left as BoundConditionalAccessExpression)
+                                .accessExpression
+                            : (BoundFieldAccessExpression)assignment.left;
 
                         statements.AddRange(
                             ExpandStatement(new BoundExpressionStatement(syntax,
@@ -127,18 +148,20 @@ internal sealed class Expander : BoundTreeExpander {
                     break;
                 case BoundKind.AssignmentOperator: {
                         var assignment = (BoundAssignmentOperator)cascade;
-                        var leftAccess = (BoundFieldAccessExpression)assignment.left;
-                        statements.AddRange(ExpandExpression(assignment.right, out var right));
+                        var leftAccess = isConditional
+                            ? (BoundFieldAccessExpression)(assignment.left as BoundConditionalAccessExpression)
+                                .accessExpression
+                            : (BoundFieldAccessExpression)assignment.left;
 
-                        statements.Add(
-                            new BoundExpressionStatement(syntax,
+                        statements.AddRange(
+                            ExpandStatement(new BoundExpressionStatement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
-                                    right,
+                                    assignment.right,
                                     assignment.isRef,
                                     assignment.type
                                 )
-                            )
+                            ))
                         );
                     }
 
@@ -1323,8 +1346,137 @@ internal sealed class Expander : BoundTreeExpander {
         BoundAssignmentOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = base.ExpandAssignmentOperator(expression, out replacement, useKind);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+        /*
+
+        <left> = <right>
+
+        ----> <left> is conditional access <cond>
+
+        temp = null
+        goto break if <cond.receiver> is null
+        temp = <cond.access> = <right>
+        break:
+        temp
+
+
+        ----> <left> is conditional access <cond> and is isolated
+
+        goto break if <cond.receiver> is null
+        <cond.access> = <right>
+        break:
+
+        */
+        if (expression.left is BoundConditionalAccessExpression condAccess) {
+            var syntax = expression.syntax;
+            List<BoundStatement> statements = [];
+            var isIsolated = expression.syntax.parent.kind is SyntaxKind.ExpressionStatement or SyntaxKind.CascadeExpression;
+            var breakLabel = GenerateLabel();
+            var temp = GenerateTempLocal(expression.Type());
+
+            if (!isIsolated)
+                statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, null, temp.type)));
+
+            var linearChain = new List<BoundConditionalAccessExpression>();
+            var current = condAccess;
+
+            while (current is not null) {
+                linearChain.Add(current);
+                current = current.receiver as BoundConditionalAccessExpression;
+            }
+
+            ExpandExpression(linearChain.Last().receiver, out var newReceiver, UseKind.StableValue);
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newReceiver)));
+
+            for (var i = linearChain.Count - 1; i > 0; i--) {
+                var cur = linearChain[i];
+                var innerTemp = GenerateTempLocal(cur.Type());
+                statements.AddRange(CreateConditionalAccess(cur, newReceiver, out var conditionalAccess));
+                statements.Add(LocalDeclaration(syntax, innerTemp, conditionalAccess));
+                newReceiver = Local(syntax, innerTemp);
+                statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newReceiver)));
+            }
+
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+            statements.AddRange(CreateConditionalAccess(linearChain[0], newReceiver, out var finalReceiver));
+            var assignment = Assignment(
+                syntax,
+                finalReceiver,
+                newRight,
+                false,
+                newReceiver.type
+            );
+
+            if (isIsolated) {
+                statements.Add(new BoundExpressionStatement(syntax, assignment));
+                statements.Add(Label(syntax, breakLabel));
+                replacement = null;
+            } else {
+                statements.Add(new BoundExpressionStatement(syntax,
+                    Assignment(syntax,
+                        Local(syntax, temp),
+                        assignment,
+                        false,
+                        assignment.type
+                    )
+                ));
+                statements.Add(Label(syntax, breakLabel));
+                replacement = Local(syntax, temp);
+            }
+
+            return statements;
+        } else {
+            var statements = base.ExpandAssignmentOperator(expression, out replacement, UseKind.Value);
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+        }
+
+        List<BoundStatement> CreateConditionalAccess(
+            BoundConditionalAccessExpression expression,
+            BoundExpression currentReceiver,
+            out BoundExpression newReceiver) {
+            var access = expression.accessExpression;
+
+            switch (access.kind) {
+                case BoundKind.FieldAccessExpression:
+                    var fieldAccess = (BoundFieldAccessExpression)access;
+                    newReceiver = new BoundFieldAccessExpression(
+                        access.syntax,
+                        currentReceiver,
+                        fieldAccess.field,
+                        fieldAccess.constantValue,
+                        fieldAccess.type
+                    );
+                    return [];
+                case BoundKind.ArrayAccessExpression: {
+                        var arrayAccess = (BoundArrayAccessExpression)access;
+                        var statements = ExpandExpression(arrayAccess.index, out var newIndex);
+                        newReceiver = new BoundArrayAccessExpression(
+                            access.syntax,
+                            currentReceiver,
+                            newIndex,
+                            arrayAccess.constantValue,
+                            arrayAccess.type
+                        );
+                        return statements;
+                    }
+                case BoundKind.CallExpression: {
+                        var call = (BoundCallExpression)access;
+                        var statements = ExpandExpressionList(call.arguments, out var newArguments);
+                        newReceiver = new BoundCallExpression(
+                            access.syntax,
+                            currentReceiver,
+                            call.method,
+                            newArguments,
+                            call.argumentRefKinds,
+                            call.defaultArguments,
+                            call.resultKind,
+                            call.type
+                        );
+                        return statements;
+                    }
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(access.kind);
+            }
+        }
     }
 
     private protected override List<BoundStatement> ExpandInitializerDictionary(

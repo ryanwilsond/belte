@@ -493,6 +493,53 @@ public sealed class EvaluatorTests {
     int! b = a?.Length()?;
     return b;
     ", 0)]
+    [InlineData(@"
+    class A {
+        public int a;
+    }
+
+    A a = new A();
+    a?.a = 3;
+    return a?.a;
+    ", 3)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public A b;
+    }
+
+    A a = new A();
+    a?.b?.a = 3;
+    return a?.b?.a;
+    ", null)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public void M() { a = 5; }
+    }
+
+    A a = new A()?..M();
+    return a.a;
+    ", 5)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public void M() { a = 5; }
+    }
+
+    A a = null;
+    var b = a?..M();
+    return b?.a;
+    ", null)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public A b;
+    }
+
+    var a = new A()?..b = (new A()..a = 4);
+    return a.b.a;
+    ", 4)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
