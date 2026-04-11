@@ -23,6 +23,21 @@ internal static partial class BoundFactory {
         );
     }
 
+    internal static BoundIsOperator IsNull(SyntaxNode syntax, BoundExpression expression) {
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), false, null, boolType);
+    }
+
+    internal static BoundLocalDeclarationStatement LocalDeclaration(
+        SyntaxNode syntax,
+        DataContainerSymbol local,
+        BoundExpression initializer) {
+        return new BoundLocalDeclarationStatement(
+            syntax,
+            new BoundDataContainerDeclaration(syntax, local, initializer)
+        );
+    }
+
     internal static BoundBlockStatement Block(SyntaxNode syntax, params BoundStatement[] statements) {
         return new BoundBlockStatement(syntax, ImmutableArray.Create(statements), [], []);
     }

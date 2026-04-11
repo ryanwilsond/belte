@@ -8,6 +8,10 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
+/// <summary>
+/// For lowering control flow structures.
+/// Runs before general lowering to simplify the number of nodes they have to cover.
+/// </summary>
 internal sealed partial class FlowLowerer : BoundTreeRewriter {
     private readonly List<string> _localNames = [];
     private int _tempCount = 0;

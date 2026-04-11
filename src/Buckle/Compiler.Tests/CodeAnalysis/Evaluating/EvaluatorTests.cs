@@ -251,6 +251,7 @@ public sealed class EvaluatorTests {
     [InlineData("return (string)null;", null)]
     [InlineData("return (int)null;", null)]
     [InlineData("int! a = 3; decimal! b = 3.5; return (int!)b == a;", true)]
+    [InlineData("int! a = 3; string b = \"test\" + (string)a; return b;", "test3")]
     [InlineData("lowlevel { any a = new int[] {1, 2, 3}; return ((int[])a)[1]; }", 2)]
     [InlineData("lowlevel { any a = new bool[] {true, false}; return ((bool[])a)[0]; }", true)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[0]; }", 1)]
@@ -465,6 +466,90 @@ public sealed class EvaluatorTests {
     // [InlineData("class P { public static T M<type T>(T b) { T a = b; L<bool>(); return a; void L<type T2>() { a = null; } } } return P.M<int>();", null)]
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
+    [InlineData(@"
+    struct A { B b; }
+    struct B { int a; }
+
+    var c = new A();
+    c.b.a = 4;
+    return c.b.a;
+    ", 4)]
+    // Compound nullability operators
+    [InlineData(@"
+    class A {
+        public int! Length() { return 4; }
+    }
+
+    A a = new A();
+    int! b = a?.Length()?;
+    return b;
+    ", 4)]
+    [InlineData(@"
+    class A {
+        public int! Length() { return 4; }
+    }
+
+    A a = null;
+    int! b = a?.Length()?;
+    return b;
+    ", 0)]
+    [InlineData(@"
+    class A {
+        public int a;
+    }
+
+    A a = new A();
+    a?.a = 3;
+    return a?.a;
+    ", 3)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public A b;
+    }
+
+    A a = new A();
+    a?.b?.a = 3;
+    return a?.b?.a;
+    ", null)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public void M() { a = 5; }
+    }
+
+    A a = new A()?..M();
+    return a.a;
+    ", 5)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public void M() { a = 5; }
+    }
+
+    A a = null;
+    var b = a?..M();
+    return b?.a;
+    ", null)]
+    [InlineData(@"
+    class A {
+        public int a;
+        public A b;
+    }
+
+    var a = new A()?..b = (new A()..a = 4);
+    return a.b.a;
+    ", 4)]
+    [InlineData(@"
+    int[][] a = null;
+    a?[0]?[0] = 5;
+    return a?[0]?[0];
+    ", null)]
+    [InlineData(@"
+    int[][] a = { { 1 } };
+    a?[0]?[0] = 5;
+    return a?[0]?[0];
+    ", 5)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

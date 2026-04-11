@@ -873,7 +873,6 @@ public sealed class DisplayText {
     }
 
     private static void DisplayConditionalAccessExpression(DisplayText text, BoundConditionalAccessExpression node) {
-        DisplayNode(text, node.receiver);
         var accessExpression = node.accessExpression;
 
         switch (accessExpression) {
@@ -882,6 +881,9 @@ public sealed class DisplayText {
                 break;
             case BoundFieldAccessExpression f:
                 DisplayFieldAccessExpression(text, f, true);
+                break;
+            case BoundCallExpression c:
+                DisplayCallExpression(text, c, true);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);
@@ -1030,10 +1032,10 @@ public sealed class DisplayText {
         DisplayNode(text, node.operand);
     }
 
-    private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
+    private static void DisplayCallExpression(DisplayText text, BoundCallExpression node, bool conditional = false) {
         if (node.receiver is not null) {
             DisplayNode(text, node.receiver);
-            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+            text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
             text.Write(CreateIdentifier(node.method.name));
         } else {
             // Static methods drop their receiver (it's functionally not used)

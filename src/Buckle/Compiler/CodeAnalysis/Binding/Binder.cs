@@ -2178,6 +2178,9 @@ internal partial class Binder {
         if (expression.hasAnyErrors)
             return false;
 
+        if (expression is BoundConditionalAccessExpression c)
+            expression = c.accessExpression;
+
         if (RequiresRValueOnly(valueKind))
             return CheckNotNamespaceOrType(expression, diagnostics);
 
@@ -12112,15 +12115,21 @@ symIsHidden:;
             if (expression is BoundCompileTimeExpression cte)
                 return IsInvalidExpressionStatement(cte.expression);
 
-            return expression is not BoundCallExpression
-                          and not BoundAssignmentOperator
-                          and not BoundErrorExpression
-                          and not BoundCompoundAssignmentOperator
-                          and not BoundThrowExpression
-                          and not BoundIncrementOperator
-                          and not BoundNullCoalescingAssignmentOperator
-                          and not BoundFunctionPointerCallExpression
-                          and not BoundCompileTimeExpression;
+            switch (expression.kind) {
+                case BoundKind.AssignmentOperator:
+                case BoundKind.ErrorExpression:
+                case BoundKind.CompoundAssignmentOperator:
+                case BoundKind.ThrowExpression:
+                case BoundKind.IncrementOperator:
+                case BoundKind.NullCoalescingAssignmentOperator:
+                case BoundKind.FunctionPointerCallExpression:
+                case BoundKind.CompileTimeExpression:
+                case BoundKind.CallExpression:
+                case BoundKind.CascadeListExpression:
+                    return false;
+                default:
+                    return true;
+            }
         }
     }
 

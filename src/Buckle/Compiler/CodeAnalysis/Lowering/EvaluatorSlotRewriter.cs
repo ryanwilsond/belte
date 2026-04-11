@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
