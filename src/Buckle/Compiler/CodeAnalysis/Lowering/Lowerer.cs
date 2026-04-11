@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -590,6 +591,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
+    internal override BoundNode VisitCastExpression(BoundCastExpression node) {
+        if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
+            return node;
+
+        return base.VisitCastExpression(node);
+    }
+
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
         /*
 
@@ -740,7 +748,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
-    internal static BoundNode VisitConstant(BoundExpression expression) {
+    internal static BoundExpression VisitConstant(BoundExpression expression) {
         var syntax = expression.syntax;
         var type = expression.Type();
 

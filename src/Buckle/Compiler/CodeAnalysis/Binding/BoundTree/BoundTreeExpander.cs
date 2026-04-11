@@ -615,7 +615,10 @@ internal abstract partial class BoundTreeExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         var statements = ExpandExpression(expression.left, out var newLeft);
-        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+        var newRight = expression.right;
+
+        if (!newRight.IsLiteralNull())
+            statements.AddRange(ExpandExpression(expression.right, out newRight));
 
         if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
             replacement = expression.Update(
@@ -1109,7 +1112,13 @@ internal abstract partial class BoundTreeExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         if (!expression.field.isStatic) {
-            var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.StableValue);
+            // Structs are special case because they have limited expansion ability (they are non-nullable)
+            // And because they are passed by value so in something like `a.b.c = x`, we can't hoist anything
+            var statements = ExpandExpression(
+                expression.receiver,
+                out var newReceiver,
+                expression.receiver.Type().IsStructType() ? UseKind.Writable : UseKind.StableValue
+            );
 
             if (statements.Count != 0 || expression.receiver != newReceiver) {
                 replacement = expression.Update(

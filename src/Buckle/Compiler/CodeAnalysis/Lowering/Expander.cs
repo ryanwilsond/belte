@@ -30,6 +30,18 @@ internal sealed class Expander : BoundTreeExpander {
         return Simplify(statement.syntax, ExpandStatement(statement));
     }
 
+    private protected override List<BoundStatement> ExpandExpression(
+        BoundExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind = UseKind.Value) {
+        if (expression.constantValue is not null) {
+            replacement = Lowerer.VisitConstant(expression);
+            return [];
+        }
+
+        return base.ExpandExpression(expression, out replacement, useKind);
+    }
+
     private protected override List<BoundStatement> ExpandCascadeListExpression(
         BoundCascadeListExpression expression,
         out BoundExpression replacement,
@@ -259,7 +271,14 @@ internal sealed class Expander : BoundTreeExpander {
                 newRight,
                 expression.op.kind,
                 expression.op.method,
-                expression.constantValue,
+                ConstantFolding.FoldBinary(
+                    newLeft,
+                    newRight,
+                    expression.op.kind,
+                    expression.Type(),
+                    syntax.location,
+                    BelteDiagnosticQueue.Discarded
+                ),
                 expression.type
             ),
             false,
@@ -408,26 +427,12 @@ internal sealed class Expander : BoundTreeExpander {
         BoundCallExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        /*
+        var statements = base.ExpandCallExpression(expression, out replacement, UseKind.Value);
 
-        <operand>(<args>)
-
-        ----> UseKind.StableValue, UseKind.Writable
-
-        temp = <operand>(<args>)
-        temp
-
-        */
-        var syntax = expression.syntax;
-
-        var statements = base.ExpandCallExpression(expression, out var newCall, UseKind.Value);
-
-        if (useKind == UseKind.Value) {
-            replacement = newCall;
+        if (useKind == UseKind.Writable && expression.method.returnsByRef)
             return statements;
-        } else {
-            return Stabilize(syntax, statements, newCall, out replacement);
-        }
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandBinaryOperator(
@@ -468,11 +473,14 @@ internal sealed class Expander : BoundTreeExpander {
         */
         var op = expression.operatorKind;
 
-        if (op.Operator() == BinaryOperatorKind.ConditionalAnd)
-            return ExpandConditionalAndOperator(expression, out replacement);
-
-        if (op.Operator() == BinaryOperatorKind.ConditionalOr)
-            return ExpandConditionalOrOperator(expression, out replacement);
+        if (op.IsConditional()) {
+            if (op.Operator() == BinaryOperatorKind.And)
+                return ExpandConditionalAndOperator(expression, out replacement);
+            else if (op.Operator() == BinaryOperatorKind.Or)
+                return ExpandConditionalOrOperator(expression, out replacement);
+            else
+                throw ExceptionUtilities.UnexpectedValue(op);
+        }
 
         var syntax = expression.syntax;
 
@@ -534,9 +542,9 @@ internal sealed class Expander : BoundTreeExpander {
                 ),
                 @then: Lowerer.CreateNullable(syntax,
                     Binary(syntax,
-                        Value(syntax, newLeft, newLeft.Type().GetNullableUnderlyingType()),
+                        Value(syntax, newLeft, newLeft.Type().StrippedType()),
                         op,
-                        Value(syntax, newRight, newRight.Type().GetNullableUnderlyingType()),
+                        Value(syntax, newRight, newRight.Type().StrippedType()),
                         type.StrippedType()
                         ),
                     type
@@ -552,7 +560,7 @@ internal sealed class Expander : BoundTreeExpander {
                 @if: HasValue(syntax, newLeft),
                 @then: Lowerer.CreateNullable(syntax,
                     Binary(syntax,
-                        Value(syntax, newLeft, newLeft.Type().GetNullableUnderlyingType()),
+                        Value(syntax, newLeft, newLeft.Type().StrippedType()),
                         op,
                         Lowerer.DeNull(newRight),
                         type.StrippedType()
@@ -572,7 +580,7 @@ internal sealed class Expander : BoundTreeExpander {
                     Binary(syntax,
                         Lowerer.DeNull(newLeft),
                         op,
-                        Value(syntax, newRight, newRight.Type().GetNullableUnderlyingType()),
+                        Value(syntax, newRight, newRight.Type().StrippedType()),
                         type.StrippedType()
                     ),
                     type
@@ -632,6 +640,8 @@ internal sealed class Expander : BoundTreeExpander {
         var syntax = expression.syntax;
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
 
+        // TODO There is probably potential for short cutting if left and right are "simple" (e.g. `a && b`)
+
         if (expression.left.Type().IsNullableType() && expression.right.Type().IsNullableType()) {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
             var temp = GenerateTempLocal(boolType);
@@ -640,7 +650,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     IsNull(syntax, newLeft),
-                    BinaryOperatorKind.ConditionalOr,
+                    BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
@@ -672,7 +682,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     IsNull(syntax, newLeft),
-                    BinaryOperatorKind.ConditionalOr,
+                    BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
@@ -812,7 +822,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(GotoIfNot(syntax, breakLabel,
                 Binary(syntax,
                     IsNull(syntax, newLeft),
-                    BinaryOperatorKind.ConditionalOr,
+                    BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
@@ -854,7 +864,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.Add(GotoIfNot(syntax, breakLabel,
                 Binary(syntax,
                     IsNull(syntax, newLeft),
-                    BinaryOperatorKind.ConditionalOr,
+                    BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
@@ -1262,7 +1272,11 @@ internal sealed class Expander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         var statements = base.ExpandPointerIndirectionOperator(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandArrayCreationExpression(
@@ -1454,10 +1468,10 @@ internal sealed class Expander : BoundTreeExpander {
             if (content.constantValue?.specialType == SpecialType.String) {
                 right = Literal(syntax, content.constantValue.value, stringType);
             } else {
-                statements.AddRange(ExpandExpression(content, out var replacementContent, UseKind.StableValue));
-
-                if (replacementContent.IsLiteralNull())
+                if (content.IsLiteralNull())
                     continue;
+
+                statements.AddRange(ExpandExpression(content, out var replacementContent, UseKind.StableValue));
 
                 if (replacementContent.StrippedType().specialType == SpecialType.String) {
                     right = replacementContent;
