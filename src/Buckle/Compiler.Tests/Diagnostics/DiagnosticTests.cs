@@ -4793,7 +4793,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            for iterator expression must be an array or string or define the iter operator or define the length and [] operators
+            for iterator expression must be an array, string, Enumerator or define the iter operator or define the length and [] operators
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

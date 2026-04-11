@@ -10710,6 +10710,9 @@ symIsHidden:;
         } else if (type.specialType == SpecialType.String) {
             inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
             return false;
+        } else if (type.specialType == SpecialType.Enumerator) {
+            inferredType = ((NamedTypeSymbol)type).templateArguments[0].type;
+            return false;
         } else if (lengthOps.Any() && worseIndexOp is not null) {
             inferredType = (bestIndexOp ?? worseIndexOp).returnTypeWithAnnotations;
             return false;

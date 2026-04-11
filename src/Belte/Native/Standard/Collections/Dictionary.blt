@@ -248,6 +248,10 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             return _current;
         }
 
+        public override void Reset() {
+            _index = 0;
+        }
+
         public override bool! MoveNext() {
             while ((uint32)_index < (uint32)_dictionary._count) {
                 ref Entry reference = ref _dictionary._entries[_index++];

@@ -329,6 +329,7 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
         var type = node.expression.StrippedType();
         var isString = type.specialType == SpecialType.String;
         var isArray = type.IsArray();
+        var isEnumerator = type.specialType == SpecialType.Enumerator;
         var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
         var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
         var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
@@ -340,11 +341,11 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
 
         var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
-        var lengthOrIter = (isArray || isString || lengthOps.Any())
+        var lengthOrIter = isEnumerator ? temp : (isArray || isString || lengthOps.Any())
             ? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int))
             : GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
 
-        var lengthOrIterInit = isArray
+        var lengthOrIterInit = isEnumerator ? null : isArray
             ? Call(syntax,
                 ((MethodSymbol)StandardLibrary.LowLevel.GetMembers("Length").Single())
                     .Construct([new TypeOrConstant(node.expression.type)]),
@@ -393,41 +394,41 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
                         Local(syntax, lengthOrIter),
                         (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
 
-        return Visit(
-            Block(syntax,
-                node.locals,
-                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
-                    temp,
-                    node.expression.Type().IsNullableType()
-                        ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
-                        : node.expression
-                )),
-                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
-                    lengthOrIter,
-                    lengthOrIterInit
-                )),
-                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
-                    index,
-                    Literal(syntax, 0L, index.type)
-                )),
-                new BoundForStatement(syntax,
-                    [],
-                    new BoundNopStatement(syntax),
-                    [],
-                    condition,
-                    new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
-                    Block(syntax,
-                        new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
-                            node.valueLocal,
-                            indexer
-                        )),
-                        node.body
-                    ),
-                    node.breakLabel,
-                    node.continueLabel
-                )
+        return Visit(Block(syntax, node.locals, [
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                temp,
+                node.expression.Type().IsNullableType()
+                    ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
+                    : node.expression
+            )),
+            !isEnumerator ? new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                lengthOrIter,
+                lengthOrIterInit
+            )) : new BoundExpressionStatement(syntax, InstanceCall(syntax,
+                Local(syntax, temp),
+                (MethodSymbol)type.GetMembers("Reset").Single()
+            )),
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                index,
+                Literal(syntax, 0L, index.type)
+            )),
+            new BoundForStatement(syntax,
+                [],
+                new BoundNopStatement(syntax),
+                [],
+                condition,
+                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                Block(syntax,
+                    new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        node.valueLocal,
+                        indexer
+                    )),
+                    node.body
+                ),
+                node.breakLabel,
+                node.continueLabel
             )
-        );
+        ]));
     }
 
     internal override BoundNode VisitBreakStatement(BoundBreakStatement statement) {
