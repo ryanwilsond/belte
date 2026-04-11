@@ -883,6 +883,9 @@ public sealed class DisplayText {
             case BoundFieldAccessExpression f:
                 DisplayFieldAccessExpression(text, f, true);
                 break;
+            case BoundCallExpression c:
+                DisplayCallExpression(text, c, true);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);
         }
@@ -1030,10 +1033,12 @@ public sealed class DisplayText {
         DisplayNode(text, node.operand);
     }
 
-    private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
+    private static void DisplayCallExpression(DisplayText text, BoundCallExpression node, bool conditional = false) {
         if (node.receiver is not null) {
-            DisplayNode(text, node.receiver);
-            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+            if (!conditional)
+                DisplayNode(text, node.receiver);
+
+            text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
             text.Write(CreateIdentifier(node.method.name));
         } else {
             // Static methods drop their receiver (it's functionally not used)

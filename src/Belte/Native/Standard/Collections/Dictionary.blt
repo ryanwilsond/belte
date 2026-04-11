@@ -25,7 +25,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     public constructor(Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
     public constructor(Dictionary<TKey, TValue> dictionary, EqualityComparer<TKey> comparer)
-        : this(dictionary isnt null ? dictionary.Length() : 0, comparer) {
+        : this(dictionary?.Length()?, comparer) {
         if (dictionary is null)
             throw new ArgumentNullException();
 

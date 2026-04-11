@@ -51,7 +51,8 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
 
     private protected override List<BoundStatement> ExpandCompileTimeExpression(
         BoundCompileTimeExpression node,
-        out BoundExpression replacement) {
+        out BoundExpression replacement,
+        UseKind useKind) {
         try {
             var methodLayout = _program.methodLayouts[_container.originalDefinition];
             var result = _evaluator.EvaluateExpression(node.expression, methodLayout, out var hasValue);

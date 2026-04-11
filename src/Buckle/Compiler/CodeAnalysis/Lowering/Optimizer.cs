@@ -9,7 +9,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Lowering;
 
 /// <summary>
-/// Optimizes BoundExpressions and BoundStatements.
+/// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriter {
     private Optimizer() { }
