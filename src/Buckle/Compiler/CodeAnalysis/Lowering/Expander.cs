@@ -79,7 +79,6 @@ internal sealed class Expander : BoundTreeExpander {
 
                     break;
                 case BoundKind.CallExpression: {
-                        // TODO Conditional cascade
                         var call = (BoundCallExpression)cascade;
                         var replacementReceiver = Local(syntax, tempLocal);
                         statements.AddRange(ExpandExpressionList(call.arguments, out var arguments));

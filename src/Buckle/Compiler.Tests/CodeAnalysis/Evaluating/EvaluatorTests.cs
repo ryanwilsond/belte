@@ -540,6 +540,16 @@ public sealed class EvaluatorTests {
     var a = new A()?..b = (new A()..a = 4);
     return a.b.a;
     ", 4)]
+    [InlineData(@"
+    int[][] a = null;
+    a?[0]?[0] = 5;
+    return a?[0]?[0];
+    ", null)]
+    [InlineData(@"
+    int[][] a = { { 1 } };
+    a?[0]?[0] = 5;
+    return a?[0]?[0];
+    ", 5)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
