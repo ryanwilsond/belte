@@ -23,6 +23,7 @@ This may change.
   - [6.11.1](#6111-verification) Verification
   - [6.11.2](#6112-unsupported-instructions) Unsupported Instructions
 - [6.12](#612-pinned-locals) Pinned Locals
+- [6.13](#613-compiler-handle) Compiler Handle
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -492,3 +493,48 @@ Locals can be pinned meaning the object they refer to will not be moved around o
 ```belte
 pinned var myLocal = new List<int>();
 ```
+
+## 6.13 Compiler Handle
+
+The `#handle <target>` preprocessor directive can be used to add a handler to the compilation. The operand of `#handle`
+has to be a unambiguous class name. Any code within that class will be compiled early so that it can "watch" the rest
+of the compilation via messages and a hook into the compilation.
+
+The handle class has to contain an unambiguous static method that takes in two arguments but can return anything. The
+first parameter type must be `Buckle.CodeAnalysis.Compilation.Message` and the second must be
+`Buckle.CodeAnalysis.Compilation`. The message will give phase information about the compilation. Each handler method
+will be called once per unique message. The second argument gives direct access to the compilation for the entire
+program allowing the ability to modify or add symbols or collect general information.
+
+The required parameter types of the handle come from a shipped `Compiler.dll` that lives alongside the actual compiler
+program. This library is not referenced by default so a
+[`--ref=<path>` argument](../Buckle.md#--reffile---referencefile) must be used.
+
+Basic example:
+
+```belte
+#handle HandleClass
+
+using Buckle.CodeAnalysis;
+using static Buckle.CodeAnalysis.Compilation;
+
+public static class HandleClass {
+    private static int Handler(Message msg, Compilation compilation) {
+        switch (msg.Kind()) {
+            case MessageKind.Parsed:
+                Console.PrintLine("Parsed");
+            case MessageKind.Bound:
+                Console.PrintLine("Bound");
+            case MessageKind.BeforeEmit:
+                Console.PrintLine("BeforeEmit");
+            case MessageKind.Finished:
+                Console.PrintLine("Finished");
+        }
+
+        return 0;
+    }
+}
+```
+
+Note that because the target handle class is also treated like a normal type, normal accessibility rules still apply.
+As such, the handle method must be made private because `Buckle.CodeAnalysis.Compilation` is not public.

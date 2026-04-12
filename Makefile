@@ -81,6 +81,7 @@ libs:
 	@$(MKDIR) lib
 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Runtime/Belte.Runtime.csproj -o lib
 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
+	@dotnet publish $(PUBLISH_FLAGS) $(COMPILER_DIR)/Compiler.csproj -o lib
 	@echo "    Finished"
 
 prebuild:

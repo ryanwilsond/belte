@@ -38,6 +38,10 @@ internal static class AccessCheck {
         out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
 
+        // TODO This is temporary
+        if (symbol.containingAssembly?.isLinked ?? false)
+            return true;
+
         switch (symbol.kind) {
             case SymbolKind.ArrayType:
                 return IsSymbolAccessibleCore(

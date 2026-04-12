@@ -39,7 +39,7 @@ public sealed partial class Compilation {
             var assemblyBuilder = ArrayBuilder<PEAssemblySymbol>.GetInstance();
 
             foreach (var assembly in _assemblies) {
-                var assemblySymbol = CreatePEAssemblyForAssemblyMetadata(assembly, MetadataImportOptions.Public, out _);
+                var assemblySymbol = CreatePEAssemblyForAssemblyMetadata(assembly, MetadataImportOptions.All, out _);
                 assemblyBuilder.Add(assemblySymbol);
             }
 
@@ -71,7 +71,7 @@ public sealed partial class Compilation {
                 assembly.assemblyReferences
             );
 
-            var assemblySymbol = new PEAssemblySymbol(assembly, isLinked: false, importOptions: importOptions);
+            var assemblySymbol = new PEAssemblySymbol(assembly, isLinked: true, importOptions: importOptions);
 
             var unifiedAssemblies = _unifiedAssemblies.WhereAsArray(
                 (unified, referencedAssembliesByIdentity)

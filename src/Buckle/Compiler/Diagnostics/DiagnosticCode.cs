@@ -412,6 +412,8 @@ public enum DiagnosticCode : ushort {
     ERR_NullErasureOnNull = 401,
     ERR_NullBindingRequiresNullable = 402,
     ERR_NullBindingOnNull = 403,
+    ERR_NoHandleTarget = 404,
+    ERR_AmbiguousHandleTarget = 405,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

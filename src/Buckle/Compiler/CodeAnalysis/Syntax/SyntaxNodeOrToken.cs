@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -230,6 +231,54 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
         }
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal IList<TDirective> GetDirectives<TDirective>(Func<TDirective, bool> filter = null)
+        where TDirective : SyntaxNode {
+        GetDirectives(this, filter, out var directives);
+        return directives;
+    }
+
+    private static void GetDirectives<TDirective>(
+        in SyntaxNodeOrToken node,
+        Func<TDirective, bool> filter,
+        out IList<TDirective> directives)
+        where TDirective : SyntaxNode {
+        List<TDirective> buffer = null;
+
+        if (node._token is not null) {
+            if (node._token.containsDirectives) {
+                foreach (var trivia in node.AsToken().leadingTrivia)
+                    GetDirectivesInTrivia(trivia, filter, ref buffer);
+            }
+        } else if (node._nodeOrParent != null) {
+            GetDirectives(node._nodeOrParent, filter, ref buffer);
+        }
+
+        directives = buffer ?? SpecializedCollections.EmptyList<TDirective>();
+    }
+
+    private static void GetDirectivesInTrivia<TDirective>(
+        in SyntaxTrivia trivia,
+        Func<TDirective, bool> filter,
+        ref List<TDirective> directives)
+        where TDirective : SyntaxNode {
+        if (trivia.isDirective) {
+            if (trivia.GetStructure() is TDirective directive &&
+                filter?.Invoke(directive) != false) {
+                directives ??= [];
+                directives.Add(directive);
+            }
+        }
+    }
+
+    private static void GetDirectives<TDirective>(
+        SyntaxNode node,
+        Func<TDirective, bool> filter,
+        ref List<TDirective> directives)
+        where TDirective : SyntaxNode {
+        foreach (var trivia in node.DescendantTrivia(node => node.containsDirectives, descendIntoTrivia: true))
+            GetDirectivesInTrivia(trivia, filter, ref directives);
     }
 
     public static implicit operator SyntaxNodeOrToken(SyntaxToken token) {

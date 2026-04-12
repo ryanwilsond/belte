@@ -15,7 +15,6 @@ internal sealed class DirectiveParser : SyntaxParser {
         bool endIsActive,
         bool isAfterFirstTokenInFile,
         bool isAfterNonWhitespaceOnLine) {
-        var position = _lexer.position;
         var hash = Match(SyntaxKind.HashToken);
 
         if (isAfterNonWhitespaceOnLine)
@@ -45,6 +44,9 @@ internal sealed class DirectiveParser : SyntaxParser {
                 );
 
                 break;
+            case SyntaxKind.HandleKeyword:
+                result = ParseHandleDirective(hash, EatToken(), isActive);
+                break;
             default:
                 var identifier = Match(SyntaxKind.IdentifierToken);
                 var end = ParseEndOfDirective();
@@ -53,6 +55,12 @@ internal sealed class DirectiveParser : SyntaxParser {
         }
 
         return result;
+    }
+
+    private DirectiveTriviaSyntax ParseHandleDirective(SyntaxToken hash, SyntaxToken keyword, bool isActive) {
+        var identifier = Match(SyntaxKind.IdentifierToken);
+        var eod = ParseEndOfDirective();
+        return SyntaxFactory.HandleDirectiveTrivia(hash, keyword, identifier, eod, isActive);
     }
 
     private SyntaxToken ParseEndOfDirective() {

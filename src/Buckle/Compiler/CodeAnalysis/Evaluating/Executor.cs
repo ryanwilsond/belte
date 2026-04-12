@@ -95,7 +95,8 @@ internal sealed partial class Executor : ModuleBuilder {
             .Where(t => t.kind == SymbolKind.NamedType &&
                 t.containingSymbol.kind == SymbolKind.Namespace &&
                 t.specialType is SpecialType.None or SpecialType.List or
-                                 SpecialType.Dictionary or SpecialType.Enumerator)
+                                 SpecialType.Dictionary or SpecialType.Enumerator &&
+                t.originalDefinition is not PENamedTypeSymbol)
             .ToArray()
             .Cast<NamedTypeSymbol>()
             .ToImmutableArray();
@@ -207,6 +208,24 @@ internal sealed partial class Executor : ModuleBuilder {
         return result;
     }
 
+    internal static Executor CreateForHandler(
+        BoundProgram program,
+        BelteDiagnosticQueue diagnostics,
+        NamedTypeSymbol type) {
+        var executor = new Executor(program, [], diagnostics) {
+            _programNamedType = type,
+            _logger = new StringWriter()
+        };
+
+        executor.EmitInternal();
+        return executor;
+    }
+
+    internal object ExecuteMethod(MethodSymbol method, params object[] arguments) {
+        var methodInv = _programType.GetMethod(method.name, BindingFlags.Public | BindingFlags.Static);
+        return methodInv.Invoke(null, arguments);
+    }
+
     internal Type GetType(TypeSymbol type, bool byRef = false) {
         var typeRef = GetTypeCore(type);
 
@@ -242,7 +261,7 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
-            if (type.IsEnumType())
+            if (type.IsEnumType() && type.originalDefinition is not PENamedTypeSymbol)
                 return _enums[type.originalDefinition];
 
             if (type is TemplateParameterSymbol t) {
@@ -269,8 +288,8 @@ internal sealed partial class Executor : ModuleBuilder {
         Type GetTypeWithContainingGenerics(NamedTypeSymbol type) {
             var foundType = GetTypeCoreInternal(type);
 
-            // Acceptable inside specific contexts like typeof
-            if (type.ContainsErrorType())
+            // Error types acceptable inside specific contexts like typeof
+            if (type.ContainsErrorType() || type.IsEnumType())
                 return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
@@ -299,7 +318,7 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type is PENamedTypeSymbol t)
+            if (type.originalDefinition is PENamedTypeSymbol t)
                 return ResolveType(t);
 
             if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
@@ -315,15 +334,38 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private Type ResolveType(PENamedTypeSymbol type) {
+    internal static Type ResolveType(PENamedTypeSymbol type) {
         var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
         var assembly = Assembly.LoadFrom(metadata.location);
-        return assembly.GetType(type.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat));
+
+        var stack = new Stack<PENamedTypeSymbol>();
+        var current = type;
+
+        while (current is not null) {
+            stack.Push(current);
+            current = current.containingType as PENamedTypeSymbol;
+        }
+
+        var topType = stack.Pop();
+        var displayName = topType.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat);
+        var currentFoundType = assembly.GetType(displayName);
+
+        while (stack.Count > 0) {
+            var nestedType = stack.Pop();
+            var flags = nestedType.declaredAccessibility == Accessibility.Public
+                ? BindingFlags.Public
+                : BindingFlags.NonPublic;
+            currentFoundType = currentFoundType.GetNestedType(nestedType.name, flags);
+        }
+
+        return currentFoundType;
     }
 
     internal FieldInfo GetField(FieldSymbol field) {
-        if (field is PEFieldSymbol f)
-            return GetType(field.containingType).GetField(f.name);
+        if (field is PEFieldSymbol f) {
+            var flags = f.declaredAccessibility == Accessibility.Public ? BindingFlags.Public : BindingFlags.NonPublic;
+            return GetType(field.containingType).GetField(f.name, flags);
+        }
 
         var foundField = _fields[field.originalDefinition];
 
@@ -349,8 +391,21 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         if (method is PEMethodSymbol m) {
-            var containingType = GetType(m.containingType);
-            return containingType.GetMethod(m.name, m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+            var containingType = GetType(m.containingType) as TypeInfo;
+            var paramTypes = m.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
+            var foundMethods = containingType.GetDeclaredMethods(m.name).ToArray();
+            foundMethods = foundMethods.Where(f => f.IsPublic == (m.declaredAccessibility == Accessibility.Public))
+                .ToArray();
+
+            if (foundMethods.Length == 0)
+                throw ExceptionUtilities.Unreachable();
+            if (foundMethods.Length == 1)
+                return foundMethods[0];
+
+            foundMethods = foundMethods.Where(
+                f => f.GetParameters().Select(p => p.ParameterType).SequenceEqual(paramTypes)).ToArray();
+
+            return foundMethods.Single();
         }
 
         return CheckStandardMap(method);
@@ -366,8 +421,11 @@ internal sealed partial class Executor : ModuleBuilder {
             return value;
         }
 
-        if (method is PEMethodSymbol m)
-            return GetType(m.containingType).GetConstructor(m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+        if (method is PEMethodSymbol m) {
+            var flags = m.declaredAccessibility == Accessibility.Public ? BindingFlags.Public : BindingFlags.NonPublic;
+            return GetType(m.containingType)
+                .GetConstructor(flags, m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+        }
 
         return CheckConstructorsStandardMap(method);
     }
