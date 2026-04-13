@@ -169,7 +169,10 @@ internal class SwitchBinder : LocalScopeBinder {
             switch (labelSyntax.kind) {
                 case SyntaxKind.CaseSwitchLabel:
                     var caseLabel = (CaseSwitchLabelSyntax)labelSyntax;
-                    var boundLabelExpression = sectionBinder.BindTypeOrRValue(caseLabel.value, tempDiagnosticBag);
+                    var boundLabelExpression = sectionBinder.BindTypeOrRValueAllowingImplicitEnum(
+                        caseLabel.value,
+                        tempDiagnosticBag
+                    );
 
                     if (boundLabelExpression is not BoundTypeExpression)
                         ConvertCaseExpression(labelSyntax, boundLabelExpression, out boundLabelConstant, tempDiagnosticBag);
@@ -181,7 +184,7 @@ internal class SwitchBinder : LocalScopeBinder {
                     var multiCaseLabel = (MultiCaseSwitchLabelSyntax)labelSyntax;
 
                     foreach (var value in multiCaseLabel.values) {
-                        var boundValue = sectionBinder.BindTypeOrRValue(value, tempDiagnosticBag);
+                        var boundValue = sectionBinder.BindTypeOrRValueAllowingImplicitEnum(value, tempDiagnosticBag);
 
                         if (boundValue is not BoundTypeExpression)
                             ConvertCaseExpression(labelSyntax, boundValue, out boundLabelConstant, tempDiagnosticBag);

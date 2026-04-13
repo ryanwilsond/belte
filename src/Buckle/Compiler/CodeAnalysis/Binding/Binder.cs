@@ -1207,6 +1207,17 @@ internal partial class Binder {
         return CheckValue(valueOrType, BindValueKind.RValue, diagnostics);
     }
 
+    internal BoundExpression BindTypeOrRValueAllowingImplicitEnum(
+        ExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var valueOrType = BindExpressionInternal(node, diagnostics: diagnostics, called: false, indexed: false);
+
+        if (valueOrType.kind is BoundKind.TypeExpression or BoundKind.UnconvertedImplicitEnumFieldExpression)
+            return valueOrType;
+
+        return CheckValue(valueOrType, BindValueKind.RValue, diagnostics);
+    }
+
     private AnalyzedArguments BindTemplateArguments(
         SeparatedSyntaxList<BaseArgumentSyntax> templateArguments,
         BelteDiagnosticQueue diagnostics,
@@ -12804,16 +12815,6 @@ symIsHidden:;
         TypeSymbol destination,
         BelteDiagnosticQueue diagnostics,
         bool hasErrors = false) {
-        if (conversion.isIdentity) {
-            source = BindToNaturalType(source, diagnostics);
-
-            if (!isCast &&
-                (source.IsLiteralNull() ||
-                (source.type is not null && source.Type().Equals(destination, TypeCompareKind.IgnoreNullability)))) {
-                return source;
-            }
-        }
-
         if (source.kind == BoundKind.UnconvertedInitializerList) {
             var listExpression = ConvertListExpression(
                 (BoundUnconvertedInitializerList)source,
@@ -12860,9 +12861,19 @@ symIsHidden:;
                 node,
                 fieldExpression,
                 conversion,
-                null,
+                fieldExpression.constantValue,
                 destination
             );
+        }
+
+        if (conversion.isIdentity) {
+            source = BindToNaturalType(source, diagnostics);
+
+            if (!isCast &&
+                (source.IsLiteralNull() ||
+                (source.type is not null && source.Type().Equals(destination, TypeCompareKind.IgnoreNullability)))) {
+                return source;
+            }
         }
 
         ConstantValue constantValue = null;

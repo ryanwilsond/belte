@@ -522,13 +522,13 @@ using Buckle.CodeAnalysis;
 public static class HandleClass {
     private static void Handler(Message msg, CompilerContext context) {
         switch (msg.Kind()) {
-            case MessageKind.Parsed:
+            case .Parsed:
                 Console.PrintLine("Parsed");
-            case MessageKind.Bound:
+            case .Bound:
                 Console.PrintLine("Bound");
-            case MessageKind.BeforeEmit:
+            case .BeforeEmit:
                 Console.PrintLine("BeforeEmit");
-            case MessageKind.Finished:
+            case .Finished:
                 Console.PrintLine("Finished");
         }
     }

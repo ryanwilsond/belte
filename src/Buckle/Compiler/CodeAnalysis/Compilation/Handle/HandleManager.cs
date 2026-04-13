@@ -117,17 +117,23 @@ internal sealed class HandleManager {
             return null;
         }
 
+        var previousDiagnostics = _compilation.declarationDiagnostics.ToArray();
+
         var foundHandleMethod = handleCandidates[0];
         var program = MethodCompiler.CompileMethodBodies(
             _compilation,
             _compilation.declarationDiagnostics,
             s => (object)s.originalDefinition == foundHandleClass.originalDefinition ||
                  (object)s.containingType?.originalDefinition == foundHandleClass.originalDefinition ||
-                 (s is NamespaceSymbol)
+                 (s is NamespaceSymbol),
+            skipEntryPoint: true
         );
 
-        if (_compilation.declarationDiagnostics.AnyErrors())
+        if (_compilation.declarationDiagnostics.AnyErrors()) {
+            // Diagnostics will be resolved on the normal compilation pass
+            _compilation.SetDeclarationDiagnostics(new BelteDiagnosticQueue(previousDiagnostics));
             return null;
+        }
 
         return new Handle(
             program,

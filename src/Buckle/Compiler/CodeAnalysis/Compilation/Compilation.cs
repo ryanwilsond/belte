@@ -509,6 +509,10 @@ public sealed partial class Compilation {
         return GetDiagnostics(true, true, true);
     }
 
+    internal void SetDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
+        Interlocked.Exchange(ref _lazyDeclarationDiagnostics, diagnostics);
+    }
+
     internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
         if (_lazyEntryPoint is null) {
             var simpleEntryPoint = SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this);
