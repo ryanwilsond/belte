@@ -728,6 +728,23 @@ public sealed partial class Compilation {
         return new NameSymbolSearcher(this, filter, name).GetSymbolsWithName();
     }
 
+    internal IEnumerable<Symbol> GetSymbolsWithName(Func<string, bool> predicate, SymbolFilter filter) {
+        if (predicate is null)
+            throw new ArgumentNullException(nameof(predicate));
+
+        if (filter == SymbolFilter.None)
+            throw new ArgumentException(nameof(filter));
+
+        return new PredicateSymbolSearcher(this, filter, predicate).GetSymbolsWithName();
+    }
+
+    internal IEnumerable<Symbol> GetSymbols(SymbolFilter filter) {
+        if (filter == SymbolFilter.None)
+            throw new ArgumentException(nameof(filter));
+
+        return new PredicateSymbolSearcher(this, filter, x => true).GetSymbolsWithName();
+    }
+
     internal static MethodSymbol SelectEntryPoint(
         SynthesizedEntryPoint simpleEntryPoint,
         ImmutableArray<MethodSymbol> methods,

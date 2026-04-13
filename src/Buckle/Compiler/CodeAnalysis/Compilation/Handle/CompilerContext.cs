@@ -34,6 +34,10 @@ public sealed class CompilerContext {
         return _compilation.GetSymbolsWithName(name, filter).ToImmutableArray();
     }
 
+    internal ImmutableArray<Symbol> GetSymbols(SymbolFilter filter) {
+        return _compilation.GetSymbols(filter).ToImmutableArray();
+    }
+
     internal Compilation GetCompilation() {
         return _compilation;
     }

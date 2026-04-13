@@ -1,9 +1,0 @@
-
-[Serializable]
-struct Player {
-    int id;
-    string name;
-    float health;
-}
-
-;

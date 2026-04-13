@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -198,6 +199,10 @@ internal abstract class Symbol : ISymbol {
 
     internal virtual ImmutableArray<AttributeData> GetAttributes() {
         return [];
+    }
+
+    internal bool HasAttributeWithName(string namespaceName, string typeName) {
+        return GetAttributes().Any(a => a.IsTargetAttribute(namespaceName, typeName));
     }
 
     internal TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
