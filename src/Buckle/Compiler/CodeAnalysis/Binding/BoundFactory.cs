@@ -12,8 +12,14 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
-        if (type is not null)
-            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.StrippedType().specialType), type);
+        if (type is not null) {
+            type = type.StrippedType();
+
+            if (type.IsEnumType())
+                type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
+            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.specialType), type);
+        }
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         return new BoundLiteralExpression(

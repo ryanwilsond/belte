@@ -39,28 +39,39 @@ public sealed partial class Compilation {
             var assemblyBuilder = ArrayBuilder<PEAssemblySymbol>.GetInstance();
 
             foreach (var assembly in _assemblies) {
-                var assemblySymbol = CreatePEAssemblyForAssemblyMetadata(assembly, MetadataImportOptions.All, out _);
+                var assemblySymbol = CreatePEAssemblyForAssemblyMetadataFirstPass(assembly, MetadataImportOptions.All);
                 assemblyBuilder.Add(assemblySymbol);
             }
 
             _assemblySymbols = assemblyBuilder.ToImmutableAndFree();
+            _referencedAssemblies = _assemblySymbols.CastArray<AssemblySymbol>();
+
+            foreach (var assemblySymbol in _assemblySymbols)
+                CreatePEAssemblyForAssemblyMetadataSecondPass(assemblySymbol, assemblySymbol.assembly, out _);
         }
 
         internal NamespaceSymbol[] GetGlobalNamespaces() {
             return _assemblySymbols.Select(a => a.globalNamespace).ToArray();
         }
 
-        internal PEAssemblySymbol CreatePEAssemblyForAssemblyMetadata(
+        internal PEAssemblySymbol CreatePEAssemblyForAssemblyMetadataFirstPass(
             AssemblyMetadata metadata,
-            MetadataImportOptions importOptions,
-            out ImmutableDictionary<AssemblyIdentity, AssemblyIdentity> assemblyReferenceIdentityMap) {
+            MetadataImportOptions importOptions) {
+            var assembly = metadata.GetAssembly();
 
+            var assemblySymbol = new PEAssemblySymbol(assembly, isLinked: true, importOptions: importOptions);
+            return assemblySymbol;
+        }
+
+        internal void CreatePEAssemblyForAssemblyMetadataSecondPass(
+            AssemblySymbol assemblySymbol,
+            PEAssembly assembly,
+            out ImmutableDictionary<AssemblyIdentity, AssemblyIdentity> assemblyReferenceIdentityMap) {
             var referencedAssembliesByIdentity = new AssemblyIdentityMap<AssemblySymbol>();
 
             foreach (var symbol in _referencedAssemblies)
                 referencedAssembliesByIdentity.Add(symbol.identity, symbol);
 
-            var assembly = metadata.GetAssembly();
             var peReferences = assembly.assemblyReferences.SelectAsArray(
                 MapAssemblyIdentityToResolvedSymbol,
                 referencedAssembliesByIdentity
@@ -70,8 +81,6 @@ public sealed partial class Compilation {
                 peReferences,
                 assembly.assemblyReferences
             );
-
-            var assemblySymbol = new PEAssemblySymbol(assembly, isLinked: true, importOptions: importOptions);
 
             var unifiedAssemblies = _unifiedAssemblies.WhereAsArray(
                 (unified, referencedAssembliesByIdentity)
@@ -84,8 +93,6 @@ public sealed partial class Compilation {
 
             if (assembly.ContainsNoPiaLocalTypes())
                 assemblySymbol.SetNoPiaResolutionAssemblies(_referencedAssemblies);
-
-            return assemblySymbol;
         }
 
         private static AssemblySymbol MapAssemblyIdentityToResolvedSymbol(

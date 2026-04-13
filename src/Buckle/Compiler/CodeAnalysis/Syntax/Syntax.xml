@@ -221,6 +221,15 @@
     <Field Name="handleKeyword" Type="SyntaxToken">
       <Kind Name="HandleKeyword"/>
     </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="priority" Type="SyntaxToken" Optional="true">
+      <Kind Name="NumericLiteralToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>

@@ -487,7 +487,10 @@ internal sealed partial class CodeGenerator {
             return;
         }
 
-        var discriminator = type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
+        // TODO Weird case where imported enum underlying types are bigger than we think they are
+        var discriminator = (type.originalDefinition is PENamedTypeSymbol && constant.specialType != SpecialType.None)
+            ? constant.specialType
+            : type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
 
         switch (discriminator) {
             case SpecialType.Int:

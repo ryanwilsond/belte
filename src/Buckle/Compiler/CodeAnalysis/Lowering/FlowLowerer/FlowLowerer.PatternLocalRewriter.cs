@@ -151,7 +151,17 @@ internal sealed partial class FlowLowerer {
                 throw ExceptionUtilities.Unreachable();
             }
 
-            BoundExpression literal = Literal(syntax, value.value, input.type);
+            var val = value.value;
+
+            if (input.type.StrippedType().IsEnumType() &&
+                input.type.StrippedType().originalDefinition is PENamedTypeSymbol) {
+                var target = input.type.StrippedType().EnumUnderlyingTypeOrSelf();
+
+                if (!LiteralUtilities.TrySpecialCastCore(val, value.specialType, target.specialType, out val))
+                    throw ExceptionUtilities.Unreachable();
+            }
+
+            BoundExpression literal = Literal(syntax, val, input.type);
             var comparisonType = input.type.EnumUnderlyingTypeOrSelf();
 
             if (operatorKind.OperandTypes() == BinaryOperatorKind.Int &&

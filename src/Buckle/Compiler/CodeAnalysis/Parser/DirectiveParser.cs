@@ -58,9 +58,29 @@ internal sealed class DirectiveParser : SyntaxParser {
     }
 
     private DirectiveTriviaSyntax ParseHandleDirective(SyntaxToken hash, SyntaxToken keyword, bool isActive) {
+        SyntaxToken openParen = null;
+        SyntaxToken priority = null;
+        SyntaxToken closeParen = null;
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            openParen = EatToken();
+            priority = Match(SyntaxKind.NumericLiteralToken);
+            closeParen = Match(SyntaxKind.CloseParenToken);
+        }
+
         var identifier = Match(SyntaxKind.IdentifierToken);
         var eod = ParseEndOfDirective();
-        return SyntaxFactory.HandleDirectiveTrivia(hash, keyword, identifier, eod, isActive);
+
+        return SyntaxFactory.HandleDirectiveTrivia(
+            hash,
+            keyword,
+            openParen,
+            priority,
+            closeParen,
+            identifier,
+            eod,
+            isActive
+        );
     }
 
     private SyntaxToken ParseEndOfDirective() {

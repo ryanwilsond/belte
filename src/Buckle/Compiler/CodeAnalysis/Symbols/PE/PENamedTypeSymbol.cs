@@ -593,17 +593,18 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 var methodHandleToSymbol = CreateMethods(nonFieldMembers);
 
                 if (typeKind == TypeKind.Struct) {
-                    var haveParameterlessConstructor = false;
+                    // var haveParameterlessConstructor = false;
 
                     foreach (var method in nonFieldMembers.Cast<MethodSymbol>()) {
                         if (method.IsParameterlessConstructor()) {
-                            haveParameterlessConstructor = true;
+                            // haveParameterlessConstructor = true;
                             break;
                         }
                     }
 
-                    if (!haveParameterlessConstructor)
-                        nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
+                    // TODO This is suspect
+                    // if (!haveParameterlessConstructor)
+                    //     nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
                 }
 
                 foreach (var field in fieldMembers)

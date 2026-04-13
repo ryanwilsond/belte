@@ -132,7 +132,7 @@ internal sealed class Lexer : IDisposable {
         return text[index];
     }
 
-    private SyntaxToken LexNextInternal() {
+    private SyntaxToken LexNextInternal(bool ignoreTrailingTrivia = false) {
         _leadingTriviaCache.Clear();
         ReadTrivia(_position > 0, false);
 
@@ -144,8 +144,10 @@ internal sealed class Lexer : IDisposable {
         var tokenWidth = _position - _start;
         var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
 
-        _trailingTriviaCache.Clear();
-        ReadTrivia(true, true);
+        if (!ignoreTrailingTrivia) {
+            _trailingTriviaCache.Clear();
+            ReadTrivia(true, true);
+        }
 
         var tokenText = SyntaxFacts.GetText(tokenKind) ?? text.ToString(new TextSpan(tokenPosition, tokenWidth));
 
@@ -159,6 +161,7 @@ internal sealed class Lexer : IDisposable {
 
         var tokenKind = _kind;
         var tokenWidth = _position - _start;
+        var tokenValue = _value;
         var diagnostics = GetDiagnostics(0);
 
         var directiveTriviaCache = _directiveTriviaCache;
@@ -167,7 +170,7 @@ internal sealed class Lexer : IDisposable {
         ReadDirectiveTrailingTrivia(tokenKind == SyntaxKind.EndOfDirectiveToken, ref directiveTriviaCache);
 
         var tokenText = text.ToString(new TextSpan(tokenPosition, tokenWidth));
-        var token = Create(tokenKind, tokenText, null, diagnostics, null, directiveTriviaCache);
+        var token = Create(tokenKind, tokenText, tokenValue, diagnostics, null, directiveTriviaCache);
         _directiveTriviaCache = directiveTriviaCache;
 
         return token;
@@ -333,6 +336,26 @@ internal sealed class Lexer : IDisposable {
             case '#':
                 _position++;
                 _kind = SyntaxKind.HashToken;
+                break;
+            case '(':
+                _position++;
+                _kind = SyntaxKind.OpenParenToken;
+                break;
+            case ')':
+                _position++;
+                _kind = SyntaxKind.OpenParenToken;
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                ReadNumericLiteral();
                 break;
             default:
                 if (char.IsLetter(_current)) {
@@ -813,9 +836,9 @@ internal sealed class Lexer : IDisposable {
 
         _position += 2;
         var startPosition = _position;
-        _start = _position;
 
         while (_current != '\0') {
+            _start = _position;
             var inner = ReadStringContent(false, true, false, out var normalEnd);
             hasCloseQuote = normalEnd;
             var tokenWidth = _position - _start;
@@ -823,11 +846,13 @@ internal sealed class Lexer : IDisposable {
             if (normalEnd && tokenWidth == 0)
                 break;
 
-            var tokenValue = inner.ToString();
-            var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
-            _trailingTriviaCache.Clear();
-            var tokenText = text.ToString(new TextSpan(startPosition, tokenWidth));
-            groups.Add([Create(SyntaxKind.StringLiteralToken, tokenText, tokenValue, diagnostics)]);
+            if (tokenWidth > 0) {
+                var tokenValue = inner.ToString();
+                var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
+                _trailingTriviaCache.Clear();
+                var tokenText = text.ToString(new TextSpan(startPosition, tokenWidth));
+                groups.Add([Create(SyntaxKind.StringLiteralToken, tokenText, tokenValue, diagnostics)]);
+            }
 
             if (normalEnd || _current != '{')
                 break;
@@ -865,7 +890,7 @@ internal sealed class Lexer : IDisposable {
                     }
 
                     if (!earlyEof) {
-                        var token = LexNext(LexerMode.Syntax);
+                        var token = LexNextInternal(ignoreTrailingTrivia: true);
                         groupBuilder.Add(token);
                     }
 

@@ -30,7 +30,7 @@ implemented.
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
 | Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
-| .NET DLL references | ✕ | ✕ | ✓ | Currently unsupported in the Executor, incompatible with the Evaluator |
+| .NET DLL references | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 
 ## 1.2 Keywords
 

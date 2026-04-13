@@ -787,11 +787,17 @@ internal sealed partial class Conversions {
             case ConversionKind.ExplicitUserDefined:
             case ConversionKind.ExplicitNullable:
             case ConversionKind.ExplicitReference:
+            case ConversionKind.ExplicitNumeric:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
+            case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.AnyUnboxing:
                 return false;
             case ConversionKind.Identity:
             case ConversionKind.ImplicitNullable:
+            case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitReference:
+            case ConversionKind.ImplicitNullToPointer:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ImplicitConstant:
             case ConversionKind.NullLiteral:

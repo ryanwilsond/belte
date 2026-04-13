@@ -35,7 +35,7 @@ public sealed partial class Compilation {
 
     private readonly NamespaceSymbol _specialNamespace;
     private readonly ReferenceManager _referenceManager;
-    private readonly SyntaxAndDeclarationManager _syntax;
+    private SyntaxAndDeclarationManager _syntax;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
 
@@ -920,12 +920,39 @@ public sealed partial class Compilation {
         if (includeMethods)
             builder.PushRange(methodDiagnostics);
 
-        return BelteDiagnosticQueue.CleanDiagnostics(builder);
+        builder = BelteDiagnosticQueue.CleanDiagnostics(builder);
+        handleManager.SendDiagnosticsMessage(builder);
+        return builder;
     }
 
     private void EnsureBoundProgramAndMethodDiagnostics() {
         if (_lazyBoundProgram is null)
             CreateBoundProgramAndMethodDiagnostics();
+    }
+
+    internal void ReplaceBoundProgram(BoundProgram program, BelteDiagnosticQueue methodDiagnostics) {
+        _lazyMethodDiagnostics = methodDiagnostics;
+        _lazyBoundProgram = program;
+    }
+
+    internal void AddLateSyntaxTrees(IEnumerable<SyntaxTree> trees) {
+        _syntax = _syntax.AddSyntaxTrees(trees);
+
+        Interlocked.Exchange(ref _lazyAssembly, null);
+        Interlocked.Exchange(ref _lazyBoundProgram, null);
+        Interlocked.Exchange(ref _lazyEntryPoint, null);
+        Interlocked.Exchange(ref _lazyGlobalNamespace, null);
+        Interlocked.Exchange(ref _lazyGlobalNamespaceAlias, null);
+        Interlocked.Exchange(ref _lazyImportInfos, null);
+        Interlocked.Exchange(ref _lazyPreviousAnalyses, null);
+        Interlocked.Exchange(ref _lazyScriptClass, null);
+        Interlocked.Exchange(ref _lazyTreeToUsedImportDirectivesMap, null);
+        Interlocked.Exchange(ref _lazyUpdatePoint, null);
+        Interlocked.Exchange(ref _lazyUsedAssemblyReferences, null);
+        Interlocked.Exchange(ref _binderFactories, null);
+        Interlocked.Exchange(ref _ignoreAccessibilityBinderFactories, null);
+
+        handleManager.SendParsedMessage();
     }
 
     private void CreateBoundProgramAndMethodDiagnostics() {

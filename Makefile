@@ -38,6 +38,7 @@ endif
 
 all: debug
 release: prebuild libs copydlls build postbuild
+releasemf: prebuild libs copydlls buildmf postbuild
 portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
@@ -81,7 +82,6 @@ libs:
 	@$(MKDIR) lib
 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Runtime/Belte.Runtime.csproj -o lib
 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
-	@dotnet publish $(PUBLISH_FLAGS) $(COMPILER_DIR)/Compiler.csproj -o lib
 	@echo "    Finished"
 
 prebuild:
@@ -110,6 +110,11 @@ postbuildlinux:
 build:
 	@echo "Started building the Buckle project (release) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
+
+buildmf:
+	@echo "Started building the Buckle project (release, multi-file) ..."
+	@dotnet publish $(CL_DIR)/CommandLine.csproj $(PUBLISH_FLAGS) -o bin/release \
 		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
 
 buildportable:

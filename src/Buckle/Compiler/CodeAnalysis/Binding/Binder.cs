@@ -3391,6 +3391,7 @@ internal partial class Binder {
                     return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
                 }
             case TypeKind.Class:
+            case TypeKind.Struct:
             case TypeKind.Primitive:
             case TypeKind.TemplateParameter: {
                     var access = BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
@@ -3531,6 +3532,7 @@ internal partial class Binder {
                 out var implicitIndexerAccess)) {
                 indexerAccessExpression = implicitIndexerAccess;
             } else {
+                var allMembers = expression.Type().GetMembers();
                 indexerAccessExpression = ErrorIndexerExpression(
                     node,
                     expression,
@@ -6727,12 +6729,12 @@ internal partial class Binder {
             //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(argument.Syntax.ToString()), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
 
             // TODO Any issue with just creating a literal null instead of default expression?
-            // if (defaultConstantValue is null) {
-            //     defaultValue = new BoundDefaultExpression(syntax, parameterType) { WasCompilerGenerated = true };
-            // } else {
-            TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
-            defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
-            // }
+            if (defaultConstantValue is null) {
+                defaultValue = BoundFactory.Literal(syntax, null, parameter.type);
+            } else {
+                TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
+                defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
+            }
 
             var conversion = conversions.ClassifyConversionFromExpression(defaultValue, parameterType);
 
