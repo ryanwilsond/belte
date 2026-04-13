@@ -280,7 +280,10 @@ function pointer, the compiler does not attempt to evaluate the expression.
 If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
 If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
 expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
-evaluate.
+evaluate. In both of these cases, consider potential [side effects](#372-side-effects).
+
+For more complex compile-time execution/meta-programming consider using
+[compiler handles](LowLevelFeatures.md#613-compiler-handle).
 
 ### 3.7.1 Examples
 

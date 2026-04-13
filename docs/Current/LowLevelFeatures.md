@@ -25,6 +25,7 @@ This may change.
 - [6.12](#612-pinned-locals) Pinned Locals
 - [6.13](#613-compiler-handle) Compiler Handle
   - [6.13.1](#6131-messages) Messages
+  - [6.13.2](#6132-ordering) Ordering
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -542,13 +543,13 @@ The handler is run during compilation using the Executor regardless of the targe
 
 The following is a current list of all messages types, any extra data they might include, and when they are triggered.
 
-| MessageKind | Message Type | Extra Data Included | Description |
-|-|-|-|-|
-| `MessageKind.Parsed` | `Message` | | Triggered whenever a parsed syntax tree is added to the compilation. |
-| `MessageKind.Bound` | `Message` | | Triggered after method bodies have finished compiling into the abstract syntax tree. |
-| `MessageKind.BeforeEmit` | `Message`| | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |
-| `MessageKind.Finished` | `Message`| | Can never happen more than once. Triggers immediately after the compiler finishes emitting but before the final cleanup of resources and last diagnostics resolution. |
-| `MessageKind.Diagnostics` | `DiagnosticMessage` | `BelteDiagnosticQueue` | Triggered whenever diagnostics are requested from the compilation object for resolution. Does not trigger for diagnostics outside of the compilation (e.g. command line parsing diagnostics). Passes the diagnostics to tentatively resolve, which can be modified. This trigger happens even if the diagnostic queue is empty. |
+| MessageKind | Description |
+|-|-|
+| `Parsed` | Triggered whenever a parsed syntax tree is added to the compilation. |
+| `Bound` | Triggered after method bodies have finished compiling into the abstract syntax tree. |
+| `BeforeEmit` | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |
+| `Finished` | Can never happen more than once. Triggers immediately after the compiler finishes emitting. Is followed by one last diagnostics resolution. |
+| `Diagnostics` | Triggered whenever diagnostics are requested from the compilation object for resolution. Does not trigger for diagnostics outside of the compilation (e.g. command line parsing diagnostics). Passes the diagnostics to tentatively resolve (which can be accessed by casting the message to `DiagnosticMessage` can calling `Diagnostics()`). This trigger happens even if the diagnostic queue is empty. |
 
 ### 6.13.2 Ordering
 
@@ -561,4 +562,4 @@ earlier.
 If multiple handlers have the same priority (such as the default 0), they will run in an undetermined order among
 themselves, but will still order correctly relative to higher/lower priority handlers.
 
-The priority number must be an `int32` literal.
+The priority number must fit within an `int32` literal.
