@@ -256,10 +256,12 @@ internal sealed class Lexer : IDisposable {
                     ReadLineBreak();
                     break;
                 case '#':
-                    if (_allowPreprocessorDirectives)
+                    if (_allowPreprocessorDirectives) {
                         ReadDirective(afterFirstToken, isTrailing, ref triviaList);
-                    else
+                        _start = _position;
+                    } else {
                         done = true;
+                    }
 
                     break;
                 case ' ':
@@ -1035,7 +1037,7 @@ internal sealed class Lexer : IDisposable {
     }
 
     private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine, ref SyntaxListBuilder triviaList) {
-        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine);
+        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine, ref triviaList);
 
         if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
             ReadExcludedDirectivesAndTrivia(true, ref triviaList);
@@ -1046,12 +1048,12 @@ internal sealed class Lexer : IDisposable {
             var text = ReadDisabledText(out var hasFollowingDirective);
 
             if (text is not null)
-                triviaList.Add(text);
+                AddTrivia(text, ref triviaList);
 
             if (!hasFollowingDirective)
                 break;
 
-            var directive = ReadDirective(false, endIsActive, false, false);
+            var directive = ReadDirective(false, endIsActive, false, false, ref triviaList);
             var branching = directive as BranchingDirectiveTriviaSyntax;
 
             if (directive.kind == SyntaxKind.EndIfDirectiveTrivia || (branching is not null && branching.branchTaken))
@@ -1111,7 +1113,8 @@ internal sealed class Lexer : IDisposable {
         bool isActive,
         bool endIsActive,
         bool afterFirstToken,
-        bool afterNonWhitespaceOnLine) {
+        bool afterNonWhitespaceOnLine,
+        ref SyntaxListBuilder triviaList) {
         var saveMode = _mode;
         var directiveParser = new DirectiveParser(this, _directives);
         var directive = directiveParser.ParseDirective(
@@ -1121,8 +1124,7 @@ internal sealed class Lexer : IDisposable {
             afterNonWhitespaceOnLine
         );
 
-        var triviaList = afterNonWhitespaceOnLine ? _trailingTriviaCache : _leadingTriviaCache;
-        triviaList.Add(directive);
+        AddTrivia(directive, ref triviaList);
 
         _directives = directive.ApplyDirectives(_directives);
         _mode = saveMode;
