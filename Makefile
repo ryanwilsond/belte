@@ -38,6 +38,7 @@ endif
 
 all: debug
 release: prebuild libs copydlls build postbuild
+releasemf: prebuild libs copydlls buildmf postbuild
 portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
@@ -109,6 +110,11 @@ postbuildlinux:
 build:
 	@echo "Started building the Buckle project (release) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
+
+buildmf:
+	@echo "Started building the Buckle project (release, multi-file) ..."
+	@dotnet publish $(CL_DIR)/CommandLine.csproj $(PUBLISH_FLAGS) -o bin/release \
 		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
 
 buildportable:

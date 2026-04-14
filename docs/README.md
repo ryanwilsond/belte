@@ -32,7 +32,8 @@
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
     - [2.3](Current/ControlFlow.md#23-conditionals) Conditionals
-      - [2.3.1](Current/ControlFlow.md#231-null-binding-contracts) Null-Binding Contracts
+      - [2.3.1](Current/ControlFlow.md#231-null-conditions) Null Conditions
+      - [2.3.2](Current/ControlFlow.md#232-null-binding-contracts) Null-Binding Contracts
     - [2.4](Current/ControlFlow.md#24-loops) Loops
       - [2.4.1](Current/ControlFlow.md#241-while-loops) While Loops
       - [2.4.2](Current/ControlFlow.md#242-do-while-loops) Do-While Loops
@@ -131,6 +132,9 @@
       - [6.11.1](Current/LowLevelFeatures.md#6111-verification) Verification
       - [6.11.2](Current/LowLevelFeatures.md#6112-unsupported-instructions) Unsupported Instructions
     - [6.12](Current/LowLevelFeatures.md#612-pinned-locals) Pinned Locals
+    - [6.13](Current/LowLevelFeatures.md#613-compiler-handle) Compiler Handle
+      - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
+      - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

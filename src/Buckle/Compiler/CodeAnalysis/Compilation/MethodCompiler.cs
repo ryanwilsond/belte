@@ -55,7 +55,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
-        Predicate<Symbol> filter) {
+        Predicate<Symbol> filter,
+        bool skipEntryPoint = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
         var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
 
@@ -70,8 +71,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         }
 
         var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
-        var entryPoint = emittingToDll ? null : GetEntryPoint(compilation, diagnostics);
-        var updatePoint = emittingToDll ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
+        var entryPoint = (emittingToDll || skipEntryPoint) ? null : GetEntryPoint(compilation, diagnostics);
+        var updatePoint = (emittingToDll || skipEntryPoint) ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
         if (!compilation.options.isScript) {
             if (updatePoint is not null && !entryPoint.containingType.Equals(updatePoint.containingType))

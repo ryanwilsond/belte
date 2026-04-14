@@ -279,7 +279,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         );
     }
 
-    internal TypeReference GetType(TypeSymbol type, bool byRef = false) {
+    internal TypeReference GetType(TypeSymbol type, bool byRef = false, bool import = true) {
         var typeRef = GetTypeCore(type);
 
         if (byRef)
@@ -288,7 +288,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (typeRef.IsGenericParameter)
             return typeRef;
 
-        return _assemblyDefinition.MainModule.ImportReference(typeRef);
+        if (import)
+            return _assemblyDefinition.MainModule.ImportReference(typeRef);
+
+        return typeRef;
 
         TypeReference GetTypeCore(TypeSymbol type) {
             if (type.specialType == SpecialType.Nullable) {
@@ -339,7 +342,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var foundType = GetTypeCoreInternal(type);
 
             // Acceptable inside specific contexts like typeof
-            if (type.ContainsErrorType())
+            if (type.ContainsErrorType() || type.IsEnumType())
                 return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
@@ -367,6 +370,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 foreach (var generic in allTypeArgs)
                     typeReference.GenericArguments.Add(generic);
 
+                _assemblyDefinition.MainModule.ImportReference(typeReference.Resolve());
                 return typeReference;
             }
 
@@ -374,8 +378,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type.originalDefinition is PENamedTypeSymbol || type.IsErrorType())
-                return ResolveType(null, type.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat));
+            if (type.originalDefinition is PENamedTypeSymbol pe)
+                return ResolveType(pe);
 
             if (_types.TryGetValue(type.originalDefinition, out var found))
                 return found;
@@ -391,7 +395,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         if (method.originalDefinition is PEMethodSymbol m) {
             value = ResolveMethod(
-                m.containingType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat),
+                (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
                 m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
             );
@@ -516,17 +520,25 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     internal FieldReference GetField(FieldSymbol field) {
-        if (field is PEFieldSymbol f)
-            return GetType(field.containingType).Resolve().Fields.Single(e => e.Name == f.name);
+        if (field.originalDefinition is PEFieldSymbol f) {
+            var peType = GetType(field.containingType);
+            var peField = peType.Resolve().Fields.Single(e => e.Name == f.name);
 
-        var fieldRef = _fields[field.originalDefinition];
-        var constructedType = GetType(field.containingType);
+            return new FieldReference(
+                peField.Name,
+                _assemblyDefinition.MainModule.ImportReference(peField.FieldType, peType),
+                peType
+            );
+        } else {
+            var fieldRef = _fields[field.originalDefinition];
+            var constructedType = GetType(field.containingType);
 
-        return new FieldReference(
-            fieldRef.Name,
-            _assemblyDefinition.MainModule.ImportReference(fieldRef.FieldType),
-            constructedType
-        );
+            return new FieldReference(
+                fieldRef.Name,
+                _assemblyDefinition.MainModule.ImportReference(fieldRef.FieldType),
+                constructedType
+            );
+        }
     }
 
     internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
@@ -1274,6 +1286,29 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private TypeReference ResolveType(PENamedTypeSymbol typeSymbol) {
+        var stack = new Stack<PENamedTypeSymbol>();
+        var current = typeSymbol;
+
+        while (current is not null) {
+            stack.Push(current);
+            current = current.containingType as PENamedTypeSymbol;
+        }
+
+        var topType = stack.Pop();
+        var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
+        var currentFoundType = ResolveType(null, displayName);
+        _assemblyDefinition.MainModule.ImportReference(currentFoundType.Resolve());
+
+        while (stack.Count > 0) {
+            var nestedType = stack.Pop();
+            currentFoundType = currentFoundType.Resolve().NestedTypes.First(t => t.Name == nestedType.name);
+            _assemblyDefinition.MainModule.ImportReference(currentFoundType.Resolve());
+        }
+
+        return currentFoundType;
+    }
+
     private TypeReference ResolveType(string name, string metadataName) {
         var foundTypes = _assemblies
             .SelectMany(a => a.Modules)
@@ -1293,6 +1328,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private MethodReference ResolveMethod(PENamedTypeSymbol type, string methodName, string[] parameterTypeNames) {
+        var foundType = ResolveType(type);
+
+        if (TryResolveMethodCore([foundType.Resolve()], methodName, parameterTypeNames, out var methodRef1))
+            return methodRef1;
+
+        throw new BelteInternalException($"Required method not found: {foundType.Name} {methodName} {parameterTypeNames.Length}");
+    }
+
     private MethodReference ResolveMethod(string typeName, string methodName, string[] parameterTypeNames) {
         var foundTypes = _assemblies
             .SelectMany(a => a.Modules)
@@ -1301,7 +1345,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .ToArray();
 
         if (foundTypes.Length >= 1) {
-            if (TryResolveMethodCore(foundTypes, typeName, methodName, parameterTypeNames, out var methodRef1))
+            if (TryResolveMethodCore(foundTypes, methodName, parameterTypeNames, out var methodRef1))
                 return methodRef1;
 
             throw new BelteInternalException($"Required method not found: {typeName} {methodName} {parameterTypeNames.Length}");
@@ -1315,7 +1359,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             .FirstOrDefault()
                 ?? throw new BelteInternalException($"Required type not found: {typeName}");
 
-        if (TryResolveMethodCore([foundType], typeName, methodName, parameterTypeNames, out var methodRef2))
+        if (TryResolveMethodCore([foundType], methodName, parameterTypeNames, out var methodRef2))
             return methodRef2;
         else
             throw new BelteInternalException($"Required method not found: {typeName} {methodName} {parameterTypeNames.Length}");
@@ -1323,7 +1367,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private bool TryResolveMethodCore(
         TypeDefinition[] foundTypes,
-        string typeName,
         string methodName,
         string[] parameterTypeNames,
         out MethodReference methodDefinition) {

@@ -1207,6 +1207,17 @@ internal partial class Binder {
         return CheckValue(valueOrType, BindValueKind.RValue, diagnostics);
     }
 
+    internal BoundExpression BindTypeOrRValueAllowingImplicitEnum(
+        ExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var valueOrType = BindExpressionInternal(node, diagnostics: diagnostics, called: false, indexed: false);
+
+        if (valueOrType.kind is BoundKind.TypeExpression or BoundKind.UnconvertedImplicitEnumFieldExpression)
+            return valueOrType;
+
+        return CheckValue(valueOrType, BindValueKind.RValue, diagnostics);
+    }
+
     private AnalyzedArguments BindTemplateArguments(
         SeparatedSyntaxList<BaseArgumentSyntax> templateArguments,
         BelteDiagnosticQueue diagnostics,
@@ -3391,6 +3402,7 @@ internal partial class Binder {
                     return CreateConditionalAccess(node, isConditional, expression, access, diagnostics);
                 }
             case TypeKind.Class:
+            case TypeKind.Struct:
             case TypeKind.Primitive:
             case TypeKind.TemplateParameter: {
                     var access = BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
@@ -3531,6 +3543,7 @@ internal partial class Binder {
                 out var implicitIndexerAccess)) {
                 indexerAccessExpression = implicitIndexerAccess;
             } else {
+                var allMembers = expression.Type().GetMembers();
                 indexerAccessExpression = ErrorIndexerExpression(
                     node,
                     expression,
@@ -6727,12 +6740,12 @@ internal partial class Binder {
             //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(argument.Syntax.ToString()), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
 
             // TODO Any issue with just creating a literal null instead of default expression?
-            // if (defaultConstantValue is null) {
-            //     defaultValue = new BoundDefaultExpression(syntax, parameterType) { WasCompilerGenerated = true };
-            // } else {
-            TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
-            defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
-            // }
+            if (defaultConstantValue is null) {
+                defaultValue = BoundFactory.Literal(syntax, null, parameter.type);
+            } else {
+                TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
+                defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
+            }
 
             var conversion = conversions.ClassifyConversionFromExpression(defaultValue, parameterType);
 
@@ -12802,16 +12815,6 @@ symIsHidden:;
         TypeSymbol destination,
         BelteDiagnosticQueue diagnostics,
         bool hasErrors = false) {
-        if (conversion.isIdentity) {
-            source = BindToNaturalType(source, diagnostics);
-
-            if (!isCast &&
-                (source.IsLiteralNull() ||
-                (source.type is not null && source.Type().Equals(destination, TypeCompareKind.IgnoreNullability)))) {
-                return source;
-            }
-        }
-
         if (source.kind == BoundKind.UnconvertedInitializerList) {
             var listExpression = ConvertListExpression(
                 (BoundUnconvertedInitializerList)source,
@@ -12858,9 +12861,19 @@ symIsHidden:;
                 node,
                 fieldExpression,
                 conversion,
-                null,
+                fieldExpression.constantValue,
                 destination
             );
+        }
+
+        if (conversion.isIdentity) {
+            source = BindToNaturalType(source, diagnostics);
+
+            if (!isCast &&
+                (source.IsLiteralNull() ||
+                (source.type is not null && source.Type().Equals(destination, TypeCompareKind.IgnoreNullability)))) {
+                return source;
+            }
         }
 
         ConstantValue constantValue = null;

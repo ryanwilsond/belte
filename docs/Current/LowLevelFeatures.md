@@ -23,6 +23,9 @@ This may change.
   - [6.11.1](#6111-verification) Verification
   - [6.11.2](#6112-unsupported-instructions) Unsupported Instructions
 - [6.12](#612-pinned-locals) Pinned Locals
+- [6.13](#613-compiler-handle) Compiler Handle
+  - [6.13.1](#6131-messages) Messages
+  - [6.13.2](#6132-ordering) Ordering
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -492,3 +495,71 @@ Locals can be pinned meaning the object they refer to will not be moved around o
 ```belte
 pinned var myLocal = new List<int>();
 ```
+
+## 6.13 Compiler Handle
+
+The `#handle <target>` preprocessor directive can be used to add a handler to the compilation. The operand of `#handle`
+has to be a unambiguous class name. Any code within that class will be compiled early so that it can "watch" the rest
+of the compilation via messages and a hook into the compilation.
+
+The handle class has to contain an unambiguous static method that takes in two arguments but can return anything. The
+first parameter type must be `Buckle.CodeAnalysis.Message` and the second must be `Buckle.CodeAnalysis.CompilerContext`.
+The message will give phase information about the compilation. Each handler method will be called once per unique
+message. The second argument gives an interface to interact with the compilation allowing things such as modifying or
+adding symbols or collecting general information.
+
+The required parameter types of the handle come from a shipped `Compiler.dll` that lives alongside the actual compiler
+program. This library is not referenced by default so a
+[`--ref=<path>` argument](../Buckle.md#--reffile---referencefile) must be used. Some parts of the compiler rely on
+other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
+
+Basic example:
+
+```belte
+#handle HandleClass
+
+using Buckle.CodeAnalysis;
+
+public static class HandleClass {
+    private static void Handler(Message msg, CompilerContext context) {
+        switch (msg.Kind()) {
+            case .Parsed:
+                Console.PrintLine("Parsed");
+            case .Bound:
+                Console.PrintLine("Bound");
+            case .BeforeEmit:
+                Console.PrintLine("BeforeEmit");
+            case .Finished:
+                Console.PrintLine("Finished");
+        }
+    }
+}
+```
+
+The handler is run during compilation using the Executor regardless of the target endpoint, so keep in mind
+[feature availability](Overview.md#11-endpoint-specific-features).
+
+### 6.13.1 Messages
+
+The following is a current list of all messages types, any extra data they might include, and when they are triggered.
+
+| MessageKind | Description |
+|-|-|
+| `Parsed` | Triggered whenever a parsed syntax tree is added to the compilation. |
+| `Bound` | Triggered after method bodies have finished compiling into the abstract syntax tree. |
+| `BeforeEmit` | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |
+| `Finished` | Can never happen more than once. Triggers immediately after the compiler finishes emitting. Is followed by one last diagnostics resolution. |
+| `Diagnostics` | Triggered whenever diagnostics are requested from the compilation object for resolution. Does not trigger for diagnostics outside of the compilation (e.g. command line parsing diagnostics). Passes the diagnostics to tentatively resolve (which can be accessed by casting the message to `DiagnosticMessage` can calling `Diagnostics()`). This trigger happens even if the diagnostic queue is empty. |
+
+### 6.13.2 Ordering
+
+In the case you define multiple handlers and care about which one runs first, you can specify a priority number in the
+handle directive, e.g. `#handle(3) HandleClass`.
+
+If a priority is not specified, the default is 0 meaning that handle will run last. Higher priority number means run
+earlier.
+
+If multiple handlers have the same priority (such as the default 0), they will run in an undetermined order among
+themselves, but will still order correctly relative to higher/lower priority handlers.
+
+The priority number must fit within an `int32` literal.

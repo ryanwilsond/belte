@@ -487,7 +487,10 @@ internal sealed partial class CodeGenerator {
             return;
         }
 
-        var discriminator = type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
+        // TODO Weird case where imported enum underlying types are bigger than we think they are
+        var discriminator = (type.originalDefinition is PENamedTypeSymbol && constant.specialType != SpecialType.None)
+            ? constant.specialType
+            : type.IsEnumType() ? type.GetEnumUnderlyingType().specialType : type.specialType;
 
         switch (discriminator) {
             case SpecialType.Int:
@@ -557,9 +560,12 @@ internal sealed partial class CodeGenerator {
                 break;
             case SpecialType.Nullable: {
                     var underlyingType = type.GetNullableUnderlyingType();
+                    var underlyingDiscriminator = underlyingType.IsEnumType()
+                        ? underlyingType.EnumUnderlyingTypeOrSelf().specialType
+                        : underlyingType.specialType;
 
                     if (IsValueType(underlyingType)) {
-                        EmitConstantValue(new ConstantValue(value, underlyingType.specialType), underlyingType);
+                        EmitConstantValue(new ConstantValue(value, underlyingDiscriminator), underlyingType);
                         _builder.EmitNewobjNullable(underlyingType);
                     } else if (underlyingType.specialType == SpecialType.Any) {
                         goto case SpecialType.Any;

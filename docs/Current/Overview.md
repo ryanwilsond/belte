@@ -30,7 +30,7 @@ implemented.
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
 | Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
-| .NET DLL references | ✕ | ✕ | ✓ | Currently unsupported in the Executor, incompatible with the Evaluator |
+| .NET DLL references | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 
 ## 1.2 Keywords
 
@@ -67,6 +67,7 @@ Some keywords have multiple meanings depending on context. Those keywords will b
 - [global](ClassesAndObjects.md#483-global-using-directive) (global using)
 - [global](ClassesAndObjects.md#482-global-disambiguation) (global disambiguation)
 - [goto](ControlFlow.md#25-switch)
+- [handle](LowLevelFeatures.md#613-compiler-handle)
 - [if](ControlFlow.md#23-conditionals) (conditional)
 - [if](Preprocessor.md#72-control) (preprocessor)
 - [il](LowLevelFeatures.md#611-inline-il)

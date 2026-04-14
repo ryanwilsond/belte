@@ -36,6 +36,17 @@ internal static class ImmutableArrayExtensions {
         return ~low;
     }
 
+    internal static ImmutableArray<T> AsImmutableOrEmpty<T>(this IEnumerable<T> items) {
+        if (items is null)
+            return [];
+
+        return [.. items];
+    }
+
+    internal static ImmutableArray<T> ToImmutableOrEmptyAndFree<T>(this ArrayBuilder<T> builder) {
+        return builder?.ToImmutableAndFree() ?? [];
+    }
+
     internal static ImmutableArray<T> AsImmutable<T>(this IEnumerable<T> items) {
         return [.. items];
     }

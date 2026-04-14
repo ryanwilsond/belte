@@ -140,6 +140,7 @@ public enum SyntaxKind : ushort {
     UndefKeyword,
     FlagsKeyword,
     InKeyword,
+    HandleKeyword,
 
     // Tokens with text
     BadToken,
@@ -163,6 +164,7 @@ public enum SyntaxKind : ushort {
     DefineDirectiveTrivia,
     UndefDirectiveTrivia,
     DisabledTextTrivia,
+    HandleDirectiveTrivia,
 
     // Expressions
     ParenthesizedExpression,

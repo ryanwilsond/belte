@@ -163,8 +163,8 @@ internal static class StandardLibrary {
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateCallingConvention() {
         return StaticClass("CallingConvention", [
-            ConstExprField("Winapi", SpecialType.UInt32, 1),
-            ConstExprField("Cdecl", SpecialType.UInt32, 2),
+            ConstExprField("Winapi", SpecialType.UInt32, (uint)1),
+            ConstExprField("Cdecl", SpecialType.UInt32, (uint)2),
         ]);
     }
 

@@ -23,6 +23,8 @@ internal sealed partial class Executor : ModuleBuilder {
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
 
+    private static readonly Dictionary<string, Assembly> AssemblyCache = [];
+
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
     private readonly BoundProgram _program;
@@ -95,7 +97,8 @@ internal sealed partial class Executor : ModuleBuilder {
             .Where(t => t.kind == SymbolKind.NamedType &&
                 t.containingSymbol.kind == SymbolKind.Namespace &&
                 t.specialType is SpecialType.None or SpecialType.List or
-                                 SpecialType.Dictionary or SpecialType.Enumerator)
+                                 SpecialType.Dictionary or SpecialType.Enumerator &&
+                t.originalDefinition is not PENamedTypeSymbol)
             .ToArray()
             .Cast<NamedTypeSymbol>()
             .ToImmutableArray();
@@ -135,7 +138,7 @@ internal sealed partial class Executor : ModuleBuilder {
             GraphicsHandler = new GraphicsHandler(null, false, false);
 
         var mainMethod = _programType.GetMethod(
-            "Main",
+            entryPoint.name,
             _programNamedType.isStatic
                 ? BindingFlags.Public | BindingFlags.Static
                 : BindingFlags.Public | BindingFlags.Instance
@@ -143,7 +146,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         if (_graphicsEnabled && _graphicsInitialized && _program.updatePoint is not null) {
             var updateMethod = _programType.GetMethod(
-                "Update",
+                _program.updatePoint.name,
                 _programNamedType.isStatic
                     ? BindingFlags.Public | BindingFlags.Static
                     : BindingFlags.Public | BindingFlags.Instance
@@ -207,6 +210,24 @@ internal sealed partial class Executor : ModuleBuilder {
         return result;
     }
 
+    internal static Executor CreateForHandler(
+        BoundProgram program,
+        BelteDiagnosticQueue diagnostics,
+        NamedTypeSymbol type) {
+        var executor = new Executor(program, [], diagnostics) {
+            _programNamedType = type,
+            _logger = new StringWriter()
+        };
+
+        executor.EmitInternal();
+        return executor;
+    }
+
+    internal object ExecuteMethod(MethodSymbol method, params object[] arguments) {
+        var methodInv = _programType.GetMethod(method.name, BindingFlags.Public | BindingFlags.Static);
+        return methodInv.Invoke(null, arguments);
+    }
+
     internal Type GetType(TypeSymbol type, bool byRef = false) {
         var typeRef = GetTypeCore(type);
 
@@ -242,7 +263,7 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
-            if (type.IsEnumType())
+            if (type.IsEnumType() && type.originalDefinition is not PENamedTypeSymbol)
                 return _enums[type.originalDefinition];
 
             if (type is TemplateParameterSymbol t) {
@@ -257,10 +278,12 @@ internal sealed partial class Executor : ModuleBuilder {
                 if (_types.TryGetValue(type.containingType.originalDefinition, out var found))
                     return found.GenericTypeParameters[t.ordinal];
 
-                CreateTypeBuilderAndBases(type.containingType);
+                var containingType = GetTypeCoreInternal(type.containingType);
 
-                var containingType = _types[type.containingType.originalDefinition];
-                return containingType.GenericTypeParameters[t.ordinal];
+                if (containingType is TypeBuilder tb)
+                    return tb.GenericTypeParameters[t.ordinal];
+                else
+                    return containingType.GetGenericArguments()[t.ordinal];
             }
 
             return GetTypeWithContainingGenerics((NamedTypeSymbol)type);
@@ -269,8 +292,8 @@ internal sealed partial class Executor : ModuleBuilder {
         Type GetTypeWithContainingGenerics(NamedTypeSymbol type) {
             var foundType = GetTypeCoreInternal(type);
 
-            // Acceptable inside specific contexts like typeof
-            if (type.ContainsErrorType())
+            // Error types acceptable inside specific contexts like typeof
+            if (type.ContainsErrorType() || type.IsEnumType())
                 return foundType;
 
             var chain = new Stack<NamedTypeSymbol>();
@@ -299,7 +322,7 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type is PENamedTypeSymbol t)
+            if (type.originalDefinition is PENamedTypeSymbol t)
                 return ResolveType(t);
 
             if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
@@ -315,32 +338,107 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private Type ResolveType(PENamedTypeSymbol type) {
+    internal static Type ResolveType(PENamedTypeSymbol type) {
         var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
-        var assembly = Assembly.LoadFrom(metadata.location);
-        return assembly.GetType(type.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat));
+
+        if (!AssemblyCache.TryGetValue(metadata.location, out var assembly)) {
+            try {
+                assembly = Assembly.LoadFrom(metadata.location);
+            } catch (FileLoadException) {
+                Console.WriteLine(metadata.location);
+                throw;
+            }
+
+            AssemblyCache.Add(metadata.location, assembly);
+        }
+
+        var stack = new Stack<PENamedTypeSymbol>();
+        var current = type;
+
+        while (current is not null) {
+            stack.Push(current);
+            current = current.containingType as PENamedTypeSymbol;
+        }
+
+        var topType = stack.Pop();
+        var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
+        var currentFoundType = assembly.GetType(displayName);
+
+        while (stack.Count > 0) {
+            var nestedType = stack.Pop();
+            var flags = nestedType.declaredAccessibility == Accessibility.Public
+                ? BindingFlags.Public
+                : BindingFlags.NonPublic;
+            currentFoundType = currentFoundType.GetNestedType(nestedType.name, flags);
+        }
+
+        return currentFoundType;
     }
 
     internal FieldInfo GetField(FieldSymbol field) {
-        if (field is PEFieldSymbol f)
-            return GetType(field.containingType).GetField(f.name);
+        FieldInfo value = null;
+        var found = false;
 
-        var foundField = _fields[field.originalDefinition];
+        if (field.originalDefinition is PEFieldSymbol f) {
+            var containingType = GetType(f.containingType);
+
+            if (IsEmitType(containingType) || containingType.GenericTypeArguments.Any(IsEmitType))
+                containingType = ResolveType((PENamedTypeSymbol)f.containingType);
+
+            value = containingType.GetField(f.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
+            found = true;
+        }
+
+        if (!found)
+            value = _fields[field.originalDefinition];
 
         var constructedType = GetType(field.containingType);
 
-        if (constructedType.IsConstructedGenericType)
-            return TypeBuilder.GetField(constructedType, foundField);
+        if (constructedType.IsConstructedGenericType) {
+            if (IsEmitType(constructedType) || constructedType.GenericTypeArguments.Any(IsEmitType)) {
+                value = TypeBuilder.GetField(constructedType, value);
+            } else {
+                value = constructedType
+                    .GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                    .First(f => f.MetadataToken == value.MetadataToken);
+            }
+        }
 
-        return foundField;
+        return value;
     }
 
     internal MethodInfo GetMethod(MethodSymbol method) {
-        if (_methods.TryGetValue(method.originalDefinition, out var value)) {
+        MethodInfo value = null;
+        var found = false;
+
+        if (method.originalDefinition is PEMethodSymbol m) {
+            var containingType = GetType(m.containingType);
+
+            if (IsEmitType(containingType) || containingType.GenericTypeArguments.Any(IsEmitType))
+                containingType = ResolveType((PENamedTypeSymbol)m.containingType);
+
+            var paramTypes = m.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
+            value = containingType.GetMethod(m.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance, paramTypes);
+            found = true;
+        }
+
+        if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
+            found = true;
+            value = val;
+        }
+
+        if (found) {
             var constructedType = GetType(method.containingType);
 
-            if (constructedType.IsConstructedGenericType)
-                value = TypeBuilder.GetMethod(constructedType, value);
+            if (constructedType.IsConstructedGenericType) {
+                if (IsEmitType(constructedType) || constructedType.GenericTypeArguments.Any(IsEmitType)) {
+                    value = TypeBuilder.GetMethod(constructedType, value);
+                } else {
+                    value = constructedType
+                        .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                        .First(m => m.MetadataToken == value.MetadataToken);
+                }
+            }
 
             if (method.arity > 0)
                 value = value.MakeGenericMethod(method.templateArguments.Select(t => GetType(t.type.type)).ToArray());
@@ -348,26 +446,54 @@ internal sealed partial class Executor : ModuleBuilder {
             return value;
         }
 
-        if (method is PEMethodSymbol m) {
-            var containingType = GetType(m.containingType);
-            return containingType.GetMethod(m.name, m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
-        }
-
         return CheckStandardMap(method);
     }
 
+    private static bool IsEmitType(Type t) {
+        return t.Module is System.Reflection.Emit.ModuleBuilder;
+    }
+
     internal ConstructorInfo GetConstructor(MethodSymbol method) {
-        if (_constructors.TryGetValue(method.originalDefinition, out var value)) {
+        ConstructorInfo value = null;
+        var found = false;
+
+        if (method.originalDefinition is PEMethodSymbol m) {
+            var containingType = GetType(m.containingType);
+
+            if (IsEmitType(containingType) || containingType.GenericTypeArguments.Any(IsEmitType))
+                containingType = ResolveType((PENamedTypeSymbol)m.containingType);
+
+            var flags = BindingFlags.Public | BindingFlags.NonPublic;
+
+            if (m.isStatic)
+                flags |= BindingFlags.Static;
+            else
+                flags |= BindingFlags.Instance;
+
+            value = containingType.GetConstructor(flags, m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
+            found = true;
+        }
+
+        if (!found && _constructors.TryGetValue(method.originalDefinition, out var val)) {
+            found = true;
+            value = val;
+        }
+
+        if (found) {
             var constructedType = GetType(method.containingType);
 
-            if (constructedType.IsConstructedGenericType)
-                value = TypeBuilder.GetConstructor(constructedType, value);
+            if (constructedType.IsConstructedGenericType) {
+                if (IsEmitType(constructedType) || constructedType.GenericTypeArguments.Any(IsEmitType)) {
+                    value = TypeBuilder.GetConstructor(constructedType, value);
+                } else {
+                    value = constructedType
+                        .GetConstructors(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                        .First(m => m.MetadataToken == value.MetadataToken);
+                }
+            }
 
             return value;
         }
-
-        if (method is PEMethodSymbol m)
-            return GetType(m.containingType).GetConstructor(m.GetParameterTypes().Select(p => GetType(p.type)).ToArray());
 
         return CheckConstructorsStandardMap(method);
     }

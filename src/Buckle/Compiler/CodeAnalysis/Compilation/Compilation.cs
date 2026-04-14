@@ -34,7 +34,8 @@ public sealed partial class Compilation {
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
     private readonly NamespaceSymbol _specialNamespace;
-    private readonly SyntaxAndDeclarationManager _syntax;
+    private readonly ReferenceManager _referenceManager;
+    private SyntaxAndDeclarationManager _syntax;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
 
@@ -49,9 +50,9 @@ public sealed partial class Compilation {
     private NamespaceSymbol _lazyGlobalNamespace;
     private AliasSymbol _lazyGlobalNamespaceAlias;
     private AssemblySymbol _lazyAssembly;
+    private HandleManager _lazyHandleManager;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
-    private ReferenceManager _referenceManager;
 
     private Compilation(
         string assemblyName,
@@ -73,6 +74,8 @@ public sealed partial class Compilation {
             _referenceManager = referenceManager;
         else
             _referenceManager = new ReferenceManager(options.references, declarationDiagnostics);
+
+        handleManager.SendParsedMessage();
     }
 
     public string assemblyName { get; }
@@ -190,6 +193,15 @@ public sealed partial class Compilation {
             }
 
             return _lazyPreviousAnalyses;
+        }
+    }
+
+    internal HandleManager handleManager {
+        get {
+            if (_lazyHandleManager is null)
+                Interlocked.CompareExchange(ref _lazyHandleManager, new HandleManager(this, GetHandles()), null);
+
+            return _lazyHandleManager;
         }
     }
 
@@ -341,6 +353,8 @@ public sealed partial class Compilation {
             return;
         }
 
+        handleManager.SendBeforeEmitMessage();
+
         if (verbose && options.enableOutput) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
@@ -353,6 +367,8 @@ public sealed partial class Compilation {
 
         if (verbose && options.enableOutput && evalResult is not null)
             Console.WriteLine(evalResult);
+
+        handleManager.SendFinishedMessage();
 
         if (rollingResult is null) {
             rollingResult = new EvaluationResult(
@@ -395,6 +411,8 @@ public sealed partial class Compilation {
         if (diagnostics.AnyErrors())
             return diagnostics;
 
+        handleManager.SendBeforeEmitMessage();
+
         if (verbose && options.enableOutput) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
@@ -408,6 +426,7 @@ public sealed partial class Compilation {
         if (options.buildMode is BuildMode.Dotnet or BuildMode.CSharpTranspile)
             Log(logTime, timer, diagnostics, $"Emitted the program in {timer?.ElapsedMilliseconds} ms");
 
+        handleManager.SendFinishedMessage();
         return diagnostics;
     }
 
@@ -427,6 +446,8 @@ public sealed partial class Compilation {
             return diagnostics;
         }
 
+        handleManager.SendBeforeEmitMessage();
+
         if (verbose && options.enableOutput) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
@@ -438,6 +459,7 @@ public sealed partial class Compilation {
         if (verbose && options.enableOutput && result is not null)
             Console.WriteLine(result);
 
+        handleManager.SendFinishedMessage();
         return diagnostics;
     }
 
@@ -485,6 +507,10 @@ public sealed partial class Compilation {
 
     public BelteDiagnosticQueue GetDiagnostics() {
         return GetDiagnostics(true, true, true);
+    }
+
+    internal void SetDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
+        Interlocked.Exchange(ref _lazyDeclarationDiagnostics, diagnostics);
     }
 
     internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
@@ -706,6 +732,23 @@ public sealed partial class Compilation {
         return new NameSymbolSearcher(this, filter, name).GetSymbolsWithName();
     }
 
+    internal IEnumerable<Symbol> GetSymbolsWithName(Func<string, bool> predicate, SymbolFilter filter) {
+        if (predicate is null)
+            throw new ArgumentNullException(nameof(predicate));
+
+        if (filter == SymbolFilter.None)
+            throw new ArgumentException(nameof(filter));
+
+        return new PredicateSymbolSearcher(this, filter, predicate).GetSymbolsWithName();
+    }
+
+    internal IEnumerable<Symbol> GetSymbols(SymbolFilter filter) {
+        if (filter == SymbolFilter.None)
+            throw new ArgumentException(nameof(filter));
+
+        return new PredicateSymbolSearcher(this, filter, x => true).GetSymbolsWithName();
+    }
+
     internal static MethodSymbol SelectEntryPoint(
         SynthesizedEntryPoint simpleEntryPoint,
         ImmutableArray<MethodSymbol> methods,
@@ -809,6 +852,19 @@ public sealed partial class Compilation {
         return Update(syntax);
     }
 
+    private DirectiveTriviaSyntax[] GetHandles() {
+        var builder = ArrayBuilder<DirectiveTriviaSyntax>.GetInstance();
+
+        foreach (var tree in _syntax.syntaxTrees) {
+            builder.AddRange(tree
+                .GetRoot()
+                .GetDirectives(d => d.kind == SyntaxKind.HandleDirectiveTrivia)
+            );
+        }
+
+        return builder.ToArrayAndFree();
+    }
+
     private Compilation Update(SyntaxAndDeclarationManager syntax) {
         var compilation = new Compilation(assemblyName, options, previous, syntax, _referenceManager);
         compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
@@ -885,12 +941,39 @@ public sealed partial class Compilation {
         if (includeMethods)
             builder.PushRange(methodDiagnostics);
 
-        return BelteDiagnosticQueue.CleanDiagnostics(builder);
+        builder = BelteDiagnosticQueue.CleanDiagnostics(builder);
+        handleManager.SendDiagnosticsMessage(builder);
+        return builder;
     }
 
     private void EnsureBoundProgramAndMethodDiagnostics() {
         if (_lazyBoundProgram is null)
             CreateBoundProgramAndMethodDiagnostics();
+    }
+
+    internal void ReplaceBoundProgram(BoundProgram program, BelteDiagnosticQueue methodDiagnostics) {
+        _lazyMethodDiagnostics = methodDiagnostics;
+        _lazyBoundProgram = program;
+    }
+
+    internal void AddLateSyntaxTrees(IEnumerable<SyntaxTree> trees) {
+        _syntax = _syntax.AddSyntaxTrees(trees);
+
+        Interlocked.Exchange(ref _lazyAssembly, null);
+        Interlocked.Exchange(ref _lazyBoundProgram, null);
+        Interlocked.Exchange(ref _lazyEntryPoint, null);
+        Interlocked.Exchange(ref _lazyGlobalNamespace, null);
+        Interlocked.Exchange(ref _lazyGlobalNamespaceAlias, null);
+        Interlocked.Exchange(ref _lazyImportInfos, null);
+        Interlocked.Exchange(ref _lazyPreviousAnalyses, null);
+        Interlocked.Exchange(ref _lazyScriptClass, null);
+        Interlocked.Exchange(ref _lazyTreeToUsedImportDirectivesMap, null);
+        Interlocked.Exchange(ref _lazyUpdatePoint, null);
+        Interlocked.Exchange(ref _lazyUsedAssemblyReferences, null);
+        Interlocked.Exchange(ref _binderFactories, null);
+        Interlocked.Exchange(ref _ignoreAccessibilityBinderFactories, null);
+
+        handleManager.SendParsedMessage();
     }
 
     private void CreateBoundProgramAndMethodDiagnostics() {
@@ -900,6 +983,8 @@ public sealed partial class Compilation {
             _lazyMethodDiagnostics,
             SkipLibrariesFilter
         );
+
+        handleManager.SendBoundMessage();
     }
 
     private void EmitCFG(string path) {

@@ -4972,4 +4972,10 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // ! Error_BU0404_NoHandleTarget
+    // Requires preprocessor statements (`#handle`)
+
+    // ! Error_BU0405_AmbiguousHandleTarget
+    // Requires preprocessor statements (`#handle`)
 }

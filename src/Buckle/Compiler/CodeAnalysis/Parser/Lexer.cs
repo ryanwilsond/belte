@@ -24,6 +24,7 @@ internal sealed class Lexer : IDisposable {
     private readonly List<SyntaxDiagnostic> _diagnostics;
     private readonly SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
     private readonly SyntaxListBuilder _trailingTriviaCache = new SyntaxListBuilder(10);
+    private SyntaxListBuilder _directiveTriviaCache;
     private readonly bool _allowPreprocessorDirectives;
 
     private LexerMode _mode;
@@ -131,7 +132,7 @@ internal sealed class Lexer : IDisposable {
         return text[index];
     }
 
-    private SyntaxToken LexNextInternal() {
+    private SyntaxToken LexNextInternal(bool ignoreTrailingTrivia = false) {
         _leadingTriviaCache.Clear();
         ReadTrivia(_position > 0, false);
 
@@ -143,8 +144,10 @@ internal sealed class Lexer : IDisposable {
         var tokenWidth = _position - _start;
         var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
 
-        _trailingTriviaCache.Clear();
-        ReadTrivia(true, true);
+        if (!ignoreTrailingTrivia) {
+            _trailingTriviaCache.Clear();
+            ReadTrivia(true, true);
+        }
 
         var tokenText = SyntaxFacts.GetText(tokenKind) ?? text.ToString(new TextSpan(tokenPosition, tokenWidth));
 
@@ -158,14 +161,19 @@ internal sealed class Lexer : IDisposable {
 
         var tokenKind = _kind;
         var tokenWidth = _position - _start;
+        var tokenValue = _value;
         var diagnostics = GetDiagnostics(0);
 
-        _trailingTriviaCache.Clear();
-        ReadDirectiveTrailingTrivia(tokenKind == SyntaxKind.EndOfDirectiveToken);
+        var directiveTriviaCache = _directiveTriviaCache;
+        directiveTriviaCache?.Clear();
+        _directiveTriviaCache = null;
+        ReadDirectiveTrailingTrivia(tokenKind == SyntaxKind.EndOfDirectiveToken, ref directiveTriviaCache);
 
         var tokenText = text.ToString(new TextSpan(tokenPosition, tokenWidth));
+        var token = Create(tokenKind, tokenText, tokenValue, diagnostics, null, directiveTriviaCache);
+        _directiveTriviaCache = directiveTriviaCache;
 
-        return Create(tokenKind, tokenText, null, diagnostics);
+        return token;
     }
 
     private SyntaxDiagnostic[] GetDiagnostics(int leadingTriviaWidth) {
@@ -191,6 +199,24 @@ internal sealed class Lexer : IDisposable {
     private SyntaxToken Create(SyntaxKind kind, string text, object value, SyntaxDiagnostic[] diagnostics) {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
+
+        var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
+
+        if (text is null)
+            token.SetFlags(GreenNode.NodeFlags.IsMissing);
+
+        return token;
+    }
+
+    private SyntaxToken Create(
+        SyntaxKind kind,
+        string text,
+        object value,
+        SyntaxDiagnostic[] diagnostics,
+        SyntaxListBuilder leadingList,
+        SyntaxListBuilder trailingList) {
+        var leading = leadingList?.ToListNode();
+        var trailing = trailingList?.ToListNode();
 
         var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 
@@ -230,10 +256,12 @@ internal sealed class Lexer : IDisposable {
                     ReadLineBreak();
                     break;
                 case '#':
-                    if (_allowPreprocessorDirectives)
+                    if (_allowPreprocessorDirectives) {
                         ReadDirective(afterFirstToken, isTrailing, ref triviaList);
-                    else
+                        _start = _position;
+                    } else {
                         done = true;
+                    }
 
                     break;
                 case ' ':
@@ -260,8 +288,8 @@ internal sealed class Lexer : IDisposable {
         }
     }
 
-    private void ReadDirectiveTrivia(bool isTrailing) {
-        var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache; ;
+    private BelteSyntaxNode ReadDirectiveTrivia() {
+        BelteSyntaxNode trivia = null;
 
         _start = _position;
         _kind = SyntaxKind.BadToken;
@@ -294,9 +322,10 @@ internal sealed class Lexer : IDisposable {
 
         if (length > 0) {
             var triviaText = text.ToString(new TextSpan(_start, length));
-            var trivia = SyntaxFactory.Trivia(_kind, triviaText, GetDiagnostics(0));
-            triviaList.Add(trivia);
+            trivia = SyntaxFactory.Trivia(_kind, triviaText, GetDiagnostics(0));
         }
+
+        return trivia;
     }
 
     private void ReadDirectiveToken() {
@@ -309,6 +338,26 @@ internal sealed class Lexer : IDisposable {
             case '#':
                 _position++;
                 _kind = SyntaxKind.HashToken;
+                break;
+            case '(':
+                _position++;
+                _kind = SyntaxKind.OpenParenToken;
+                break;
+            case ')':
+                _position++;
+                _kind = SyntaxKind.OpenParenToken;
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                ReadNumericLiteral();
                 break;
             default:
                 if (char.IsLetter(_current)) {
@@ -789,9 +838,9 @@ internal sealed class Lexer : IDisposable {
 
         _position += 2;
         var startPosition = _position;
-        _start = _position;
 
         while (_current != '\0') {
+            _start = _position;
             var inner = ReadStringContent(false, true, false, out var normalEnd);
             hasCloseQuote = normalEnd;
             var tokenWidth = _position - _start;
@@ -799,11 +848,13 @@ internal sealed class Lexer : IDisposable {
             if (normalEnd && tokenWidth == 0)
                 break;
 
-            var tokenValue = inner.ToString();
-            var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
-            _trailingTriviaCache.Clear();
-            var tokenText = text.ToString(new TextSpan(startPosition, tokenWidth));
-            groups.Add([Create(SyntaxKind.StringLiteralToken, tokenText, tokenValue, diagnostics)]);
+            if (tokenWidth > 0) {
+                var tokenValue = inner.ToString();
+                var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
+                _trailingTriviaCache.Clear();
+                var tokenText = text.ToString(new TextSpan(startPosition, tokenWidth));
+                groups.Add([Create(SyntaxKind.StringLiteralToken, tokenText, tokenValue, diagnostics)]);
+            }
 
             if (normalEnd || _current != '{')
                 break;
@@ -841,7 +892,7 @@ internal sealed class Lexer : IDisposable {
                     }
 
                     if (!earlyEof) {
-                        var token = LexNext(LexerMode.Syntax);
+                        var token = LexNextInternal(ignoreTrailingTrivia: true);
                         groupBuilder.Add(token);
                     }
 
@@ -986,7 +1037,7 @@ internal sealed class Lexer : IDisposable {
     }
 
     private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine, ref SyntaxListBuilder triviaList) {
-        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine);
+        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine, ref triviaList);
 
         if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
             ReadExcludedDirectivesAndTrivia(true, ref triviaList);
@@ -997,12 +1048,12 @@ internal sealed class Lexer : IDisposable {
             var text = ReadDisabledText(out var hasFollowingDirective);
 
             if (text is not null)
-                triviaList.Add(text);
+                AddTrivia(text, ref triviaList);
 
             if (!hasFollowingDirective)
                 break;
 
-            var directive = ReadDirective(false, endIsActive, false, false);
+            var directive = ReadDirective(false, endIsActive, false, false, ref triviaList);
             var branching = directive as BranchingDirectiveTriviaSyntax;
 
             if (directive.kind == SyntaxKind.EndIfDirectiveTrivia || (branching is not null && branching.branchTaken))
@@ -1062,7 +1113,8 @@ internal sealed class Lexer : IDisposable {
         bool isActive,
         bool endIsActive,
         bool afterFirstToken,
-        bool afterNonWhitespaceOnLine) {
+        bool afterNonWhitespaceOnLine,
+        ref SyntaxListBuilder triviaList) {
         var saveMode = _mode;
         var directiveParser = new DirectiveParser(this, _directives);
         var directive = directiveParser.ParseDirective(
@@ -1072,8 +1124,7 @@ internal sealed class Lexer : IDisposable {
             afterNonWhitespaceOnLine
         );
 
-        var triviaList = afterNonWhitespaceOnLine ? _trailingTriviaCache : _leadingTriviaCache;
-        triviaList.Add(directive);
+        AddTrivia(directive, ref triviaList);
 
         _directives = directive.ApplyDirectives(_directives);
         _mode = saveMode;
@@ -1081,22 +1132,32 @@ internal sealed class Lexer : IDisposable {
         return directive;
     }
 
-    private void ReadDirectiveTrailingTrivia(bool includeEndOfLine) {
+    private void ReadDirectiveTrailingTrivia(bool includeEndOfLine, ref SyntaxListBuilder trivia) {
+        BelteSyntaxNode tr;
+
         while (true) {
             var position = _position;
-            ReadDirectiveTrivia(true);
+            tr = ReadDirectiveTrivia();
 
-            if (_position == position) {
+            if (tr is null)
                 break;
-            } else if (_kind == SyntaxKind.EndOfLineTrivia) {
-                if (!includeEndOfLine) {
-                    _trailingTriviaCache.RemoveLast();
+
+            if (tr.kind == SyntaxKind.EndOfLineTrivia) {
+                if (includeEndOfLine)
+                    AddTrivia(tr, ref trivia);
+                else
                     _position = position;
-                }
 
                 break;
+            } else {
+                AddTrivia(tr, ref trivia);
             }
         }
+    }
+
+    private void AddTrivia(BelteSyntaxNode trivia, ref SyntaxListBuilder list) {
+        list ??= new SyntaxListBuilder(8);
+        list.Add(trivia);
     }
 
     private void ReadIdentifierOrKeyword() {

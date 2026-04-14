@@ -1972,6 +1972,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullBindingOnNull, location, message);
     }
 
+    internal static BelteDiagnostic NoHandleTarget(TextLocation location, TypeSymbol type) {
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains no valid handle method";
+        return CreateError(DiagnosticCode.ERR_NoHandleTarget, location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousHandleTarget(TextLocation location, TypeSymbol type) {
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains more than one valid handle method";
+        return CreateError(DiagnosticCode.ERR_AmbiguousHandleTarget, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

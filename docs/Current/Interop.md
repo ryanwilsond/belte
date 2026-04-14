@@ -17,7 +17,6 @@ Because of this limitation, the safest way to interact with imported references 
 DLL.
 
 To specify a reference, the [`--ref=<file>` command-line argument](../Buckle.md#--reffile---referencefile) can be used.
-The [`-d` flag](../Buckle.md#-d---dotnet) must also be used to specify that the compiler should emit a .NET executable.
 
 For example:
 

@@ -60,9 +60,9 @@ public sealed partial class Compilation {
 
                 if (_includeMember) {
                     var typeDeclaration = (MergedTypeDeclaration)current;
-                    if (ShouldCheckTypeForMembers(typeDeclaration)) {
+
+                    if (ShouldCheckTypeForMembers(typeDeclaration))
                         AppendMemberSymbolsWithName(spine, typeDeclaration, set);
-                    }
                 }
             }
 

@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
 
@@ -120,7 +119,9 @@ internal sealed class TypeWithAnnotations {
                 result = result.isNullable ? result : result.SetIsAnnotated();
                 break;
             case NullableContextExtensions.NotAnnotatedAttributeValue:
-                result = new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+                result = result.typeKind == TypeKind.Class
+                    ? result.SetIsAnnotated()
+                    : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
                 break;
             default:
                 result = this;

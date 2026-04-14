@@ -716,8 +716,11 @@ public static partial class BuckleCommandLine {
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
+        if (references.Count > 0 && state.buildMode is not BuildMode.Dotnet and not
+                                                           BuildMode.AutoRun and not
+                                                           BuildMode.Execute) {
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
+        }
 
         foreach (var reference in references) {
             if (!File.Exists(reference))

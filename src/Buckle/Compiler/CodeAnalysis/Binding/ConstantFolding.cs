@@ -504,7 +504,12 @@ internal static class ConstantFolding {
         if (constantValue.value is null && !target.isNullable)
             return null;
 
-        var specialType = target.type.StrippedType().specialType;
+        var targetType = target.type.StrippedType();
+
+        if (targetType.IsEnumType())
+            targetType = ((NamedTypeSymbol)targetType).enumUnderlyingType;
+
+        var specialType = targetType.specialType;
 
         // Preserve "actual" type
         if (specialType == SpecialType.Any)
