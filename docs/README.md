@@ -49,6 +49,7 @@
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts
       - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
+      - [3.1.3](Current/Data.md#313-function-type) Function Type
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
@@ -123,6 +124,7 @@
       - [6.5.1](Current/LowLevelFeatures.md#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
       - [6.5.2](Current/LowLevelFeatures.md#652-pointer-arithmetic) Pointer Arithmetic
     - [6.6](Current/LowLevelFeatures.md#66-function-pointers) Function Pointers
+      - [6.6.1](Current/LowLevelFeatures.md#661-calling-conventions) Calling Conventions
     - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
     - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator

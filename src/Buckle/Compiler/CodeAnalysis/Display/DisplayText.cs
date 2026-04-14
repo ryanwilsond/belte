@@ -308,6 +308,9 @@ public sealed class DisplayText {
             case BoundKind.FunctionPointerLoad:
                 DisplayFunctionPointerLoad(text, (BoundFunctionPointerLoad)node);
                 break;
+            case BoundKind.FunctionLoad:
+                DisplayFunctionLoad(text, (BoundFunctionLoad)node);
+                break;
             case BoundKind.FunctionPointerCallExpression:
                 DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
                 break;
@@ -958,6 +961,14 @@ public sealed class DisplayText {
     private static void DisplayFunctionPointerLoad(DisplayText text, BoundFunctionPointerLoad node) {
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
         SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
+    }
+
+    private static void DisplayFunctionLoad(DisplayText text, BoundFunctionLoad node) {
+        text.Write(CreateIdentifier("Func"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+        SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayFunctionPointerCallExpression(

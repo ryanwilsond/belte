@@ -414,6 +414,11 @@ public enum DiagnosticCode : ushort {
     ERR_NullBindingOnNull = 403,
     ERR_NoHandleTarget = 404,
     ERR_AmbiguousHandleTarget = 405,
+    ERR_FunctionCannotContainPointer = 406,
+    ERR_MethodFunctionMismatch = 407,
+    ERR_BadReturnType = 408,
+    ERR_FunctionRefMismatch = 409,
+    ERR_UnknownCallingConvention = 410,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

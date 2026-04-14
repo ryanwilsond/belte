@@ -69,7 +69,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         ImmutableArray<T> memberGroup,
         NamedTypeSymbol typeContainingConstructor,
         bool isMethodGroupConversion = false,
-        RefKind? returnRefKind = null)
+        RefKind? returnRefKind = null,
+        FunctionTypeSymbol functionTypeSymbol = null)
         where T : Symbol {
         var symbols = StaticCast<Symbol>.From(memberGroup);
 
@@ -89,10 +90,10 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             return;
         }
 
-        // if (isMethodGroupConversion && returnRefKind != null &&
-        //     HadReturnMismatch(location, diagnostics, delegateOrFunctionPointerType)) {
-        //     return;
-        // }
+        if (isMethodGroupConversion && returnRefKind is not null &&
+            HadReturnMismatch(location, diagnostics, functionTypeSymbol)) {
+            return;
+        }
 
         // if (HadConstraintFailure(location, diagnostics)) {
         //     return;
@@ -223,6 +224,34 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         if (!isMethodGroupConversion)
             ReportBadParameterCount(diagnostics, name, arguments, symbols, location, typeContainingConstructor);
+    }
+
+    private bool HadReturnMismatch(
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        FunctionTypeSymbol functionType) {
+        var mismatch = GetFirstMemberKind(MemberResolutionKind.WrongRefKind);
+
+        if (!mismatch.isNull) {
+            diagnostics.Push(Error.FunctionRefMismatch(location, mismatch.member, functionType));
+            return true;
+        }
+
+        mismatch = GetFirstMemberKind(MemberResolutionKind.WrongReturnType);
+
+        if (!mismatch.isNull) {
+            var method = (MethodSymbol)(Symbol)mismatch.member;
+            diagnostics.Push(Error.BadReturnType(
+                location,
+                method,
+                method.returnType,
+                functionType.signature.returnType
+            ));
+
+            return true;
+        }
+
+        return false;
     }
 
     private bool TypeInferenceFailed(

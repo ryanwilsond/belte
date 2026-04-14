@@ -59,6 +59,15 @@ internal static class SyntaxNodeExtensions {
                     }
 
                     break;
+                case SyntaxKind.FunctionType:
+                    var functionTypeSyntax = (FunctionTypeSyntax)type;
+
+                    for (var i = functionTypeSyntax.parameterList.parameters.Count - 1; i >= 0; i--) {
+                        var paramType = functionTypeSyntax.parameterList.parameters[i].type;
+                        stack.Push(paramType);
+                    }
+
+                    break;
                 case SyntaxKind.TemplateName:
                     var templateNameSyntax = (TemplateNameSyntax)type;
 

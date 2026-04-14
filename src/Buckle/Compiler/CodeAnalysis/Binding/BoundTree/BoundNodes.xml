@@ -311,6 +311,10 @@
     <Field Name="constrainedToTypeOpt" Type="TypeSymbol?" Null="allow"/>
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
+  <Node Name="BoundFunctionLoad" Base="BoundExpression">
+    <Field Name="targetMethod" Type="MethodSymbol"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
   <Node Name="BoundPointerIndirectionOperator" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="operand" Type="BoundExpression"/>

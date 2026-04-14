@@ -67,6 +67,14 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             );
     }
 
+    internal Conversion(ConversionKind kind, MethodSymbol conversionMethod) {
+        this.kind = kind;
+        _uncommonData = new MethodUncommonData(
+            conversionResult: default,
+            conversionMethod: conversionMethod
+        );
+    }
+
     private Conversion(ConversionKind kind, UncommonData uncommonData = null) {
         this.kind = kind;
         _uncommonData = uncommonData;

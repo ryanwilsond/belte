@@ -28,6 +28,7 @@ internal static class SymbolExtensions {
             case SymbolKind.NamedType:
             case SymbolKind.PointerType:
             case SymbolKind.FunctionPointerType:
+            case SymbolKind.FunctionType:
             case SymbolKind.TemplateParameter:
                 return true;
             case SymbolKind.Alias:

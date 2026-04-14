@@ -14,6 +14,7 @@ This may change.
   - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
   - [6.5.2](#652-pointer-arithmetic) Pointer Arithmetic
 - [6.6](#66-function-pointers) Function Pointers
+  - [6.6.1](#661-calling-conventions) Calling Conventions
 - [6.7](#67-extern-methods) Extern Methods
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
@@ -272,6 +273,16 @@ var MyFunction = (void()*~)vtable[0];
 MyFunction();
 ```
 
+### 6.6.1 Calling Conventions
+
+The default unmanaged calling convention is WinAPI/STDCall (they are the same). Specifying a calling convention can be
+done by following the function pointer type with `stdcall`, `winapi`, `fastcall`, `thiscall`, or `cdecl` (not case
+sensitive):
+
+```belte
+void()*~[cdecl] a;
+```
+
 ## 6.7 Extern Methods
 
 > To call code in .NET (managed) DLLs, consider using a [.NET DLL reference](Interop.md)
@@ -426,14 +437,14 @@ disambiguate the symbol.
 
 ```belte
 il {
-  call Console.PrintLine();
+  call Console.PrintLine : ();
 }
 ```
 
 ```belte
 il {
   ldstr "Hello, world!";
-  call Console.PrintLine(string);
+  call Console.PrintLine : (string);
 }
 ```
 
@@ -442,7 +453,7 @@ operand is the type to construct.
 
 ```belte
 il {
-  newobj MyClass(int, bool);
+  newobj MyClass : (int, bool);
 }
 ```
 

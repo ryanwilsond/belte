@@ -62,6 +62,7 @@ public static class SymbolDisplay {
             case SymbolKind.ArrayType:
             case SymbolKind.PointerType:
             case SymbolKind.FunctionPointerType:
+            case SymbolKind.FunctionType:
             case SymbolKind.ErrorType:
                 DisplayType(text, (TypeSymbol)symbol, format);
                 break;
@@ -126,13 +127,16 @@ public static class SymbolDisplay {
 
             var first = true;
 
-            foreach (var paramType in signature.GetParameterTypes()) {
+            foreach (var param in signature.GetParameters()) {
                 if (first)
                     first = false;
                 else
                     text.Write(CreatePunctuation(", "));
 
-                DisplayType(text, paramType.type, format);
+                if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
+                    DisplayConstExprRef(text, false, false, param.refKind);
+
+                DisplayType(text, param.type, format);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -140,6 +144,26 @@ public static class SymbolDisplay {
 
             if (!functionPointerType.signature.isManaged)
                 text.Write(CreatePunctuation(SyntaxKind.TildeToken));
+        } else if (type is FunctionTypeSymbol functionType) {
+            var signature = functionType.signature;
+            DisplayType(text, signature.returnType, format);
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+
+            var first = true;
+
+            foreach (var param in signature.GetParameters()) {
+                if (first)
+                    first = false;
+                else
+                    text.Write(CreatePunctuation(", "));
+
+                if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
+                    DisplayConstExprRef(text, false, false, param.refKind);
+
+                DisplayType(text, param.type, format);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         }
     }
 

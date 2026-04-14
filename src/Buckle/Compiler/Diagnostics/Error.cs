@@ -742,8 +742,13 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic MethodGroupCannotBeUsedAsValue(TextLocation location, BoundMethodGroup methodGroup) {
-        var message = $"method group '{methodGroup}' cannot be used as a value";
+        var message = $"method group '{methodGroup.name}' cannot be used as a value";
         return CreateError(DiagnosticCode.ERR_MethodGroupCannotBeUsedAsValue, location, message);
+    }
+
+    internal static BelteDiagnostic MethodFunctionMismatch(TextLocation location, BoundMethodGroup methodGroup, TypeSymbol type) {
+        var message = $"no overload for '{methodGroup.name}' matches function '{type}'";
+        return CreateError(DiagnosticCode.ERR_MethodFunctionMismatch, location, message);
     }
 
     internal static BelteDiagnostic LocalShadowsParameter(TextLocation location, string name) {
@@ -1980,6 +1985,27 @@ internal static class Error {
     internal static BelteDiagnostic AmbiguousHandleTarget(TextLocation location, TypeSymbol type) {
         var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains more than one valid handle method";
         return CreateError(DiagnosticCode.ERR_AmbiguousHandleTarget, location, message);
+    }
+
+    internal static BelteDiagnostic FunctionCannotContainPointer(TextLocation location) {
+        var message = $"function types cannot contain pointers or function pointers; consider using a function pointer instead";
+        var suggestion = $"%*";
+        return CreateError(DiagnosticCode.ERR_FunctionCannotContainPointer, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic BadReturnType(TextLocation location, MethodSymbol method, TypeSymbol type, TypeSymbol expected) {
+        var message = $"'{type} {method}' has the wrong return type; expected '{expected}'";
+        return CreateError(DiagnosticCode.ERR_BadReturnType, location, message);
+    }
+
+    internal static BelteDiagnostic FunctionRefMismatch(TextLocation location, Symbol method, TypeSymbol type) {
+        var message = $"ref mismatch between '{method}' and function '{type}'";
+        return CreateError(DiagnosticCode.ERR_FunctionRefMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownCallingConvention(TextLocation location, string text) {
+        var message = $"unrecognized calling convention '{text}'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'";
+        return CreateError(DiagnosticCode.ERR_UnknownCallingConvention, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

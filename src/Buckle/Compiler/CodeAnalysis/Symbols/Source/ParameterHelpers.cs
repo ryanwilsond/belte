@@ -73,6 +73,39 @@ internal static class ParameterHelpers {
         );
     }
 
+    internal static ImmutableArray<FunctionParameterSymbol> MakeFunctionParameters(
+        Binder binder,
+        FunctionMethodSymbol owner,
+        SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
+        BelteDiagnosticQueue diagnostics) {
+        return MakeParameters(
+            binder,
+            owner,
+            parametersList,
+            diagnostics,
+            true,
+            true,
+            parametersList.Count - 1,
+            parameterCreationFunc: (FunctionMethodSymbol owner, TypeWithAnnotations parameterType,
+                                    FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
+                                    bool addRefReadOnlyModifier, ScopedKind scope) => {
+                                        if (parameterType.IsVoidType()) {
+                                            // TODO
+                                            // diagnostics.Push(Error.)
+                                            // diagnostics.Add(ErrorCode.ERR_NoVoidParameter, syntax.Type.Location);
+                                        }
+
+                                        return new FunctionParameterSymbol(
+                                            parameterType,
+                                            refKind,
+                                            ordinal,
+                                            owner
+                                        );
+                                    },
+            parsingFunctionPointer: true
+        );
+    }
+
     internal static bool ReportDefaultParameterErrors(
         Binder binder,
         Symbol owner,

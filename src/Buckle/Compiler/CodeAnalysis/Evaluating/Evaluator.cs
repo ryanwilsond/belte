@@ -573,8 +573,16 @@ internal sealed class Evaluator {
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("Stackalloc is not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
+            BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    private EvaluatorValue EvaluateFunctionLoad(BoundFunctionLoad node, bool used, ValueWrapper<bool> abort) {
+        if (used)
+            return new EvaluatorValue() { kind = ValueKind.MethodGroup, data = node.targetMethod };
+
+        return EvaluatorValue.None;
     }
 
     private EvaluatorValue EvaluateCompileTimeExpression(BoundCompileTimeExpression node, bool used, ValueWrapper<bool> abort) {
@@ -2425,7 +2433,9 @@ internal sealed class Evaluator {
         if (method.isExtern)
             throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
 
-        method = ResolveVirtualMethod(method, receiver, thisParameter);
+        method = thisParameter.kind == ValueKind.MethodGroup
+            ? thisParameter.data as MethodSymbol
+            : ResolveVirtualMethod(method, receiver, thisParameter);
 
         var value = InvokeMethod(method, thisParameter, evaluatedArguments, abort);
 
@@ -2565,8 +2575,8 @@ internal sealed class Evaluator {
         result = null;
 
         if ((object)method.containingNamespace != LibraryHelpers.BelteNamespace.originalDefinition) {
-            if (method.containingType.specialType != SpecialType.Nullable &&
-                method.containingType.specialType != SpecialType.Object) {
+            if (method.containingType?.specialType != SpecialType.Nullable &&
+                method.containingType?.specialType != SpecialType.Object) {
                 return false;
             }
         }

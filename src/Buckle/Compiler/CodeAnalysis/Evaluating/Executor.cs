@@ -260,6 +260,9 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type is FunctionPointerTypeSymbol)
                 throw ExceptionUtilities.Unreachable();
 
+            if (type is FunctionTypeSymbol f)
+                return GetFuncType(f.signature);
+
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
@@ -336,6 +339,39 @@ internal sealed partial class Executor : ModuleBuilder {
 
             return _types[type.originalDefinition];
         }
+    }
+
+    private Type GetFuncType(FunctionMethodSymbol signature) {
+        if (signature.returnsVoid && signature.parameterCount == 0) {
+            return Type.GetType($"System.Action", throwOnError: true);
+        } else if (signature.returnsVoid) {
+            var typeRef = Type.GetType($"System.Action`{signature.parameterCount}", throwOnError: true);
+            var builder = ArrayBuilder<Type>.GetInstance();
+
+            foreach (var p in signature.GetParameterTypes())
+                builder.Add(GetType(p.type));
+
+            return typeRef.MakeGenericType(builder.ToArrayAndFree());
+        } else {
+            var typeRef = Type.GetType($"System.Func`{signature.parameterCount + 1}", throwOnError: true);
+            var builder = ArrayBuilder<Type>.GetInstance();
+
+            foreach (var p in signature.GetParameterTypes())
+                builder.Add(GetType(p.type));
+
+            builder.Add(GetType(signature.returnType));
+
+            return typeRef.MakeGenericType(builder.ToArrayAndFree());
+        }
+    }
+
+    private Type GetOpenFuncType(FunctionMethodSymbol signature) {
+        if (signature.returnsVoid && signature.parameterCount == 0)
+            return Type.GetType($"System.Action", throwOnError: true);
+        else if (signature.returnsVoid)
+            return Type.GetType($"System.Action`{signature.parameterCount}", throwOnError: true);
+        else
+            return Type.GetType($"System.Func`{signature.parameterCount + 1}", throwOnError: true);
     }
 
     internal static Type ResolveType(PENamedTypeSymbol type) {
@@ -420,6 +456,15 @@ internal sealed partial class Executor : ModuleBuilder {
             var paramTypes = m.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
             value = containingType.GetMethod(m.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance, paramTypes);
             found = true;
+        }
+
+        if (!found && method.originalDefinition is FunctionMethodSymbol s) {
+            var typeRef = GetFuncType(s);
+
+            if (typeRef.ContainsGenericParameters || typeRef is TypeBuilder || typeRef is GenericTypeParameterBuilder)
+                return TypeBuilder.GetMethod(typeRef, GetOpenFuncType(s).GetMethod("Invoke"));
+            else
+                return typeRef.GetMethod("Invoke");
         }
 
         if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
@@ -510,6 +555,16 @@ internal sealed partial class Executor : ModuleBuilder {
         var assertNull = typeof(Belte.Runtime.Utilities).GetMethod("AssertNull", BindingFlags.Public | BindingFlags.Static);
         var closedMethod = assertNull.MakeGenericMethod(GetType(type));
         return closedMethod;
+    }
+
+    internal ConstructorInfo GetFuncCtor(FunctionMethodSymbol signature) {
+        var typeRef = GetFuncType(signature);
+
+        if (typeRef.ContainsGenericParameters || typeRef is TypeBuilder || typeRef is GenericTypeParameterBuilder)
+            return TypeBuilder.GetConstructor(typeRef, GetOpenFuncType(signature).GetConstructor([typeof(object), typeof(nint)]));
+        else
+            return typeRef.GetConstructor([typeof(object), typeof(nint)]);
+
     }
 
     internal ConstructorInfo GetNullableCtor(TypeSymbol type) {

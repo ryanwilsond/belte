@@ -222,13 +222,27 @@ internal sealed class CecilILBuilder : ILBuilder {
 
         var callSite = new CallSite(returnType) {
             HasThis = false,
-            CallingConvention = managed ? MethodCallingConvention.Default : MethodCallingConvention.StdCall
+            CallingConvention = managed
+                ? MethodCallingConvention.Default
+                : GetUnmanagedCallingConvention(type.signature.unmanagedCallingConvention)
         };
 
         foreach (var p in paramTypes)
             callSite.Parameters.Add(new Mono.Cecil.ParameterDefinition(p));
 
         iLProcessor.Emit(OpCodes.Calli, callSite);
+
+        MethodCallingConvention GetUnmanagedCallingConvention(CallingConvention callingConvention) {
+            return callingConvention switch {
+                CallingConvention.Unspecified => MethodCallingConvention.StdCall,
+                CallingConvention.Winapi => MethodCallingConvention.Default,
+                CallingConvention.StdCall => MethodCallingConvention.StdCall,
+                CallingConvention.FastCall => MethodCallingConvention.FastCall,
+                CallingConvention.ThisCall => MethodCallingConvention.ThisCall,
+                CallingConvention.Cdecl => MethodCallingConvention.C,
+                _ => throw ExceptionUtilities.UnexpectedValue(callingConvention)
+            };
+        }
     }
 
     internal override void EmitLocalAddress(DataContainerSymbol local) {
@@ -420,6 +434,10 @@ internal sealed class CecilILBuilder : ILBuilder {
 
     internal override void EmitNewobjNullable(TypeSymbol generic) {
         iLProcessor.Emit(OpCodes.Newobj, _module.GetNullableCtor(generic));
+    }
+
+    internal override void EmitNewobjFunc(FunctionTypeSymbol type) {
+        iLProcessor.Emit(OpCodes.Newobj, _module.GetFuncCtor(type.signature));
     }
 
     internal override void EmitRandomNextInt64() {

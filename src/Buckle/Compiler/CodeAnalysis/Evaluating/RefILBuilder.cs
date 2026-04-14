@@ -141,10 +141,23 @@ internal sealed class RefILBuilder : ILBuilder {
             Log(OpCodes.Calli, type.signature);
             _iLGenerator.EmitCalli(
                 OpCodes.Calli,
-                System.Runtime.InteropServices.CallingConvention.Winapi,
+                GetUnmanagedCallingConvention(type.signature.unmanagedCallingConvention),
                 returnType,
                 paramTypes
             );
+        }
+
+        System.Runtime.InteropServices.CallingConvention GetUnmanagedCallingConvention(
+            CallingConvention callingConvention) {
+            return callingConvention switch {
+                CallingConvention.Unspecified => System.Runtime.InteropServices.CallingConvention.Winapi,
+                CallingConvention.Winapi => System.Runtime.InteropServices.CallingConvention.Winapi,
+                CallingConvention.StdCall => System.Runtime.InteropServices.CallingConvention.StdCall,
+                CallingConvention.FastCall => System.Runtime.InteropServices.CallingConvention.FastCall,
+                CallingConvention.ThisCall => System.Runtime.InteropServices.CallingConvention.ThisCall,
+                CallingConvention.Cdecl => System.Runtime.InteropServices.CallingConvention.Cdecl,
+                _ => throw ExceptionUtilities.UnexpectedValue(callingConvention)
+            };
         }
     }
 
@@ -386,6 +399,10 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitNewobjNullable(TypeSymbol generic) {
         EmitWithSymbolToken(OpCodes.Newobj, _module.GetNullableCtor(generic));
+    }
+
+    internal override void EmitNewobjFunc(FunctionTypeSymbol type) {
+        EmitWithSymbolToken(OpCodes.Newobj, _module.GetFuncCtor(type.signature));
     }
 
     internal override void EmitRandomNextInt64() {

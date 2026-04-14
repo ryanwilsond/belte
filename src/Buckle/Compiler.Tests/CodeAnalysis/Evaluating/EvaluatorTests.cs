@@ -241,6 +241,12 @@ public sealed class EvaluatorTests {
     [InlineData("int F(int a, int b) { if (a is null) return 1; if (b is null) return 2; return 3;} return F(,2);", 1)]
     [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); return myA.M();", 3)]
     [InlineData("class A { public int a; public int M() { if (a is null) a = 3; return a++; } } var myA = new A(); myA.M(); return myA.M();", 4)]
+    [InlineData("int F(int a, int b) { return a + b; } int(int, int) a = F; return a(3, 4);", 7)]
+    [InlineData("int F(int a) { return a + 3; } int(int) a = F; return a(3);", 6)]
+    [InlineData("int F() { return 3; } int() a = F; return a();", 3)]
+    [InlineData("void F(int a, int b) { } void(int, int) a = F; a(3, 4); return null;", null)]
+    [InlineData("void F(int a) { } void(int) a = F; a(3); return null;", null)]
+    [InlineData("void F() { } void() a = F; a(); return null;", null)]
     // Cast expressions
     [InlineData("return (decimal)3;", 3)]
     [InlineData("return (int)3.4;", 3)]

@@ -263,6 +263,7 @@ public enum SyntaxKind : ushort {
     NonNullableType,
     PointerType,
     FunctionPointerType,
+    FunctionType,
     ReferenceType,
     BaseType,
     NameEquals,

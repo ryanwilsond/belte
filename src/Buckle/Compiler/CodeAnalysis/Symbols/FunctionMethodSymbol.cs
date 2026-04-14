@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -11,27 +10,25 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
-    private readonly ImmutableArray<FunctionPointerParameterSymbol> _parameters;
+internal sealed class FunctionMethodSymbol : MethodSymbol {
+    private readonly ImmutableArray<FunctionParameterSymbol> _parameters;
 
-    private FunctionPointerMethodSymbol(
-        CallingConvention callingConvention,
+    private FunctionMethodSymbol(
         RefKind refKind,
         TypeWithAnnotations returnType,
         ImmutableArray<ParameterSymbol> originalParameters,
         ImmutableArray<TypeOrConstant> substitutedParameterTypes) {
-        this.callingConvention = callingConvention;
         this.refKind = refKind;
         returnTypeWithAnnotations = returnType;
 
         if (originalParameters.Length > 0) {
-            var paramsBuilder = ArrayBuilder<FunctionPointerParameterSymbol>.GetInstance(originalParameters.Length);
+            var paramsBuilder = ArrayBuilder<FunctionParameterSymbol>.GetInstance(originalParameters.Length);
 
             for (var i = 0; i < originalParameters.Length; i++) {
                 var originalParam = originalParameters[i];
                 var substitutedType = substitutedParameterTypes[i];
 
-                paramsBuilder.Add(new FunctionPointerParameterSymbol(
+                paramsBuilder.Add(new FunctionParameterSymbol(
                     substitutedType.type,
                     originalParam.refKind,
                     originalParam.ordinal,
@@ -45,27 +42,23 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         }
     }
 
-
-    private FunctionPointerMethodSymbol(
-        CallingConvention callingConvention,
-        ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
+    private FunctionMethodSymbol(ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
         var retInfo = retAndParamTypes[0];
         // var returnType = new TypeWithAnnotations(retInfo.type, customModifiers: CSharpCustomModifier.Convert(retInfo.CustomModifiers));
         var returnType = new TypeWithAnnotations(retInfo.type);
 
         // RefCustomModifiers = CSharpCustomModifier.Convert(retInfo.RefCustomModifiers);
-        this.callingConvention = callingConvention;
         returnTypeWithAnnotations = returnType;
         // refKind = getRefKind(retInfo, RefCustomModifiers, RefKind.RefConst, RefKind.Ref, requiresLocationAllowed: false);
         refKind = retInfo.isByRef ? RefKind.Ref : RefKind.None;
         // UseUpdatedEscapeRules = useUpdatedEscapeRules;
         _parameters = MakeParametersFromMetadata(retAndParamTypes.AsSpan()[1..], this);
 
-        static ImmutableArray<FunctionPointerParameterSymbol> MakeParametersFromMetadata(
+        static ImmutableArray<FunctionParameterSymbol> MakeParametersFromMetadata(
             ReadOnlySpan<ParamInfo<TypeSymbol>> parameterTypes,
-            FunctionPointerMethodSymbol parent) {
+            FunctionMethodSymbol parent) {
             if (parameterTypes.Length > 0) {
-                var paramsBuilder = ArrayBuilder<FunctionPointerParameterSymbol>.GetInstance(parameterTypes.Length);
+                var paramsBuilder = ArrayBuilder<FunctionParameterSymbol>.GetInstance(parameterTypes.Length);
 
                 for (var i = 0; i < parameterTypes.Length; i++) {
                     var param = parameterTypes[i];
@@ -74,100 +67,64 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                     var paramType = new TypeWithAnnotations(param.type);
                     // var paramRefKind = getRefKind(param, /*paramRefCustomMods, */RefKind.In, RefKind.Out, requiresLocationAllowed: true);
                     var paramRefKind = param.isByRef ? RefKind.Ref : RefKind.None;
-                    paramsBuilder.Add(new FunctionPointerParameterSymbol(paramType, paramRefKind, i, parent/*, paramRefCustomMods*/));
+                    paramsBuilder.Add(new FunctionParameterSymbol(paramType, paramRefKind, i, parent/*, paramRefCustomMods*/));
                 }
 
                 return paramsBuilder.ToImmutableAndFree();
             } else {
-                return ImmutableArray<FunctionPointerParameterSymbol>.Empty;
+                return ImmutableArray<FunctionParameterSymbol>.Empty;
             }
         }
     }
 
-    internal static FunctionPointerMethodSymbol CreateFromMetadata(
+    internal static FunctionMethodSymbol CreateFromMetadata(
         ModuleSymbol containingModule,
-        CallingConvention callingConvention,
         ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
-        return new FunctionPointerMethodSymbol(
-            callingConvention,
-            retAndParamTypes
-        );
+        return new FunctionMethodSymbol(retAndParamTypes);
     }
 
-    private FunctionPointerMethodSymbol(
-        CallingConvention callingConvention,
+    private FunctionMethodSymbol(
         RefKind refKind,
         TypeWithAnnotations returnType,
-        FunctionPointerSyntax syntax,
+        FunctionTypeSyntax syntax,
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics) {
-        this.callingConvention = callingConvention;
         this.refKind = refKind;
         returnTypeWithAnnotations = returnType;
 
-        var unmanagedCallingConvention = CallingConvention.Unspecified;
-
-        if (syntax.callingConvention is not null) {
-            switch (syntax.callingConvention.text.ToLower()) {
-                case "cdecl":
-                    unmanagedCallingConvention = CallingConvention.Cdecl;
-                    break;
-                case "winapi":
-                    unmanagedCallingConvention = CallingConvention.Winapi;
-                    break;
-                case "fastcall":
-                    unmanagedCallingConvention = CallingConvention.FastCall;
-                    break;
-                case "stdcall":
-                    unmanagedCallingConvention = CallingConvention.StdCall;
-                    break;
-                case "thiscall":
-                    unmanagedCallingConvention = CallingConvention.ThisCall;
-                    break;
-                default:
-                    diagnostics.Push(
-                        Error.UnknownCallingConvention(syntax.callingConvention.location, syntax.callingConvention.text)
-                    );
-                    break;
-            }
-        }
-
-        this.unmanagedCallingConvention = unmanagedCallingConvention;
         _parameters = syntax.parameterList.parameters.Count > 0
-                    ? ParameterHelpers.MakeFunctionPointerParameters(
-                        typeBinder,
-                        this,
-                        syntax.parameterList.parameters,
-                        diagnostics)
-                    : [];
+            ? ParameterHelpers.MakeFunctionParameters(
+                typeBinder,
+                this,
+                syntax.parameterList.parameters,
+                diagnostics)
+            : [];
+
+        if (returnType.type.IsPointerOrFunctionPointer() || _parameters.Any(p => p.type.IsPointerOrFunctionPointer()))
+            diagnostics.Push(Error.FunctionCannotContainPointer(syntax.location));
     }
 
-    private FunctionPointerMethodSymbol(
-        CallingConvention callingConvention,
+    private FunctionMethodSymbol(
         RefKind refKind,
         TypeWithAnnotations returnTypeWithAnnotations,
         ImmutableArray<TypeWithAnnotations> parameterTypes,
         ImmutableArray<RefKind> parameterRefKinds) {
         this.refKind = refKind;
-        this.callingConvention = callingConvention;
         this.returnTypeWithAnnotations = returnTypeWithAnnotations;
-        unmanagedCallingConvention = CallingConvention.Unspecified;
 
         _parameters = parameterTypes.ZipAsArray(parameterRefKinds, this,
             (type, refKind, i, arg) => {
-                return new FunctionPointerParameterSymbol(type, refKind, i, arg);
+                return new FunctionParameterSymbol(type, refKind, i, arg);
             }
         );
     }
 
-    internal static FunctionPointerMethodSymbol CreateFromParts(
-        CallingConvention callingConvention,
+    internal static FunctionMethodSymbol CreateFromParts(
         TypeWithAnnotations returnTypeWithAnnotations,
         RefKind returnRefKind,
         ImmutableArray<TypeWithAnnotations> parameterTypes,
         ImmutableArray<RefKind> parameterRefKinds) {
-        return new FunctionPointerMethodSymbol(
-            callingConvention,
+        return new FunctionMethodSymbol(
             returnRefKind,
             returnTypeWithAnnotations,
             parameterTypes,
@@ -175,9 +132,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         );
     }
 
-    internal static FunctionPointerMethodSymbol CreateFromSource(
-        CallingConvention callingConvention,
-        FunctionPointerSyntax syntax,
+    internal static FunctionMethodSymbol CreateFromSource(
+        FunctionTypeSyntax syntax,
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
@@ -196,8 +152,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         //     diagnostics.Add(ErrorCode.ERR_MethodReturnCantBeRefAny, returnTypeParameter.Location, returnType);
         // }
 
-        return new FunctionPointerMethodSymbol(
-            callingConvention,
+        return new FunctionMethodSymbol(
             refKind,
             returnType,
             syntax,
@@ -206,11 +161,10 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         );
     }
 
-    internal FunctionPointerMethodSymbol SubstituteParameterSymbols(
+    internal FunctionMethodSymbol SubstituteParameterSymbols(
         TypeWithAnnotations substitutedReturnType,
         ImmutableArray<TypeOrConstant> substitutedParameterTypes) {
-        return new FunctionPointerMethodSymbol(
-            callingConvention,
+        return new FunctionMethodSymbol(
             refKind,
             substitutedReturnType,
             parameters,
@@ -219,14 +173,14 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     }
 
     internal override bool Equals(Symbol other, TypeCompareKind compareKind) {
-        if (!(other is FunctionPointerMethodSymbol method)) {
+        if (!(other is FunctionMethodSymbol method)) {
             return false;
         }
 
         return Equals(method, compareKind);
     }
 
-    internal bool Equals(FunctionPointerMethodSymbol other, TypeCompareKind compareKind) {
+    internal bool Equals(FunctionMethodSymbol other, TypeCompareKind compareKind) {
         if (ReferenceEquals(this, other))
             return true;
 
@@ -237,9 +191,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
              (param1, param2, compareKind) => param1.MethodEqualityChecks(param2, compareKind));
     }
 
-    private bool EqualsNoParameters(FunctionPointerMethodSymbol other, TypeCompareKind compareKind) {
-        if (callingConvention != other.callingConvention
-            || !FunctionPointerTypeSymbol.RefKindEquals(compareKind, refKind, other.refKind)
+    private bool EqualsNoParameters(FunctionMethodSymbol other, TypeCompareKind compareKind) {
+        if (!FunctionTypeSymbol.RefKindEquals(compareKind, refKind, other.refKind)
             || !returnTypeWithAnnotations.Equals(other.returnTypeWithAnnotations, compareKind)) {
             return false;
         }
@@ -263,7 +216,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         return currentHash;
     }
 
-    internal FunctionPointerMethodSymbol ApplyNullableTransforms(
+    internal FunctionMethodSymbol ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position) {
@@ -307,20 +260,16 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                 ((int)FunctionPointerTypeSymbol.GetRefKindForHashCode(refKind)).GetHashCode()));
     }
 
-    internal CallingConvention unmanagedCallingConvention { get; }
-
-    internal override CallingConvention callingConvention { get; }
-
-    internal bool isManaged => callingConvention != CallingConvention.Unmanaged;
-
     public override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
 
     public override RefKind refKind { get; }
 
+    internal override CallingConvention callingConvention => CallingConvention.Default;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations { get; }
 
     internal override ImmutableArray<ParameterSymbol> parameters
-        => _parameters.Cast<FunctionPointerParameterSymbol, ParameterSymbol>();
+        => _parameters.Cast<FunctionParameterSymbol, ParameterSymbol>();
 
     public override MethodKind methodKind => MethodKind.FunctionPointerSignature;
 

@@ -329,6 +329,26 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         return base.VisitFunctionPointerLoad(node);
     }
 
+    internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
+        if (node.targetMethod.methodKind == MethodKind.LocalFunction) {
+            ImmutableArray<BoundExpression> arguments = default;
+            ImmutableArray<RefKind> argRefKinds = default;
+
+            RemapLocalFunction(
+                node.syntax,
+                node.targetMethod,
+                out var receiver,
+                out var remappedMethod,
+                ref arguments,
+                ref argRefKinds
+            );
+
+            return node.Update(remappedMethod, node.type);
+        }
+
+        return base.VisitFunctionLoad(node);
+    }
+
     internal override BoundNode VisitBaseExpression(BoundBaseExpression node) {
         return (!_currentMethod.isStatic &&
             TypeSymbol.Equals(

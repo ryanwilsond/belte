@@ -231,6 +231,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Enum:
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
+            case TypeKind.Function:
                 return baseType;
             case TypeKind.Primitive:
                 return null;

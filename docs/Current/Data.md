@@ -3,6 +3,7 @@
 - [3.1](#31-data-types) Data Types
   - [3.1.1](#311-casts) Casts
   - [3.1.2](#312-string-interpolation) String Interpolation
+  - [3.1.3](#313-function-type) Function Type
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -92,6 +93,25 @@ var b = f"A equals {a}"; // b = "A equals 3"
 var a = new List<int>({ 1, 2, 3 });
 var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
 ```
+
+### 3.1.3 Function Type
+
+Similar to [function pointers](LowLevelFeatures.md#66-function-pointers), a data container can have a function type and
+then be assigned with unambiguous method groups.
+
+For example:
+
+```belte
+int(int, int) myFunc = Add;
+int sum = myFunc(3, 5);
+
+int Add(int a, int b) {
+  return a + b;
+}
+```
+
+Function types cannot include pointer types in the return value or parameter list. For cases where you need this
+functionality, use function pointers instead.
 
 ## 3.2 Operators
 

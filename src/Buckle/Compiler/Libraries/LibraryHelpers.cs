@@ -139,6 +139,9 @@ public static class LibraryHelpers {
             if (type is FunctionPointerTypeSymbol)
                 return "F";
 
+            if (type is FunctionTypeSymbol)
+                return "Fn";
+
             return char.ToUpper(type.name.First()).ToString();
         }
     }

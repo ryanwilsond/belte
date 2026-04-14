@@ -319,6 +319,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (type is FunctionPointerTypeSymbol)
                 throw ExceptionUtilities.Unreachable();
 
+            if (type is FunctionTypeSymbol f)
+                return GetFuncType(f.signature);
+
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
@@ -389,6 +392,34 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private TypeReference GetFuncType(FunctionMethodSymbol signature) {
+        if (signature.returnsVoid && signature.parameterCount == 0) {
+            var typeRef = ResolveType(null, "System.Action");
+            _assemblyDefinition.MainModule.ImportReference(typeRef.Resolve());
+            return typeRef;
+        } else if (signature.returnsVoid) {
+            var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
+            var genericRef = new GenericInstanceType(typeRef);
+
+            foreach (var p in signature.GetParameterTypes())
+                genericRef.GenericArguments.Add(GetType(p.type));
+
+            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            return genericRef;
+        } else {
+            var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
+            var genericRef = new GenericInstanceType(typeRef);
+
+            foreach (var p in signature.GetParameterTypes())
+                genericRef.GenericArguments.Add(GetType(p.type));
+
+            genericRef.GenericArguments.Add(GetType(signature.returnType));
+
+            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            return genericRef;
+        }
+    }
+
     internal MethodReference GetMethod(MethodSymbol method) {
         MethodReference value = null;
         var found = false;
@@ -400,6 +431,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
             );
             found = true;
+        }
+
+        if (!found && method.originalDefinition is FunctionMethodSymbol s) {
+            var typeRef = GetFuncType(s);
+            var paramTypes = s.parameterCount == 1
+                ? ["T"]
+                : s.GetParameters().Select(p => $"T{p.ordinal + 1}").ToArray();
+            var invoke = ResolveMethod(typeRef.GetElementType().FullName, "Invoke", paramTypes);
+            var genericInvoke = new MethodReference(invoke.Name, invoke.ReturnType, typeRef) {
+                HasThis = invoke.HasThis,
+                ExplicitThis = invoke.ExplicitThis,
+                CallingConvention = invoke.CallingConvention
+            };
+
+            foreach (var p in invoke.Parameters)
+                genericInvoke.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
+
+            return _assemblyDefinition.MainModule.ImportReference(genericInvoke);
         }
 
         if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
@@ -455,6 +504,21 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             HasThis = ctorRef.HasThis,
             ExplicitThis = ctorRef.ExplicitThis,
             CallingConvention = ctorRef.CallingConvention,
+        };
+
+        foreach (var p in ctorRef.Parameters)
+            genericCtor.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
+
+        return _assemblyDefinition.MainModule.ImportReference(genericCtor);
+    }
+
+    internal MethodReference GetFuncCtor(FunctionMethodSymbol signature) {
+        var typeRef = GetFuncType(signature);
+        var ctorRef = ResolveMethod(typeRef.GetElementType().FullName, ".ctor", ["System.Object", "System.IntPtr"]);
+        var genericCtor = new MethodReference(ctorRef.Name, ctorRef.ReturnType, typeRef) {
+            HasThis = ctorRef.HasThis,
+            ExplicitThis = ctorRef.ExplicitThis,
+            CallingConvention = ctorRef.CallingConvention
         };
 
         foreach (var p in ctorRef.Parameters)

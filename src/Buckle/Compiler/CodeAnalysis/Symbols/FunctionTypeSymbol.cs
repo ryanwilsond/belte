@@ -8,25 +8,18 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
-    private FunctionPointerTypeSymbol(FunctionPointerMethodSymbol signature) {
+internal sealed class FunctionTypeSymbol : TypeSymbol {
+    private FunctionTypeSymbol(FunctionMethodSymbol signature) {
         this.signature = signature;
     }
 
-    internal static FunctionPointerTypeSymbol CreateFromSource(
-        FunctionPointerSyntax syntax,
+    internal static FunctionTypeSymbol CreateFromSource(
+        FunctionTypeSyntax syntax,
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
-        var callingConvention = (syntax.unmanaged?.kind) switch {
-            null => CallingConvention.Default,
-            SyntaxKind.TildeToken => CallingConvention.Unmanaged,
-            _ => throw ExceptionUtilities.Unreachable(),// Should be caught in the parser
-        };
-
-        return new FunctionPointerTypeSymbol(
-            FunctionPointerMethodSymbol.CreateFromSource(
-                callingConvention,
+        return new FunctionTypeSymbol(
+            FunctionMethodSymbol.CreateFromSource(
                 syntax,
                 typeBinder,
                 diagnostics,
@@ -35,24 +28,21 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         );
     }
 
-    internal static FunctionPointerTypeSymbol CreateFromMetadata(
+    internal static FunctionTypeSymbol CreateFromMetadata(
         ModuleSymbol containingModule,
-        CallingConvention callingConvention,
         ImmutableArray<ParamInfo<TypeSymbol>> retAndParamTypes) {
-        return new FunctionPointerTypeSymbol(
-            FunctionPointerMethodSymbol.CreateFromMetadata(containingModule, callingConvention, retAndParamTypes)
+        return new FunctionTypeSymbol(
+            FunctionMethodSymbol.CreateFromMetadata(containingModule, retAndParamTypes)
         );
     }
 
-    internal static FunctionPointerTypeSymbol CreateFromParts(
-        CallingConvention callingConvention,
+    internal static FunctionTypeSymbol CreateFromParts(
         TypeWithAnnotations returnType,
         RefKind returnRefKind,
         ImmutableArray<TypeWithAnnotations> parameterTypes,
         ImmutableArray<RefKind> parameterRefKinds) {
-        return new FunctionPointerTypeSymbol(
-            FunctionPointerMethodSymbol.CreateFromParts(
-                callingConvention,
+        return new FunctionTypeSymbol(
+            FunctionMethodSymbol.CreateFromParts(
                 returnType,
                 returnRefKind,
                 parameterTypes,
@@ -61,25 +51,25 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         );
     }
 
-    internal FunctionPointerTypeSymbol SubstituteTypeSymbol(
+    internal FunctionTypeSymbol SubstituteTypeSymbol(
         TypeWithAnnotations substitutedReturnType,
         ImmutableArray<TypeOrConstant> substitutedParameterTypes) {
-        return new FunctionPointerTypeSymbol(
+        return new FunctionTypeSymbol(
             signature.SubstituteParameterSymbols(substitutedReturnType, substitutedParameterTypes)
         );
     }
 
-    internal FunctionPointerMethodSymbol signature { get; }
+    internal FunctionMethodSymbol signature { get; }
 
-    public override bool isObjectType => false;
+    public override bool isObjectType => true;
 
-    public override bool isPrimitiveType => true;
+    public override bool isPrimitiveType => false;
 
-    public override TypeKind typeKind => TypeKind.FunctionPointer;
+    public override TypeKind typeKind => TypeKind.Function;
 
     internal override bool isRefLikeType => false;
 
-    public override SymbolKind kind => SymbolKind.FunctionPointerType;
+    public override SymbolKind kind => SymbolKind.FunctionType;
 
     internal override Symbol containingSymbol => null;
 
@@ -93,8 +83,6 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
 
     internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
-    public override SpecialType specialType => SpecialType.FunctionPointer;
-
     internal override bool isStatic => false;
 
     internal override bool isAbstract => false;
@@ -103,12 +91,12 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
 
     internal override NamedTypeSymbol baseType => null;
 
-    internal override void Accept(SymbolVisitor visitor) => visitor.VisitFunctionPointerType(this);
+    internal override void Accept(SymbolVisitor visitor) => visitor.VisitFunctionType(this);
     internal override ImmutableArray<Symbol> GetMembers() => [];
     internal override ImmutableArray<Symbol> GetMembers(string name) => [];
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() => [];
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) => [];
-    internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionPointerType(this, a);
+    internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionType(this, a);
 
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
@@ -117,7 +105,7 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         out TypeSymbol result) {
         var newSignature = signature.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position);
         var madeChanges = (object)signature != newSignature;
-        result = madeChanges ? new FunctionPointerTypeSymbol(newSignature) : this;
+        result = madeChanges ? new FunctionTypeSymbol(newSignature) : this;
         return madeChanges;
     }
 
@@ -125,7 +113,7 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         if (ReferenceEquals(this, t2))
             return true;
 
-        if (t2 is not FunctionPointerTypeSymbol other)
+        if (t2 is not FunctionTypeSymbol other)
             return false;
 
         return signature.Equals(other.signature, compareKind);

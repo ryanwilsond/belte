@@ -2368,7 +2368,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            method group '[ F() 1 ]' cannot be used as a value
+            method group 'F' cannot be used as a value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, script: false);
@@ -4833,7 +4833,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0396_UnexpectedParameterList() {
         var text = @"
             il noverify {
-                box int[(bool)];
+                box int : [(bool)];
             }
         ";
 
@@ -4848,7 +4848,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0397_InvalidParameterList() {
         var text = @"
             il noverify {
-                call [Math.Sin](bool);
+                call [Math.Sin] : (bool);
             }
         ";
 
@@ -4978,4 +4978,72 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0405_AmbiguousHandleTarget
     // Requires preprocessor statements (`#handle`)
+
+    [Fact]
+    public void Reports_Error_BU0406_FunctionCannotContainPointer() {
+        var text = @"
+            [void(int*)] a;
+        ";
+
+        var diagnostics = @"
+            function types cannot contain pointers or function pointers; consider using a function pointer instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0407_MethodFunctionMismatch() {
+        var text = @"
+            void F(int a) { }
+            void() a = [F];
+        ";
+
+        var diagnostics = @"
+            no overload for 'F' matches function 'void()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0408_BadReturnType() {
+        var text = @"
+            int F() { return 3; }
+            void() a = [F];
+        ";
+
+        var diagnostics = @"
+            'int F()' has the wrong return type; expected 'void'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0409_FunctionRefMismatch() {
+        var text = @"
+            ref int F(ref int a) { return ref a; }
+            int(ref int) a = [F];
+        ";
+
+        var diagnostics = @"
+            ref mismatch between 'F(ref int)' and function 'int(ref int)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0410_UnknownCallingConvention() {
+        var text = @"
+            void()*~\[[asdf]\] a;
+        ";
+
+        var diagnostics = @"
+            unrecognized calling convention 'asdf'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

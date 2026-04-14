@@ -149,6 +149,7 @@ internal sealed partial class OverloadResolution {
         BoundExpression receiver,
         AnalyzedArguments arguments,
         OverloadResolutionResult<T> result,
+        bool isMethodGroupConversion = false,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null)
         where T : Symbol {
@@ -165,6 +166,7 @@ internal sealed partial class OverloadResolution {
             receiver,
             arguments,
             completeResults: false,
+            isMethodGroupConversion,
             returnRefKind,
             returnType,
             checkOverriddenOrHidden: checkOverriddenOrHidden
@@ -180,6 +182,7 @@ internal sealed partial class OverloadResolution {
                 receiver,
                 arguments,
                 completeResults: true,
+                isMethodGroupConversion,
                 returnRefKind,
                 returnType,
                 checkOverriddenOrHidden: checkOverriddenOrHidden
@@ -1003,6 +1006,7 @@ internal sealed partial class OverloadResolution {
         BoundExpression receiver,
         AnalyzedArguments arguments,
         bool completeResults,
+        bool isMethodGroupConversion,
         RefKind returnRefKind,
         TypeSymbol returnType,
         bool checkOverriddenOrHidden)
@@ -1034,11 +1038,41 @@ internal sealed partial class OverloadResolution {
         RemoveStaticInstanceMismatches(results, arguments, receiver);
         RemoveConstraintViolations(results);
 
+        if (isMethodGroupConversion)
+            RemoveFunctionConversionsWithWrongReturnType(results, returnRefKind, returnType);
+
         if (!AnyValidResult(results))
             return;
 
         RemoveLowerPriorityMembers<MemberResolutionResult<T>, T>(results);
         RemoveWorseMembers(results, arguments);
+    }
+
+    private void RemoveFunctionConversionsWithWrongReturnType<TMember>(
+        ArrayBuilder<MemberResolutionResult<TMember>> results,
+        RefKind? returnRefKind,
+        TypeSymbol returnType) where TMember : Symbol {
+        for (var f = 0; f < results.Count; ++f) {
+            var result = results[f];
+
+            if (!result.result.isValid)
+                continue;
+
+            var method = (MethodSymbol)(Symbol)result.member;
+            bool returnsMatch;
+
+            if (returnType is null || method.returnType.Equals(returnType, TypeCompareKind.AllIgnoreOptions))
+                returnsMatch = true;
+            else if (returnRefKind == RefKind.None)
+                returnsMatch = conversions.HasIdentityOrImplicitReferenceConversion(method.returnType, returnType);
+            else
+                returnsMatch = false;
+
+            if (!returnsMatch)
+                results[f] = result.WithResult(MemberAnalysisResult.WrongReturnType());
+            else if (method.refKind != returnRefKind)
+                results[f] = result.WithResult(MemberAnalysisResult.WrongRefKind());
+        }
     }
 
     private void RemoveConstraintViolations<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)

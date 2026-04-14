@@ -1259,6 +1259,9 @@ oneMoreTime:
             case BoundKind.FunctionPointerLoad:
                 EmitFunctionPointerLoad((BoundFunctionPointerLoad)expression, used);
                 break;
+            case BoundKind.FunctionLoad:
+                EmitFunctionLoad((BoundFunctionLoad)expression, used);
+                break;
             case BoundKind.ConditionalOperator:
                 EmitConditionalOperator((BoundConditionalOperator)expression, used);
                 break;
@@ -1366,6 +1369,14 @@ oneMoreTime:
             }
 
             _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
+        }
+    }
+
+    private void EmitFunctionLoad(BoundFunctionLoad load, bool used) {
+        if (used) {
+            _builder.Emit(OpCode.Ldnull);
+            _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
+            _builder.EmitNewobjFunc(load.type.StrippedType() as FunctionTypeSymbol);
         }
     }
 
@@ -2141,6 +2152,7 @@ oneMoreTime:
 
                 switch (conversion.conversion.kind) {
                     case ConversionKind.AnyBoxing:
+                    case ConversionKind.MethodGroup:
                         return true;
                     case ConversionKind.ExplicitReference:
                     case ConversionKind.ImplicitReference:
@@ -3506,6 +3518,8 @@ oneMoreTime:
 
     private void EmitCastExpression(BoundCastExpression expression, bool used) {
         switch (expression.conversion.kind) {
+            case ConversionKind.MethodGroup:
+                throw ExceptionUtilities.UnexpectedValue(expression.conversion.kind);
             case ConversionKind.ImplicitNullToPointer:
                 EmitIntConstant(0);
                 _builder.Emit(OpCode.Conv_U);
@@ -3555,6 +3569,8 @@ oneMoreTime:
             (cast.type.IsVerifierReference() && cast.type.specialType != SpecialType.String));
 
         switch (cast.conversion.kind) {
+            case ConversionKind.MethodGroup:
+                throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
             case ConversionKind.Identity:
                 break;
             case ConversionKind.Implicit when involvesRefTypes:

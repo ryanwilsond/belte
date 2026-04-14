@@ -174,7 +174,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         var method = node.method;
 
-        if (method.containingType.Equals(GraphicsLibrary.Graphics) && GraphicsLibrary.MethodProducesTemp(method))
+        if (method.containingType?.Equals(GraphicsLibrary.Graphics) == true && GraphicsLibrary.MethodProducesTemp(method))
             _lateTempCount++;
 
         return base.VisitCallExpression(node);

@@ -601,6 +601,17 @@ internal partial class Binder {
                         basesBeingResolved
                     )
                 );
+            case SyntaxKind.FunctionType:
+                namespaceOrNonNullableType = new TypeWithAnnotations(
+                    FunctionTypeSymbol.CreateFromSource(
+                        (FunctionTypeSyntax)syntax,
+                        this,
+                        diagnostics,
+                        basesBeingResolved
+                    )
+                );
+
+                break;
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }
@@ -6056,6 +6067,16 @@ internal partial class Binder {
             );
         } else if (boundExpression.Type().kind == SymbolKind.FunctionPointerType) {
             result = BindFunctionPointerInvocation(node, boundExpression, analyzedArguments, diagnostics);
+        } else if (boundExpression.StrippedType().kind == SymbolKind.FunctionType) {
+            result = BindFunctionInvocation(
+                node,
+                expression,
+                methodName,
+                boundExpression,
+                analyzedArguments,
+                diagnostics,
+                (FunctionTypeSymbol)boundExpression.StrippedType()
+            );
         } else {
             if (!boundExpression.hasAnyErrors)
                 diagnostics.Push(Error.CannotCallNonMethod(expression.location));
@@ -6133,12 +6154,56 @@ internal partial class Binder {
         );
     }
 
+    private BoundExpression BindFunctionInvocation(
+        SyntaxNode node,
+        SyntaxNode expression,
+        string methodName,
+        BoundExpression boundExpression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics,
+        FunctionTypeSymbol functionType) {
+        BoundExpression result;
+        var methodGroup = MethodGroup.GetInstance();
+        methodGroup.PopulateWithSingleMethod(boundExpression, functionType.signature);
+        var overloadResolutionResult = OverloadResolutionResult<MethodSymbol>.GetInstance();
+
+        overloadResolution.MethodOverloadResolution(
+            members: methodGroup.methods,
+            templateArguments: methodGroup.templateArguments,
+            receiver: methodGroup.receiver,
+            arguments: analyzedArguments,
+            result: overloadResolutionResult
+        );
+
+        result = BindCallExpressionContinued(
+            node,
+            expression,
+            methodName,
+            overloadResolutionResult,
+            analyzedArguments,
+            methodGroup,
+            functionType,
+            diagnostics
+        );
+
+        overloadResolutionResult.Free();
+        methodGroup.Free();
+        return result;
+    }
+
     internal MethodGroupResolution ResolveMethodGroup(
         BoundMethodGroup node,
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
-        TypeSymbol returnType = null) {
-        var methodResolution = ResolveDefaultMethodGroup(node, analyzedArguments, returnRefKind, returnType);
+        TypeSymbol returnType = null,
+        bool isMethodGroupConversion = false) {
+        var methodResolution = ResolveDefaultMethodGroup(
+            node,
+            analyzedArguments,
+            returnRefKind,
+            returnType,
+            isMethodGroupConversion
+        );
 
         if (methodResolution.isEmpty && !methodResolution.hasAnyErrors) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
@@ -6170,7 +6235,8 @@ internal partial class Binder {
         BoundMethodGroup node,
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
-        TypeSymbol returnType = null) {
+        TypeSymbol returnType = null,
+        bool isMethodGroupConversion = false) {
         var methods = node.methods;
 
         if (methods.Length == 0) {
@@ -6211,6 +6277,7 @@ internal partial class Binder {
                 methodGroup.receiver,
                 analyzedArguments,
                 result,
+                isMethodGroupConversion,
                 returnRefKind,
                 returnType
             );
@@ -6260,6 +6327,7 @@ internal partial class Binder {
                         resolution.overloadResolutionResult,
                         resolution.analyzedArguments,
                         resolution.methodGroup,
+                        null,
                         BelteDiagnosticQueue.Discarded
                     );
                 }
@@ -6273,6 +6341,7 @@ internal partial class Binder {
                     resolution.overloadResolutionResult,
                     resolution.analyzedArguments,
                     resolution.methodGroup,
+                    null,
                     diagnostics
                 );
             }
@@ -6291,6 +6360,7 @@ internal partial class Binder {
         OverloadResolutionResult<MethodSymbol> result,
         AnalyzedArguments analyzedArguments,
         MethodGroup methodGroup,
+        FunctionTypeSymbol functionType,
         BelteDiagnosticQueue diagnostics) {
         if (!result.succeeded) {
             result.ReportDiagnostics(
@@ -6303,7 +6373,9 @@ internal partial class Binder {
                 expression,
                 analyzedArguments,
                 methodGroup.methods.ToImmutable(),
-                null
+                null,
+                false,
+                functionTypeSymbol: functionType
             );
 
             return CreateErrorCall(node, methodGroup.receiver, methodGroup.resultKind, analyzedArguments);
@@ -9663,6 +9735,7 @@ internal partial class Binder {
                 break;
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
+            case TypeKind.Function:
                 result.Clear();
                 break;
             case TypeKind.Primitive:
@@ -10398,7 +10471,7 @@ symIsHidden:;
                 break;
         }
 
-        return type is not null && type.StrippedType().typeKind == TypeKind.FunctionPointer;
+        return type is not null && type.StrippedType().typeKind is TypeKind.FunctionPointer or TypeKind.Function;
     }
 
     private static bool IsInstance(Symbol symbol) {
@@ -12680,7 +12753,7 @@ symIsHidden:;
             case BoundKind.ErrorExpression:
                 return;
             case BoundKind.MethodGroup:
-                diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
+                ReportMethodGroupDiagnostics((BoundMethodGroup)operand);
                 return;
             case BoundKind.LiteralExpression:
                 if (ConstantValue.IsNull(operand.constantValue)) {
@@ -12732,6 +12805,15 @@ symIsHidden:;
             );
 
             return;
+        }
+
+        void ReportMethodGroupDiagnostics(BoundMethodGroup operand) {
+            if (!Conversions.ReportMethodGroupDiagnostics(this, operand, targetType, diagnostics)) {
+                if (targetType.StrippedType().typeKind == TypeKind.Function)
+                    diagnostics.Push(Error.MethodFunctionMismatch(syntax.location, (BoundMethodGroup)operand, targetType));
+                else
+                    diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
+            }
         }
     }
 
@@ -12885,7 +12967,7 @@ symIsHidden:;
                 : null;
         }
 
-        if (conversion.method is not null) {
+        if (conversion.method is not null && conversion.kind != ConversionKind.MethodGroup) {
             var targetType = conversion.method.GetParameterTypes()[0].type;
             var argumentConversion = conversions.ClassifyConversionFromExpression(source, targetType);
             source = CreateConversion(source, argumentConversion, targetType, diagnostics);

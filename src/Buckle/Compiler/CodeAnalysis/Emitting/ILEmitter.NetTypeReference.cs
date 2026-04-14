@@ -8,5 +8,6 @@ internal sealed partial class ILEmitter {
         internal static TypeReference Nullable;
         internal static TypeReference ValueType;
         internal static TypeReference Enum;
+        internal static TypeReference Func;
     }
 }

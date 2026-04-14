@@ -1073,6 +1073,10 @@ internal sealed class Expander : BoundTreeExpander {
 
         (<type>)<operand>
 
+        ----> <type> is a FunctionType
+
+        Func(&<operand>)
+
         ----> <op> has a method attached
 
         <method>(<operand>)
@@ -1096,6 +1100,11 @@ internal sealed class Expander : BoundTreeExpander {
         */
         var syntax = expression.syntax;
         var operand = expression.operand;
+
+        if (expression.conversion.kind == ConversionKind.MethodGroup) {
+            replacement = new BoundFunctionLoad(syntax, expression.conversion.method, expression.type);
+            return [];
+        }
 
         if (expression.conversion.method is not null) {
             var statements = ExpandExpression(operand, out var newOperand);

@@ -424,7 +424,23 @@
     <Field Name="returnType" Type="TypeSyntax"/>
     <Field Name="parameterList" Type="FunctionPointerParameterListSyntax"/>
     <Field Name="asterisk" Type="SyntaxToken"/>
-    <Field Name="callingConvention" Type="SyntaxToken" Optional="true"/>
+    <Field Name="unmanaged" Type="SyntaxToken" Optional="true">
+      <Kind Name="TildeToken"/>
+    </Field>
+    <Field Name="openBracket" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
+    <Field Name="callingConvention" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="closeBracket" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
+  </Node>
+  <Node Name="FunctionTypeSyntax" Base="TypeSyntax">
+    <Kind Name="FunctionType"/>
+    <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="parameterList" Type="FunctionPointerParameterListSyntax"/>
   </Node>
   <Node Name="ReferenceTypeSyntax" Base="TypeSyntax">
     <Kind Name="ReferenceType"/>
@@ -740,6 +756,9 @@
     <Field Name="opCodeSuffixThree" Type="SyntaxToken" Optional="true"/>
     <Field Name="literal" Type="SyntaxToken" Optional="true"/>
     <Field Name="symbol" Type="TypeSyntax" Optional="true"/>
+    <Field Name="colon" Type="SyntaxToken" Optional="true">
+      <Kind Name="ColonToken"/>
+    </Field>
     <Field Name="parameterList" Type="FunctionPointerParameterListSyntax" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
