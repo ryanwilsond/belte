@@ -95,6 +95,19 @@ var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
 
 ## 3.2 Operators
 
+All operators execute strictly left-to-right, meaning the left-most operand is always fully evaluated before the next
+operand is.
+
+For example, in the expression `F() + G()`, `F()` is always executed before `G()`.
+
+The `?!`, `??`, `&&`, `||`, and `[]` operators short-circuit meaning depending on the result of the left operand, the
+right operand might not be executed at all.
+
+Lifted binary operators result in `null` if either operand is `null`, but do not short circuit. This includes the
+equality operators `==` and `!=`. To check if an expression is null, use the `x is null` or `x isnt null` operators.
+
+For example, in the expression `null + G()`, `G()` is executed even though the expression results in `null`.
+
 ### 3.2.1 Operator Precedence
 
 Operators are used to interact with data. Each operator takes in one or more operands to perform on. Operators follow a
@@ -123,7 +136,8 @@ strict order of precedence:
 
 #### 3.2.2.1 `x!`
 
-`x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
+`x!` is a null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The operator's
+result is non-nullable. If `x` is null, a runtime null reference exception is thrown.
 
 #### 3.2.2.2 `x?`
 
@@ -132,7 +146,7 @@ of `x` must be a primitive.
 
 #### 3.2.2.3 `a?[i]`
 
-`a?[i]` is a conditional indexer. If `a` is null, the index is not performed.
+`a?[i]` is a conditional indexer. If `a` is null, the index is not performed. `i` will not execute if `a` is null.
 
 This operator is syntax sugar for `a is null ? null : a![i]`.
 
@@ -144,13 +158,15 @@ This operator is syntax sugar for `x is null ? null : x!.y`.
 
 #### 3.2.2.5 `x ?? y`
 
-`x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result.
+`x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result. `y` will not
+execute if `x` is not null.
 
 This operator is syntax sugar for `x is null ? y : null`.
 
 #### 3.2.2.6 `x ?! y`
 
-`x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result.
+`x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result. `y` will not
+execute if `x` is null.
 
 This operator is syntax sugar for `x is null ? null : y`.
 
@@ -173,6 +189,8 @@ temp.M();
 temp.f = 3;
 var a = temp;
 ```
+
+Notice that even if `Obj.M()` returns a value, it is ignored.
 
 #### 3.2.2.8 `x?..y`
 

@@ -32,7 +32,8 @@
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
     - [2.3](Current/ControlFlow.md#23-conditionals) Conditionals
-      - [2.3.1](Current/ControlFlow.md#231-null-binding-contracts) Null-Binding Contracts
+      - [2.3.1](Current/ControlFlow.md#231-null-conditions) Null Conditions
+      - [2.3.2](Current/ControlFlow.md#232-null-binding-contracts) Null-Binding Contracts
     - [2.4](Current/ControlFlow.md#24-loops) Loops
       - [2.4.1](Current/ControlFlow.md#241-while-loops) While Loops
       - [2.4.2](Current/ControlFlow.md#242-do-while-loops) Do-While Loops

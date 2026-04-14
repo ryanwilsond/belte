@@ -10,7 +10,8 @@
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
 - [2.3](#23-conditionals) Conditionals
-  - [2.3.1](#231-null-binding-contracts) Null-Binding Contracts
+  - [2.3.1](#231-null-conditions) Null Conditions
+  - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
 - [2.4](#24-loops) Loops
   - [2.4.1](#241-while-loops) While Loops
   - [2.4.2](#242-do-while-loops) Do-While Loops
@@ -234,7 +235,32 @@ if (a > b) {
 }
 ```
 
-### 2.3.1 Null-Binding Contracts
+### 2.3.1 Null Conditions
+
+The condition type of an `if` statement can be a nullable bool or non-nullable bool. If the condition type is nullable,
+a runtime check is performed to see if the operand is null. If it is, a null condition exception is thrown at the site
+of the condition.
+
+To avoid this exception while still allowing nullable types in the condition expression, a
+[null-erasure (`?`) operator](Data.md#3222-x) can be used which results in the operands default value if it is null.
+
+For example:
+
+```belte
+int a = null;
+
+if ((a > 4)?) {
+  ...
+} else {
+  ...
+}
+```
+
+In this example, the result of `a > 4` is null because `a` is null. Then the null-erasure operator applies and sees null
+as it's operand and results in the default value of the type, which in this case is `false` because the default value
+for bools is `false`. The else block will then execute.
+
+### 2.3.2 Null-Binding Contracts
 
 A null-binding contract can be used to declare a temporary local within an `if` scope predicated on the fact that the
 local is not null.
