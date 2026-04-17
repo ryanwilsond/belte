@@ -306,7 +306,6 @@ internal static class LiteralUtilities {
     }
 
     internal static object ReduceNumeric(object value, bool unsigned) {
-        // TODO We handle this during binding, maybe the Lexer should instead?
         if (value is null)
             return null;
 

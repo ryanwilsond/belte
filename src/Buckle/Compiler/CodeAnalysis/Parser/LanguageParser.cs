@@ -1598,7 +1598,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ExpressionStatement(expression, semicolon);
     }
 
-    private StatementSyntax ParseBlockStatement(SyntaxList<SyntaxToken> modifiers = null) {
+    private BlockStatementSyntax ParseBlockStatement(SyntaxList<SyntaxToken> modifiers = null) {
         if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.BlockStatement)
             return (BlockStatementSyntax)EatNode();
 
@@ -1645,7 +1645,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.QuestionExclamationEqualsToken:
             case SyntaxKind.EqualsToken:
                 var operatorToken = EatToken();
-                var right = ParseAssignmentExpression(insideCascade);
+                var right = ParseAssignmentOrLambdaExpression(insideCascade);
                 left = SyntaxFactory.AssignmentExpression(left, operatorToken, right);
                 break;
             default:
@@ -1655,11 +1655,94 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return left;
     }
 
+    private ExpressionSyntax ParseAssignmentOrLambdaExpression(bool insideCascade = false) {
+        if (!insideCascade && TryParseLambdaExpression(out var expression))
+            return expression;
+
+        return ParseAssignmentExpression(insideCascade);
+    }
+
+    private bool TryParseLambdaExpression(out ExpressionSyntax expression) {
+        expression = null;
+
+        if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.EqualsGreaterThanToken) {
+            expression = ParseSimpleLambdaExpression();
+            return true;
+        }
+
+        var resetPoint = GetResetPoint();
+
+        TypeSyntax returnType = null;
+
+        if (currentToken.kind != SyntaxKind.OpenParenToken) {
+            returnType = ParseType();
+
+            if (returnType.containsDiagnostics || currentToken.kind != SyntaxKind.OpenParenToken) {
+                Reset(resetPoint);
+                return false;
+            }
+        }
+
+        var parameterList = ParseParameterList();
+
+        if (!parameterList.containsDiagnostics && currentToken.kind == SyntaxKind.EqualsGreaterThanToken) {
+            expression = ParseParenthesizedLambdaExpression(returnType, parameterList);
+            return true;
+        }
+
+        Reset(resetPoint);
+
+        return false;
+    }
+
+    private ExpressionSyntax ParseSimpleLambdaExpression() {
+        var parameter = EatToken();
+        var arrowToken = EatToken();
+
+        ExpressionSyntax expressionBody = null;
+        BlockStatementSyntax blockBody = null;
+
+        if (currentToken.kind == SyntaxKind.OpenBraceToken)
+            blockBody = ParseBlockStatement();
+        else
+            expressionBody = ParseExpression();
+
+        return SyntaxFactory.SimpleLambdaExpression(null, null, parameter, arrowToken, blockBody, expressionBody);
+    }
+
+    private ExpressionSyntax ParseParenthesizedLambdaExpression(
+        TypeSyntax returnType,
+        ParameterListSyntax parameterList) {
+        var arrowToken = EatToken();
+
+        ExpressionSyntax expressionBody = null;
+        BlockStatementSyntax blockBody = null;
+
+        if (currentToken.kind == SyntaxKind.OpenBraceToken)
+            blockBody = ParseBlockStatement();
+        else
+            expressionBody = ParseExpression();
+
+        return SyntaxFactory.ParenthesizedLambdaExpression(
+            null,
+            null,
+            returnType,
+            parameterList,
+            arrowToken,
+            blockBody,
+            expressionBody
+        );
+    }
+
+
     private ExpressionSyntax ParseNonAssignmentExpression() {
         var saved = _context;
         _context |= ParserContext.InExpression;
         _expectParenthesis = true;
-        var value = ParseOperatorExpression();
+
+        if (!TryParseLambdaExpression(out var value))
+            value = ParseOperatorExpression();
+
         _expectParenthesis = false;
         _context = saved;
         return value;
@@ -1668,7 +1751,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParseExpression(bool allowEmpty = false) {
         var saved = _context;
         _context |= ParserContext.InExpression;
-        var expression = ParseAssignmentExpression();
+        var expression = ParseAssignmentOrLambdaExpression();
         _context = saved;
         return expression;
     }

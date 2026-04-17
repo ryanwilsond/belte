@@ -1074,6 +1074,42 @@
     <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="argumentList" Type="ArgumentListSyntax"/>
   </Node>
+  <AbstractNode Name="AnonymousFunctionExpressionSyntax" Base="ExpressionSyntax">
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
+    <Field Name="block" Type="BlockStatementSyntax" Optional="true"/>
+    <Field Name="expressionBody" Type="ExpressionSyntax" Optional="true"/>
+  </AbstractNode>
+  <AbstractNode Name="LambdaExpressionSyntax" Base="AnonymousFunctionExpressionSyntax">
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="arrowToken" Type="SyntaxToken">
+      <Kind Name="EqualsGreaterThanToken"/>
+    </Field>
+  </AbstractNode>
+  <Node Name="SimpleLambdaExpressionSyntax" Base="LambdaExpressionSyntax">
+    <Kind Name="SimpleLambdaExpression"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="parameter" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="arrowToken" Type="SyntaxToken" Override="true">
+      <Kind Name="EqualsGreaterThanToken"/>
+    </Field>
+    <Field Name="block" Type="BlockStatementSyntax" Optional="true" Override="true"/>
+    <Field Name="expressionBody" Type="ExpressionSyntax" Optional="true" Override="true"/>
+  </Node>
+  <Node Name="ParenthesizedLambdaExpressionSyntax" Base="LambdaExpressionSyntax">
+    <Kind Name="ParenthesizedLambdaExpression"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="returnType" Type="TypeSyntax" Optional="true"/>
+    <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="arrowToken" Type="SyntaxToken" Override="true">
+      <Kind Name="EqualsGreaterThanToken"/>
+    </Field>
+    <Field Name="block" Type="BlockStatementSyntax" Optional="true" Override="true"/>
+    <Field Name="expressionBody" Type="ExpressionSyntax" Optional="true" Override="true"/>
+  </Node>
   <Node Name="CastExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="CastExpression"/>
     <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">

@@ -306,6 +306,19 @@
     <Field Name="argumentRefKindsOpt" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
     <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind" />
   </Node>
+  <Node Name="UnboundLambda" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="data" Type="UnboundLambdaState" Null="disallow"/>
+    <Field Name="functionType" Type="FunctionTypeSymbol?" Null="allow"/>
+    <Field Name="withDependencies" Type="bool"/>
+  </Node>
+  <Node Name="BoundLambda" Base="BoundExpression">
+    <Field Name="unboundLambda" Type="UnboundLambda" Null="disallow" SkipInVisitor="true"/>
+    <Field Name="symbol" Type="LambdaSymbol" Null="disallow"/>
+    <Field Name="type" Type="TypeSymbol?" Override="true"/>
+    <Field Name="body" Type="BoundBlockStatement"/>
+    <Field Name="binder" Type="Binder" Null="disallow" />
+  </Node>
   <Node Name="BoundFunctionPointerLoad" Base="BoundExpression">
     <Field Name="targetMethod" Type="MethodSymbol"/>
     <Field Name="constrainedToTypeOpt" Type="TypeSymbol?" Null="allow"/>

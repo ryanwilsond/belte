@@ -506,6 +506,7 @@ internal sealed class Lexer : IDisposable {
             case '=':
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.EqualsEqualsToken;
+                else if (AdvanceIfMatches('>')) _kind = SyntaxKind.EqualsGreaterThanToken;
                 else _kind = SyntaxKind.EqualsToken;
                 break;
             case '!':

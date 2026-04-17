@@ -271,7 +271,7 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
     internal override ImmutableArray<ParameterSymbol> parameters
         => _parameters.Cast<FunctionParameterSymbol, ParameterSymbol>();
 
-    public override MethodKind methodKind => MethodKind.FunctionPointerSignature;
+    public override MethodKind methodKind => MethodKind.FunctionSignature;
 
     internal override Symbol containingSymbol => null;
 

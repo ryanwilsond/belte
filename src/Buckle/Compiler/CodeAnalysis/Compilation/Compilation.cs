@@ -70,10 +70,7 @@ public sealed partial class Compilation {
         if (previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
-        if (referenceManager is not null)
-            _referenceManager = referenceManager;
-        else
-            _referenceManager = new ReferenceManager(options.references, declarationDiagnostics);
+        _referenceManager = referenceManager ?? new ReferenceManager(options.references, declarationDiagnostics);
 
         handleManager.SendParsedMessage();
     }
@@ -733,8 +730,7 @@ public sealed partial class Compilation {
     }
 
     internal IEnumerable<Symbol> GetSymbolsWithName(Func<string, bool> predicate, SymbolFilter filter) {
-        if (predicate is null)
-            throw new ArgumentNullException(nameof(predicate));
+        ArgumentNullException.ThrowIfNull(predicate);
 
         if (filter == SymbolFilter.None)
             throw new ArgumentException(nameof(filter));

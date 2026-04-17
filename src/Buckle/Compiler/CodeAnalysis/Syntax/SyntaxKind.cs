@@ -72,6 +72,7 @@ public enum SyntaxKind : ushort {
     QuestionPeriodPeriodToken,
     QuestionExclamationToken,
     QuestionExclamationEqualsToken,
+    EqualsGreaterThanToken,
 
     // Keywords
     TypeOfKeyword,
@@ -201,6 +202,8 @@ public enum SyntaxKind : ushort {
     Interpolation,
     InterpolatedStringStartToken,
     InterpolatedStringEndToken,
+    ParenthesizedLambdaExpression,
+    SimpleLambdaExpression,
 
     // Statements
     EmptyStatement,

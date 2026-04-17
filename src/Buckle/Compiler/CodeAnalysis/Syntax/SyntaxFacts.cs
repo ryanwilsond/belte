@@ -290,6 +290,7 @@ public static class SyntaxFacts {
             SyntaxKind.MinusGreaterThanToken => "->",
             SyntaxKind.DollarToken => "$",
             SyntaxKind.DollarQuestionToken => "$?",
+            SyntaxKind.EqualsGreaterThanToken => "=>",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",

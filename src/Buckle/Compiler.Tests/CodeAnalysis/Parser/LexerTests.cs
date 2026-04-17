@@ -295,6 +295,26 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionExclamationEqualsToken) return true;
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationEqualsToken) return true;
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.AsteriskAsteriskToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.CaretToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.PercentToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.QuestionExclamationToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanEqualsToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanGreaterThanEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionQuestionToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken) return true;
+        if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
 
         return false;
     }

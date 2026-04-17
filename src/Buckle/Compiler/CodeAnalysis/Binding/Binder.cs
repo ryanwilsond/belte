@@ -2952,6 +2952,9 @@ internal partial class Binder {
                 return BindImplicitEnumFieldExpression((ImplicitEnumFieldExpressionSyntax)node, diagnostics);
             case SyntaxKind.InterpolatedStringExpression:
                 return BindInterpolatedString((InterpolatedStringExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ParenthesizedLambdaExpression:
+            case SyntaxKind.SimpleLambdaExpression:
+                return BindAnonymousFunction((AnonymousFunctionExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -3039,6 +3042,92 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private UnboundLambda BindAnonymousFunction(
+        AnonymousFunctionExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        var lambda = AnalyzeAnonymousFunction(syntax, diagnostics);
+        var data = lambda.data;
+
+        // TODO
+        // if (data.HasExplicitlyTypedParameterList) {
+        //     var firstDefault = -1;
+
+        //     for (var i = 0; i < lambda.ParameterCount; i++) {
+        //         var paramSyntax = lambda.ParameterSyntax(i);
+
+        //         if (paramSyntax.Default is not null && firstDefault == -1)
+        //             firstDefault = i;
+
+        //         ParameterHelpers.GetModifiers(paramSyntax.Modifiers, refnessKeyword: out _, out var paramsKeyword, thisKeyword: out _, scope: out _);
+        //         var isParams = paramsKeyword.Kind() != SyntaxKind.None;
+
+        //         ParameterHelpers.ReportParameterErrors(
+        //             owner: null,
+        //             paramSyntax,
+        //             ordinal: i,
+        //             lastParameterIndex:
+        //             lambda.ParameterCount - 1,
+        //             isParams: isParams,
+        //             lambda.ParameterTypeWithAnnotations(i),
+        //             lambda.RefKind(i),
+        //             containingSymbol: null,
+        //             thisKeyword: default,
+        //             paramsKeyword: paramsKeyword,
+        //             firstDefault,
+        //             diagnostics
+        //         );
+        //     }
+        // }
+
+        // TODO We don't allow modifiers on lambdas currently
+        // ModifierHelpers.TodEcl(syntax.modifiers, isForTypeDeclaration: false);
+
+        // if (data.HasSignature) {
+        //     var binder = new LocalScopeBinder(this);
+        //     bool allowShadowingNames = binder.Compilation.IsFeatureEnabled(MessageID.IDS_FeatureNameShadowingInNestedFunctions);
+        //     var pNames = PooledHashSet<string>.GetInstance();
+        //     bool seenDiscard = false;
+
+        //     for (int i = 0; i < lambda.ParameterCount; i++) {
+        //         var name = lambda.ParameterName(i);
+
+        //         if (string.IsNullOrEmpty(name)) {
+        //             continue;
+        //         }
+
+        //         if (lambda.ParameterIsDiscard(i)) {
+        //             if (seenDiscard) {
+        //                 // We only report the diagnostic on the second and subsequent underscores
+        //                 MessageID.IDS_FeatureLambdaDiscardParameters.CheckFeatureAvailability(
+        //                     diagnostics,
+        //                     binder.Compilation,
+        //                     lambda.ParameterLocation(i));
+        //             }
+
+        //             seenDiscard = true;
+        //             continue;
+        //         }
+
+        //         if (!pNames.Add(name)) {
+        //             // The parameter name '{0}' is a duplicate
+        //             diagnostics.Add(ErrorCode.ERR_DuplicateParamName, lambda.ParameterLocation(i), name);
+        //         } else if (!allowShadowingNames) {
+        //             binder.ValidateLambdaParameterNameConflictsInScope(lambda.ParameterLocation(i), name, diagnostics);
+        //         }
+        //     }
+        //     pNames.Free();
+        // }
+
+        return lambda;
+    }
+
+    private UnboundLambda AnalyzeAnonymousFunction(
+        AnonymousFunctionExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        return null;
     }
 
     private BoundExpression BindImplicitEnumFieldExpression(
