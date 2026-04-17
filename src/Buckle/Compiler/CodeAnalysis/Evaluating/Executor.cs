@@ -93,15 +93,7 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetAllTypes()
-            .Where(t => t.kind == SymbolKind.NamedType &&
-                t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or
-                                 SpecialType.Dictionary or SpecialType.Enumerator &&
-                t.originalDefinition is not PENamedTypeSymbol)
-            .ToArray()
-            .Cast<NamedTypeSymbol>()
-            .ToImmutableArray();
+        _topLevelTypes = program.GetTypesToEmit();
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);

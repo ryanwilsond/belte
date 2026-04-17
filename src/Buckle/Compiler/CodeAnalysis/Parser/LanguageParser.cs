@@ -1,8 +1,9 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -1589,10 +1590,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
             var diagnostics = semicolon.GetDiagnostics();
 
-            if (!semicolon.isFabricated)
+            if (!semicolon.isFabricated) {
                 semicolon = semicolon.WithDiagnosticsGreen(diagnostics);
-            else
-                semicolon = semicolon.WithDiagnosticsGreen(diagnostics.SkipLast(1).ToArray());
+            } else {
+                var length = diagnostics.Length - 1;
+                var result = new Diagnostic[length];
+                Array.Copy(diagnostics, result, length);
+                semicolon = semicolon.WithDiagnosticsGreen(result);
+            }
         }
 
         return SyntaxFactory.ExpressionStatement(expression, semicolon);

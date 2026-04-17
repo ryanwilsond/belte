@@ -343,6 +343,7 @@ public static partial class BuckleCommandLine {
                         try {
                             task.fileContent.text = File.ReadAllText(task.inputFileName);
                             opened = true;
+                            break;
                         } catch (IOException) {
                             Thread.Sleep(100);
 
@@ -360,6 +361,7 @@ public static partial class BuckleCommandLine {
                         try {
                             task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
                             opened = true;
+                            break;
                         } catch (IOException) {
                             Thread.Sleep(100);
 

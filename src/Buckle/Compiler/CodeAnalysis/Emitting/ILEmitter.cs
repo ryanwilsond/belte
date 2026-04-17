@@ -131,15 +131,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         ResolveMethods();
         GenerateSTLMap();
 
-        _topLevelTypes = program.GetAllTypes()
-            .Where(t => t.kind == SymbolKind.NamedType &&
-                t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or
-                                 SpecialType.Rect or SpecialType.Enumerator &&
-                t.originalDefinition is not PENamedTypeSymbol)
-            .ToArray()
-            .Cast<NamedTypeSymbol>()
-            .ToImmutableArray();
+        _topLevelTypes = program.GetTypesToEmit(SpecialType.Rect);
 
         var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
@@ -1374,20 +1366,31 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeReference ResolveType(string name, string metadataName) {
-        var foundTypes = _assemblies
-            .SelectMany(a => a.Modules)
-            .SelectMany(m => m.Types)
-            .Where(t => t.FullName == metadataName)
-            .ToArray();
+        var foundTypes = new List<TypeDefinition>(1);
+
+        for (var i = 0; i < _assemblies.Count; i++) {
+            var modules = _assemblies[i].Modules;
+
+            for (var j = 0; j < modules.Count; j++) {
+                var types = modules[j].Types;
+
+                for (var k = 0; k < types.Count; k++) {
+                    var type = types[k];
+
+                    if (type.FullName == metadataName)
+                        foundTypes.Add(type);
+                }
+            }
+        }
 
         // TODO Do we actually care about ambiguity
-        if (foundTypes.Length >= 1) {
+        if (foundTypes.Count >= 1) {
             return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
-        } else if (foundTypes.Length == 0) {
+        } else if (foundTypes.Count == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
         } else {
             throw new BelteInternalException(
-                $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Length} candidates"
+                $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Count} candidates"
             );
         }
     }
