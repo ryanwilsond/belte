@@ -19,7 +19,7 @@ SYNTAXPATH:=$(COMPILER_DIR)/CodeAnalysis/Syntax/Syntax.xml
 BOUNDNODESPATH:=$(COMPILER_DIR)/CodeAnalysis/Binding/BoundTree/BoundNodes.xml
 GENERATED_DIR:=$(COMPILER_DIR)/CodeAnalysis/Generated
 
-PUBLISH_FLAGS:=-p:DebugType=None -p:DebugSymbols=false --sc true -c Release -f $(NETVER)
+PUBLISH_FLAGS:=-p:DebugType=None -p:DebugSymbols=false --sc false -c Release -f $(NETVER)
 SINGLE_FILE_FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 FLAGS:=$(PUBLISH_FLAGS) $(SINGLE_FILE_FLAGS)
 

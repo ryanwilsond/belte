@@ -9,6 +9,8 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
 
 - [1.1](#11-endpoint-specific-features) Endpoint Specific Features
 - [1.2](#12-keywords) Keywords
+  - [1.2.1](#121-non-contextual-keywords) Non-Contextual Keywords
+  - [1.2.2](#122-contextual-keywords) Contextual Keywords
 
 ## 1.1 Endpoint Specific Features
 
@@ -34,9 +36,13 @@ implemented.
 
 ## 1.2 Keywords
 
-All keywords are reserved names and cannot be used as identifiers. No type names are reserved.
+The following lists all keywords used in the language. No type names (e.g. `int`) are reserved.
 
-Some keywords have multiple meanings depending on context. Those keywords will be disambiguated in the list below.
+Some keywords have multiple meanings depending on context. Those keywords will be disambiguated in the lists below.
+
+### 1.2.1 Non-Contextual Keywords
+
+These keywords are reserved names and cannot be used as identifiers.
 
 - [abstract](ClassesAndObjects.md#432-static--constexpr)
 - [as](Data.md#32-operators)
@@ -56,22 +62,18 @@ Some keywords have multiple meanings depending on context. Those keywords will b
 - [else](ControlFlow.md#23-conditionals)
 - [endif](Preprocessor.md#72-control)
 - [enum](ClassesAndObjects.md#46-enums)
-- [explicit](ClassesAndObjects.md#4232-casts)
 - [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
 - [extends](ClassesAndObjects.md#4512-special-constraints) (template constraints)
 - [extern](LowLevelFeatures.md#67-extern-methods)
 - [false](Data.md#31-data-types)
-- [flags](ClassesAndObjects.md#461-flags)
 - [for](ControlFlow.md#243-for-loops) (for loop)
 - [for](ControlFlow.md#244-for-each-loops) (for each loop)
 - [global](ClassesAndObjects.md#483-global-using-directive) (global using)
 - [global](ClassesAndObjects.md#482-global-disambiguation) (global disambiguation)
 - [goto](ControlFlow.md#25-switch)
-- [handle](LowLevelFeatures.md#613-compiler-handle)
 - [if](ControlFlow.md#23-conditionals) (conditional)
 - [if](Preprocessor.md#72-control) (preprocessor)
 - [il](LowLevelFeatures.md#611-inline-il)
-- [implicit](ClassesAndObjects.md#4232-casts)
 - [in](ControlFlow.md#244-for-each-loops)
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
@@ -80,15 +82,12 @@ Some keywords have multiple meanings depending on context. Those keywords will b
 - [namespace](ClassesAndObjects.md#47-namespaces)
 - [new](ClassesAndObjects.md#411-declaring-and-using-classes) (instantiation)
 - [new](ClassesAndObjects.md#432-overriding-modifiers) (modifier)
-- [notnull](ClassesAndObjects.md#4512-special-constraints)
-- [noverify](LowLevelFeatures.md#6111-verification)
 - [null](Data.md#31-data-types)
 - [nullptr](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
 - [operator](ClassesAndObjects.md#423-operators) (normal operators)
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [override](ClassesAndObjects.md#432-overriding-modifiers)
 - [pinned](LowLevelFeatures.md#612-pinned-locals)
-- [primitive](ClassesAndObjects.md#4512-special-constraints)
 - [private](ClassesAndObjects.md#431-accessibility-modifiers)
 - [protected](ClassesAndObjects.md#431-accessibility-modifiers)
 - [public](ClassesAndObjects.md#431-accessibility-modifiers)
@@ -117,3 +116,15 @@ The following keywords are reserved names but are not yet used:
 - catch
 - finally
 - try
+
+### 1.2.2 Contextual Keywords
+
+These keywords only act as keywords inside specific contexts. As such they can be used as identifiers in most places.
+
+- [explicit](ClassesAndObjects.md#4232-casts)
+- [flags](ClassesAndObjects.md#461-flags)
+- [handle](LowLevelFeatures.md#613-compiler-handle)
+- [implicit](ClassesAndObjects.md#4232-casts)
+- [notnull](ClassesAndObjects.md#4512-special-constraints)
+- [noverify](LowLevelFeatures.md#6111-verification)
+- [primitive](ClassesAndObjects.md#4512-special-constraints)

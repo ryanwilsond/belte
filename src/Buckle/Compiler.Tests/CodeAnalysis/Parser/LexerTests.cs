@@ -47,6 +47,13 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringLiteralToken);
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringStartToken);
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringEndToken);
+        untestedTokenTypes.Remove(SyntaxKind.ExplicitKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.ImplicitKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.FlagsKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.HandleKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.NotnullKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.NoVerifyKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.PrimitiveKeyword);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -153,7 +160,7 @@ public sealed class LexerTests {
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
                          and not SyntaxKind.HashToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
-            .Where(t => t.text is not null);
+            .Where(t => t.text is not null && !SyntaxFacts.IsContextualKeyword(t.text));
 
         var dynamicTokens = new[] {
             (SyntaxKind.NumericLiteralToken, "1"),

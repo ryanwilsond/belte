@@ -22,7 +22,7 @@ The Belte public interface for the Graphics class can be found
 | `Text LoadText(string, string!, Vec2, decimal!, decimal, int, int, int)` | Loads a text object with a text string, font path, screen position, font size, angle, and RGB color. |
 | `int DrawText(Text)` | Draws a text object to the screen. |
 | `int DrawRect(Rect, int, int, int)` | Draws a rectangle with an RGB color to the screen. |
-| `int DrawRect(Rect, int, int, int)` | Draws a rectangle with an RGBA color to the screen. |
+| `int DrawRect(Rect, int, int, int, int)` | Draws a rectangle with an RGBA color to the screen. |
 | `void StopDraw(int)` | Stops drawing a specific object using the ID returned from the draw call to stop (REPL only). |
 | `bool! GetKey(string!)` | Checks if a given key is being pressed. |
 | `void Fill(int!, int!, int!)` | Fills the screen with an RGB color. |

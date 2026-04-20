@@ -352,6 +352,23 @@ internal abstract partial class SyntaxParser : IDisposable {
             return _lexedTokens[_tokenOffset];
     }
 
+    private protected static SyntaxToken ConvertToKeyword(SyntaxToken token) {
+        if (token.kind != token.contextualKind) {
+            var kw = token.isFabricated
+                ? SyntaxFactory.Missing(token.contextualKind, token.leadingTrivia.node, token.trailingTrivia.node)
+                : SyntaxFactory.Token(token.leadingTrivia.node, token.contextualKind, token.trailingTrivia.node);
+
+            var d = token.GetDiagnostics();
+
+            if (d is not null && d.Length > 0)
+                kw = kw.WithDiagnosticsGreen(d);
+
+            return kw;
+        }
+
+        return token;
+    }
+
     private protected void AddLexedToken(SyntaxToken token) {
         if (_tokenCount >= _lexedTokens.Length) {
             var temp = new ArrayElement<SyntaxToken>[_lexedTokens.Length * 2];
@@ -392,7 +409,14 @@ internal abstract partial class SyntaxParser : IDisposable {
         BlendedNodesPool.ForgetTrackedObject(old, replacement: _blendedTokens);
     }
 
-    private protected SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null, bool report = true) {
+    private protected SyntaxToken Match(
+        SyntaxKind kind,
+        SyntaxKind? nextWanted = null,
+        bool report = true,
+        bool contextual = false) {
+        if (contextual && currentToken.contextualKind == kind)
+            return ConvertToKeyword(EatToken());
+
         if (currentToken.kind == kind)
             return EatToken();
 
@@ -438,11 +462,15 @@ internal abstract partial class SyntaxParser : IDisposable {
         }
     }
 
-    private protected SyntaxToken MatchTwo(SyntaxKind kind1, SyntaxKind kind2, bool report = true) {
-        if (currentToken.kind == kind1)
-            return Match(kind1, report: report);
-        else if (currentToken.kind == kind2)
-            return Match(kind2, report: report);
+    private protected SyntaxToken MatchTwo(
+        SyntaxKind kind1,
+        SyntaxKind kind2,
+        bool report = true,
+        bool contextual = false) {
+        if (currentToken.kind == kind1 || (contextual && currentToken.contextualKind == kind1))
+            return Match(kind1, report: report, contextual: contextual);
+        else if (currentToken.kind == kind2 || (contextual && currentToken.contextualKind == kind2))
+            return Match(kind2, report: report, contextual: contextual);
 
         var peek = Peek(1);
 

@@ -184,7 +184,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return ParseConstructorDeclaration(attributeLists, modifiers);
 
         if ((_context & ParserContext.InClassDefinition) != 0 &&
-            currentToken.kind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword) {
+            currentToken.contextualKind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword) {
             return ParseConversionDeclaration(attributeLists, modifiers);
         }
 
@@ -350,7 +350,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
         var keyword = EatToken();
-        var flagsKeyword = currentToken.kind == SyntaxKind.FlagsKeyword ? EatToken() : null;
+        var flagsKeyword = currentToken.contextualKind == SyntaxKind.FlagsKeyword ? ConvertToKeyword(EatToken()) : null;
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         var baseType = currentToken.kind == SyntaxKind.ExtendsKeyword
             ? ParseBaseType()
@@ -505,7 +505,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private TemplateIsConstraintClauseSyntax ParseTemplateIsConstraintClause() {
         var name = ParseIdentifierName();
         var isKeyword = Match(SyntaxKind.IsKeyword);
-        var keyword = MatchTwo(SyntaxKind.PrimitiveKeyword, SyntaxKind.NotnullKeyword);
+        var keyword = MatchTwo(SyntaxKind.PrimitiveKeyword, SyntaxKind.NotnullKeyword, contextual: true);
         var semicolon = Match(SyntaxKind.SemicolonToken);
         return SyntaxFactory.TemplateIsConstraintClause(name, isKeyword, keyword, semicolon);
     }
@@ -646,7 +646,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ConversionDeclarationSyntax ParseConversionDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
-        var implicitOrExplicitKeyword = MatchTwo(SyntaxKind.ImplicitKeyword, SyntaxKind.ExplicitKeyword);
+        var implicitOrExplicitKeyword = MatchTwo(
+            SyntaxKind.ImplicitKeyword,
+            SyntaxKind.ExplicitKeyword,
+            contextual: true
+        );
+
         var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
         var type = ParseType(false);
         var parameterList = ParseParameterList();
@@ -1111,7 +1116,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private StatementSyntax ParseInlineILStatement() {
         var ilKeyword = EatToken();
-        var noVerifyKeyword = currentToken.kind == SyntaxKind.NoVerifyKeyword ? EatToken() : null;
+
+        var noVerifyKeyword = currentToken.contextualKind == SyntaxKind.NoVerifyKeyword
+            ? ConvertToKeyword(EatToken())
+            : null;
+
         var openBrace = Match(SyntaxKind.OpenBraceToken);
         var instructions = ParseILInstructions();
         var closeBrace = Match(SyntaxKind.CloseBraceToken);

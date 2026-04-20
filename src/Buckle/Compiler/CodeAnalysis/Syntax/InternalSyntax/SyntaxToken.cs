@@ -146,6 +146,8 @@ internal partial class SyntaxToken : BelteSyntaxNode {
 
     internal override bool isToken => true;
 
+    internal virtual SyntaxKind contextualKind => kind;
+
     /// <summary>
     /// <see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).
     /// </summary>

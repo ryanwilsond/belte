@@ -60,6 +60,12 @@ internal static partial class SyntaxFactory {
         return new SyntaxToken(kind, text, value, leading, trailing);
     }
 
+    internal static SyntaxToken Contextual(
+        SyntaxKind kind, string text, object value,
+        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
+        return new SyntaxToken.SyntaxIdentifierExtended(kind, text, value, leading, trailing, diagnostics);
+    }
+
     /// <summary>
     /// Creates a <see cref="SyntaxTrivia" /> with text and diagnostics.
     /// </summary>

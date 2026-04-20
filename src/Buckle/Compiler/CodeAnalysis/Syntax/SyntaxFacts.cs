@@ -222,6 +222,19 @@ public static class SyntaxFacts {
         };
     }
 
+    internal static bool IsContextualKeyword(string text) {
+        return text switch {
+            "explicit" => true,
+            "flags" => true,
+            "handle" => true,
+            "implicit" => true,
+            "notnull" => true,
+            "noverify" => true,
+            "primitive" => true,
+            _ => false
+        };
+    }
+
     /// <summary>
     /// Gets text representation of a <see cref="SyntaxToken" /> or keyword.
     /// </summary>

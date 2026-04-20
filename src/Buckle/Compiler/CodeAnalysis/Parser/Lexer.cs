@@ -200,7 +200,9 @@ internal sealed class Lexer : IDisposable {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
 
-        var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
+        var token = kind.IsKeyword() && SyntaxFacts.IsContextualKeyword(text)
+            ? SyntaxFactory.Contextual(kind, text, value, leading, trailing, diagnostics)
+            : SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 
         if (text is null)
             token.SetFlags(GreenNode.NodeFlags.IsMissing);

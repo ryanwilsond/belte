@@ -270,6 +270,11 @@ internal sealed partial class OverloadResolution {
                 result = Operators[kind.OperatorIndex()][leftIndex, rightIndex];
             }
 
+            // TODO This is a hack to ensure unsigned long operations are correct
+            // Eventually we want to fill out the easy out chart to account for this instead
+            if (left.specialType.IsUnsigned() && right.specialType.IsUnsigned())
+                result = BinaryOperatorKind.UInt;
+
             return result == BinaryOperatorKind.Error ? result : result | kind;
         }
     }
