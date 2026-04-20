@@ -109,10 +109,9 @@ int[] v = { 1, 2, 3 };
 
 To allow for better interop, several numeric types can be used to specify
 specific sizes. These being `int8`, `uint8`, `int16`, `uint16`, `int32`,
-`uint32`, `int64`, `uint64`, `float32`, `float64`. These types are always
-non-nullable.
+`uint32`, `int64`, `uint64`, `float32`, `float64`.
 
-All arithmetic upcasts to `int` and `decimal`, so casting is required in cases
+Most arithmetic upcasts to `int` and `decimal`, so casting is required in cases
 such as:
 
 ```belte
@@ -120,6 +119,9 @@ int32 myInt1 = 5;
 int32 myInt2 = 27;
 int32 myInt3 = (int32)(myInt1 | myInt2);
 ```
+
+The only case where arithmetic does not cast to `int` or `decimal` is in the
+case of `uint64` which cannot fit inside `int`.
 
 Unless knowing the specific size of the integer is required, use the normal
 `int` and `decimal` types, which (eventually) will support specifying ranges.
@@ -444,7 +446,7 @@ il {
 ```belte
 il {
   ldstr "Hello, world!";
-  call Console.PrintLine : (string);
+  call Console.PrintLine : (string?);
 }
 ```
 

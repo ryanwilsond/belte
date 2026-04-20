@@ -392,4 +392,14 @@ internal static class LiteralUtilities {
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
+
+    internal static ConstantValue TryGetDefaultValue(TypeSymbol type) {
+        if (type.IsNullableType())
+            return ConstantValue.Null;
+
+        if (TypeHasDefaultValue(type.specialType))
+            return new ConstantValue(GetDefaultValue(type.specialType), type.specialType);
+
+        return null;
+    }
 }

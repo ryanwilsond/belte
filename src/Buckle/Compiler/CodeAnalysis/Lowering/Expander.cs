@@ -226,39 +226,57 @@ internal sealed class Expander : BoundTreeExpander {
         temp = <receiver>.<field>
         temp
 
+        ----> <receiver> is nullable struct
+
+        <receiver>.get_Value().<field>
+
         */
-        var statements = base.ExpandFieldAccessExpression(expression, out replacement, UseKind.Value);
+        List<BoundStatement> statements;
 
-        if (expression.type.IsNullableType() && expression.type.GetNullableUnderlyingType().IsStructType()) {
-            // TODO Just need to make sure this is actually unreachable then can remove
-            throw ExceptionUtilities.Unreachable();
-            // var syntax = expression.syntax;
-            // var underlyingType = type.GetNullableUnderlyingType();
-
-            // var statements = ExpandExpression(expression.receiver, out var newReceiver, useKind);
-
-            // newReceiver = Lowerer.CreateNullableGetValueCall(syntax, newReceiver, underlyingType);
-            // var tempLocal = GenerateTempLocal(type);
-
-            // statements.AddRange(
-            //     new BoundLocalDeclarationStatement(syntax,
-            //         new BoundDataContainerDeclaration(syntax, tempLocal, newReceiver)
-            //     )
-            // );
-
-            // replacement = new BoundFieldAccessExpression(syntax,
-            //     Local(syntax, tempLocal),
-            //     expression.field,
-            //     expression.constantValue,
-            //     expression.field.type
-            // );
-
-            // _accessDepth = savedAccessDepth;
-            // return statements;
+        if (expression.receiver is not null && expression.receiver.type.IsNullableType() &&
+            expression.receiver.type.GetNullableUnderlyingType().IsStructType()) {
+            statements = CreateNullableStructAccess(expression, null, out replacement, useKind);
+        } else {
+            statements = base.ExpandFieldAccessExpression(expression, out replacement, UseKind.Value);
         }
 
         if (useKind == UseKind.StableValue)
             return Stabilize(expression.syntax, statements, replacement, out replacement);
+
+        return statements;
+    }
+
+    private List<BoundStatement> CreateNullableStructAccess(
+        BoundFieldAccessExpression access,
+        BoundExpression receiver,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var syntax = access.syntax;
+        var underlyingType = access.receiver.type.GetNullableUnderlyingType();
+
+        var statements = receiver is null ? ExpandExpression(access.receiver, out receiver, UseKind.Writable) : [];
+        receiver = Lowerer.CreateNullableGetValueCall(syntax, receiver, underlyingType);
+
+        if (useKind == UseKind.Writable) {
+            var tempLocal = GenerateTempLocal(underlyingType);
+
+            statements.Add(LocalDeclaration(syntax, tempLocal, receiver));
+
+            replacement = new BoundFieldAccessExpression(syntax,
+                Local(syntax, tempLocal),
+                access.field,
+                access.constantValue,
+                access.field.type
+            );
+        } else {
+            replacement = new BoundFieldAccessExpression(
+                syntax,
+                receiver,
+                access.field,
+                access.constantValue,
+                access.field.type
+            );
+        }
 
         return statements;
     }
@@ -1106,6 +1124,17 @@ internal sealed class Expander : BoundTreeExpander {
             return [];
         }
 
+        if (expression.conversion.kind == ConversionKind.DefaultLiteral) {
+            replacement = new BoundDefaultExpression(
+                syntax,
+                null,
+                LiteralUtilities.TryGetDefaultValue(expression.type),
+                expression.type
+            );
+
+            return [];
+        }
+
         if (expression.conversion.method is not null) {
             var statements = ExpandExpression(operand, out var newOperand);
             replacement = Call(
@@ -1366,7 +1395,6 @@ internal sealed class Expander : BoundTreeExpander {
         break:
         temp
 
-
         ----> <left> is conditional access <cond> and is isolated
 
         goto break if <cond.receiver> is null
@@ -1446,6 +1474,12 @@ internal sealed class Expander : BoundTreeExpander {
             switch (access.kind) {
                 case BoundKind.FieldAccessExpression:
                     var fieldAccess = (BoundFieldAccessExpression)access;
+
+                    if (fieldAccess.receiver is not null && fieldAccess.receiver.type.IsNullableType() &&
+                        fieldAccess.receiver.type.StrippedType().IsStructType()) {
+                        return CreateNullableStructAccess(fieldAccess, currentReceiver, out newReceiver, UseKind.Value);
+                    }
+
                     newReceiver = new BoundFieldAccessExpression(
                         access.syntax,
                         currentReceiver,
@@ -1453,6 +1487,7 @@ internal sealed class Expander : BoundTreeExpander {
                         fieldAccess.constantValue,
                         fieldAccess.type
                     );
+
                     return [];
                 case BoundKind.ArrayAccessExpression: {
                         var arrayAccess = (BoundArrayAccessExpression)access;
@@ -1569,7 +1604,17 @@ internal sealed class Expander : BoundTreeExpander {
         BoundExpression trueExpression;
 
         if (access is BoundFieldAccessExpression f) {
-            trueExpression = new BoundFieldAccessExpression(syntax, newReceiver, f.field, f.constantValue, f.Type());
+            statements.AddRange(ExpandFieldAccessExpression(
+                new BoundFieldAccessExpression(
+                    syntax,
+                    newReceiver,
+                    f.field,
+                    f.constantValue,
+                    f.Type()
+                ),
+                out trueExpression,
+                UseKind.Value
+            ));
         } else if (access is BoundArrayAccessExpression a) {
             statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
             trueExpression = new BoundArrayAccessExpression(syntax, newReceiver, indexReplacement, null, a.Type());
@@ -1589,6 +1634,9 @@ internal sealed class Expander : BoundTreeExpander {
             throw ExceptionUtilities.Unreachable();
         }
 
+        if (!trueExpression.Type().IsNullableType() && CodeGenerator.IsValueType(trueExpression.Type()))
+            trueExpression = Lowerer.CreateNullable(syntax, trueExpression, expression.type);
+
         replacement = new BoundConditionalOperator(
             syntax,
             HasValue(syntax, newReceiver),
@@ -1596,13 +1644,16 @@ internal sealed class Expander : BoundTreeExpander {
             trueExpression,
             Literal(syntax, null, access.Type()),
             null,
-            access.Type()
+            expression.type
         );
 
-        if (access is BoundFieldAccessExpression)
+        if (access is BoundFieldAccessExpression fa &&
+            !(fa.receiver is not null && fa.receiver.Type().IsNullableType() &&
+                fa.receiver.StrippedType().IsStructType())) {
             return statements;
-        else
+        } else {
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+        }
     }
 
     private protected override List<BoundStatement> ExpandInterpolatedStringExpression(

@@ -11,5 +11,5 @@ The Belte public interface for the Random class can be found
 
 | Signature | Description |
 |-|-|
-| `int! RandInt(int max)` | Gets a random non-negative `int` that is less that `max`, or less than the int-64 maximum if `max` is null. |
+| `int! RandInt(int? max)` | Gets a random non-negative `int` that is less that `max`, or less than the int-64 maximum if `max` is null. |
 | `decimal! Random()` | Gets a random `decimal` greater than or equal to `0` and less than `1`. |

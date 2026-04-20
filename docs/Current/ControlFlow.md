@@ -247,7 +247,7 @@ To avoid this exception while still allowing nullable types in the condition exp
 For example:
 
 ```belte
-int a = null;
+int? a = null;
 
 if ((a > 4)?) {
   ...
@@ -266,7 +266,7 @@ A null-binding contract can be used to declare a temporary local within an `if` 
 local is not null.
 
 ```belte
-int a = 3;
+int? a = 3;
 
 if (a -> x!) {
   int! b = x;
@@ -278,12 +278,12 @@ If the source expression is null, the block does not run. Otherwise, a non-nulla
 Similar to an ordinary if statement, an else block can be defined that runs only if the source expression is null.
 
 ```belte
-int a = 3;
+int? a = 3;
 
 if (a -> x!) {
   int! b = x;
 } else {
-  int b = a;
+  int? b = a;
 }
 ```
 

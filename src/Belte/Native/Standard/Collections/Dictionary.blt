@@ -98,8 +98,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
                     _entries[i].hashCode = -1;
                     _entries[i].next = _freeList;
-                    _entries[i].key = null;
-                    _entries[i].value = null;
+                    _entries[i].key = default;
+                    _entries[i].value = default;
                     _freeList = i;
                     _freeCount++;
 
@@ -157,7 +157,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
                 if (add)
                     throw new ArgumentNullException();
 
-                _entries[i].value = value!;
+                _entries[i].value = value;
                 return;
             }
         }
@@ -180,8 +180,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
         _entries[index].hashCode = hashCode;
         _entries[index].next = _buckets[targetBucket];
-        _entries[index].key = key!;
-        _entries[index].value = value!;
+        _entries[index].key = key;
+        _entries[index].value = value;
         _buckets[targetBucket] = index;
     }
 

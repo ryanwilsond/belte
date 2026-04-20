@@ -1216,6 +1216,9 @@ oneMoreTime:
                     EmitThisExpression((BoundThisExpression)expression);
 
                 break;
+            case BoundKind.DefaultExpression:
+                EmitDefaultExpression((BoundDefaultExpression)expression, used);
+                break;
             case BoundKind.BaseExpression:
                 if (used)
                     EmitBaseExpression((BoundBaseExpression)expression);
@@ -1317,6 +1320,10 @@ oneMoreTime:
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
+    }
+
+    private void EmitDefaultExpression(BoundDefaultExpression expression, bool used) {
+        EmitDefaultValue(expression.type, used, expression.syntax);
     }
 
     private void EmitConstantExpression(TypeSymbol type, ConstantValue constant, bool used) {

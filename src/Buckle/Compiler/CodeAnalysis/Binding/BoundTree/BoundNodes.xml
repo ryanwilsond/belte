@@ -215,6 +215,14 @@
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundDefaultLiteral" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
+  <Node Name="BoundDefaultExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="targetType" Type="BoundTypeExpression?" SkipInVisitor="true"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
     <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>

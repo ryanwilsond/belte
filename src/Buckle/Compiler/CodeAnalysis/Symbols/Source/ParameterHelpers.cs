@@ -188,7 +188,13 @@ internal static class ParameterHelpers {
         if (expression.constantValue is not null)
             return true;
 
-        return false;
+        switch (expression.kind) {
+            case BoundKind.DefaultLiteral:
+            case BoundKind.DefaultExpression:
+                return true;
+            default:
+                return false;
+        }
     }
 
     internal static RefKind GetModifiers(SyntaxTokenList modifiers, out SyntaxToken refnessKeyword) {

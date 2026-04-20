@@ -135,9 +135,7 @@
   </Node>
   <Node Name="ArrayRankSpecifierSyntax" Base="SyntaxNode">
     <Kind Name="ArrayRankSpecifier"/>
-    <Field Name="openBracket" Type="SyntaxToken">
-      <Kind Name="OpenBracketToken"/>
-    </Field>
+    <Field Name="openBracket" Type="SyntaxToken"/>
     <Field Name="size" Type="ExpressionSyntax" Optional="true"/>
     <Field Name="closeBracket" Type="SyntaxToken">
       <Kind Name="CloseBracketToken"/>
@@ -413,6 +411,11 @@
     <Field Name="exclamationToken" Type="SyntaxToken">
       <Kind Name="ExclamationToken"/>
     </Field>
+  </Node>
+  <Node Name="NullableTypeSyntax" Base="TypeSyntax">
+    <Kind Name="NullableType"/>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="questionToken" Type="SyntaxToken"/>
   </Node>
   <Node Name="PointerTypeSyntax" Base="TypeSyntax">
     <Kind Name="PointerType"/>

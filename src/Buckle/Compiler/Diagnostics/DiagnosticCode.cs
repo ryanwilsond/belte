@@ -419,6 +419,10 @@ public enum DiagnosticCode : ushort {
     ERR_BadReturnType = 408,
     ERR_FunctionRefMismatch = 409,
     ERR_UnknownCallingConvention = 410,
+    ERR_CannotAnnotatePointer = 411,
+    ERR_CannotAnnotateTypeTemplate = 412,
+    ERR_CannotAnnotateTemplate = 413,
+    ERR_DefaultLiteralNoTargetType = 414,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

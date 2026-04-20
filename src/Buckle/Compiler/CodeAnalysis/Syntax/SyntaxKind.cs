@@ -264,6 +264,7 @@ public enum SyntaxKind : ushort {
     EmptyName,
     ArrayType,
     NonNullableType,
+    NullableType,
     PointerType,
     FunctionPointerType,
     FunctionType,

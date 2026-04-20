@@ -1886,6 +1886,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
                 return ParseBooleanLiteral();
+            case SyntaxKind.DefaultKeyword:
+                return ParseDefaultLiteral();
             case SyntaxKind.NumericLiteralToken:
                 return ParseNumericLiteral();
             case SyntaxKind.StringLiteralToken:
@@ -2055,10 +2057,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
             switch (currentToken.kind) {
                 case SyntaxKind.ExclamationToken
                         when lastTokenOfType.kind is not SyntaxKind.ExclamationToken
+                                                  and not SyntaxKind.QuestionToken
                                                   and not SyntaxKind.AsteriskToken
                                                   and not SyntaxKind.AsteriskAsteriskToken:
                     lastTokenOfType = EatToken();
                     result = ScanTypeFlags.NonNullableType;
+                    break;
+                case SyntaxKind.QuestionToken
+                        when lastTokenOfType.kind is not SyntaxKind.ExclamationToken
+                                                  and not SyntaxKind.QuestionToken
+                                                  and not SyntaxKind.AsteriskToken
+                                                  and not SyntaxKind.AsteriskAsteriskToken:
+                    lastTokenOfType = EatToken();
+                    result = ScanTypeFlags.NullableType;
                     break;
                 case SyntaxKind.AsteriskToken:
                 case SyntaxKind.AsteriskAsteriskToken:
@@ -2079,6 +2090,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     result = ScanFunctionPointerType(out lastTokenOfType);
                     break;
                 case SyntaxKind.OpenBracketToken:
+                case SyntaxKind.QuestionOpenBracketToken:
                     EatToken();
 
                     while (currentToken.kind == SyntaxKind.CommaToken)
@@ -2231,6 +2243,7 @@ done:
         switch (type) {
             case ScanTypeFlags.PointerOrMultiplication:
             case ScanTypeFlags.NonNullableType:
+            case ScanTypeFlags.NullableType:
             case ScanTypeFlags.MustBeType:
             case ScanTypeFlags.AliasQualifiedName:
                 return true;
@@ -2747,6 +2760,11 @@ done:
         return SyntaxFactory.Literal(keyword, isTrue);
     }
 
+    private ExpressionSyntax ParseDefaultLiteral() {
+        var token = Match(SyntaxKind.DefaultKeyword);
+        return SyntaxFactory.Literal(token);
+    }
+
     private ExpressionSyntax ParseStringLiteral() {
         var stringToken = Match(SyntaxKind.StringLiteralToken);
         return SyntaxFactory.Literal(stringToken);
@@ -2939,7 +2957,7 @@ done:
     private TypeSyntax ParseTypeCore(bool allowArraySize, bool allowNoFollowUp, bool allowFunctionType) {
         TypeSyntax type;
 
-        if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken ||
+        if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken or SyntaxKind.QuestionToken ||
             (!allowNoFollowUp && currentToken.kind == SyntaxKind.IdentifierToken &&
              Peek(1).kind is SyntaxKind.EqualsToken or SyntaxKind.SemicolonToken)) {
             type = SyntaxFactory.EmptyName();
@@ -2951,26 +2969,44 @@ done:
 
         while (IsMakingProgress(ref lastTokenPosition)) {
             switch (currentToken.kind) {
-                case SyntaxKind.ExclamationToken when CanBeNonNullable():
+                case SyntaxKind.ExclamationToken when CanBeNullable():
                     var exclamationToken = EatToken();
                     type = SyntaxFactory.NonNullableType(type, exclamationToken);
                     continue;
-
-                    bool CanBeNonNullable() {
-                        if (type.kind == SyntaxKind.NonNullableType)
-                            return false;
-
-                        return true;
-                    }
-                case SyntaxKind.OpenBracketToken:
-                    var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
-
-                    do {
-                        rankSpecifiers.Add(ParseArrayRankSpecifier(allowArraySize));
-                    } while (currentToken.kind == SyntaxKind.OpenBracketToken);
-
-                    type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
+                case SyntaxKind.QuestionToken when CanBeNullable():
+                    var questionToken = EatToken();
+                    type = SyntaxFactory.NullableType(type, questionToken);
                     continue;
+                case SyntaxKind.OpenBracketToken: {
+                        var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
+
+                        do {
+                            rankSpecifiers.Add(ParseArrayRankSpecifier(allowArraySize));
+                        } while (currentToken.kind == SyntaxKind.OpenBracketToken);
+
+                        type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
+                        continue;
+                    }
+                case SyntaxKind.QuestionOpenBracketToken: {
+                        var questionOpenBracketToken = EatToken();
+                        type = SyntaxFactory.NullableType(type, questionOpenBracketToken);
+
+                        var rankSpecifiers = SyntaxListBuilder<ArrayRankSpecifierSyntax>.Create();
+                        var openBracket = SyntaxFactory.Token(SyntaxKind.None);
+                        var size = (allowArraySize && currentToken.kind != SyntaxKind.CloseBracketToken)
+                            ? ParseExpression()
+                            : null;
+
+                        var closeBracket = Match(SyntaxKind.CloseBracketToken);
+
+                        rankSpecifiers.Add(SyntaxFactory.ArrayRankSpecifier(openBracket, size, closeBracket));
+
+                        while (currentToken.kind == SyntaxKind.OpenBracketToken)
+                            rankSpecifiers.Add(ParseArrayRankSpecifier(allowArraySize));
+
+                        type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
+                        continue;
+                    }
                 case SyntaxKind.AsteriskToken:
                     var asteriskToken = EatToken();
                     type = SyntaxFactory.PointerType(type, asteriskToken);
@@ -3054,6 +3090,13 @@ done:
         }
 
         return type;
+
+        bool CanBeNullable() {
+            if (type.kind is SyntaxKind.NonNullableType or SyntaxKind.NullableType)
+                return false;
+
+            return true;
+        }
     }
 
     private TypeSyntax ParseUnderlyingType() {
