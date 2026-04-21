@@ -23,6 +23,13 @@
     - [1.2](Current/Overview.md#12-keywords) Keywords
       - [1.2.1](Current/Overview.md#121-non-contextual-keywords) Non-Contextual Keywords
       - [1.2.2](Current/Overview.md#122-contextual-keywords) Contextual Keywords
+    - [1.3](Current/Overview.md#13-nullability-and-types) Nullability and Types
+      - [1.3.1](Current/Overview.md#131-normal-types) Normal Types
+      - [1.3.2](Current/Overview.md#132-pointers-and-function-pointers) Pointers and Function Pointers
+      - [1.3.3](Current/Overview.md#133-initializers) Initializers
+      - [1.3.4](Current/Overview.md#134-fields) Fields
+      - [1.3.5](Current/Overview.md#135-implicit-typing) Implicit Typing
+      - [1.3.6](Current/Overview.md#136-null-flow-analysis) Null-Flow Analysis
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions
@@ -52,6 +59,7 @@
       - [3.1.1](Current/Data.md#311-casts) Casts
       - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
       - [3.1.3](Current/Data.md#313-function-type) Function Type
+      - [3.1.4](Current/Data.md#314-default-literal) Default Literal
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators

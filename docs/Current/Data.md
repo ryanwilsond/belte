@@ -4,6 +4,7 @@
   - [3.1.1](#311-casts) Casts
   - [3.1.2](#312-string-interpolation) String Interpolation
   - [3.1.3](#313-function-type) Function Type
+  - [3.1.4](#314-default-literal) Default Literal
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -37,9 +38,9 @@ Apart from classes, there are many primitive types. The most common ones include
 | Any | `any` | Any integer, decimal, boolean, or string value |
 | Type | `type` | Represents a type |
 
-Each of these can be set to `null` to represent they do not have a known value if they are nullable. Most types are
-nullable by default unless suffixed with `!`. Sized numerics, pointers, function pointers, structs, and type template
-arguments are always non-nullable.
+Each of these can be set to `null` to represent they do not have a known value if they are nullable. Reference types
+(classes) are nullable by default unless suffixed with `!`. Value types (primitives, pointers, structs) are non-nullable
+by default unless suffixed with `?`. Pointers and function pointers are always non-nullable.
 
 Apart from these, many types exist for specific contexts:
 
@@ -112,6 +113,19 @@ int Add(int a, int b) {
 
 Function types cannot include pointer types in the return value or parameter list. For cases where you need this
 functionality, use function pointers instead.
+
+### 3.1.4 Default Literal
+
+The `default` literal can be used to indicate `null` for nullable types or the default value for primitives.
+
+For example:
+
+```belte
+int a = default; // a = 0
+int? a = default; // a = null
+```
+
+Types with no default value (non-nullable class types) cannot use the `default` literal.
 
 ## 3.2 Operators
 
@@ -226,7 +240,8 @@ variable with no value, making it `null` until later defined. The latter gives t
 
 ### 3.3.1 Implicit Typing
 
-Instead of using type-names to declare, implicit keywords `var` and `const` can be used if the initializer is distinct.
+Instead of using type-names to declare, implicit keywords `var`, `const`, and `constexpr` can be used if the initializer
+is distinct.
 
 Examples:
 
@@ -237,10 +252,23 @@ const b = 3; // Same as 'const int b = 3;'
 
 ## 3.4 Attributes and Modifiers
 
-All data is nullable by default. To disable this, an exclamation mark can be used:
+Reference-type data is nullable by default. To disable this, an exclamation mark can be used:
+
+```belte
+MyType! a = new MyType();
+```
+
+Value-type data is non-nullable by default. To enable nullability, a question mark can be used:
+
+```belte
+int? a = null;
+```
+
+Both of these annotations are allowed in situations where they are redundant for clarity purposes:
 
 ```belte
 int! a = 3;
+MyType? b = new MyType();
 ```
 
 ## 3.5 References

@@ -11,4 +11,4 @@ The Belte public interface for the Int class can be found
 
 | Signature | Description |
 |-|-|
-| `int Parse(string)` | Tries to parse the given string into an int. Returns null if the string is not a valid int. |
+| `int? Parse(string?)` | Tries to parse the given string into an int. Returns null if the string is not a valid int. |

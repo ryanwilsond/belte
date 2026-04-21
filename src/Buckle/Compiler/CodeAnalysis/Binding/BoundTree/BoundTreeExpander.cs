@@ -316,6 +316,7 @@ internal abstract partial class BoundTreeExpander {
 
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement, useKind),
+            BoundKind.DefaultExpression => ExpandDefaultExpression((BoundDefaultExpression)expression, out replacement, useKind),
             BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement, useKind),
             BoundKind.InitializerDictionary => ExpandInitializerDictionary((BoundInitializerDictionary)expression, out replacement, useKind),
             BoundKind.DataContainerExpression => ExpandDataContainerExpression((BoundDataContainerExpression)expression, out replacement, useKind),
@@ -725,6 +726,14 @@ internal abstract partial class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandDefaultExpression(
+        BoundDefaultExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandDataContainerExpression(
         BoundDataContainerExpression expression,
         out BoundExpression replacement,
@@ -1123,10 +1132,13 @@ internal abstract partial class BoundTreeExpander {
         if (!expression.field.isStatic) {
             // Structs are special case because they have limited expansion ability (they are non-nullable)
             // And because they are passed by value so in something like `a.b.c = x`, we can't hoist anything
+            var isTrueStructReceiver = expression.receiver.Type().IsStructType() &&
+                !(expression.receiver is BoundCallExpression c && c.receiver.StrippedType().IsStructType());
+
             var statements = ExpandExpression(
                 expression.receiver,
                 out var newReceiver,
-                expression.receiver.Type().IsStructType() ? UseKind.Writable : UseKind.StableValue
+                isTrueStructReceiver ? UseKind.Writable : UseKind.StableValue
             );
 
             if (statements.Count != 0 || expression.receiver != newReceiver) {

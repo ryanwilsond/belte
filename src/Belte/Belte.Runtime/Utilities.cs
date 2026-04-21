@@ -12,6 +12,10 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
+    public static Type AnyGetType(object o) {
+        return o.GetType();
+    }
+
     public static T AssertNull<T>(T value) {
         if (value is null)
             throw new NullReferenceException();

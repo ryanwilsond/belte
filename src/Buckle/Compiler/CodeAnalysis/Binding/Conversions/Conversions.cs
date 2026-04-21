@@ -288,6 +288,8 @@ internal sealed partial class Conversions {
                 return GetImplicitEnumFieldExpressionConversion(fieldAccess, target);
             case BoundMethodGroup methodGroup:
                 return GetMethodGroupConversion(methodGroup, target);
+            case BoundDefaultLiteral literal:
+                return Conversion.DefaultLiteral;
         }
 
         if (sourceExpression.IsLiteralNull()) {

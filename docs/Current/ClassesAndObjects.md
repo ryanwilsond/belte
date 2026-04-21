@@ -447,8 +447,8 @@ A `T extends Y` constraint ensures template parameter `T` is or derives from `Y`
 A `T is primitive` constraint ensure template parameter `T` is a primitive type.
 
 A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
-are disallowed in type template arguments, so this constraint is required to instantiate a template to a non-nullable
-type.
+are disallowed on type template parameters, so this constraint is required for the template class to know the template
+parameter is a non-nullable type.
 
 ## 4.6 Enums
 

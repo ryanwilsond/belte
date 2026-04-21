@@ -1523,7 +1523,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation on a struct type";
+        var message = $"cannot use a nullable or non-nullable annotation on a struct type";
         return CreateError(DiagnosticCode.ERR_CannotAnnotateStruct, location, message);
     }
 
@@ -2006,6 +2006,26 @@ internal static class Error {
     internal static BelteDiagnostic UnknownCallingConvention(TextLocation location, string text) {
         var message = $"unrecognized calling convention '{text}'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'";
         return CreateError(DiagnosticCode.ERR_UnknownCallingConvention, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotatePointer(TextLocation location) {
+        var message = $"cannot use a nullable annotation on a pointer or function pointer type";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotatePointer, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTypeTemplate(TextLocation location) {
+        var message = $"type template parameters cannot be nullable";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTypeTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTemplate(TextLocation location) {
+        var message = $"cannot use a non-nullable annotation on a template parameter type";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultLiteralNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the default literal";
+        return CreateError(DiagnosticCode.ERR_DefaultLiteralNoTargetType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

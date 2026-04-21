@@ -529,7 +529,7 @@ internal sealed class Evaluator {
         var expression = node.expression;
         var value = EvaluateExpression(expression, _isScript, abort);
 
-        if (expression.syntax.kind != Syntax.SyntaxKind.LocalDeclarationStatement)
+        if (expression.syntax.kind != SyntaxKind.LocalDeclarationStatement)
             _lastValue = value;
     }
 
@@ -545,6 +545,7 @@ internal sealed class Evaluator {
             return EvaluatorValue.Literal(node.constantValue.value, node.constantValue.specialType);
 
         return node.kind switch {
+            BoundKind.DefaultExpression => EvaluateDefaultExpression((BoundDefaultExpression)node, used),
             BoundKind.ThisExpression => EvaluateThisExpression((BoundThisExpression)node),
             BoundKind.BaseExpression => EvaluateBaseExpression((BoundBaseExpression)node),
             BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)node, used),
@@ -573,12 +574,12 @@ internal sealed class Evaluator {
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("Stackalloc is not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
-            BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used, abort),
+            BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
 
-    private EvaluatorValue EvaluateFunctionLoad(BoundFunctionLoad node, bool used, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateFunctionLoad(BoundFunctionLoad node, bool used) {
         if (used)
             return new EvaluatorValue() { kind = ValueKind.MethodGroup, data = node.targetMethod };
 
@@ -590,6 +591,34 @@ internal sealed class Evaluator {
             return EvaluateExpression(node.expression, used, abort);
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private EvaluatorValue EvaluateDefaultExpression(BoundDefaultExpression node, bool used) {
+        if (!used)
+            return EvaluatorValue.None;
+
+        return EvaluateDefaultExpression(node.type);
+    }
+
+    private EvaluatorValue EvaluateDefaultExpression(TypeSymbol type) {
+        if (type.IsNullableType())
+            return EvaluatorValue.Null;
+
+        if (!type.IsTemplateParameter()) {
+            var constantValue = type.IsVerifierValue() ? LiteralUtilities.GetDefaultValue(type.specialType) : null;
+
+            if (constantValue is not null)
+                return EvaluatorValue.Literal(constantValue, type.specialType);
+        }
+
+        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.UIntPtr or SpecialType.IntPtr) {
+            return new EvaluatorValue() { kind = ValueKind.Ref, uint64 = 0 };
+        } else if (type.IsTemplateParameter()) {
+            var targetType = SubstituteTemplateParameter((TemplateParameterSymbol)type);
+            return EvaluateDefaultExpression(targetType);
+        } else {
+            return CreateObject((NamedTypeSymbol)type);
+        }
     }
 
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {
@@ -617,20 +646,29 @@ internal sealed class Evaluator {
         var type = node.sourceType.type;
 
         if (type.StrippedType() is TemplateParameterSymbol t) {
-            if (t.templateParameterKind == TemplateParameterKind.Method)
-                return EvaluatorValue.Type(_stack.Peek().values[t.ordinal + 1].type);
+            var substituted = SubstituteTemplateParameter(t);
 
-            var thisParameter = _stack.Peek().values[0];
-            var heapObject = _context.heap[thisParameter.ptr];
+            if (type.IsNullableType())
+                substituted = CorLibrary.GetOrCreateNullableType(substituted);
 
-            if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
-
-            var field = layout.GetLocal(type.StrippedType());
-            return EvaluatorValue.Type(heapObject.fields[field.slot].type);
+            type = substituted;
         }
 
         return EvaluatorValue.Type(type);
+    }
+
+    private TypeSymbol SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
+        if (templateParameter.templateParameterKind == TemplateParameterKind.Method)
+            return (TypeSymbol)_stack.Peek().values[templateParameter.ordinal + 1].type;
+
+        var thisParameter = _stack.Peek().values[0];
+        var heapObject = _context.heap[thisParameter.ptr];
+
+        if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
+            throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
+
+        var field = layout.GetLocal(templateParameter);
+        return (TypeSymbol)heapObject.fields[field.slot].type;
     }
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
@@ -2287,8 +2325,8 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {
-        // Should only be reachable with uninitialized ref locals
-        if (!node.IsLiteralNull())
+        // Should only be reachable with uninitialized ref locals and structs
+        if (!node.IsLiteralNull() && !(node is BoundCallExpression c && c.receiver.type.StrippedType().IsStructType()))
             throw ExceptionUtilities.UnexpectedValue(node.kind);
 
         var value = EvaluateExpression(node, true, abort);
@@ -2619,6 +2657,37 @@ internal sealed class Evaluator {
                                     throw ExceptionUtilities.UnexpectedValue(argument.kind);
                             }
                         }
+                    }
+
+                    return true;
+                case "LowLevel_GetType_A": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        TypeSymbol type;
+
+                        if (argument.kind == ValueKind.HeapPtr) {
+                            type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                        } else if (argument.kind == ValueKind.Struct) {
+                            type = argument.@struct.type;
+                        } else {
+                            type = argument.kind switch {
+                                ValueKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
+                                ValueKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
+                                ValueKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
+                                ValueKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int64),
+                                ValueKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
+                                ValueKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
+                                ValueKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
+                                ValueKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
+                                ValueKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
+                                ValueKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
+                                ValueKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
+                                ValueKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
+                                ValueKind.String => CorLibrary.GetSpecialType(SpecialType.String),
+                                _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
+                            };
+                        }
+
+                        result = EvaluatorValue.Type(type);
                     }
 
                     return true;

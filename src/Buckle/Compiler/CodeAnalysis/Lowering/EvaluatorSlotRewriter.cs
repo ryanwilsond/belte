@@ -177,6 +177,9 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         if (method.containingType?.Equals(GraphicsLibrary.Graphics) == true && GraphicsLibrary.MethodProducesTemp(method))
             _lateTempCount++;
 
+        if (node.receiver is not null && node.receiver.type.StrippedType().IsStructType())
+            _lateTempCount++;
+
         return base.VisitCallExpression(node);
     }
 }

@@ -97,7 +97,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
         var typeOnly = typeSyntax.SkipRef(out var refKind);
 
-        type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped, out _);
+        type = binder.BindTypeOrImplicitType(typeOnly, diagnostics, out var isImplicitlyTyped, out _, out _);
 
         if (isImplicitlyTyped) {
             var location = typeOnly is IdentifierNameSyntax
