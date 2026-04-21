@@ -1395,6 +1395,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_RadToDeg_D", typeof(double).GetMethod("RadiansToDegrees", Flags, [typeof(double)]) },
             { "LowLevel_GetHashCode_O", typeof(Belte.Runtime.Utilities).GetMethod("GetHashCode", Flags, [typeof(object)]) },
             { "LowLevel_GetTypeName_O", typeof(Belte.Runtime.Utilities).GetMethod("GetTypeName", Flags, [typeof(object)]) },
+            { "LowLevel_GetType_A", typeof(Belte.Runtime.Utilities).GetMethod("AnyGetType", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
             { "LowLevel_CreateLPCSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCSTR", Flags, [typeof(string)]) },
             { "LowLevel_CreateLPCWSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCWSTR", Flags, [typeof(string)]) },

@@ -434,7 +434,7 @@ internal static class ConstantFolding {
                     SpecialType.UInt8 => new ConstantValue(~(byte)value, specialType),
                     SpecialType.UInt16 => new ConstantValue(~(ushort)value, specialType),
                     SpecialType.UInt32 => new ConstantValue(~(uint)value, specialType),
-                    SpecialType.UInt64 => new ConstantValue(~(long)value, specialType),
+                    SpecialType.UInt64 => new ConstantValue(~(ulong)value, specialType),
                     _ => throw ExceptionUtilities.UnexpectedValue(specialType),
                 };
             default:

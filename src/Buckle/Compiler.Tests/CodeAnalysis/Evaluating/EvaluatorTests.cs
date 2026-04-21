@@ -160,6 +160,7 @@ public sealed class EvaluatorTests {
     [InlineData("string? a = null; return a?;", "")]
     [InlineData("bool? a = true; return a?;", true)]
     [InlineData("bool? a = null; return a?;", false)]
+    [InlineData("return ~((uint64)1 << 7);", 18446744073709551487)]
     // Compound assignments
     [InlineData("var? a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var? a = 1; a -= (2 + 3); return a;", -4)]
@@ -203,6 +204,12 @@ public sealed class EvaluatorTests {
     [InlineData("int a = default; return a;", 0)]
     [InlineData("int? a = default; return a;", null)]
     [InlineData("int[][] a; a = new int[][] { { 1 } }; return a[0][0];", 1)]
+    [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(b) == typeof(uint64);", true)]
+    [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(a) == LowLevel.GetType(b);", true)]
+    [InlineData("return typeof(int) == typeof(int64);", true)]
+    [InlineData("return typeof(int32) == typeof(int64);", false)]
+    [InlineData("return typeof(decimal) == typeof(float64);", true)]
+    [InlineData("return typeof(float32) == typeof(float64);", false)]
     // Name expressions
     [InlineData("int? a = 3; int? b = 6; return a;", 3)]
     [InlineData("int? a = 3; int? b = 6; return b;", 6)]
@@ -389,6 +396,7 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int?) == typeof(int?);", true)]
     [InlineData("return typeof(int?) == typeof(int);", false)]
     [InlineData("return typeof(int) == typeof(bool);", false)]
+    [InlineData("return typeof(int*) == typeof(int64*);", true)]
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int?>(); return c.M();", true)]
     [InlineData("class C<type T> where { T is notnull; } { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int?>(); return c.M();", false)]
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<bool?>(); return c.M();", false)]

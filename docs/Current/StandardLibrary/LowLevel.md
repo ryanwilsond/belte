@@ -15,6 +15,7 @@ The Belte public interface for the LowLevel class can be found
 |-|-|
 | `int! GetHashCode(Object!)` | Equivalent to calling `Object.GetHashCode()`. |
 | `string! GetTypeName(Object!)` | Equivalent to calling `Object.GetTypeName()`. |
+| `type! GetType(any!)` | Gets the type of the passed value. |
 | `int! Length<type T>(T!)` | Gets the length of the given array, or 0 if not passed an array. |
 | `void Sort<type T>(T!)` | Sorts the given array, or does nothing if not passed an array. |
 | `int32 SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. (Using the [`sizeof` operator](../LowLevelFeatures.md#69-sizeof-operator) is preferred.) |

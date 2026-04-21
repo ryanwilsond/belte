@@ -645,8 +645,14 @@ internal sealed class Evaluator {
 
         var type = node.sourceType.type;
 
-        if (type.StrippedType() is TemplateParameterSymbol t)
-            return EvaluatorValue.Type(SubstituteTemplateParameter(t));
+        if (type.StrippedType() is TemplateParameterSymbol t) {
+            var substituted = SubstituteTemplateParameter(t);
+
+            if (type.IsNullableType())
+                substituted = CorLibrary.GetOrCreateNullableType(substituted);
+
+            type = substituted;
+        }
 
         return EvaluatorValue.Type(type);
     }
@@ -2651,6 +2657,37 @@ internal sealed class Evaluator {
                                     throw ExceptionUtilities.UnexpectedValue(argument.kind);
                             }
                         }
+                    }
+
+                    return true;
+                case "LowLevel_GetType_A": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        TypeSymbol type;
+
+                        if (argument.kind == ValueKind.HeapPtr) {
+                            type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                        } else if (argument.kind == ValueKind.Struct) {
+                            type = argument.@struct.type;
+                        } else {
+                            type = argument.kind switch {
+                                ValueKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
+                                ValueKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
+                                ValueKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
+                                ValueKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int64),
+                                ValueKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
+                                ValueKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
+                                ValueKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
+                                ValueKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
+                                ValueKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
+                                ValueKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
+                                ValueKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
+                                ValueKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
+                                ValueKind.String => CorLibrary.GetSpecialType(SpecialType.String),
+                                _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
+                            };
+                        }
+
+                        result = EvaluatorValue.Type(type);
                     }
 
                     return true;

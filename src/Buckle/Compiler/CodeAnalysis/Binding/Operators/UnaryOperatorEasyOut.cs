@@ -68,6 +68,9 @@ internal sealed partial class OverloadResolution {
             var kindIndex = kind.OperatorIndex();
             var result = (kindIndex >= Operators.Length) ? UnaryOperatorKind.Error : Operators[kindIndex][index];
 
+            if (operand.specialType.IsUnsigned())
+                result = UnaryOperatorKind.UInt;
+
             return result == UnaryOperatorKind.Error ? result : result | kind;
         }
     }

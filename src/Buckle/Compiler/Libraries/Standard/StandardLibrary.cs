@@ -335,6 +335,7 @@ internal static class StandardLibrary {
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
+            StaticMethod("GetType", SpecialType.Type, [("value", SpecialType.Any)]),
             length,
             sort,
             sizeOf,
