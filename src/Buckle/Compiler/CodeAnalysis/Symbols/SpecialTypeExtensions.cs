@@ -109,6 +109,17 @@ internal static class SpecialTypeExtensions {
         }
     }
 
+    internal static bool IsFloatingPoint(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Decimal:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static bool IsIntegral(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Int:

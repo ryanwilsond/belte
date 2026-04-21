@@ -47,6 +47,8 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Decimal, typeof(double) },
         { SpecialType.Float32, typeof(float) },
         { SpecialType.Float64, typeof(double) },
+        { SpecialType.IntPtr, typeof(IntPtr) },
+        { SpecialType.UIntPtr, typeof(UIntPtr) },
         { SpecialType.Nullable, typeof(Nullable<>) },
         { SpecialType.Char, typeof(char) },
         { SpecialType.Void, typeof(void) },
@@ -579,6 +581,17 @@ internal sealed partial class Executor : ModuleBuilder {
             return TypeBuilder.GetMethod(closedType, MethodInfoCache.Nullable_get_Value);
         else
             return closedType.GetMethod("get_Value", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
+    }
+
+    internal MethodInfo GetNullableValueOrDefault(TypeSymbol type) {
+        var generic = GetType(type);
+        var nullable = typeof(Nullable<>);
+        var closedType = nullable.MakeGenericType(generic);
+
+        if (closedType.ContainsGenericParameters || generic is TypeBuilder || generic is GenericTypeParameterBuilder)
+            return TypeBuilder.GetMethod(closedType, MethodInfoCache.Nullable_GetValueOrDefault);
+        else
+            return closedType.GetMethod("GetValueOrDefault", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
     internal MethodInfo GetNullableHasValue(TypeSymbol type) {
@@ -1115,6 +1128,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 return GetNullableValue(method.containingType.templateArguments[0].type.type);
             case "Nullable<>_get_HasValue":
                 return GetNullableHasValue(method.containingType.templateArguments[0].type.type);
+            case "Nullable<>_GetValueOrDefault":
+                return GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type);
             case "Graphics_Initialize_SIIB":
                 _graphicsInitialized = true;
                 goto default;

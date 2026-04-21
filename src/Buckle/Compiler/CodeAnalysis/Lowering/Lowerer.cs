@@ -546,10 +546,33 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <operand>.get_Value
 
         */
-        if (ShouldBeTreatedAsNullable(expression.operand.Type()))
-            return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
+        if (ShouldBeTreatedAsNullable(expression.operand.Type())) {
+            if (expression.throwIfNull)
+                return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
+            else
+                return Visit(CreateNullableGetValueOrDefaultCall(expression.syntax, expression.operand, expression.Type()));
+        }
 
         return base.VisitNullAssertOperator(expression);
+    }
+
+    internal override BoundNode VisitDefaultExpression(BoundDefaultExpression node) {
+        /*
+
+        default
+
+        ----> <type> is pointer
+
+        nullptr
+
+        */
+        var syntax = node.syntax;
+        var type = node.type;
+
+        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+            return Visit(Cast(syntax, type, Literal(syntax, null, type), Conversion.ImplicitNullToPointer, null));
+
+        return base.VisitDefaultExpression(node);
     }
 
     internal static BoundExpression CreateNullableGetValueCall(
@@ -566,6 +589,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
             CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue),
+            genericType
+        );
+    }
+
+    internal static BoundExpression CreateNullableGetValueOrDefaultCall(
+        SyntaxNode syntax,
+        BoundExpression operand,
+        TypeSymbol genericType) {
+        return InstanceCall(
+            syntax,
+            operand,
+            CreateNullableGetValueOrDefaultSymbol(genericType)
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault),
             genericType
         );
     }

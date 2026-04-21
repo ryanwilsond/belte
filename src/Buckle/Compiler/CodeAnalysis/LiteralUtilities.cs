@@ -366,6 +366,33 @@ internal static class LiteralUtilities {
             case SpecialType.Bool:
             case SpecialType.Char:
             case SpecialType.String:
+            case SpecialType.UIntPtr:
+            case SpecialType.IntPtr:
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static bool TypeHasConstantDefaultValue(SpecialType type) {
+        switch (type) {
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Bool:
+            case SpecialType.Char:
+            case SpecialType.String:
                 return true;
             default:
                 return false;
@@ -397,7 +424,7 @@ internal static class LiteralUtilities {
         if (type.IsNullableType())
             return ConstantValue.Null;
 
-        if (TypeHasDefaultValue(type.specialType))
+        if (TypeHasConstantDefaultValue(type.specialType))
             return new ConstantValue(GetDefaultValue(type.specialType), type.specialType);
 
         return null;

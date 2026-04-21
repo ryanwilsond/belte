@@ -201,8 +201,9 @@ internal sealed partial class Conversions {
         if (result.exists || sourceExpression.IsLiteralNull() ||
             sourceExpression is BoundUnconvertedInitializerList or
                                 BoundUnconvertedImplicitEnumFieldExpression or
+                                BoundUnconvertedNullptrExpression or
                                 BoundMethodGroup) {
-            // We tried our best. There are no built-in conversions for lists.
+            // We tried our best. No further built-in conversions for these cases.
             return result;
         }
 

@@ -535,6 +535,22 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
     }
 
+    internal MethodReference GetNullableValueOrDefault(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_GetValueOrDefault;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+    }
+
     internal MethodReference GetSort(TypeSymbol elementType) {
         var genericArgumentType = GetType(elementType);
 
@@ -1509,6 +1525,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_Value" => GetNullableValue(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_HasValue" => GetNullableHasValue(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_GetValueOrDefault" => GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type),
             _ => _stlMap[mapKey],
         };
     }
@@ -1557,6 +1574,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
         NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
+        NetMethodReference.Nullable_GetValueOrDefault = ResolveMethod("System.Nullable`1", "GetValueOrDefault", []);
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);

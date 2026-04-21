@@ -10,6 +10,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.Identity:
             case ConversionKind.Implicit:
             case ConversionKind.NullLiteral:
+            case ConversionKind.DefaultLiteral:
             case ConversionKind.ImplicitNullable:
             case ConversionKind.ImplicitReference:
             case ConversionKind.ImplicitUserDefined:

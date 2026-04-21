@@ -983,8 +983,8 @@ public sealed partial class Compilation {
         handleManager.SendBoundMessage();
     }
 
+    [Conditional("DEBUG")]
     private void EmitCFG(string path) {
-#if DEBUG
         const string CFGName = "cfg.dot";
 
         var program = boundProgram;
@@ -997,7 +997,6 @@ public sealed partial class Compilation {
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);
         }
-#endif
     }
 
     private void EmitBoundProgram(string path) {

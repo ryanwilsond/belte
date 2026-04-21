@@ -296,11 +296,15 @@ internal sealed partial class OverloadResolution {
         if (rightType is null)
             return;
 
-        if (left.kind == BoundKind.LiteralExpression && right.kind != BoundKind.LiteralExpression)
+        if (left.kind == BoundKind.LiteralExpression && right.kind != BoundKind.LiteralExpression &&
+            !leftType.specialType.IsFloatingPoint()) {
             leftType = Binder.ReduceNumericIfApplicable(rightType, left).type;
+        }
 
-        if (right.kind == BoundKind.LiteralExpression && left.kind != BoundKind.LiteralExpression)
+        if (right.kind == BoundKind.LiteralExpression && left.kind != BoundKind.LiteralExpression &&
+            !rightType.specialType.IsFloatingPoint()) {
             rightType = Binder.ReduceNumericIfApplicable(leftType, right).type;
+        }
 
         var easyOut = BinOpEasyOut.OpKind(kind, leftType, rightType);
 

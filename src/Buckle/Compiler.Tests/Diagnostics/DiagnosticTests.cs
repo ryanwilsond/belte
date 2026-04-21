@@ -5101,4 +5101,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0415_TypeWithNoDefault() {
+        var text = @"
+            class A { }
+            A! a = [default];
+        ";
+
+        var diagnostics = @"
+            cannot use a default literal for type 'A!' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

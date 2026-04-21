@@ -7,4 +7,5 @@ internal enum WellKnownMembers : byte {
     Nullable_ctor,
     Nullable_getValue,
     Nullable_getHasValue,
+    Nullable_GetValueOrDefault,
 }

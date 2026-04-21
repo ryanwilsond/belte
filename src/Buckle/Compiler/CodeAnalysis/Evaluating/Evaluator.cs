@@ -2841,31 +2841,31 @@ internal sealed class Evaluator {
 
             return true;
         } else {
-            if (mapKey == "Nullable<>_get_Value") {
-                result = NullAssertValue(receiver, abort);
-                return true;
+            switch (mapKey) {
+                case "Nullable<>_get_Value":
+                    result = NullAssertValue(receiver, abort);
+                    return true;
+                case "Nullable<>_get_HasValue":
+                    var receiverValue = EvaluateExpression(receiver, true, abort);
+                    result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
+                    return true;
+                case "Nullable<>_GetValueOrDefault":
+                    result = EvaluateExpression(receiver, true, abort);
+                    return true;
+                case "Object<>_ToString":
+                    var thisParameter = EvaluateExpression(receiver, true, abort);
+
+                    if (thisParameter.kind == ValueKind.Null)
+                        throw new BelteNullReferenceException(receiver.syntax.location);
+
+                    result = thisParameter.kind == ValueKind.HeapPtr
+                        ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
+                        : EvaluatorValue.Format(thisParameter, _context);
+
+                    return true;
+                default:
+                    return false;
             }
-
-            if (mapKey == "Nullable<>_get_HasValue") {
-                var receiverValue = EvaluateExpression(receiver, true, abort);
-                result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
-                return true;
-            }
-
-            if (mapKey == "Object<>_ToString") {
-                var thisParameter = EvaluateExpression(receiver, true, abort);
-
-                if (thisParameter.kind == ValueKind.Null)
-                    throw new BelteNullReferenceException(receiver.syntax.location);
-
-                result = thisParameter.kind == ValueKind.HeapPtr
-                    ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
-                    : EvaluatorValue.Format(thisParameter, _context);
-
-                return true;
-            }
-
-            return false;
         }
     }
 

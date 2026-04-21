@@ -2044,7 +2044,8 @@ oneMoreTime:
             var originalMethod = method.originalDefinition;
 
             if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)) {
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault)) {
                 return true;
             }
         }
@@ -2323,17 +2324,17 @@ oneMoreTime:
 
             _builder.EmitWithSymbolToken(OpCode.Isinst, targetType);
 
-            if (!targetType.IsVerifierReference()) {
+            if (!targetType.IsVerifierReference())
                 _builder.EmitWithSymbolToken(OpCode.Unbox_Any, targetType);
-            }
         }
     }
 
     private void EmitNullAssertOperator(BoundNullAssertOperator expression, bool used) {
-        // if (!expression.throwIfNull) {
-        //     EmitExpression(expression.operand, used);
-        //     return;
-        // }
+        if (!expression.throwIfNull) {
+            EmitExpression(expression.operand, true);
+            EmitPopIfUnused(used);
+            return;
+        }
 
         EnsureGlobalsClassIsBuilt();
 

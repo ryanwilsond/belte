@@ -1962,6 +1962,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullErasureOnTypeWithNoDefault, location, message);
     }
 
+    internal static BelteDiagnostic TypeWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a default literal for type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_TypeWithNoDefault, location, message);
+    }
+
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
         var message = $"cannot apply a null erasure operator to a null literal";
         return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);

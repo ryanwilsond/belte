@@ -439,7 +439,7 @@ public static class SymbolDisplay {
                 if (templateArgument.isConstant)
                     DisplayText.DisplayConstant(text, templateArgument.constant);
                 else
-                    AppendToDisplayText(text, templateArgument.type.type, format);
+                    AppendToDisplayText(text, templateArgument.type.type, SymbolDisplayFormat.QualifiedNameFormat);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));

@@ -13156,8 +13156,14 @@ symIsHidden:;
                 : null;
         }
 
-        if (conversion.kind == ConversionKind.DefaultLiteral)
+        if (conversion.kind == ConversionKind.DefaultLiteral) {
+            if (!destination.IsTemplateParameter() && !destination.IsNullableType() &&
+                !LiteralUtilities.TypeHasDefaultValue(destination.specialType) && !destination.IsStructType()) {
+                diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
+            }
+
             source = new BoundDefaultExpression(source.syntax, targetType: null, constantValue, type: destination);
+        }
 
         if (conversion.method is not null && conversion.kind != ConversionKind.MethodGroup) {
             var targetType = conversion.method.GetParameterTypes()[0].type;

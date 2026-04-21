@@ -336,6 +336,9 @@ public sealed class DisplayText {
             case BoundKind.InterpolatedStringExpression:
                 DisplayInterpolatedStringExpression(text, (BoundInterpolatedStringExpression)node);
                 break;
+            case BoundKind.DefaultExpression:
+                DisplayDefaultExpression(text, (BoundDefaultExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -489,6 +492,10 @@ public sealed class DisplayText {
                 text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
             }
         }
+    }
+
+    private static void DisplayDefaultExpression(DisplayText text, BoundDefaultExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.DefaultKeyword));
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
