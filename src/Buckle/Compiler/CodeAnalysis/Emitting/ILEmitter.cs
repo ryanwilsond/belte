@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.Versioning;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
@@ -66,13 +65,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _debugMode = debugMode;
         _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
-        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-        var attr = currentAssembly
-            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
-            .OfType<TargetFrameworkAttribute>()
-            .FirstOrDefault();
-
-        _tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        _tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
 
 #if !DEBUG
@@ -1609,8 +1602,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
             { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
             { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
-            { "Directory_Create_S", ResolveMethod("System.IO.Directory", "CreateDirectory", ["System.String"]) },
-            { "Directory_Delete_S", ResolveMethod("System.IO.Directory", "Delete", ["System.String"]) },
+            { "Directory_Create_S", ResolveMethod("Belte.Runtime.Utilities", "CreateDirectory", ["System.String"]) },
+            { "Directory_Delete_S", ResolveMethod("Belte.Runtime.Utilities", "DeleteDirectory", ["System.String"]) },
             { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
             { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
             { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },

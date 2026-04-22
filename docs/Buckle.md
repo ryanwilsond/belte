@@ -163,6 +163,15 @@ options.
 
 Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d* option was specified.
 
+### *-l0*, *-l1*
+
+Automatically includes certain library references. Each level includes all of the libraries from previous levels.
+
+| l# | Libraries |
+|-|-|
+| `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Collections.dll` |
+| `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.Immutable.dll` |
+
 ### *--time*
 
 Displays how much time each stage of compilation took.

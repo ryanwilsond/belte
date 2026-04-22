@@ -116,12 +116,18 @@ internal sealed class TypeWithAnnotations {
 
         switch (transformFlag) {
             case NullableContextExtensions.AnnotatedAttributeValue:
-                result = result.isNullable ? result : result.SetIsAnnotated();
+                result = result.isNullable
+                    ? result
+                    : ShouldLift(result.type)
+                        ? result.SetIsAnnotated()
+                        : result;
+
                 break;
             case NullableContextExtensions.NotAnnotatedAttributeValue:
-                result = result.typeKind == TypeKind.Class
+                result = ShouldLift(result.type)
                     ? result.SetIsAnnotated()
                     : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+
                 break;
             default:
                 result = this;
@@ -129,6 +135,10 @@ internal sealed class TypeWithAnnotations {
         }
 
         return true;
+
+        static bool ShouldLift(TypeSymbol type) {
+            return type.typeKind is TypeKind.Class or TypeKind.Array or TypeKind.TemplateParameter;
+        }
     }
 
     public string ToDisplayString(SymbolDisplayFormat format = null) {

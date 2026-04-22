@@ -435,6 +435,8 @@ public static partial class BuckleCommandLine {
         var specifyBuildMode = false;
         var specifyWarningLevel = false;
 
+        var l = -1;
+
         var tempDialogs = new ShowDialogs {
             help = false,
             machine = false,
@@ -526,6 +528,12 @@ public static partial class BuckleCommandLine {
                     break;
                 case "--time":
                     state.time = true;
+                    break;
+                case "-l0":
+                    l = 0;
+                    break;
+                case "-l1":
+                    l = 1;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -664,6 +672,8 @@ public static partial class BuckleCommandLine {
                 DecodeSimpleOption(arg);
             }
         }
+
+        references.AddRange(Compiler.ResolveLibraryLevel(l));
 
         dialogs = tempDialogs;
         diagnostics.Move(diagnosticsCL);

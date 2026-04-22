@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -77,6 +79,35 @@ public sealed class Compiler {
 
             return CalculateExitCode(diagnostics);
         }
+    }
+
+    /// <summary>
+    /// Gets .NET library paths for a given library level.
+    /// </summary>
+    public static string[] ResolveLibraryLevel(int l) {
+        if (l < 0)
+            return [];
+
+        var tfm = DotnetReferenceResolver.GetTFM();
+        var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out _);
+
+        var references = new List<string>();
+
+        if (l >= 0) {
+            references.Add(Path.Join(refPackPath, "System.Runtime.dll"));
+            references.Add(Path.Join(refPackPath, "System.IO.dll"));
+            references.Add(Path.Join(refPackPath, "System.Console.dll"));
+            references.Add(Path.Join(refPackPath, "System.Collections.dll"));
+        }
+
+        if (l >= 1) {
+            references.Add(Path.Join(AppContext.BaseDirectory, "Compiler.dll"));
+            references.Add(Path.Join(AppContext.BaseDirectory, "Diagnostics.dll"));
+            references.Add(Path.Join(AppContext.BaseDirectory, "Shared.dll"));
+            references.Add(Path.Join(refPackPath, "System.Collections.Immutable.dll"));
+        }
+
+        return references.ToArray();
     }
 
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
