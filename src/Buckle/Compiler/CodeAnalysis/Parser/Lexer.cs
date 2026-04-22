@@ -177,6 +177,9 @@ internal sealed class Lexer : IDisposable {
     }
 
     private SyntaxDiagnostic[] GetDiagnostics(int leadingTriviaWidth) {
+        if (_diagnostics.Count == 0)
+            return null;
+
         if (leadingTriviaWidth > 0) {
             var array = new SyntaxDiagnostic[_diagnostics.Count];
 
@@ -200,7 +203,7 @@ internal sealed class Lexer : IDisposable {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
 
-        var token = kind.IsKeyword() && SyntaxFacts.IsContextualKeyword(text)
+        var token = SyntaxFacts.IsContextualKeyword(kind)
             ? SyntaxFactory.Contextual(kind, text, value, leading, trailing, diagnostics)
             : SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 

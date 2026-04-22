@@ -5,6 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// All types of things to be found in a source file.
 /// </summary>
 public enum SyntaxKind : ushort {
+    // ! Order matters (see SyntaxFacts)
     None = 0,
     List = GreenNode.ListKind,
 
@@ -73,6 +74,14 @@ public enum SyntaxKind : ushort {
     QuestionExclamationToken,
     QuestionExclamationEqualsToken,
     EqualsGreaterThanToken,
+
+    // Tokens with text
+    BadToken,
+    IdentifierToken,
+    NumericLiteralToken,
+    StringLiteralToken,
+    CharacterLiteralToken,
+    InterpolatedStringLiteralToken,
 
     // Keywords
     TypeOfKeyword,
@@ -143,14 +152,6 @@ public enum SyntaxKind : ushort {
     InKeyword,
     HandleKeyword,
 
-    // Tokens with text
-    BadToken,
-    IdentifierToken,
-    NumericLiteralToken,
-    StringLiteralToken,
-    CharacterLiteralToken,
-    InterpolatedStringLiteralToken,
-
     // Trivia
     EndOfLineTrivia,
     WhitespaceTrivia,
@@ -198,18 +199,17 @@ public enum SyntaxKind : ushort {
     StackAllocExpression,
     ImplicitEnumFieldExpression,
     InterpolatedStringExpression,
+    ParenthesizedLambdaExpression,
+    SimpleLambdaExpression,
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,
     InterpolatedStringEndToken,
-    ParenthesizedLambdaExpression,
-    SimpleLambdaExpression,
 
     // Statements
     EmptyStatement,
     BlockStatement,
     InlineILStatement,
-    ILInstruction,
     ExpressionStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
@@ -223,17 +223,20 @@ public enum SyntaxKind : ushort {
     ForStatement,
     ForEachStatement,
     IfStatement,
-    ElseClause,
     TryStatement,
-    CatchClause,
-    FinallyClause,
     SwitchStatement,
+    GotoStatement,
+    NullBindingStatement,
+
+    // Statement Parts
+    ILInstruction,
     SwitchSection,
     CaseSwitchLabel,
     DefaultSwitchLabel,
     MultiCaseSwitchLabel,
-    GotoStatement,
-    NullBindingStatement,
+    CatchClause,
+    FinallyClause,
+    ElseClause,
 
     // Directives
     UsingDirective,

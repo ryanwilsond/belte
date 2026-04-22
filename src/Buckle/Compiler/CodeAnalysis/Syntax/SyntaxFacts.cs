@@ -222,17 +222,19 @@ public static class SyntaxFacts {
         };
     }
 
-    internal static bool IsContextualKeyword(string text) {
-        return text switch {
-            "explicit" => true,
-            "flags" => true,
-            "handle" => true,
-            "implicit" => true,
-            "notnull" => true,
-            "noverify" => true,
-            "primitive" => true,
-            _ => false
-        };
+    internal static bool IsContextualKeyword(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.ExplicitKeyword:
+            case SyntaxKind.FlagsKeyword:
+            case SyntaxKind.HandleKeyword:
+            case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.NotnullKeyword:
+            case SyntaxKind.NoVerifyKeyword:
+            case SyntaxKind.PrimitiveKeyword:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -658,7 +660,32 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
     public static bool IsKeyword(this SyntaxKind type) {
-        return type.ToString().EndsWith("Keyword");
+        return type >= SyntaxKind.TypeOfKeyword && type <= SyntaxKind.HandleKeyword;
+    }
+
+    public static bool IsExpression(this SyntaxKind kind) {
+        if (kind >= SyntaxKind.ParenthesizedExpression && kind <= SyntaxKind.SimpleLambdaExpression)
+            return true;
+
+        switch (kind) {
+            case SyntaxKind.InitializerListExpression:
+            case SyntaxKind.InitializerDictionaryExpression:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static bool IsStatement(this SyntaxKind kind) {
+        if (kind >= SyntaxKind.EmptyStatement && kind <= SyntaxKind.NullBindingStatement)
+            return true;
+
+        switch (kind) {
+            case SyntaxKind.GlobalStatement:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -667,7 +694,19 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a token.</returns>
     public static bool IsToken(this SyntaxKind type) {
-        return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("Token"));
+        if (type >= SyntaxKind.TildeToken && type <= SyntaxKind.HandleKeyword)
+            return true;
+
+        switch (type) {
+            case SyntaxKind.InterpolatedStringStartToken:
+            case SyntaxKind.InterpolatedStringEndToken:
+            case SyntaxKind.OmittedArgumentToken:
+            case SyntaxKind.EndOfFileToken:
+            case SyntaxKind.EndOfDirectiveToken:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -676,7 +715,7 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is trivia.</returns>
     public static bool IsTrivia(this SyntaxKind type) {
-        return type.ToString().EndsWith("Trivia");
+        return type >= SyntaxKind.EndOfLineTrivia && type <= SyntaxKind.HandleDirectiveTrivia;
     }
 
     /// <summary>

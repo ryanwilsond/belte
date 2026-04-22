@@ -2061,9 +2061,9 @@ internal static class Error {
         else if (factValue is not null)
             return $"'{factValue}'";
 
-        if (type.ToString().EndsWith("Statement")) {
+        if (type.IsStatement()) {
             return "statement";
-        } else if (type.ToString().EndsWith("Expression")) {
+        } else if (type.IsExpression()) {
             return "expression";
         } else if (type.IsKeyword()) {
             return "keyword";
