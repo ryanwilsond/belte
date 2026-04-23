@@ -10,7 +10,8 @@ public struct CompilationOptions {
         string[] arguments = null,
         bool isScript = false,
         bool enableOutput = true,
-        string[] references = null) {
+        string[] references = null,
+        bool concurrentBuild = true) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -19,6 +20,7 @@ public struct CompilationOptions {
         isTranspiling = buildMode == BuildMode.CSharpTranspile;
         this.enableOutput = enableOutput;
         this.references = references ?? [];
+        this.concurrentBuild = concurrentBuild;
     }
 
     /// <summary>
@@ -65,4 +67,6 @@ public struct CompilationOptions {
     internal bool publicSign { get; }
 
     internal StrongNameProvider strongNameProvider { get; }
+
+    internal bool concurrentBuild { get; }
 }

@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
@@ -403,8 +404,6 @@ public sealed partial class Compilation {
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
-        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
-
         if (diagnostics.AnyErrors())
             return diagnostics;
 
@@ -414,6 +413,8 @@ public sealed partial class Compilation {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
         if (options.buildMode == BuildMode.Dotnet)
             ILEmitter.Emit(program, assemblyName, options.references, outputPath, debugMode, diagnostics);
@@ -436,8 +437,6 @@ public sealed partial class Compilation {
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
-        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
-
         if (diagnostics.AnyErrors()) {
             result = null;
             return diagnostics;
@@ -449,6 +448,8 @@ public sealed partial class Compilation {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
         var executor = new Executor(program, options.arguments, diagnostics);
         result = executor.Execute(verbose, logTime, verbosePath);
@@ -526,7 +527,8 @@ public sealed partial class Compilation {
         return _lazyUpdatePoint;
     }
 
-    internal MethodSymbol GetLateScriptUpdatePoint(Dictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+    internal MethodSymbol GetLateScriptUpdatePoint(
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         if (_lazyUpdatePoint is null)
             Interlocked.CompareExchange(ref _lazyUpdatePoint, FindLateScriptUpdatePoint(methodBodies), null);
 
@@ -658,7 +660,8 @@ public sealed partial class Compilation {
         return updatePoint;
     }
 
-    private MethodSymbol FindLateScriptUpdatePoint(Dictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+    private static MethodSymbol FindLateScriptUpdatePoint(
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var (method, _) in methodBodies) {
@@ -925,8 +928,16 @@ public sealed partial class Compilation {
         var builder = new BelteDiagnosticQueue();
 
         if (includeParse) {
-            foreach (var syntaxTree in _syntax.syntaxTrees)
-                builder.PushRange(syntaxTree.GetDiagnostics());
+            var syntaxTrees = _syntax.syntaxTrees;
+
+            if (options.concurrentBuild) {
+                Parallel.For(0, syntaxTrees.Length, i => {
+                    builder.PushRange(syntaxTrees[i].GetDiagnostics());
+                });
+            } else {
+                foreach (var syntaxTree in _syntax.syntaxTrees)
+                    builder.PushRange(syntaxTree.GetDiagnostics());
+            }
         }
 
         if (includeDeclaration) {

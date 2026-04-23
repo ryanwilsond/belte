@@ -91,7 +91,7 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary);
+        var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary, concurrentBuild: false);
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();

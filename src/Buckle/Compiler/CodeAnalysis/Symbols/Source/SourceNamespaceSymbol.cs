@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -140,16 +141,26 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
                             }
                         }
 
-                        if (isGlobalNamespace && (location is null || targetDeclarationWithImports is not null)) {
+                        if (isGlobalNamespace && (location is null || targetDeclarationWithImports is not null))
                             GetMergedGlobalAliasesAndUsings(basesBeingResolved: null).Complete(this);
-                        }
 
                         var members = GetMembers();
                         var allCompleted = true;
 
-                        foreach (var member in members) {
-                            member.ForceComplete(location);
-                            allCompleted = allCompleted && member.HasComplete(CompletionParts.All);
+                        if (declaringCompilation.options.concurrentBuild) {
+                            Parallel.For(0, members.Length, i => members[i].ForceComplete(location));
+
+                            foreach (var member in members) {
+                                if (!member.HasComplete(CompletionParts.All)) {
+                                    allCompleted = false;
+                                    break;
+                                }
+                            }
+                        } else {
+                            foreach (var member in members) {
+                                member.ForceComplete(location);
+                                allCompleted = allCompleted && member.HasComplete(CompletionParts.All);
+                            }
                         }
 
                         if (allCompleted) {

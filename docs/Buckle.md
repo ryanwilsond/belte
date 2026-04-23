@@ -83,6 +83,11 @@ all compilation phases are completed. You cannot specify this option in junction
 files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
 
+### *-m1*
+
+Specifies the maximum number of CPU cores to use to 1. Without this option the compilation will be concurrent and use
+all cores if possible.
+
 ### *--severity=\<severity>* (Default *warning*)
 
 The compiler stores all diagnostics of any severity. However, diagnostics are only logged or displayed if their severity

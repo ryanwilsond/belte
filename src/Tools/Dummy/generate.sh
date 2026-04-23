@@ -1,1 +1,1 @@
-buckle src/Tools/Dummy -l0 -- 50 10 10 0 0 5 3 "src/Tools/Dummy/.gen"
+buckle src/Tools/Dummy -l0 -- 1 20 500 0 0 5 3 "src/Tools/Dummy/.gen"

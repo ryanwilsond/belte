@@ -630,27 +630,35 @@ internal sealed class RefILBuilder : ILBuilder {
     private string PrettyPrint(System.Reflection.MethodInfo method) {
         var preamble = $"{method.ReturnType.Name} {method.DeclaringType.Name}.{method.Name}";
 
+#if DEBUG
         try {
             if (method.GetParameters().Length == 0)
                 return preamble + "()";
 
             return preamble + $"({string.Join(", ", method.GetParameters().Select(p => p.ParameterType))})";
         } catch (NotSupportedException) {
+#endif
             return preamble + "(<unresolved-type>)";
+#if DEBUG
         }
+#endif
     }
 
     private string PrettyPrint(System.Reflection.ConstructorInfo ctor) {
         var preamble = $"instance {ctor.DeclaringType.Name}.{ctor.Name}";
 
+#if DEBUG
         try {
             if (ctor.GetParameters().Length == 0)
                 return preamble + "()";
 
             return preamble + $"({string.Join(", ", ctor.GetParameters().Select(p => p.ParameterType))})";
         } catch (NotSupportedException) {
+#endif
             return preamble + "(<unresolved-type>)";
+#if DEBUG
         }
+#endif
     }
 
     internal static System.Reflection.Emit.OpCode ConvertToRef(CodeGeneration.OpCode opCode) {

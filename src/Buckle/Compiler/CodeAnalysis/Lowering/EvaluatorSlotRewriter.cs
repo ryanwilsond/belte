@@ -1,8 +1,8 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -10,7 +10,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
-    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly BoundProgram _previous;
 
     private int _lateTempCount;
@@ -19,7 +19,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
 
     private EvaluatorSlotRewriter(
         MethodSymbol method,
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         BoundProgram previous) {
         _typeLayouts = typeLayouts;
         _previous = previous;
@@ -29,7 +29,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal static BoundBlockStatement Rewrite(
         MethodSymbol method,
         BoundStatement statement,
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         BoundProgram previous,
         out EvaluatorSlotManager slotManager) {
         var rewriter = new EvaluatorSlotRewriter(method, typeLayouts, previous);

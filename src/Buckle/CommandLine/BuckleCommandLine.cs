@@ -458,6 +458,7 @@ public static partial class BuckleCommandLine {
         state.verboseMode = false;
         state.time = false;
         state.debugMode = false;
+        state.concurrentBuild = true;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -534,6 +535,9 @@ public static partial class BuckleCommandLine {
                     break;
                 case "-l1":
                     l = 1;
+                    break;
+                case "-m1":
+                    state.concurrentBuild = false;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));

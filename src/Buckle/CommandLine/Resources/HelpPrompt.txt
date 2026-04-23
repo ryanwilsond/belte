@@ -17,6 +17,8 @@ Options:
   -t|--transpile              Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
 
+  -m1                         Sets the maximum number of CPU cores to use to 1.
+
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).
   --ref=<file>|--reference=<file>     Specify a reference (used with .NET integration only).

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Syntax;
@@ -10,7 +11,6 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Diagnostics;
-using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle;
@@ -33,7 +33,8 @@ public sealed class Compiler {
         state.arguments,
         false,
         !state.noOut,
-        state.references
+        state.references,
+        state.concurrentBuild
     );
 
     /// <summary>
@@ -166,7 +167,8 @@ public sealed class Compiler {
             _options.arguments,
             _options.isScript,
             _options.enableOutput,
-            _options.references
+            _options.references,
+            _options.concurrentBuild
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -274,20 +276,41 @@ public sealed class Compiler {
     }
 
     private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
-        var builder = ArrayBuilder<SyntaxTree>.GetInstance();
         var tasks = state.tasks;
+        var length = tasks.Length;
+        var builder = new SyntaxTree[length];
 
-        for (var i = 0; i < tasks.Length; i++) {
+        var parseOptions = CreateParseOptions();
+
+        if (state.concurrentBuild) {
+            Parallel.For(0, length, i => {
+                var task = tasks[i];
+
+                if (task.stage == CompilerStage.Raw)
+                    builder[i] = SyntaxTree.Load(task.inputFileName, task.fileContent.text, parseOptions);
+            });
+        } else {
+            for (var i = 0; i < length; i++) {
+                var task = tasks[i];
+
+                if (task.stage == CompilerStage.Raw)
+                    builder[i] = SyntaxTree.Load(task.inputFileName, task.fileContent.text, parseOptions);
+            }
+        }
+
+        var count = 0;
+
+        for (var i = 0; i < length; i++) {
             ref var task = ref tasks[i];
 
-            if (task.stage == CompilerStage.Raw) {
-                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text, CreateParseOptions());
-                builder.Add(syntaxTree);
+            if (builder[i] is not null) {
+                builder[count++] = builder[i];
                 task.stage = stageToSet;
             }
         }
 
-        return builder.ToArrayAndFree();
+        Array.Resize(ref builder, count);
+        return builder;
     }
 
     private void LogParseTime(Stopwatch timer, long libTime, int count) {

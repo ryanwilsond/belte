@@ -91,4 +91,9 @@ public class CompilerState {
     /// Whether or not the compiler will log timing data about each stage of compilation.
     /// </summary>
     public bool time;
+
+    /// <summary>
+    /// Whether or not the compiler will use multiple CPU cores.
+    /// </summary>
+    public bool concurrentBuild;
 }

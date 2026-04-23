@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -10,7 +11,7 @@ namespace Diagnostics;
 /// </summary>
 /// <typeparam name="T">The type of <see cref="Diagnostic" /> to store.</typeparam>
 public class DiagnosticQueue<T> where T : Diagnostic {
-    protected readonly List<T> _diagnostics;
+    protected readonly ConcurrentQueue<T> _diagnostics;
 
     /// <summary>
     /// Creates an empty <see cref="DiagnosticQueue<T>" /> (no Diagnostics)
@@ -24,7 +25,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <param name="diagnostics">Initialize with enumerable (copy).</param>
     public DiagnosticQueue(IEnumerable<T> diagnostics) {
-        _diagnostics = new List<T>(diagnostics);
+        _diagnostics = new ConcurrentQueue<T>(diagnostics);
     }
 
     /// <summary>
@@ -38,7 +39,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <returns>
     /// True if there are at least 1 <see cref="Diagnostic" /> in the <see cref="DiagnosticQueue<T>" />.
     /// </returns>
-    public bool Any() => _diagnostics.Count != 0;
+    public bool Any() => !_diagnostics.IsEmpty;
 
     /// <summary>
     /// Gets an enumerator for the <see cref="DiagnosticQueue<T>" /> collection (sidestepping the queue structure).
@@ -59,8 +60,10 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <param name="severity">The severity to look for.</param>
     /// <returns>If any were found.</returns>
     public bool Any(DiagnosticSeverity severity) {
+        var diagnostics = _diagnostics.ToArray();
+
         for (var i = 0; i < _diagnostics.Count; i++) {
-            if (_diagnostics[i].info.severity == severity)
+            if (diagnostics[i].info.severity == severity)
                 return true;
         }
 
@@ -73,8 +76,10 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <param name="severity">The minimum severity to look for.</param>
     /// <returns>If any were found.</returns>
     public bool AnyAbove(DiagnosticSeverity severity) {
+        var diagnostics = _diagnostics.ToArray();
+
         for (var i = 0; i < _diagnostics.Count; i++) {
-            if ((int)_diagnostics[i].info.severity >= (int)severity)
+            if ((int)diagnostics[i].info.severity >= (int)severity)
                 return true;
         }
 
@@ -87,7 +92,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <param name="diagnostic"><see cref="Diagnostic" /> to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
     public DiagnosticInfo Push(T diagnostic) {
         if (diagnostic is not null)
-            _diagnostics.Add(diagnostic);
+            _diagnostics.Enqueue(diagnostic);
 
         return diagnostic?.info;
     }
@@ -97,7 +102,8 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// </summary>
     /// <param name="diagnostics"><see cref="Diagnostic" />s to copy onto the <see cref="DiagnosticQueue<T>" />.</param>
     public void PushRange(IEnumerable<T> diagnostics) {
-        _diagnostics.AddRange(diagnostics);
+        foreach (var diagnostic in diagnostics)
+            _diagnostics.Enqueue(diagnostic);
     }
 
     /// <summary>
@@ -108,7 +114,8 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (!diagnostics.Any())
             return;
 
-        _diagnostics.AddRange(diagnostics._diagnostics);
+        foreach (var diagnostic in diagnostics._diagnostics)
+            _diagnostics.Enqueue(diagnostic);
     }
 
     /// <summary>
@@ -122,7 +129,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         var diagnostic = diagnosticQueue.Pop();
 
         while (diagnostic is not null) {
-            _diagnostics.Add(diagnostic);
+            _diagnostics.Enqueue(diagnostic);
             diagnostic = diagnosticQueue.Pop();
         }
     }
@@ -135,24 +142,11 @@ public class DiagnosticQueue<T> where T : Diagnostic {
         if (_diagnostics.Count == 0)
             return null;
 
-        var diagnostic = _diagnostics[0];
-        _diagnostics.RemoveAt(0);
+        if (_diagnostics.TryDequeue(out var diagnostic))
+            return diagnostic;
 
-        return diagnostic;
-    }
-
-    /// <summary>
-    /// Removes last <see cref="Diagnostic" />.
-    /// </summary>
-    /// <returns>Last <see cref="Diagnostic" /> on the <see cref="DiagnosticQueue<T>" />.</returns>
-    public T? PopBack() {
-        if (_diagnostics.Count == 0)
-            return null;
-
-        var diagnostic = _diagnostics[^1];
-        _diagnostics.RemoveAt(_diagnostics.Count - 1);
-
-        return diagnostic;
+        // Popping should only be done outside of concurrency
+        throw new InvalidOperationException();
     }
 
     /// <summary>
@@ -163,22 +157,11 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Removes all Diagnostics of a specific severity (see <see cref="DiagnosticSeverity" />).
-    /// </summary>
-    /// <param name="type">Severity of Diagnostics to remove.</param>
-    public void Clear(DiagnosticSeverity type) {
-        for (var i = 0; i < _diagnostics.Count; i++) {
-            if (_diagnostics[i].info.severity == type)
-                _diagnostics.RemoveAt(i--);
-        }
-    }
-
-    /// <summary>
     /// Returns a list of all the Diagnostics in the <see cref="DiagnosticQueue<T>" /> in order.
     /// </summary>
     /// <returns>List of Diagnostics (ordered oldest -> newest).</returns>
     public List<T> ToList() {
-        return _diagnostics;
+        return new List<T>(_diagnostics);
     }
 
     /// <summary>
@@ -198,10 +181,11 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <returns>Filtered queue.</returns>
     public DiagnosticQueue<T> Filter(params DiagnosticSeverity[] severities) {
         var length = _diagnostics.Count;
+        var diagnostics = _diagnostics.ToArray();
         var result = ArrayBuilder<T>.GetInstance(length);
 
         for (var i = 0; i < length; i++) {
-            var diagnostic = _diagnostics[i];
+            var diagnostic = diagnostics[i];
 
             if (severities.Contains(diagnostic.info.severity))
                 result.Add(diagnostic);
@@ -217,10 +201,11 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <returns>Filtered queue.</returns>
     public DiagnosticQueue<T> FilterAbove(DiagnosticSeverity severity) {
         var length = _diagnostics.Count;
+        var diagnostics = _diagnostics.ToArray();
         var result = ArrayBuilder<T>.GetInstance(length);
 
         for (var i = 0; i < length; i++) {
-            var diagnostic = _diagnostics[i];
+            var diagnostic = diagnostics[i];
 
             if ((int)diagnostic.info.severity >= (int)severity)
                 result.Add(diagnostic);
@@ -236,25 +221,16 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <returns>Filtered queue.</returns>
     public DiagnosticQueue<T> FilterOut(params DiagnosticSeverity[] severities) {
         var length = _diagnostics.Count;
+        var diagnostics = _diagnostics.ToArray();
         var result = ArrayBuilder<T>.GetInstance(length);
 
         for (var i = 0; i < length; i++) {
-            var diagnostic = _diagnostics[i];
+            var diagnostic = diagnostics[i];
 
             if (!severities.Contains(diagnostic.info.severity))
                 result.Add(diagnostic);
         }
 
         return new DiagnosticQueue<T>(result.ToArrayAndFree());
-    }
-
-    /// <summary>
-    /// Copies another <see cref="Diagnostic" /> queue to the front of this <see cref="DiagnosticQueue<T>" />.
-    /// </summary>
-    /// <param name="queue">
-    /// <see cref="DiagnosticQueue<T>" /> to copy, does not modify this <see cref="DiagnosticQueue<T>" />.
-    /// </param>
-    public void CopyToFront(DiagnosticQueue<T> queue) {
-        _diagnostics.InsertRange(0, queue._diagnostics);
     }
 }
