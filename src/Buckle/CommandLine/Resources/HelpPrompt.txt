@@ -17,7 +17,7 @@ Options:
   -t|--transpile              Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
 
-  -m1                         Sets the maximum number of CPU cores to use to 1.
+  -m:<count>                  Specify the maximum number of CPU cores to use.
 
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).
@@ -36,6 +36,8 @@ Options:
   --time                      Display timing information for each compilation stage.
   --verbose                   Display additional information about the compilation process.
   --verbose-path=<path>       Path to dump files produced by verbose mode.
+  --info                      Display verbose information without producing artifacts.
+  --sae                       Prompt for user input before and after compiling.
 
 Additional Resources:
   GitHub Repository: https://github.com/ryanwilsond/belte/

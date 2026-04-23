@@ -11,7 +11,8 @@ public struct CompilationOptions {
         bool isScript = false,
         bool enableOutput = true,
         string[] references = null,
-        bool concurrentBuild = true) {
+        bool concurrentBuild = false,
+        int maxCoreCount = 1) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -21,6 +22,7 @@ public struct CompilationOptions {
         this.enableOutput = enableOutput;
         this.references = references ?? [];
         this.concurrentBuild = concurrentBuild;
+        this.maxCoreCount = maxCoreCount;
     }
 
     /// <summary>
@@ -69,4 +71,6 @@ public struct CompilationOptions {
     internal StrongNameProvider strongNameProvider { get; }
 
     internal bool concurrentBuild { get; }
+
+    internal int maxCoreCount { get; }
 }

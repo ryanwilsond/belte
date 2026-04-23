@@ -297,9 +297,10 @@ public sealed partial class Compilation {
         ValueWrapper<bool> abort,
         bool verbose = false,
         bool logTime = false,
-        string verbosePath = null) {
+        string verbosePath = null,
+        bool noArtifacts = false) {
         using var context = new EvaluatorContext(options);
-        var result = Evaluate(context, abort, verbose, logTime, verbosePath);
+        var result = Evaluate(context, abort, verbose, logTime, verbosePath, noArtifacts);
         context.WaitForCompletion();
 
         if (verbose && result.heap is not null) {
@@ -316,9 +317,10 @@ public sealed partial class Compilation {
         ValueWrapper<bool> abort,
         bool verbose = false,
         bool logTime = false,
-        string verbosePath = null) {
+        string verbosePath = null,
+        bool noArtifacts = false) {
         EvaluationResult result = null;
-        Evaluate(context, abort, ref result, verbose, logTime, verbosePath);
+        Evaluate(context, abort, ref result, verbose, logTime, verbosePath, noArtifacts);
 
         if (verbose && result.heap is not null) {
             Console.WriteLine(
@@ -339,7 +341,8 @@ public sealed partial class Compilation {
         ref EvaluationResult rollingResult,
         bool verbose = false,
         bool logTime = false,
-        string verbosePath = null) {
+        string verbosePath = null,
+        bool noArtifacts = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -353,7 +356,7 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput) {
+        if (verbose && options.enableOutput && !noArtifacts) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
@@ -393,7 +396,13 @@ public sealed partial class Compilation {
         }
     }
 
-    public BelteDiagnosticQueue Emit(string outputPath, bool debugMode, bool logTime, bool verbose, string verbosePath) {
+    public BelteDiagnosticQueue Emit(
+        string outputPath,
+        bool debugMode,
+        bool logTime,
+        bool verbose,
+        string verbosePath,
+        bool noArtifacts) {
         if (options.buildMode == BuildMode.Independent) {
             var fatal = new BelteDiagnosticQueue();
             fatal.Push(Fatal.Unsupported.IndependentCompilation());
@@ -404,17 +413,17 @@ public sealed partial class Compilation {
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
 
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
         if (diagnostics.AnyErrors())
             return diagnostics;
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput) {
+        if (verbose && options.enableOutput && !noArtifacts) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
-
-        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
         if (options.buildMode == BuildMode.Dotnet)
             ILEmitter.Emit(program, assemblyName, options.references, outputPath, debugMode, diagnostics);
@@ -428,14 +437,25 @@ public sealed partial class Compilation {
         return diagnostics;
     }
 
-    public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false, string verbosePath = null) {
-        return Execute(verbose, logTime, verbosePath, out _);
+    public BelteDiagnosticQueue Execute(
+        bool verbose = false,
+        bool logTime = false,
+        string verbosePath = null,
+        bool noArtifacts = false) {
+        return Execute(verbose, logTime, verbosePath, noArtifacts, out _);
     }
 
-    internal BelteDiagnosticQueue Execute(bool verbose, bool logTime, string verbosePath, out object result) {
+    internal BelteDiagnosticQueue Execute(
+        bool verbose,
+        bool logTime,
+        string verbosePath,
+        bool noArtifacts,
+        out object result) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
         if (diagnostics.AnyErrors()) {
             result = null;
@@ -444,15 +464,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput) {
+        if (verbose && options.enableOutput && !noArtifacts) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
 
-        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
-
         var executor = new Executor(program, options.arguments, diagnostics);
-        result = executor.Execute(verbose, logTime, verbosePath);
+        result = executor.Execute(verbose, logTime, verbosePath, noArtifacts);
 
         if (verbose && options.enableOutput && result is not null)
             Console.WriteLine(result);
@@ -931,7 +949,7 @@ public sealed partial class Compilation {
             var syntaxTrees = _syntax.syntaxTrees;
 
             if (options.concurrentBuild) {
-                Parallel.For(0, syntaxTrees.Length, i => {
+                Parallel.For(0, syntaxTrees.Length, new ParallelOptions { MaxDegreeOfParallelism = options.maxCoreCount }, i => {
                     builder.PushRange(syntaxTrees[i].GetDiagnostics());
                 });
             } else {

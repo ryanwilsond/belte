@@ -111,6 +111,16 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingVerbosePath), message);
     }
 
+    internal static Diagnostic MissingMaxCoreCount(string arg) {
+        var message = $"missing core count after '{arg}' (usage: '-m:<count>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingMaxCoreCount), message);
+    }
+
+    internal static Diagnostic InvalidMaxCoreCount(string arg) {
+        var message = $"'{arg}' is not a valid core count; core count must be a positive integer";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMaxCoreCount), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

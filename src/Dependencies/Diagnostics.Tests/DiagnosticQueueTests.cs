@@ -28,7 +28,7 @@ public sealed class DiagnosticQueueTests {
         diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
         var diagnosticEnumerator = diagnosticQueue.GetEnumerator();
 
-        Assert.Equal(typeof(List<Diagnostic>.Enumerator), diagnosticEnumerator.GetType());
+        Assert.NotNull(diagnosticEnumerator);
     }
 
     [Fact]

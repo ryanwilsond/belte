@@ -1,10 +1,11 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
-    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly HashSet<NamedTypeSymbol> _visited;
 
     private EvaluatorTypeLayoutVisitor() {
@@ -12,14 +13,14 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
         _visited = [];
     }
 
-    internal static Dictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(
+    internal static ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(
         NamespaceSymbol globalNamespace) {
         var typeVisitor = new EvaluatorTypeLayoutVisitor();
         typeVisitor.Visit(globalNamespace);
         return typeVisitor._typeLayouts;
     }
 
-    internal static Dictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(NamedTypeSymbol type) {
+    internal static ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(NamedTypeSymbol type) {
         var typeVisitor = new EvaluatorTypeLayoutVisitor();
         typeVisitor.Visit(type);
         return typeVisitor._typeLayouts;
@@ -80,6 +81,7 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
             }
         }
 
+        // We don't care if this fails
         _typeLayouts.TryAdd(symbol, typeLayout);
     }
 }

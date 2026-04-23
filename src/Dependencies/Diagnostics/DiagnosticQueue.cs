@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Diagnostics;
@@ -171,7 +172,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// <typeparam name="NewType">Type of <see cref="Diagnostic" /> to cast existing Diagnostics to.</typeparam>
     /// <returns>List of Diagnostics (ordered oldest -> newest).</returns>
     public List<NewType> ToList<NewType>() where NewType : Diagnostic {
-        return _diagnostics as List<NewType>;
+        return new List<T>(_diagnostics) as List<NewType>;
     }
 
     /// <summary>

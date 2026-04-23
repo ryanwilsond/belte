@@ -109,9 +109,9 @@ internal sealed partial class Executor : ModuleBuilder {
         _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
-    internal object Execute(bool verbose, bool logTime, string verbosePath) {
+    internal object Execute(bool verbose, bool logTime, string verbosePath, bool noArtifacts) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        _logger = new StringWriter();
+        _logger = (verbose && !noArtifacts) ? new StringWriter() : null;
 
         var entryPoint = _program.entryPoint;
 
@@ -153,7 +153,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (logTime) {
             timer.Stop();
 
-            if (verbose) {
+            if (verbose && !noArtifacts) {
                 var assemblyName = $"{DynamicAssemblyName}.g.dll";
                 var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
@@ -1082,7 +1082,7 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
-        _logger.WriteLine($"Emitting method {method}");
+        _logger?.WriteLine($"Emitting method {method}");
 
         if (method.isAbstract || method.isExtern)
             return;
@@ -1096,7 +1096,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private void EmitConstructor(ConstructorBuilder constructorBuilder) {
         var (constructor, body) = _constructorBodies[constructorBuilder];
 
-        _logger.WriteLine($"Emitting constructor {constructor}");
+        _logger?.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false);

@@ -34,7 +34,8 @@ public sealed class Compiler {
         false,
         !state.noOut,
         state.references,
-        state.concurrentBuild
+        state.concurrentBuild,
+        state.maxCores
     );
 
     /// <summary>
@@ -145,7 +146,7 @@ public sealed class Compiler {
     }
 
     private void InternalInterpreter() {
-        var timer = state.time ? Stopwatch.StartNew() : null;
+        var timer = (state.time && !state.noOut) ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
 
@@ -168,7 +169,8 @@ public sealed class Compiler {
             _options.isScript,
             _options.enableOutput,
             _options.references,
-            _options.concurrentBuild
+            _options.concurrentBuild,
+            _options.maxCoreCount
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -193,11 +195,23 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode, state.time, state.verbosePath);
+                    var result = compilation.Evaluate(
+                        (ValueWrapper<bool>)parameter,
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    );
+
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(state.verboseMode, state.time, state.verbosePath));
+                    diagnostics.PushRange(compilation.Execute(
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    ));
                 }
             }
 
@@ -243,7 +257,7 @@ public sealed class Compiler {
     }
 
     private void InternalCompiler() {
-        var timer = state.time ? Stopwatch.StartNew() : null;
+        var timer = (state.time && !state.noOut) ? Stopwatch.StartNew() : null;
 
         if (GetCorLibrary(out var corLibrary).AnyErrors()) {
             ReportAndReturnLibraryErrors();
@@ -269,7 +283,8 @@ public sealed class Compiler {
             state.debugMode,
             state.time,
             state.verboseMode,
-            state.verbosePath
+            state.verbosePath,
+            state.reducedVerboseMode
         ));
 
         LogCompilationTime(timer);
@@ -283,7 +298,7 @@ public sealed class Compiler {
         var parseOptions = CreateParseOptions();
 
         if (state.concurrentBuild) {
-            Parallel.For(0, length, i => {
+            Parallel.For(0, length, new ParallelOptions { MaxDegreeOfParallelism = state.maxCores }, i => {
                 var task = tasks[i];
 
                 if (task.stage == CompilerStage.Raw)

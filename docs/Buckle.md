@@ -83,10 +83,10 @@ all compilation phases are completed. You cannot specify this option in junction
 files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
 *--execute*, *-t*, or *--transpile*.
 
-### *-m1*
+### *-m:\<count>*
 
-Specifies the maximum number of CPU cores to use to 1. Without this option the compilation will be concurrent and use
-all cores if possible.
+Specifies the maximum number of CPU cores to use. Without this option the compilation will be concurrent and use
+most cores if possible. Specifying a count of 1 will disable concurrent building.
 
 ### *--severity=\<severity>* (Default *warning*)
 
@@ -195,6 +195,17 @@ to *all*, the [warning level](#--warnlevelwarning-level-default-1) to max, and w
 ### *--verbose-path=\<path>*
 
 Specifies the path the *--verbose* mode will dump files. Defaults to the path Buckle was called on.
+
+### *--info*
+
+Displays normal *--verbose* information without producing file artifacts.
+
+### *--sae*
+
+"Stop At Enter/Exit": If specified, the user will be prompted for any input after argument parsing but before any
+compilation, and then prompted again after compilation is finished.
+
+This is used for debugging, specifically waiting to do any work so external processes can attach.
 
 ## Running Programs
 

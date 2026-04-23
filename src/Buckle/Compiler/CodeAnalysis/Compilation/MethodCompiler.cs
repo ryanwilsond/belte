@@ -25,7 +25,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly ConcurrentDictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ConcurrentSet<NamedTypeSymbol> _types;
-    private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly Predicate<Symbol> _filter;
 
     private ConcurrentQueue<Action> _workQueue;
@@ -35,7 +35,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private AutoResetEvent _workAvailable;
     private ManualResetEventSlim _done;
 
-    private ConcurrentDictionary<FieldSymbol, NamedTypeSymbol> _lazyFixedImplementationTypes;
+    private Dictionary<FieldSymbol, NamedTypeSymbol> _lazyFixedImplementationTypes;
     private MethodSymbol _entryPoint;
     private MethodSymbol _updatePoint;
 
@@ -45,7 +45,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
-        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
@@ -94,7 +94,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             diagnostics,
             entryPoint,
             updatePoint,
-            typeLayouts.ToImmutableDictionary(),
+            typeLayouts,
             filter,
             !transpiling
         );
@@ -105,7 +105,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             methodCompiler._workAvailable = new(false);
             methodCompiler._done = new(false);
 
-            methodCompiler.StartWorkers(Environment.ProcessorCount);
+            methodCompiler.StartWorkers(compilation.options.maxCoreCount);
             methodCompiler.Enqueue(() => methodCompiler.CompileNamespace(globalNamespace));
             methodCompiler.WaitForCompletion();
 
@@ -182,7 +182,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _methodBodies.ToImmutableDictionary(),
             _methodLayouts.ToImmutableDictionary(),
             _types.ToImmutableArray(),
-            _typeLayouts,
+            _typeLayouts.ToImmutableDictionary(),
             _synthesizedNestedTypes,
             _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
             _entryPoint,

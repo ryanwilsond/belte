@@ -148,7 +148,12 @@ internal partial class SourceNamespaceSymbol : NamespaceSymbol {
                         var allCompleted = true;
 
                         if (declaringCompilation.options.concurrentBuild) {
-                            Parallel.For(0, members.Length, i => members[i].ForceComplete(location));
+                            Parallel.For(
+                                0,
+                                members.Length,
+                                new ParallelOptions { MaxDegreeOfParallelism = declaringCompilation.options.maxCoreCount },
+                                i => members[i].ForceComplete(location)
+                            );
 
                             foreach (var member in members) {
                                 if (!member.HasComplete(CompletionParts.All)) {
