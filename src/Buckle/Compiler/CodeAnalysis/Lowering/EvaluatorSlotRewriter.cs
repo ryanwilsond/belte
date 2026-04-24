@@ -174,8 +174,12 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         var method = node.method;
 
-        if (method.containingType?.Equals(GraphicsLibrary.Graphics) == true && GraphicsLibrary.MethodProducesTemp(method))
-            _lateTempCount++;
+        if (!localSlotManager.symbol.declaringCompilation.options.noStdLib) {
+            if (method.containingType?.Equals(GraphicsLibrary.Graphics) == true &&
+                GraphicsLibrary.MethodProducesTemp(method)) {
+                _lateTempCount++;
+            }
+        }
 
         if (node.receiver is not null && node.receiver.type.StrippedType().IsStructType())
             _lateTempCount++;

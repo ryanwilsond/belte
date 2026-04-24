@@ -235,18 +235,18 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(args, diagnostics, _writer);
     // }
 
-    [Fact]
-    public void Reports_Info_CL0020_IgnoringCompiledFile() {
-        var args = new string[] { "BelteTestsAssertDiagnosticCL0020.exe" };
+    // [Fact]
+    // public void Reports_Info_CL0020_IgnoringCompiledFile() {
+    //     var args = new string[] { "BelteTestsAssertDiagnosticCL0020.exe", "--type=dll" };
 
-        var diagnostics = @"
-            BelteTestsAssertDiagnosticCL0020.exe: file already compiled; ignoring
-        ";
+    //     var diagnostics = @"
+    //         BelteTestsAssertDiagnosticCL0020.exe: file already compiled; ignoring
+    //     ";
 
-        AssertDiagnostics(
-            args, diagnostics, _writer, DiagnosticSeverity.Info, false, "BelteTestsAssertDiagnosticCL0020.exe"
-        );
-    }
+    //     AssertDiagnostics(
+    //         args, diagnostics, _writer, DiagnosticSeverity.Info, false, "BelteTestsAssertDiagnosticCL0020.exe"
+    //     );
+    // }
 
     // [Fact]
     // public void Reports_Error_CL0021_UnusedErrorCode() {

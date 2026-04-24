@@ -21,10 +21,14 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly Expander _expander;
+    private readonly BelteDiagnosticQueue _diagnostics;
+    private readonly MethodSymbol _method;
 
     private bool _sawCompileTimeExpression;
 
     private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
+        _method = container;
+        _diagnostics = diagnostics;
         _expander = new Expander(container, diagnostics);
     }
 
@@ -656,38 +660,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
-        /*
-
-        <method>(<parameters>)
-
-        ---->
-
-        (<method>(<parameters>))
-
-        Now parameters do not have compiler generated '$' symbols in their name
-
-        ----> <method> is 'Value' and <parameter> is not nullable
-
-        <parameter>
-
-        ----> <method> is 'HasValue' and <parameter> is not nullable
-
-        true
-
-        ----> is static access
-
-        (<method>(<parameters>))
-
-        Method operand rewritten to exclude TypeOf expression
-
-        */
-        var syntax = expression.syntax;
-        var method = expression.method;
-
-        if (method.name == "Value" && !expression.arguments[0].Type().IsNullableType())
-            return Visit(expression.arguments[0]);
-        else if (method.name == "HasValue" && !expression.arguments[0].Type().IsNullableType())
-            return Literal(syntax, true, expression.Type());
+        // TODO Is there a better place to put this
+        if (!_method.declaringCompilation.options.noStdLib &&
+            (object)expression.method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
+            _method.declaringCompilation.options.outputKind != OutputKind.GraphicsApplication) {
+            _diagnostics.Push(Error.Unsupported.GraphicsCall(expression.syntax.location));
+        }
 
         ArrayBuilder<BoundExpression> builder = null;
 
@@ -710,15 +688,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
         return base.VisitCallExpression(
-            new BoundCallExpression(
-                syntax,
+            expression.Update(
                 expression.receiver,
-                method,
+                expression.method,
                 arguments,
                 expression.argumentRefKinds,
                 expression.defaultArguments,
                 expression.resultKind,
-                expression.Type()
+                expression.type
             )
         );
     }

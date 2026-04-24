@@ -16,9 +16,9 @@ namespace Buckle.Tests;
 /// </summary>
 internal static class Assertions {
     private static CompilationOptions DefaultEvalOptions
-        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, [], enableOutput: false);
+        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, []);
     private static CompilationOptions DefaultExecOptions
-        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, [], enableOutput: false);
+        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, []);
 
     private readonly static Compilation BaseCompilation;
 

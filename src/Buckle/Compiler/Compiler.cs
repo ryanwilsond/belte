@@ -36,7 +36,9 @@ public sealed class Compiler {
         state.references,
         state.concurrentBuild,
         state.maxCores,
-        state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release
+        state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release,
+        state.entryName,
+        state.noStdLib
     );
 
     /// <summary>
@@ -134,7 +136,8 @@ public sealed class Compiler {
             var corLibrary = LibraryHelpers.LoadLibraries(
                 _options.buildMode,
                 _options.concurrentBuild,
-                _options.maxCoreCount
+                _options.maxCoreCount,
+                state.noStdLib
             );
 
             var corLibraryDiagnostics = corLibrary.GetDiagnostics();
@@ -152,7 +155,7 @@ public sealed class Compiler {
     }
 
     private void InternalInterpreter() {
-        var timer = (state.time && !state.noOut) ? Stopwatch.StartNew() : null;
+        var timer = state.time ? Stopwatch.StartNew() : null;
         var textLength = 0;
         var textsCount = 0;
 
@@ -177,7 +180,9 @@ public sealed class Compiler {
             _options.references,
             _options.concurrentBuild,
             _options.maxCoreCount,
-            _options.optimizationLevel
+            _options.optimizationLevel,
+            _options.entryName,
+            _options.noStdLib
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -193,7 +198,7 @@ public sealed class Compiler {
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
-            if (state.noOut || parseDiagnostics.AnyErrors()) {
+            if (parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(parseDiagnostics);
                 return;
             }
@@ -245,7 +250,7 @@ public sealed class Compiler {
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
-            if (state.noOut || parseDiagnostics.AnyErrors()) {
+            if (parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(compilation.GetParseDiagnostics());
                 return;
             }
@@ -264,7 +269,7 @@ public sealed class Compiler {
     }
 
     private void InternalCompiler() {
-        var timer = (state.time && !state.noOut) ? Stopwatch.StartNew() : null;
+        var timer = state.time ? Stopwatch.StartNew() : null;
 
         if (GetCorLibrary(out var corLibrary).AnyErrors()) {
             ReportAndReturnLibraryErrors();
@@ -278,7 +283,7 @@ public sealed class Compiler {
 
         var parseDiagnostics = compilation.GetParseDiagnostics();
 
-        if (state.noOut || parseDiagnostics.AnyErrors()) {
+        if (parseDiagnostics.AnyErrors()) {
             diagnostics.PushRange(parseDiagnostics);
             return;
         }

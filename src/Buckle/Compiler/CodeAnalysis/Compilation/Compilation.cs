@@ -361,38 +361,44 @@ public sealed partial class Compilation {
             EmitBoundProgram(verbosePath);
         }
 
-        var evaluator = new Evaluator(program, context, options.arguments);
-        var evalResult = evaluator.Evaluate(abort, out var hasValue, out var resultType);
+        object evalResult;
 
-        Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
+        if (options.enableOutput) {
+            var evaluator = new Evaluator(program, context, options.arguments);
+            evalResult = evaluator.Evaluate(abort, out var hasValue, out var resultType);
 
-        if (verbose && options.enableOutput && evalResult is not null)
-            Console.WriteLine(evalResult);
+            Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
-        handleManager.SendFinishedMessage();
+            if (verbose && options.enableOutput && evalResult is not null)
+                Console.WriteLine(evalResult);
 
-        if (rollingResult is null) {
-            rollingResult = new EvaluationResult(
-                evalResult,
-                resultType,
-                hasValue,
-                diagnostics,
-                evaluator.exceptions,
-                evaluator.lastOutputWasPrint,
-                evaluator.containsIO,
-                context.heap
-            );
+            handleManager.SendFinishedMessage();
+
+            if (rollingResult is null) {
+                rollingResult = new EvaluationResult(
+                    evalResult,
+                    resultType,
+                    hasValue,
+                    diagnostics,
+                    evaluator.exceptions,
+                    evaluator.lastOutputWasPrint,
+                    evaluator.containsIO,
+                    context.heap
+                );
+            } else {
+                rollingResult.Update(
+                    evalResult,
+                    resultType,
+                    hasValue,
+                    diagnostics,
+                    evaluator.exceptions,
+                    evaluator.lastOutputWasPrint,
+                    evaluator.containsIO,
+                    context.heap
+                );
+            }
         } else {
-            rollingResult.Update(
-                evalResult,
-                resultType,
-                hasValue,
-                diagnostics,
-                evaluator.exceptions,
-                evaluator.lastOutputWasPrint,
-                evaluator.containsIO,
-                context.heap
-            );
+            handleManager.SendFinishedMessage();
         }
     }
 
@@ -645,15 +651,16 @@ public sealed partial class Compilation {
     }
 
     private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
-        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
-        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
+        if (entryPoint is null)
+            return null;
 
-        foreach (var type in classes) {
-            foreach (var member in type.GetMembers(WellKnownMemberNames.UpdatePointMethodName)) {
-                if (member is MethodSymbol m && HasUpdatePointSignature(m))
-                    builder.Add(m);
-            }
-        }
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var (typeName, namespaceName) = ParseEntryName(options.entryName);
+
+        AddUpdatePointCandidates(
+            builder,
+            GetSymbolsWithName(WellKnownMemberNames.UpdatePointMethodName, SymbolFilter.Member)
+        );
 
         var updatePointCandidates = builder.ToImmutableAndFree();
         MethodSymbol updatePoint = null;
@@ -675,6 +682,17 @@ public sealed partial class Compilation {
         }
 
         return updatePoint;
+
+        void AddUpdatePointCandidates(
+            ArrayBuilder<MethodSymbol> updatePointCandidates,
+            IEnumerable<Symbol> members) {
+            foreach (var member in members) {
+                if (member is MethodSymbol m &&
+                    HasUpdatePointSignature(m) && MatchesEntryName(m, typeName, namespaceName)) {
+                    updatePointCandidates.Add(m);
+                }
+            }
+        }
     }
 
     private static MethodSymbol FindLateScriptUpdatePoint(
@@ -720,6 +738,7 @@ public sealed partial class Compilation {
 
     private MethodSymbol FindEntryPoint(SynthesizedEntryPoint simpleEntryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var (typeName, namespaceName) = ParseEntryName(options.entryName);
 
         AddEntryPointCandidates(
             builder,
@@ -730,14 +749,41 @@ public sealed partial class Compilation {
         var entryPointCandidates = builder.ToImmutableAndFree();
         return SelectEntryPoint(simpleEntryPoint, entryPointCandidates, diagnostics, options.isScript);
 
-        static void AddEntryPointCandidates(
+        void AddEntryPointCandidates(
             ArrayBuilder<MethodSymbol> entryPointCandidates,
             IEnumerable<Symbol> members) {
             foreach (var member in members) {
-                if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
+                if (member is MethodSymbol m and not SynthesizedEntryPoint &&
+                    HasEntryPointSignature(m) && MatchesEntryName(m, typeName, namespaceName)) {
                     entryPointCandidates.Add(m);
+                }
             }
         }
+    }
+
+    private static (string, string) ParseEntryName(string entryName) {
+        if (entryName is null || entryName.EndsWith('.'))
+            return (null, null);
+
+        if (!entryName.Contains('.'))
+            return (entryName, null);
+
+        var position = entryName.LastIndexOf('.');
+
+        return (entryName.Substring(position + 1), entryName.Substring(0, position));
+    }
+
+    private static bool MatchesEntryName(MethodSymbol method, string typeName, string namespaceName) {
+        if (typeName is null)
+            return true;
+
+        if (method.containingType.name != typeName)
+            return false;
+
+        if (namespaceName is null || method.containingNamespace.name == namespaceName)
+            return true;
+
+        return false;
     }
 
     internal IEnumerable<Symbol> GetSymbolsWithName(string name, SymbolFilter filter) {

@@ -155,7 +155,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (logTime) {
             timer.Stop();
 
-            if (verbose && !noArtifacts) {
+            if (verbose && !noArtifacts && _program.compilation.options.enableOutput) {
                 var assemblyName = $"{DynamicAssemblyName}.g.dll";
                 var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
@@ -183,6 +183,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
             timer.Restart();
         }
+
+        if (!_program.compilation.options.enableOutput)
+            return null;
 
         object result;
 
@@ -757,6 +760,9 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CompleteSpecialTypes() {
+        if (_program.compilation.options.noStdLib)
+            return;
+
         foreach (var type in new[] { SpecialType.Rect, SpecialType.Text, SpecialType.Sprite,
                                      SpecialType.Vec2, SpecialType.Texture, SpecialType.Sound }) {
             var typeSymbol = CorLibrary.GetSpecialType(type);
@@ -792,7 +798,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
             var underlyingType = GetType(type.enumUnderlyingType);
             var enumBuilder = _moduleBuilder.DefineEnum(
-                GetTypeName(type),
+                GetTypeName(type, false),
                 GetTypeAttributes(type, false) & TypeAttributes.VisibilityMask,
                 underlyingType
             );
@@ -813,7 +819,7 @@ internal sealed partial class Executor : ModuleBuilder {
             return;
 
         var typeBuilder = _moduleBuilder.DefineType(
-            GetTypeName(type),
+            GetTypeName(type, false),
             GetTypeAttributes(type, false),
             GetBaseType(type)
         );
@@ -851,7 +857,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         void AddNestedType(NamedTypeSymbol nestedType, string[] workingParams) {
             var nestedBuilder = typeBuilder.DefineNestedType(
-                GetTypeName(nestedType),
+                GetTypeName(nestedType, true),
                 GetTypeAttributes(nestedType, true),
                 GetBaseType(nestedType)
             );
@@ -866,9 +872,13 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private string GetTypeName(NamedTypeSymbol type) {
-        if (type.IsFromCompilation(_program.compilation))
-            return type.name;
+    private string GetTypeName(NamedTypeSymbol type, bool isNested) {
+        if (type.IsFromCompilation(_program.compilation)) {
+            if (isNested || (type.containingNamespace?.isGlobalNamespace ?? true))
+                return type.name;
+
+            return $"{type.containingNamespace.name}.{type.name}";
+        }
 
         return $"Belte.{type.name}";
     }
@@ -1143,9 +1153,11 @@ internal sealed partial class Executor : ModuleBuilder {
     private MethodInfo CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
-            _program.compilation.options.outputKind != OutputKind.GraphicsApplication) {
-            throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
+        if (!_program.compilation.options.noStdLib) {
+            if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
+                _program.compilation.options.outputKind != OutputKind.GraphicsApplication) {
+                throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
+            }
         }
 
         switch (mapKey) {

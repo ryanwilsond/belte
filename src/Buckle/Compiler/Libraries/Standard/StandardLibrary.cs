@@ -118,17 +118,20 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes() {
-        yield return Directory;
-        yield return File;
-        yield return Console;
-        yield return Math;
+    internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes(bool reduced) {
         yield return LowLevel;
-        yield return Time;
-        yield return Random;
-        yield return String;
-        yield return Int;
         yield return CallingConvention;
+
+        if (!reduced) {
+            yield return Directory;
+            yield return File;
+            yield return Console;
+            yield return Math;
+            yield return Time;
+            yield return Random;
+            yield return String;
+            yield return Int;
+        }
     }
 
     internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {

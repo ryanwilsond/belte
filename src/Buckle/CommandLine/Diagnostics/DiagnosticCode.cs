@@ -44,4 +44,6 @@ public enum DiagnosticCode : ushort {
     ERR_MissingVerbosePath = 33,
     ERR_MissingMaxCoreCount = 34,
     ERR_InvalidMaxCoreCount = 35,
+    ERR_MissingEntryName = 36,
+    FTL_OutputIsDirectory = 37,
 }

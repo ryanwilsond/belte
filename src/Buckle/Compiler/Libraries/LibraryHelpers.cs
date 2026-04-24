@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
@@ -13,25 +14,27 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    private static SynthesizedBelteNamespaceSymbol _lazyBelteNamespace;
+    private static readonly string[] ReducedStdLibFiles = [
+        "Compiler.Object.blt",
+        "Compiler.ReducedEnumerator.blt",
+        "Compiler.Exception.blt"
+    ];
+
+    private static readonly string[] ReducedStdLibExclude = [
+        "Compiler.Enumerator.blt"
+    ];
+
+    private static readonly string[] StdLibExclude = [
+        "Compiler.ReducedEnumerator.blt"
+    ];
+
+    private static SynthesizedBelteNamespaceSymbol _belteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
     private static SpecialOrKnownType.Boxed _lazyAnyArray;
     private static SpecialOrKnownType.Boxed _lazyCharArray;
 
-    internal static NamespaceSymbol BelteNamespace {
-        get {
-            if (_lazyBelteNamespace is null) {
-                Interlocked.CompareExchange(
-                    ref _lazyBelteNamespace,
-                    new SynthesizedBelteNamespaceSymbol("Belte"),
-                    null
-                );
-            }
-
-            return _lazyBelteNamespace;
-        }
-    }
+    internal static NamespaceSymbol BelteNamespace => _belteNamespace;
 
     internal static SpecialOrKnownType CharArray {
         get {
@@ -75,7 +78,8 @@ public static class LibraryHelpers {
     public static Compilation LoadLibraries(
         BuildMode buildMode = BuildMode.None,
         bool concurrentBuild = false,
-        int maxCoreCount = 1) {
+        int maxCoreCount = 1,
+        bool reducedStdLib = false) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -85,6 +89,14 @@ public static class LibraryHelpers {
 
             if (!libraryName.EndsWith(".blt"))
                 continue;
+
+            if (reducedStdLib) {
+                if (!ReducedStdLibFiles.Contains(libraryName) || ReducedStdLibExclude.Contains(libraryName))
+                    continue;
+            } else {
+                if (StdLibExclude.Contains(libraryName))
+                    continue;
+            }
 
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);
@@ -98,10 +110,15 @@ public static class LibraryHelpers {
             buildMode,
             OutputKind.DynamicallyLinkedLibrary,
             concurrentBuild: concurrentBuild,
-            maxCoreCount: maxCoreCount
+            maxCoreCount: maxCoreCount,
+            noStdLib: reducedStdLib
         );
 
+        if (reducedStdLib)
+            CorLibrary.SetReducedState();
+
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        CreateBelteNamespace(reducedStdLib);
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
 
@@ -152,6 +169,10 @@ public static class LibraryHelpers {
 
             return char.ToUpper(type.name[0]).ToString();
         }
+    }
+
+    private static void CreateBelteNamespace(bool reducedStdLib) {
+        _belteNamespace = new SynthesizedBelteNamespaceSymbol("Belte", reducedStdLib);
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {

@@ -106,4 +106,14 @@ public class CompilerState {
     /// Maximum number of CPU cores to use for concurrent builds.
     /// </summary>
     public int maxCores;
+
+    /// <summary>
+    /// A type to search for the entry point in.
+    /// </summary>
+    public string entryName;
+
+    /// <summary>
+    /// Disables most of the Standard Library.
+    /// </summary>
+    public bool noStdLib;
 }

@@ -3,18 +3,15 @@ Usage: buckle.exe [options] file...
 Options:
   -h|--help                   Display this information.
   --version                   Display compiler version information.
-  --dumpmachine               Display the compiler's target system.
-  --noout                     Disable any output the compiler would have produced.
+  --noout                     Disable any file output the compiler would have produced.
 
   -r|--repl                   Invoke the Repl.
   --clearsubmissions          Delete all Repl submissions (does not evaluate submissions on startup).
 
   -i                          Compile and run (default).
 
-  --script                    Compile and run using the interpreter.
   --evaluate                  Compile and run using the evaluator.
   --execute                   Compile and run using the executor.
-  -t|--transpile              Compile and transpile into C#; do not assemble or link.
   -o <file>                   Specify output file.
 
   -m:<count>                  Specify the maximum number of CPU cores to use.
@@ -27,6 +24,8 @@ Options:
   -l1                         l0 plus compiler libraries for meta-programming
 
   --type=[console|graphics|dll]         Specify the type of Belte project (default console).
+  --entry=<name>              Specify a type name to search for the entry point in.
+  --nostdlib                  Disable compiling with the Standard Library.
 
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.

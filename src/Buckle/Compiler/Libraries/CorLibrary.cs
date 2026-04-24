@@ -29,6 +29,10 @@ internal sealed class CorLibrary {
         RegisterPrimitiveCorTypes();
     }
 
+    internal static void SetReducedState() {
+        Instance._registeredSpecialTypes += 8;
+    }
+
     #region Public Model
 
     internal static MethodSymbol GetWellKnownMember(WellKnownMembers wellKnownMember) {

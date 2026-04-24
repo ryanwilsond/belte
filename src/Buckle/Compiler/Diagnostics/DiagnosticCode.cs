@@ -431,4 +431,5 @@ public enum DiagnosticCode : ushort {
     UNS_ILOpCode = 9002,
     UNS_NonIntegralEnum = 9003,
     UNS_GraphicsDll = 9004,
+    UNS_GraphicsCall = 9005,
 }

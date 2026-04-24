@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -302,7 +301,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         lock (_types)
             _types.Add(symbol);
 
-        var timer = Stopwatch.StartNew();
         var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
         var members = symbol.GetMembers();
         var processedInstanceInitializers = new Binder.ProcessedFieldInitializers();

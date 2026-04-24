@@ -39,6 +39,11 @@ internal static class Error {
             var message = $"unsupported: cannot use non-integral enums when building for .NET, transpiling to C#, or executing";
             return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
         }
+
+        internal static BelteDiagnostic GraphicsCall(TextLocation location) {
+            var message = $"cannot make Graphics calls when the output kind is not graphics";
+            return CreateError(DiagnosticCode.UNS_GraphicsCall, location, message);
+        }
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {

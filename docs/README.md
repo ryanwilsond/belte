@@ -4,8 +4,6 @@
 
 <h1 align="center">Belte Documentation</h1>
 
-- #### [The Belte Language & Specification](Belte.md)
-
 - #### Buckle Docs
 
   - [Using Buckle](Buckle.md)

@@ -2619,7 +2619,9 @@ internal sealed class Evaluator {
             }
         }
 
-        if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType)
+        var reduced = _program.compilation.options.noStdLib;
+
+        if (!reduced && (object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType)
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead

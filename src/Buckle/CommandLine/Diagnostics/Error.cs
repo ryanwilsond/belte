@@ -121,6 +121,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMaxCoreCount), message);
     }
 
+    internal static Diagnostic MissingEntryName(string arg) {
+        var message = $"missing type name after '{arg}' (usage: '--entry=<name>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingEntryName), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

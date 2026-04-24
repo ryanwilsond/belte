@@ -61,6 +61,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string assemblySimpleName,
         string[] references,
         bool debugMode,
+        bool reduced,
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
@@ -92,9 +93,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             AssemblyDefinition.ReadAssembly(_belteDllName),
         ];
 
-        _backupAssemblies = [
-            AssemblyDefinition.ReadAssembly(consoleDll),
-        ];
+        if (reduced) {
+            _backupAssemblies = [];
+        } else {
+            _backupAssemblies = [
+                AssemblyDefinition.ReadAssembly(consoleDll),
+            ];
+        }
 
 #if !DEBUG
 #pragma warning restore IL3000
@@ -151,7 +156,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string outputPath,
         BelteDiagnosticQueue diagnostics) {
         var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
-        var emitter = new ILEmitter(program, moduleName, references, debugMode, diagnostics);
+        var reduced = program.compilation.options.noStdLib;
+        var emitter = new ILEmitter(program, moduleName, references, debugMode, reduced, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode);
@@ -163,7 +169,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         bool programOnly,
         string[] references,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, false, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, references, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);
@@ -184,6 +190,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitToFile(string outputPath, bool debugMode) {
         EmitInternal();
+
+        if (!_program.compilation.options.enableOutput)
+            return;
+
         EmitRuntimeConfig(outputPath);
 
         if (debugMode) {

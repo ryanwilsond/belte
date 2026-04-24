@@ -208,8 +208,9 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowMachineDialog() {
-        var machineMessage = "Machine: x86_64-w64";
-        Console.WriteLine(machineMessage);
+        // TODO Do we even care about this
+        // var machineMessage = "Machine: x86_64-w64";
+        // Console.WriteLine(machineMessage);
     }
 
     private static void ShowVersionDialog() {
@@ -336,10 +337,17 @@ public static partial class BuckleCommandLine {
 
     private static void CleanOutputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         if (compiler.state.finishStage == CompilerStage.Finished) {
-            if (File.Exists(compiler.state.outputFilename))
-                File.Delete(compiler.state.outputFilename);
+            var path = compiler.state.outputFilename;
 
-            var dirName = Path.GetDirectoryName(compiler.state.outputFilename);
+            if (File.Exists(path)) {
+                File.Delete(path);
+                return;
+            } else if (Directory.Exists(path)) {
+                diagnostics.Push(Belte.Diagnostics.Fatal.OutputIsDirectory(path));
+                return;
+            }
+
+            var dirName = Path.GetDirectoryName(path);
 
             if (!string.IsNullOrEmpty(dirName) && !Directory.Exists(dirName))
                 diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(dirName));
@@ -571,6 +579,9 @@ public static partial class BuckleCommandLine {
                 case "--sae":
                     sae = true;
                     break;
+                case "--nostdlib":
+                    state.noStdLib = true;
+                    break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
                     break;
@@ -711,6 +722,13 @@ public static partial class BuckleCommandLine {
                     diagnostics.Push(Belte.Diagnostics.Error.InvalidMaxCoreCount(maxCoresString));
                 else
                     state.maxCores = Math.Min(coreCount, Environment.ProcessorCount);
+            } else if (arg.StartsWith("--entry")) {
+                if (arg == "--entry" || arg == "--entry=" || !arg.StartsWith("--entry=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingEntryName(arg));
+                    continue;
+                }
+
+                state.entryName = arg.Substring(8);
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
