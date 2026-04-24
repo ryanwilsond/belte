@@ -1,0 +1,210 @@
+/*
+
+Tool for generating dummy projects for compiler profiling
+
+*/
+
+using System.Text;
+using System.IO;
+
+public static class Program {
+    public static void Main(string[]! args) {
+        var length = LowLevel.Length<string[]>(args);
+
+        if (length != 8) {
+            Console.PrintLine(f"Need 8 arguments (got {length}): [FileCount] [TypesPerFile] [MethodsPerType] [FanOut] [DependencyMode] [Rounds] [Depth] [OutDir]");
+            return;
+        }
+
+        var fileCount = Int.Parse(args[0])?;
+        var typesPerFile = Int.Parse(args[1])?;
+        var methodsPerType = Int.Parse(args[2])?;
+        var fanOut = Int.Parse(args[3])?;
+        var dependencyMode = (DependencyMode)Int.Parse(args[4])?;
+        var rounds = Int.Parse(args[5])?;
+        var depth = Int.Parse(args[6])?;
+        var outDir = args[7];
+
+        if (!Directory.Exists(outDir)) {
+            Console.PrintLine(f"Output directory '{outDir}' does not exist");
+            return;
+        }
+
+        Directory.Delete(outDir, true);
+        Directory.CreateDirectory(outDir);
+
+        Console.PrintLine(f"File Count: {fileCount}");
+        Console.PrintLine(f"Types Per File: {typesPerFile}");
+        Console.PrintLine(f"Methods Per Type: {methodsPerType}");
+        Console.PrintLine(f"Fan Out: {fanOut}");
+        Console.PrintLine(f"Dependency Mode: {dependencyMode}");
+        Console.PrintLine(f"Rounds: {rounds}");
+        Console.PrintLine(f"Depth: {depth}");
+        Console.PrintLine(f"Output Directory: '{outDir}'");
+
+        GenerateProject(fileCount, typesPerFile, methodsPerType, fanOut, dependencyMode, rounds, depth, outDir);
+    }
+
+    private static void GenerateProject(
+        int fileCount,
+        int typesPerFile,
+        int methodsPerType,
+        int fanOut,
+        DependencyMode dependencyMode,
+        int rounds,
+        int depth,
+        string outDir) {
+        for (var i = 0; i < fileCount; i++)
+            GenerateFile(fileCount, i, typesPerFile, methodsPerType, fanOut, dependencyMode, rounds, depth, outDir);
+
+        GenerateEntryPoint(outDir);
+    }
+
+    private static void GenerateEntryPoint(string outDir) {
+        constexpr text = "public static class Program { public static void Main() { } }";
+
+        File.WriteAllText(Path.Combine(outDir, "Entry.blt"), text);
+    }
+
+    private static void GenerateFile(
+        int fileCount,
+        int fileIndex,
+        int typesPerFile,
+        int methodsPerType,
+        int fanOut,
+        DependencyMode dependencyMode,
+        int rounds,
+        int depth,
+        string outDir) {
+        var sb = new StringBuilder();
+
+        for (var i = 0; i < typesPerFile; i++)
+            GenerateType(sb, fileIndex, fileCount, i, typesPerFile, methodsPerType, fanOut, dependencyMode, rounds, depth);
+
+        File.WriteAllText(Path.Combine(outDir, f"F{fileIndex}.blt"), sb.ToString());
+    }
+
+    private static void GenerateType(
+        StringBuilder builder,
+        int fileIndex,
+        int fileCount,
+        int typeIndex,
+        int typeCount,
+        int methodsPerType,
+        int fanOut,
+        DependencyMode dependencyMode,
+        int rounds,
+        int depth) {
+        builder.Append(f"public class C{fileIndex}_{typeIndex} {{\n");
+
+        for (var i = 0; i < methodsPerType; i++)
+            GenerateMethod(builder, fileCount, typeCount, methodsPerType, fileIndex, typeIndex, i, fanOut, dependencyMode, rounds, depth);
+
+        builder.Append("}\n");
+    }
+
+    private static void GenerateMethod(
+        StringBuilder builder,
+        int fileCount,
+        int typeCount,
+        int methodCount,
+        int fileIndex,
+        int typeIndex,
+        int methodIndex,
+        int fanOut,
+        DependencyMode dependencyMode,
+        int rounds,
+        int depth) {
+        builder.Append(f"\tpublic static int M{methodIndex}() {{\n");
+
+        for (var i = 0; i < rounds; i++) {
+            for (var j = 0; j < depth; j++)
+                GenerateStatement(builder, i, j, fileIndex, typeIndex, methodIndex, fileCount, typeCount, methodCount);
+        }
+
+        builder.Append("\t\treturn 10;\n");
+
+        builder.Append("\t}\n");
+    }
+
+    private static void GenerateStatement(
+        StringBuilder builder,
+        int round,
+        int nestLevel,
+        int fileIndex,
+        int typeIndex,
+        int methodIndex,
+        int fileCount,
+        int typeCount,
+        int methodCount) {
+        builder.Append(f"\t\tvar t{round}_{nestLevel} = ");
+        GenerateExpression(builder, nestLevel, fileIndex, typeIndex, methodIndex, fileCount, typeCount, methodCount);
+        builder.Append(";\n");
+    }
+
+    private static void GenerateExpression(
+        StringBuilder builder,
+        int depth,
+        int fileIndex,
+        int typeIndex,
+        int methodIndex,
+        int fileCount,
+        int typeCount,
+        int methodCount) {
+        if (depth == 0) {
+            EmitCall(builder, depth, fileIndex, typeIndex, methodIndex, 0, fileCount, typeCount, methodCount);
+            return;
+        }
+
+        builder.Append("(");
+
+        GenerateExpression(builder, depth - 1, fileIndex, typeIndex, methodIndex, fileCount, typeCount, methodCount);
+
+        builder.Append(" + ");
+
+        GenerateExpression(builder, depth - 1, fileIndex, typeIndex, methodIndex, fileCount, typeCount, methodCount);
+
+        builder.Append(")");
+    }
+
+    private static void EmitCall(
+        StringBuilder builder,
+        int depth,
+        int fileIndex,
+        int typeIndex,
+        int methodIndex,
+        int salt,
+        int fileCount,
+        int typeCount,
+        int methodCount) {
+        int seed =
+            fileIndex * 73856093 ^
+            typeIndex * 19349663 ^
+            methodIndex * 83492791 ^
+            salt * 97531 ^
+            depth * 1597334677;
+
+        int h = Mix(seed);
+
+        int tf = h % fileCount;
+        int tt = (h / fileCount) % typeCount;
+        int tm = (h / (fileCount * typeCount)) % methodCount;
+
+        builder.Append(f"C{tf}_{tt}.M{tm}()");
+    }
+
+    private static int Mix(int x) {
+        x ^= x >> 16;
+        x *= 0x7feb352d;
+        x ^= x >> 15;
+        x *= 0x846ca68b;
+        x ^= x >> 16;
+        return x & 0x7fffffff;
+    }
+}
+
+public enum DependencyMode {
+    Independent,
+    Chain,
+    Layered
+}

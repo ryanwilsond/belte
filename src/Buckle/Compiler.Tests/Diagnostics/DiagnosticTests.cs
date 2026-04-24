@@ -955,20 +955,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Warning_BU0071_LocalUsingTypeName() {
-        var text = @"
-            class A { }
+    // ! Current approach is too expensive to check for this warning
+    // [Fact]
+    // public void Reports_Warning_BU0071_LocalUsingTypeName() {
+    //     var text = @"
+    //         class A { }
 
-            A [A] = new A();
-        ";
+    //         A [A] = new A();
+    //     ";
 
-        var diagnostics = @"
-            local 'A' shares a name with a type in this namespace
-        ";
+    //     var diagnostics = @"
+    //         local 'A' shares a name with a type in this namespace
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
 
     [Fact]
     public void Reports_Error_BU0072_CannotImplyNull() {

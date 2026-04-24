@@ -48,7 +48,7 @@ internal static class Assertions {
                 BaseCompilation
             );
 
-            var execDiags = execCompilation.Execute(false, false, null, out execResult);
+            var execDiags = execCompilation.Execute(false, false, null, false, out execResult);
             Assert.Empty(execDiags.Errors().ToArray());
 
             computedValue = execResult;

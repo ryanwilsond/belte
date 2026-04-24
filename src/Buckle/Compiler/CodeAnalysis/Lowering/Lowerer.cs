@@ -245,14 +245,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var syntax = expression.syntax;
 
             return VisitConditionalOperator(
-                new BoundConditionalOperator(
-                    syntax,
+                expression.Update(
                     RewriteNull(syntax, condition),
                     expression.isRef,
                     expression.trueExpression,
                     expression.falseExpression,
-                    null,
-                    expression.Type()
+                    expression.constantValue,
+                    expression.type
                 )
             );
         }
@@ -412,11 +411,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
 
         if (expression.index.Type().IsNullableType()) {
-            return Visit(new BoundArrayAccessExpression(syntax,
+            return Visit(expression.Update(
                 expression.receiver,
                 RewriteNull(syntax, expression.index),
                 expression.constantValue,
-                expression.Type()
+                expression.type
             ));
         }
 

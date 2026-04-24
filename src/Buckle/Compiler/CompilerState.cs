@@ -83,6 +83,11 @@ public class CompilerState {
     public bool verboseMode;
 
     /// <summary>
+    /// Same as "verbose" mode without creating file artifacts.
+    /// </summary>
+    public bool reducedVerboseMode;
+
+    /// <summary>
     /// The path to dump verbose output files.
     /// </summary>
     public string verbosePath;
@@ -91,4 +96,14 @@ public class CompilerState {
     /// Whether or not the compiler will log timing data about each stage of compilation.
     /// </summary>
     public bool time;
+
+    /// <summary>
+    /// Whether or not the compiler will use multiple CPU cores.
+    /// </summary>
+    public bool concurrentBuild;
+
+    /// <summary>
+    /// Maximum number of CPU cores to use for concurrent builds.
+    /// </summary>
+    public int maxCores;
 }

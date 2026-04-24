@@ -3,10 +3,21 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Versioning;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal static class DotnetReferenceResolver {
+    internal static string GetTFM() {
+        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var attr = currentAssembly
+            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
+            .OfType<TargetFrameworkAttribute>()
+            .FirstOrDefault();
+
+        return attr.FrameworkName.Split('=')[1].Substring(1);
+    }
+
     internal static string ResolveNetCoreAppRefPath(string tfm, out string version) {
         var runtimeVersions = GetInstalledRuntimeVersions();
 

@@ -145,17 +145,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private SyntaxList<MemberDeclarationSyntax> ParseMembers(bool isGlobal = false) {
         var members = SyntaxListBuilder<MemberDeclarationSyntax>.Create();
 
-        while (currentToken.kind != SyntaxKind.EndOfFileToken) {
+        var lastTokenPosition = -1;
+
+        while (currentToken.kind != SyntaxKind.EndOfFileToken && IsMakingProgress(ref lastTokenPosition)) {
             if (!isGlobal && currentToken.kind == SyntaxKind.CloseBraceToken)
                 break;
 
-            var startToken = currentToken;
-
             var member = ParseMember(isGlobal);
             members.Add(member);
-
-            if (currentToken == startToken)
-                EatToken();
         }
 
         return members.ToList();
@@ -1130,16 +1127,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private SyntaxList<ILInstructionSyntax> ParseILInstructions() {
         var instructions = SyntaxListBuilder<ILInstructionSyntax>.Create();
-        var startToken = currentToken;
 
-        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
+        var lastTokenPosition = -1;
+
+        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken &&
+            IsMakingProgress(ref lastTokenPosition)) {
             var instruction = ParseILInstruction();
             instructions.Add(instruction);
-
-            if (currentToken == startToken)
-                EatToken();
-
-            startToken = currentToken;
         }
 
         return instructions.ToList();
@@ -1293,16 +1287,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private SyntaxList<SwitchSectionSyntax> ParseSwitchSections() {
         var statements = SyntaxListBuilder<SwitchSectionSyntax>.Create();
-        var startToken = currentToken;
 
-        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
+        var lastTokenPosition = -1;
+
+        while (currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken &&
+            IsMakingProgress(ref lastTokenPosition)) {
             var statement = ParseSwitchSection();
             statements.Add(statement);
-
-            if (currentToken == startToken)
-                EatToken();
-
-            startToken = currentToken;
         }
 
         return statements.ToList();
@@ -1316,17 +1307,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private SyntaxList<SwitchLabelSyntax> ParseSwitchLabels() {
         var labels = SyntaxListBuilder<SwitchLabelSyntax>.Create();
-        var startToken = currentToken;
 
-        if (currentToken.kind != SyntaxKind.EndOfFileToken) do {
+        var lastTokenPosition = -1;
+
+        if (currentToken.kind != SyntaxKind.EndOfFileToken && IsMakingProgress(ref lastTokenPosition)) do {
             var label = ParseSwitchLabel();
             labels.Add(label);
-
-            if (currentToken == startToken)
-                EatToken();
-
-            startToken = currentToken;
-        } while (currentToken.kind is SyntaxKind.CaseKeyword or SyntaxKind.DefaultKeyword);
+        } while (currentToken.kind is SyntaxKind.CaseKeyword or SyntaxKind.DefaultKeyword &&
+            IsMakingProgress(ref lastTokenPosition));
 
         return labels.ToList();
     }
@@ -1624,16 +1612,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private SyntaxList<StatementSyntax> ParseStatements(params SyntaxKind[] endDelimiters) {
         var statements = SyntaxListBuilder<StatementSyntax>.Create();
-        var startToken = currentToken;
 
-        while (currentToken.kind != SyntaxKind.EndOfFileToken && !endDelimiters.Contains(currentToken.kind)) {
+        var lastTokenPosition = -1;
+
+        while (currentToken.kind != SyntaxKind.EndOfFileToken &&
+            !endDelimiters.Contains(currentToken.kind) &&
+            IsMakingProgress(ref lastTokenPosition)) {
             var statement = ParseStatement();
             statements.Add(statement);
-
-            if (currentToken == startToken)
-                EatToken();
-
-            startToken = currentToken;
         }
 
         return statements.ToList();
@@ -1945,7 +1931,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {
         left ??= ParsePrimaryExpressionInternal(parentPrecedence);
 
-        while (true) {
+        var lastTokenPosition = -1;
+
+        while (IsMakingProgress(ref lastTokenPosition)) {
             var startToken = currentToken;
             var precedence = currentToken.kind.GetPrimaryPrecedence();
 
@@ -1957,9 +1945,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
             left = ParseCorrectPrimaryOperator(left);
             left = ParsePrimaryExpression(precedence, left);
-
-            if (startToken == currentToken)
-                EatToken();
         }
 
         return left;

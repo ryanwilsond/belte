@@ -12213,12 +12213,14 @@ symIsHidden:;
                     return false;
                 }
 
-                foreach (var member in container.GetMembers()) {
-                    if (member.name == name && member.kind == SymbolKind.NamedType) {
-                        diagnostics.Push(Warning.LocalUsingTypeName(location, name));
-                        return false;
-                    }
-                }
+                // TODO This check is really slow because it populates members
+                // TODO We need to consider how valuable this warning really is
+                // foreach (var member in container.GetMembers()) {
+                //     if (member.name == name && member.kind == SymbolKind.NamedType) {
+                //         diagnostics.Push(Warning.LocalUsingTypeName(location, name));
+                //         return false;
+                //     }
+                // }
             }
 
             if (!onlyLookingForWarnings) {

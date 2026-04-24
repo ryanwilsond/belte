@@ -20,12 +20,13 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// IdentifierToken IdentifierToken SemicolonToken
 /// </code>
 /// </summary>
-internal sealed class Lexer : IDisposable {
+internal sealed partial class Lexer : IDisposable {
     private readonly List<SyntaxDiagnostic> _diagnostics;
     private readonly SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
     private readonly SyntaxListBuilder _trailingTriviaCache = new SyntaxListBuilder(10);
     private SyntaxListBuilder _directiveTriviaCache;
     private readonly bool _allowPreprocessorDirectives;
+    private readonly LexerCache _cache;
 
     private LexerMode _mode;
     private DirectiveStack _directives;
@@ -43,6 +44,7 @@ internal sealed class Lexer : IDisposable {
         _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = [];
         _directives = DirectiveStack.Empty;
+        _cache = new LexerCache();
     }
 
     internal SourceText text { get; }
@@ -64,7 +66,9 @@ internal sealed class Lexer : IDisposable {
 
     private char _lookahead => Peek(1);
 
-    public void Dispose() { }
+    public void Dispose() {
+        _cache.Free();
+    }
 
     /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
@@ -77,7 +81,7 @@ internal sealed class Lexer : IDisposable {
 
         while (true) {
             token = _mode switch {
-                LexerMode.Syntax => LexNextInternal(),
+                LexerMode.Syntax => QuickNext() ?? LexNextInternal(),
                 LexerMode.Directive => LexDirectiveToken(),
                 _ => throw ExceptionUtilities.Unreachable(),
             };
@@ -1013,6 +1017,7 @@ internal sealed class Lexer : IDisposable {
 
     private void ReadWhitespace() {
         var done = false;
+        // TODO Get trivia from cache?
 
         while (!done) {
             switch (_current) {

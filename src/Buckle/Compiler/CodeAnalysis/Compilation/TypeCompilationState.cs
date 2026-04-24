@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
@@ -10,7 +11,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal sealed class TypeCompilationState {
-    internal readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
+    internal readonly ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts;
 
     internal ArrayBuilder<(MethodSymbol, BoundBlockStatement)> synthesizedMethods;
     internal ArrayBuilder<(NamedTypeSymbol, NamedTypeSymbol)> synthesizedTypes;
@@ -24,7 +25,7 @@ internal sealed class TypeCompilationState {
     internal TypeCompilationState(
         NamedTypeSymbol type,
         Compilation compilation,
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts) {
+        ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts) {
         this.type = type;
         this.compilation = compilation;
         this.typeLayouts = typeLayouts;

@@ -41,6 +41,14 @@ public static class Utilities {
         return str.Length;
     }
 
+    public static void CreateDirectory(string path) {
+        System.IO.Directory.CreateDirectory(path);
+    }
+
+    public static void DeleteDirectory(string path) {
+        System.IO.Directory.Delete(path, recursive: true);
+    }
+
     public static long TimeNow() {
         return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
     }

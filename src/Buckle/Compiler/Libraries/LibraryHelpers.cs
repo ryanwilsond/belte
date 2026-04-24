@@ -72,7 +72,10 @@ public static class LibraryHelpers {
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries(BuildMode buildMode = BuildMode.None) {
+    public static Compilation LoadLibraries(
+        BuildMode buildMode = BuildMode.None,
+        bool concurrentBuild = false,
+        int maxCoreCount = 1) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -91,7 +94,13 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary);
+        var options = new CompilationOptions(
+            buildMode,
+            OutputKind.DynamicallyLinkedLibrary,
+            concurrentBuild: concurrentBuild,
+            maxCoreCount: maxCoreCount
+        );
+
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();

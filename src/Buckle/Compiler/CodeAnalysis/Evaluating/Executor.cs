@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -6,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
@@ -23,7 +25,7 @@ internal sealed partial class Executor : ModuleBuilder {
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
 
-    private static readonly Dictionary<string, Assembly> AssemblyCache = [];
+    private static readonly ConcurrentDictionary<string, Assembly> AssemblyCache = [];
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
@@ -65,14 +67,14 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
     private readonly Dictionary<NamedTypeSymbol, Type> _bakedTypes = [];
-    private readonly Dictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
-    private readonly Dictionary<TypeSymbol, Type> _enums = [];
-    private readonly Dictionary<MethodSymbol, MethodInfo> _methods = [];
-    private readonly Dictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
-    private readonly Dictionary<MethodSymbol, ConstructorInfo> _constructors = [];
-    private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
-    private readonly Dictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
-    private readonly Dictionary<FieldSymbol, FieldInfo> _fields = [];
+    private readonly ConcurrentDictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
+    private readonly ConcurrentDictionary<TypeSymbol, Type> _enums = [];
+    private readonly ConcurrentDictionary<MethodSymbol, MethodInfo> _methods = [];
+    private readonly ConcurrentDictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, ConstructorInfo> _constructors = [];
+    private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
+    private readonly ConcurrentDictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
+    private readonly ConcurrentDictionary<FieldSymbol, FieldInfo> _fields = [];
 
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
     private readonly bool _graphicsEnabled;
@@ -109,9 +111,9 @@ internal sealed partial class Executor : ModuleBuilder {
         _linearNestedTypes = linearBuilder.ToImmutable();
     }
 
-    internal object Execute(bool verbose, bool logTime, string verbosePath) {
+    internal object Execute(bool verbose, bool logTime, string verbosePath, bool noArtifacts) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        _logger = new StringWriter();
+        _logger = (verbose && !noArtifacts) ? new StringWriter() : null;
 
         var entryPoint = _program.entryPoint;
 
@@ -153,7 +155,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (logTime) {
             timer.Stop();
 
-            if (verbose) {
+            if (verbose && !noArtifacts) {
                 var assemblyName = $"{DynamicAssemblyName}.g.dll";
                 var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
@@ -649,20 +651,41 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
 
-        foreach (var type in _topLevelTypes)
-            CreateMemberDefinitions(type);
+        if (_program.compilation.options.concurrentBuild) {
+            var maxParallels = _program.compilation.options.maxCoreCount;
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
-        foreach (var type in _linearNestedTypes)
-            CreateMemberDefinitions(type);
+            var topLevelTypes = _topLevelTypes;
+            Parallel.For(0, topLevelTypes.Length, parallelOptions, i => CreateMemberDefinitions(topLevelTypes[i]));
 
-        foreach (var method in _methods) {
-            if (method.Value is MethodBuilder mb)
-                EmitMethod(method.Key, mb);
-        }
+            var linearTypes = _linearNestedTypes;
+            Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
-        foreach (var method in _constructors) {
-            if (method.Value is ConstructorBuilder cb)
-                EmitConstructor(cb);
+            Parallel.ForEach(_methods, parallelOptions, method => {
+                if (method.Value is MethodBuilder mb)
+                    EmitMethod(method.Key, mb);
+            });
+
+            Parallel.ForEach(_constructors, parallelOptions, method => {
+                if (method.Value is ConstructorBuilder mb)
+                    EmitConstructor(mb);
+            });
+        } else {
+            foreach (var type in _topLevelTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var type in _linearNestedTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var method in _methods) {
+                if (method.Value is MethodBuilder mb)
+                    EmitMethod(method.Key, mb);
+            }
+
+            foreach (var method in _constructors) {
+                if (method.Value is ConstructorBuilder cb)
+                    EmitConstructor(cb);
+            }
         }
 
         BakeTypes();
@@ -993,7 +1016,10 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _fields.Add(field, adaptedFieldBuilder);
         _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
-        _types.Add(fixedImpl, nestedBuilder);
+
+        lock (_types) {
+            _types.Add(fixedImpl, nestedBuilder);
+        }
 
         nestedBuilder.CreateType();
     }
@@ -1082,7 +1108,7 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
-        _logger.WriteLine($"Emitting method {method}");
+        _logger?.WriteLine($"Emitting method {method}");
 
         if (method.isAbstract || method.isExtern)
             return;
@@ -1096,7 +1122,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private void EmitConstructor(ConstructorBuilder constructorBuilder) {
         var (constructor, body) = _constructorBodies[constructorBuilder];
 
-        _logger.WriteLine($"Emitting constructor {constructor}");
+        _logger?.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false);
@@ -1328,8 +1354,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Console_SetBackgroundColor_I", typeof(Belte.Runtime.Console).GetMethod("SetBackgroundColor", Flags, [typeof(long)]) },
             { "Console_SetCursorPosition_I?I?", typeof(Belte.Runtime.Console).GetMethod("SetCursorPosition", Flags, [typeof(long?), typeof(long?)]) },
             { "Console_SetCursorVisibility_B", typeof(Belte.Runtime.Console).GetMethod("SetCursorVisibility", Flags, [typeof(bool)]) },
-            { "Directory_Create_S", typeof(Directory).GetMethod("CreateDirectory", Flags, [typeof(string)]) },
-            { "Directory_Delete_S", typeof(Directory).GetMethod("Delete", Flags, [typeof(string)]) },
+            { "Directory_Create_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateDirectory", Flags, [typeof(string)]) },
+            { "Directory_Delete_S", typeof(Belte.Runtime.Utilities).GetMethod("DeleteDirectory", Flags, [typeof(string)]) },
             { "Directory_Exists_S", typeof(Directory).GetMethod("Exists", Flags, [typeof(string)]) },
             { "File_AppendText_SS", typeof(File).GetMethod("AppendAllText", Flags, [typeof(string), typeof(string)]) },
             { "File_Create_S", typeof(File).GetMethod("Create", Flags, [typeof(string)]) },

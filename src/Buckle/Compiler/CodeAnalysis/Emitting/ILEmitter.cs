@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.Versioning;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
@@ -35,10 +36,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
-    private readonly Dictionary<MethodSymbol, MethodDefinition> _methods = [];
-    private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
-    private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
-    private readonly Dictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
+    private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
+    private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly ConcurrentDictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
     private readonly string _tfm;
     private readonly string _version;
@@ -66,13 +67,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _debugMode = debugMode;
         _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
-        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-        var attr = currentAssembly
-            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
-            .OfType<TargetFrameworkAttribute>()
-            .FirstOrDefault();
-
-        _tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        _tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
 
 #if !DEBUG
@@ -680,14 +675,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeDefinitionAndBases(type);
 
-        foreach (var type in _topLevelTypes)
-            CreateMemberDefinitions(type);
+        if (_program.compilation.options.concurrentBuild) {
+            var maxParallels = _program.compilation.options.maxCoreCount;
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
-        foreach (var type in _linearNestedTypes)
-            CreateMemberDefinitions(type);
+            var topLevelTypes = _topLevelTypes;
+            Parallel.For(0, topLevelTypes.Length, parallelOptions, i => CreateMemberDefinitions(topLevelTypes[i]));
 
-        foreach (var method in _methods)
-            EmitMethod(method.Value);
+            var linearTypes = _linearNestedTypes;
+            Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
+
+            Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
+        } else {
+            foreach (var type in _topLevelTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var type in _linearNestedTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var method in _methods)
+                EmitMethod(method.Value);
+        }
 
         var entryPoint = _program.entryPoint;
 
@@ -948,7 +956,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _fields.Add(field, adaptedFieldDef);
         _fields.Add(nestedBufferField, nestedBufferFieldDef);
-        _types.Add(fixedImpl, nestedType);
+
+        lock (_types) {
+            _types.Add(fixedImpl, nestedType);
+        }
     }
 
     private MethodDefinition CreateMethodDefinition(
@@ -1609,8 +1620,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
             { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
             { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
-            { "Directory_Create_S", ResolveMethod("System.IO.Directory", "CreateDirectory", ["System.String"]) },
-            { "Directory_Delete_S", ResolveMethod("System.IO.Directory", "Delete", ["System.String"]) },
+            { "Directory_Create_S", ResolveMethod("Belte.Runtime.Utilities", "CreateDirectory", ["System.String"]) },
+            { "Directory_Delete_S", ResolveMethod("Belte.Runtime.Utilities", "DeleteDirectory", ["System.String"]) },
             { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
             { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
             { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },

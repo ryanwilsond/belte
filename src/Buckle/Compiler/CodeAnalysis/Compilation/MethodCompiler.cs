@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -19,12 +21,19 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
-    private readonly Dictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
+    private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly ConcurrentDictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
-    private readonly ArrayBuilder<NamedTypeSymbol> _types;
-    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ConcurrentSet<NamedTypeSymbol> _types;
+    private readonly ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
     private readonly Predicate<Symbol> _filter;
+
+    private ConcurrentQueue<Action> _workQueue;
+    private ManualResetEventSlim _signal;
+    private int _pending;
+    private volatile bool _stopping;
+    private AutoResetEvent _workAvailable;
+    private ManualResetEventSlim _done;
 
     private Dictionary<FieldSymbol, NamedTypeSymbol> _lazyFixedImplementationTypes;
     private MethodSymbol _entryPoint;
@@ -32,11 +41,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
     private MethodCompiler(
         Compilation compilation,
-        Dictionary<MethodSymbol, BoundBlockStatement> methodBodiesBeingBuilt,
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodiesBeingBuilt,
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
         Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
@@ -45,7 +54,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _updatePoint = updatePoint;
         _filter = filter;
         _emitting = emitting;
-        _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        _types = [];
         _methodBodies = methodBodiesBeingBuilt;
         _methodLayouts = [];
         _typeLayouts = typeLayouts;
@@ -70,7 +79,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 typeLayouts.TryAdd(layout.Key, layout.Value);
         }
 
-        var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
+        var methodBodiesBeingBuilt = new ConcurrentDictionary<MethodSymbol, BoundBlockStatement>();
         var entryPoint = (emittingToDll || skipEntryPoint) ? null : GetEntryPoint(compilation, diagnostics);
         var updatePoint = (emittingToDll || skipEntryPoint) ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
@@ -90,9 +99,23 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             !transpiling
         );
 
-        methodCompiler.CompileNamespace(globalNamespace);
+        if (compilation.options.concurrentBuild) {
+            methodCompiler._workQueue = new();
+            methodCompiler._signal = new(false);
+            methodCompiler._workAvailable = new(false);
+            methodCompiler._done = new(false);
 
-        if (!methodCompiler._diagnostics.AnyErrors())
+            methodCompiler.StartWorkers(compilation.options.maxCoreCount);
+            methodCompiler.Enqueue(() => methodCompiler.CompileNamespace(globalNamespace));
+            methodCompiler.WaitForCompletion();
+
+            methodCompiler._stopping = true;
+            methodCompiler._signal.Set();
+        } else {
+            methodCompiler.CompileNamespace(globalNamespace);
+        }
+
+        if (!diagnostics.AnyErrors())
             methodCompiler.ComputeCompileTimeExpressions();
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
@@ -101,6 +124,45 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         methodCompiler.InjectSequencePoints();
 
         return methodCompiler.CreateBoundProgram();
+    }
+
+    private void StartWorkers(int count) {
+        for (var i = 0; i < count; i++) {
+            var thread = new Thread(WorkerLoop) {
+                IsBackground = true
+            };
+
+            thread.Start();
+        }
+    }
+
+    private void WorkerLoop() {
+        while (true) {
+            if (_stopping)
+                return;
+
+            if (_workQueue.TryDequeue(out var work)) {
+                work();
+
+                if (Interlocked.Decrement(ref _pending) == 0)
+                    _done.Set();
+
+                continue;
+            }
+
+            _workAvailable.WaitOne();
+        }
+    }
+
+    private void Enqueue(Action work) {
+        Interlocked.Increment(ref _pending);
+
+        _workQueue.Enqueue(work);
+        _workAvailable.Set();
+    }
+
+    private void WaitForCompletion() {
+        _done.Wait();
     }
 
     private static MethodSymbol GetEntryPoint(Compilation compilation, BelteDiagnosticQueue diagnostics) {
@@ -119,7 +181,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _compilation,
             _methodBodies.ToImmutableDictionary(),
             _methodLayouts.ToImmutableDictionary(),
-            _types.ToImmutableAndFree(),
+            _types.ToImmutableArray(),
             _typeLayouts.ToImmutableDictionary(),
             _synthesizedNestedTypes,
             _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
@@ -134,7 +196,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         var newMethodLayouts = new Dictionary<MethodSymbol, EvaluatorSlotManager>();
 
         if (!_compilation.options.buildMode.Evaluating()) {
-            var current = _methodBodies;
+            var current = _methodBodies.ToDictionary();
             var currentCompilation = _compilation;
 
             while (currentCompilation is not null) {
@@ -155,8 +217,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
             }
         } else {
-            newMethodBodies = _methodBodies;
-            newMethodLayouts = _methodLayouts;
+            newMethodBodies = _methodBodies.ToDictionary();
+            newMethodLayouts = _methodLayouts.ToDictionary();
         }
 
         var boundProgram = new BoundProgram(
@@ -206,7 +268,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (!PassesFilter(_filter, symbol))
             return null;
 
-        CompileNamespace(symbol);
+        if (_compilation.options.concurrentBuild)
+            Enqueue(() => CompileNamespace(symbol));
+        else
+            CompileNamespace(symbol);
+
         return null;
     }
 
@@ -214,13 +280,19 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (!PassesFilter(_filter, symbol))
             return null;
 
-        CompileNamedType(symbol);
+        if (_compilation.options.concurrentBuild)
+            Enqueue(() => CompileNamedType(symbol));
+        else
+            CompileNamedType(symbol);
+
         return null;
     }
 
     private void CompileNamedType(NamedTypeSymbol symbol) {
-        _types.Add(symbol);
+        if (!_types.Add(symbol))
+            throw ExceptionUtilities.Unreachable();
 
+        var timer = Stopwatch.StartNew();
         var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
         var members = symbol.GetMembers();
         var processedInstanceInitializers = new Binder.ProcessedFieldInitializers();
@@ -272,7 +344,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (state.synthesizedTypes is not null) {
             foreach (var synthesizedType in state.synthesizedTypes) {
-                _types.Add(synthesizedType.Item2);
+                if (!_types.Add(synthesizedType.Item2))
+                    throw ExceptionUtilities.Unreachable();
+
                 _synthesizedNestedTypes.Add(synthesizedType.Item1, synthesizedType.Item2);
             }
         }
