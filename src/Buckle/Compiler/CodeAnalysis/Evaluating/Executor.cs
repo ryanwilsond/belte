@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -6,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
@@ -23,7 +25,7 @@ internal sealed partial class Executor : ModuleBuilder {
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
 
-    private static readonly Dictionary<string, Assembly> AssemblyCache = [];
+    private static readonly ConcurrentDictionary<string, Assembly> AssemblyCache = [];
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
@@ -65,14 +67,14 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
     private readonly Dictionary<NamedTypeSymbol, Type> _bakedTypes = [];
-    private readonly Dictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
-    private readonly Dictionary<TypeSymbol, Type> _enums = [];
-    private readonly Dictionary<MethodSymbol, MethodInfo> _methods = [];
-    private readonly Dictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
-    private readonly Dictionary<MethodSymbol, ConstructorInfo> _constructors = [];
-    private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
-    private readonly Dictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
-    private readonly Dictionary<FieldSymbol, FieldInfo> _fields = [];
+    private readonly ConcurrentDictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
+    private readonly ConcurrentDictionary<TypeSymbol, Type> _enums = [];
+    private readonly ConcurrentDictionary<MethodSymbol, MethodInfo> _methods = [];
+    private readonly ConcurrentDictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, ConstructorInfo> _constructors = [];
+    private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
+    private readonly ConcurrentDictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
+    private readonly ConcurrentDictionary<FieldSymbol, FieldInfo> _fields = [];
 
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
     private readonly bool _graphicsEnabled;
@@ -649,20 +651,41 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
 
-        foreach (var type in _topLevelTypes)
-            CreateMemberDefinitions(type);
+        if (_program.compilation.options.concurrentBuild) {
+            var maxParallels = _program.compilation.options.maxCoreCount;
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
-        foreach (var type in _linearNestedTypes)
-            CreateMemberDefinitions(type);
+            var topLevelTypes = _topLevelTypes;
+            Parallel.For(0, topLevelTypes.Length, parallelOptions, i => CreateMemberDefinitions(topLevelTypes[i]));
 
-        foreach (var method in _methods) {
-            if (method.Value is MethodBuilder mb)
-                EmitMethod(method.Key, mb);
-        }
+            var linearTypes = _linearNestedTypes;
+            Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
-        foreach (var method in _constructors) {
-            if (method.Value is ConstructorBuilder cb)
-                EmitConstructor(cb);
+            Parallel.ForEach(_methods, parallelOptions, method => {
+                if (method.Value is MethodBuilder mb)
+                    EmitMethod(method.Key, mb);
+            });
+
+            Parallel.ForEach(_constructors, parallelOptions, method => {
+                if (method.Value is ConstructorBuilder mb)
+                    EmitConstructor(mb);
+            });
+        } else {
+            foreach (var type in _topLevelTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var type in _linearNestedTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var method in _methods) {
+                if (method.Value is MethodBuilder mb)
+                    EmitMethod(method.Key, mb);
+            }
+
+            foreach (var method in _constructors) {
+                if (method.Value is ConstructorBuilder cb)
+                    EmitConstructor(cb);
+            }
         }
 
         BakeTypes();
@@ -993,7 +1016,10 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _fields.Add(field, adaptedFieldBuilder);
         _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
-        _types.Add(fixedImpl, nestedBuilder);
+
+        lock (_types) {
+            _types.Add(fixedImpl, nestedBuilder);
+        }
 
         nestedBuilder.CreateType();
     }
