@@ -12,7 +12,8 @@ public struct CompilationOptions {
         bool enableOutput = true,
         string[] references = null,
         bool concurrentBuild = false,
-        int maxCoreCount = 1) {
+        int maxCoreCount = 1,
+        OptimizationLevel optimizationLevel = OptimizationLevel.Release) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -23,6 +24,7 @@ public struct CompilationOptions {
         this.references = references ?? [];
         this.concurrentBuild = concurrentBuild;
         this.maxCoreCount = maxCoreCount;
+        this.optimizationLevel = optimizationLevel;
     }
 
     /// <summary>
@@ -73,4 +75,6 @@ public struct CompilationOptions {
     internal bool concurrentBuild { get; }
 
     internal int maxCoreCount { get; }
+
+    internal OptimizationLevel optimizationLevel { get; }
 }

@@ -35,7 +35,8 @@ public sealed class Compiler {
         !state.noOut,
         state.references,
         state.concurrentBuild,
-        state.maxCores
+        state.maxCores,
+        state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release
     );
 
     /// <summary>
@@ -175,7 +176,8 @@ public sealed class Compiler {
             _options.enableOutput,
             _options.references,
             _options.concurrentBuild,
-            _options.maxCoreCount
+            _options.maxCoreCount,
+            _options.optimizationLevel
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -285,7 +287,6 @@ public sealed class Compiler {
 
         diagnostics.PushRange(compilation.Emit(
             state.outputFilename,
-            state.debugMode,
             state.time,
             state.verboseMode,
             state.verbosePath,

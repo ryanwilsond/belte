@@ -149,8 +149,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string moduleName,
         string[] references,
         string outputPath,
-        bool debugMode,
         BelteDiagnosticQueue diagnostics) {
+        var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
         var emitter = new ILEmitter(program, moduleName, references, debugMode, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
@@ -957,9 +957,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _fields.Add(field, adaptedFieldDef);
         _fields.Add(nestedBufferField, nestedBufferFieldDef);
 
-        lock (_types) {
+        lock (_types)
             _types.Add(fixedImpl, nestedType);
-        }
     }
 
     private MethodDefinition CreateMethodDefinition(
@@ -1156,7 +1155,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         codeGen.Generate();
 
-        methodDefinition.Body.Optimize();
+        if (!_debugMode)
+            methodDefinition.Body.Optimize();
 
         if (_debugMode) {
             methodDefinition.DebugInformation.Scope = new ScopeDebugInformation(

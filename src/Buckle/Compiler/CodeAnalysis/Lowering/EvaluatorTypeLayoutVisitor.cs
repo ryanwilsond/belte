@@ -1,29 +1,30 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
-    private readonly ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
     private readonly HashSet<NamedTypeSymbol> _visited;
 
-    private EvaluatorTypeLayoutVisitor() {
-        _typeLayouts = [];
+    private EvaluatorTypeLayoutVisitor(ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts) {
+        _typeLayouts = typeLayouts;
         _visited = [];
     }
 
-    internal static ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(
+    internal static void CreateTypeLayouts(
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         NamespaceSymbol globalNamespace) {
-        var typeVisitor = new EvaluatorTypeLayoutVisitor();
+        var typeVisitor = new EvaluatorTypeLayoutVisitor(typeLayouts);
         typeVisitor.Visit(globalNamespace);
-        return typeVisitor._typeLayouts;
     }
 
-    internal static ConcurrentDictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(NamedTypeSymbol type) {
-        var typeVisitor = new EvaluatorTypeLayoutVisitor();
+    internal static void CreateTypeLayouts(
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
+        NamedTypeSymbol type) {
+        var typeVisitor = new EvaluatorTypeLayoutVisitor(typeLayouts);
         typeVisitor.Visit(type);
-        return typeVisitor._typeLayouts;
     }
 
     internal override void VisitNamespace(NamespaceSymbol symbol) {

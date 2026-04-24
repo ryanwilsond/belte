@@ -22,22 +22,35 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly Expander _expander;
 
+    private bool _sawCompileTimeExpression;
+
     private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
         _expander = new Expander(container, diagnostics);
     }
 
     internal static BoundBlockStatement Lower(
+        OptimizationLevel optimizationLevel,
         MethodSymbol method,
         BoundStatement statement,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        out bool sawCompileTimeExpression) {
         var lowerer = new Lowerer(method, diagnostics);
+        var optimize = optimizationLevel == OptimizationLevel.Release;
 
-        var rewrittenStatement = Optimizer.Optimize(statement);
+        var rewrittenStatement = statement;
+
+        if (optimize)
+            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+
         rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
-        rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+
+        if (optimize)
+            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+
+        sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
 
         return (BoundBlockStatement)rewrittenStatement;
     }
@@ -50,6 +63,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return VisitConstant(e);
 
         return base.Visit(node);
+    }
+
+    internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
+        _sawCompileTimeExpression = true;
+        return base.VisitCompileTimeExpression(node);
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {

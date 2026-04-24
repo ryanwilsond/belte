@@ -398,7 +398,6 @@ public sealed partial class Compilation {
 
     public BelteDiagnosticQueue Emit(
         string outputPath,
-        bool debugMode,
         bool logTime,
         bool verbose,
         string verbosePath,
@@ -426,7 +425,7 @@ public sealed partial class Compilation {
         }
 
         if (options.buildMode == BuildMode.Dotnet)
-            ILEmitter.Emit(program, assemblyName, options.references, outputPath, debugMode, diagnostics);
+            ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
 

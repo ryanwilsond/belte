@@ -127,10 +127,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
                 _compilationState.AddSynthesizedType(_containingType, frame);
 
-                var typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(frame);
-
-                foreach (var typeLayout in typeLayouts)
-                    _compilationState.typeLayouts.Add(typeLayout.Key, typeLayout.Value);
+                lock (_compilationState.typeLayouts)
+                    EvaluatorTypeLayoutVisitor.CreateTypeLayouts(_compilationState.typeLayouts, frame);
 
                 if (frame.constructor is not null) {
                     AddSynthesizedMethod(

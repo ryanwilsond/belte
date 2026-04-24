@@ -1017,9 +1017,8 @@ internal sealed partial class Executor : ModuleBuilder {
         _fields.Add(field, adaptedFieldBuilder);
         _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
 
-        lock (_types) {
+        lock (_types)
             _types.Add(fixedImpl, nestedBuilder);
-        }
 
         nestedBuilder.CreateType();
     }
