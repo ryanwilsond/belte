@@ -2241,7 +2241,7 @@ internal sealed partial class OverloadResolution {
         return default;
     }
 
-    private MemberAnalysisResult IsApplicable(
+    internal MemberAnalysisResult IsApplicable(
         Symbol candidate,
         EffectiveParameters parameters,
         AnalyzedArguments arguments,
@@ -2288,9 +2288,8 @@ internal sealed partial class OverloadResolution {
                 conversions.Add(conversion);
             }
 
-            if (!badArguments.isNull && !completeResults) {
+            if (!badArguments.isNull && !completeResults)
                 break;
-            }
         }
 
         MemberAnalysisResult result;

@@ -3872,8 +3872,19 @@ public sealed class DiagnosticTests {
     // ! Error_BU0324_ConflictingAliasAndMember
     // ? Unsure how to trigger this
 
-    // ! Error_BU0325_UnexpectedUnboundTemplateName
-    // ? Unsure how to trigger this
+    [Fact]
+    public void Reports_Error_BU0325_UnexpectedUnboundTemplateName() {
+        var text = @"
+            class A<type T> { }
+            var a = new [A<>]();
+        ";
+
+        var diagnostics = @"
+            unexpected use of an unbound template name
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0326_HasNoTemplate() {

@@ -1159,6 +1159,39 @@ internal partial class Binder {
             argumentAnalysis.argsToParams
         );
 
+        for (var i = 0; i < type.templateParameters.Length; i++) {
+            var parameter = type.templateParameters[i];
+            var argument = rearrangedArguments[i];
+
+            var targetType = parameter.underlyingType.type;
+
+            if (argument.isTypeOrConstant &&
+                argument.typeOrConstant.isConstant && ConstantValue.IsNull(argument.typeOrConstant.constant)) {
+                if (!targetType.IsNullableType())
+                    diagnostics.Push(Error.CannotConvertArgument(argument.syntax.location, null, targetType, i + 1));
+
+                continue;
+            }
+
+            var sourceType = (argument.isTypeOrConstant && argument.typeOrConstant.isType)
+                ? (argument.typeOrConstant.type.typeKind == TypeKind.TemplateParameter
+                    ? (argument.typeOrConstant.type.type as TemplateParameterSymbol).underlyingType.type
+                    : CorLibrary.GetSpecialType(SpecialType.Type))
+                : argument.type;
+
+            var conversion = conversions.ClassifyImplicitConversionFromType(sourceType, targetType);
+
+            if (!conversion.exists) {
+                GenerateImplicitConversionError(
+                    diagnostics,
+                    argument.syntax,
+                    conversion,
+                    argument.type,
+                    targetType
+                );
+            }
+        }
+
         var templateArguments = FixTemplateArgumentsForConstruction(rearrangedArguments, type.templateParameters);
 
         analyzedArguments.Free();
@@ -1304,7 +1337,11 @@ internal partial class Binder {
 
         if (templateArgument.kind == SyntaxKind.OmittedArgument) {
             var errorType = UnboundArgumentErrorTypeSymbol.Instance;
-            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(errorType)));
+
+            analyzedArguments.arguments.Add(
+                new BoundExpressionOrTypeOrConstant(templateArgument, new TypeOrConstant(errorType))
+            );
+
             analyzedArguments.hasErrors.Add(true);
             analyzedArguments.types.Add(errorType);
             return;
@@ -1324,7 +1361,7 @@ internal partial class Binder {
 
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(false);
-            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(type)));
+            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(type)));
             return;
         }
 
@@ -1340,7 +1377,7 @@ internal partial class Binder {
         }
 
         analyzedArguments.arguments.Add(
-            new BoundExpressionOrTypeOrConstant(new TypeOrConstant(boundArgument.constantValue))
+            new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(boundArgument.constantValue))
         );
     }
 
