@@ -128,6 +128,20 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         }
     }
 
+    internal bool HasDefaultValue() {
+        if (this.IsNullableType() || LiteralUtilities.TypeHasDefaultValue(specialType) || IsStructType())
+            return true;
+
+        if (this is TemplateParameterSymbol t) {
+            if (t.hasNotNullConstraint)
+                return false;
+
+            return true;
+        }
+
+        return false;
+    }
+
     internal bool IsErrorType() {
         return kind == SymbolKind.ErrorType;
     }

@@ -715,6 +715,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.RefKeyword => DeclarationModifiers.Ref,
             SyntaxKind.ExternKeyword => DeclarationModifiers.Extern,
             SyntaxKind.PinnedKeyword => DeclarationModifiers.Pinned,
+            SyntaxKind.OutKeyword => DeclarationModifiers.Out,
             _ => DeclarationModifiers.None,
         };
     }
@@ -725,8 +726,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         while (true) {
             var modifier = GetModifier(currentToken);
 
-            if (modifier is DeclarationModifiers.None or DeclarationModifiers.Ref or DeclarationModifiers.ConstRef)
+            if (modifier is DeclarationModifiers.None or
+                            DeclarationModifiers.Ref or
+                            DeclarationModifiers.ConstRef or
+                            DeclarationModifiers.Out) {
                 break;
+            }
 
             modifiers.Add(EatToken());
         }
@@ -740,8 +745,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
         while (true) {
             var modifier = GetModifier(currentToken);
 
-            if (modifier is not DeclarationModifiers.Ref and not DeclarationModifiers.Const)
+            if (modifier is not DeclarationModifiers.Ref and not
+                                DeclarationModifiers.Const and not
+                                DeclarationModifiers.Out) {
                 break;
+            }
 
             modifiers.Add(EatToken());
         }
@@ -2642,15 +2650,15 @@ done:
     private ArgumentSyntax ParseArgument() {
         SyntaxToken name = null;
         SyntaxToken colon = null;
-        SyntaxToken refKeyword = null;
+        SyntaxToken refKindKeyword = null;
 
         if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.ColonToken) {
             name = EatToken();
             colon = EatToken();
         }
 
-        if (currentToken.kind == SyntaxKind.RefKeyword)
-            refKeyword = EatToken();
+        if (currentToken.kind is SyntaxKind.RefKeyword or SyntaxKind.OutKeyword)
+            refKindKeyword = EatToken();
 
         ExpressionSyntax expression;
 
@@ -2664,11 +2672,23 @@ done:
                 Reset(resetPoint);
                 expression = ParseNonAssignmentExpression();
             }
+        } else if (refKindKeyword?.kind == SyntaxKind.OutKeyword) {
+            var resetPoint = GetResetPoint();
+            var type = ParseType(allowRef: false);
+
+            if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnostics &&
+                currentToken.kind == SyntaxKind.IdentifierToken) {
+                var identifier = EatToken();
+                expression = SyntaxFactory.DeclarationExpression(type, identifier);
+            } else {
+                Reset(resetPoint);
+                expression = ParseNonAssignmentExpression();
+            }
         } else {
             expression = ParseNonAssignmentExpression();
         }
 
-        return SyntaxFactory.Argument(name, colon, refKeyword, expression);
+        return SyntaxFactory.Argument(name, colon, refKindKeyword, expression);
     }
 
     private SyntaxList<AttributeListSyntax> ParseAttributeLists() {

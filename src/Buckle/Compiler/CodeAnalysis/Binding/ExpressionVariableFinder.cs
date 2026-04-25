@@ -52,9 +52,9 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
     }
 
     private protected override DataContainerSymbol MakeDeclarationExpressionVariable(
-        VariableDeclarationSyntax node,
+        DeclarationExpressionSyntax node,
         SyntaxToken identifier,
-        ArgumentListSyntax argumentListSyntax,
+        BaseArgumentListSyntax argumentListSyntax,
         SyntaxTokenList modifiers,
         SyntaxNode nodeToBind) {
         return SourceDataContainerSymbol.MakeLocal(

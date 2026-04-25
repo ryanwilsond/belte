@@ -73,5 +73,7 @@ internal sealed class FunctionParameterSymbol : ParameterSymbol {
 
     internal override bool isMetadataOptional => false;
 
+    internal override bool isMetadataOut => refKind == RefKind.Out;
+
     internal override ConstantValue explicitDefaultConstantValue => null;
 }

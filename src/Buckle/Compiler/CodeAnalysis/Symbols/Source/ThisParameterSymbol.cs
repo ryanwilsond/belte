@@ -20,9 +20,12 @@ internal sealed class ThisParameterSymbol : ThisParameterSymbolBase {
             if (containingType?.typeKind != TypeKind.Struct)
                 return RefKind.None;
 
-            // TODO need this enum member?
-            // if (_containingMethod?.methodKind == MethodKind.Constructor)
-            //     return RefKind.Out;
+            if (_containingMethod?.methodKind == MethodKind.Constructor)
+                return RefKind.Out;
+
+            // TODO Double check this is correct
+            if (_containingMethod?.isEffectivelyConst == true)
+                return RefKind.RefConstParameter;
 
             return RefKind.Ref;
         }

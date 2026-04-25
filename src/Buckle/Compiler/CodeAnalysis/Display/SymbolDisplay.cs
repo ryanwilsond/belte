@@ -626,7 +626,7 @@ public static class SymbolDisplay {
         }
 
         if (refKind != RefKind.None) {
-            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateKeyword(refKind == RefKind.Out ? SyntaxKind.OutKeyword : SyntaxKind.RefKeyword));
             text.Write(CreateSpace());
         }
 

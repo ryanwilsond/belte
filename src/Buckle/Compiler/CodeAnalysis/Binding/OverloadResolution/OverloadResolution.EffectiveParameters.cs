@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed partial class OverloadResolution {
-    private readonly struct EffectiveParameters {
+    internal readonly struct EffectiveParameters {
         internal readonly ImmutableArray<TypeWithAnnotations> parameterTypes;
         internal readonly ImmutableArray<RefKind> parameterRefKinds;
         internal readonly int firstParamsElementIndex;

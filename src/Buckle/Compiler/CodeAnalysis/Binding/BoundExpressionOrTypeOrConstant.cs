@@ -1,5 +1,7 @@
 using System;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -8,16 +10,24 @@ internal sealed class BoundExpressionOrTypeOrConstant {
     private readonly TypeOrConstant _typeOrConstant;
 
     internal BoundExpressionOrTypeOrConstant(BoundExpression expression) {
+        syntax = expression.syntax;
         _expression = expression;
         isExpression = true;
     }
 
-    internal BoundExpressionOrTypeOrConstant(TypeOrConstant typeOrConstant) {
+    internal BoundExpressionOrTypeOrConstant(SyntaxNode syntax, TypeOrConstant typeOrConstant) {
+        this.syntax = syntax;
         _typeOrConstant = typeOrConstant;
         isTypeOrConstant = true;
     }
 
-    internal TypeSymbol type => isExpression ? _expression.Type() : typeOrConstant.type.type;
+    internal SyntaxNode syntax { get; }
+
+    internal TypeSymbol type => isExpression
+        ? _expression.Type()
+        : typeOrConstant.isType
+            ? typeOrConstant.type.type
+            : CorLibrary.GetSpecialType(typeOrConstant.constant.specialType);
 
     internal bool isExpression { get; }
 
