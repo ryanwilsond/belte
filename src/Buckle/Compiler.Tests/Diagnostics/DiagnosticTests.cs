@@ -5133,4 +5133,20 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
+
+    // ! Currently unreachable?
+    // [Fact]
+    // public void Reports_Error_BU0417_TypeInferenceFailedForOut() {
+    //     var text = @"
+    //         F(out var a);
+
+    //         void F(out int a) { a = 3; }
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot infer the type of implicitly-typed out data container 'a'
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    // }
 }

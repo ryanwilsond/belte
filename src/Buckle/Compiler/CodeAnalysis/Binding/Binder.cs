@@ -6819,6 +6819,9 @@ internal partial class Binder {
                     parameterTypeWithAnnotations.type,
                     diagnostics
                 );
+            } else if (argument.kind == BoundKind.OutVariablePendingInference) {
+                coercedArgument = ((OutVariablePendingInference)argument)
+                    .SetInferredTypeWithAnnotations(parameterTypeWithAnnotations, diagnostics);
             } else if (argument.NeedsToBeConverted()) {
                 coercedArgument = BindToNaturalType(argument, diagnostics);
             }
@@ -7165,6 +7168,20 @@ internal partial class Binder {
                 case BoundKind.DataContainerExpression:
                     newArguments[i] = BindToTypeForErrorRecovery(argument);
                     break;
+                case BoundKind.OutVariablePendingInference:
+                    if (argument.HasExpressionType())
+                        break;
+
+                    var candidateType = GetCorrespondingParameterTypeLocal(i);
+
+                    if (candidateType is null) {
+                        newArguments[i] = ((OutVariablePendingInference)argument).FailInference(this, null);
+                    } else {
+                        newArguments[i] = ((OutVariablePendingInference)argument)
+                            .SetInferredTypeWithAnnotations(new TypeWithAnnotations(candidateType), null);
+                    }
+
+                    break;
                 default:
                     newArguments[i] = BindToTypeForErrorRecovery(argument, GetCorrespondingParameterTypeLocal(i));
                     break;
@@ -7240,13 +7257,13 @@ internal partial class Binder {
             identifier = null;
             boundArgument = new BoundLiteralExpression(omitted, ConstantValue.Null, null);
         } else if (argumentSyntax is ArgumentSyntax normal) {
-            refKind = normal.refKeyword is null ? RefKind.None : RefKind.Ref;
+            refKind = normal.refKindKeyword is null ? RefKind.None :
+                normal.refKindKeyword.kind == SyntaxKind.RefKeyword
+                    ? RefKind.Ref
+                    : RefKind.Out;
+
             identifier = normal.identifier;
-            boundArgument = BindValue(
-                normal.expression,
-                diagnostics,
-                refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
-            );
+            boundArgument = BindArgumentValue(normal, diagnostics, refKind);
         } else {
             throw ExceptionUtilities.Unreachable();
         }
@@ -7266,6 +7283,140 @@ internal partial class Binder {
             refKind
         );
     }
+
+    private BoundExpression BindArgumentValue(
+        ArgumentSyntax argumentSyntax,
+        BelteDiagnosticQueue diagnostics,
+        RefKind refKind) {
+        if (argumentSyntax.expression.kind == SyntaxKind.DeclarationExpression) {
+            var declarationExpression = (DeclarationExpressionSyntax)argumentSyntax.expression;
+            return BindOutDeclarationArgument(declarationExpression, diagnostics);
+        }
+
+        return BindValue(
+            argumentSyntax.expression,
+            diagnostics,
+            refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
+        );
+    }
+
+    private BoundExpression BindOutDeclarationArgument(
+        DeclarationExpressionSyntax declarationExpression,
+        BelteDiagnosticQueue diagnostics) {
+        var identifier = declarationExpression.identifier;
+        var typeSyntax = declarationExpression.type;
+        bool isVar;
+        bool isNonNullable;
+        bool isNullable;
+
+        var localSymbol = LookupLocal(identifier);
+
+        if (localSymbol is not null) {
+            var isConst = false;
+            var isConstExpr = false;
+            var declType = BindVariableTypeWithAnnotations(
+                declarationExpression,
+                diagnostics,
+                typeSyntax,
+                ref isConst,
+                ref isConstExpr,
+                out isVar,
+                out isNonNullable,
+                out isNullable,
+                out _
+            );
+
+            localSymbol.scopeBinder.ValidateDeclarationNameConflictsInScope(localSymbol, diagnostics);
+
+            if (isVar) {
+                return new OutVariablePendingInference(
+                    declarationExpression,
+                    localSymbol,
+                    null,
+                    isNonNullable,
+                    isNullable
+                );
+            }
+
+            return new BoundDataContainerExpression(
+                declarationExpression,
+                localSymbol,
+                constantValue: null,
+                type: declType.type
+            );
+        } else {
+            var expressionVariableField = LookupDeclaredField(declarationExpression)
+                ?? throw ExceptionUtilities.Unreachable();
+
+            var receiver = SynthesizeReceiver(declarationExpression, expressionVariableField, diagnostics);
+
+            if (typeSyntax.isImplicitlyTyped) {
+                // TODO BindTypeOrAliasOrImplicitType
+                BindTypeOrImplicitType(
+                    typeSyntax,
+                    BelteDiagnosticQueue.Discarded,
+                    out isVar,
+                    out isNonNullable,
+                    out isNullable
+                );
+
+                if (isVar) {
+                    return new OutVariablePendingInference(
+                        declarationExpression,
+                        expressionVariableField,
+                        receiver,
+                        isNonNullable,
+                        isNullable
+                    );
+                }
+            }
+
+            var fieldType = expressionVariableField.GetFieldType(fieldsBeingBound).type;
+
+            return new BoundFieldAccessExpression(
+                declarationExpression,
+                receiver,
+                expressionVariableField,
+                null,
+                type: fieldType
+            );
+        }
+    }
+
+    internal GlobalExpressionVariable LookupDeclaredField(DeclarationExpressionSyntax declaration) {
+        return LookupDeclaredField(declaration, declaration.identifier.text);
+    }
+
+    internal GlobalExpressionVariable LookupDeclaredField(SyntaxNode node, string identifier) {
+        foreach (var member in containingType?.GetMembers(identifier) ?? []) {
+            GlobalExpressionVariable field;
+
+            if (member.kind == SymbolKind.Field &&
+                (field = member as GlobalExpressionVariable)?.syntaxTree == node.syntaxTree &&
+                field.syntaxNode == node) {
+                return field;
+            }
+        }
+
+        return null;
+    }
+
+    // TODO
+    // private NamespaceOrTypeOrAliasSymbolWithAnnotations BindTypeOrAliasOrImplicitType(
+    //     TypeSyntax syntax,
+    //     BelteDiagnosticQueue diagnostics,
+    //     out bool isVar,
+    //     out bool isNonNullable,
+    //     out bool isNullable) {
+    //     if (syntax.isImplicitlyTyped) {
+    //         return BindTypeOrAliasOrImplicitType((IdentifierNameSyntax)syntax, diagnostics, out isVar);
+    //     } else {
+    //         isVar = false;
+    //         isNonNullable = false;
+    //         isNullable = false;
+    //         return BindTypeOrAlias(syntax, diagnostics, basesBeingResolved: null);
+    //     }
+    // }
 
     private void BindArgumentAndName(
         AnalyzedArguments result,
@@ -9423,7 +9574,7 @@ internal partial class Binder {
         var rhsKind = BindValueKind.RefersToLocation;
         var lhsRefKind = boundLeft.GetRefKind();
 
-        if (lhsRefKind is RefKind.Ref)
+        if (lhsRefKind is RefKind.Ref or RefKind.Out)
             rhsKind |= BindValueKind.Assignable;
 
         return rhsKind;

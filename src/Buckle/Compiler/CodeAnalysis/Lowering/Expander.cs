@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -7,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -81,7 +83,7 @@ internal sealed class Expander : BoundTreeExpander {
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)cascade;
                         var replacementReceiver = Local(syntax, tempLocal);
-                        statements.AddRange(ExpandExpressionList(call.arguments, out var arguments));
+                        statements.AddRange(ExpandArgumentList(call.arguments, out var arguments));
 
                         statements.Add(
                             new BoundExpressionStatement(syntax,
@@ -460,6 +462,31 @@ internal sealed class Expander : BoundTreeExpander {
         statements.Add(Label(syntax, breakLabel));
 
         replacement = newLeft;
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandArgumentList(
+        ImmutableArray<BoundExpression> arguments,
+        out ImmutableArray<BoundExpression> replacement) {
+        var statements = new List<BoundStatement>();
+        var replacementExpressions = ArrayBuilder<BoundExpression>.GetInstance();
+
+        foreach (var expression in arguments) {
+            if (expression is BoundDataContainerExpression d && d.syntax.kind == SyntaxKind.DeclarationExpression) {
+                statements.Add(LocalDeclaration(
+                    d.syntax,
+                    d.dataContainer,
+                    new BoundDefaultExpression(d.syntax, null, LiteralUtilities.TryGetDefaultValue(d.type), d.type)
+                ));
+
+                replacementExpressions.Add(expression);
+            } else {
+                statements.AddRange(ExpandExpression(expression, out var newExpression));
+                replacementExpressions.Add(newExpression);
+            }
+        }
+
+        replacement = replacementExpressions.ToImmutableAndFree();
         return statements;
     }
 
@@ -1503,7 +1530,7 @@ internal sealed class Expander : BoundTreeExpander {
                     }
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)access;
-                        var statements = ExpandExpressionList(call.arguments, out var newArguments);
+                        var statements = ExpandArgumentList(call.arguments, out var newArguments);
                         newReceiver = new BoundCallExpression(
                             access.syntax,
                             currentReceiver,
@@ -1619,7 +1646,7 @@ internal sealed class Expander : BoundTreeExpander {
             statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
             trueExpression = new BoundArrayAccessExpression(syntax, newReceiver, indexReplacement, null, a.Type());
         } else if (access is BoundCallExpression c) {
-            statements.AddRange(ExpandExpressionList(c.arguments, out var replacementArguments));
+            statements.AddRange(ExpandArgumentList(c.arguments, out var replacementArguments));
             trueExpression = new BoundCallExpression(
                 syntax,
                 newReceiver,

@@ -120,7 +120,7 @@ internal static class ParameterHelpers {
         var conversion = binder.conversions.ClassifyImplicitConversionFromExpression(defaultExpression, parameterType);
         var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword);
 
-        if (refKind == RefKind.Ref) {
+        if (refKind is RefKind.Ref or RefKind.Out) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
         } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {
@@ -214,6 +214,13 @@ internal static class ParameterHelpers {
                     }
 
                     break;
+                case SyntaxKind.OutKeyword:
+                    if (refKind == RefKind.None) {
+                        refnessKeyword = modifier;
+                        refKind = RefKind.Out;
+                    }
+
+                    break;
                 // TODO Consider using readonly keyword here instead
                 case SyntaxKind.ConstKeyword:
                     if (refKind == RefKind.Ref && refnessKeyword.GetNextToken() == modifier)
@@ -280,7 +287,7 @@ internal static class ParameterHelpers {
 
             var parameterType = withTemplateParametersBinder.BindType(parameterSyntax.type, diagnostics);
 
-            if (!allowRef && refKind == RefKind.Ref)
+            if (!allowRef && refKind is RefKind.Ref or RefKind.Out)
                 diagnostics.Push(Error.InvalidRefParameter(refnessKeyword.location));
 
             var parameter = parameterCreationFunc(
@@ -325,6 +332,7 @@ internal static class ParameterHelpers {
 
     internal static void CheckParameterModifiers(BaseParameterSyntax parameter, BelteDiagnosticQueue diagnostics) {
         var seenRef = false;
+        var seenOut = false;
         var seenConst = false;
 
         SyntaxToken previousModifier = null;
@@ -337,8 +345,19 @@ internal static class ParameterHelpers {
                 case SyntaxKind.RefKeyword:
                     if (seenRef)
                         AddDupParamMod(diagnostics, modifier);
+                    else if (seenOut)
+                        AddBadMod(diagnostics, modifier, SyntaxKind.OutKeyword);
                     else
                         seenRef = true;
+
+                    break;
+                case SyntaxKind.OutKeyword:
+                    if (seenOut)
+                        AddDupParamMod(diagnostics, modifier);
+                    else if (seenRef)
+                        AddBadMod(diagnostics, modifier, SyntaxKind.RefKeyword);
+                    else
+                        seenOut = true;
 
                     break;
                 case SyntaxKind.ConstKeyword:
@@ -359,6 +378,14 @@ internal static class ParameterHelpers {
 
         static void AddDupParamMod(BelteDiagnosticQueue diagnostics, SyntaxToken modifier) {
             diagnostics.Push(Error.ModifierAlreadyApplied(modifier.location, modifier));
+        }
+
+        static void AddBadMod(BelteDiagnosticQueue diagnostics, SyntaxToken modifier, SyntaxKind otherModifierKind) {
+            diagnostics.Push(Error.ConflictingModifiers(
+                modifier.location,
+                SyntaxFacts.GetText(modifier.kind),
+                SyntaxFacts.GetText(otherModifierKind)
+            ));
         }
     }
 }

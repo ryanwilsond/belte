@@ -218,6 +218,7 @@ public static class SyntaxFacts {
             "flags" => SyntaxKind.FlagsKeyword,
             "in" => SyntaxKind.InKeyword,
             "handle" => SyntaxKind.HandleKeyword,
+            "out" => SyntaxKind.OutKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -373,6 +374,7 @@ public static class SyntaxFacts {
             SyntaxKind.FlagsKeyword => "flags",
             SyntaxKind.InKeyword => "in",
             SyntaxKind.HandleKeyword => "handle",
+            SyntaxKind.OutKeyword => "out",
             _ => null,
         };
     }

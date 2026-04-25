@@ -1145,7 +1145,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 continue;
             }
 
-            if (parameter.type.IsRefLikeOrAllowsRefLikeType() &&
+            if (parameter.type.IsRefLikeOrAllowsRefLikeType() && parameter.refKind != RefKind.Out &&
                 GetParameterValEscapeLevel(parameter) is { } valEscapeLevel) {
                 escapeValues.Add(new EscapeValue(parameter, argument, valEscapeLevel, isRefEscape: false));
             }
@@ -1261,6 +1261,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
     private static uint GetParameterValEscape(ParameterSymbol parameter) {
         return parameter switch {
+            { refKind: RefKind.Out } => ReturnOnlyScope,
             _ => CallingMethodScope
         };
     }

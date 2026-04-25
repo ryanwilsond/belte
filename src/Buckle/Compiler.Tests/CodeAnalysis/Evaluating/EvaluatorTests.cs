@@ -267,6 +267,9 @@ public sealed class EvaluatorTests {
     [InlineData("void F(int? a, int? b) { } void(int?, int?) a = F; a(3, 4); return null;", null)]
     [InlineData("void F(int? a) { } void(int?) a = F; a(3); return null;", null)]
     [InlineData("void F() { } void() a = F; a(); return null;", null)]
+    [InlineData("class A { public static void F(out int a) { a = 3; } public static int M() { F(out int a); return a; } } return A.M();", 3)]
+    [InlineData("class A { public static void F(out int a) { a = 3; } public static int M() { F(out var a); return a; } } return A.M();", 3)]
+    [InlineData("class A { public static void F(out int a) { a = 3; } public static int M() { int a = 0; F(out a); return a; } } return A.M();", 3)]
     // Cast expressions
     [InlineData("return (decimal?)3;", 3)]
     [InlineData("return (int?)3.4;", 3)]

@@ -2038,6 +2038,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_DefaultLiteralNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic TypeInferenceFailedForOut(TextLocation location, string text) {
+        var message = $"cannot infer the type of implicitly-typed out data container '{text}'";
+        return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

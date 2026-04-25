@@ -36,6 +36,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
 
     internal sealed override bool hasUnscopedRefAttribute => underlyingParameter.hasUnscopedRefAttribute;
 
+    internal sealed override bool isMetadataOut => underlyingParameter.isMetadataOut;
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return underlyingParameter.GetAttributes();
     }

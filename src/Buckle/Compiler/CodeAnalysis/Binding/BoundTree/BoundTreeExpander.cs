@@ -501,7 +501,7 @@ internal abstract partial class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandArgumentList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newInvokedExpression,
@@ -909,7 +909,7 @@ internal abstract partial class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandArgumentList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newReceiver,
@@ -922,6 +922,12 @@ internal abstract partial class BoundTreeExpander {
         );
 
         return statements;
+    }
+
+    private protected virtual List<BoundStatement> ExpandArgumentList(
+        ImmutableArray<BoundExpression> arguments,
+        out ImmutableArray<BoundExpression> replacement) {
+        return ExpandExpressionList(arguments, out replacement);
     }
 
     private protected List<BoundStatement> ExpandExpressionList(
@@ -1096,7 +1102,7 @@ internal abstract partial class BoundTreeExpander {
         BoundObjectCreationExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = ExpandExpressionList(expression.arguments, out var newArguments);
+        var statements = ExpandArgumentList(expression.arguments, out var newArguments);
 
         replacement = expression.Update(
             expression.constructor,

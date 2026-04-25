@@ -10,9 +10,9 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
     private SyntaxNode _nodeToBind;
 
     private protected abstract TFieldOrLocalSymbol MakeDeclarationExpressionVariable(
-        VariableDeclarationSyntax node,
+        DeclarationExpressionSyntax node,
         SyntaxToken identifier,
-        ArgumentListSyntax argumentListSyntax,
+        BaseArgumentListSyntax argumentListSyntax,
         SyntaxTokenList modifiers,
         SyntaxNode nodeToBind
     );
@@ -116,6 +116,28 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
         VisitNodeToBind(node);
 
         _variablesBuilder = save;
+    }
+
+    internal override void VisitDeclarationExpression(DeclarationExpressionSyntax node) {
+        var argumentSyntax = node.parent as ArgumentSyntax;
+        var argumentListSyntaxOpt = argumentSyntax?.parent as BaseArgumentListSyntax;
+
+        VisitDeclarationExpressionDesignation(node, argumentListSyntaxOpt);
+    }
+
+    private void VisitDeclarationExpressionDesignation(
+        DeclarationExpressionSyntax node,
+        BaseArgumentListSyntax argumentListSyntax) {
+        var variable = MakeDeclarationExpressionVariable(
+            node,
+            node.identifier,
+            argumentListSyntax,
+            null,
+            _nodeToBind
+        );
+
+        if ((object)variable is not null)
+            _variablesBuilder.Add(variable);
     }
 
     private protected void FindExpressionVariables(

@@ -6,6 +6,7 @@
   - [2.1.3](#213-default-arguments) Default Arguments
   - [2.1.4](#214-named-arguments) Named Arguments
   - [2.1.5](#215-template-arguments) Template Arguments
+  - [2.1.6](#216-ref-arguments) Ref Arguments
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
@@ -113,6 +114,33 @@ Similar to classes, declared functions (or methods) can be templated. The functi
 identical to that of class templates, which can be read about [here](./ClassesAndObjects.md#45-templates). The syntax
 for templates and template constraint clauses are as follows:
 `void Func<template parameters...>() where { template constraint clauses... } { }`
+
+### 2.1.6 Ref Arguments
+
+Like locals and fields, parameters can use the `ref` keyword. In addition to this, parameters can also use the `out`
+keyword to specify an out parameter that acts like a reference but exclusively assigns to the reference.
+
+```belte
+int a = 0;
+int b = Func(out a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+To shortcut declaring a local immediately used as an argument for an out parameter, the declaration can be moved into
+the argument:
+
+```belte
+int b = Func(out int a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
 
 ## 2.2 Entry Point
 

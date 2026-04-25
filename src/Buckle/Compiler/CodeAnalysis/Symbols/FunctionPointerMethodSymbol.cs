@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -72,6 +71,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                     // var paramRefCustomMods = CSharpCustomModifier.Convert(param.RefCustomModifiers);
                     // var paramType = TypeWithAnnotations.Create(param.Type, customModifiers: CSharpCustomModifier.Convert(param.CustomModifiers));
                     var paramType = new TypeWithAnnotations(param.type);
+                    // TODO Out
                     // var paramRefKind = getRefKind(param, /*paramRefCustomMods, */RefKind.In, RefKind.Out, requiresLocationAllowed: true);
                     var paramRefKind = param.isByRef ? RefKind.Ref : RefKind.None;
                     paramsBuilder.Add(new FunctionPointerParameterSymbol(paramType, paramRefKind, i, parent/*, paramRefCustomMods*/));

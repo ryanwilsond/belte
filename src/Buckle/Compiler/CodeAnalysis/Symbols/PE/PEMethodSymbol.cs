@@ -435,7 +435,9 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
                 case RefKind.None:
                     continue;
                 case RefKind.Ref:
+                case RefKind.Out:
                 case RefKind.RefConst:
+                case RefKind.RefConstParameter:
                     return false;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(kind);

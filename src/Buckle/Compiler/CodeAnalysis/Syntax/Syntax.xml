@@ -61,15 +61,20 @@
     <Field Name="colon" Type="SyntaxToken" Optional="true">
       <Kind Name="ColonToken"/>
     </Field>
-    <Field Name="refKeyword" Type="SyntaxToken" Optional="true">
-      <Kind Name="RefKeyword"/>
-    </Field>
+    <Field Name="refKindKeyword" Type="SyntaxToken" Optional="true"/>
     <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
   <Node Name="OmittedArgumentSyntax" Base="BaseArgumentSyntax">
     <Kind Name="OmittedArgument"/>
     <Field Name="omittedArgumentToken" Type="SyntaxToken">
       <Kind Name="OmittedArgumentToken"/>
+    </Field>
+  </Node>
+  <Node Name="DeclarationExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="DeclarationExpression"/>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
     </Field>
   </Node>
   <Node Name="ParameterListSyntax" Base="SyntaxNode">

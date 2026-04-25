@@ -150,6 +150,7 @@ public enum SyntaxKind : ushort {
     UndefKeyword,
     FlagsKeyword,
     InKeyword,
+    OutKeyword,
     HandleKeyword,
 
     // Trivia
@@ -174,6 +175,7 @@ public enum SyntaxKind : ushort {
     ThisExpression,
     BaseExpression,
     ThrowExpression,
+    DeclarationExpression,
 
     // Operator expressions
     TernaryExpression,

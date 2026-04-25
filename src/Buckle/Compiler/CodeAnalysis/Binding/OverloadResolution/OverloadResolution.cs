@@ -1735,6 +1735,11 @@ internal sealed partial class OverloadResolution {
 
         var nodeKind = node.kind;
 
+        if (nodeKind == BoundKind.OutVariablePendingInference) {
+            okToDowngradeToNeither = false;
+            return BetterResult.Neither;
+        }
+
         // TODO See other comment about function conversions
         // switch ((conv1.kind, conv2.kind)) {
         //     case (ConversionKind.FunctionType, ConversionKind.FunctionType):
@@ -2314,6 +2319,9 @@ internal sealed partial class OverloadResolution {
             return Conversion.None;
 
         var argType = argument.Type();
+
+        if (argument.kind == BoundKind.OutVariablePendingInference)
+            return Conversion.Identity;
 
         if (argRefKind == RefKind.None) {
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument);
