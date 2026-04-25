@@ -6854,7 +6854,7 @@ internal partial class Binder {
             argument = ReduceNumericIfApplicable(parameterTypeWithAnnotations.type, argument);
             var coercedArgument = argument;
 
-            if (!kind.isIdentity) {
+            if (!kind.isIdentity || argument.kind == BoundKind.UnconvertedImplicitEnumFieldExpression) {
                 coercedArgument = CreateConversion(
                     argument.syntax,
                     argument,

@@ -1057,4 +1057,17 @@ public sealed class IssueTests {
 
     //     AssertDiagnostics(text, diagnostics, _writer, true);
     // }
+
+    [Fact]
+    public void Evaluator_Enum_ArgumentAllowsImplicitField() {
+        var text = @"
+            M(.B);
+            void M(A a) { }
+            enum A { B }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
