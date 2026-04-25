@@ -16,6 +16,7 @@
     - [3.2.2.6](#3226-x--y) `x ?! y`
     - [3.2.2.7](#3227-xy) `x..y`
     - [3.2.2.8](#3228-xy) `x?..y`
+    - [3.2.2.9](#3229-x) `x!!`
   - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
 - [3.3](#33-variables-and-constants) Variables and Constants
   - [3.3.1](#331-implicit-typing) Implicit Typing
@@ -150,7 +151,7 @@ strict order of precedence:
 
 | Operators | Category |
 |-|-|
-| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x?, new, typeof, nameof, sizeof | Primary |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, x?, new, typeof, nameof, sizeof | Primary |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
 | is, isnt, as | Type-Testing |
@@ -232,6 +233,19 @@ Notice that even if `Obj.M()` returns a value, it is ignored.
 
 `x?..y` is a conditional [cascade expression](#3227-xy). The field assignment or call expression `y` is only performed
 if `x` is not null.
+
+#### 3.2.2.9 `x!!`
+
+`x!!` is a silent null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The
+operator's result is non-nullable. If `x` is null, a runtime null reference exception is thrown if building in
+debug mode. If in release mode, no runtime check is performed at the assertion site explicitly, meaning exceptions will
+raise elsewhere if the value is null.
+
+In the case that the operand has a class type, using this operator when the operand is null risks polluting a
+non-nullable context with null.
+
+This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
+unnecessary.
 
 ### 3.2.3 Is/Isnt/As Operators
 

@@ -9201,7 +9201,11 @@ internal partial class Binder {
             return new BoundNullAssertOperator(node, operand, true, null, resultType, true);
         }
 
-        return new BoundNullAssertOperator(node, operand, true, constantValue, resultType);
+        var throwIfNull = compilation.options.optimizationLevel == OptimizationLevel.Debug
+            ? true
+            : node.operatorToken.kind == SyntaxKind.ExclamationToken;
+
+        return new BoundNullAssertOperator(node, operand, throwIfNull, constantValue, resultType);
     }
 
     private BoundExpression BindNullErasureOperator(PostfixExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -9241,7 +9245,7 @@ internal partial class Binder {
     private BoundExpression BindIncrementOrNullAssertOperator(
         PostfixExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        if (node.operatorToken.kind == SyntaxKind.ExclamationToken)
+        if (node.operatorToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.ExclamationExclamationToken)
             return BindNullAssertOperator(node, diagnostics);
 
         if (node.operatorToken.kind == SyntaxKind.QuestionToken)

@@ -522,6 +522,7 @@ internal sealed partial class Lexer : IDisposable {
             case '!':
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.ExclamationEqualsToken;
+                else if (AdvanceIfMatches('!')) _kind = SyntaxKind.ExclamationExclamationToken;
                 else _kind = SyntaxKind.ExclamationToken;
                 break;
             case '<':

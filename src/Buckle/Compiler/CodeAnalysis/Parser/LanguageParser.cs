@@ -1999,6 +1999,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 case SyntaxKind.MinusMinusToken:
                 case SyntaxKind.PlusPlusToken:
                 case SyntaxKind.ExclamationToken:
+                case SyntaxKind.ExclamationExclamationToken:
                     return ParsePostfixExpression(expression);
                 default:
                     return expression;
@@ -2300,7 +2301,6 @@ done:
             case SyntaxKind.LessThanLessThanEqualsToken:
             case SyntaxKind.GreaterThanGreaterThanEqualsToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
-            case SyntaxKind.QuestionToken:
             case SyntaxKind.ColonToken:
             case SyntaxKind.PipePipeToken:
             case SyntaxKind.AmpersandAmpersandToken:

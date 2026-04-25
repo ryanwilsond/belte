@@ -322,6 +322,10 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken) return true;
         if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
         if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationExclamationToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationExclamationToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationToken) return true;
 
         return false;
     }

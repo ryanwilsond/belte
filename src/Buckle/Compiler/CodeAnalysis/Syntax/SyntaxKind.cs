@@ -46,6 +46,7 @@ public enum SyntaxKind : ushort {
     AsteriskAsteriskToken,
     QuestionQuestionToken,
     ExclamationEqualsToken,
+    ExclamationExclamationToken,
     EqualsEqualsToken,
     LessThanEqualsToken,
     LessThanLessThanToken,

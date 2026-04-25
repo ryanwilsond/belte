@@ -245,6 +245,8 @@ public sealed class EvaluatorTests {
     [InlineData("int? a = 4; int? b = a--; return b;", 4)]
     [InlineData("int? a = 4; return a!;", 4)]
     [InlineData("int? a = 4; return a! + 1;", 5)]
+    [InlineData("int? a = 4; return a!!;", 4)]
+    [InlineData("int? a = 4; return a!! + 1;", 5)]
     [InlineData("decimal? a = 3.6; a++; return a;", 4.6)]
     [InlineData("decimal? a = 3.6; a--; return a;", 2.6)]
     // Prefix expressions

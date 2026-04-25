@@ -7,11 +7,11 @@ public class Object {
     }
 
     public virtual bool! Equals(Object object) {
-        return object is null ? false : this == object!;
+        return object is null ? false : this == object!!;
     }
 
     public bool! ReferenceEquals(Object object) {
-        return object is null ? false : this == object!;
+        return object is null ? false : this == object!!;
     }
 
     public virtual int! GetHashCode() {

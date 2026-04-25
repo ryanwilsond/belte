@@ -81,6 +81,7 @@ public static class SyntaxFacts {
             case SyntaxKind.PlusPlusToken:
             case SyntaxKind.MinusMinusToken:
             case SyntaxKind.ExclamationToken:
+            case SyntaxKind.ExclamationExclamationToken:
             case SyntaxKind.NewKeyword:
                 return 19;
             // ! Precedence 17 must remain unused (it is used to correctly parse cascade lists)
@@ -265,6 +266,7 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanGreaterThanToken => ">>",
             SyntaxKind.GreaterThanGreaterThanGreaterThanToken => ">>>",
             SyntaxKind.ExclamationToken => "!",
+            SyntaxKind.ExclamationExclamationToken => "!!",
             SyntaxKind.AmpersandAmpersandToken => "&&",
             SyntaxKind.PipePipeToken => "||",
             SyntaxKind.AsteriskAsteriskToken => "**",
