@@ -1054,6 +1054,22 @@
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="right" Type="ExpressionSyntax"/>
   </Node>
+  <Node Name="IsPatternExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="IsPatternExpression"/>
+    <Field Name="left" Type="ExpressionSyntax"/>
+    <Field Name="isKeyword" Type="SyntaxToken">
+      <Kind Name="IsKeyword"/>
+    </Field>
+    <Field Name="right" Type="PatternSyntax"/>
+  </Node>
+  <AbstractNode Name="PatternSyntax" Base="ExpressionSyntax"/>
+  <Node Name="DeclarationPatternSyntax" Base="PatternSyntax">
+    <Kind Name="DeclarationPattern" />
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+  </Node>
   <Node Name="PostfixExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="PostfixExpression"/>
     <Field Name="operand" Type="ExpressionSyntax"/>

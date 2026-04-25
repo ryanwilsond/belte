@@ -85,8 +85,13 @@ public static class SymbolDisplay {
 
     public static void DisplayType(DisplayText text, ITypeSymbol type, SymbolDisplayFormat format = null) {
         format ??= SymbolDisplayFormat.ErrorMessageFormat;
+        var stripped = ((TypeSymbol)type).StrippedType();
 
-        if (type is ArrayTypeSymbol array) {
+        if (type is ArrayTypeSymbol ||
+            ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                stripped is ArrayTypeSymbol)) {
+
+            var array = (ArrayTypeSymbol)stripped;
             DisplayType(text, array.elementType, format);
             text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
             text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));

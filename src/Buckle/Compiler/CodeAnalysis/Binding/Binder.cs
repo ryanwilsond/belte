@@ -1955,8 +1955,13 @@ internal partial class Binder {
 
         foundTypeWithAnnotations = new TypeWithAnnotations(foundElementType);
 
-        if (shouldLift && shouldLiftIfPossible)
+        // TODO This is a simplified check compared to the "canonical" nullability rules laid out in BindNamespaceOrTypeOrAliasSymbol
+        // TODO Unfortunately we can't check the template parameter constraints without causing a loop? (double check)
+        // This isn't a big deal because all it does is restrict implicit casting, it doesn't cause broken behavior
+        if (foundElementType.typeKind is TypeKind.Class or TypeKind.Array ||
+            foundElementType.specialType == SpecialType.Any || (shouldLift && shouldLiftIfPossible)) {
             foundTypeWithAnnotations = foundTypeWithAnnotations.SetIsAnnotated();
+        }
 
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
 
@@ -3011,6 +3016,8 @@ internal partial class Binder {
                 return BindNamespaceOrType(node, diagnostics);
             case SyntaxKind.BinaryExpression:
                 return BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics);
+            case SyntaxKind.IsPatternExpression:
+                return BindIsPatternExpression((IsPatternExpressionSyntax)node, diagnostics);
             case SyntaxKind.UnaryExpression:
                 return BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics);
             case SyntaxKind.PrefixExpression:
@@ -7901,6 +7908,60 @@ internal partial class Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    private BoundExpression BindIsPatternExpression(IsPatternExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindRValueWithoutTargetType(node.left, diagnostics);
+        var expressionType = expression.type;
+        var hasErrors = false;
+
+        if (expressionType is null || expressionType.IsVoidType()) {
+            diagnostics.Push(Error.BadPatternExpression(node.left.location, expression));
+            hasErrors = true;
+            expression = ErrorExpression(expression.syntax, expression);
+        }
+
+        var pattern = (DeclarationPatternSyntax)node.right;
+        var localSymbol = LookupLocal(pattern.identifier) ?? throw ExceptionUtilities.Unreachable();
+
+        var sourceType = expressionType.StrippedType();
+        var targetType = localSymbol.type.StrippedType();
+
+        if (localSymbol.type.IsNullableType() && targetType.IsVerifierValue()) {
+            diagnostics.Push(Error.CannotAnnotateTypePattern(pattern.type.location, localSymbol.type, targetType));
+            hasErrors = true;
+        }
+
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+
+        if (!hasErrors && !IsCanHandle(sourceType, targetType)) {
+            diagnostics.Push(Error.PatternCannotHandleTypes(pattern.type.location, sourceType, targetType));
+            hasErrors = true;
+        }
+
+        return new BoundIsPatternExpression(
+            node,
+            expression,
+            localSymbol,
+            null,
+            boolType,
+            hasErrors
+        );
+    }
+
+    private static bool IsCanHandle(TypeSymbol sourceType, TypeSymbol targetType) {
+        if (sourceType.specialType != targetType.specialType)
+            return sourceType.specialType == SpecialType.Any || targetType.specialType == SpecialType.Any;
+
+        if (sourceType.specialType == targetType.specialType && sourceType.specialType != SpecialType.None)
+            return true;
+
+        if (sourceType.IsArray() || targetType.IsArray())
+            return sourceType.Equals(targetType);
+
+        return !((sourceType.isObjectType && targetType.isPrimitiveType) ||
+               (sourceType.isPrimitiveType && targetType.isObjectType) ||
+                targetType.isStatic);
+    }
+
     private BoundExpression BindIsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var isIsntOperator = node.operatorToken.kind == SyntaxKind.IsntKeyword;
         var resultType = (TypeSymbol)CorLibrary.GetSpecialType(SpecialType.Bool);
@@ -7933,9 +7994,9 @@ internal partial class Binder {
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
 
-        if ((operand.Type().isObjectType && strippedType.isPrimitiveType) ||
-            (operand.Type().isPrimitiveType && strippedType.isObjectType) ||
-            strippedType.isStatic) {
+        var sourceType = operand.Type().StrippedType();
+
+        if (!IsCanHandle(sourceType, strippedType)) {
             diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }

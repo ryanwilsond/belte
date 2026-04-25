@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -1838,8 +1839,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 throw ExceptionUtilities.Unreachable();
             }
 
-            var right = ParseOperatorExpression(precedence);
-            left = SyntaxFactory.BinaryExpression(left, operatorToken, right);
+            if (operatorToken.kind is SyntaxKind.IsKeyword or SyntaxKind.IsntKeyword) {
+                left = ParseIsOrIsntOrIsPatternExpression(left, operatorToken);
+            } else if (operatorToken.kind == SyntaxKind.AsKeyword) {
+                var right = ParseType(allowRef: false, allowNoFollowUp: true, allowPointerTypes: false);
+                left = SyntaxFactory.BinaryExpression(left, operatorToken, right);
+            } else {
+                var right = ParseOperatorExpression(precedence);
+                left = SyntaxFactory.BinaryExpression(left, operatorToken, right);
+            }
         }
 
         while (true) {
@@ -1871,6 +1879,23 @@ internal sealed partial class LanguageParser : SyntaxParser {
             Reset(resetPoint);
             return false;
         }
+    }
+
+    private ExpressionSyntax ParseIsOrIsntOrIsPatternExpression(ExpressionSyntax left, SyntaxToken operatorToken) {
+        if (currentToken.kind == SyntaxKind.NullKeyword) {
+            var right = ParseNullLiteral();
+            return SyntaxFactory.BinaryExpression(left, operatorToken, right);
+        }
+
+        var type = ParseType(allowRef: false, allowNoFollowUp: true, allowPointerTypes: false);
+
+        if (currentToken.kind == SyntaxKind.IdentifierToken && operatorToken.kind == SyntaxKind.IsKeyword) {
+            var identifier = EatToken();
+            var pattern = SyntaxFactory.DeclarationPattern(type, identifier);
+            return SyntaxFactory.IsPatternExpression(left, operatorToken, pattern);
+        }
+
+        return SyntaxFactory.BinaryExpression(left, operatorToken, type);
     }
 
     private ExpressionSyntax ParsePrimaryExpressionInternal(int parentPrecedence) {
@@ -2929,7 +2954,8 @@ done:
         bool allowRef = true,
         bool allowArraySize = false,
         bool allowNoFollowUp = false,
-        bool allowFunctionType = true) {
+        bool allowFunctionType = true,
+        bool allowPointerTypes = true) {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             if (allowRef) {
                 var refKeyword = EatToken();
@@ -2937,7 +2963,7 @@ done:
                 return SyntaxFactory.ReferenceType(
                     refKeyword,
                     currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
-                    ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType)
+                    ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType, allowPointerTypes)
                 );
             } else {
                 var unexpected = EatToken(stallDiagnostics: true);
@@ -2945,7 +2971,7 @@ done:
                 return AddDiagnostic(
                     WithFutureDiagnostics(
                         AddLeadingSkippedSyntax(
-                            ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType),
+                            ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType, allowPointerTypes),
                             unexpected
                         )
                     ),
@@ -2956,10 +2982,14 @@ done:
             }
         }
 
-        return ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType);
+        return ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType, allowPointerTypes);
     }
 
-    private TypeSyntax ParseTypeCore(bool allowArraySize, bool allowNoFollowUp, bool allowFunctionType) {
+    private TypeSyntax ParseTypeCore(
+        bool allowArraySize,
+        bool allowNoFollowUp,
+        bool allowFunctionType,
+        bool allowPointerTypes) {
         TypeSyntax type;
 
         if (currentToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.OpenBracketToken or SyntaxKind.QuestionToken ||
@@ -3012,11 +3042,11 @@ done:
                         type = SyntaxFactory.ArrayType(type, rankSpecifiers.ToList());
                         continue;
                     }
-                case SyntaxKind.AsteriskToken:
+                case SyntaxKind.AsteriskToken when allowPointerTypes:
                     var asteriskToken = EatToken();
                     type = SyntaxFactory.PointerType(type, asteriskToken);
                     continue;
-                case SyntaxKind.AsteriskAsteriskToken: {
+                case SyntaxKind.AsteriskAsteriskToken when allowPointerTypes: {
                         var asteriskAsterisk = EatToken();
                         type = SyntaxFactory.PointerType(type, asteriskAsterisk);
                         type = SyntaxFactory.PointerType(type, SyntaxFactory.Token(SyntaxKind.None));
@@ -3040,7 +3070,8 @@ done:
                             }
                         }
 
-                        if (Peek(parenOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken) {
+                        if (allowPointerTypes &&
+                            Peek(parenOffset).kind is SyntaxKind.AsteriskToken or SyntaxKind.AsteriskAsteriskToken) {
                             var paramList = ParseFunctionPointerParameterList();
 
                             if (currentToken.kind == SyntaxKind.AsteriskToken) {

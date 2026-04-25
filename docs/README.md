@@ -71,6 +71,7 @@
         - [3.2.2.6](Current/Data.md#3226-x--y) `x ?! y`
         - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
         - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
+      - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
     - [3.3](Current/Data.md#33-variables-and-constants) Variables and Constants
       - [3.3.1](Current/Data.md#331-implicit-typing) Implicit Typing
     - [3.4](Current/Data.md#34-attributes-and-modifiers) Attributes and Modifiers

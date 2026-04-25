@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -13,6 +14,11 @@ internal sealed class TypeWithAnnotations {
     internal TypeWithAnnotations(TypeSymbol underlyingType, bool isNullable) {
         type = underlyingType;
         this.isNullable = isNullable;
+
+#if DEBUG
+        if (underlyingType is not null && underlyingType.IsNullableType() != isNullable)
+            throw ExceptionUtilities.UnexpectedValue(isNullable);
+#endif
     }
 
     internal TypeWithAnnotations(TypeSymbol underlyingType) {

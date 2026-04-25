@@ -34,6 +34,11 @@ internal static partial class BoundFactory {
         return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), false, null, boolType);
     }
 
+    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), true, null, boolType);
+    }
+
     internal static BoundLocalDeclarationStatement LocalDeclaration(
         SyntaxNode syntax,
         DataContainerSymbol local,
@@ -229,16 +234,5 @@ internal static partial class BoundFactory {
 
     internal static BoundNullAssertOperator Value(SyntaxNode syntax, BoundExpression expression, TypeSymbol type) {
         return new BoundNullAssertOperator(syntax, expression, false, null, type);
-    }
-
-    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
-        return new BoundIsOperator(
-            syntax,
-            expression,
-            Literal(syntax, null, expression.Type()),
-            true,
-            null,
-            CorLibrary.GetSpecialType(SpecialType.Bool)
-        );
     }
 }

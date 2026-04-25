@@ -1434,9 +1434,10 @@ internal sealed class Evaluator {
         }
 
         if (value.kind == ValueKind.HeapPtr) {
-            var operandType = _context.heap[value.ptr].type;
+            var operandType = _context.heap[value.ptr].type.StrippedType();
 
-            if (operandType.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType)) {
+            if (operandType.Equals(targetType) ||
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
                 value.@bool = !node.isNot;
                 value.kind = ValueKind.Bool;
                 return value;
@@ -1444,9 +1445,10 @@ internal sealed class Evaluator {
         }
 
         if (value.kind == ValueKind.Struct) {
-            var operandType = value.@struct.type;
+            var operandType = value.@struct.type.StrippedType();
 
-            if (operandType.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType)) {
+            if (operandType.Equals(targetType) ||
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
                 value.@bool = !node.isNot;
                 value.kind = ValueKind.Bool;
                 return value;
@@ -1468,17 +1470,42 @@ internal sealed class Evaluator {
         if (value.kind == ValueKind.Null)
             return EvaluatorValue.Null;
 
-        var operandType = operand.StrippedType();
         var targetType = node.StrippedType();
 
-        if (operandType.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType))
+        var targetSpecialType = targetType.specialType;
+
+        if (value.kind == ValueKind.Int8 && targetSpecialType == SpecialType.Int8 ||
+            value.kind == ValueKind.Int16 && targetSpecialType == SpecialType.Int16 ||
+            value.kind == ValueKind.Int32 && targetSpecialType == SpecialType.Int32 ||
+            value.kind == ValueKind.Int64 && targetSpecialType == SpecialType.Int64 ||
+            value.kind == ValueKind.UInt8 && targetSpecialType == SpecialType.UInt8 ||
+            value.kind == ValueKind.UInt16 && targetSpecialType == SpecialType.UInt16 ||
+            value.kind == ValueKind.UInt32 && targetSpecialType == SpecialType.UInt32 ||
+            value.kind == ValueKind.UInt64 && targetSpecialType == SpecialType.UInt64 ||
+            value.kind == ValueKind.Float32 && targetSpecialType == SpecialType.Float32 ||
+            value.kind == ValueKind.Float64 && targetSpecialType == SpecialType.Float64 ||
+            value.kind == ValueKind.Bool && targetSpecialType == SpecialType.Bool ||
+            value.kind == ValueKind.String && targetSpecialType == SpecialType.String ||
+            targetSpecialType == SpecialType.Any) {
             return value;
+        }
 
         if (value.kind == ValueKind.HeapPtr) {
-            var type = _context.heap[value.ptr].type;
+            var operandType = _context.heap[value.ptr].type.StrippedType();
 
-            if (type.InheritsFromIgnoringConstruction((NamedTypeSymbol)targetType))
+            if (operandType.Equals(targetType) ||
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
                 return value;
+            }
+        }
+
+        if (value.kind == ValueKind.Struct) {
+            var operandType = value.@struct.type.StrippedType();
+
+            if (operandType.Equals(targetType) ||
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                return value;
+            }
         }
 
         return EvaluatorValue.Null;

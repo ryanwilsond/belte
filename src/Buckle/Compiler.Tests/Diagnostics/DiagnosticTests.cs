@@ -5188,4 +5188,49 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0420_BadPatternExpression() {
+        var text = @"
+            void F() {}
+
+            var b = [F()] is int t;
+        ";
+
+        var diagnostics = @"
+            invalid operand for pattern match; value required, but found 'F()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0421_CannotAnnotateTypePattern() {
+        var text = @"
+            int a = 3;
+
+            var b = a is [int?] c;
+        ";
+
+        var diagnostics = @"
+            cannot use nullable type 'int' in a pattern; use the underlying type 'int!' or a null-binding contract instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0422_PatternCannotHandleTypes() {
+        var text = @"
+            int a = 3;
+
+            var b = a is [bool] c;
+        ";
+
+        var diagnostics = @"
+            an expression of type 'int!' cannot be handled by a pattern of type 'bool!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

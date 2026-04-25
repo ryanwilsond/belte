@@ -339,6 +339,9 @@ public sealed class DisplayText {
             case BoundKind.DefaultExpression:
                 DisplayDefaultExpression(text, (BoundDefaultExpression)node);
                 break;
+            case BoundKind.IsPatternExpression:
+                DisplayIsPatternExpression(text, (BoundIsPatternExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -1191,6 +1194,16 @@ public sealed class DisplayText {
     private static void DisplayIsOperator(DisplayText text, BoundIsOperator node) {
         var op = node.isNot ? SyntaxKind.IsntKeyword : SyntaxKind.IsKeyword;
         DisplayBinaryAdjacentExpression(text, node.left, node.right, op, true);
+    }
+
+    private static void DisplayIsPatternExpression(DisplayText text, BoundIsPatternExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.IsKeyword));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.local);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {

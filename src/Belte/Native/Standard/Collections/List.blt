@@ -54,8 +54,8 @@ public lowlevel sealed class List<type T> {
         return subset;
     }
 
-    public const T[] ToArray() {
-        T[] copy = new T[_length];
+    public const T[]! ToArray() {
+        T[]! copy = new T[_length];
         Array<T>.Copy(copy, _array, 0, _length);
         return copy;
     }

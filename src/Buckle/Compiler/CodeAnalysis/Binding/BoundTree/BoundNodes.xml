@@ -217,6 +217,11 @@
     <Field Name="isNot" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundIsPatternExpression" Base="BoundExpression">
+    <Field Name="expression" Type="BoundExpression" Null="disallow"/>
+    <Field Name="local" Type="DataContainerSymbol"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>

@@ -69,4 +69,22 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
             nodeToBind: nodeToBind
         );
     }
+
+    private protected override DataContainerSymbol MakePatternVariable(
+        TypeSyntax type,
+        DeclarationPatternSyntax node,
+        SyntaxNode nodeToBind) {
+        // TODO EnclosingContext aware local to prevent duplicates (same for out vars)
+        return SourceDataContainerSymbol.MakeLocal(
+            containingSymbol: _scopeBinder.containingMember,
+            scopeBinder: _scopeBinder,
+            allowRefKind: true,
+            initializer: null,
+            nodeBinder: _enclosingBinder,
+            typeSyntax: type,
+            identifierToken: node.identifier,
+            modifiers: null,
+            nodeToBind: nodeToBind
+        );
+    }
 }

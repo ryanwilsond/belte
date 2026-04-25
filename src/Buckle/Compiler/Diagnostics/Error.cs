@@ -2053,6 +2053,22 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OutVarAnnotated, location, message);
     }
 
+    internal static BelteDiagnostic BadPatternExpression(TextLocation location, BoundExpression expression) {
+        var message = $"invalid operand for pattern match; value required, but found '{expression}'";
+        return CreateError(DiagnosticCode.ERR_BadPatternExpression, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTypePattern(TextLocation location, TypeSymbol type, TypeSymbol underlyingType) {
+        var message = $"cannot use nullable type '{type}' in a pattern; use the underlying type '{underlyingType}' or a null-binding contract instead";
+        var suggestion = $"{underlyingType}";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTypePattern, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic PatternCannotHandleTypes(TextLocation location, TypeSymbol source, TypeSymbol target) {
+        var message = $"an expression of type '{source}' cannot be handled by a pattern of type '{target}'";
+        return CreateError(DiagnosticCode.ERR_PatternCannotHandleTypes, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -14,5 +14,5 @@ public static class String {
 
     public static string![]! Split(string! text, string! separator);
 
-    public static string? Substring(string? text, int? start, int? length);
+    public static string! Substring(string! text, int? start, int? length);
 }

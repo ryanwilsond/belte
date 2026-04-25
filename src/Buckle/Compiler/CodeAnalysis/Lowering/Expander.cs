@@ -829,6 +829,120 @@ internal sealed class Expander : BoundTreeExpander {
         }
     }
 
+    private protected override List<BoundStatement> ExpandIsPatternExpression(
+        BoundIsPatternExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        Note that these lowerings violate normal language nullability rules but it's fine because we verify they aren't null
+
+        <expression> is <local>
+
+        ----> <local.type> is primitive
+
+        result = false
+        goto break unless <expression> is <local.type>
+        <local> = (<local.type>)<expression>
+        result = true
+        break:
+        result
+
+        ----> <local.type> is class
+
+        <local> = <expression> as <local.type>
+        result = <local> isnt null
+
+        ----> <local.type> equals <expression.type>
+
+        <local> = <expression>
+        result = <local> isnt null
+
+        ----> <local.type> equals <expression.type> and not nullable
+
+        <local> = <expression>
+        true
+
+        ----> <local.type> equals <expression.type>!
+
+        result = false
+        goto break if <expression> is null
+        <local> = <expression>!
+        result = true;
+        break:
+        result
+
+        */
+        var syntax = expression.syntax;
+        var local = expression.local;
+        var type = local.type;
+        var operand = expression.expression;
+
+        if (operand.type.Equals(type, TypeCompareKind.ConsiderEverything)) {
+            var statements = ExpandExpression(operand, out var newOperand);
+            statements.Add(LocalDeclaration(syntax, local, newOperand));
+            replacement = type.IsNullableType()
+                ? HasValue(syntax, Local(syntax, local))
+                : Literal(syntax, true, expression.type);
+            return statements;
+        } else if (operand.type.StrippedType().Equals(type, TypeCompareKind.ConsiderEverything)) {
+            var breakLabel = GenerateLabel();
+            var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
+            var temp = GenerateTempLocal(expression.type);
+            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, expression.type)));
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newOperand)));
+            statements.Add(
+                LocalDeclaration(syntax,
+                    local,
+                    new BoundNullAssertOperator(syntax, newOperand, false, null, local.type)
+                )
+            );
+            statements.Add(new BoundExpressionStatement(syntax,
+                Assignment(syntax, Local(syntax, temp), Literal(syntax, true, expression.type), false, expression.type)
+            ));
+            statements.Add(Label(syntax, breakLabel));
+            replacement = Local(syntax, temp);
+            return statements;
+        } else if (type.StrippedType().typeKind == TypeKind.Class) {
+            var statements = ExpandExpression(operand, out var newOperand);
+            statements.Add(LocalDeclaration(syntax,
+                local,
+                new BoundAsOperator(syntax,
+                    newOperand,
+                    new BoundTypeExpression(syntax, null, null, local.type),
+                    null,
+                    null,
+                    local.type
+                )
+            ));
+            replacement = HasValue(syntax, Local(syntax, local));
+            return statements;
+        } else {
+            var breakLabel = GenerateLabel();
+            var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
+            var temp = GenerateTempLocal(expression.type);
+            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, expression.type)));
+            statements.Add(GotoIfNot(syntax,
+                breakLabel,
+                new BoundIsOperator(syntax,
+                    newOperand,
+                    new BoundTypeExpression(syntax, null, null, local.type),
+                    false,
+                    null,
+                    expression.type
+                )
+            ));
+            statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
+            statements.Add(LocalDeclaration(syntax, local, cast));
+            statements.Add(new BoundExpressionStatement(syntax,
+                Assignment(syntax, Local(syntax, temp), Literal(syntax, true, expression.type), false, expression.type)
+            ));
+            statements.Add(Label(syntax, breakLabel));
+            replacement = Local(syntax, temp);
+            return statements;
+        }
+    }
+
     private List<BoundStatement> ExpandConditionalOrOperator(
         BoundBinaryOperator expression,
         out BoundExpression replacement) {

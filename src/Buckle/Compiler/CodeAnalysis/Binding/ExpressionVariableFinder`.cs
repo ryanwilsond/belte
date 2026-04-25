@@ -17,6 +17,12 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
         SyntaxNode nodeToBind
     );
 
+    private protected abstract TFieldOrLocalSymbol MakePatternVariable(
+        TypeSyntax type,
+        DeclarationPatternSyntax node,
+        SyntaxNode nodeToBind
+    );
+
     internal override void VisitEqualsValueClause(EqualsValueClauseSyntax node) {
         VisitNodeToBind(node.value);
     }
@@ -103,6 +109,16 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
         Visit(node.left);
         Visit(node.right);
     }
+
+    internal override void VisitDeclarationPattern(DeclarationPatternSyntax node) {
+        var variable = MakePatternVariable(node.type, node, _nodeToBind);
+
+        if ((object)variable is not null)
+            _variablesBuilder.Add(variable);
+
+        base.VisitDeclarationPattern(node);
+    }
+
 
     internal override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
         if (node.constructorInitializer is not null)

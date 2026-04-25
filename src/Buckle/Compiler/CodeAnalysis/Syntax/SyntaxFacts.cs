@@ -18,6 +18,10 @@ public static class SyntaxFacts {
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
     public static int GetBinaryPrecedence(this SyntaxKind type) {
         switch (type) {
+            case SyntaxKind.IsKeyword:
+            case SyntaxKind.IsntKeyword:
+            case SyntaxKind.AsKeyword:
+                return 15;
             case SyntaxKind.AsteriskAsteriskToken:
                 return 14;
             case SyntaxKind.AsteriskToken:
@@ -31,9 +35,6 @@ public static class SyntaxFacts {
             case SyntaxKind.GreaterThanGreaterThanToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                 return 11;
-            case SyntaxKind.IsKeyword:
-            case SyntaxKind.IsntKeyword:
-            case SyntaxKind.AsKeyword:
             case SyntaxKind.LessThanToken:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
@@ -81,11 +82,11 @@ public static class SyntaxFacts {
             case SyntaxKind.MinusMinusToken:
             case SyntaxKind.ExclamationToken:
             case SyntaxKind.NewKeyword:
-                return 18;
-            // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
+                return 19;
+            // ! Precedence 17 must remain unused (it is used to correctly parse cascade lists)
             case SyntaxKind.PeriodPeriodToken:
             case SyntaxKind.QuestionPeriodPeriodToken:
-                return 15;
+                return 16;
             default:
                 return 0;
         }
@@ -108,7 +109,7 @@ public static class SyntaxFacts {
             case SyntaxKind.AsteriskToken:
             case SyntaxKind.DollarToken:
             case SyntaxKind.DollarQuestionToken:
-                return 17;
+                return 18;
             default:
                 return 0;
         }

@@ -1476,7 +1476,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_IsNullOrWhiteSpace_S?", typeof(string).GetMethod("IsNullOrWhiteSpace", Flags, [typeof(string)]) },
             { "String_IsNullOrWhiteSpace_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsNullOrWhiteSpace", Flags, [typeof(char?)]) },
             { "String_IsDigit_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsDigit", Flags, [typeof(char?)]) },
-            { "String_Substring_S?I?I?", typeof(Belte.Runtime.Utilities).GetMethod("Substring", Flags, [typeof(string), typeof(long?), typeof(long?)]) },
+            { "String_Substring_SI?I?", typeof(Belte.Runtime.Utilities).GetMethod("Substring", Flags, [typeof(string), typeof(long?), typeof(long?)]) },
             { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },

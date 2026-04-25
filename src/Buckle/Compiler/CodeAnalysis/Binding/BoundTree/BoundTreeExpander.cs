@@ -365,6 +365,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ConvertedStackAllocExpression => ExpandConvertedStackAllocExpression((BoundConvertedStackAllocExpression)expression, out replacement, useKind),
             BoundKind.InterpolatedStringExpression => ExpandInterpolatedStringExpression((BoundInterpolatedStringExpression)expression, out replacement, useKind),
             BoundKind.FunctionLoad => ExpandFunctionLoad((BoundFunctionLoad)expression, out replacement, useKind),
+            BoundKind.IsPatternExpression => ExpandIsPatternExpression((BoundIsPatternExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -613,6 +614,21 @@ internal abstract partial class BoundTreeExpander {
                 expression.type
             );
 
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandIsPatternExpression(
+        BoundIsPatternExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newLeft);
+
+        if (statements.Count != 0 || expression.expression != newLeft) {
+            replacement = expression.Update(newLeft, expression.local, expression.constantValue, expression.type);
             return statements;
         }
 

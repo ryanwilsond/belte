@@ -16,6 +16,7 @@
     - [3.2.2.6](#3226-x--y) `x ?! y`
     - [3.2.2.7](#3227-xy) `x..y`
     - [3.2.2.8](#3228-xy) `x?..y`
+  - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
 - [3.3](#33-variables-and-constants) Variables and Constants
   - [3.3.1](#331-implicit-typing) Implicit Typing
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
@@ -152,11 +153,12 @@ strict order of precedence:
 | a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x?, new, typeof, nameof, sizeof | Primary |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
+| is, isnt, as | Type-Testing |
 | x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y, is, isnt, as | Relational and Type-Testing |
+| x < y, x > y, x <= y, x >= y | Relational |
 | x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
@@ -230,6 +232,54 @@ Notice that even if `Obj.M()` returns a value, it is ignored.
 
 `x?..y` is a conditional [cascade expression](#3227-xy). The field assignment or call expression `y` is only performed
 if `x` is not null.
+
+### 3.2.3 Is/Isnt/As Operators
+
+Unlike normal binary operators, `is`, `isnt` and `as` have special rules for what the right operand can be.
+
+The `as` operator requires the right operand to be a type. The `as` operator attempts to cast the left operand into the
+right operand type and results in null if the cast cannot be performed. Unlike a normal cast, the `as` operator only
+performs class up/down casting.
+
+For example:
+
+```belte
+A a = new B();
+B b = a as B;
+
+class A { }
+
+class B extends  A { }
+```
+
+The `isnt` operator requires the right operand to be a type or the `null` literal. It checks if the left operand is not
+the right operand type or if the left operand is not `null`.
+
+For example:
+
+```belte
+int? a = null;
+bool b = a isnt null; // false
+```
+
+```belte
+int? a = null;
+bool b = a isnt int; // true
+```
+
+The `is` operator requires the right operand to be a type, the `null` literal, or a declaration. In the case of the
+first two, it behaves opposite of the `isnt` operand. If the right operand is a declaration, it will store the
+successful result into the declared local if the left operand matches the type.
+
+For example:
+
+```belte
+any a = 3;
+
+if (a is int t) {
+  int b = t + 3;
+}
+```
 
 ## 3.3 Variables and Constants
 
