@@ -34,7 +34,7 @@ Options:
 
   --time                      Display timing information for each compilation stage.
   --verbose                   Display additional information about the compilation process.
-  --verbose-path=<path>       Path to dump files produced by verbose mode.
+  --vpath=<path>              Path to dump files produced by verbose mode.
   --info                      Display verbose information without producing artifacts.
   --sae                       Prompt for user input before and after compiling.
 

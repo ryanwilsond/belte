@@ -52,6 +52,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0263, "BU"),
         new DiagnosticInfo(0264, "BU"),
         new DiagnosticInfo(0265, "BU"),
+        new DiagnosticInfo(0416, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [
@@ -660,7 +661,7 @@ public static partial class BuckleCommandLine {
 
                 var warningString = arg.Substring(12);
 
-                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 2) {
+                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 3) {
                     specifyWarningLevel = true;
                     state.warningLevel = warningLevel;
                 } else {
@@ -696,13 +697,13 @@ public static partial class BuckleCommandLine {
                     state.projectType = OutputKind.DynamicallyLinkedLibrary;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
-            } else if (arg.StartsWith("--verbose-path")) {
-                if (arg == "--verbose-path" || arg == "--verbose-path=" || !arg.StartsWith("--verbose-path=")) {
+            } else if (arg.StartsWith("--vpath")) {
+                if (arg == "--vpath" || arg == "--vpath=" || !arg.StartsWith("--vpath=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingVerbosePath(arg));
                     continue;
                 }
 
-                var path = arg.Substring(15);
+                var path = arg.Substring(8);
 
                 if (!Directory.Exists(path)) {
                     diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
@@ -828,13 +829,13 @@ public static partial class BuckleCommandLine {
 
         if (state.verboseMode) {
             state.severity = DiagnosticSeverity.All;
-            state.warningLevel = 2;
+            state.warningLevel = Math.Max(2, state.warningLevel);
             state.time = true;
         }
 
         if (state.tasks.Length == 0) {
             if (state.buildMode == BuildMode.Repl || dialogs.clearSubmissions)
-                // We don't want to resolve output files in they aren't used, so early return
+                // We don't want to resolve output files since they aren't used, so early return
                 return state;
 
             diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());

@@ -27,6 +27,7 @@ internal sealed partial class Lexer : IDisposable {
     private SyntaxListBuilder _directiveTriviaCache;
     private readonly bool _allowPreprocessorDirectives;
     private readonly LexerCache _cache;
+    private readonly List<SyntaxToken> _badTokensCache = [];
 
     private LexerMode _mode;
     private DirectiveStack _directives;
@@ -76,7 +77,7 @@ internal sealed partial class Lexer : IDisposable {
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
     internal SyntaxToken LexNext(LexerMode mode) {
         _mode = mode;
-        var badTokens = new List<SyntaxToken>();
+        _badTokensCache.Clear();
         SyntaxToken token;
 
         while (true) {
@@ -87,14 +88,14 @@ internal sealed partial class Lexer : IDisposable {
             };
 
             if (token.kind == SyntaxKind.BadToken) {
-                badTokens.Add(token);
+                _badTokensCache.Add(token);
                 continue;
             }
 
-            if (badTokens.Count > 0) {
+            if (_badTokensCache.Count > 0) {
                 var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
 
-                foreach (var badToken in badTokens) {
+                foreach (var badToken in _badTokensCache) {
                     leadingTrivia.AddRange(badToken.leadingTrivia);
                     var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
                     leadingTrivia.Add(trivia);

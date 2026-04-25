@@ -75,20 +75,20 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         _iLGenerator.BeginExceptionBlock();
-        _logger?.WriteLine("Try {");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("Try {");
         _tryStack.Push(new object());
     }
 
     internal override void BeginCatch() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginCatchBlock(typeof(Exception));
-        _logger?.WriteLine("} Catch {");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("} Catch {");
     }
 
     internal override void BeginFinally() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginFinallyBlock();
-        _logger?.WriteLine("} Finally {");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("} Finally {");
     }
 
     internal override void EndTry(bool emitEndFinally) {
@@ -98,7 +98,7 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         _iLGenerator.EndExceptionBlock();
-        _logger?.WriteLine("} // Try end");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("} // Try end");
         MarkLabel(_tryStack.Pop());
 
         if (_tryStack.Count > 0)
@@ -547,19 +547,23 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode) {
-        _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode}");
+        lock (_logger)
+            _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode}");
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode, object value) {
-        _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode} {value}");
+        lock (_logger)
+            _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode} {value}");
     }
 
     private void LogLocal(Type type) {
-        _logger.WriteLine($"\tlocal [{_localCount++}]{type}");
+        lock (_logger)
+            _logger.WriteLine($"\tlocal [{_localCount++}]{type}");
     }
 
     private void LogMark(Label label) {
-        _logger.WriteLine($"\tlabel {_labelCounts.FindIndex(l => l == label)}: IL{_iLGenerator.ILOffset:X4}");
+        lock (_logger)
+            _logger.WriteLine($"\tlabel {_labelCounts.FindIndex(l => l == label)}: IL{_iLGenerator.ILOffset:X4}");
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, int value) {

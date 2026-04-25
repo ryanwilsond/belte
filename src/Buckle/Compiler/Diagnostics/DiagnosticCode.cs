@@ -424,6 +424,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotAnnotateTemplate = 413,
     ERR_DefaultLiteralNoTargetType = 414,
     ERR_TypeWithNoDefault = 415,
+    WRN_UnusedUsingDirective = 416,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

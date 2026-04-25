@@ -5116,4 +5116,21 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Warning_BU0416_UnusedUsingDirective() {
+        var text = @"
+            [using Test;]
+
+            namespace Test { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            using directive is unnecessary
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

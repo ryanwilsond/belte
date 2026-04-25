@@ -1008,12 +1008,38 @@ public sealed partial class Compilation {
             builder.PushRange(declarationDiagnostics);
         }
 
-        if (includeMethods)
+        if (includeMethods) {
+            EnsureBoundProgramAndMethodDiagnostics();
+            ReportUnusedImports();
             builder.PushRange(methodDiagnostics);
+        }
 
         builder = BelteDiagnosticQueue.CleanDiagnostics(builder);
         handleManager.SendDiagnosticsMessage(builder);
         return builder;
+    }
+
+    private void ReportUnusedImports() {
+        if (_lazyImportInfos is not null) {
+            foreach (var pair in _lazyImportInfos) {
+
+                var info = pair.Key;
+                var infoTree = info.tree;
+                var infoSpan = info.span;
+
+                if (!IsImportDirectiveUsed(infoTree, infoSpan.start)) {
+                    methodDiagnostics.Push(
+                        Warning.UnusedUsingDirective(new TextLocation(infoTree.text, infoSpan, infoTree))
+                    );
+                }
+            }
+        }
+    }
+
+    private bool IsImportDirectiveUsed(SyntaxTree syntaxTree, int position) {
+        return syntaxTree is not null &&
+            treeToUsedImportDirectivesMap.TryGetValue(syntaxTree, out var usedImports) &&
+            usedImports.Contains(position);
     }
 
     private void EnsureBoundProgramAndMethodDiagnostics() {

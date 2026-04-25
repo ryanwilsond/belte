@@ -77,7 +77,7 @@ internal static class Error {
     }
 
     internal static Diagnostic InvalidWarningLevel(string warningLevel) {
-        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 2";
+        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 3";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);
     }
 
@@ -107,7 +107,7 @@ internal static class Error {
     }
 
     internal static Diagnostic MissingVerbosePath(string arg) {
-        var message = $"missing path after '{arg}' (usage: '--verbose-path=<path>')";
+        var message = $"missing path after '{arg}' (usage: '--vpath=<path>')";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingVerbosePath), message);
     }
 

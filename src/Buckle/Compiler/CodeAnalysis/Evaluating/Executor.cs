@@ -1117,7 +1117,7 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {
-        _logger?.WriteLine($"Emitting method {method}");
+        if (_logger is not null) lock (_logger) _logger.WriteLine($"Emitting method {method}");
 
         if (method.isAbstract || method.isExtern)
             return;
@@ -1131,7 +1131,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private void EmitConstructor(ConstructorBuilder constructorBuilder) {
         var (constructor, body) = _constructorBodies[constructorBuilder];
 
-        _logger?.WriteLine($"Emitting constructor {constructor}");
+        if (_logger is not null) lock (_logger) _logger.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
         var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false);

@@ -117,8 +117,7 @@ version will be in the form `MAJOR.MINOR.PATCH`.
 
 ### *--noout*
 
-Runs the compiler normally, but prevents any file IO to occur. This option does not stop the compiler from printing to
-the standard output however.
+Performs a dry run of the compiler. Prevents any file IO to occur. The compiler still displays normal information.
 
 If compiling in a mode where the program would immediately run, the program is not run.
 
@@ -170,10 +169,10 @@ typically used for debugging.
 
 The *--noout* option overrides *--verbose*, meaning that no information will be logged if both options are used. The
 *--verbose* option will automatically set the diagnostic reporting [severity level](#--severityseverity-default-warning)
-to *all*, the [warning level](#--warnlevelwarning-level-default-1) to max, and will also display
-[timing information](#--time).
+to *all*, the [warning level](#--warnlevelwarning-level-default-1) to 2 (unless explicitly set higher), and will also
+display [timing information](#--time).
 
-### *--verbose-path=\<path>*
+### *--vpath=\<path>*
 
 Specifies the path the *--verbose* mode will dump files. Defaults to the working directory.
 
