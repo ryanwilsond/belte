@@ -10,6 +10,7 @@
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
+  - [2.2.3](#223-disambiguating-entry-points) Disambiguating Entry Points
 - [2.3](#23-conditionals) Conditionals
   - [2.3.1](#231-null-conditions) Null Conditions
   - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
@@ -178,21 +179,13 @@ int Main(string![]! args);
 
 Where `args` is an array of command-line arguments.
 
-Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (NOT case sensitive), and
-the parameters must have the exact types, but the parameter names can be anything:
-
-More valid `Main` signatures:
-
-```belte
-void main();
-int MAIN();
-void main(string![]! b);
-int MaiN(string![]! args);
-```
+Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (case sensitive), and
+the parameter must have the exact type, but the parameter name can be anything:
 
 **Invalid** `Main` signatures:
 
 ```bete
+void main(); // Name does not match casing
 string Main(); // Cannot return 'string'
 void Main(int! argc, string![]! argv); // Must have 0 or 1 parameters
 int Main(string a); // Invalid parameter type, must be 'string![]!'
@@ -238,6 +231,16 @@ public class Program {
   }
 }
 ```
+
+### 2.2.3 Disambiguating Entry Points
+
+If multiple types contain a method that is recognized as the entry point, the compiler will fail to pick one. In such a
+case, the [*--entry=\<name>*](../Buckle.md#--entryname) command-line argument can be used to specify a type name to
+search for the entry point in.
+
+The name passed can be just a type name, or a namespace qualified name. The passed name does not support nesting and
+instead treats everything to the left of the last period as the namespace name. For example `--entry=A.B.C` would look
+for the entry point within a type named `C` inside of a namespace named `A.B`.
 
 ## 2.3 Conditionals
 

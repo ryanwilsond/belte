@@ -37,6 +37,7 @@ public sealed class EvaluatorTests {
     [InlineData("return 6.26E34;", 6.26E+34)]
     [InlineData("return 6.26E+34;", 6.26E+34)]
     [InlineData("return 6E-10;", 6E-10)]
+    [InlineData("return 0xFFFFFFFF_FFFFFFFF;", 0xFFFFFFFF_FFFFFFFF)]
     // Unary expressions
     [InlineData("return +1;", 1)]
     [InlineData("return +6;", 6)]
@@ -213,10 +214,6 @@ public sealed class EvaluatorTests {
     [InlineData("int[][] a; a = new int[][] { { 1 } }; return a[0][0];", 1)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(b) == typeof(uint64);", true)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(a) == LowLevel.GetType(b);", true)]
-    [InlineData("return typeof(int) == typeof(int64);", true)]
-    [InlineData("return typeof(int32) == typeof(int64);", false)]
-    [InlineData("return typeof(decimal) == typeof(float64);", true)]
-    [InlineData("return typeof(float32) == typeof(float64);", false)]
     // Name expressions
     [InlineData("int? a = 3; int? b = 6; return a;", 3)]
     [InlineData("int? a = 3; int? b = 6; return b;", 6)]
@@ -412,6 +409,10 @@ public sealed class EvaluatorTests {
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<bool?>(); return c.M();", false)]
     [InlineData("bool? C<type T>() { return typeof(T) == typeof(int?); } return C<int?>();", true)]
     [InlineData("bool? C<type T>() { return typeof(T) == typeof(int?); } return C<bool?>();", false)]
+    [InlineData("return typeof(int) == typeof(int64);", true)]
+    [InlineData("return typeof(int32) == typeof(int64);", false)]
+    [InlineData("return typeof(decimal) == typeof(float64);", true)]
+    [InlineData("return typeof(float32) == typeof(float64);", false)]
     // Operators
     [InlineData(@"
         class A {

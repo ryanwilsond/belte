@@ -39,6 +39,7 @@
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
+      - [2.2.3](Current/ControlFlow.md#223-disambiguating-entry-points) Disambiguating Entry Points
     - [2.3](Current/ControlFlow.md#23-conditionals) Conditionals
       - [2.3.1](Current/ControlFlow.md#231-null-conditions) Null Conditions
       - [2.3.2](Current/ControlFlow.md#232-null-binding-contracts) Null-Binding Contracts

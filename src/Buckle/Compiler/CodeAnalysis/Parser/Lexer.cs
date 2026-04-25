@@ -979,17 +979,22 @@ internal sealed partial class Lexer : IDisposable {
         if (!hasDecimal && !hasExponent) {
             var @base = isBinary ? 2 : 16;
             var failed = false;
-            long value = 0;
+            object value = 0L;
 
             if (isBinary || isHexadecimal) {
                 try {
-                    value = Convert.ToInt64(
+                    value = Convert.ToUInt64(
                         numericText.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
                 } catch (Exception e) when (e is OverflowException || e is FormatException) {
                     failed = true;
                 }
-            } else if (!long.TryParse(parsedText, out value)) {
-                failed = true;
+            } else if (!long.TryParse(parsedText, out var longValue)) {
+                if (!ulong.TryParse(parsedText, out var ulongValue))
+                    failed = true;
+                else
+                    value = ulongValue;
+            } else {
+                value = longValue;
             }
 
             if (failed) {
