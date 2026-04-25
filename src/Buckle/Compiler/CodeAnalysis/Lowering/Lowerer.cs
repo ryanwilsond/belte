@@ -21,14 +21,10 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly Expander _expander;
-    private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly MethodSymbol _method;
 
     private bool _sawCompileTimeExpression;
 
     private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
-        _method = container;
-        _diagnostics = diagnostics;
         _expander = new Expander(container, diagnostics);
     }
 
@@ -660,13 +656,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
-        // TODO Is there a better place to put this
-        if (!_method.declaringCompilation.options.noStdLib &&
-            (object)expression.method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
-            _method.declaringCompilation.options.outputKind != OutputKind.GraphicsApplication) {
-            _diagnostics.Push(Error.Unsupported.GraphicsCall(expression.syntax.location));
-        }
-
         ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < expression.arguments.Length; i++) {

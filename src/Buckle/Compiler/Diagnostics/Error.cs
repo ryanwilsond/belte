@@ -40,9 +40,9 @@ internal static class Error {
             return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
         }
 
-        internal static BelteDiagnostic GraphicsCall(TextLocation location) {
+        internal static Diagnostic GraphicsCall() {
             var message = $"cannot make Graphics calls when the output kind is not graphics";
-            return CreateError(DiagnosticCode.UNS_GraphicsCall, location, message);
+            return CreateError(DiagnosticCode.UNS_GraphicsCall, message);
         }
     }
 

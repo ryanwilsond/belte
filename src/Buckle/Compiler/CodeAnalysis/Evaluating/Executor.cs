@@ -86,6 +86,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private Dictionary<string, MethodInfo> _stlMap;
     private bool _graphicsInitialized;
     private StringWriter _logger;
+    private volatile bool _reportedGraphicsCall;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;
@@ -124,6 +125,9 @@ internal sealed partial class Executor : ModuleBuilder {
         graphicsHandlerField = typeof(Executor).GetField("GraphicsHandler", BindingFlags.Public | BindingFlags.Static);
 
         EmitInternal();
+
+        if (_diagnostics.AnyErrors())
+            return null;
 
         if (!_programNamedType.isStatic) {
             Program = Activator.CreateInstance(_programType);
@@ -1153,10 +1157,15 @@ internal sealed partial class Executor : ModuleBuilder {
     private MethodInfo CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if (!_program.compilation.options.noStdLib) {
+        if (!_program.compilation.options.noStdLib && !_reportedGraphicsCall) {
             if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
                 _program.compilation.options.outputKind != OutputKind.GraphicsApplication) {
-                throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
+                lock (_diagnostics) {
+                    if (!_reportedGraphicsCall) {
+                        _diagnostics.Push(Error.Unsupported.GraphicsCall());
+                        _reportedGraphicsCall = true;
+                    }
+                }
             }
         }
 
