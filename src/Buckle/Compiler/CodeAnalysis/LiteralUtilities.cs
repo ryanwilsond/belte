@@ -365,7 +365,6 @@ internal static class LiteralUtilities {
             case SpecialType.Float64:
             case SpecialType.Bool:
             case SpecialType.Char:
-            case SpecialType.String:
             case SpecialType.UIntPtr:
             case SpecialType.IntPtr:
             case SpecialType.Pointer:
@@ -392,7 +391,6 @@ internal static class LiteralUtilities {
             case SpecialType.Float64:
             case SpecialType.Bool:
             case SpecialType.Char:
-            case SpecialType.String:
                 return true;
             default:
                 return false;
@@ -415,7 +413,6 @@ internal static class LiteralUtilities {
             SpecialType.Float64 => 0D,
             SpecialType.Bool => false,
             SpecialType.Char => '\0',
-            SpecialType.String => "",
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }

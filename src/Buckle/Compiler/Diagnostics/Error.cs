@@ -1972,6 +1972,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_TypeWithNoDefault, location, message);
     }
 
+    internal static BelteDiagnostic OutNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use the out modifier for type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
+    }
+
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
         var message = $"cannot apply a null erasure operator to a null literal";
         return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);
@@ -2041,6 +2046,11 @@ internal static class Error {
     internal static BelteDiagnostic TypeInferenceFailedForOut(TextLocation location, string text) {
         var message = $"cannot infer the type of implicitly-typed out data container '{text}'";
         return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
+    }
+
+    internal static BelteDiagnostic OutVarAnnotated(TextLocation location) {
+        var message = $"cannot annotate the type of an implicitly typed out data container";
+        return CreateError(DiagnosticCode.ERR_OutVarAnnotated, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

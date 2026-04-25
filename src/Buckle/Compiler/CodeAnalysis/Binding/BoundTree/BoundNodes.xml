@@ -59,8 +59,6 @@
   <Node Name="OutVariablePendingInference" Base="BoundExpression">
     <Field Name="symbol" Type="Symbol"/>
     <Field Name="receiver" Type="BoundExpression?"/>
-    <Field Name="isNonNullable" Type="bool"/>
-    <Field Name="isNullable" Type="bool"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
   <Node Name="BoundNamespaceExpression" Base="BoundExpression">

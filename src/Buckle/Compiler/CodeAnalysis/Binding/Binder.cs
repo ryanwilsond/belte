@@ -7326,15 +7326,16 @@ internal partial class Binder {
                 out _
             );
 
+            if (isNonNullable || isNullable)
+                diagnostics.Push(Error.OutVarAnnotated(typeSyntax.location));
+
             localSymbol.scopeBinder.ValidateDeclarationNameConflictsInScope(localSymbol, diagnostics);
 
             if (isVar) {
                 return new OutVariablePendingInference(
                     declarationExpression,
                     localSymbol,
-                    null,
-                    isNonNullable,
-                    isNullable
+                    null
                 );
             }
 
@@ -7360,13 +7361,14 @@ internal partial class Binder {
                     out isNullable
                 );
 
+                if (isNonNullable || isNullable)
+                    diagnostics.Push(Error.OutVarAnnotated(typeSyntax.location));
+
                 if (isVar) {
                     return new OutVariablePendingInference(
                         declarationExpression,
                         expressionVariableField,
-                        receiver,
-                        isNonNullable,
-                        isNullable
+                        receiver
                     );
                 }
             }
@@ -13310,10 +13312,8 @@ symIsHidden:;
         }
 
         if (conversion.kind == ConversionKind.DefaultLiteral) {
-            if (!destination.IsTemplateParameter() && !destination.IsNullableType() &&
-                !LiteralUtilities.TypeHasDefaultValue(destination.specialType) && !destination.IsStructType()) {
+            if (!destination.HasDefaultValue())
                 diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
-            }
 
             source = new BoundDefaultExpression(source.syntax, targetType: null, constantValue, type: destination);
         }

@@ -5149,4 +5149,32 @@ public sealed class DiagnosticTests {
 
     //     AssertDiagnostics(text, diagnostics, _writer, true);
     // }
+
+    [Fact]
+    public void Reports_Error_BU0418_OutVarAnnotated() {
+        var text = @"
+            F(out [var?] a);
+
+            void F(out int a) { a = 3; }
+        ";
+
+        var diagnostics = @"
+            cannot annotate the type of an implicitly typed out data container
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0419_OutNoDefaultValue() {
+        var text = @"
+            void F(out [int\[\]!] a) { }
+        ";
+
+        var diagnostics = @"
+            cannot use the out modifier for type 'int![]!' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -290,6 +290,11 @@ internal static class ParameterHelpers {
             if (!allowRef && refKind is RefKind.Ref or RefKind.Out)
                 diagnostics.Push(Error.InvalidRefParameter(refnessKeyword.location));
 
+            // TODO This is what we do instead of definite assignment analysis (this is easier)
+            // TODO BUT this does restrict functionality so we want to change this eventually
+            if (refKind is RefKind.Out && !parameterType.type.HasDefaultValue())
+                diagnostics.Push(Error.OutNoDefaultValue(parameterSyntax.type.location, parameterType.type));
+
             var parameter = parameterCreationFunc(
                 owner,
                 parameterType,

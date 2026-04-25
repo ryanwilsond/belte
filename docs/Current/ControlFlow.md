@@ -142,6 +142,21 @@ int Func(out int a) {
 }
 ```
 
+Implicit typing also works in out argument declarations, but nullable annotations are disallowed:
+
+```belte
+int b = Func(out var a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
+the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
+used as the type for an out parameter.
+
 ## 2.2 Entry Point
 
 If no specific entry point is declared, the program runs statements in a top-down approach (similar to Python). This is

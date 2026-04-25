@@ -18,14 +18,8 @@ internal partial class OutVariablePendingInference {
         BelteDiagnosticQueue diagnostics) {
         var inferenceFailed = !type.hasType;
 
-        if (inferenceFailed) {
+        if (inferenceFailed)
             type = new TypeWithAnnotations(binderOpt.CreateErrorType("var"));
-        } else {
-            if (isNullable && !type.IsNullableType())
-                type = type.SetIsAnnotated();
-            else if (isNonNullable && type.IsNullableType())
-                type = new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf);
-        }
 
         switch (symbol.kind) {
             case SymbolKind.Local:
