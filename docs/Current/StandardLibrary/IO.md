@@ -2,9 +2,11 @@
 
 The File and Directory classes allowing reading and writing to files/directories.
 
-The Belte public interface for the File class can be found [here](../../../src/Belte/Native/Standard/IO/File.blt).
+The Belte public interface for the File class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/IO/File.blt).
 
-The Belte public interface for the Directory class can be found [here](../../../src/Belte/Native/Standard/IO/Directory.blt).
+The Belte public interface for the Directory class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/IO/Directory.blt).
 
 - [5.6.1](#561-file-methods) File Methods
 - [5.6.2](#562-directory-methods) Directory Methods

@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
@@ -24,6 +25,8 @@ internal sealed class SubText : SourceText {
     public override int length => underlyingSpan.length;
 
     public override char this[int index] => underlyingText[underlyingSpan.start + index];
+
+    internal override Encoding encoding => underlyingText.encoding;
 
     public override string ToString(TextSpan span) {
         return underlyingText.ToString(GetCompositeSpan(span.start, span.length));

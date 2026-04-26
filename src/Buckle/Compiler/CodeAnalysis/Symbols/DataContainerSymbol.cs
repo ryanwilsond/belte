@@ -67,10 +67,19 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal abstract ScopedKind scope { get; }
 
-    internal virtual bool isWritableVariable => declarationKind switch {
-        DataContainerDeclarationKind.Constant or DataContainerDeclarationKind.ConstantExpression => false,
-        _ => true,
-    };
+    internal virtual bool isWritableVariable {
+        get {
+            switch (declarationKind) {
+                case DataContainerDeclarationKind.Constant:
+                case DataContainerDeclarationKind.ConstantExpression:
+                case DataContainerDeclarationKind.ForEachLocal:
+                case DataContainerDeclarationKind.NullBindingLocal:
+                    return false;
+                default:
+                    return true;
+            }
+        }
+    }
 
     internal virtual SyntaxNode forbiddenZone => null;
 

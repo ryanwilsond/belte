@@ -9,7 +9,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Lowering;
 
 /// <summary>
-/// Optimizes BoundExpressions and BoundStatements.
+/// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriter {
     private Optimizer() { }
@@ -28,6 +28,10 @@ internal sealed class Optimizer : BoundTreeRewriter {
 
         for (var i = 0; i < builder.Count; i++) {
             var statement = builder[i];
+
+            // TODO CFG not updated for switches
+            if (InSwitch(statement.syntax))
+                continue;
 
             // TODO This only works on surface level and breaks on nested trys
             // TODO Will have to rewrite the CFG builder from scratch fix trys later
@@ -48,13 +52,22 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
                 return;
 
-            // TODO Eventually replace this with a proper FlowAnalysisPass on BoundNode.WasCompilerGenerated
             if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
                 return;
 
-            // TODO CFG is broken so these warnings are not being triggered correctly
             // if (seenScopes.Add(syntax.parent))
             //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
+        }
+
+        bool InSwitch(SyntaxNode node) {
+            while (node is not null) {
+                if (node.kind == SyntaxKind.SwitchSection)
+                    return true;
+
+                node = node.parent;
+            }
+
+            return false;
         }
     }
 

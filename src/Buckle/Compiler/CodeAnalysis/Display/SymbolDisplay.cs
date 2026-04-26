@@ -62,6 +62,7 @@ public static class SymbolDisplay {
             case SymbolKind.ArrayType:
             case SymbolKind.PointerType:
             case SymbolKind.FunctionPointerType:
+            case SymbolKind.FunctionType:
             case SymbolKind.ErrorType:
                 DisplayType(text, (TypeSymbol)symbol, format);
                 break;
@@ -84,8 +85,13 @@ public static class SymbolDisplay {
 
     public static void DisplayType(DisplayText text, ITypeSymbol type, SymbolDisplayFormat format = null) {
         format ??= SymbolDisplayFormat.ErrorMessageFormat;
+        var stripped = ((TypeSymbol)type).StrippedType();
 
-        if (type is ArrayTypeSymbol array) {
+        if (type is ArrayTypeSymbol ||
+            ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                stripped is ArrayTypeSymbol)) {
+
+            var array = (ArrayTypeSymbol)stripped;
             DisplayType(text, array.elementType, format);
             text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
             text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
@@ -126,13 +132,16 @@ public static class SymbolDisplay {
 
             var first = true;
 
-            foreach (var paramType in signature.GetParameterTypes()) {
+            foreach (var param in signature.GetParameters()) {
                 if (first)
                     first = false;
                 else
                     text.Write(CreatePunctuation(", "));
 
-                DisplayType(text, paramType.type, format);
+                if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
+                    DisplayConstExprRef(text, false, false, param.refKind);
+
+                DisplayType(text, param.type, format);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -140,6 +149,26 @@ public static class SymbolDisplay {
 
             if (!functionPointerType.signature.isManaged)
                 text.Write(CreatePunctuation(SyntaxKind.TildeToken));
+        } else if (type is FunctionTypeSymbol functionType) {
+            var signature = functionType.signature;
+            DisplayType(text, signature.returnType, format);
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+
+            var first = true;
+
+            foreach (var param in signature.GetParameters()) {
+                if (first)
+                    first = false;
+                else
+                    text.Write(CreatePunctuation(", "));
+
+                if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
+                    DisplayConstExprRef(text, false, false, param.refKind);
+
+                DisplayType(text, param.type, format);
+            }
+
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         }
     }
 
@@ -158,6 +187,11 @@ public static class SymbolDisplay {
                     text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
                     break;
                 case TypeKind.Struct:
+                    if (namedType.isUnionStruct) {
+                        text.Write(CreateKeyword(SyntaxKind.UnionKeyword));
+                        text.Write(CreateSpace());
+                    }
+
                     text.Write(CreateKeyword(SyntaxKind.StructKeyword));
                     break;
                 case TypeKind.Primitive:
@@ -415,7 +449,7 @@ public static class SymbolDisplay {
                 if (templateArgument.isConstant)
                     DisplayText.DisplayConstant(text, templateArgument.constant);
                 else
-                    AppendToDisplayText(text, templateArgument.type.type, format);
+                    AppendToDisplayText(text, templateArgument.type.type, SymbolDisplayFormat.QualifiedNameFormat);
             }
 
             text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
@@ -602,7 +636,7 @@ public static class SymbolDisplay {
         }
 
         if (refKind != RefKind.None) {
-            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+            text.Write(CreateKeyword(refKind == RefKind.Out ? SyntaxKind.OutKeyword : SyntaxKind.RefKeyword));
             text.Write(CreateSpace());
         }
 

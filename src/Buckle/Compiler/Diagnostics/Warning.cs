@@ -160,6 +160,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_NamespaceNameShadowsBelte, location, message);
     }
 
+    internal static BelteDiagnostic UnusedUsingDirective(TextLocation location) {
+        var message = $"using directive is unnecessary";
+        return CreateWarning(DiagnosticCode.WRN_UnusedUsingDirective, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

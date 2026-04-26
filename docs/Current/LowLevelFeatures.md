@@ -8,17 +8,28 @@ This may change.
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structures) Structures
 - [6.3](#63-arrays) Arrays
+  - [6.3.1](#631-initializer-lists) Initializer Lists
 - [6.4](#64-numerics) Numerics
 - [6.5](#65-pointers) Pointers
+  - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
+  - [6.5.2](#652-pointer-arithmetic) Pointer Arithmetic
 - [6.6](#66-function-pointers) Function Pointers
+  - [6.6.1](#661-calling-conventions) Calling Conventions
 - [6.7](#67-extern-methods) Extern Methods
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
+  - [6.10.1](#6101-stackalloc-locals) Stackalloc Locals
 - [6.11](#611-inline-il) Inline IL
+  - [6.11.1](#6111-verification) Verification
+  - [6.11.2](#6112-unsupported-instructions) Unsupported Instructions
+- [6.12](#612-pinned-locals) Pinned Locals
+- [6.13](#613-compiler-handle) Compiler Handle
+  - [6.13.1](#6131-messages) Messages
+  - [6.13.2](#6132-ordering) Ordering
 
-Additionally, the [Standard Library contains a class named LowLevel that provides
-various helper methods](StandardLibrary/LowLevel.md).
+Additionally, the
+[Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
 
 ## 6.1 Low-Level Contexts
 
@@ -98,10 +109,9 @@ int[] v = { 1, 2, 3 };
 
 To allow for better interop, several numeric types can be used to specify
 specific sizes. These being `int8`, `uint8`, `int16`, `uint16`, `int32`,
-`uint32`, `int64`, `uint64`, `float32`, `float64`. These types are always
-non-nullable.
+`uint32`, `int64`, `uint64`, `float32`, `float64`.
 
-All arithmetic upcasts to `int` and `decimal`, so casting is required in cases
+Most arithmetic upcasts to `int` and `decimal`, so casting is required in cases
 such as:
 
 ```belte
@@ -109,6 +119,9 @@ int32 myInt1 = 5;
 int32 myInt2 = 27;
 int32 myInt3 = (int32)(myInt1 | myInt2);
 ```
+
+The only case where arithmetic does not cast to `int` or `decimal` is in the
+case of `uint64` which cannot fit inside `int`.
 
 Unless knowing the specific size of the integer is required, use the normal
 `int` and `decimal` types, which (eventually) will support specifying ranges.
@@ -262,7 +275,19 @@ var MyFunction = (void()*~)vtable[0];
 MyFunction();
 ```
 
+### 6.6.1 Calling Conventions
+
+The default unmanaged calling convention is WinAPI/STDCall (they are the same). Specifying a calling convention can be
+done by following the function pointer type with `stdcall`, `winapi`, `fastcall`, `thiscall`, or `cdecl` (not case
+sensitive):
+
+```belte
+void()*~[cdecl] a;
+```
+
 ## 6.7 Extern Methods
+
+> To call code in .NET (managed) DLLs, consider using a [.NET DLL reference](Interop.md)
 
 To call into a unmanaged DLL, an extern method with a `DllImport` attribute can
 be declared and called like a typical method:
@@ -277,7 +302,14 @@ SomeMethod();
 The method is resolved at runtime, meaning if it cannot be found an exception
 will be thrown.
 
-Extern methods use the `UniCode` char set and the `stdcall` calling convention.
+Extern methods use the `UniCode` char set and the `stdcall` calling convention
+by default. The calling convention can be specified using the
+`CallingConvention` type:
+
+```belte
+[DllImport("example.dll", CallingConvention: CallingConvention.Cdecl)]
+static extern void SomeMethod();
+```
 
 ## 6.8 Fixed Size Buffers
 
@@ -402,6 +434,31 @@ int32 Func() {
 }
 ```
 
+Instructions with a method operand optionally allow a parameter list to
+disambiguate the symbol.
+
+```belte
+il {
+  call Console.PrintLine : ();
+}
+```
+
+```belte
+il {
+  ldstr "Hello, world!";
+  call Console.PrintLine : (string?);
+}
+```
+
+Instructions involving a constructor call also allow a parameter list, but the
+operand is the type to construct.
+
+```belte
+il {
+  newobj MyClass : (int, bool);
+}
+```
+
 ### 6.11.1 Verification
 
 The instructions in the IL block are minimally verified. All instructions must
@@ -443,3 +500,79 @@ specify exception handling blocks within the inline IL.
 
 The `ret` instruction is unsupported to ensure the IL remains localized to it's
 block and has a zero delta stack balance.
+
+## 6.12 Pinned Locals
+
+Locals can be pinned meaning the object they refer to will not be moved around on the heap by the garbage collector:
+
+```belte
+pinned var myLocal = new List<int>();
+```
+
+## 6.13 Compiler Handle
+
+The `#handle <target>` preprocessor directive can be used to add a handler to the compilation. The operand of `#handle`
+has to be a unambiguous class name. Any code within that class will be compiled early so that it can "watch" the rest
+of the compilation via messages and a hook into the compilation.
+
+The handle class has to contain an unambiguous static method that takes in two arguments but can return anything. The
+first parameter type must be `Buckle.CodeAnalysis.Message` and the second must be `Buckle.CodeAnalysis.CompilerContext`.
+The message will give phase information about the compilation. Each handler method will be called once per unique
+message. The second argument gives an interface to interact with the compilation allowing things such as modifying or
+adding symbols or collecting general information.
+
+The required parameter types of the handle come from a shipped `Compiler.dll` that lives alongside the actual compiler
+program. This library is not referenced by default so a
+[`--ref=<path>` argument](../Buckle.md#--reffile---referencefile) must be used. Some parts of the compiler rely on
+other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
+
+Basic example:
+
+```belte
+#handle HandleClass
+
+using Buckle.CodeAnalysis;
+
+public static class HandleClass {
+    private static void Handler(Message msg, CompilerContext context) {
+        switch (msg.Kind()) {
+            case .Parsed:
+                Console.PrintLine("Parsed");
+            case .Bound:
+                Console.PrintLine("Bound");
+            case .BeforeEmit:
+                Console.PrintLine("BeforeEmit");
+            case .Finished:
+                Console.PrintLine("Finished");
+        }
+    }
+}
+```
+
+The handler is run during compilation using the Executor regardless of the target endpoint, so keep in mind
+[feature availability](Overview.md#11-endpoint-specific-features).
+
+### 6.13.1 Messages
+
+The following is a current list of all messages types, any extra data they might include, and when they are triggered.
+
+| MessageKind | Description |
+|-|-|
+| `Parsed` | Triggered whenever a parsed syntax tree is added to the compilation. |
+| `Bound` | Triggered after method bodies have finished compiling into the abstract syntax tree. |
+| `BeforeEmit` | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |
+| `Finished` | Can never happen more than once. Triggers immediately after the compiler finishes emitting. Is followed by one last diagnostics resolution. |
+| `Diagnostics` | Triggered whenever diagnostics are requested from the compilation object for resolution. Does not trigger for diagnostics outside of the compilation (e.g. command line parsing diagnostics). Passes the diagnostics to tentatively resolve (which can be accessed by casting the message to `DiagnosticMessage` can calling `Diagnostics()`). This trigger happens even if the diagnostic queue is empty. |
+
+### 6.13.2 Ordering
+
+In the case you define multiple handlers and care about which one runs first, you can specify a priority number in the
+handle directive, e.g. `#handle(3) HandleClass`.
+
+If a priority is not specified, the default is 0 meaning that handle will run last. Higher priority number means run
+earlier.
+
+If multiple handlers have the same priority (such as the default 0), they will run in an undetermined order among
+themselves, but will still order correctly relative to higher/lower priority handlers.
+
+The priority number must fit within an `int32` literal.

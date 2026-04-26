@@ -38,6 +38,10 @@ internal static class AccessCheck {
         out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
 
+        // TODO This is temporary
+        if (symbol.containingAssembly?.isLinked ?? false)
+            return true;
+
         switch (symbol.kind) {
             case SymbolKind.ArrayType:
                 return IsSymbolAccessibleCore(
@@ -73,6 +77,27 @@ internal static class AccessCheck {
                 }
 
                 foreach (var param in funcPtr.signature.parameters) {
+                    if (!IsSymbolAccessibleCore(
+                        param.type,
+                        within,
+                        throughType: null,
+                        out failedThroughTypeCheck)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            case SymbolKind.FunctionType:
+                var func = (FunctionTypeSymbol)symbol;
+                if (!IsSymbolAccessibleCore(
+                    func.signature.returnType,
+                    within,
+                    throughType: null,
+                    out failedThroughTypeCheck)) {
+                    return false;
+                }
+
+                foreach (var param in func.signature.parameters) {
                     if (!IsSymbolAccessibleCore(
                         param.type,
                         within,

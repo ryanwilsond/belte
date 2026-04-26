@@ -1,5 +1,6 @@
 using System;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
@@ -31,6 +32,43 @@ internal sealed partial class FlowLowerer {
             var input = _tempAllocator.GetTemp(evaluation.input);
 
             switch (evaluation) {
+                case BoundDagTypeEvaluation t: {
+                        var inputType = input.type;
+                        var type = t.type;
+
+                        var outputTemp = new BoundDagTemp(t.syntax, type, t, 0);
+                        var output = _tempAllocator.GetTemp(outputTemp);
+                        var conversion = new Conversions(null).ClassifyBuiltInConversion(inputType, output.type);
+
+                        BoundExpression evaluated;
+
+                        if (conversion.exists) {
+                            if (conversion.kind == ConversionKind.ExplicitNullable &&
+                                inputType.GetNullableUnderlyingType().Equals(output.type, TypeCompareKind.AllIgnoreOptions) &&
+                                Lowerer.ShouldBeTreatedAsNullable(inputType)) {
+                                evaluated = new BoundNullAssertOperator(
+                                    _node,
+                                    input,
+                                    false,
+                                    null,
+                                    inputType.GetNullableUnderlyingType()
+                                );
+                            } else {
+                                evaluated = Cast(_node, type, input, conversion, null);
+                            }
+                        } else {
+                            evaluated = new BoundAsOperator(
+                                _node,
+                                input,
+                                new BoundTypeExpression(_node, new TypeWithAnnotations(type), null, type),
+                                null,
+                                null,
+                                input.type
+                            );
+                        }
+
+                        return Assignment(_node, output, evaluated, false, output.type);
+                    }
                 case BoundDagAssignmentEvaluation:
                 default:
                     throw ExceptionUtilities.UnexpectedValue(evaluation);
@@ -51,6 +89,15 @@ internal sealed partial class FlowLowerer {
                         : BinaryOperatorKind.Equal);
                 case BoundDagValueTest d:
                     return MakeValueTest(d.syntax, input, d.value);
+                case BoundDagTypeTest d:
+                    return new BoundIsOperator(
+                        d.syntax,
+                        input,
+                        new BoundTypeExpression(d.syntax, new TypeWithAnnotations(d.type), null, d.type),
+                        false,
+                        null,
+                        CorLibrary.GetSpecialType(SpecialType.Bool)
+                    );
                 default:
                     throw ExceptionUtilities.UnexpectedValue(test);
             }
@@ -60,37 +107,38 @@ internal sealed partial class FlowLowerer {
             SyntaxNode syntax,
             BoundExpression rewrittenExpr,
             BinaryOperatorKind operatorKind) {
+            var isNot = operatorKind.Operator() == BinaryOperatorKind.NotEqual;
+
             if (rewrittenExpr.type.IsPointerOrFunctionPointer()) {
                 TypeSymbol objectType = CorLibrary.GetSpecialType(SpecialType.Object);
                 var operandType = new PointerTypeSymbol(
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void))
                 );
 
-                return Binary(syntax,
+                return new BoundIsOperator(syntax,
                     CreateCast(syntax,
                         operandType,
                         rewrittenExpr
                     ),
-                    operatorKind,
-                    CreateCast(syntax,
-                        operandType,
-                        Literal(syntax, null, objectType)
-                    ),
+                    Literal(syntax, null, objectType),
+                    isNot,
+                    null,
                     CorLibrary.GetSpecialType(SpecialType.Bool)
                 );
             }
 
-            return (BoundExpression)_flowLowerer.Visit(Binary(syntax,
+            return (BoundExpression)_flowLowerer.Visit(new BoundIsOperator(syntax,
                 rewrittenExpr,
-                operatorKind,
                 Literal(syntax, null, rewrittenExpr.type),
+                isNot,
+                null,
                 CorLibrary.GetSpecialType(SpecialType.Bool)
             ));
         }
 
         private protected BoundExpression MakeValueTest(SyntaxNode syntax, BoundExpression input, ConstantValue value) {
             var comparisonType = input.type.EnumUnderlyingTypeOrSelf();
-            var operatorType = Binder.RelationalOperatorType(comparisonType);
+            var operatorType = Binder.RelationalOperatorType(comparisonType.StrippedType());
             var operatorKind = BinaryOperatorKind.Equal | operatorType;
             return MakeRelationalTest(syntax, input, operatorKind, value);
         }
@@ -103,7 +151,17 @@ internal sealed partial class FlowLowerer {
                 throw ExceptionUtilities.Unreachable();
             }
 
-            BoundExpression literal = Literal(syntax, value, input.type);
+            var val = value.value;
+
+            if (input.type.StrippedType().IsEnumType() &&
+                input.type.StrippedType().originalDefinition is PENamedTypeSymbol) {
+                var target = input.type.StrippedType().EnumUnderlyingTypeOrSelf();
+
+                if (!LiteralUtilities.TrySpecialCastCore(val, value.specialType, target.specialType, out val))
+                    throw ExceptionUtilities.Unreachable();
+            }
+
+            BoundExpression literal = Literal(syntax, val, input.type);
             var comparisonType = input.type.EnumUnderlyingTypeOrSelf();
 
             if (operatorKind.OperandTypes() == BinaryOperatorKind.Int &&
@@ -126,6 +184,69 @@ internal sealed partial class FlowLowerer {
             BoundDagEvaluation evaluation,
             out BoundExpression sideEffect,
             out BoundExpression testExpression) {
+            if (test is BoundDagTypeTest typeDecision &&
+                evaluation is BoundDagTypeEvaluation typeEvaluation1 &&
+                typeDecision.type.IsVerifierReference() &&
+                typeEvaluation1.type.Equals(typeDecision.type, TypeCompareKind.AllIgnoreOptions) &&
+                typeEvaluation1.input == typeDecision.input) {
+                var input = _tempAllocator.GetTemp(test.input);
+                var output = _tempAllocator.GetTemp(new BoundDagTemp(evaluation.syntax, typeEvaluation1.type, evaluation, 0));
+                sideEffect = Assignment(
+                    _node,
+                    output,
+                    new BoundAsOperator(
+                        _node,
+                        input,
+                        new BoundTypeExpression(_node, new TypeWithAnnotations(typeEvaluation1.type), null, typeEvaluation1.type),
+                        null,
+                        null,
+                        typeEvaluation1.type
+                    ),
+                    false,
+                    output.type
+                );
+
+                testExpression = new BoundIsOperator(
+                    _node,
+                    output,
+                    Literal(_node, null, output.type),
+                    true,
+                    null,
+                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                );
+
+                return true;
+            }
+
+            if (test is BoundDagNonNullTest nonNullTest &&
+                evaluation is BoundDagTypeEvaluation typeEvaluation2 &&
+                new Conversions(null).ClassifyBuiltInConversion(test.input.type, typeEvaluation2.type) is Conversion conv &&
+                (conv.isIdentity || conv.kind == ConversionKind.ImplicitReference || conv.isBoxing) &&
+                typeEvaluation2.input == nonNullTest.input) {
+                var input = _tempAllocator.GetTemp(test.input);
+                var baseType = typeEvaluation2.type;
+                var output = _tempAllocator.GetTemp(new BoundDagTemp(evaluation.syntax, baseType, evaluation, 0));
+
+                sideEffect = Assignment(
+                    _node,
+                    output,
+                    CreateCast(_node, baseType, input),
+                    false,
+                    output.type
+                );
+
+                testExpression = new BoundIsOperator(
+                    _node,
+                    output,
+                    Literal(_node, null, baseType),
+                    true,
+                    null,
+                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                );
+
+                return true;
+            }
+
             sideEffect = testExpression = null;
             return false;
         }

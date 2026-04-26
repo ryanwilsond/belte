@@ -150,10 +150,6 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                         case SpecialType.Enum:
                             result = TypeKind.Enum;
                             break;
-                        // case SpecialType.System_MulticastDelegate:
-                        //     // Delegate
-                        //     result = TypeKind.Delegate;
-                        //     break;
                         case SpecialType.ValueType:
                             if (specialType != SpecialType.Enum)
                                 result = TypeKind.Struct;
@@ -164,6 +160,9 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
                 if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.Enum")
                     result = TypeKind.Enum;
+
+                if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.ValueType")
+                    result = TypeKind.Struct;
 
                 _lazyKind = result;
             }
@@ -514,19 +513,20 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 if (skipTransformsIfNecessary)
                     return baseType;
 
-                var moduleSymbol = containingPEModule;
+                // TODO Would we ever want to make the type nullable in the base list?
+                // var moduleSymbol = containingPEModule;
                 // TypeSymbol decodedType = DynamicTypeDecoder.TransformType(baseType, 0, _handle, moduleSymbol);
                 // decodedType = NativeIntegerTypeDecoder.TransformType(decodedType, _handle, moduleSymbol, this);
                 // decodedType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(decodedType, _handle, moduleSymbol);
 
-                baseType = (NamedTypeSymbol)NullableTypeDecoder.TransformType(
-                    // new TypeWithAnnotations(decodedType),
-                    new TypeWithAnnotations(baseType),
-                    _handle,
-                    moduleSymbol,
-                    accessSymbol: this,
-                    nullableContext: this
-                ).type;
+                // baseType = (NamedTypeSymbol)NullableTypeDecoder.TransformType(
+                //     // new TypeWithAnnotations(decodedType),
+                //     new TypeWithAnnotations(baseType),
+                //     _handle,
+                //     moduleSymbol,
+                //     accessSymbol: this,
+                //     nullableContext: this
+                // ).type;
             }
 
             Interlocked.CompareExchange(ref _lazyDeclaredBaseType, baseType, ErrorTypeSymbol.UnknownResultType);
@@ -593,17 +593,18 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 var methodHandleToSymbol = CreateMethods(nonFieldMembers);
 
                 if (typeKind == TypeKind.Struct) {
-                    var haveParameterlessConstructor = false;
+                    // var haveParameterlessConstructor = false;
 
                     foreach (var method in nonFieldMembers.Cast<MethodSymbol>()) {
                         if (method.IsParameterlessConstructor()) {
-                            haveParameterlessConstructor = true;
+                            // haveParameterlessConstructor = true;
                             break;
                         }
                     }
 
-                    if (!haveParameterlessConstructor)
-                        nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
+                    // TODO This is suspect
+                    // if (!haveParameterlessConstructor)
+                    //     nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
                 }
 
                 foreach (var field in fieldMembers)

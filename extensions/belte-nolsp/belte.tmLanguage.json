@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|as|global|il|noverify)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -143,19 +143,31 @@
                 },
                 {
                     "name": "entity.name.class.belte",
-                    "match": "\\b((?<=class\\s+)|(?<=\\:\\s*))([a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b((?<=class\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.struct.belte",
+                    "match": "\\b((?<=struct\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.enum.belte",
+                    "match": "\\b((?<=enum\\s+(?:flags\\s+)?)|(?<=extends\\s*))(?!flags\\b)([a-zA-Z_]\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.namespace.belte",
+                    "match": "(?<=\\bnamespace\\b[\\s\\S]*?)\\b((?<=namespace\\s+)|(?<=\\.\\s*))([a-zA-Z_]\\w*)\\b"
                 },
                 {
                     "name": "entity.name.operator.belte",
-                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|is|isnt|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
+                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
                 },
                 {
                     "name": "entity.name.type.belte",
-                    "match": "\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
+                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
                 },
                 {
                     "name": "entity.name.type.parameter.belte",
-                    "match": "\\b(?<=\\()\\s*([a-zA-Z_]+\\w*)\\s+(?=[a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b(?<=\\()\\s*([a-zA-Z_]+\\w*)\\s+((?=[a-zA-Z_]+\\w*)(?!(is|isnt|as)))\\b"
                 },
                 {
                     "name": "entity.name.type.specifier.belte",

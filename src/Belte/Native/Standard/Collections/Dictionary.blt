@@ -1,6 +1,6 @@
 
 public lowlevel sealed class Dictionary<type TKey, type TValue> {
-    private int![]! _buckets;
+    private int![]! _buckets = { };
     private Entry[] _entries;
     private int! _count = 0;
     private int! _freeList = -1;
@@ -25,7 +25,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     public constructor(Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
     public constructor(Dictionary<TKey, TValue> dictionary, EqualityComparer<TKey> comparer)
-        : this(dictionary isnt null ? dictionary.Length() : 0, comparer) {
+        : this(dictionary?.Length()?, comparer) {
         if (dictionary is null)
             throw new ArgumentNullException();
 
@@ -98,8 +98,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
                     _entries[i].hashCode = -1;
                     _entries[i].next = _freeList;
-                    _entries[i].key = null;
-                    _entries[i].value = null;
+                    _entries[i].key = default;
+                    _entries[i].value = default;
                     _freeList = i;
                     _freeCount++;
 
@@ -120,6 +120,10 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             return ref dictionary._entries[i].value;
 
         throw new KeyNotFoundException();
+    }
+
+    public static Enumerator<KeyValuePair<TKey, TValue>>! operator iter(Dictionary<TKey, TValue> dictionary) {
+        return new DictionaryEnumerator(dictionary);
     }
 
     private const int! FindEntry(TKey key) {
@@ -153,7 +157,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
                 if (add)
                     throw new ArgumentNullException();
 
-                _entries[i].value = value!;
+                _entries[i].value = value;
                 return;
             }
         }
@@ -176,8 +180,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
         _entries[index].hashCode = hashCode;
         _entries[index].next = _buckets[targetBucket];
-        _entries[index].key = key!;
-        _entries[index].value = value!;
+        _entries[index].key = key;
+        _entries[index].value = value;
         _buckets[targetBucket] = index;
     }
 
@@ -229,5 +233,41 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         public int! next;
         public TKey key;
         public TValue value;
+    }
+
+    private class DictionaryEnumerator extends Enumerator<KeyValuePair<TKey, TValue>> {
+        private const Dictionary<TKey, TValue> _dictionary;
+        private int! _index = 0;
+        private KeyValuePair<TKey, TValue> _current;
+
+        public constructor(Dictionary<TKey, TValue> dictionary) {
+            _dictionary = dictionary;
+        }
+
+        public override KeyValuePair<TKey, TValue> Current() {
+            return _current;
+        }
+
+        public override void Reset() {
+            _index = 0;
+        }
+
+        public override bool! MoveNext() {
+            while ((uint32)_index < (uint32)_dictionary._count) {
+                ref Entry reference = ref _dictionary._entries[_index++];
+
+                if (reference.next >= -1) {
+                    _current = new KeyValuePair<TKey, TValue>()
+                        ..key = reference.key
+                        ..value = reference.value;
+
+                    return true;
+                }
+            }
+
+            _index = _dictionary._count + 1;
+            _current = new KeyValuePair<TKey, TValue>();
+            return false;
+        }
     }
 }

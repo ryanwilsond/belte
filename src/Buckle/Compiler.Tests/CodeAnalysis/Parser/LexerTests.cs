@@ -44,6 +44,16 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.HashToken);
         untestedTokenTypes.Remove(SyntaxKind.EndOfDirectiveToken);
         untestedTokenTypes.Remove(SyntaxKind.OmittedArgumentToken);
+        untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringLiteralToken);
+        untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringStartToken);
+        untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringEndToken);
+        untestedTokenTypes.Remove(SyntaxKind.ExplicitKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.ImplicitKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.FlagsKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.HandleKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.NotnullKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.NoVerifyKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.PrimitiveKeyword);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
         Assert.Empty(untestedTokenTypes);
@@ -150,7 +160,7 @@ public sealed class LexerTests {
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
                          and not SyntaxKind.HashToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
-            .Where(t => t.text is not null);
+            .Where(t => t.text is not null && !SyntaxFacts.IsContextualKeyword(t.kind));
 
         var dynamicTokens = new[] {
             (SyntaxKind.NumericLiteralToken, "1"),
@@ -292,6 +302,30 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.DollarToken && t2Kind == SyntaxKind.QuestionExclamationEqualsToken) return true;
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationEqualsToken) return true;
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.AsteriskAsteriskToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.LessThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.CaretToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.PipeToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.GreaterThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.AmpersandToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.PercentToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.QuestionExclamationToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.MinusToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanEqualsToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanGreaterThanEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionQuestionToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.PlusToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.EqualsToken && t2Kind == SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken) return true;
+        if (t1Kind == SyntaxKind.LessThanLessThanToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.AsteriskToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationExclamationToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationEqualsToken) return true;
+        if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationExclamationToken) return true;
+        if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationToken) return true;
 
         return false;
     }

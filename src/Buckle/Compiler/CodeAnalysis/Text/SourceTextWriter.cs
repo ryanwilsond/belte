@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -14,10 +15,10 @@ internal abstract class SourceTextWriter : TextWriter {
     /// <summary>
     /// Creates a writer. Will create different writers depending on the given length.
     /// </summary>
-    internal static SourceTextWriter Create(int length) {
+    internal static SourceTextWriter Create(int length, Encoding encoding) {
         if (length < SourceText.LargeObjectHeapLimitInChars)
-            return new StringTextWriter(length);
+            return new StringTextWriter(length, encoding);
         else
-            return new LargeTextWriter(length);
+            return new LargeTextWriter(length, encoding);
     }
 }

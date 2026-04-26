@@ -67,18 +67,21 @@ internal sealed partial class BinderFactory {
 
             // TODO We should probably set this up in case the compilation bounces from scripts to normal
             // var key = new BinderCacheKey(node, _inScript ? NodeUsage.CompilationUnitScript : NodeUsage.Normal);
-            var key = new BinderCacheKey(node, NodeUsage.Normal);
+            var extraInfo = inUsing ? NodeUsage.CompilationUnitUsings : NodeUsage.Normal;
+            var key = new BinderCacheKey(node, extraInfo);
 
             if (!_binderCache.TryGetValue(key, out var result)) {
-                // TODO The SubmissionBinder is what fetches types from previous compilations (so the CorLibrary)
+                // TODO The SubmissionBinder is what fetches locals from previous compilations
                 // So is this fine as is, or should there still be some _inScript check
                 result = new SubmissionBinder(_compilation.globalNamespaceInternal, node, _endBinder);
+
                 result = AddInImportsBinders(
                     (SourceNamespaceSymbol)_compilation.sourceModule.globalNamespace,
                     node,
                     result,
                     inUsing
                 );
+
                 result = new InContainerBinder(_compilation.globalNamespaceInternal, result);
 
                 if (_inScript)
@@ -142,6 +145,16 @@ internal sealed partial class BinderFactory {
                 return VisitCore(parent.parent);
 
             var inBody = SyntaxFacts.IsBetweenTokens(_position, parent.openBrace, parent.closeBrace);
+            var inUsing = IsInUsing(parent);
+
+            return VisitNamespaceDeclaration(parent, _position, inBody, inUsing);
+        }
+
+        internal override Binder VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax parent) {
+            if (!SyntaxFacts.IsInNamespaceDeclaration(_position, parent))
+                return VisitCore(parent.parent);
+
+            var inBody = _position >= parent.semicolon.endPosition;
             var inUsing = IsInUsing(parent);
 
             return VisitNamespaceDeclaration(parent, _position, inBody, inUsing);
@@ -484,6 +497,13 @@ internal sealed partial class BinderFactory {
 
         internal override Binder VisitStructDeclaration(StructDeclarationSyntax node) {
             return VisitTypeDeclarationCore(node);
+        }
+
+        internal override Binder VisitUnionDeclaration(UnionDeclarationSyntax node) {
+            if (node.identifier is not null)
+                return VisitTypeDeclarationCore(node);
+
+            return VisitCore(node.parent);
         }
     }
 }

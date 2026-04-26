@@ -15,6 +15,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyInt;
     private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
@@ -90,6 +91,15 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol Int {
+        get {
+            if (_lazyInt is null)
+                Interlocked.CompareExchange(ref _lazyInt, GenerateInt(), null);
+
+            return _lazyInt;
+        }
+    }
+
     internal static SynthesizedFinishedNamedTypeSymbol CallingConvention {
         get {
             if (_lazyCallingConvention is null)
@@ -108,16 +118,20 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes() {
-        yield return Directory;
-        yield return File;
-        yield return Console;
-        yield return Math;
+    internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes(bool reduced) {
         yield return LowLevel;
-        yield return Time;
-        yield return Random;
-        yield return String;
         yield return CallingConvention;
+
+        if (!reduced) {
+            yield return Directory;
+            yield return File;
+            yield return Console;
+            yield return Math;
+            yield return Time;
+            yield return Random;
+            yield return String;
+            yield return Int;
+        }
     }
 
     internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
@@ -137,13 +151,23 @@ internal static class StandardLibrary {
             StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
             StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
             StaticMethod("Length", SpecialType.Int, [("str", SpecialType.String)]),
+            StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("str", SpecialType.String, true)]),
+            StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
+            StaticMethod("IsDigit", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
+            StaticMethod("Substring", SpecialType.String, [("text", SpecialType.String, false), ("start", SpecialType.Int, true), ("length", SpecialType.Int, true)]),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateInt() {
+        return StaticClass("Int", [
+            StaticMethod("Parse", SpecialType.Int, true, [("text", SpecialType.String, true)]),
         ]);
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateCallingConvention() {
         return StaticClass("CallingConvention", [
-            ConstExprField("Winapi", SpecialType.UInt32, 1),
-            ConstExprField("Cdecl", SpecialType.UInt32, 2),
+            ConstExprField("Winapi", SpecialType.UInt32, (uint)1),
+            ConstExprField("Cdecl", SpecialType.UInt32, (uint)2),
         ]);
     }
 
@@ -314,6 +338,7 @@ internal static class StandardLibrary {
         return StaticClass("LowLevel", [
             StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
+            StaticMethod("GetType", SpecialType.Type, [("value", SpecialType.Any)]),
             length,
             sort,
             sizeOf,
@@ -505,9 +530,9 @@ internal static class StandardLibrary {
             { "Console_ResetColor", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.ResetColor(); return null; }) },
             { "Console_SetForegroundColor_I", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)a; return null; }) },
+                => { if (!System.Console.IsOutputRedirected) System.Console.ForegroundColor = (ConsoleColor)(long)a; return null; }) },
             { "Console_SetBackgroundColor_I", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)a; return null; }) },
+                => { if (!System.Console.IsOutputRedirected) System.Console.BackgroundColor = (ConsoleColor)(long)a; return null; }) },
             { "Console_SetCursorPosition_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) { System.Console.SetCursorPosition(a is null ? System.Console.CursorLeft : Convert.ToInt32(a), b is null ? System.Console.CursorTop : Convert.ToInt32(b)); } return null; }) },
             { "Console_SetCursorVisibility_B", new Func<object, object, object, object>((a, b, c)
@@ -682,6 +707,22 @@ internal static class StandardLibrary {
                 => { return char.TryParse((string)a, out var result) ? (long)result : null; }) },
             { "String_Char_I", new Func<object, object, object, object>((a, b, c)
                 => { return Convert.ToChar(a); }) },
+            { "String_IsNullOrWhiteSpace_S?", new Func<object, object, object, object>((a, b, c)
+                => { return string.IsNullOrWhiteSpace((string)a); }) },
+            { "String_IsNullOrWhiteSpace_C?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || char.IsWhiteSpace((char)a); }) },
+            { "String_IsDigit_C?", new Func<object, object, object, object>((a, b, c)
+                => { return a is not null && char.IsDigit((char)a); }) },
+            { "String_Length_S", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).Length; }) },
+            { "String_Substring_SI?I?", new Func<object, object, object, object>((a, b, c)
+                => { if (a is null) return null;
+                     if (c is null) return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b));
+                     return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b), unchecked((int)(long)c)); }) },
+            { "Int_Parse_S?", new Func<object, object, object, object>((a, b, c)
+                => { if (a is null) return null;
+                     if (long.TryParse((string)a, out var result)) return result;
+                     return null; }) },
         };
     }
 }

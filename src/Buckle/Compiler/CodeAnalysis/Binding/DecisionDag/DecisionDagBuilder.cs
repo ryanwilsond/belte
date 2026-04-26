@@ -13,6 +13,7 @@ internal sealed partial class DecisionDagBuilder {
     private static readonly ObjectPool<PooledDictionary<DagState, DagState>> UniqueStatePool =
         PooledDictionary<DagState, DagState>.CreatePool(DagStateEquivalence.Instance);
 
+    private readonly Conversions _conversions;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly LabelSymbol _defaultLabel;
     private readonly bool _forLowering;
@@ -21,6 +22,7 @@ internal sealed partial class DecisionDagBuilder {
         LabelSymbol defaultLabel,
         bool forLowering,
         BelteDiagnosticQueue diagnostics) {
+        _conversions = new Conversions(null);
         _diagnostics = diagnostics;
         _defaultLabel = defaultLabel;
         _forLowering = forLowering;
@@ -265,6 +267,7 @@ internal sealed partial class DecisionDagBuilder {
             case BoundDagEvaluation _:
             case BoundDagExplicitNullTest _:
             case BoundDagNonNullTest _:
+            case BoundDagTypeTest _:
                 return (values, values, true, true);
             case BoundDagValueTest t:
                 return ResultForRelation(BinaryOperatorKind.Equal, t.value);
@@ -516,10 +519,22 @@ internal sealed partial class DecisionDagBuilder {
     }
 
     private BoundDagTemp OriginalInput(BoundDagTemp input, Symbol symbol) {
+        while (input.source is BoundDagTypeEvaluation source &&
+            IsDerivedType(source.input.type, symbol.containingType)) {
+            input = source.input;
+        }
+
         return input;
+
+        bool IsDerivedType(TypeSymbol possibleDerived, TypeSymbol possibleBase) {
+            return _conversions.HasIdentityOrImplicitReferenceConversion(possibleDerived, possibleBase);
+        }
     }
 
     private static BoundDagTemp OriginalInput(BoundDagTemp input) {
+        while (input.source is BoundDagTypeEvaluation source)
+            input = source.input;
+
         return input;
     }
 
@@ -540,19 +555,18 @@ internal sealed partial class DecisionDagBuilder {
         ArrayBuilder<Tests> tests) {
         MakeCheckNotNull(input, syntax, isExplicitTest, tests);
 
-        if (!input.type.Equals(type, TypeCompareKind.AllIgnoreOptions)) {
-            throw ExceptionUtilities.Unreachable();
-            // var inputType = input.type.StrippedType();
-            // var conversion = _conversions.ClassifyBuiltInConversion(inputType, type);
+        if (!input.type.Equals(type, TypeCompareKind.IgnoreArraySizesAndLowerBounds)) {
+            var inputType = input.type.StrippedType();
+            var conversion = _conversions.ClassifyBuiltInConversion(inputType, type);
 
-            // if (conversion.isImplicit) {
-            // } else {
-            //     tests.Add(new Tests.One(new BoundDagTypeTest(syntax, type, input)));
-            // }
+            if (conversion.isImplicit) {
+            } else {
+                tests.Add(new Tests.One(new BoundDagTypeTest(syntax, type, input)));
+            }
 
-            // var evaluation = new BoundDagTypeEvaluation(syntax, type, input);
-            // input = new BoundDagTemp(syntax, type, evaluation);
-            // tests.Add(new Tests.One(evaluation));
+            var evaluation = new BoundDagTypeEvaluation(syntax, type, input);
+            input = new BoundDagTemp(syntax, type, evaluation, 0);
+            tests.Add(new Tests.One(evaluation));
         }
 
         return input;
@@ -573,6 +587,7 @@ internal sealed partial class DecisionDagBuilder {
 
         if (test is not (BoundDagNonNullTest or BoundDagExplicitNullTest) &&
             other is not (BoundDagNonNullTest or BoundDagExplicitNullTest) &&
+            (test is not BoundDagTypeTest || other is not BoundDagTypeTest) &&
             !test.input.type.Equals(other.input.type, TypeCompareKind.AllIgnoreOptions)) {
             return false;
         }
@@ -584,6 +599,9 @@ internal sealed partial class DecisionDagBuilder {
 
         while (s1Input.index == s2Input.index) {
             switch (s1Input.source, s2Input.source) {
+                case (BoundDagTypeEvaluation, _):
+                case (_, BoundDagTypeEvaluation):
+                    throw ExceptionUtilities.Unreachable();
                 case var (s1, s2) when s1 == s2:
                     if (conditions is not null) {
                         relationCondition = Tests.AndSequence.Create(conditions);
@@ -642,6 +660,36 @@ internal sealed partial class DecisionDagBuilder {
                         break;
                     default:
                         falseTestPermitsTrueOther = false;
+                        break;
+                }
+
+                break;
+            case BoundDagTypeTest t1:
+                switch (other) {
+                    case BoundDagNonNullTest n2:
+                        if (n2.isExplicitTest)
+                            foundExplicitNullTest = true;
+
+                        trueTestImpliesTrueOther = true;
+                        break;
+                    case BoundDagTypeTest t2: {
+                            var matches = ExpressionOfTypeMatchesPatternTypeForLearningFromSuccessfulTypeTest(t1.type, t2.type);
+
+                            if (matches == false)
+                                trueTestPermitsTrueOther = false;
+                            else if (matches == true)
+                                trueTestImpliesTrueOther = true;
+
+                            matches = Binder.ExpressionOfTypeMatchesPatternType(_conversions, t2.type, t1.type, out _);
+
+                            if (matches == true)
+                                falseTestPermitsTrueOther = false;
+                        }
+
+                        break;
+                    case BoundDagExplicitNullTest _:
+                        foundExplicitNullTest = true;
+                        trueTestPermitsTrueOther = false;
                         break;
                 }
 
@@ -705,9 +753,66 @@ internal sealed partial class DecisionDagBuilder {
                     case BoundDagValueTest _:
                         trueTestPermitsTrueOther = false;
                         break;
+                    case BoundDagTypeTest _:
+                        trueTestPermitsTrueOther = false;
+                        break;
                 }
 
                 break;
+        }
+    }
+
+    private bool? ExpressionOfTypeMatchesPatternTypeForLearningFromSuccessfulTypeTest(
+        TypeSymbol expressionType,
+        TypeSymbol patternType) {
+        var result = Binder.ExpressionOfTypeMatchesPatternType(_conversions, expressionType, patternType, out var conversion);
+        return (!conversion.exists && IsRuntimeSimilar(expressionType, patternType))
+            ? null
+            : result;
+
+        static bool IsRuntimeSimilar(TypeSymbol expressionType, TypeSymbol patternType) {
+            while (expressionType is ArrayTypeSymbol array1 &&
+                   patternType is ArrayTypeSymbol array2 &&
+                   array1.isSZArray == array2.isSZArray &&
+                   array1.rank == array2.rank) {
+                var e1 = array1.elementType.EnumUnderlyingTypeOrSelf();
+                var e2 = array2.elementType.EnumUnderlyingTypeOrSelf();
+                switch (e1.specialType, e2.specialType) {
+                    case var (s1, s2) when s1 == s2:
+                    case (SpecialType.Int8, SpecialType.UInt8):
+                    case (SpecialType.UInt8, SpecialType.Int8):
+                    case (SpecialType.Int16, SpecialType.UInt16):
+                    case (SpecialType.UInt16, SpecialType.Int16):
+                    case (SpecialType.Int32, SpecialType.UInt32):
+                    case (SpecialType.UInt32, SpecialType.Int32):
+                    case (SpecialType.Int64, SpecialType.UInt64):
+                    case (SpecialType.UInt64, SpecialType.Int64):
+                    case (SpecialType.IntPtr, SpecialType.UIntPtr):
+                    case (SpecialType.UIntPtr, SpecialType.IntPtr):
+                    case (SpecialType.Int32, SpecialType.IntPtr):
+                    case (SpecialType.Int32, SpecialType.UIntPtr):
+                    case (SpecialType.UInt32, SpecialType.IntPtr):
+                    case (SpecialType.UInt32, SpecialType.UIntPtr):
+                    case (SpecialType.IntPtr, SpecialType.Int32):
+                    case (SpecialType.IntPtr, SpecialType.UInt32):
+                    case (SpecialType.UIntPtr, SpecialType.Int32):
+                    case (SpecialType.UIntPtr, SpecialType.UInt32):
+                    case (SpecialType.Int64, SpecialType.IntPtr):
+                    case (SpecialType.Int64, SpecialType.UIntPtr):
+                    case (SpecialType.UInt64, SpecialType.IntPtr):
+                    case (SpecialType.UInt64, SpecialType.UIntPtr):
+                    case (SpecialType.IntPtr, SpecialType.Int64):
+                    case (SpecialType.IntPtr, SpecialType.UInt64):
+                    case (SpecialType.UIntPtr, SpecialType.Int64):
+                    case (SpecialType.UIntPtr, SpecialType.UInt64):
+                        return true;
+                    default:
+                        (expressionType, patternType) = (e1, e2);
+                        break;
+                }
+            }
+
+            return false;
         }
     }
 }

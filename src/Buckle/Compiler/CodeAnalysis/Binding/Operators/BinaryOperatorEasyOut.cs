@@ -270,6 +270,13 @@ internal sealed partial class OverloadResolution {
                 result = Operators[kind.OperatorIndex()][leftIndex, rightIndex];
             }
 
+            // TODO This is a hack to ensure unsigned long operations are correct
+            // Eventually we want to fill out the easy out chart to account for this instead
+            if (left.specialType.IsUnsigned()) {
+                if (right.specialType.IsUnsigned() || kind.IsShift())
+                    result = BinaryOperatorKind.UInt;
+            }
+
             return result == BinaryOperatorKind.Error ? result : result | kind;
         }
     }
@@ -288,6 +295,16 @@ internal sealed partial class OverloadResolution {
 
         if (rightType is null)
             return;
+
+        if (left.kind == BoundKind.LiteralExpression && right.kind != BoundKind.LiteralExpression &&
+            !leftType.specialType.IsFloatingPoint()) {
+            leftType = Binder.ReduceNumericIfApplicable(rightType, left).type;
+        }
+
+        if (right.kind == BoundKind.LiteralExpression && left.kind != BoundKind.LiteralExpression &&
+            !rightType.specialType.IsFloatingPoint()) {
+            rightType = Binder.ReduceNumericIfApplicable(leftType, right).type;
+        }
 
         var easyOut = BinOpEasyOut.OpKind(kind, leftType, rightType);
 

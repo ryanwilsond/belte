@@ -29,15 +29,17 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
         int arity,
         SyntaxKind kind,
         BelteSyntaxNode syntax) {
-        var typeKind = kind.ToTypeKind();
+        var typeKind = kind.ToDeclarationKind().ToTypeKind();
 
         foreach (var member in GetTypeMembers(name, arity)) {
             if (member is SourceNamedTypeSymbol memberT && memberT.typeKind == typeKind) {
                 if (syntax is not null) {
-                    var location = memberT.location;
+                    foreach (var declaration in memberT.mergedDeclaration.declarations) {
+                        var loc = declaration.nameLocation;
 
-                    if (memberT.syntaxReference.syntaxTree == syntax.syntaxTree && syntax.span.Contains(location.span))
-                        return memberT;
+                        if (loc.isInSource && loc.tree == syntax.syntaxTree && syntax.span.Contains(loc.span))
+                            return memberT;
+                    }
                 } else {
                     return memberT;
                 }

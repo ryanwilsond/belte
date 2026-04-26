@@ -52,6 +52,21 @@ internal static partial class SyntaxFactory {
     }
 
     /// <summary>
+    /// Creates a <see cref="SyntaxToken" /> with a text, a value, and trivia.
+    /// </summary>
+    internal static SyntaxToken Token(
+        SyntaxKind kind, string text, object value,
+        GreenNode leading, GreenNode trailing) {
+        return new SyntaxToken(kind, text, value, leading, trailing);
+    }
+
+    internal static SyntaxToken Contextual(
+        SyntaxKind kind, string text, object value,
+        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
+        return new SyntaxToken.SyntaxIdentifierExtended(kind, text, value, leading, trailing, diagnostics);
+    }
+
+    /// <summary>
     /// Creates a <see cref="SyntaxTrivia" /> with text and diagnostics.
     /// </summary>
     internal static SyntaxTrivia Trivia(SyntaxKind kind, string text, Diagnostic[] diagnostics) {
@@ -70,6 +85,13 @@ internal static partial class SyntaxFactory {
     /// </summary>
     internal static SyntaxToken Missing(SyntaxKind kind) {
         return SyntaxToken.CreateMissing(kind, null, null);
+    }
+
+    /// <summary>
+    /// Creates a missing <see cref="SyntaxToken" /> with trivia.
+    /// </summary>
+    internal static SyntaxToken Missing(SyntaxKind kind, GreenNode leading, GreenNode trailing) {
+        return SyntaxToken.CreateMissing(kind, leading, trailing);
     }
 
     /// <summary>

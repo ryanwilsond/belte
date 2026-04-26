@@ -2,7 +2,8 @@
 
 The List template is a dynamic array implementation.
 
-The Belte public interface for the List template can be found [here](../../../src/Belte/Native/Standard/Collections/List.blt).
+The Belte public interface for the List template can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Collections/List.blt).
 
 - [5.7.1.1](#5711-constructors) Constructors
 - [5.7.1.2](#5712-methods) Methods
@@ -45,8 +46,9 @@ new List<int>();
 
 | Signature | Description |
 |-|-|
-| `ref T operator[](List<T>, int)` | Gets the value at the given index. |
-| `implicit operator List<T>(T[])` | Creates a list from an array. |
+| `static ref T operator[](List<T>, int)` | Gets the value at the given index. |
+| `static int! operator length(List<T>)` | Used in [iterating for loops](../ControlFlow.md#2443-indexed-collections). |
+| `static implicit operator List<T>(T[])` | Creates a list from an array. |
 
 For example, to index a list:
 

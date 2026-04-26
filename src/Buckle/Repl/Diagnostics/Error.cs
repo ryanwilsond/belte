@@ -87,9 +87,7 @@ internal static class Error {
     }
 
     internal static Diagnostic FailedILGeneration() {
-        var message = $"failed to generate IL: cannot reference locals or globals from previous submissions with the " +
-            "'#showIL' toggle on";
-
+        var message = $"failed to generate IL: cannot reference locals or globals from previous submissions with the '#showIL' toggle on";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_FailedILGeneration), message);
     }
 

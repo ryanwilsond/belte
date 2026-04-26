@@ -18,13 +18,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Remove="../../Belte/Native/Standard/HashHelpers.blt" />
     <Content Remove="../../Belte/Native/Standard/Object.blt" />
+    <Content Remove="../../Belte/Native/Standard/HashHelpers.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/KeyNotFoundException.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/EqualityComparer.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/Array.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/List.blt" />
+    <Content Remove="../../Belte/Native/Standard/Collections/Enumerator.blt" />
+    <Content Remove="../../Belte/Native/Standard/Collections/ReducedEnumerator.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/Dictionary.blt" />
+    <Content Remove="../../Belte/Native/Standard/Collections/KeyValuePair.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentException.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentNullException.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
@@ -44,13 +47,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="../../Belte/Native/Standard/HashHelpers.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Object.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/HashHelpers.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/KeyNotFoundException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/EqualityComparer.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Array.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/List.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Enumerator.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/ReducedEnumerator.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Dictionary.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/KeyValuePair.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentNullException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentOutOfRangeException.blt" />

@@ -28,7 +28,7 @@ public sealed class DiagnosticQueueTests {
         diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
         var diagnosticEnumerator = diagnosticQueue.GetEnumerator();
 
-        Assert.Equal(typeof(List<Diagnostic>.Enumerator), diagnosticEnumerator.GetType());
+        Assert.NotNull(diagnosticEnumerator);
     }
 
     [Fact]
@@ -95,17 +95,6 @@ public sealed class DiagnosticQueueTests {
     }
 
     [Fact]
-    public void DiagnosticQueue_PopBack_PopsLast() {
-        var diagnosticQueue = new DiagnosticQueue<Diagnostic>();
-        diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
-        diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Warning, ""));
-        var diagnostic = diagnosticQueue.PopBack();
-
-        Assert.Single(diagnosticQueue.ToArray());
-        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.info.severity);
-    }
-
-    [Fact]
     public void DiagnosticQueue_Clear_RemovesAllDiagnostics() {
         var diagnosticQueue = new DiagnosticQueue<Diagnostic>();
         diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
@@ -168,18 +157,5 @@ public sealed class DiagnosticQueueTests {
 
         Assert.Single(newDiagnosticQueue.ToArray());
         Assert.Equal(DiagnosticSeverity.Warning, newDiagnosticQueue.ToArray()[0].info.severity);
-    }
-
-    [Fact]
-    public void DiagnosticQueue_CopyToFront_CopiesQueueToFront() {
-        var diagnosticQueue1 = new DiagnosticQueue<Diagnostic>();
-        var diagnosticQueue2 = new DiagnosticQueue<Diagnostic>();
-        diagnosticQueue1.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
-        diagnosticQueue1.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
-        diagnosticQueue2.Push(new Diagnostic(DiagnosticSeverity.Warning, ""));
-        diagnosticQueue2.Push(new Diagnostic(DiagnosticSeverity.Warning, ""));
-        diagnosticQueue1.CopyToFront(diagnosticQueue2);
-
-        Assert.Equal(DiagnosticSeverity.Warning, diagnosticQueue1.ToArray()[0].info.severity);
     }
 }

@@ -19,7 +19,7 @@ SYNTAXPATH:=$(COMPILER_DIR)/CodeAnalysis/Syntax/Syntax.xml
 BOUNDNODESPATH:=$(COMPILER_DIR)/CodeAnalysis/Binding/BoundTree/BoundNodes.xml
 GENERATED_DIR:=$(COMPILER_DIR)/CodeAnalysis/Generated
 
-PUBLISH_FLAGS:=-p:DebugType=None -p:DebugSymbols=false --sc true -c Release -f $(NETVER)
+PUBLISH_FLAGS:=-p:DebugType=None -p:DebugSymbols=false --sc false -c Release -f $(NETVER)
 SINGLE_FILE_FLAGS:=-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 FLAGS:=$(PUBLISH_FLAGS) $(SINGLE_FILE_FLAGS)
 
@@ -38,6 +38,7 @@ endif
 
 all: debug
 release: prebuild libs copydlls build postbuild
+releasemf: prebuild libs copydlls buildmf postbuild
 portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
@@ -111,13 +112,18 @@ build:
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
 		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
 
+buildmf:
+	@echo "Started building the Buckle project (release, multi-file) ..."
+	@dotnet publish $(CL_DIR)/CommandLine.csproj $(PUBLISH_FLAGS) -o bin/release \
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
+
 buildportable:
 	@echo "Started building the Buckle project (portable) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release
 
 builddebug:
 	@echo "Started building the Buckle project (debug) ..."
-	@dotnet build $(CL_DIR)/CommandLine.csproj --sc -r $(SYSTEM) -o bin/debug
+	@dotnet build $(CL_DIR)/CommandLine.csproj --sc false -r $(SYSTEM) -o bin/debug
 
 buildlinux:
 	@echo "Started building the Buckle project (linux) ..."

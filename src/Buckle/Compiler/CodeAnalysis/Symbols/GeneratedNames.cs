@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Lowering;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -30,6 +31,14 @@ internal static class GeneratedNames {
         }
 
         return result.ToStringAndFree();
+    }
+
+    internal static string MakeAnonymousUnionName(string parentName, ImmutableArray<SourceMemberFieldSymbol> fields) {
+        return "<>" + parentName + "__Union_" + fields.Length + "_" + fields[0].unionGroupId;
+    }
+
+    internal static string MakeAnonymousUnionFieldName(string typeName) {
+        return "<" + typeName + ">e__AnonymousUnion";
     }
 
     internal static string MakeFixedFieldImplementationName(string fieldName) {

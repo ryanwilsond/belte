@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -79,7 +80,13 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal virtual NamedTypeSymbol enumUnderlyingType => null;
 
+    internal virtual bool isUnionStruct => false;
+
     internal virtual bool enumFlagsAttribute => false;
+
+    internal virtual bool knownCircularStruct => false;
+
+    internal virtual bool isImplicitClass => false;
 
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
@@ -107,6 +114,16 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal void SetKnownToHaveNoDeclaredBaseCycles() {
         _hasNoBaseCycles = true;
+    }
+
+    internal int AllTemplateArgumentsCount() {
+        var count = templateArguments.Length;
+        var outer = containingType;
+
+        if (outer is not null)
+            count += outer.AllTemplateArgumentsCount();
+
+        return count;
     }
 
     internal void AddOperators(string name, ArrayBuilder<MethodSymbol> operators) {
@@ -344,8 +361,13 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         var thisIsOriginalDefinition = (object)this == thisOriginalDefinition;
         var otherIsOriginalDefinition = (object)other == otherOriginalDefinition;
 
-        if (thisIsOriginalDefinition && otherIsOriginalDefinition)
-            return false;
+        if (thisIsOriginalDefinition && otherIsOriginalDefinition) {
+            if (!thisOriginalDefinition.specialType.IsNumeric())
+                return false;
+
+            return CodeGenerator.NormalizeNumericType(thisOriginalDefinition.specialType) ==
+                CodeGenerator.NormalizeNumericType(otherOriginalDefinition.specialType);
+        }
 
         if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
             (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {

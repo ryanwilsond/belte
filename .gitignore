@@ -18,5 +18,9 @@
 *.Generated.cs
 *.log
 *.etl
+*.lscache
 
 */project-words
+
+# VS Generated Files
+**/Properties/launchSettings.json

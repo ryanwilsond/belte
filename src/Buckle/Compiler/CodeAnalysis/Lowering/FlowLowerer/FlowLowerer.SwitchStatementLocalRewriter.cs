@@ -3,7 +3,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -73,15 +72,17 @@ internal sealed partial class FlowLowerer {
 
             (var loweredDag, var switchSections) = LowerDecisionDag(decisionDag);
 
-            var allTemps = _tempAllocator.AllTemps();
-            outerVariables.AddRange(allTemps);
+            var temps = _tempAllocator.AllTemps();
+            outerVariables.AddRange(temps);
 
-            foreach (var temp in allTemps) {
-                result.Add(new BoundLocalDeclarationStatement(node.syntax,
+            foreach (var temp in temps) {
+                // TODO This never stays, we are only doing this for the declaration trigger in the code generator
+                // Meaning there is probably a better way to mark the declaration without emitting a useless instruction
+                result.Insert(0, new BoundLocalDeclarationStatement(node.syntax,
                     new BoundDataContainerDeclaration(node.syntax,
                         temp,
                         BoundFactory.Literal(node.syntax,
-                            temp.type.IsNullableType() ? null : LiteralUtilities.GetDefaultValue(temp.type.specialType),
+                            temp.type.IsNullableType() ? null : LiteralUtilities.GetDefaultValue(temp.type.EnumUnderlyingTypeOrSelf().specialType),
                             temp.type
                         )
                     ))

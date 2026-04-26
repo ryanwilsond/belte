@@ -1,9 +1,30 @@
 # 2 Control Flow
 
 - [2.1](#21-functions) Functions
+  - [2.1.1](#211-nested-functions) Nested Functions
+  - [2.1.2](#212-overloads) Overloads
+  - [2.1.3](#213-default-arguments) Default Arguments
+  - [2.1.4](#214-named-arguments) Named Arguments
+  - [2.1.5](#215-template-arguments) Template Arguments
+  - [2.1.6](#216-ref-arguments) Ref Arguments
 - [2.2](#22-entry-point) Entry Point
+  - [2.2.1](#221-main) Main
+  - [2.2.2](#222-program-and-update) Program And Update
+  - [2.2.3](#223-disambiguating-entry-points) Disambiguating Entry Points
 - [2.3](#23-conditionals) Conditionals
+  - [2.3.1](#231-null-conditions) Null Conditions
+  - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
 - [2.4](#24-loops) Loops
+  - [2.4.1](#241-while-loops) While Loops
+  - [2.4.2](#242-do-while-loops) Do-While Loops
+  - [2.4.3](#243-for-loops) For Loops
+  - [2.4.4](#244-for-each-loops) For Each Loops
+    - [2.4.4.1](#2441-string-collections) String Collections
+    - [2.4.4.2](#2442-array-collections) Array Collections
+    - [2.4.4.3](#2443-indexed-collections) Indexed Collections
+    - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
+- [2.5](#25-switch) Switch
+- [2.6](#26-exceptions) Exceptions
 
 ## 2.1 Functions
 
@@ -95,6 +116,48 @@ identical to that of class templates, which can be read about [here](./ClassesAn
 for templates and template constraint clauses are as follows:
 `void Func<template parameters...>() where { template constraint clauses... } { }`
 
+### 2.1.6 Ref Arguments
+
+Like locals and fields, parameters can use the `ref` keyword. In addition to this, parameters can also use the `out`
+keyword to specify an out parameter that acts like a reference but exclusively assigns to the reference.
+
+```belte
+int a = 0;
+int b = Func(out a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+To shortcut declaring a local immediately used as an argument for an out parameter, the declaration can be moved into
+the argument:
+
+```belte
+int b = Func(out int a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+Implicit typing also works in out argument declarations, but nullable annotations are disallowed:
+
+```belte
+int b = Func(out var a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
+the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
+used as the type for an out parameter.
+
 ## 2.2 Entry Point
 
 If no specific entry point is declared, the program runs statements in a top-down approach (similar to Python). This is
@@ -110,30 +173,22 @@ Valid `Main` signatures:
 ```belte
 void Main();
 int Main();
-void Main(int! argc, string![]! argv);
-int Main(int! argc, string![]! argv);
+void Main(string![]! args);
+int Main(string![]! args);
 ```
 
-Where `argc` is the number of command-line arguments and `argv` is an array of command-line arguments.
+Where `args` is an array of command-line arguments.
 
-Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (NOT case sensitive), and
-the parameters must have the exact types, but the parameter names can be anything:
-
-More valid `Main` signatures:
-
-```belte
-void main();
-int MAIN();
-void main(int! a, string![]! b);
-int MaiN(int! argcount, string![]! args);
-```
+Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (case sensitive), and
+the parameter must have the exact type, but the parameter name can be anything:
 
 **Invalid** `Main` signatures:
 
 ```bete
+void main(); // Name does not match casing
 string Main(); // Cannot return 'string'
-void Main(int! argc); // Must have 0 or 2 parameters
-int Main(string a, bool b); // Invalid parameters types, must be 'int!' and 'string[]!'
+void Main(int! argc, string![]! argv); // Must have 0 or 1 parameters
+int Main(string a); // Invalid parameter type, must be 'string![]!'
 ```
 
 ### 2.2.2 Program and Update
@@ -177,6 +232,16 @@ public class Program {
 }
 ```
 
+### 2.2.3 Disambiguating Entry Points
+
+If multiple types contain a method that is recognized as the entry point, the compiler will fail to pick one. In such a
+case, the [*--entry=\<name>*](../Buckle.md#--entryname) command-line argument can be used to specify a type name to
+search for the entry point in.
+
+The name passed can be just a type name, or a namespace qualified name. The passed name does not support nesting and
+instead treats everything to the left of the last period as the namespace name. For example `--entry=A.B.C` would look
+for the entry point within a type named `C` inside of a namespace named `A.B`.
+
 ## 2.3 Conditionals
 
 To control the flow of the program indeterminately, `if` and `else` can be used. An `if` statement checks a condition,
@@ -185,9 +250,9 @@ exists.
 
 ```belte
 if (a > b)
-  PrintLine("a is greater than b");
+  Console.PrintLine("a is greater than b");
 else
-  PrintLine("a is not greater than b");
+  Console.PrintLine("a is not greater than b");
 ```
 
 These statements contain a single statement under each of them, but this statement can be a block to allow larger
@@ -196,9 +261,9 @@ pieces of code to run under them.
 ```belte
 if (a > b) {
   int difference = a - b;
-  PrintLine("a is " + (string)difference + " greater than b");
+  Console.PrintLine("a is " + (string)difference + " greater than b");
 } else {
-  PrintLine("a is not greater than b");
+  Console.PrintLine("a is not greater than b");
 }
 ```
 
@@ -207,12 +272,64 @@ If-else statements can also be chained:
 ```belte
 if (a > b) {
   int difference = a - b;
-  PrintLine("a is " + (string)difference + " greater than b");
+  Console.PrintLine("a is " + (string)difference + " greater than b");
 } else if (a == b) {
-  PrintLine("a is equal to b");
+  Console.PrintLine("a is equal to b");
 } else {
   int difference = b - a;
-  PrintLine("a is " + (string)difference + " less than b");
+  Console.PrintLine("a is " + (string)difference + " less than b");
+}
+```
+
+### 2.3.1 Null Conditions
+
+The condition type of an `if` statement can be a nullable bool or non-nullable bool. If the condition type is nullable,
+a runtime check is performed to see if the operand is null. If it is, a null condition exception is thrown at the site
+of the condition.
+
+To avoid this exception while still allowing nullable types in the condition expression, a
+[null-erasure (`?`) operator](Data.md#3222-x) can be used which results in the operands default value if it is null.
+
+For example:
+
+```belte
+int? a = null;
+
+if ((a > 4)?) {
+  ...
+} else {
+  ...
+}
+```
+
+In this example, the result of `a > 4` is null because `a` is null. Then the null-erasure operator applies and sees null
+as it's operand and results in the default value of the type, which in this case is `false` because the default value
+for bools is `false`. The else block will then execute.
+
+### 2.3.2 Null-Binding Contracts
+
+A null-binding contract can be used to declare a temporary local within an `if` scope predicated on the fact that the
+local is not null.
+
+```belte
+int? a = 3;
+
+if (a -> x!) {
+  int! b = x;
+}
+```
+
+If the source expression is null, the block does not run. Otherwise, a non-nullable temporary is created for the block.
+
+Similar to an ordinary if statement, an else block can be defined that runs only if the source expression is null.
+
+```belte
+int? a = 3;
+
+if (a -> x!) {
+  int! b = x;
+} else {
+  int? b = a;
 }
 ```
 
@@ -251,7 +368,7 @@ loop a specific number of times:
 
 ```belte
 for (int i=0; i<10; i++) {
-  PrintLine(i);
+  Console.PrintLine(i);
 }
 ```
 
@@ -272,7 +389,162 @@ Output:
 
 For loops take the format of `for (<iterator>; <condition>; <expression>) { <body> }` as seen above.
 
-### 2.4.4 Break
+### 2.4.4 For Each Loops
+
+For loops can be used to iterate over a collection type. The collection expression must be an array, string, or be a
+class type with special defined operators.
+
+The for loop starts by naming a local to store the collection items, and an optional name for a local to keep track of
+the current index. The index local is always of type `int!`, and the value local is inferred from the collection
+expression.
+
+#### 2.4.4.1 String Collections
+
+Strings can be iterated over. The value type is `char!`:
+
+```belte
+for (val, idx in "test")
+  Console.PrintLine(f"{idx}: '{val}'");
+```
+
+Output:
+
+```txt
+0: 't'
+1: 'e'
+2: 's'
+3: 't'
+```
+
+Without the index local:
+
+```belte
+for (val in "test")
+  Console.PrintLine(f"'{val}'");
+```
+
+#### 2.4.4.2 Array Collections
+
+For arrays, the value type is the element type:
+
+```belte
+int sum = 0;
+
+for (val in {1, 2, 3})
+  sum += val;
+```
+
+#### 2.4.4.3 Indexed Collections
+
+If a class defines a `length` operator and a `[]` operator where the second parameter type is `int` or `int!`, a for
+loop can iterate over that an instance of that class. The
+[`List<type T>` type from the standard library](StandardLibrary/List.md) is a good example of this.
+
+The value type is the return type of the defined `[]` operator:
+
+```belte
+List<int> a = { 1, 2, 3 };
+int sum = 0;
+
+for (val in a)
+  sum += val;
+```
+
+Here is a definition example:
+
+```belte
+var a = new MyClass();
+
+for (val in a)
+  Console.PrintLine(val);
+
+class MyClass {
+  private int[] arr;
+
+  public constructor(int[] arr) {
+    this.arr = arr;
+  }
+
+  public static ref int operator[](MyClass inst, int index) {
+    return inst.arr[index];
+  }
+
+  public static int! operator length(MyClass inst) {
+    return LowLevel.Length<int[]>(inst.arr);
+  }
+}
+```
+
+#### 2.4.4.4 Enumerated Collections
+
+For complicated cases where you wish to iterate over a custom type with for loops but the items are not easily
+indexable using the `[]` operator, an `iter` operator can be defined to return an `Enumerator<type T>`. Note that if a
+class implements `length`, `[]`, and the `iter` operators, the for loop will prefer using `length` and `[]`.
+
+The `Enumerator<type T>` returned by the `iter` operator must implement the `bool! MoveNext()` and `T Current()`
+methods. The value type is the template argument of the `Enumerator` returned by the `iter` operator.
+
+The [`Dictionary<type TKey, type TValue>` type from the standard library](StandardLibrary/Dictionary.md) is a good
+example of a type that uses an enumerator. The `Dictionary<type TKey, type TValue` enumerator returns a
+`KeyValuePair<TKey, TValue>`.
+
+```belte
+var a = {
+  4: "string 1",
+  5: "string 2",
+  6: "string 3",
+  7: "string 4"
+};
+
+for (pair in a)
+  Console.PrintLine(f"[{pair.key}, {pair.value}]");
+```
+
+Here is a definition example:
+
+```belte
+var a = new A();
+int sum = 0;
+
+for (val in a)
+  sum += val;
+
+public class A {
+  private int[] arr;
+
+  public constructor(int[] arr) {
+    this.arr = arr;
+  }
+
+  public static Enumerator<int>! operator iter(A a) {
+    return new AEnumerator(a);
+  }
+
+  private class AEnumerator extends Enumerator<int> {
+    private A a;
+    private int! count = -1;
+
+    public constructor(A a) {
+      this.a = a;
+    }
+
+    public override bool! MoveNext() {
+      count++;
+
+      if (count < LowLevel.Length<int[]>(a.arr))
+        return true;
+
+      return false;
+    }
+
+    public override int Current() {
+      return a.arr[count];
+    }
+  }
+}
+```
+
+### 2.4.5 Break
 
 In all the loops described, the `break` statement can further control the flow by exiting the entire loop early.
 
@@ -281,7 +553,7 @@ for (int i=0; i<10; i++) {
   if (i == 6)
     break;
 
-  PrintLine(i);
+  Console.PrintLine(i);
 }
 ```
 
@@ -296,7 +568,7 @@ Output:
 5
 ```
 
-### 2.4.5 Continue
+### 2.4.6 Continue
 
 In all loops described, the `continue` statement can further control the flow by skipping to the next loop iteration
 early.
@@ -306,7 +578,7 @@ for (int i=0; i<10; i++) {
   if (i == 6)
     continue;
 
-  PrintLine(i);
+  Console.PrintLine(i);
 }
 ```
 
@@ -323,3 +595,61 @@ Output (note no `6`):
 8
 9
 ```
+
+## 2.5 Switch
+
+Switch statements can be used when comparing an expression to a set of known values called cases. Each case is separated
+by a label. Switch statements can switch over primitive integral types and strings.
+
+```belte
+int a = ...
+
+switch (a) {
+  case 1:
+    Console.PrintLine("a was 1");
+  case 2:
+    Console.PrintLine("a was 2");
+  ...
+}
+```
+
+To share code across multiple cases, empty case labels can be stacked. Additionally, a default label can be used to
+catch any values not covered by the cases:
+
+```belte
+switch (...) {
+  case 1:
+  case 2:
+  case 3:
+    ...
+  default:
+    ...
+}
+```
+
+Cases do not fall through, but you can use gotos to move around the case labels:
+
+```belte
+switch (...) {
+  case 1:
+    ...
+    goto default;
+  case 2:
+    ...
+    goto case 3;
+  case 3:
+    ...
+  default:
+    ...
+}
+```
+
+## 2.6 Exceptions
+
+To break from the normal flow of the program, usually in the case of an error, an exception can be thrown:
+
+```belte
+throw new Exception();
+```
+
+This will crash the program. Throw expressions only accept objects that are or derive from `Exception`.

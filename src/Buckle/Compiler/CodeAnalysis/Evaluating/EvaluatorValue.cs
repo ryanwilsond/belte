@@ -203,6 +203,13 @@ public struct EvaluatorValue {
                     return FormatObject(heapObject.type, heapObject.fields, context);
                 }
             case ValueKind.MethodGroup: {
+                    if (value.data is MethodSymbol) {
+                        return SymbolDisplay.ToDisplayString(
+                            value.data as MethodSymbol,
+                            SymbolDisplayFormat.BoundDisplayFormat
+                        );
+                    }
+
                     return DisplayText.DisplayNode(value.methodGroup).ToString();
                 }
             default:

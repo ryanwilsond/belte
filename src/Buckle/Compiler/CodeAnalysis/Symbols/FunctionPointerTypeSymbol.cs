@@ -18,7 +18,7 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         Binder typeBinder,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved) {
-        var callingConvention = (syntax.callingConvention?.kind) switch {
+        var callingConvention = (syntax.unmanaged?.kind) switch {
             null => CallingConvention.Default,
             SyntaxKind.TildeToken => CallingConvention.Unmanaged,
             _ => throw ExceptionUtilities.Unreachable(),// Should be caught in the parser

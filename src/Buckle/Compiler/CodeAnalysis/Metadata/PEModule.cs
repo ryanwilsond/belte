@@ -9,6 +9,7 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using TypeAttributes = System.Reflection.TypeAttributes;
@@ -354,10 +355,8 @@ internal sealed partial class PEModule : IDisposable {
                 hasMetadata = false;
             }
 
-            if (!hasMetadata) {
-                // TODO Error
-                // throw new BadImageFormatException(CodeAnalysisResources.PEImageDoesntContainManagedMetadata);
-            }
+            if (!hasMetadata)
+                throw new BadImageFormatException();
 
             newReader = _peReaderOpt.GetMetadataReader(
                 MetadataReaderOptions.ApplyWindowsRuntimeProjections,

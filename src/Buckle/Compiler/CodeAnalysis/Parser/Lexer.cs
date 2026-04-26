@@ -7,6 +7,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -19,11 +20,14 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// IdentifierToken IdentifierToken SemicolonToken
 /// </code>
 /// </summary>
-internal sealed class Lexer : IDisposable {
+internal sealed partial class Lexer : IDisposable {
     private readonly List<SyntaxDiagnostic> _diagnostics;
     private readonly SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
     private readonly SyntaxListBuilder _trailingTriviaCache = new SyntaxListBuilder(10);
+    private SyntaxListBuilder _directiveTriviaCache;
     private readonly bool _allowPreprocessorDirectives;
+    private readonly LexerCache _cache;
+    private readonly List<SyntaxToken> _badTokensCache = [];
 
     private LexerMode _mode;
     private DirectiveStack _directives;
@@ -41,6 +45,7 @@ internal sealed class Lexer : IDisposable {
         _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = [];
         _directives = DirectiveStack.Empty;
+        _cache = new LexerCache();
     }
 
     internal SourceText text { get; }
@@ -62,7 +67,9 @@ internal sealed class Lexer : IDisposable {
 
     private char _lookahead => Peek(1);
 
-    public void Dispose() { }
+    public void Dispose() {
+        _cache.Free();
+    }
 
     /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
@@ -70,25 +77,25 @@ internal sealed class Lexer : IDisposable {
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
     internal SyntaxToken LexNext(LexerMode mode) {
         _mode = mode;
-        var badTokens = new List<SyntaxToken>();
+        _badTokensCache.Clear();
         SyntaxToken token;
 
         while (true) {
             token = _mode switch {
-                LexerMode.Syntax => LexNextInternal(),
+                LexerMode.Syntax => QuickNext() ?? LexNextInternal(),
                 LexerMode.Directive => LexDirectiveToken(),
                 _ => throw ExceptionUtilities.Unreachable(),
             };
 
             if (token.kind == SyntaxKind.BadToken) {
-                badTokens.Add(token);
+                _badTokensCache.Add(token);
                 continue;
             }
 
-            if (badTokens.Count > 0) {
+            if (_badTokensCache.Count > 0) {
                 var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
 
-                foreach (var badToken in badTokens) {
+                foreach (var badToken in _badTokensCache) {
                     leadingTrivia.AddRange(badToken.leadingTrivia);
                     var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
                     leadingTrivia.Add(trivia);
@@ -130,7 +137,7 @@ internal sealed class Lexer : IDisposable {
         return text[index];
     }
 
-    private SyntaxToken LexNextInternal() {
+    private SyntaxToken LexNextInternal(bool ignoreTrailingTrivia = false) {
         _leadingTriviaCache.Clear();
         ReadTrivia(_position > 0, false);
 
@@ -142,8 +149,10 @@ internal sealed class Lexer : IDisposable {
         var tokenWidth = _position - _start;
         var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
 
-        _trailingTriviaCache.Clear();
-        ReadTrivia(true, true);
+        if (!ignoreTrailingTrivia) {
+            _trailingTriviaCache.Clear();
+            ReadTrivia(true, true);
+        }
 
         var tokenText = SyntaxFacts.GetText(tokenKind) ?? text.ToString(new TextSpan(tokenPosition, tokenWidth));
 
@@ -157,17 +166,25 @@ internal sealed class Lexer : IDisposable {
 
         var tokenKind = _kind;
         var tokenWidth = _position - _start;
+        var tokenValue = _value;
         var diagnostics = GetDiagnostics(0);
 
-        _trailingTriviaCache.Clear();
-        ReadDirectiveTrailingTrivia(tokenKind == SyntaxKind.EndOfDirectiveToken);
+        var directiveTriviaCache = _directiveTriviaCache;
+        directiveTriviaCache?.Clear();
+        _directiveTriviaCache = null;
+        ReadDirectiveTrailingTrivia(tokenKind == SyntaxKind.EndOfDirectiveToken, ref directiveTriviaCache);
 
         var tokenText = text.ToString(new TextSpan(tokenPosition, tokenWidth));
+        var token = Create(tokenKind, tokenText, tokenValue, diagnostics, null, directiveTriviaCache);
+        _directiveTriviaCache = directiveTriviaCache;
 
-        return Create(tokenKind, tokenText, null, diagnostics);
+        return token;
     }
 
     private SyntaxDiagnostic[] GetDiagnostics(int leadingTriviaWidth) {
+        if (_diagnostics.Count == 0)
+            return null;
+
         if (leadingTriviaWidth > 0) {
             var array = new SyntaxDiagnostic[_diagnostics.Count];
 
@@ -190,6 +207,26 @@ internal sealed class Lexer : IDisposable {
     private SyntaxToken Create(SyntaxKind kind, string text, object value, SyntaxDiagnostic[] diagnostics) {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
+
+        var token = SyntaxFacts.IsContextualKeyword(kind)
+            ? SyntaxFactory.Contextual(kind, text, value, leading, trailing, diagnostics)
+            : SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
+
+        if (text is null)
+            token.SetFlags(GreenNode.NodeFlags.IsMissing);
+
+        return token;
+    }
+
+    private SyntaxToken Create(
+        SyntaxKind kind,
+        string text,
+        object value,
+        SyntaxDiagnostic[] diagnostics,
+        SyntaxListBuilder leadingList,
+        SyntaxListBuilder trailingList) {
+        var leading = leadingList?.ToListNode();
+        var trailing = trailingList?.ToListNode();
 
         var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 
@@ -229,10 +266,12 @@ internal sealed class Lexer : IDisposable {
                     ReadLineBreak();
                     break;
                 case '#':
-                    if (_allowPreprocessorDirectives)
+                    if (_allowPreprocessorDirectives) {
                         ReadDirective(afterFirstToken, isTrailing, ref triviaList);
-                    else
+                        _start = _position;
+                    } else {
                         done = true;
+                    }
 
                     break;
                 case ' ':
@@ -259,8 +298,8 @@ internal sealed class Lexer : IDisposable {
         }
     }
 
-    private void ReadDirectiveTrivia(bool isTrailing) {
-        var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache; ;
+    private BelteSyntaxNode ReadDirectiveTrivia() {
+        BelteSyntaxNode trivia = null;
 
         _start = _position;
         _kind = SyntaxKind.BadToken;
@@ -293,9 +332,10 @@ internal sealed class Lexer : IDisposable {
 
         if (length > 0) {
             var triviaText = text.ToString(new TextSpan(_start, length));
-            var trivia = SyntaxFactory.Trivia(_kind, triviaText, GetDiagnostics(0));
-            triviaList.Add(trivia);
+            trivia = SyntaxFactory.Trivia(_kind, triviaText, GetDiagnostics(0));
         }
+
+        return trivia;
     }
 
     private void ReadDirectiveToken() {
@@ -308,6 +348,26 @@ internal sealed class Lexer : IDisposable {
             case '#':
                 _position++;
                 _kind = SyntaxKind.HashToken;
+                break;
+            case '(':
+                _position++;
+                _kind = SyntaxKind.OpenParenToken;
+                break;
+            case ')':
+                _position++;
+                _kind = SyntaxKind.OpenParenToken;
+                break;
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                ReadNumericLiteral();
                 break;
             default:
                 if (char.IsLetter(_current)) {
@@ -456,11 +516,13 @@ internal sealed class Lexer : IDisposable {
             case '=':
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.EqualsEqualsToken;
+                else if (AdvanceIfMatches('>')) _kind = SyntaxKind.EqualsGreaterThanToken;
                 else _kind = SyntaxKind.EqualsToken;
                 break;
             case '!':
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.ExclamationEqualsToken;
+                else if (AdvanceIfMatches('!')) _kind = SyntaxKind.ExclamationExclamationToken;
                 else _kind = SyntaxKind.ExclamationToken;
                 break;
             case '<':
@@ -500,6 +562,11 @@ internal sealed class Lexer : IDisposable {
             case '\'':
                 ReadStringLiteral(true);
                 break;
+            case 'f':
+                if (TryReadInterpolatedString())
+                    break;
+
+                goto default;
             case '0':
             case '1':
             case '2':
@@ -573,6 +640,7 @@ internal sealed class Lexer : IDisposable {
                     } else {
                         goto default;
                     }
+
                     break;
                 default:
                     _position++;
@@ -586,8 +654,34 @@ internal sealed class Lexer : IDisposable {
     private void ReadStringLiteral(bool isCharacter) {
         var saved = _position;
         _position++;
+
+        var sb = ReadStringContent(isCharacter, false, true, out _);
+
+        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+
+        if (isCharacter) {
+            if (isCharacter && sb.Length == 0) {
+                AddDiagnostic(Error.EmptyCharacterLiteral(), saved, 2);
+                _value = null;
+            } else if (isCharacter && sb.Length > 1) {
+                AddDiagnostic(Error.CharacterLiteralTooLong(), saved, sb.Length + 2);
+                _value = sb[0];
+            } else {
+                _value = sb[0];
+            }
+        } else {
+            _value = sb.ToString();
+        }
+    }
+
+    private StringBuilder ReadStringContent(
+        bool isCharacter,
+        bool isInterpolation,
+        bool consumeEndQuote,
+        out bool normalEnd) {
         var sb = new StringBuilder();
         var done = false;
+        normalEnd = false;
 
         while (!done) {
             switch (_current) {
@@ -602,10 +696,28 @@ internal sealed class Lexer : IDisposable {
                         sb.Append(_current);
                         _position += 2;
                     } else {
-                        _position++;
+                        if (consumeEndQuote)
+                            _position++;
+
                         done = true;
+                        normalEnd = true;
                     }
+
                     break;
+                case '{':
+                case '}':
+                    if (isInterpolation) {
+                        if (_lookahead == _current) {
+                            sb.Append(_current);
+                            _position += 2;
+                        } else {
+                            done = true;
+                        }
+
+                        break;
+                    }
+
+                    goto default;
                 case '\'' when isCharacter:
                     _position++;
                     done = true;
@@ -654,12 +766,17 @@ internal sealed class Lexer : IDisposable {
                             sb.Append('\\');
                             _position++;
                             break;
+                        case '0':
+                            sb.Append('\0');
+                            _position++;
+                            break;
                         case '\0':
                             break;
                         default:
                             AddDiagnostic(Error.UnrecognizedEscapeSequence(_current), _position - 1, 2);
                             break;
                     }
+
                     break;
                 default:
                     sb.Append(_current);
@@ -668,22 +785,141 @@ internal sealed class Lexer : IDisposable {
             }
         }
 
-        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+        return sb;
+    }
 
-        if (isCharacter) {
-            if (isCharacter && sb.Length == 0) {
-                AddDiagnostic(Error.EmptyCharacterLiteral(), saved, 2);
-                _value = null;
-            } else if (isCharacter && sb.Length > 1) {
-                AddDiagnostic(Error.CharacterLiteralTooLong(), saved, sb.Length + 2);
-                _value = sb[0];
-            } else {
-                _value = sb[0];
-            }
-        } else {
-            _value = sb.ToString();
+    private bool TryReadInterpolatedString() {
+        if (Peek(1) == '"') {
+            ReadInterpolatedString();
+            return true;
         }
 
+        return false;
+    }
+
+    private void ReadInterpolatedString() {
+        _position += 2;
+
+        var sb = new StringBuilder();
+
+        while (true) {
+            var inner = ReadStringContent(false, true, true, out var normalEnd);
+            sb.Append(inner);
+
+            if (normalEnd || _current != '{')
+                break;
+
+            var bracketStack = 0;
+
+            while (_current != '\0') {
+                if (_current == '{')
+                    bracketStack++;
+                else if (_current == '}')
+                    bracketStack--;
+
+                sb.Append(_current);
+
+                if (_current == '}' && bracketStack == 0) {
+                    _position++;
+                    break;
+                } else {
+                    _position++;
+                }
+            }
+        }
+
+        _kind = SyntaxKind.InterpolatedStringLiteralToken;
+        _value = sb.ToString();
+    }
+
+    internal static SyntaxToken DereadInterpolatedString(InterpolatedStringExpressionSyntax interpolatedString) {
+        var text = interpolatedString.ToString();
+
+        return SyntaxFactory.Token(
+            SyntaxKind.InterpolatedStringLiteralToken,
+            text,
+            text,
+            interpolatedString.GetFirstToken().GetLeadingTrivia(),
+            interpolatedString.GetLastToken().GetTrailingTrivia()
+        );
+    }
+
+    internal SyntaxToken[][] RereadInterpolatedString(out bool hasCloseQuote) {
+        hasCloseQuote = false;
+        var groups = ArrayBuilder<SyntaxToken[]>.GetInstance();
+
+        _position += 2;
+        var startPosition = _position;
+
+        while (_current != '\0') {
+            _start = _position;
+            var inner = ReadStringContent(false, true, false, out var normalEnd);
+            hasCloseQuote = normalEnd;
+            var tokenWidth = _position - _start;
+
+            if (normalEnd && tokenWidth == 0)
+                break;
+
+            if (tokenWidth > 0) {
+                var tokenValue = inner.ToString();
+                var diagnostics = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
+                _trailingTriviaCache.Clear();
+                var tokenText = text.ToString(new TextSpan(startPosition, tokenWidth));
+                groups.Add([Create(SyntaxKind.StringLiteralToken, tokenText, tokenValue, diagnostics)]);
+            }
+
+            if (normalEnd || _current != '{')
+                break;
+
+            var groupBuilder = ArrayBuilder<SyntaxToken>.GetInstance();
+            var bracketStack = 0;
+            var sb = new StringBuilder();
+            var sbStart = _position;
+
+            while (_current != '\0') {
+                if (bracketStack == 0 && _current == '{') {
+                    bracketStack++;
+                    var token = LexNext(LexerMode.Syntax);
+                    groupBuilder.Add(token);
+                    sbStart = _position;
+                    continue;
+                }
+
+                if (_current == '{')
+                    bracketStack++;
+                else if (_current == '}')
+                    bracketStack--;
+
+                var earlyEof = _current == '\0';
+
+                if (earlyEof || (_current == '}' && bracketStack == 0)) {
+                    var sbWidth = _position - sbStart;
+
+                    if (sbWidth > 0) {
+                        var sbValue = sb.ToString();
+                        var diag = GetDiagnostics(GetFullWidth(_leadingTriviaCache));
+                        _trailingTriviaCache.Clear();
+                        var sbText = text.ToString(new TextSpan(sbStart, sbWidth));
+                        groupBuilder.Add(Create(SyntaxKind.StringLiteralToken, sbText, sbValue, diag));
+                    }
+
+                    if (!earlyEof) {
+                        var token = LexNextInternal(ignoreTrailingTrivia: true);
+                        groupBuilder.Add(token);
+                    }
+
+                    break;
+                } else {
+                    sb.Append(_current);
+                    _position++;
+                }
+            }
+
+            groups.Add(groupBuilder.ToArrayAndFree());
+            startPosition = _position;
+        }
+
+        return groups.ToArrayAndFree();
     }
 
     private void ReadNumericLiteral() {
@@ -744,17 +980,22 @@ internal sealed class Lexer : IDisposable {
         if (!hasDecimal && !hasExponent) {
             var @base = isBinary ? 2 : 16;
             var failed = false;
-            long value = 0;
+            object value = 0L;
 
             if (isBinary || isHexadecimal) {
                 try {
-                    value = Convert.ToInt64(
+                    value = Convert.ToUInt64(
                         numericText.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
                 } catch (Exception e) when (e is OverflowException || e is FormatException) {
                     failed = true;
                 }
-            } else if (!long.TryParse(parsedText, out value)) {
-                failed = true;
+            } else if (!long.TryParse(parsedText, out var longValue)) {
+                if (!ulong.TryParse(parsedText, out var ulongValue))
+                    failed = true;
+                else
+                    value = ulongValue;
+            } else {
+                value = longValue;
             }
 
             if (failed) {
@@ -783,6 +1024,7 @@ internal sealed class Lexer : IDisposable {
 
     private void ReadWhitespace() {
         var done = false;
+        // TODO Get trivia from cache?
 
         while (!done) {
             switch (_current) {
@@ -813,7 +1055,7 @@ internal sealed class Lexer : IDisposable {
     }
 
     private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine, ref SyntaxListBuilder triviaList) {
-        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine);
+        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine, ref triviaList);
 
         if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
             ReadExcludedDirectivesAndTrivia(true, ref triviaList);
@@ -824,12 +1066,12 @@ internal sealed class Lexer : IDisposable {
             var text = ReadDisabledText(out var hasFollowingDirective);
 
             if (text is not null)
-                triviaList.Add(text);
+                AddTrivia(text, ref triviaList);
 
             if (!hasFollowingDirective)
                 break;
 
-            var directive = ReadDirective(false, endIsActive, false, false);
+            var directive = ReadDirective(false, endIsActive, false, false, ref triviaList);
             var branching = directive as BranchingDirectiveTriviaSyntax;
 
             if (directive.kind == SyntaxKind.EndIfDirectiveTrivia || (branching is not null && branching.branchTaken))
@@ -889,7 +1131,8 @@ internal sealed class Lexer : IDisposable {
         bool isActive,
         bool endIsActive,
         bool afterFirstToken,
-        bool afterNonWhitespaceOnLine) {
+        bool afterNonWhitespaceOnLine,
+        ref SyntaxListBuilder triviaList) {
         var saveMode = _mode;
         var directiveParser = new DirectiveParser(this, _directives);
         var directive = directiveParser.ParseDirective(
@@ -899,8 +1142,7 @@ internal sealed class Lexer : IDisposable {
             afterNonWhitespaceOnLine
         );
 
-        var triviaList = afterNonWhitespaceOnLine ? _trailingTriviaCache : _leadingTriviaCache;
-        triviaList.Add(directive);
+        AddTrivia(directive, ref triviaList);
 
         _directives = directive.ApplyDirectives(_directives);
         _mode = saveMode;
@@ -908,22 +1150,32 @@ internal sealed class Lexer : IDisposable {
         return directive;
     }
 
-    private void ReadDirectiveTrailingTrivia(bool includeEndOfLine) {
+    private void ReadDirectiveTrailingTrivia(bool includeEndOfLine, ref SyntaxListBuilder trivia) {
+        BelteSyntaxNode tr;
+
         while (true) {
             var position = _position;
-            ReadDirectiveTrivia(true);
+            tr = ReadDirectiveTrivia();
 
-            if (_position == position) {
+            if (tr is null)
                 break;
-            } else if (_kind == SyntaxKind.EndOfLineTrivia) {
-                if (!includeEndOfLine) {
-                    _trailingTriviaCache.RemoveLast();
+
+            if (tr.kind == SyntaxKind.EndOfLineTrivia) {
+                if (includeEndOfLine)
+                    AddTrivia(tr, ref trivia);
+                else
                     _position = position;
-                }
 
                 break;
+            } else {
+                AddTrivia(tr, ref trivia);
             }
         }
+    }
+
+    private void AddTrivia(BelteSyntaxNode trivia, ref SyntaxListBuilder list) {
+        list ??= new SyntaxListBuilder(8);
+        list.Add(trivia);
     }
 
     private void ReadIdentifierOrKeyword() {

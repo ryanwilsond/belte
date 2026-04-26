@@ -12,10 +12,13 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
+    private readonly bool _reduced;
+
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
 
-    internal SynthesizedBelteNamespaceSymbol(string name) {
+    internal SynthesizedBelteNamespaceSymbol(string name, bool reduced) {
+        _reduced = reduced;
         this.name = name;
     }
 
@@ -74,8 +77,10 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> MakeNameToMembersMap() {
         var allMembers = ArrayBuilder<Symbol>.GetInstance();
-        allMembers.AddRange(StandardLibrary.GetTypes());
-        allMembers.AddRange(GraphicsLibrary.GetTypes());
+        allMembers.AddRange(StandardLibrary.GetTypes(_reduced));
+
+        if (!_reduced)
+            allMembers.AddRange(GraphicsLibrary.GetTypes());
 
         var builder = NameToObjectPool.Allocate();
 

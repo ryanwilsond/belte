@@ -30,4 +30,37 @@ internal static class BaseTypeAnalysis {
                 TypeDependsClosure(type.containingType, currentCompilation, partialClosure);
         }
     }
+
+    internal static bool StructDependsOn(NamedTypeSymbol depends, NamedTypeSymbol on) {
+        var hs = PooledHashSet<Symbol>.GetInstance();
+        StructDependsClosure(depends, hs, on);
+
+        var result = hs.Contains(on);
+        hs.Free();
+
+        return result;
+    }
+
+    internal static TypeSymbol NonPointerType(this FieldSymbol field) {
+        return field.type.IsPointerOrFunctionPointer() ? null : field.type;
+    }
+
+    private static void StructDependsClosure(NamedTypeSymbol type, HashSet<Symbol> partialClosure, NamedTypeSymbol on) {
+        if ((object)type.originalDefinition == on) {
+            partialClosure.Add(on);
+            return;
+        }
+
+        if (partialClosure.Add(type)) {
+            foreach (var member in type.GetMembersUnordered()) {
+                var field = member as FieldSymbol;
+                var fieldType = field?.NonPointerType();
+
+                if (fieldType is null || fieldType.typeKind != TypeKind.Struct || field.isStatic)
+                    continue;
+
+                StructDependsClosure((NamedTypeSymbol)fieldType, partialClosure, on);
+            }
+        }
+    }
 }

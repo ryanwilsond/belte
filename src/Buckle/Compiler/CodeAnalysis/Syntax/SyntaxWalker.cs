@@ -25,6 +25,9 @@ internal abstract class SyntaxWalker : SyntaxVisitor {
         var i = 0;
         var slotData = new ChildSyntaxList.SlotData(node);
 
+        if (childCnt == 0)
+            return;
+
         do {
             var child = ChildSyntaxList.ItemInternal((BelteSyntaxNode)node, i, ref slotData);
             i++;

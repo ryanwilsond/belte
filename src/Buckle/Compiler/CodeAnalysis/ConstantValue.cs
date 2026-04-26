@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -14,21 +15,28 @@ internal partial class ConstantValue {
 
     private protected ConstantValue() { }
 
-    internal ConstantValue(object value, SpecialType specialType) {
-        this.value = value;
-        this.specialType = specialType;
-
-        if (value is not null && specialType == SpecialType.Nullable)
-            throw ExceptionUtilities.UnexpectedValue(specialType);
-    }
+    internal ConstantValue(object value, SpecialType specialType) : this(value, specialType, null) { }
 
     internal ConstantValue(object value, SpecialType specialType, BelteDiagnostic[] diagnostics) {
         this.value = value;
         this.specialType = specialType;
         this.diagnostics = diagnostics;
 
-        if (value is not null && specialType == SpecialType.Nullable)
-            throw ExceptionUtilities.UnexpectedValue(specialType);
+#if DEBUG
+        if (value is not null) {
+            if (specialType is SpecialType.Nullable or SpecialType.None)
+                throw ExceptionUtilities.UnexpectedValue(specialType);
+
+            var inferredSpecialType = CodeGenerator.NormalizeNumericType(
+                SpecialTypeExtensions.SpecialTypeFromLiteralValue(value)
+            );
+
+            var targetType = CodeGenerator.NormalizeNumericType(specialType);
+
+            if (inferredSpecialType != targetType)
+                throw ExceptionUtilities.UnexpectedValue(specialType);
+        }
+#endif
     }
 
     internal object value { get; }
@@ -67,6 +75,27 @@ internal partial class ConstantValue {
         }
 
         return value is long || value is bool;
+    }
+
+    internal bool IsNegativeNumeric() {
+        switch (specialType) {
+            case SpecialType.Int8:
+                return (sbyte)value < 0;
+            case SpecialType.Int16:
+                return (short)value < 0;
+            case SpecialType.Int32:
+                return (int)value < 0;
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return (long)value < 0;
+            case SpecialType.Float32:
+                return (float)value < 0;
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return (double)value < 0;
+            default:
+                return false;
+        }
     }
 
     public override int GetHashCode() {

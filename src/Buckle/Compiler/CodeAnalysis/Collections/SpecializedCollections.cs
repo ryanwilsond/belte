@@ -19,6 +19,10 @@ internal static partial class SpecializedCollections {
         return Empty.Set<T>.Instance;
     }
 
+    public static IList<T> EmptyList<T>() {
+        return Empty.List<T>.Instance;
+    }
+
     internal static ISet<T> EmptySet<T>() {
         return Empty.Set<T>.Instance;
     }

@@ -122,11 +122,17 @@ public sealed class DisplayText {
             case BoundKind.IfStatement:
                 DisplayIfStatement(text, (BoundIfStatement)node);
                 break;
+            case BoundKind.NullBindingStatement:
+                DisplayNullBindingStatement(text, (BoundNullBindingStatement)node);
+                break;
             case BoundKind.WhileStatement:
                 DisplayWhileStatement(text, (BoundWhileStatement)node);
                 break;
             case BoundKind.ForStatement:
                 DisplayForStatement(text, (BoundForStatement)node);
+                break;
+            case BoundKind.ForEachStatement:
+                DisplayForEachStatement(text, (BoundForEachStatement)node);
                 break;
             case BoundKind.GotoStatement:
                 DisplayGotoStatement(text, (BoundGotoStatement)node);
@@ -266,6 +272,9 @@ public sealed class DisplayText {
             case BoundKind.NullAssertOperator:
                 DisplayNullAssertOperator(text, (BoundNullAssertOperator)node);
                 break;
+            case BoundKind.NullErasureOperator:
+                DisplayNullErasureOperator(text, (BoundNullErasureOperator)node);
+                break;
             case BoundKind.ConditionalOperator:
                 DisplayConditionalOperator(text, (BoundConditionalOperator)node);
                 break;
@@ -299,6 +308,9 @@ public sealed class DisplayText {
             case BoundKind.FunctionPointerLoad:
                 DisplayFunctionPointerLoad(text, (BoundFunctionPointerLoad)node);
                 break;
+            case BoundKind.FunctionLoad:
+                DisplayFunctionLoad(text, (BoundFunctionLoad)node);
+                break;
             case BoundKind.FunctionPointerCallExpression:
                 DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
                 break;
@@ -320,6 +332,15 @@ public sealed class DisplayText {
                 break;
             case BoundKind.SwitchDispatch:
                 DisplaySwitchDispatch(text, (BoundSwitchDispatch)node);
+                break;
+            case BoundKind.InterpolatedStringExpression:
+                DisplayInterpolatedStringExpression(text, (BoundInterpolatedStringExpression)node);
+                break;
+            case BoundKind.DefaultExpression:
+                DisplayDefaultExpression(text, (BoundDefaultExpression)node);
+                break;
+            case BoundKind.IsPatternExpression:
+                DisplayIsPatternExpression(text, (BoundIsPatternExpression)node);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -461,6 +482,23 @@ public sealed class DisplayText {
         text.Write(CreateLiteral($"{node.cases.Length} cases"));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+        text.WriteLine();
+    }
+
+    private static void DisplayInterpolatedStringExpression(DisplayText text, BoundInterpolatedStringExpression node) {
+        foreach (var expression in node.contents) {
+            if (expression.constantValue?.specialType == SpecialType.String) {
+                DisplayNode(expression);
+            } else {
+                text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+                DisplayNode(expression);
+                text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+            }
+        }
+    }
+
+    private static void DisplayDefaultExpression(DisplayText text, BoundDefaultExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.DefaultKeyword));
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
@@ -483,8 +521,8 @@ public sealed class DisplayText {
         text.WriteLine();
     }
 
-    private static void DisplaySequencePoint(DisplayText text, BoundSequencePoint node) {
-        if (node.syntax?.location is not null)
+    private static void DisplaySequencePoint(DisplayText text, BoundSequencePoint node, bool showSyntax = false) {
+        if (showSyntax && node.syntax?.location is not null)
             DisplaySequencePointComment(text, node.syntax.location);
 
         if (node.statement is null)
@@ -493,8 +531,12 @@ public sealed class DisplayText {
             DisplayNode(text, node.statement);
     }
 
-    private static void DisplaySequencePointWithLocation(DisplayText text, BoundSequencePointWithLocation node) {
-        DisplaySequencePointComment(text, node.location);
+    private static void DisplaySequencePointWithLocation(
+        DisplayText text,
+        BoundSequencePointWithLocation node,
+        bool showSyntax = false) {
+        if (showSyntax)
+            DisplaySequencePointComment(text, node.location);
 
         if (node.statement is null)
             DisplayNopStatement(text);
@@ -688,6 +730,31 @@ public sealed class DisplayText {
         text.WriteLine();
     }
 
+    private static void DisplayForEachStatement(DisplayText text, BoundForEachStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ForKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        SymbolDisplay.AppendToDisplayText(text, node.valueLocal);
+
+        if (node.indexLocal is not null) {
+            text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+            text.Write(CreateSpace());
+            SymbolDisplay.AppendToDisplayText(text, node.indexLocal);
+        }
+
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.InKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(node.expression);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+        DisplayNestedStatement(text, node.body);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        text.WriteLine();
+    }
+
     private static void DisplayWhileStatement(DisplayText text, BoundWhileStatement node) {
         text.Write(CreateKeyword(SyntaxKind.WhileKeyword));
         text.Write(CreateSpace());
@@ -707,6 +774,35 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         DisplayNode(text, node.condition);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+        text.WriteLine();
+        DisplayNestedStatement(text, node.consequence);
+        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+
+        if (node.alternative is not null) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.ElseKeyword));
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.WriteLine();
+            DisplayNestedStatement(text, node.alternative);
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        }
+
+        text.WriteLine();
+    }
+
+    private static void DisplayNullBindingStatement(DisplayText text, BoundNullBindingStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.IfKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.MinusGreaterThanToken));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.valueLocal);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
@@ -790,7 +886,6 @@ public sealed class DisplayText {
     }
 
     private static void DisplayConditionalAccessExpression(DisplayText text, BoundConditionalAccessExpression node) {
-        DisplayNode(text, node.receiver);
         var accessExpression = node.accessExpression;
 
         switch (accessExpression) {
@@ -799,6 +894,9 @@ public sealed class DisplayText {
                 break;
             case BoundFieldAccessExpression f:
                 DisplayFieldAccessExpression(text, f, true);
+                break;
+            case BoundCallExpression c:
+                DisplayCallExpression(text, c, true);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);
@@ -875,6 +973,14 @@ public sealed class DisplayText {
         SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
     }
 
+    private static void DisplayFunctionLoad(DisplayText text, BoundFunctionLoad node) {
+        text.Write(CreateIdentifier("Func"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+        SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
     private static void DisplayFunctionPointerCallExpression(
         DisplayText text,
         BoundFunctionPointerCallExpression node) {
@@ -947,10 +1053,10 @@ public sealed class DisplayText {
         DisplayNode(text, node.operand);
     }
 
-    private static void DisplayCallExpression(DisplayText text, BoundCallExpression node) {
+    private static void DisplayCallExpression(DisplayText text, BoundCallExpression node, bool conditional = false) {
         if (node.receiver is not null) {
             DisplayNode(text, node.receiver);
-            text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+            text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
             text.Write(CreateIdentifier(node.method.name));
         } else {
             // Static methods drop their receiver (it's functionally not used)
@@ -1090,6 +1196,16 @@ public sealed class DisplayText {
         DisplayBinaryAdjacentExpression(text, node.left, node.right, op, true);
     }
 
+    private static void DisplayIsPatternExpression(DisplayText text, BoundIsPatternExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.IsKeyword));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.local);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
     private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {
         DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.AsKeyword, true);
     }
@@ -1152,6 +1268,11 @@ public sealed class DisplayText {
     private static void DisplayNullAssertOperator(DisplayText text, BoundNullAssertOperator node) {
         DisplayNode(text, node.operand);
         text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+    }
+
+    private static void DisplayNullErasureOperator(DisplayText text, BoundNullErasureOperator node) {
+        DisplayNode(text, node.operand);
+        text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
     }
 
     private static void DisplayFieldEqualsValue(DisplayText text, BoundFieldEqualsValue node) {

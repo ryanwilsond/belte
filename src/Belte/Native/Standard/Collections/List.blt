@@ -54,8 +54,8 @@ public lowlevel sealed class List<type T> {
         return subset;
     }
 
-    public const T[] ToArray() {
-        T[] copy = new T[_length];
+    public const T[]! ToArray() {
+        T[]! copy = new T[_length];
         Array<T>.Copy(copy, _array, 0, _length);
         return copy;
     }
@@ -120,11 +120,11 @@ public lowlevel sealed class List<type T> {
             _length--;
     }
 
-    public override string ToString() {
+    public override string? ToString() {
         if (_length == 0)
             return "{ }";
 
-        string representation = "{ ";
+        string? representation = "{ ";
 
         for (int i = 0; i < _length - 1; i++)
             representation += _array[i].ToString() + ", ";
@@ -132,16 +132,20 @@ public lowlevel sealed class List<type T> {
         return representation + _array[_length - 1].ToString() + " }";
     }
 
-    public static ref T operator[](List<T> list, int index) {
+    public static ref T operator[](List<T> list, int? index) {
         if (index is null)
-            return null;
+            throw new ArgumentNullException();
 
         index = list.PosIndex(index!);
 
         if (index < 0 || index >= list._length)
-            return null;
+            throw new ArgumentOutOfRangeException();
 
         return ref list._array[index];
+    }
+
+    public static int! operator length(List<T> list) {
+        return list._length;
     }
 
     public static implicit operator List<T>(T[] array) {

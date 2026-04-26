@@ -122,6 +122,10 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal bool isList => kind == ListKind;
 
+    internal virtual bool isDirective => false;
+
+    internal virtual bool isStructuredTrivia => false;
+
     public override string ToString() {
         var sb = PooledStringBuilder.GetInstance();
         var writer = new StringWriter(sb.Builder);
@@ -349,6 +353,8 @@ internal abstract partial class GreenNode {
 
         return NoDiagnostics;
     }
+
+    internal abstract SyntaxNode GetStructure(SyntaxTrivia parentTrivia);
 
     protected internal void WriteTo(TextWriter writer, bool leading, bool trailing) {
         var stack = new Stack<(GreenNode node, bool leading, bool trailing)>();

@@ -18,6 +18,10 @@ public static class SyntaxFacts {
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
     public static int GetBinaryPrecedence(this SyntaxKind type) {
         switch (type) {
+            case SyntaxKind.IsKeyword:
+            case SyntaxKind.IsntKeyword:
+            case SyntaxKind.AsKeyword:
+                return 15;
             case SyntaxKind.AsteriskAsteriskToken:
                 return 14;
             case SyntaxKind.AsteriskToken:
@@ -31,9 +35,6 @@ public static class SyntaxFacts {
             case SyntaxKind.GreaterThanGreaterThanToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                 return 11;
-            case SyntaxKind.IsKeyword:
-            case SyntaxKind.IsntKeyword:
-            case SyntaxKind.AsKeyword:
             case SyntaxKind.LessThanToken:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
@@ -80,12 +81,13 @@ public static class SyntaxFacts {
             case SyntaxKind.PlusPlusToken:
             case SyntaxKind.MinusMinusToken:
             case SyntaxKind.ExclamationToken:
+            case SyntaxKind.ExclamationExclamationToken:
             case SyntaxKind.NewKeyword:
-                return 18;
-            // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
+                return 19;
+            // ! Precedence 17 must remain unused (it is used to correctly parse cascade lists)
             case SyntaxKind.PeriodPeriodToken:
             case SyntaxKind.QuestionPeriodPeriodToken:
-                return 15;
+                return 16;
             default:
                 return 0;
         }
@@ -108,7 +110,7 @@ public static class SyntaxFacts {
             case SyntaxKind.AsteriskToken:
             case SyntaxKind.DollarToken:
             case SyntaxKind.DollarQuestionToken:
-                return 17;
+                return 18;
             default:
                 return 0;
         }
@@ -216,8 +218,27 @@ public static class SyntaxFacts {
             "define" => SyntaxKind.DefineKeyword,
             "undef" => SyntaxKind.UndefKeyword,
             "flags" => SyntaxKind.FlagsKeyword,
+            "in" => SyntaxKind.InKeyword,
+            "handle" => SyntaxKind.HandleKeyword,
+            "out" => SyntaxKind.OutKeyword,
+            "union" => SyntaxKind.UnionKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
+    }
+
+    internal static bool IsContextualKeyword(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.ExplicitKeyword:
+            case SyntaxKind.FlagsKeyword:
+            case SyntaxKind.HandleKeyword:
+            case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.NotnullKeyword:
+            case SyntaxKind.NoVerifyKeyword:
+            case SyntaxKind.PrimitiveKeyword:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -246,6 +267,7 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanGreaterThanToken => ">>",
             SyntaxKind.GreaterThanGreaterThanGreaterThanToken => ">>>",
             SyntaxKind.ExclamationToken => "!",
+            SyntaxKind.ExclamationExclamationToken => "!!",
             SyntaxKind.AmpersandAmpersandToken => "&&",
             SyntaxKind.PipePipeToken => "||",
             SyntaxKind.AsteriskAsteriskToken => "**",
@@ -288,6 +310,7 @@ public static class SyntaxFacts {
             SyntaxKind.MinusGreaterThanToken => "->",
             SyntaxKind.DollarToken => "$",
             SyntaxKind.DollarQuestionToken => "$?",
+            SyntaxKind.EqualsGreaterThanToken => "=>",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",
@@ -353,6 +376,10 @@ public static class SyntaxFacts {
             SyntaxKind.DefineKeyword => "define",
             SyntaxKind.UndefKeyword => "undef",
             SyntaxKind.FlagsKeyword => "flags",
+            SyntaxKind.InKeyword => "in",
+            SyntaxKind.HandleKeyword => "handle",
+            SyntaxKind.OutKeyword => "out",
+            SyntaxKind.UnionKeyword => "union",
             _ => null,
         };
     }
@@ -465,11 +492,25 @@ public static class SyntaxFacts {
         };
     }
 
+    internal static bool IsOverloadableMethod(this InternalSyntax.SyntaxToken token) {
+        if (token.kind != SyntaxKind.IdentifierToken)
+            return false;
+
+        return token.text switch {
+            "length" or "iter" => true,
+            _ => false,
+        };
+    }
+
     /// <summary>
     /// Gets the associations operator name of an operator declaration using the operator token and parameter count.
     /// </summary>
     internal static string GetOperatorMemberName(OperatorDeclarationSyntax syntax) {
-        return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+        return GetOperatorMemberNameCore(
+            syntax.parameterList.parameters.Count,
+            syntax.operatorToken.kind,
+            syntax.operatorToken.text
+        );
     }
 
     internal static string GetOperatorMemberName(ConversionDeclarationSyntax syntax) {
@@ -482,10 +523,22 @@ public static class SyntaxFacts {
     }
 
     internal static string GetOperatorMemberName(InternalSyntax.OperatorDeclarationSyntax syntax) {
-        return GetOperatorMemberNameCore(syntax.parameterList.parameters.Count, syntax.operatorToken.kind);
+        return GetOperatorMemberNameCore(
+            syntax.parameterList.parameters.Count,
+            syntax.operatorToken.kind,
+            syntax.operatorToken.text
+        );
     }
 
-    private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind) {
+    private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind, string text) {
+        if (kind == SyntaxKind.IdentifierToken) {
+            return text switch {
+                "length" => WellKnownMemberNames.LengthOperatorName,
+                "iter" => WellKnownMemberNames.IterOperatorName,
+                _ => null,
+            };
+        }
+
         return kind switch {
             SyntaxKind.AsteriskAsteriskToken => WellKnownMemberNames.PowerOperatorName,
             SyntaxKind.AsteriskToken => WellKnownMemberNames.MultiplyOperatorName,
@@ -614,7 +667,32 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
     public static bool IsKeyword(this SyntaxKind type) {
-        return type.ToString().EndsWith("Keyword");
+        return type >= SyntaxKind.TypeOfKeyword && type <= SyntaxKind.HandleKeyword;
+    }
+
+    public static bool IsExpression(this SyntaxKind kind) {
+        if (kind >= SyntaxKind.ParenthesizedExpression && kind <= SyntaxKind.SimpleLambdaExpression)
+            return true;
+
+        switch (kind) {
+            case SyntaxKind.InitializerListExpression:
+            case SyntaxKind.InitializerDictionaryExpression:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    public static bool IsStatement(this SyntaxKind kind) {
+        if (kind >= SyntaxKind.EmptyStatement && kind <= SyntaxKind.NullBindingStatement)
+            return true;
+
+        switch (kind) {
+            case SyntaxKind.GlobalStatement:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -623,7 +701,19 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a token.</returns>
     public static bool IsToken(this SyntaxKind type) {
-        return !type.IsTrivia() && (type.IsKeyword() || type.ToString().EndsWith("Token"));
+        if (type >= SyntaxKind.TildeToken && type <= SyntaxKind.HandleKeyword)
+            return true;
+
+        switch (type) {
+            case SyntaxKind.InterpolatedStringStartToken:
+            case SyntaxKind.InterpolatedStringEndToken:
+            case SyntaxKind.OmittedArgumentToken:
+            case SyntaxKind.EndOfFileToken:
+            case SyntaxKind.EndOfDirectiveToken:
+                return true;
+            default:
+                return false;
+        }
     }
 
     /// <summary>
@@ -632,7 +722,7 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is trivia.</returns>
     public static bool IsTrivia(this SyntaxKind type) {
-        return type.ToString().EndsWith("Trivia");
+        return type >= SyntaxKind.EndOfLineTrivia && type <= SyntaxKind.HandleDirectiveTrivia;
     }
 
     /// <summary>
@@ -650,6 +740,10 @@ public static class SyntaxFacts {
 
     internal static bool IsInNamespaceDeclaration(int position, NamespaceDeclarationSyntax namespaceDecl) {
         return IsBetweenTokens(position, namespaceDecl.keyword, namespaceDecl.closeBrace);
+    }
+
+    internal static bool IsInNamespaceDeclaration(int position, FileScopedNamespaceDeclarationSyntax namespaceDecl) {
+        return position >= namespaceDecl.span.start;
     }
 
     internal static bool IsSimpleProgramTopLevelStatement(GlobalStatementSyntax syntax) {

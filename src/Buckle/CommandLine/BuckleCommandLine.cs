@@ -52,6 +52,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0263, "BU"),
         new DiagnosticInfo(0264, "BU"),
         new DiagnosticInfo(0265, "BU"),
+        new DiagnosticInfo(0416, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [
@@ -67,7 +68,7 @@ public static partial class BuckleCommandLine {
         int err;
 
         var processName = Process.GetCurrentProcess().ProcessName;
-        var state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains);
+        var state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains, out var sae);
 
         var compiler = new Compiler(state) {
             me = processName
@@ -86,6 +87,7 @@ public static partial class BuckleCommandLine {
             diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
             ResolveDiagnostics(diagnostics, processName, state);
 
+            ResolveSae(sae);
             return SuccessExitCode;
         }
 
@@ -101,26 +103,33 @@ public static partial class BuckleCommandLine {
                 repl.Run();
             }
 
+            ResolveSae(sae);
             return SuccessExitCode;
         }
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            ResolveSae(sae);
             return err;
+        }
 
-        if (state.tasks.Length == 0 && dialogs.clearSubmissions)
+        if (state.tasks.Length == 0 && dialogs.clearSubmissions) {
+            ResolveSae(sae);
             return SuccessExitCode;
+        }
 
         if (!state.noOut)
-            CleanOutputFiles(compiler);
+            CleanOutputFiles(compiler, diagnostics);
 
-        ReadInputFiles(compiler, out diagnostics);
+        ReadInputFiles(compiler, diagnostics);
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            ResolveSae(sae);
             return err;
+        }
 
         if (state.verboseMode && !state.noOut)
             LogCompilerState(state);
@@ -129,17 +138,29 @@ public static partial class BuckleCommandLine {
 
         err = ResolveDiagnostics(compiler);
 
-        if (err > 0)
+        if (err > 0) {
+            ResolveSae(sae);
             return err;
+        }
 
         if (compiler.exceptions.Count > 0) {
             foreach (var exception in compiler.exceptions)
                 DiagnosticFormatter.PrettyPrintException(exception);
 
+            ResolveSae(sae);
             return RuntimeErrorExitCode;
         }
 
+        ResolveSae(sae);
         return SuccessExitCode;
+    }
+
+    private static void ResolveSae(bool sae) {
+        if (sae) {
+            Console.Write("'--sae' specified: Press any key to continue...");
+            Console.ReadKey();
+            Console.WriteLine();
+        }
     }
 
     private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
@@ -188,8 +209,9 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowMachineDialog() {
-        var machineMessage = "Machine: x86_64-w64";
-        Console.WriteLine(machineMessage);
+        // TODO Do we even care about this
+        // var machineMessage = "Machine: x86_64-w64";
+        // Console.WriteLine(machineMessage);
     }
 
     private static void ShowVersionDialog() {
@@ -314,10 +336,22 @@ public static partial class BuckleCommandLine {
         return ResolveDiagnostics(compiler.diagnostics, me ?? compiler.me, compiler.state, textColor);
     }
 
-    private static void CleanOutputFiles(Compiler compiler) {
+    private static void CleanOutputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         if (compiler.state.finishStage == CompilerStage.Finished) {
-            if (File.Exists(compiler.state.outputFilename))
-                File.Delete(compiler.state.outputFilename);
+            var path = compiler.state.outputFilename;
+
+            if (File.Exists(path)) {
+                File.Delete(path);
+                return;
+            } else if (Directory.Exists(path)) {
+                diagnostics.Push(Belte.Diagnostics.Fatal.OutputIsDirectory(path));
+                return;
+            }
+
+            var dirName = Path.GetDirectoryName(path);
+
+            if (!string.IsNullOrEmpty(dirName) && !Directory.Exists(dirName))
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(dirName));
 
             return;
         }
@@ -326,9 +360,7 @@ public static partial class BuckleCommandLine {
             File.Delete(file.outputFilename);
     }
 
-    private static void ReadInputFiles(Compiler compiler, out DiagnosticQueue<Diagnostic> diagnostics) {
-        diagnostics = new DiagnosticQueue<Diagnostic>();
-
+    private static void ReadInputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         for (var i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
             var opened = false;
@@ -340,6 +372,7 @@ public static partial class BuckleCommandLine {
                         try {
                             task.fileContent.text = File.ReadAllText(task.inputFileName);
                             opened = true;
+                            break;
                         } catch (IOException) {
                             Thread.Sleep(100);
 
@@ -357,6 +390,7 @@ public static partial class BuckleCommandLine {
                         try {
                             task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
                             opened = true;
+                            break;
                         } catch (IOException) {
                             Thread.Sleep(100);
 
@@ -387,6 +421,10 @@ public static partial class BuckleCommandLine {
         Console.WriteLine();
         Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
         Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
+        Console.WriteLine($"Debug mode: {state.debugMode}");
+        Console.WriteLine();
+        Console.WriteLine($"Concurrent build: {state.concurrentBuild}");
+        Console.WriteLine($"Max parallelism: {state.maxCores}");
         Console.WriteLine();
         Console.WriteLine(".NET Information:");
         Console.WriteLine($"    Module name: {state.moduleName}");
@@ -414,7 +452,8 @@ public static partial class BuckleCommandLine {
         string[] args,
         out DiagnosticQueue<Diagnostic> diagnostics,
         out ShowDialogs dialogs,
-        out bool multipleExplains) {
+        out bool multipleExplains,
+        out bool saExit) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -429,6 +468,9 @@ public static partial class BuckleCommandLine {
         var specifyModule = false;
         var specifyBuildMode = false;
         var specifyWarningLevel = false;
+
+        var l = -1;
+        var sae = false;
 
         var tempDialogs = new ShowDialogs {
             help = false,
@@ -449,8 +491,11 @@ public static partial class BuckleCommandLine {
         state.severity = DiagnosticSeverity.Warning;
         state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
+        state.reducedVerboseMode = false;
         state.time = false;
         state.debugMode = false;
+        state.concurrentBuild = true;
+        state.maxCores = Environment.ProcessorCount - 2;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -519,8 +564,24 @@ public static partial class BuckleCommandLine {
                 case "--verbose":
                     state.verboseMode = true;
                     break;
+                case "--info":
+                    state.verboseMode = true;
+                    state.reducedVerboseMode = true;
+                    break;
                 case "--time":
                     state.time = true;
+                    break;
+                case "-l0":
+                    l = 0;
+                    break;
+                case "-l1":
+                    l = 1;
+                    break;
+                case "--sae":
+                    sae = true;
+                    break;
+                case "--nostdlib":
+                    state.noStdLib = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -567,7 +628,7 @@ public static partial class BuckleCommandLine {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingCodeExplain());
                 }
             } else if (arg.StartsWith("--modulename")) {
-                if (arg != "--modulename" && arg != "--modulename=") {
+                if (arg != "--modulename" && arg != "--modulename=" && arg.StartsWith("--modulename=")) {
                     specifyModule = true;
                     state.moduleName = arg.Substring(13);
                 } else {
@@ -581,7 +642,7 @@ public static partial class BuckleCommandLine {
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
             } else if (arg.StartsWith("--severity")) {
-                if (arg == "--severity" || arg == "--severity=") {
+                if (arg == "--severity" || arg == "--severity=" || !arg.StartsWith("--severity=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingSeverity(arg));
                     continue;
                 }
@@ -593,35 +654,35 @@ public static partial class BuckleCommandLine {
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
             } else if (arg.StartsWith("--warnlevel")) {
-                if (arg == "--warnlevel" || arg == "--warnlevel=") {
+                if (arg == "--warnlevel" || arg == "--warnlevel=" || !arg.StartsWith("--warnlevel=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingWarningLevel(arg));
                     continue;
                 }
 
                 var warningString = arg.Substring(12);
 
-                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 2) {
+                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 3) {
                     specifyWarningLevel = true;
                     state.warningLevel = warningLevel;
                 } else {
                     diagnostics.Push(Belte.Diagnostics.Error.InvalidWarningLevel(warningString));
                 }
             } else if (arg.StartsWith("--wignore")) {
-                if (arg == "--wignore" || arg == "--wignore=") {
+                if (arg == "--wignore" || arg == "--wignore=" || !arg.StartsWith("--wignore=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingWIgnoreCode(arg));
                     continue;
                 }
 
                 excludeWarnings.AddRange(ParseAndVerifyWarningCodes(arg.Substring(10), diagnosticsCL));
             } else if (arg.StartsWith("--winclude")) {
-                if (arg == "--winclude" || arg == "--winclude=") {
+                if (arg == "--winclude" || arg == "--winclude=" || !arg.StartsWith("--winclude=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingWIncludeCode(arg));
                     continue;
                 }
 
                 includeWarnings.AddRange(ParseAndVerifyWarningCodes(arg.Substring(11), diagnosticsCL));
             } else if (arg.StartsWith("--type")) {
-                if (arg == "--type" || arg == "--type=") {
+                if (arg == "--type" || arg == "--type=" || !arg.StartsWith("--type=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingType(arg));
                     continue;
                 }
@@ -636,13 +697,13 @@ public static partial class BuckleCommandLine {
                     state.projectType = OutputKind.DynamicallyLinkedLibrary;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
-            } else if (arg.StartsWith("--verbose-path")) {
-                if (arg == "--verbose-path" || arg == "--verbose-path=") {
+            } else if (arg.StartsWith("--vpath")) {
+                if (arg == "--vpath" || arg == "--vpath=" || !arg.StartsWith("--vpath=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingVerbosePath(arg));
                     continue;
                 }
 
-                var path = arg.Substring(15);
+                var path = arg.Substring(8);
 
                 if (!Directory.Exists(path)) {
                     diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
@@ -650,6 +711,25 @@ public static partial class BuckleCommandLine {
                 }
 
                 state.verbosePath = path;
+            } else if (arg.StartsWith("-m")) {
+                if (arg == "-m" || arg == "-m:" || !arg.StartsWith("-m:")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingMaxCoreCount(arg));
+                    continue;
+                }
+
+                var maxCoresString = arg.Substring(3);
+
+                if (!int.TryParse(maxCoresString, out var coreCount) || coreCount < 1)
+                    diagnostics.Push(Belte.Diagnostics.Error.InvalidMaxCoreCount(maxCoresString));
+                else
+                    state.maxCores = Math.Min(coreCount, Environment.ProcessorCount);
+            } else if (arg.StartsWith("--entry")) {
+                if (arg == "--entry" || arg == "--entry=" || !arg.StartsWith("--entry=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingEntryName(arg));
+                    continue;
+                }
+
+                state.entryName = arg.Substring(8);
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
@@ -659,6 +739,18 @@ public static partial class BuckleCommandLine {
                 DecodeSimpleOption(arg);
             }
         }
+
+        saExit = sae;
+
+        if (sae) {
+            Console.Write("'--sae' specified: Press any key to continue...");
+            Console.ReadKey();
+        }
+
+        if (state.maxCores == 1)
+            state.concurrentBuild = false;
+
+        references.AddRange(Compiler.ResolveLibraryLevel(l));
 
         dialogs = tempDialogs;
         diagnostics.Move(diagnosticsCL);
@@ -713,8 +805,11 @@ public static partial class BuckleCommandLine {
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && state.buildMode != BuildMode.Dotnet)
+        if (references.Count > 0 && state.buildMode is not BuildMode.Dotnet and not
+                                                           BuildMode.AutoRun and not
+                                                           BuildMode.Execute) {
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
+        }
 
         foreach (var reference in references) {
             if (!File.Exists(reference))
@@ -734,13 +829,13 @@ public static partial class BuckleCommandLine {
 
         if (state.verboseMode) {
             state.severity = DiagnosticSeverity.All;
-            state.warningLevel = 2;
+            state.warningLevel = Math.Max(2, state.warningLevel);
             state.time = true;
         }
 
         if (state.tasks.Length == 0) {
             if (state.buildMode == BuildMode.Repl || dialogs.clearSubmissions)
-                // We don't want to resolve output files in they aren't used, so early return
+                // We don't want to resolve output files since they aren't used, so early return
                 return state;
 
             diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());

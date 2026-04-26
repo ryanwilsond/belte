@@ -4,7 +4,8 @@ The LowLevel class provides various helpers for users who are writing
 "lower level" code. Calling these methods does not require being inside a
 `lowlevel` context.
 
-The Belte public interface for the String class can be found [here](../../../src/Belte/Native/Standard/LowLevel.blt).
+The Belte public interface for the LowLevel class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/LowLevel.blt).
 
 - [5.8.1](#581-methods) Methods
 
@@ -14,6 +15,7 @@ The Belte public interface for the String class can be found [here](../../../src
 |-|-|
 | `int! GetHashCode(Object!)` | Equivalent to calling `Object.GetHashCode()`. |
 | `string! GetTypeName(Object!)` | Equivalent to calling `Object.GetTypeName()`. |
+| `type! GetType(any!)` | Gets the type of the passed value. |
 | `int! Length<type T>(T!)` | Gets the length of the given array, or 0 if not passed an array. |
 | `void Sort<type T>(T!)` | Sorts the given array, or does nothing if not passed an array. |
 | `int32 SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. (Using the [`sizeof` operator](../LowLevelFeatures.md#69-sizeof-operator) is preferred.) |

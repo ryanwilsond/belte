@@ -48,7 +48,19 @@ internal static partial class ValueSetFactory {
         }
 
         public int FromConstantValue(ConstantValue constantValue) {
-            return constantValue is null ? 0 : (int)constantValue.value;
+            if (constantValue is null)
+                return 0;
+
+            var int32 = CodeAnalysis.Symbols.SpecialType.Int32;
+
+            if (constantValue.specialType == int32)
+                return (int)constantValue.value;
+
+            // We only get here on PE enums
+            if (!LiteralUtilities.TrySpecialCastCore(constantValue.value, constantValue.specialType, int32, out var result))
+                throw ExceptionUtilities.Unreachable();
+
+            return (int)result;
         }
 
         public ConstantValue ToConstantValue(int value) {

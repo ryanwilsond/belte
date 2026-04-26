@@ -32,7 +32,7 @@ class Snake {
         }
     }
 
-    public void AddBodySegment(decimal x, decimal y) {
+    public void AddBodySegment(decimal? x, decimal? y) {
         coords[bodySize++] = new Vec2(x, y);
     }
 }

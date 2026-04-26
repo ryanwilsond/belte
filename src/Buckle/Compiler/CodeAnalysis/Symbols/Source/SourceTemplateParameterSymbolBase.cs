@@ -193,10 +193,12 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         var type = binder.BindType(syntax.type, diagnostics);
         var underlying = type.nullableUnderlyingTypeOrSelf;
 
-        // TODO This is what we want, type arguments being null breaks their use as normal types
-        // ! However this does create a weird inconsistency where this is the ONLY time types aren't nullable by default
-        if (underlying.specialType == SpecialType.Type)
+        if (underlying.specialType == SpecialType.Type) {
+            if (syntax.type.kind == SyntaxKind.NullableType)
+                diagnostics.Push(Error.CannotAnnotateTypeTemplate(syntax.type.location));
+
             return new TypeWithAnnotations(underlying);
+        }
 
         if (declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or
                                                       BuildMode.Execute or

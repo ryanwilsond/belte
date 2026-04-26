@@ -30,11 +30,10 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         ImmutableArray<int> sizes,
         ImmutableArray<int> lowerBounds,
         NamedTypeSymbol array) {
-        throw ExceptionUtilities.Unreachable();
-        // if (sizes.IsDefaultOrEmpty && lowerBounds.IsDefault)
-        //     return new MDArrayNoSizesOrBounds(elementType, rank, array);
+        if (sizes.IsDefaultOrEmpty && lowerBounds.IsDefault)
+            return new MDArrayNoSizesOrBounds(elementType, rank, array);
 
-        // return new MDArrayWithSizesAndBounds(elementType, rank, sizes, lowerBounds, array);
+        return new MDArrayWithSizesAndBounds(elementType, rank, sizes, lowerBounds, array);
     }
 
     internal static ArrayTypeSymbol CreateMDArray(

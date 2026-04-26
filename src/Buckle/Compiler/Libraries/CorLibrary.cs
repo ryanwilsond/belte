@@ -12,9 +12,9 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 30;
+    private const int TotalSpecialTypes = 29;
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
-    private const int TotalWellKnownMembers = 3;
+    private const int TotalWellKnownMembers = 4;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
     private readonly ConcurrentDictionary<WellKnownMembers, MethodSymbol> _wellKnownMembers = [];
@@ -27,6 +27,10 @@ internal sealed class CorLibrary {
 
     private CorLibrary() {
         RegisterPrimitiveCorTypes();
+    }
+
+    internal static void SetReducedState() {
+        Instance._registeredSpecialTypes += 8;
     }
 
     #region Public Model
@@ -198,6 +202,15 @@ internal sealed class CorLibrary {
             new SynthesizedSimpleOrdinaryMethodSymbol(
                 "get_HasValue",
                 new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Bool)),
+                RefKind.None,
+                CodeAnalysis.DeclarationModifiers.None
+            ), nullableType, []));
+
+        RegisterWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault,
+            new SynthesizedFinishedMethodSymbol(
+            new SynthesizedSimpleOrdinaryMethodSymbol(
+                "GetValueOrDefault",
+                new TypeWithAnnotations(nullableType.templateParameters[0]),
                 RefKind.None,
                 CodeAnalysis.DeclarationModifiers.None
             ), nullableType, []));

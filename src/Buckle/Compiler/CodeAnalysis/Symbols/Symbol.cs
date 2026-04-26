@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -113,7 +114,7 @@ internal abstract class Symbol : ISymbol {
                     return containingSymbol?.declaringCompilation;
             }
 
-            return containingSymbol.declaringCompilation;
+            return null;
         }
     }
 
@@ -140,6 +141,46 @@ internal abstract class Symbol : ISymbol {
 
     internal abstract TextLocation location { get; }
 
+    internal bool canBeReferencedByName {
+        get {
+            switch (kind) {
+                case SymbolKind.Local:
+                case SymbolKind.Label:
+                case SymbolKind.Alias:
+                    return true;
+                case SymbolKind.Namespace:
+                case SymbolKind.Field:
+                case SymbolKind.ErrorType:
+                case SymbolKind.Parameter:
+                case SymbolKind.TemplateParameter:
+                case SymbolKind.NamedType:
+                    break;
+                case SymbolKind.Method:
+                    var method = (MethodSymbol)this;
+
+                    switch (method.methodKind) {
+                        case MethodKind.Ordinary:
+                        case MethodKind.LocalFunction:
+                            break;
+                        default:
+                            return false;
+                    }
+
+                    break;
+                case SymbolKind.ArrayType:
+                case SymbolKind.PointerType:
+                case SymbolKind.FunctionPointerType:
+                case SymbolKind.FunctionType:
+                case SymbolKind.Assembly:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(kind);
+            }
+
+            return !string.IsNullOrEmpty(name);
+        }
+    }
+
     internal abstract void Accept(SymbolVisitor visitor);
 
     internal abstract TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a);
@@ -159,6 +200,10 @@ internal abstract class Symbol : ISymbol {
 
     internal virtual ImmutableArray<AttributeData> GetAttributes() {
         return [];
+    }
+
+    internal bool HasAttributeWithName(string namespaceName, string typeName) {
+        return GetAttributes().Any(a => a.IsTargetAttribute(namespaceName, typeName));
     }
 
     internal TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {

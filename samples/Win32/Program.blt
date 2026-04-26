@@ -61,7 +61,7 @@ public static class Program {
         int64* lpParam);
 
     [DllImport("kernel32.dll")]
-    static extern int64* GetModuleHandle(string lpModuleName);
+    static extern int64* GetModuleHandle(string? lpModuleName);
 
     [DllImport("user32.dll")]
     static extern void PostQuitMessage(int32 nExitCode);

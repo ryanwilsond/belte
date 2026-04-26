@@ -12,6 +12,10 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
+    public static Type AnyGetType(object o) {
+        return o.GetType();
+    }
+
     public static T AssertNull<T>(T value) {
         if (value is null)
             throw new NullReferenceException();
@@ -37,6 +41,14 @@ public static class Utilities {
         return str.Length;
     }
 
+    public static void CreateDirectory(string path) {
+        System.IO.Directory.CreateDirectory(path);
+    }
+
+    public static void DeleteDirectory(string path) {
+        System.IO.Directory.Delete(path, recursive: true);
+    }
+
     public static long TimeNow() {
         return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
     }
@@ -51,6 +63,34 @@ public static class Utilities {
 
     public static string Char(long ascii) {
         return ((char)ascii).ToString();
+    }
+
+    public static bool IsDigit(char? chr) {
+        return chr.HasValue && char.IsDigit(chr.Value);
+    }
+
+    public static string Substring(string text, long? start, long? length) {
+        if (text is null)
+            return null;
+
+        if (length is null)
+            return text.Substring(start.HasValue ? unchecked((int)start.Value) : 0);
+
+        return text.Substring(start.HasValue ? unchecked((int)start.Value) : 0, unchecked((int)length.Value));
+    }
+
+    public static bool IsNullOrWhiteSpace(char? chr) {
+        return !chr.HasValue || char.IsWhiteSpace(chr.Value);
+    }
+
+    public static long? IntParse(string text) {
+        if (text is null)
+            return null;
+
+        if (long.TryParse(text, out var result))
+            return result;
+
+        return null;
     }
 
     public static string[] Split(string text, string separator) {

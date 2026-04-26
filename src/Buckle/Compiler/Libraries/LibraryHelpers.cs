@@ -1,7 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -14,25 +14,27 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    private static SynthesizedBelteNamespaceSymbol _lazyBelteNamespace;
+    private static readonly string[] ReducedStdLibFiles = [
+        "Compiler.Object.blt",
+        "Compiler.ReducedEnumerator.blt",
+        "Compiler.Exception.blt"
+    ];
+
+    private static readonly string[] ReducedStdLibExclude = [
+        "Compiler.Enumerator.blt"
+    ];
+
+    private static readonly string[] StdLibExclude = [
+        "Compiler.ReducedEnumerator.blt"
+    ];
+
+    private static SynthesizedBelteNamespaceSymbol _belteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
     private static SpecialOrKnownType.Boxed _lazyStringArray;
     private static SpecialOrKnownType.Boxed _lazyAnyArray;
     private static SpecialOrKnownType.Boxed _lazyCharArray;
 
-    internal static NamespaceSymbol BelteNamespace {
-        get {
-            if (_lazyBelteNamespace is null) {
-                Interlocked.CompareExchange(
-                    ref _lazyBelteNamespace,
-                    new SynthesizedBelteNamespaceSymbol("Belte"),
-                    null
-                );
-            }
-
-            return _lazyBelteNamespace;
-        }
-    }
+    internal static NamespaceSymbol BelteNamespace => _belteNamespace;
 
     internal static SpecialOrKnownType CharArray {
         get {
@@ -73,7 +75,11 @@ public static class LibraryHelpers {
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
-    public static Compilation LoadLibraries(BuildMode buildMode = BuildMode.None) {
+    public static Compilation LoadLibraries(
+        BuildMode buildMode = BuildMode.None,
+        bool concurrentBuild = false,
+        int maxCoreCount = 1,
+        bool reducedStdLib = false) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -84,6 +90,14 @@ public static class LibraryHelpers {
             if (!libraryName.EndsWith(".blt"))
                 continue;
 
+            if (reducedStdLib) {
+                if (!ReducedStdLibFiles.Contains(libraryName) || ReducedStdLibExclude.Contains(libraryName))
+                    continue;
+            } else {
+                if (StdLibExclude.Contains(libraryName))
+                    continue;
+            }
+
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);
             var text = reader.ReadToEnd().TrimEnd();
@@ -92,8 +106,19 @@ public static class LibraryHelpers {
             syntaxTrees.Add(syntaxTree);
         }
 
-        var options = new CompilationOptions(buildMode, OutputKind.DynamicallyLinkedLibrary);
+        var options = new CompilationOptions(
+            buildMode,
+            OutputKind.DynamicallyLinkedLibrary,
+            concurrentBuild: concurrentBuild,
+            maxCoreCount: maxCoreCount,
+            noStdLib: reducedStdLib
+        );
+
+        if (reducedStdLib)
+            CorLibrary.SetReducedState();
+
         var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        CreateBelteNamespace(reducedStdLib);
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
 
@@ -134,13 +159,20 @@ public static class LibraryHelpers {
                 return "[";
 
             if (type is PointerTypeSymbol ptr)
-                return char.ToUpper(ptr.pointedAtType.name.First()).ToString() + "*";
+                return char.ToUpper(ptr.pointedAtType.name[0]).ToString() + "*";
 
             if (type is FunctionPointerTypeSymbol)
                 return "F";
 
-            return char.ToUpper(type.name.First()).ToString();
+            if (type is FunctionTypeSymbol)
+                return "Fn";
+
+            return char.ToUpper(type.name[0]).ToString();
         }
+    }
+
+    private static void CreateBelteNamespace(bool reducedStdLib) {
+        _belteNamespace = new SynthesizedBelteNamespaceSymbol("Belte", reducedStdLib);
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
@@ -202,15 +234,20 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol StaticMethod(
         string name,
         SpecialOrKnownType type,
-        IEnumerable<(string name, SpecialOrKnownType type)> parameters) {
+        (string name, SpecialOrKnownType type)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, false, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialOrKnownType type),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, false, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.Static
         );
     }
@@ -219,15 +256,20 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialOrKnownType type)> parameters) {
+        (string name, SpecialOrKnownType type)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, false, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             isNullable,
-            parameters.Select<(string name, SpecialOrKnownType type),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, false, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.Static
         );
     }
@@ -235,15 +277,20 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol StaticMethod(
         string name,
         SpecialOrKnownType type,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
+        (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, p.isNullable, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.Static
         );
     }
@@ -251,15 +298,20 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol StaticMethod(
         string name,
         SpecialOrKnownType type,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue)> parameters) {
+        (string name, SpecialOrKnownType type, bool isNullable, object defaultValue)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.Static
         );
     }
@@ -268,15 +320,20 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
+        (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             isNullable,
-            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, p.isNullable, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.Static
         );
     }
@@ -285,15 +342,20 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue)> parameters) {
+        (string name, SpecialOrKnownType type, bool isNullable, object defaultValue)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             isNullable,
-            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.None
         );
     }
@@ -301,15 +363,20 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
         SpecialOrKnownType type,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
+        (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, p.isNullable, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.None
         );
     }
@@ -318,15 +385,20 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable)> parameters) {
+        (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             isNullable,
-            parameters.Select<(string name, SpecialOrKnownType type, bool isNullable),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, p.isNullable, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.None
         );
     }
@@ -334,15 +406,20 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
         SpecialOrKnownType type,
-        IEnumerable<(string name, SpecialOrKnownType type)> parameters) {
+        (string name, SpecialOrKnownType type)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.type, false, null, RefKind.None);
+        }
+
         return Method(
             name,
             type,
             false,
-            parameters.Select<(string name, SpecialOrKnownType type),
-                              (string, SpecialOrKnownType, bool, object, RefKind)>(
-                p => (p.name, p.type, false, null, RefKind.None)
-            ),
+            result,
             DeclarationModifiers.None
         );
     }
@@ -351,7 +428,7 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        IEnumerable<(string name, SpecialOrKnownType type, bool isNullable, object defaultValue, RefKind refKind)> parameters,
+        (string name, SpecialOrKnownType type, bool isNullable, object defaultValue, RefKind refKind)[] parameters,
         DeclarationModifiers modifiers) {
         var returnTypeWithAnnotations = new TypeWithAnnotations(type.knownType);
 
@@ -366,9 +443,9 @@ public static class LibraryHelpers {
         );
 
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance();
-        var i = 0;
 
-        foreach (var parameter in parameters) {
+        for (var i = 0; i < parameters.Length; i++) {
+            var parameter = parameters[i];
             var parameterTypeWithAnnotations = new TypeWithAnnotations(parameter.type.knownType);
 
             if (parameter.isNullable)
@@ -388,7 +465,6 @@ public static class LibraryHelpers {
             );
 
             builder.Add(synthesizedParameter);
-            i++;
         }
 
         return new SynthesizedFinishedMethodSymbol(method, null, builder.ToImmutableAndFree());

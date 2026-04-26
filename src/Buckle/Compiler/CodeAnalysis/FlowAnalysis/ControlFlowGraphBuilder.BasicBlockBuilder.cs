@@ -25,36 +25,42 @@ internal sealed partial class ControlFlowGraphBuilder {
 
         private void VisitBlock(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
-                switch (statement.kind) {
+                var node = statement;
+again:
+                switch (node.kind) {
                     case BoundKind.LabelStatement:
                         StartBlock();
-                        _statements.Add(statement);
+                        _statements.Add(node);
                         break;
                     case BoundKind.GotoStatement:
                     case BoundKind.ConditionalGotoStatement:
                     case BoundKind.ReturnStatement:
                     case BoundKind.ExpressionStatement
-                        when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
-                        _statements.Add(statement);
+                        when (node as BoundExpressionStatement).expression is BoundThrowExpression:
+                        _statements.Add(node);
                         StartBlock();
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
+                    case BoundKind.SwitchDispatch:
                     case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LocalFunctionStatement:
-                        _statements.Add(statement);
+                        _statements.Add(node);
                         break;
                     case BoundKind.TryStatement:
-                        BuildTryRegion((BoundTryStatement)statement);
+                        BuildTryRegion((BoundTryStatement)node);
                         break;
                     case BoundKind.SequencePoint:
-                        if (((BoundSequencePoint)statement).statement is null)
+                        var inner = ((BoundSequencePoint)node).statement;
+
+                        if (inner is null)
                             break;
 
-                        goto default;
+                        node = inner;
+                        goto again;
                     default:
-                        throw ExceptionUtilities.UnexpectedValue(statement.kind);
+                        throw ExceptionUtilities.UnexpectedValue(node.kind);
                 }
             }
         }

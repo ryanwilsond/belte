@@ -42,4 +42,8 @@ public enum DiagnosticCode : ushort {
     FTL_DLLWithWrongBuildMode = 31,
     FTL_CannotSpecifyOutAndModuleWithDll = 32,
     ERR_MissingVerbosePath = 33,
+    ERR_MissingMaxCoreCount = 34,
+    ERR_InvalidMaxCoreCount = 35,
+    ERR_MissingEntryName = 36,
+    FTL_OutputIsDirectory = 37,
 }
