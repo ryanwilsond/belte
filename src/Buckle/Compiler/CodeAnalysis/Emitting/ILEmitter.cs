@@ -717,7 +717,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is not null) {
-            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int)) {
+            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int32)) {
                 _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
             } else {
                 if (entryPoint.isStatic)
