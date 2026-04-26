@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -23,22 +22,35 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly Expander _expander;
 
+    private bool _sawCompileTimeExpression;
+
     private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
         _expander = new Expander(container, diagnostics);
     }
 
     internal static BoundBlockStatement Lower(
+        OptimizationLevel optimizationLevel,
         MethodSymbol method,
         BoundStatement statement,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        out bool sawCompileTimeExpression) {
         var lowerer = new Lowerer(method, diagnostics);
+        var optimize = optimizationLevel == OptimizationLevel.Release;
 
-        var rewrittenStatement = Optimizer.Optimize(statement);
+        var rewrittenStatement = statement;
+
+        if (optimize)
+            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+
         rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
         rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
         rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
         rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
-        rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+
+        if (optimize)
+            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+
+        sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
 
         return (BoundBlockStatement)rewrittenStatement;
     }
@@ -51,6 +63,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return VisitConstant(e);
 
         return base.Visit(node);
+    }
+
+    internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
+        _sawCompileTimeExpression = true;
+        return base.VisitCompileTimeExpression(node);
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
@@ -91,11 +108,36 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         &(<receiver>.<field>)
 
+        ----> <field> is of anonymous union
+
+        <receiver>.<Union>.<field>
+
         */
         var syntax = node.syntax;
+        var field = node.field;
+
+        if (field.isAnonymousUnionMember) {
+            var containingType = (SourceNamedTypeSymbol)field.containingType;
+            var union = containingType.anonymousUnionTypes[field];
+            var unionField = containingType.anonymousUnionFields[union];
+            var receiver = (BoundExpression)Visit(node.receiver);
+
+            return new BoundFieldAccessExpression(syntax,
+                new BoundFieldAccessExpression(syntax,
+                    receiver,
+                    unionField,
+                    null,
+                    union
+                ),
+                field,
+                null,
+                node.type
+            );
+        }
+
         var result = (BoundFieldAccessExpression)base.VisitFieldAccessExpression(node);
 
-        if (node.field.isFixedSizeBuffer)
+        if (field.isFixedSizeBuffer)
             return Visit(new BoundAddressOfOperator(syntax, result, true, node.type));
 
         return result;
@@ -246,14 +288,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
             var syntax = expression.syntax;
 
             return VisitConditionalOperator(
-                new BoundConditionalOperator(
-                    syntax,
+                expression.Update(
                     RewriteNull(syntax, condition),
                     expression.isRef,
                     expression.trueExpression,
                     expression.falseExpression,
-                    null,
-                    expression.Type()
+                    expression.constantValue,
+                    expression.type
                 )
             );
         }
@@ -413,11 +454,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = expression.syntax;
 
         if (expression.index.Type().IsNullableType()) {
-            return Visit(new BoundArrayAccessExpression(syntax,
+            return Visit(expression.Update(
                 expression.receiver,
                 RewriteNull(syntax, expression.index),
                 expression.constantValue,
-                expression.Type()
+                expression.type
             ));
         }
 
@@ -547,10 +588,33 @@ internal sealed class Lowerer : BoundTreeRewriter {
         <operand>.get_Value
 
         */
-        if (ShouldBeTreatedAsNullable(expression.operand.Type()))
-            return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
+        if (ShouldBeTreatedAsNullable(expression.operand.Type())) {
+            if (expression.throwIfNull)
+                return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
+            else
+                return Visit(CreateNullableGetValueOrDefaultCall(expression.syntax, expression.operand, expression.Type()));
+        }
 
         return base.VisitNullAssertOperator(expression);
+    }
+
+    internal override BoundNode VisitDefaultExpression(BoundDefaultExpression node) {
+        /*
+
+        default
+
+        ----> <type> is pointer
+
+        nullptr
+
+        */
+        var syntax = node.syntax;
+        var type = node.type;
+
+        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+            return Visit(Cast(syntax, type, Literal(syntax, null, type), Conversion.ImplicitNullToPointer, null));
+
+        return base.VisitDefaultExpression(node);
     }
 
     internal static BoundExpression CreateNullableGetValueCall(
@@ -567,6 +631,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
             CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue),
+            genericType
+        );
+    }
+
+    internal static BoundExpression CreateNullableGetValueOrDefaultCall(
+        SyntaxNode syntax,
+        BoundExpression operand,
+        TypeSymbol genericType) {
+        return InstanceCall(
+            syntax,
+            operand,
+            CreateNullableGetValueOrDefaultSymbol(genericType)
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault),
             genericType
         );
     }
@@ -599,39 +681,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
-        /*
-
-        <method>(<parameters>)
-
-        ---->
-
-        (<method>(<parameters>))
-
-        Now parameters do not have compiler generated '$' symbols in their name
-
-        ----> <method> is 'Value' and <parameter> is not nullable
-
-        <parameter>
-
-        ----> <method> is 'HasValue' and <parameter> is not nullable
-
-        true
-
-        ----> is static access
-
-        (<method>(<parameters>))
-
-        Method operand rewritten to exclude TypeOf expression
-
-        */
-        var syntax = expression.syntax;
-        var method = expression.method;
-
-        if (method.name == "Value" && !expression.arguments[0].Type().IsNullableType())
-            return Visit(expression.arguments[0]);
-        else if (method.name == "HasValue" && !expression.arguments[0].Type().IsNullableType())
-            return Literal(syntax, true, expression.Type());
-
         ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < expression.arguments.Length; i++) {
@@ -653,15 +702,14 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var arguments = builder is null ? expression.arguments : builder.ToImmutableAndFree();
 
         return base.VisitCallExpression(
-            new BoundCallExpression(
-                syntax,
+            expression.Update(
                 expression.receiver,
-                method,
+                expression.method,
                 arguments,
                 expression.argumentRefKinds,
                 expression.defaultArguments,
                 expression.resultKind,
-                expression.Type()
+                expression.type
             )
         );
     }

@@ -1,9 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
-using System.Runtime.Versioning;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
@@ -35,10 +36,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
-    private readonly Dictionary<MethodSymbol, MethodDefinition> _methods = [];
-    private readonly Dictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
-    private readonly Dictionary<FieldSymbol, FieldDefinition> _fields = [];
-    private readonly Dictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
+    private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
+    private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly ConcurrentDictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
     private readonly string _tfm;
     private readonly string _version;
@@ -60,19 +61,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string assemblySimpleName,
         string[] references,
         bool debugMode,
+        bool reduced,
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
         _debugMode = debugMode;
         _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
-        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-        var attr = currentAssembly
-            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
-            .OfType<TargetFrameworkAttribute>()
-            .FirstOrDefault();
-
-        _tfm = attr.FrameworkName.Split('=')[1].Substring(1);
+        _tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
 
 #if !DEBUG
@@ -97,9 +93,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             AssemblyDefinition.ReadAssembly(_belteDllName),
         ];
 
-        _backupAssemblies = [
-            AssemblyDefinition.ReadAssembly(consoleDll),
-        ];
+        if (reduced) {
+            _backupAssemblies = [];
+        } else {
+            _backupAssemblies = [
+                AssemblyDefinition.ReadAssembly(consoleDll),
+            ];
+        }
 
 #if !DEBUG
 #pragma warning restore IL3000
@@ -131,15 +131,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         ResolveMethods();
         GenerateSTLMap();
 
-        _topLevelTypes = program.GetAllTypes()
-            .Where(t => t.kind == SymbolKind.NamedType &&
-                t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None or SpecialType.List or SpecialType.Dictionary or
-                                 SpecialType.Rect or SpecialType.Enumerator &&
-                t.originalDefinition is not PENamedTypeSymbol)
-            .ToArray()
-            .Cast<NamedTypeSymbol>()
-            .ToImmutableArray();
+        _topLevelTypes = program.GetTypesToEmit(SpecialType.Rect);
 
         var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
@@ -162,9 +154,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         string moduleName,
         string[] references,
         string outputPath,
-        bool debugMode,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, debugMode, diagnostics);
+        var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
+        var reduced = program.compilation.options.noStdLib;
+        var emitter = new ILEmitter(program, moduleName, references, debugMode, reduced, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode);
@@ -176,7 +169,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         bool programOnly,
         string[] references,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, false, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, references, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);
@@ -197,6 +190,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitToFile(string outputPath, bool debugMode) {
         EmitInternal();
+
+        if (!_program.compilation.options.enableOutput)
+            return;
+
         EmitRuntimeConfig(outputPath);
 
         if (debugMode) {
@@ -319,6 +316,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (type is FunctionPointerTypeSymbol)
                 throw ExceptionUtilities.Unreachable();
 
+            if (type is FunctionTypeSymbol f)
+                return GetFuncType(f.signature);
+
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
@@ -389,6 +389,34 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private TypeReference GetFuncType(FunctionMethodSymbol signature) {
+        if (signature.returnsVoid && signature.parameterCount == 0) {
+            var typeRef = ResolveType(null, "System.Action");
+            _assemblyDefinition.MainModule.ImportReference(typeRef.Resolve());
+            return typeRef;
+        } else if (signature.returnsVoid) {
+            var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
+            var genericRef = new GenericInstanceType(typeRef);
+
+            foreach (var p in signature.GetParameterTypes())
+                genericRef.GenericArguments.Add(GetType(p.type));
+
+            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            return genericRef;
+        } else {
+            var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
+            var genericRef = new GenericInstanceType(typeRef);
+
+            foreach (var p in signature.GetParameterTypes())
+                genericRef.GenericArguments.Add(GetType(p.type));
+
+            genericRef.GenericArguments.Add(GetType(signature.returnType));
+
+            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            return genericRef;
+        }
+    }
+
     internal MethodReference GetMethod(MethodSymbol method) {
         MethodReference value = null;
         var found = false;
@@ -400,6 +428,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
             );
             found = true;
+        }
+
+        if (!found && method.originalDefinition is FunctionMethodSymbol s) {
+            var typeRef = GetFuncType(s);
+            var paramTypes = s.parameterCount == 1
+                ? ["T"]
+                : s.GetParameters().Select(p => $"T{p.ordinal + 1}").ToArray();
+            var invoke = ResolveMethod(typeRef.GetElementType().FullName, "Invoke", paramTypes);
+            var genericInvoke = new MethodReference(invoke.Name, invoke.ReturnType, typeRef) {
+                HasThis = invoke.HasThis,
+                ExplicitThis = invoke.ExplicitThis,
+                CallingConvention = invoke.CallingConvention
+            };
+
+            foreach (var p in invoke.Parameters)
+                genericInvoke.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
+
+            return _assemblyDefinition.MainModule.ImportReference(genericInvoke);
         }
 
         if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
@@ -463,12 +509,43 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReference(genericCtor);
     }
 
+    internal MethodReference GetFuncCtor(FunctionMethodSymbol signature) {
+        var typeRef = GetFuncType(signature);
+        var ctorRef = ResolveMethod(typeRef.GetElementType().FullName, ".ctor", ["System.Object", "System.IntPtr"]);
+        var genericCtor = new MethodReference(ctorRef.Name, ctorRef.ReturnType, typeRef) {
+            HasThis = ctorRef.HasThis,
+            ExplicitThis = ctorRef.ExplicitThis,
+            CallingConvention = ctorRef.CallingConvention
+        };
+
+        foreach (var p in ctorRef.Parameters)
+            genericCtor.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
+
+        return _assemblyDefinition.MainModule.ImportReference(genericCtor);
+    }
+
     internal MethodReference GetNullableValue(TypeSymbol genericType) {
         var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
         var genericArgumentType = GetType(genericType);
         typeReference.GenericArguments.Add(genericArgumentType);
 
         var getValueDef = NetMethodReference.Nullable_Value;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+    }
+
+    internal MethodReference GetNullableValueOrDefault(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_GetValueOrDefault;
         var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
         var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
             HasThis = getValueRef.HasThis,
@@ -531,7 +608,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             );
         } else {
             var fieldRef = _fields[field.originalDefinition];
-            var constructedType = GetType(field.containingType);
+            var constructedType = GetType(GetFieldContainingType(field));
 
             return new FieldReference(
                 fieldRef.Name,
@@ -539,6 +616,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 constructedType
             );
         }
+    }
+
+    private TypeSymbol GetFieldContainingType(FieldSymbol field) {
+        if (field.isAnonymousUnionMember)
+            return ((SourceNamedTypeSymbol)field.containingType).anonymousUnionTypes[field];
+
+        return field.containingType;
     }
 
     internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
@@ -608,19 +692,32 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeDefinitionAndBases(type);
 
-        foreach (var type in _topLevelTypes)
-            CreateMemberDefinitions(type);
+        if (_program.compilation.options.concurrentBuild) {
+            var maxParallels = _program.compilation.options.maxCoreCount;
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
-        foreach (var type in _linearNestedTypes)
-            CreateMemberDefinitions(type);
+            var topLevelTypes = _topLevelTypes;
+            Parallel.For(0, topLevelTypes.Length, parallelOptions, i => CreateMemberDefinitions(topLevelTypes[i]));
 
-        foreach (var method in _methods)
-            EmitMethod(method.Value);
+            var linearTypes = _linearNestedTypes;
+            Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
+
+            Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
+        } else {
+            foreach (var type in _topLevelTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var type in _linearNestedTypes)
+                CreateMemberDefinitions(type);
+
+            foreach (var method in _methods)
+                EmitMethod(method.Value);
+        }
 
         var entryPoint = _program.entryPoint;
 
         if (entryPoint is not null) {
-            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int)) {
+            if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int32)) {
                 _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
             } else {
                 if (entryPoint.isStatic)
@@ -803,10 +900,20 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             return;
         }
 
+        var isAnonymousUnion = type is AnonymousUnionType;
+        var seenGroupIds = new HashSet<int>();
+
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (!isAnonymousUnion && f.isAnonymousUnionMember) {
+                    if (seenGroupIds.Add(f.unionGroupId))
+                        CreateAnonymousUnionField(f, typeDefinition, (SourceNamedTypeSymbol)type);
+
+                    continue;
+                }
+
                 if (f.isFixedSizeBuffer) {
-                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeDefinition);
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeDefinition, type);
                     continue;
                 }
 
@@ -817,6 +924,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                         ? _specialTypes[SpecialType.IntPtr]
                         : GetType(f.type, f.refKind != RefKind.None)
                 );
+
+                if (type.isUnionStruct)
+                    fieldDefinition.Offset = 0;
 
                 _fields.Add(f, fieldDefinition);
                 typeDefinition.Fields.Add(fieldDefinition);
@@ -838,7 +948,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeDefinition typeDefinition) {
+    private void CreateFixedSizeBufferField(
+        SourceFixedFieldSymbol field,
+        TypeDefinition typeDefinition,
+        NamedTypeSymbol parent) {
         var fixedImpl = GetFixedImplementationType(field);
 
         var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
@@ -872,11 +985,36 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             nestedType
         );
 
+        if (parent.isUnionStruct)
+            adaptedFieldDef.Offset = 0;
+
         typeDefinition.Fields.Add(adaptedFieldDef);
 
         _fields.Add(field, adaptedFieldDef);
         _fields.Add(nestedBufferField, nestedBufferFieldDef);
-        _types.Add(fixedImpl, nestedType);
+
+        lock (_types)
+            _types.Add(fixedImpl, nestedType);
+    }
+
+    private void CreateAnonymousUnionField(
+        FieldSymbol field,
+        TypeDefinition typeDefinition,
+        SourceNamedTypeSymbol parent) {
+        var union = parent.anonymousUnionTypes[field];
+        var unionField = parent.anonymousUnionFields[union];
+
+        var unionFieldDef = new FieldDefinition(
+            unionField.name,
+            GetFieldAttributes(unionField),
+            GetType(union)
+        );
+
+        if (parent.isUnionStruct)
+            unionFieldDef.Offset = 0;
+
+        typeDefinition.Fields.Add(unionFieldDef);
+        _fields.Add(unionField, unionFieldDef);
     }
 
     private MethodDefinition CreateMethodDefinition(
@@ -1006,7 +1144,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             attributes |= TypeAttributes.Sealed;
 
         if (type.IsStructType())
-            attributes |= TypeAttributes.SequentialLayout;
+            attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
             Accessibility.Private => TypeAttributes.NestedPrivate,
@@ -1073,7 +1211,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         codeGen.Generate();
 
-        methodDefinition.Body.Optimize();
+        if (!_debugMode)
+            methodDefinition.Body.Optimize();
 
         if (_debugMode) {
             methodDefinition.DebugInformation.Scope = new ScopeDebugInformation(
@@ -1310,20 +1449,31 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeReference ResolveType(string name, string metadataName) {
-        var foundTypes = _assemblies
-            .SelectMany(a => a.Modules)
-            .SelectMany(m => m.Types)
-            .Where(t => t.FullName == metadataName)
-            .ToArray();
+        var foundTypes = new List<TypeDefinition>(1);
+
+        for (var i = 0; i < _assemblies.Count; i++) {
+            var modules = _assemblies[i].Modules;
+
+            for (var j = 0; j < modules.Count; j++) {
+                var types = modules[j].Types;
+
+                for (var k = 0; k < types.Count; k++) {
+                    var type = types[k];
+
+                    if (type.FullName == metadataName)
+                        foundTypes.Add(type);
+                }
+            }
+        }
 
         // TODO Do we actually care about ambiguity
-        if (foundTypes.Length >= 1) {
+        if (foundTypes.Count >= 1) {
             return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
-        } else if (foundTypes.Length == 0) {
+        } else if (foundTypes.Count == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
         } else {
             throw new BelteInternalException(
-                $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Length} candidates"
+                $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Count} candidates"
             );
         }
     }
@@ -1442,6 +1592,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_Value" => GetNullableValue(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_HasValue" => GetNullableHasValue(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_GetValueOrDefault" => GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type),
             _ => _stlMap[mapKey],
         };
     }
@@ -1490,6 +1641,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Nullable_ctor = ResolveMethod("System.Nullable`1", ".ctor", ["T"]);
         NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
+        NetMethodReference.Nullable_GetValueOrDefault = ResolveMethod("System.Nullable`1", "GetValueOrDefault", []);
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
@@ -1499,135 +1651,158 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private void GenerateSTLMap() {
-        _stlMap = new Dictionary<string, MethodReference>() {
-            { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
-            { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
-            { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
-            { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
-            { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
-            { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
-            { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
-            { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
-            { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
-            { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
-            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
-            { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
-            { "Console_Print_[?", ResolveMethod("System.Console", "Write", ["System.Char[]"]) },
-            { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
-            { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
-            { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
-            { "Console_PrintLine_O?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
-            { "Console_PrintLine_[?", ResolveMethod("System.Console", "WriteLine", ["System.Char[]"]) },
-            { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
-            { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
-            { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
-            { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
-            { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-            { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
-            { "Directory_Create_S", ResolveMethod("System.IO.Directory", "CreateDirectory", ["System.String"]) },
-            { "Directory_Delete_S", ResolveMethod("System.IO.Directory", "Delete", ["System.String"]) },
-            { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
-            { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
-            { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },
-            { "File_Create_S", ResolveMethod("System.IO.File", "Create", ["System.String"]) },
-            { "File_Copy_S", ResolveMethod("System.IO.File", "Copy", ["System.String", "System.String"]) },
-            { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
-            { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
-            { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
-            { "File_WriteText_S", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
-            { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
-            { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
-            { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
-            { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
-            { "String_IsNullOrWhiteSpace_S?", ResolveMethod("System.String", "IsNullOrWhiteSpace", ["System.String"]) },
-            { "String_IsNullOrWhiteSpace_C?", ResolveMethod("Belte.Runtime.Utilities", "IsNullOrWhiteSpace", ["System.Nullable`1<System.Char>"]) },
-            { "String_IsDigit_C?", ResolveMethod("Belte.Runtime.Utilities", "IsDigit", ["System.Nullable`1<System.Char>"]) },
-            { "String_Substring_S?I?I?", ResolveMethod("Belte.Runtime.Utilities", "Substring", ["System.String", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-            { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
-            { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
-            { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
-            { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
-            { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
-            { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
-            { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
-            { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
-            { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
-            { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
-            { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
-            { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
-            { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
-            { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
-            { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
-            { "Math_Abs_D?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Abs_D", ResolveMethod("System.Math", "Abs", ["System.Double"]) },
-            { "Math_Abs_I?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Int64>"]) },
-            { "Math_Abs_I", ResolveMethod("System.Math", "Abs", ["System.Int64"]) },
-            { "Math_Acos_D?", ResolveMethod("Belte.Runtime.Math", "Acos", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Acos_D", ResolveMethod("System.Math", "Acos", ["System.Double"]) },
-            { "Math_Acosh_D?", ResolveMethod("Belte.Runtime.Math", "Acosh", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Acosh_D", ResolveMethod("System.Math", "Acosh", ["System.Double"]) },
-            { "Math_Asin_D?", ResolveMethod("Belte.Runtime.Math", "Asin", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Asin_D", ResolveMethod("System.Math", "Asin", ["System.Double"]) },
-            { "Math_Asinh_D?", ResolveMethod("Belte.Runtime.Math", "Asinh", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Asinh_D", ResolveMethod("System.Math", "Asinh", ["System.Double"]) },
-            { "Math_Atan_D?", ResolveMethod("Belte.Runtime.Math", "Atan", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Atan_D", ResolveMethod("System.Math", "Atan", ["System.Double"]) },
-            { "Math_Atanh_D?", ResolveMethod("Belte.Runtime.Math", "Atanh", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Atanh_D", ResolveMethod("System.Math", "Atanh", ["System.Double"]) },
-            { "Math_Ceiling_D?", ResolveMethod("Belte.Runtime.Math", "Ceiling", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Ceiling_D", ResolveMethod("System.Math", "Ceiling", ["System.Double"]) },
-            { "Math_Clamp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-            { "Math_Clamp_DDD", ResolveMethod("System.Math", "Clamp", ["System.Double","System.Double", "System.Double"]) },
-            { "Math_Clamp_I?I?I?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-            { "Math_Clamp_III", ResolveMethod("System.Math", "Clamp", ["System.Int64","System.Int64", "System.Int64"]) },
-            { "Math_Cos_D?", ResolveMethod("Belte.Runtime.Math", "Cos", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Cos_D", ResolveMethod("System.Math", "Cos", ["System.Double"]) },
-            { "Math_Cosh_D?", ResolveMethod("Belte.Runtime.Math", "Cosh", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Cosh_D", ResolveMethod("System.Math", "Cosh", ["System.Double"]) },
-            { "Math_Exp_D?", ResolveMethod("Belte.Runtime.Math", "Exp", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Exp_D", ResolveMethod("System.Math", "Exp", ["System.Double"]) },
-            { "Math_Floor_D?", ResolveMethod("Belte.Runtime.Math", "Floor", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Floor_D", ResolveMethod("System.Math", "Floor", ["System.Double"]) },
-            { "Math_Lerp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-            { "Math_Lerp_DDD", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Double", "System.Double", "System.Double"]) },
-            { "Math_Log_D?D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-            { "Math_Log_DD", ResolveMethod("System.Math", "Log", ["System.Double", "System.Double"]) },
-            { "Math_Log_D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Log_D", ResolveMethod("System.Math", "Log", ["System.Double"]) },
-            { "Math_Max_D?D?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-            { "Math_Max_DD", ResolveMethod("System.Math", "Max", ["System.Double", "System.Double"]) },
-            { "Math_Max_I?I?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-            { "Math_Max_II", ResolveMethod("System.Math", "Max", ["System.Int64", "System.Int64"]) },
-            { "Math_Min_D?D?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-            { "Math_Min_DD", ResolveMethod("System.Math", "Min", ["System.Double", "System.Double"]) },
-            { "Math_Min_I?I?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-            { "Math_Min_II", ResolveMethod("System.Math", "Min", ["System.Int64", "System.Int64"]) },
-            { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
-            { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-            { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
-            { "Math_Pow_I?I?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-            { "Math_Round_D?", ResolveMethod("Belte.Runtime.Math", "Round", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Round_D", ResolveMethod("System.Math", "Round", ["System.Double"]) },
-            { "Math_Sign_D?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Sign_D", ResolveMethod("System.Math", "Sign", ["System.Double"]) },
-            { "Math_Sign_I?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Int64>"]) },
-            { "Math_Sign_I", ResolveMethod("System.Math", "Sign", ["System.Int64"]) },
-            { "Math_Sin_D?", ResolveMethod("Belte.Runtime.Math", "Sin", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Sin_D", ResolveMethod("System.Math", "Sin", ["System.Double"]) },
-            { "Math_Sinh_D?", ResolveMethod("Belte.Runtime.Math", "Sinh", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Sinh_D", ResolveMethod("System.Math", "Sinh", ["System.Double"]) },
-            { "Math_Sqrt_D?", ResolveMethod("Belte.Runtime.Math", "Sqrt", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Sqrt_D", ResolveMethod("System.Math", "Sqrt", ["System.Double"]) },
-            { "Math_Tan_D?", ResolveMethod("Belte.Runtime.Math", "Tan", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Tan_D", ResolveMethod("System.Math", "Tan", ["System.Double"]) },
-            { "Math_Tanh_D?", ResolveMethod("Belte.Runtime.Math", "Tanh", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Tanh_D", ResolveMethod("System.Math", "Tanh", ["System.Double"]) },
-            { "Math_Truncate_D?", ResolveMethod("Belte.Runtime.Math", "Truncate", ["System.Nullable`1<System.Double>"]) },
-            { "Math_Truncate_D", ResolveMethod("System.Math", "Truncate", ["System.Double"]) },
-            { "Math_DegToRad_D?", ResolveMethod("Belte.Runtime.Math", "DegToRad", ["System.Nullable`1<System.Double>"]) },
-            { "Math_DegToRad_D", ResolveMethod("System.Double", "DegreesToRadians", ["System.Double"]) },
-            { "Math_RadToDeg_D?", ResolveMethod("Belte.Runtime.Math", "RadToDeg", ["System.Nullable`1<System.Double>"]) },
-            { "Math_RadToDeg_D", ResolveMethod("System.Double", "RadiansToDegrees", ["System.Double"]) },
-        };
+        if (_program.compilation.options.noStdLib) {
+            _stlMap = new Dictionary<string, MethodReference>() {
+                { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+                { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
+                { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
+                { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
+                { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
+                { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
+                { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
+                { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
+                { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
+                { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
+                { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
+                { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
+                { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
+                { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
+                { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
+                { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
+                { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
+                { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
+            };
+        } else {
+            _stlMap = new Dictionary<string, MethodReference>() {
+                { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+                { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
+                { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
+                { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
+                { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
+                { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
+                { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
+                { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
+                { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
+                { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+                { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+                { "Console_Print_O?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+                { "Console_Print_[?", ResolveMethod("System.Console", "Write", ["System.Char[]"]) },
+                { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
+                { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
+                { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+                { "Console_PrintLine_O?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+                { "Console_PrintLine_[?", ResolveMethod("System.Console", "WriteLine", ["System.Char[]"]) },
+                { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
+                { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
+                { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
+                { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
+                { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
+                { "Directory_Create_S", ResolveMethod("Belte.Runtime.Utilities", "CreateDirectory", ["System.String"]) },
+                { "Directory_Delete_S", ResolveMethod("Belte.Runtime.Utilities", "DeleteDirectory", ["System.String"]) },
+                { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
+                { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
+                { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },
+                { "File_Create_S", ResolveMethod("System.IO.File", "Create", ["System.String"]) },
+                { "File_Copy_S", ResolveMethod("System.IO.File", "Copy", ["System.String", "System.String"]) },
+                { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
+                { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
+                { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
+                { "File_WriteText_S", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
+                { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
+                { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
+                { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
+                { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
+                { "String_IsNullOrWhiteSpace_S?", ResolveMethod("System.String", "IsNullOrWhiteSpace", ["System.String"]) },
+                { "String_IsNullOrWhiteSpace_C?", ResolveMethod("Belte.Runtime.Utilities", "IsNullOrWhiteSpace", ["System.Nullable`1<System.Char>"]) },
+                { "String_IsDigit_C?", ResolveMethod("Belte.Runtime.Utilities", "IsDigit", ["System.Nullable`1<System.Char>"]) },
+                { "String_Substring_SI?I?", ResolveMethod("Belte.Runtime.Utilities", "Substring", ["System.String", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
+                { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
+                { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
+                { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
+                { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
+                { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
+                { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
+                { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
+                { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
+                { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
+                { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
+                { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
+                { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
+                { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
+                { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
+                { "Math_Abs_D?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Abs_D", ResolveMethod("System.Math", "Abs", ["System.Double"]) },
+                { "Math_Abs_I?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Int64>"]) },
+                { "Math_Abs_I", ResolveMethod("System.Math", "Abs", ["System.Int64"]) },
+                { "Math_Acos_D?", ResolveMethod("Belte.Runtime.Math", "Acos", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Acos_D", ResolveMethod("System.Math", "Acos", ["System.Double"]) },
+                { "Math_Acosh_D?", ResolveMethod("Belte.Runtime.Math", "Acosh", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Acosh_D", ResolveMethod("System.Math", "Acosh", ["System.Double"]) },
+                { "Math_Asin_D?", ResolveMethod("Belte.Runtime.Math", "Asin", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Asin_D", ResolveMethod("System.Math", "Asin", ["System.Double"]) },
+                { "Math_Asinh_D?", ResolveMethod("Belte.Runtime.Math", "Asinh", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Asinh_D", ResolveMethod("System.Math", "Asinh", ["System.Double"]) },
+                { "Math_Atan_D?", ResolveMethod("Belte.Runtime.Math", "Atan", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Atan_D", ResolveMethod("System.Math", "Atan", ["System.Double"]) },
+                { "Math_Atanh_D?", ResolveMethod("Belte.Runtime.Math", "Atanh", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Atanh_D", ResolveMethod("System.Math", "Atanh", ["System.Double"]) },
+                { "Math_Ceiling_D?", ResolveMethod("Belte.Runtime.Math", "Ceiling", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Ceiling_D", ResolveMethod("System.Math", "Ceiling", ["System.Double"]) },
+                { "Math_Clamp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+                { "Math_Clamp_DDD", ResolveMethod("System.Math", "Clamp", ["System.Double","System.Double", "System.Double"]) },
+                { "Math_Clamp_I?I?I?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "Math_Clamp_III", ResolveMethod("System.Math", "Clamp", ["System.Int64","System.Int64", "System.Int64"]) },
+                { "Math_Cos_D?", ResolveMethod("Belte.Runtime.Math", "Cos", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Cos_D", ResolveMethod("System.Math", "Cos", ["System.Double"]) },
+                { "Math_Cosh_D?", ResolveMethod("Belte.Runtime.Math", "Cosh", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Cosh_D", ResolveMethod("System.Math", "Cosh", ["System.Double"]) },
+                { "Math_Exp_D?", ResolveMethod("Belte.Runtime.Math", "Exp", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Exp_D", ResolveMethod("System.Math", "Exp", ["System.Double"]) },
+                { "Math_Floor_D?", ResolveMethod("Belte.Runtime.Math", "Floor", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Floor_D", ResolveMethod("System.Math", "Floor", ["System.Double"]) },
+                { "Math_Lerp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+                { "Math_Lerp_DDD", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Double", "System.Double", "System.Double"]) },
+                { "Math_Log_D?D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+                { "Math_Log_DD", ResolveMethod("System.Math", "Log", ["System.Double", "System.Double"]) },
+                { "Math_Log_D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Log_D", ResolveMethod("System.Math", "Log", ["System.Double"]) },
+                { "Math_Max_D?D?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+                { "Math_Max_DD", ResolveMethod("System.Math", "Max", ["System.Double", "System.Double"]) },
+                { "Math_Max_I?I?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "Math_Max_II", ResolveMethod("System.Math", "Max", ["System.Int64", "System.Int64"]) },
+                { "Math_Min_D?D?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+                { "Math_Min_DD", ResolveMethod("System.Math", "Min", ["System.Double", "System.Double"]) },
+                { "Math_Min_I?I?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "Math_Min_II", ResolveMethod("System.Math", "Min", ["System.Int64", "System.Int64"]) },
+                { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
+                { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+                { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
+                { "Math_Pow_I?I?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "Math_Round_D?", ResolveMethod("Belte.Runtime.Math", "Round", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Round_D", ResolveMethod("System.Math", "Round", ["System.Double"]) },
+                { "Math_Sign_D?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Sign_D", ResolveMethod("System.Math", "Sign", ["System.Double"]) },
+                { "Math_Sign_I?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Int64>"]) },
+                { "Math_Sign_I", ResolveMethod("System.Math", "Sign", ["System.Int64"]) },
+                { "Math_Sin_D?", ResolveMethod("Belte.Runtime.Math", "Sin", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Sin_D", ResolveMethod("System.Math", "Sin", ["System.Double"]) },
+                { "Math_Sinh_D?", ResolveMethod("Belte.Runtime.Math", "Sinh", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Sinh_D", ResolveMethod("System.Math", "Sinh", ["System.Double"]) },
+                { "Math_Sqrt_D?", ResolveMethod("Belte.Runtime.Math", "Sqrt", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Sqrt_D", ResolveMethod("System.Math", "Sqrt", ["System.Double"]) },
+                { "Math_Tan_D?", ResolveMethod("Belte.Runtime.Math", "Tan", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Tan_D", ResolveMethod("System.Math", "Tan", ["System.Double"]) },
+                { "Math_Tanh_D?", ResolveMethod("Belte.Runtime.Math", "Tanh", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Tanh_D", ResolveMethod("System.Math", "Tanh", ["System.Double"]) },
+                { "Math_Truncate_D?", ResolveMethod("Belte.Runtime.Math", "Truncate", ["System.Nullable`1<System.Double>"]) },
+                { "Math_Truncate_D", ResolveMethod("System.Math", "Truncate", ["System.Double"]) },
+                { "Math_DegToRad_D?", ResolveMethod("Belte.Runtime.Math", "DegToRad", ["System.Nullable`1<System.Double>"]) },
+                { "Math_DegToRad_D", ResolveMethod("System.Double", "DegreesToRadians", ["System.Double"]) },
+                { "Math_RadToDeg_D?", ResolveMethod("Belte.Runtime.Math", "RadToDeg", ["System.Nullable`1<System.Double>"]) },
+                { "Math_RadToDeg_D", ResolveMethod("System.Double", "RadiansToDegrees", ["System.Double"]) },
+            };
+        }
     }
 }

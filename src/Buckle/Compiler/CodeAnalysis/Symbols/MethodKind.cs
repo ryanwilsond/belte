@@ -9,4 +9,6 @@ public enum MethodKind : byte {
     Operator,
     Conversion,
     FunctionPointerSignature,
+    FunctionSignature,
+    AnonymousFunction,
 }

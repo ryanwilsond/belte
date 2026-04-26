@@ -10,7 +10,12 @@ public struct CompilationOptions {
         string[] arguments = null,
         bool isScript = false,
         bool enableOutput = true,
-        string[] references = null) {
+        string[] references = null,
+        bool concurrentBuild = false,
+        int maxCoreCount = 1,
+        OptimizationLevel optimizationLevel = OptimizationLevel.Release,
+        string entryName = null,
+        bool noStdLib = false) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -19,6 +24,11 @@ public struct CompilationOptions {
         isTranspiling = buildMode == BuildMode.CSharpTranspile;
         this.enableOutput = enableOutput;
         this.references = references ?? [];
+        this.concurrentBuild = concurrentBuild;
+        this.maxCoreCount = maxCoreCount;
+        this.optimizationLevel = optimizationLevel;
+        this.entryName = entryName;
+        this.noStdLib = noStdLib;
     }
 
     /// <summary>
@@ -65,4 +75,14 @@ public struct CompilationOptions {
     internal bool publicSign { get; }
 
     internal StrongNameProvider strongNameProvider { get; }
+
+    internal bool concurrentBuild { get; }
+
+    internal int maxCoreCount { get; }
+
+    internal OptimizationLevel optimizationLevel { get; }
+
+    internal string entryName { get; }
+
+    internal bool noStdLib { get; }
 }

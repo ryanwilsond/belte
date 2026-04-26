@@ -6,9 +6,11 @@
   - [2.1.3](#213-default-arguments) Default Arguments
   - [2.1.4](#214-named-arguments) Named Arguments
   - [2.1.5](#215-template-arguments) Template Arguments
+  - [2.1.6](#216-ref-arguments) Ref Arguments
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
+  - [2.2.3](#223-disambiguating-entry-points) Disambiguating Entry Points
 - [2.3](#23-conditionals) Conditionals
   - [2.3.1](#231-null-conditions) Null Conditions
   - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
@@ -114,6 +116,48 @@ identical to that of class templates, which can be read about [here](./ClassesAn
 for templates and template constraint clauses are as follows:
 `void Func<template parameters...>() where { template constraint clauses... } { }`
 
+### 2.1.6 Ref Arguments
+
+Like locals and fields, parameters can use the `ref` keyword. In addition to this, parameters can also use the `out`
+keyword to specify an out parameter that acts like a reference but exclusively assigns to the reference.
+
+```belte
+int a = 0;
+int b = Func(out a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+To shortcut declaring a local immediately used as an argument for an out parameter, the declaration can be moved into
+the argument:
+
+```belte
+int b = Func(out int a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+Implicit typing also works in out argument declarations, but nullable annotations are disallowed:
+
+```belte
+int b = Func(out var a);
+
+int Func(out int a) {
+  a = 3;
+  return 6;
+}
+```
+
+Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
+the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
+used as the type for an out parameter.
+
 ## 2.2 Entry Point
 
 If no specific entry point is declared, the program runs statements in a top-down approach (similar to Python). This is
@@ -135,21 +179,13 @@ int Main(string![]! args);
 
 Where `args` is an array of command-line arguments.
 
-Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (NOT case sensitive), and
-the parameters must have the exact types, but the parameter names can be anything:
-
-More valid `Main` signatures:
-
-```belte
-void main();
-int MAIN();
-void main(string![]! b);
-int MaiN(string![]! args);
-```
+Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (case sensitive), and
+the parameter must have the exact type, but the parameter name can be anything:
 
 **Invalid** `Main` signatures:
 
 ```bete
+void main(); // Name does not match casing
 string Main(); // Cannot return 'string'
 void Main(int! argc, string![]! argv); // Must have 0 or 1 parameters
 int Main(string a); // Invalid parameter type, must be 'string![]!'
@@ -195,6 +231,16 @@ public class Program {
   }
 }
 ```
+
+### 2.2.3 Disambiguating Entry Points
+
+If multiple types contain a method that is recognized as the entry point, the compiler will fail to pick one. In such a
+case, the [*--entry=\<name>*](../Buckle.md#--entryname) command-line argument can be used to specify a type name to
+search for the entry point in.
+
+The name passed can be just a type name, or a namespace qualified name. The passed name does not support nesting and
+instead treats everything to the left of the last period as the namespace name. For example `--entry=A.B.C` would look
+for the entry point within a type named `C` inside of a namespace named `A.B`.
 
 ## 2.3 Conditionals
 
@@ -247,7 +293,7 @@ To avoid this exception while still allowing nullable types in the condition exp
 For example:
 
 ```belte
-int a = null;
+int? a = null;
 
 if ((a > 4)?) {
   ...
@@ -266,7 +312,7 @@ A null-binding contract can be used to declare a temporary local within an `if` 
 local is not null.
 
 ```belte
-int a = 3;
+int? a = 3;
 
 if (a -> x!) {
   int! b = x;
@@ -278,12 +324,12 @@ If the source expression is null, the block does not run. Otherwise, a non-nulla
 Similar to an ordinary if statement, an else block can be defined that runs only if the source expression is null.
 
 ```belte
-int a = 3;
+int? a = 3;
 
 if (a -> x!) {
   int! b = x;
 } else {
-  int b = a;
+  int? b = a;
 }
 ```
 

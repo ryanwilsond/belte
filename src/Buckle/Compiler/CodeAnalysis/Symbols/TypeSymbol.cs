@@ -128,6 +128,20 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         }
     }
 
+    internal bool HasDefaultValue() {
+        if (this.IsNullableType() || LiteralUtilities.TypeHasDefaultValue(specialType) || IsStructType())
+            return true;
+
+        if (this is TemplateParameterSymbol t) {
+            if (t.hasNotNullConstraint)
+                return false;
+
+            return true;
+        }
+
+        return false;
+    }
+
     internal bool IsErrorType() {
         return kind == SymbolKind.ErrorType;
     }
@@ -231,6 +245,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Enum:
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
+            case TypeKind.Function:
                 return baseType;
             case TypeKind.Primitive:
                 return null;

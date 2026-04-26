@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -19,24 +20,32 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly Dictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
-    private readonly Dictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
+    private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
+    private readonly ConcurrentDictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
-    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
     private readonly Predicate<Symbol> _filter;
 
-    private Dictionary<FieldSymbol, NamedTypeSymbol> _lazyFixedImplementationTypes;
+    private ConcurrentQueue<Action> _workQueue;
+    private ManualResetEventSlim _signal;
+    private int _pending;
+    private volatile bool _stopping;
+    private AutoResetEvent _workAvailable;
+    private ManualResetEventSlim _done;
+
+    private ImmutableDictionary<FieldSymbol, NamedTypeSymbol>.Builder _lazyFixedImplementationTypes;
     private MethodSymbol _entryPoint;
     private MethodSymbol _updatePoint;
 
+    private bool _sawCompileTimeExpression;
+
     private MethodCompiler(
         Compilation compilation,
-        Dictionary<MethodSymbol, BoundBlockStatement> methodBodiesBeingBuilt,
         BelteDiagnosticQueue diagnostics,
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
-        Dictionary<NamedTypeSymbol, EvaluatorSlotManager> typeLayouts,
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         Predicate<Symbol> filter,
         bool emitting) {
         _compilation = compilation;
@@ -46,7 +55,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _filter = filter;
         _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
-        _methodBodies = methodBodiesBeingBuilt;
+        _methodBodies = [];
         _methodLayouts = [];
         _typeLayouts = typeLayouts;
         _synthesizedNestedTypes = [];
@@ -62,7 +71,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         var globalNamespace = compilation.globalNamespaceInternal;
 
-        var typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(globalNamespace);
+        var typeLayouts = ImmutableDictionary.CreateBuilder<NamedTypeSymbol, EvaluatorSlotManager>();
+
+        // Unfortunately we have to do this even if we don't use it
+        // We have to allow any future programs to use layouts from this one
+        EvaluatorTypeLayoutVisitor.CreateTypeLayouts(typeLayouts, globalNamespace);
         var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
 
         if (previousLayouts is not null) {
@@ -70,7 +83,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 typeLayouts.TryAdd(layout.Key, layout.Value);
         }
 
-        var methodBodiesBeingBuilt = new Dictionary<MethodSymbol, BoundBlockStatement>();
         var entryPoint = (emittingToDll || skipEntryPoint) ? null : GetEntryPoint(compilation, diagnostics);
         var updatePoint = (emittingToDll || skipEntryPoint) ? null : GetUpdatePoint(compilation, entryPoint, diagnostics);
 
@@ -81,7 +93,6 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         var methodCompiler = new MethodCompiler(
             compilation,
-            methodBodiesBeingBuilt,
             diagnostics,
             entryPoint,
             updatePoint,
@@ -90,17 +101,71 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             !transpiling
         );
 
-        methodCompiler.CompileNamespace(globalNamespace);
+        if (compilation.options.concurrentBuild) {
+            methodCompiler._workQueue = new();
+            methodCompiler._signal = new(false);
+            methodCompiler._workAvailable = new(false);
+            methodCompiler._done = new(false);
 
-        if (!methodCompiler._diagnostics.AnyErrors())
+            methodCompiler.StartWorkers(compilation.options.maxCoreCount);
+            methodCompiler.Enqueue(() => methodCompiler.CompileNamespace(globalNamespace));
+            methodCompiler.WaitForCompletion();
+
+            methodCompiler._stopping = true;
+            methodCompiler._signal.Set();
+        } else {
+            methodCompiler.CompileNamespace(globalNamespace);
+        }
+
+        if (!diagnostics.AnyErrors() && methodCompiler._sawCompileTimeExpression)
             methodCompiler.ComputeCompileTimeExpressions();
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
             methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
 
-        methodCompiler.InjectSequencePoints();
+        if (compilation.options.optimizationLevel == OptimizationLevel.Debug)
+            methodCompiler.InjectSequencePoints();
 
         return methodCompiler.CreateBoundProgram();
+    }
+
+    private void StartWorkers(int count) {
+        for (var i = 0; i < count; i++) {
+            var thread = new Thread(WorkerLoop) {
+                IsBackground = true
+            };
+
+            thread.Start();
+        }
+    }
+
+    private void WorkerLoop() {
+        while (true) {
+            if (_stopping)
+                return;
+
+            if (_workQueue.TryDequeue(out var work)) {
+                work();
+
+                if (Interlocked.Decrement(ref _pending) == 0)
+                    _done.Set();
+
+                continue;
+            }
+
+            _workAvailable.WaitOne();
+        }
+    }
+
+    private void Enqueue(Action work) {
+        Interlocked.Increment(ref _pending);
+
+        _workQueue.Enqueue(work);
+        _workAvailable.Set();
+    }
+
+    private void WaitForCompletion() {
+        _done.Wait();
     }
 
     private static MethodSymbol GetEntryPoint(Compilation compilation, BelteDiagnosticQueue diagnostics) {
@@ -120,9 +185,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _methodBodies.ToImmutableDictionary(),
             _methodLayouts.ToImmutableDictionary(),
             _types.ToImmutableAndFree(),
-            _typeLayouts.ToImmutableDictionary(),
+            _typeLayouts.ToImmutable(),
             _synthesizedNestedTypes,
-            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
+            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutable(),
             _entryPoint,
             _updatePoint,
             _compilation.previous?.boundProgram
@@ -130,16 +195,19 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     }
 
     private void ComputeCompileTimeExpressions() {
-        var newMethodBodies = new Dictionary<MethodSymbol, BoundBlockStatement>();
-        var newMethodLayouts = new Dictionary<MethodSymbol, EvaluatorSlotManager>();
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> newMethodBodies;
+        ImmutableDictionary<MethodSymbol, EvaluatorSlotManager> newMethodLayouts;
 
         if (!_compilation.options.buildMode.Evaluating()) {
-            var current = _methodBodies;
+            var methodBodiesBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+            var methodLayoutsBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, EvaluatorSlotManager>();
+
+            var current = _methodBodies.ToDictionary();
             var currentCompilation = _compilation;
 
             while (currentCompilation is not null) {
                 foreach (var (key, value) in current) {
-                    newMethodBodies.Add(key, EvaluatorSlotRewriter.Rewrite(
+                    methodBodiesBuilder.Add(key, EvaluatorSlotRewriter.Rewrite(
                         key,
                         value,
                         _typeLayouts,
@@ -147,26 +215,29 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                         out var manager
                     ));
 
-                    newMethodLayouts.Add(key, manager);
+                    methodLayoutsBuilder.Add(key, manager);
                 }
 
                 // We have to recompute libraries because they aren't build with evaluator slots in mind
                 currentCompilation = currentCompilation.previous;
                 current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
             }
+
+            newMethodBodies = methodBodiesBuilder.ToImmutable();
+            newMethodLayouts = methodLayoutsBuilder.ToImmutable();
         } else {
-            newMethodBodies = _methodBodies;
-            newMethodLayouts = _methodLayouts;
+            newMethodBodies = _methodBodies.ToImmutableDictionary();
+            newMethodLayouts = _methodLayouts.ToImmutableDictionary();
         }
 
         var boundProgram = new BoundProgram(
             _compilation,
-            newMethodBodies.ToImmutableDictionary(),
-            newMethodLayouts.ToImmutableDictionary(),
-            _types.ToImmutableArray(),
-            _typeLayouts.ToImmutableDictionary(),
+            newMethodBodies,
+            newMethodLayouts,
+            _types.ToImmutable(),
+            _typeLayouts.ToImmutable(),
             _synthesizedNestedTypes,
-            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutableDictionary(),
+            _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutable(),
             null,
             null,
             _compilation.previous?.boundProgram
@@ -206,7 +277,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (!PassesFilter(_filter, symbol))
             return null;
 
-        CompileNamespace(symbol);
+        if (_compilation.options.concurrentBuild)
+            Enqueue(() => CompileNamespace(symbol));
+        else
+            CompileNamespace(symbol);
+
         return null;
     }
 
@@ -214,12 +289,17 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (!PassesFilter(_filter, symbol))
             return null;
 
-        CompileNamedType(symbol);
+        if (_compilation.options.concurrentBuild)
+            Enqueue(() => CompileNamedType(symbol));
+        else
+            CompileNamedType(symbol);
+
         return null;
     }
 
     private void CompileNamedType(NamedTypeSymbol symbol) {
-        _types.Add(symbol);
+        lock (_types)
+            _types.Add(symbol);
 
         var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
         var members = symbol.GetMembers();
@@ -242,6 +322,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 _diagnostics,
                 ref processedInstanceInitializers
             );
+
+            var unions = sourceType.anonymousUnionFields;
+
+            if (unions is not null) {
+                lock (_synthesizedNestedTypes) {
+                    foreach (var union in unions)
+                        _synthesizedNestedTypes.Add(symbol, union.Key);
+                }
+            }
         }
 
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
@@ -272,8 +361,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
         if (state.synthesizedTypes is not null) {
             foreach (var synthesizedType in state.synthesizedTypes) {
-                _types.Add(synthesizedType.Item2);
-                _synthesizedNestedTypes.Add(synthesizedType.Item1, synthesizedType.Item2);
+                lock (_types)
+                    _types.Add(synthesizedType.Item2);
+
+                lock (_synthesizedNestedTypes)
+                    _synthesizedNestedTypes.Add(synthesizedType.Item1, synthesizedType.Item2);
             }
         }
 
@@ -291,8 +383,13 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     }
 
     private void SetFixedImplementationType(SourceMemberFieldSymbol field) {
-        if (_lazyFixedImplementationTypes is null)
-            Interlocked.CompareExchange(ref _lazyFixedImplementationTypes, [], null);
+        if (_lazyFixedImplementationTypes is null) {
+            Interlocked.CompareExchange(
+                ref _lazyFixedImplementationTypes,
+                ImmutableDictionary.CreateBuilder<FieldSymbol, NamedTypeSymbol>(),
+                null
+            );
+        }
 
         lock (_lazyFixedImplementationTypes) {
             if (_lazyFixedImplementationTypes.TryGetValue(field, out _))
@@ -360,8 +457,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             body,
             state,
             _compilation.previousAnalyses,
-            currentDiagnostics
+            currentDiagnostics,
+            out var sawCompileTimeExpression
         );
+
+        _sawCompileTimeExpression |= sawCompileTimeExpression;
 
         if (!ControlFlowGraph.AllPathsReturn(loweredBody))
             currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
@@ -389,8 +489,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BoundBlockStatement body,
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
-        BelteDiagnosticQueue currentDiagnostics) {
-        var loweredBody = Lowerer.Lower(method, body, currentDiagnostics);
+        BelteDiagnosticQueue currentDiagnostics,
+        out bool sawCompileTimeExpression) {
+        var loweredBody = Lowerer.Lower(
+            state.compilation.options.optimizationLevel,
+            method,
+            body,
+            currentDiagnostics,
+            out sawCompileTimeExpression
+        );
 
         loweredBody = LocalFunctionRewriter.Rewrite(
             loweredBody,

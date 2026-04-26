@@ -305,6 +305,9 @@ internal static partial class ConstraintsHelpers {
                 case TypeKind.FunctionPointer:
                     VisitFunctionPointerType((FunctionPointerTypeSymbol)current, out next);
                     break;
+                case TypeKind.Function:
+                    VisitFunctionType((FunctionTypeSymbol)current, out next);
+                    break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(current.typeKind);
             }
@@ -327,6 +330,24 @@ internal static partial class ConstraintsHelpers {
                 CheckAllConstraints(currentPointer.parameters[i].type, location, diagnostics);
 
             next = currentPointer.parameters[i].typeWithAnnotations;
+            return;
+        }
+
+        void VisitFunctionType(FunctionTypeSymbol type, out TypeWithAnnotations next) {
+            MethodSymbol current = type.signature;
+
+            if (current.parameterCount == 0) {
+                next = current.returnTypeWithAnnotations;
+                return;
+            }
+
+            CheckAllConstraints(current.returnType, location, diagnostics);
+
+            int i;
+            for (i = 0; i < current.parameterCount - 1; i++)
+                CheckAllConstraints(current.parameters[i].type, location, diagnostics);
+
+            next = current.parameters[i].typeWithAnnotations;
             return;
         }
     }

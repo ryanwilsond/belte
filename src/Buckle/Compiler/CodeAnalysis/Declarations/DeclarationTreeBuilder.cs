@@ -310,6 +310,13 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return VisitTypeDeclaration(node, DeclarationKind.Struct);
     }
 
+    internal override SingleNamespaceOrTypeDeclaration VisitUnionDeclaration(UnionDeclarationSyntax node) {
+        if (node.identifier is not null)
+            return VisitTypeDeclaration(node, DeclarationKind.Struct);
+
+        return base.VisitUnionDeclaration(node);
+    }
+
     internal override SingleNamespaceOrTypeDeclaration VisitEnumDeclaration(EnumDeclarationSyntax node) {
         var members = node.members;
 
@@ -386,12 +393,12 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return new SingleTypeDeclaration(
             kind: kind,
-            name: node.identifier.text,
+            name: node.identifier?.text,
             arity: node.arity,
             modifiers: modifiers,
             declFlags: declFlags,
             syntaxReference: new SyntaxReference(node),
-            nameLocation: node.identifier.location,
+            nameLocation: node.identifier?.location ?? node.keyword.location,
             memberNames: memberNames,
             children: VisitTypeChildren(node),
             diagnostics: diagnostics.ToImmutableAndFree()
@@ -497,6 +504,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 return ((CoreInternalSyntax.CompilationUnitSyntax)member).attributeLists.Any();
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 return ((CoreInternalSyntax.TypeDeclarationSyntax)member).attributeLists.Any();
             case SyntaxKind.FieldDeclaration:
                 return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();
@@ -530,6 +538,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     }
 
     private static bool HasAnyNonTypeMemberNames(CoreInternalSyntax.BelteSyntaxNode member, bool skipGlobalStatements) {
+        if (member is CoreInternalSyntax.UnionDeclarationSyntax u && u.identifier is null)
+            return true;
+
         switch (member.kind) {
             case SyntaxKind.FieldDeclaration:
             case SyntaxKind.MethodDeclaration:

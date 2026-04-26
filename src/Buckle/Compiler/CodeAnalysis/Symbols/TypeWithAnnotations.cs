@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -13,6 +14,11 @@ internal sealed class TypeWithAnnotations {
     internal TypeWithAnnotations(TypeSymbol underlyingType, bool isNullable) {
         type = underlyingType;
         this.isNullable = isNullable;
+
+#if DEBUG
+        if (underlyingType is not null && underlyingType.IsNullableType() != isNullable)
+            throw ExceptionUtilities.UnexpectedValue(isNullable);
+#endif
     }
 
     internal TypeWithAnnotations(TypeSymbol underlyingType) {
@@ -116,12 +122,18 @@ internal sealed class TypeWithAnnotations {
 
         switch (transformFlag) {
             case NullableContextExtensions.AnnotatedAttributeValue:
-                result = result.isNullable ? result : result.SetIsAnnotated();
+                result = result.isNullable
+                    ? result
+                    : ShouldLift(result.type)
+                        ? result.SetIsAnnotated()
+                        : result;
+
                 break;
             case NullableContextExtensions.NotAnnotatedAttributeValue:
-                result = result.typeKind == TypeKind.Class
+                result = ShouldLift(result.type)
                     ? result.SetIsAnnotated()
                     : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+
                 break;
             default:
                 result = this;
@@ -129,6 +141,10 @@ internal sealed class TypeWithAnnotations {
         }
 
         return true;
+
+        static bool ShouldLift(TypeSymbol type) {
+            return type.typeKind is TypeKind.Class or TypeKind.Array or TypeKind.TemplateParameter;
+        }
     }
 
     public string ToDisplayString(SymbolDisplayFormat format = null) {

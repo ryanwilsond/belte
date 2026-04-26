@@ -39,6 +39,11 @@ internal static class Error {
             var message = $"unsupported: cannot use non-integral enums when building for .NET, transpiling to C#, or executing";
             return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
         }
+
+        internal static Diagnostic GraphicsCall() {
+            var message = $"cannot make Graphics calls when the output kind is not graphics";
+            return CreateError(DiagnosticCode.UNS_GraphicsCall, message);
+        }
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {
@@ -742,8 +747,13 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic MethodGroupCannotBeUsedAsValue(TextLocation location, BoundMethodGroup methodGroup) {
-        var message = $"method group '{methodGroup}' cannot be used as a value";
+        var message = $"method group '{methodGroup.name}' cannot be used as a value";
         return CreateError(DiagnosticCode.ERR_MethodGroupCannotBeUsedAsValue, location, message);
+    }
+
+    internal static BelteDiagnostic MethodFunctionMismatch(TextLocation location, BoundMethodGroup methodGroup, TypeSymbol type) {
+        var message = $"no overload for '{methodGroup.name}' matches function '{type}'";
+        return CreateError(DiagnosticCode.ERR_MethodFunctionMismatch, location, message);
     }
 
     internal static BelteDiagnostic LocalShadowsParameter(TextLocation location, string name) {
@@ -1498,7 +1508,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IncompatibleEntryPointReturn(TextLocation location, Symbol symbol) {
-        var message = $"entry point '{symbol}' must return void to maintain compatibility with .NET";
+        var message = $"entry point '{symbol}' must return `void` or `int32!` to maintain compatibility with .NET";
         return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
     }
 
@@ -1518,7 +1528,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation on a struct type";
+        var message = $"cannot use a nullable or non-nullable annotation on a struct type";
         return CreateError(DiagnosticCode.ERR_CannotAnnotateStruct, location, message);
     }
 
@@ -1957,6 +1967,21 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullErasureOnTypeWithNoDefault, location, message);
     }
 
+    internal static BelteDiagnostic TypeWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a default literal for type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_TypeWithNoDefault, location, message);
+    }
+
+    internal static BelteDiagnostic OutNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use the out modifier for type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
+    }
+
+    internal static BelteDiagnostic FieldNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a field without an initializer with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefaultValue, location, message);
+    }
+
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
         var message = $"cannot apply a null erasure operator to a null literal";
         return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);
@@ -1980,6 +2005,73 @@ internal static class Error {
     internal static BelteDiagnostic AmbiguousHandleTarget(TextLocation location, TypeSymbol type) {
         var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains more than one valid handle method";
         return CreateError(DiagnosticCode.ERR_AmbiguousHandleTarget, location, message);
+    }
+
+    internal static BelteDiagnostic FunctionCannotContainPointer(TextLocation location) {
+        var message = $"function types cannot contain pointers or function pointers; consider using a function pointer instead";
+        var suggestion = $"%*";
+        return CreateError(DiagnosticCode.ERR_FunctionCannotContainPointer, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic BadReturnType(TextLocation location, MethodSymbol method, TypeSymbol type, TypeSymbol expected) {
+        var message = $"'{type} {method}' has the wrong return type; expected '{expected}'";
+        return CreateError(DiagnosticCode.ERR_BadReturnType, location, message);
+    }
+
+    internal static BelteDiagnostic FunctionRefMismatch(TextLocation location, Symbol method, TypeSymbol type) {
+        var message = $"ref mismatch between '{method}' and function '{type}'";
+        return CreateError(DiagnosticCode.ERR_FunctionRefMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownCallingConvention(TextLocation location, string text) {
+        var message = $"unrecognized calling convention '{text}'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'";
+        return CreateError(DiagnosticCode.ERR_UnknownCallingConvention, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotatePointer(TextLocation location) {
+        var message = $"cannot use a nullable annotation on a pointer or function pointer type";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotatePointer, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTypeTemplate(TextLocation location) {
+        var message = $"type template parameters cannot be nullable";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTypeTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTemplate(TextLocation location) {
+        var message = $"cannot use a non-nullable annotation on a template parameter type";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultLiteralNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the default literal";
+        return CreateError(DiagnosticCode.ERR_DefaultLiteralNoTargetType, location, message);
+    }
+
+    internal static BelteDiagnostic TypeInferenceFailedForOut(TextLocation location, string text) {
+        var message = $"cannot infer the type of implicitly-typed out data container '{text}'";
+        return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
+    }
+
+    internal static BelteDiagnostic OutVarAnnotated(TextLocation location) {
+        var message = $"cannot annotate the type of an implicitly typed out data container";
+        return CreateError(DiagnosticCode.ERR_OutVarAnnotated, location, message);
+    }
+
+    internal static BelteDiagnostic BadPatternExpression(TextLocation location, BoundExpression expression) {
+        var message = $"invalid operand for pattern match; value required, but found '{expression}'";
+        return CreateError(DiagnosticCode.ERR_BadPatternExpression, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTypePattern(TextLocation location, TypeSymbol type, TypeSymbol underlyingType) {
+        var message = $"cannot use nullable type '{type}' in a pattern; use the underlying type '{underlyingType}' or a null-binding contract instead";
+        var suggestion = $"{underlyingType}";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTypePattern, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic PatternCannotHandleTypes(TextLocation location, TypeSymbol source, TypeSymbol target) {
+        var message = $"an expression of type '{source}' cannot be handled by a pattern of type '{target}'";
+        return CreateError(DiagnosticCode.ERR_PatternCannotHandleTypes, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
@@ -2010,9 +2102,9 @@ internal static class Error {
         else if (factValue is not null)
             return $"'{factValue}'";
 
-        if (type.ToString().EndsWith("Statement")) {
+        if (type.IsStatement()) {
             return "statement";
-        } else if (type.ToString().EndsWith("Expression")) {
+        } else if (type.IsExpression()) {
             return "expression";
         } else if (type.IsKeyword()) {
             return "keyword";

@@ -13,6 +13,8 @@ internal sealed class EvaluatorSlotManager : LocalSlotManager {
 
     internal Symbol symbol { get; }
 
+    internal int currentSlot { get; private set; }
+
     internal VariableDefinition DeclareLocal(
         TypeSymbol type,
         Symbol symbol,
@@ -23,6 +25,18 @@ internal sealed class EvaluatorSlotManager : LocalSlotManager {
         if (!isSlotReusable || !_freeSlots.TryPop(new LocalSignature(type, constraints), out var local))
             local = DeclareLocalImpl(type, symbol, name, kind, constraints);
 
+        _localMap.Add(symbol, local);
+        return local;
+    }
+
+    internal VariableDefinition DeclareLocalWithSlot(
+        TypeSymbol type,
+        Symbol symbol,
+        string name,
+        SynthesizedLocalKind kind,
+        LocalSlotConstraints constraints,
+        int slot) {
+        var local = DeclareLocalImpl(type, symbol, name, kind, constraints, slot);
         _localMap.Add(symbol, local);
         return local;
     }
@@ -48,14 +62,15 @@ internal sealed class EvaluatorSlotManager : LocalSlotManager {
         Symbol symbol,
         string name,
         SynthesizedLocalKind kind,
-        LocalSlotConstraints constraints) {
+        LocalSlotConstraints constraints,
+        int? slot = null) {
         _lazyAllLocals ??= new ArrayBuilder<VariableDefinition>(1);
 
         var local = new VariableDefinition(
             symbol,
             name,
             type,
-            _lazyAllLocals.Count,
+            slot ?? currentSlot++,
             synthesizedKind: kind,
             constraints: constraints
         );

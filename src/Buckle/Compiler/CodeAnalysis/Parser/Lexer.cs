@@ -20,12 +20,14 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// IdentifierToken IdentifierToken SemicolonToken
 /// </code>
 /// </summary>
-internal sealed class Lexer : IDisposable {
+internal sealed partial class Lexer : IDisposable {
     private readonly List<SyntaxDiagnostic> _diagnostics;
     private readonly SyntaxListBuilder _leadingTriviaCache = new SyntaxListBuilder(10);
     private readonly SyntaxListBuilder _trailingTriviaCache = new SyntaxListBuilder(10);
     private SyntaxListBuilder _directiveTriviaCache;
     private readonly bool _allowPreprocessorDirectives;
+    private readonly LexerCache _cache;
+    private readonly List<SyntaxToken> _badTokensCache = [];
 
     private LexerMode _mode;
     private DirectiveStack _directives;
@@ -43,6 +45,7 @@ internal sealed class Lexer : IDisposable {
         _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = [];
         _directives = DirectiveStack.Empty;
+        _cache = new LexerCache();
     }
 
     internal SourceText text { get; }
@@ -64,7 +67,9 @@ internal sealed class Lexer : IDisposable {
 
     private char _lookahead => Peek(1);
 
-    public void Dispose() { }
+    public void Dispose() {
+        _cache.Free();
+    }
 
     /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
@@ -72,25 +77,25 @@ internal sealed class Lexer : IDisposable {
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
     internal SyntaxToken LexNext(LexerMode mode) {
         _mode = mode;
-        var badTokens = new List<SyntaxToken>();
+        _badTokensCache.Clear();
         SyntaxToken token;
 
         while (true) {
             token = _mode switch {
-                LexerMode.Syntax => LexNextInternal(),
+                LexerMode.Syntax => QuickNext() ?? LexNextInternal(),
                 LexerMode.Directive => LexDirectiveToken(),
                 _ => throw ExceptionUtilities.Unreachable(),
             };
 
             if (token.kind == SyntaxKind.BadToken) {
-                badTokens.Add(token);
+                _badTokensCache.Add(token);
                 continue;
             }
 
-            if (badTokens.Count > 0) {
+            if (_badTokensCache.Count > 0) {
                 var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
 
-                foreach (var badToken in badTokens) {
+                foreach (var badToken in _badTokensCache) {
                     leadingTrivia.AddRange(badToken.leadingTrivia);
                     var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
                     leadingTrivia.Add(trivia);
@@ -177,6 +182,9 @@ internal sealed class Lexer : IDisposable {
     }
 
     private SyntaxDiagnostic[] GetDiagnostics(int leadingTriviaWidth) {
+        if (_diagnostics.Count == 0)
+            return null;
+
         if (leadingTriviaWidth > 0) {
             var array = new SyntaxDiagnostic[_diagnostics.Count];
 
@@ -200,7 +208,9 @@ internal sealed class Lexer : IDisposable {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
 
-        var token = SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
+        var token = SyntaxFacts.IsContextualKeyword(kind)
+            ? SyntaxFactory.Contextual(kind, text, value, leading, trailing, diagnostics)
+            : SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
 
         if (text is null)
             token.SetFlags(GreenNode.NodeFlags.IsMissing);
@@ -506,11 +516,13 @@ internal sealed class Lexer : IDisposable {
             case '=':
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.EqualsEqualsToken;
+                else if (AdvanceIfMatches('>')) _kind = SyntaxKind.EqualsGreaterThanToken;
                 else _kind = SyntaxKind.EqualsToken;
                 break;
             case '!':
                 _position++;
                 if (AdvanceIfMatches('=')) _kind = SyntaxKind.ExclamationEqualsToken;
+                else if (AdvanceIfMatches('!')) _kind = SyntaxKind.ExclamationExclamationToken;
                 else _kind = SyntaxKind.ExclamationToken;
                 break;
             case '<':
@@ -968,17 +980,22 @@ internal sealed class Lexer : IDisposable {
         if (!hasDecimal && !hasExponent) {
             var @base = isBinary ? 2 : 16;
             var failed = false;
-            long value = 0;
+            object value = 0L;
 
             if (isBinary || isHexadecimal) {
                 try {
-                    value = Convert.ToInt64(
+                    value = Convert.ToUInt64(
                         numericText.Length > 2 ? parsedText.Substring(2) : throw new FormatException(), @base);
                 } catch (Exception e) when (e is OverflowException || e is FormatException) {
                     failed = true;
                 }
-            } else if (!long.TryParse(parsedText, out value)) {
-                failed = true;
+            } else if (!long.TryParse(parsedText, out var longValue)) {
+                if (!ulong.TryParse(parsedText, out var ulongValue))
+                    failed = true;
+                else
+                    value = ulongValue;
+            } else {
+                value = longValue;
             }
 
             if (failed) {
@@ -1007,6 +1024,7 @@ internal sealed class Lexer : IDisposable {
 
     private void ReadWhitespace() {
         var done = false;
+        // TODO Get trivia from cache?
 
         while (!done) {
             switch (_current) {

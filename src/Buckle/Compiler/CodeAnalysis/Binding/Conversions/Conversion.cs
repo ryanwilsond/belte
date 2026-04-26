@@ -12,6 +12,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion None => new Conversion(ConversionKind.None);
     internal static Conversion Identity => new Conversion(ConversionKind.Identity);
     internal static Conversion Implicit => new Conversion(ConversionKind.Implicit);
+    internal static Conversion DefaultLiteral => new Conversion(ConversionKind.DefaultLiteral);
     internal static Conversion ImplicitConstant => new Conversion(ConversionKind.ImplicitConstant);
     internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
     internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
@@ -65,6 +66,14 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                 conversionResult: conversionResult,
                 conversionMethod: null
             );
+    }
+
+    internal Conversion(ConversionKind kind, MethodSymbol conversionMethod) {
+        this.kind = kind;
+        _uncommonData = new MethodUncommonData(
+            conversionResult: default,
+            conversionMethod: conversionMethod
+        );
     }
 
     private Conversion(ConversionKind kind, UncommonData uncommonData = null) {
@@ -244,7 +253,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
             return Explicit;
 
-        if (source.Equals(target))
+        if (source.Equals(target, TypeCompareKind.ConsiderEverything))
             return Identity;
 
         if (source.IsPointerOrFunctionPointer() && target.IsPointerOrFunctionPointer()) {

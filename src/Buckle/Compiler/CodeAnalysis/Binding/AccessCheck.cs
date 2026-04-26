@@ -87,6 +87,27 @@ internal static class AccessCheck {
                 }
 
                 return true;
+            case SymbolKind.FunctionType:
+                var func = (FunctionTypeSymbol)symbol;
+                if (!IsSymbolAccessibleCore(
+                    func.signature.returnType,
+                    within,
+                    throughType: null,
+                    out failedThroughTypeCheck)) {
+                    return false;
+                }
+
+                foreach (var param in func.signature.parameters) {
+                    if (!IsSymbolAccessibleCore(
+                        param.type,
+                        within,
+                        throughType: null,
+                        out failedThroughTypeCheck)) {
+                        return false;
+                    }
+                }
+
+                return true;
             case SymbolKind.Field:
             case SymbolKind.Method:
                 if (!symbol.RequiresInstanceReceiver())

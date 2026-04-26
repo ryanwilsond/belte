@@ -525,6 +525,8 @@ internal partial class Binder {
         switch (syntax.kind) {
             case SyntaxKind.NonNullableType:
                 return BindNonNullable();
+            case SyntaxKind.NullableType:
+                return BindNullable();
             case SyntaxKind.IdentifierName:
                 namespaceOrNonNullableType = BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
                     (IdentifierNameSyntax)syntax,
@@ -601,6 +603,17 @@ internal partial class Binder {
                         basesBeingResolved
                     )
                 );
+            case SyntaxKind.FunctionType:
+                namespaceOrNonNullableType = new TypeWithAnnotations(
+                    FunctionTypeSymbol.CreateFromSource(
+                        (FunctionTypeSyntax)syntax,
+                        this,
+                        diagnostics,
+                        basesBeingResolved
+                    )
+                );
+
+                break;
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }
@@ -624,12 +637,15 @@ internal partial class Binder {
             // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
             if (typeToCheck.type is TemplateParameterSymbol t &&
                 (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
-                if (t.hasNotNullConstraint)
-                    return typeToCheck;
+                // TODO Should we always keep non-nullable because it might be or lift T and use T!
+                // if (t.hasNotNullConstraint)
+                return typeToCheck;
             }
 
-            if (typeToCheck.specialType.IsLowLevelNumeric())
+            if (typeToCheck.specialType.IsPrimitiveType() &&
+                typeToCheck.specialType is not SpecialType.Array and not SpecialType.Any) {
                 return typeToCheck;
+            }
 
             return typeToCheck.SetIsAnnotated();
         }
@@ -640,12 +656,38 @@ internal partial class Binder {
             var nonNullableSyntax = (NonNullableTypeSyntax)syntax;
             var nullableType = BindType(nonNullableSyntax.type, diagnostics, basesBeingResolved);
 
-            if (nullableType.type.IsStructType()) {
-                diagnostics.Push(Error.CannotAnnotateStruct(syntax.location));
+            // if (nullableType.type.IsStructType()) {
+            //     diagnostics.Push(Error.CannotAnnotateStruct(syntax.location));
+            //     return nullableType;
+            // }
+
+            if (nullableType.type is TemplateParameterSymbol t &&
+                (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
+                diagnostics.Push(Error.CannotAnnotateTemplate(syntax.location));
                 return nullableType;
             }
 
             return new TypeWithAnnotations(nullableType.type.StrippedType(), false);
+        }
+
+        TypeWithAnnotations BindNullable() {
+            var nullableSyntax = (NullableTypeSyntax)syntax;
+            var underlyingType = BindType(nullableSyntax.type, diagnostics, basesBeingResolved);
+
+            if (underlyingType.IsNullableType())
+                return underlyingType;
+
+            // if (underlyingType.type.IsStructType()) {
+            //     diagnostics.Push(Error.CannotAnnotateStruct(syntax.location));
+            //     return underlyingType;
+            // }
+
+            if (underlyingType.type.IsPointerOrFunctionPointer()) {
+                diagnostics.Push(Error.CannotAnnotatePointer(syntax.location));
+                return underlyingType;
+            }
+
+            return underlyingType.SetIsAnnotated();
         }
 
         NamespaceOrTypeOrAliasSymbolWithAnnotations BindAlias() {
@@ -864,6 +906,9 @@ internal partial class Binder {
 
             var array = ArrayTypeSymbol.CreateArray(type, 1);
             type = new TypeWithAnnotations(array);
+
+            if (i + 1 < jaggedRank)
+                type = type.SetIsAnnotated();
         }
 
         return type;
@@ -1114,6 +1159,39 @@ internal partial class Binder {
             argumentAnalysis.argsToParams
         );
 
+        for (var i = 0; i < type.templateParameters.Length; i++) {
+            var parameter = type.templateParameters[i];
+            var argument = rearrangedArguments[i];
+
+            var targetType = parameter.underlyingType.type;
+
+            if (argument.isTypeOrConstant &&
+                argument.typeOrConstant.isConstant && ConstantValue.IsNull(argument.typeOrConstant.constant)) {
+                if (!targetType.IsNullableType())
+                    diagnostics.Push(Error.CannotConvertArgument(argument.syntax.location, null, targetType, i + 1));
+
+                continue;
+            }
+
+            var sourceType = (argument.isTypeOrConstant && argument.typeOrConstant.isType)
+                ? (argument.typeOrConstant.type.typeKind == TypeKind.TemplateParameter
+                    ? (argument.typeOrConstant.type.type as TemplateParameterSymbol).underlyingType.type
+                    : CorLibrary.GetSpecialType(SpecialType.Type))
+                : argument.type;
+
+            var conversion = conversions.ClassifyImplicitConversionFromType(sourceType, targetType);
+
+            if (!conversion.exists) {
+                GenerateImplicitConversionError(
+                    diagnostics,
+                    argument.syntax,
+                    conversion,
+                    argument.type,
+                    targetType
+                );
+            }
+        }
+
         var templateArguments = FixTemplateArgumentsForConstruction(rearrangedArguments, type.templateParameters);
 
         analyzedArguments.Free();
@@ -1175,8 +1253,16 @@ internal partial class Binder {
         TypeSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool isImplicitlyTyped,
-        out bool isNonNullable) {
-        return BindTypeOrImplicitType(syntax, diagnostics, out isImplicitlyTyped, out isNonNullable, out _);
+        out bool isNonNullable,
+        out bool isNullable) {
+        return BindTypeOrImplicitType(
+            syntax,
+            diagnostics,
+            out isImplicitlyTyped,
+            out isNonNullable,
+            out isNullable,
+            out _
+        );
     }
 
     internal TypeWithAnnotations BindTypeOrImplicitType(
@@ -1184,16 +1270,20 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         out bool isImplicitlyTyped,
         out bool isNonNullable,
+        out bool isNullable,
         out AliasSymbol alias) {
-        if (syntax.isImplicitlyTyped || (syntax is NonNullableTypeSyntax n && n.type.isImplicitlyTyped)) {
+        if (syntax.isImplicitlyTyped || (syntax is NonNullableTypeSyntax nn && nn.type.isImplicitlyTyped) ||
+            (syntax is NullableTypeSyntax n && n.type.isImplicitlyTyped)) {
             isImplicitlyTyped = true;
             isNonNullable = syntax.kind == SyntaxKind.NonNullableType;
+            isNullable = syntax.kind == SyntaxKind.NullableType;
             alias = null;
             return new TypeWithAnnotations(null, true);
         } else {
             var symbol = BindTypeOrAlias(syntax, diagnostics);
             isImplicitlyTyped = false;
             isNonNullable = false;
+            isNullable = false;
             return UnwrapAlias(symbol, out alias, diagnostics, syntax).typeWithAnnotations;
         }
     }
@@ -1247,7 +1337,11 @@ internal partial class Binder {
 
         if (templateArgument.kind == SyntaxKind.OmittedArgument) {
             var errorType = UnboundArgumentErrorTypeSymbol.Instance;
-            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(errorType)));
+
+            analyzedArguments.arguments.Add(
+                new BoundExpressionOrTypeOrConstant(templateArgument, new TypeOrConstant(errorType))
+            );
+
             analyzedArguments.hasErrors.Add(true);
             analyzedArguments.types.Add(errorType);
             return;
@@ -1262,15 +1356,12 @@ internal partial class Binder {
         var type = typeWithAnnotations.type;
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
-            if (!typeWithAnnotations.isNullable && !type.IsStructType() && !type.IsPointerOrFunctionPointer() &&
-                !type.specialType.IsLowLevelNumeric() && !type.isStatic && type.specialType != SpecialType.Void &&
-                type.typeKind != TypeKind.TemplateParameter) {
+            if (argument.expression.kind == SyntaxKind.NonNullableType)
                 diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
-            }
 
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(false);
-            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(new TypeOrConstant(type)));
+            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(type)));
             return;
         }
 
@@ -1286,7 +1377,7 @@ internal partial class Binder {
         }
 
         analyzedArguments.arguments.Add(
-            new BoundExpressionOrTypeOrConstant(new TypeOrConstant(boundArgument.constantValue))
+            new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(boundArgument.constantValue))
         );
     }
 
@@ -1390,6 +1481,19 @@ internal partial class Binder {
                     diagnostics.Push(Error.EnumFieldNoTargetType(expression.syntax.location));
 
                 result = ErrorExpression(expression.syntax, expression);
+                break;
+            case BoundDefaultLiteral literal:
+                if (reportNoTargetType)
+                    diagnostics.Push(Error.DefaultLiteralNoTargetType(literal.syntax.location));
+
+                result = new BoundDefaultExpression(
+                    literal.syntax,
+                    targetType: null,
+                    literal.constantValue,
+                    CreateErrorType(),
+                    hasErrors: true
+                );
+
                 break;
             default:
                 result = expression;
@@ -1783,7 +1887,7 @@ internal partial class Binder {
         InitializerListExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
         bool inferType,
-        bool shouldLiftIfPossible = true) {
+        bool shouldLiftIfPossible = false) {
         var result = BindArrayInitializerList(
             diagnostics,
             node,
@@ -1851,8 +1955,13 @@ internal partial class Binder {
 
         foundTypeWithAnnotations = new TypeWithAnnotations(foundElementType);
 
-        if (shouldLift && shouldLiftIfPossible)
+        // TODO This is a simplified check compared to the "canonical" nullability rules laid out in BindNamespaceOrTypeOrAliasSymbol
+        // TODO Unfortunately we can't check the template parameter constraints without causing a loop? (double check)
+        // This isn't a big deal because all it does is restrict implicit casting, it doesn't cause broken behavior
+        if (foundElementType.typeKind is TypeKind.Class or TypeKind.Array ||
+            foundElementType.specialType == SpecialType.Any || (shouldLift && shouldLiftIfPossible)) {
             foundTypeWithAnnotations = foundTypeWithAnnotations.SetIsAnnotated();
+        }
 
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
 
@@ -2599,6 +2708,12 @@ internal partial class Binder {
                 diagnostics.Push(GetStandardLValueError(valueKind, node.location));
                 return false;
             }
+
+            if (fieldAccess.receiver is not null && fieldAccess.receiver.type.IsNullableType() &&
+                fieldAccess.receiver.type.StrippedType().IsStructType()) {
+                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
+                return false;
+            }
         }
 
         if (RequiresRefAssignableVariable(valueKind)) {
@@ -2901,6 +3016,8 @@ internal partial class Binder {
                 return BindNamespaceOrType(node, diagnostics);
             case SyntaxKind.BinaryExpression:
                 return BindBinaryExpression((BinaryExpressionSyntax)node, diagnostics);
+            case SyntaxKind.IsPatternExpression:
+                return BindIsPatternExpression((IsPatternExpressionSyntax)node, diagnostics);
             case SyntaxKind.UnaryExpression:
                 return BindUnaryExpression((UnaryExpressionSyntax)node, diagnostics);
             case SyntaxKind.PrefixExpression:
@@ -2941,6 +3058,9 @@ internal partial class Binder {
                 return BindImplicitEnumFieldExpression((ImplicitEnumFieldExpressionSyntax)node, diagnostics);
             case SyntaxKind.InterpolatedStringExpression:
                 return BindInterpolatedString((InterpolatedStringExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ParenthesizedLambdaExpression:
+            case SyntaxKind.SimpleLambdaExpression:
+                return BindAnonymousFunction((AnonymousFunctionExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -3003,8 +3123,10 @@ internal partial class Binder {
         var resultType = expression.Type();
         var expressionKind = expression.kind;
 
-        if (expression.hasAnyErrors && resultType is not null)
+        if (expression.hasAnyErrors && resultType is not null ||
+            expressionKind is BoundKind.DefaultLiteral or BoundKind.UnboundLambda) {
             return expression;
+        }
 
         if (expressionKind == BoundKind.ErrorExpression) {
             var errorExpression = (BoundErrorExpression)expression;
@@ -3028,6 +3150,92 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private UnboundLambda BindAnonymousFunction(
+        AnonymousFunctionExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        var lambda = AnalyzeAnonymousFunction(syntax, diagnostics);
+        var data = lambda.data;
+
+        // TODO
+        // if (data.HasExplicitlyTypedParameterList) {
+        //     var firstDefault = -1;
+
+        //     for (var i = 0; i < lambda.ParameterCount; i++) {
+        //         var paramSyntax = lambda.ParameterSyntax(i);
+
+        //         if (paramSyntax.Default is not null && firstDefault == -1)
+        //             firstDefault = i;
+
+        //         ParameterHelpers.GetModifiers(paramSyntax.Modifiers, refnessKeyword: out _, out var paramsKeyword, thisKeyword: out _, scope: out _);
+        //         var isParams = paramsKeyword.Kind() != SyntaxKind.None;
+
+        //         ParameterHelpers.ReportParameterErrors(
+        //             owner: null,
+        //             paramSyntax,
+        //             ordinal: i,
+        //             lastParameterIndex:
+        //             lambda.ParameterCount - 1,
+        //             isParams: isParams,
+        //             lambda.ParameterTypeWithAnnotations(i),
+        //             lambda.RefKind(i),
+        //             containingSymbol: null,
+        //             thisKeyword: default,
+        //             paramsKeyword: paramsKeyword,
+        //             firstDefault,
+        //             diagnostics
+        //         );
+        //     }
+        // }
+
+        // TODO We don't allow modifiers on lambdas currently
+        // ModifierHelpers.TodEcl(syntax.modifiers, isForTypeDeclaration: false);
+
+        // if (data.HasSignature) {
+        //     var binder = new LocalScopeBinder(this);
+        //     bool allowShadowingNames = binder.Compilation.IsFeatureEnabled(MessageID.IDS_FeatureNameShadowingInNestedFunctions);
+        //     var pNames = PooledHashSet<string>.GetInstance();
+        //     bool seenDiscard = false;
+
+        //     for (int i = 0; i < lambda.ParameterCount; i++) {
+        //         var name = lambda.ParameterName(i);
+
+        //         if (string.IsNullOrEmpty(name)) {
+        //             continue;
+        //         }
+
+        //         if (lambda.ParameterIsDiscard(i)) {
+        //             if (seenDiscard) {
+        //                 // We only report the diagnostic on the second and subsequent underscores
+        //                 MessageID.IDS_FeatureLambdaDiscardParameters.CheckFeatureAvailability(
+        //                     diagnostics,
+        //                     binder.Compilation,
+        //                     lambda.ParameterLocation(i));
+        //             }
+
+        //             seenDiscard = true;
+        //             continue;
+        //         }
+
+        //         if (!pNames.Add(name)) {
+        //             // The parameter name '{0}' is a duplicate
+        //             diagnostics.Add(ErrorCode.ERR_DuplicateParamName, lambda.ParameterLocation(i), name);
+        //         } else if (!allowShadowingNames) {
+        //             binder.ValidateLambdaParameterNameConflictsInScope(lambda.ParameterLocation(i), name, diagnostics);
+        //         }
+        //     }
+        //     pNames.Free();
+        // }
+
+        return lambda;
+    }
+
+    private UnboundLambda AnalyzeAnonymousFunction(
+        AnonymousFunctionExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO
+        return null;
     }
 
     private BoundExpression BindImplicitEnumFieldExpression(
@@ -4552,7 +4760,9 @@ internal partial class Binder {
         var conversion = conversions.ClassifyConversionFromExpression(expression, boolean);
 
         if (conversion.isImplicit) {
-            if (conversion.kind == ConversionKind.Identity) {
+            var collapsed = Conversion.CollapseConversion(conversion);
+
+            if (collapsed.kind == ConversionKind.Identity) {
                 if (expression.kind == BoundKind.AssignmentOperator) {
                     var assignment = (BoundAssignmentOperator)expression;
 
@@ -5422,7 +5632,12 @@ internal partial class Binder {
 
         return (receiver.hasErrors || access.hasErrors)
             ? access
-            : new BoundConditionalAccessExpression(syntax, receiver, access, access.Type());
+            : new BoundConditionalAccessExpression(
+                syntax,
+                receiver,
+                access,
+                access.Type() is null ? access.Type() : CorLibrary.GetOrCreateNullableType(access.Type())
+            );
     }
 
     private BoundExpression BindMemberAccessBadResult(
@@ -6056,6 +6271,16 @@ internal partial class Binder {
             );
         } else if (boundExpression.Type().kind == SymbolKind.FunctionPointerType) {
             result = BindFunctionPointerInvocation(node, boundExpression, analyzedArguments, diagnostics);
+        } else if (boundExpression.StrippedType().kind == SymbolKind.FunctionType) {
+            result = BindFunctionInvocation(
+                node,
+                expression,
+                methodName,
+                boundExpression,
+                analyzedArguments,
+                diagnostics,
+                (FunctionTypeSymbol)boundExpression.StrippedType()
+            );
         } else {
             if (!boundExpression.hasAnyErrors)
                 diagnostics.Push(Error.CannotCallNonMethod(expression.location));
@@ -6133,12 +6358,56 @@ internal partial class Binder {
         );
     }
 
+    private BoundExpression BindFunctionInvocation(
+        SyntaxNode node,
+        SyntaxNode expression,
+        string methodName,
+        BoundExpression boundExpression,
+        AnalyzedArguments analyzedArguments,
+        BelteDiagnosticQueue diagnostics,
+        FunctionTypeSymbol functionType) {
+        BoundExpression result;
+        var methodGroup = MethodGroup.GetInstance();
+        methodGroup.PopulateWithSingleMethod(boundExpression, functionType.signature);
+        var overloadResolutionResult = OverloadResolutionResult<MethodSymbol>.GetInstance();
+
+        overloadResolution.MethodOverloadResolution(
+            members: methodGroup.methods,
+            templateArguments: methodGroup.templateArguments,
+            receiver: methodGroup.receiver,
+            arguments: analyzedArguments,
+            result: overloadResolutionResult
+        );
+
+        result = BindCallExpressionContinued(
+            node,
+            expression,
+            methodName,
+            overloadResolutionResult,
+            analyzedArguments,
+            methodGroup,
+            functionType,
+            diagnostics
+        );
+
+        overloadResolutionResult.Free();
+        methodGroup.Free();
+        return result;
+    }
+
     internal MethodGroupResolution ResolveMethodGroup(
         BoundMethodGroup node,
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
-        TypeSymbol returnType = null) {
-        var methodResolution = ResolveDefaultMethodGroup(node, analyzedArguments, returnRefKind, returnType);
+        TypeSymbol returnType = null,
+        bool isMethodGroupConversion = false) {
+        var methodResolution = ResolveDefaultMethodGroup(
+            node,
+            analyzedArguments,
+            returnRefKind,
+            returnType,
+            isMethodGroupConversion
+        );
 
         if (methodResolution.isEmpty && !methodResolution.hasAnyErrors) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
@@ -6170,7 +6439,8 @@ internal partial class Binder {
         BoundMethodGroup node,
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
-        TypeSymbol returnType = null) {
+        TypeSymbol returnType = null,
+        bool isMethodGroupConversion = false) {
         var methods = node.methods;
 
         if (methods.Length == 0) {
@@ -6211,6 +6481,7 @@ internal partial class Binder {
                 methodGroup.receiver,
                 analyzedArguments,
                 result,
+                isMethodGroupConversion,
                 returnRefKind,
                 returnType
             );
@@ -6260,6 +6531,7 @@ internal partial class Binder {
                         resolution.overloadResolutionResult,
                         resolution.analyzedArguments,
                         resolution.methodGroup,
+                        null,
                         BelteDiagnosticQueue.Discarded
                     );
                 }
@@ -6273,6 +6545,7 @@ internal partial class Binder {
                     resolution.overloadResolutionResult,
                     resolution.analyzedArguments,
                     resolution.methodGroup,
+                    null,
                     diagnostics
                 );
             }
@@ -6291,6 +6564,7 @@ internal partial class Binder {
         OverloadResolutionResult<MethodSymbol> result,
         AnalyzedArguments analyzedArguments,
         MethodGroup methodGroup,
+        FunctionTypeSymbol functionType,
         BelteDiagnosticQueue diagnostics) {
         if (!result.succeeded) {
             result.ReportDiagnostics(
@@ -6303,7 +6577,9 @@ internal partial class Binder {
                 expression,
                 analyzedArguments,
                 methodGroup.methods.ToImmutable(),
-                null
+                null,
+                false,
+                functionTypeSymbol: functionType
             );
 
             return CreateErrorCall(node, methodGroup.receiver, methodGroup.resultKind, analyzedArguments);
@@ -6578,7 +6854,7 @@ internal partial class Binder {
             argument = ReduceNumericIfApplicable(parameterTypeWithAnnotations.type, argument);
             var coercedArgument = argument;
 
-            if (!kind.isIdentity) {
+            if (!kind.isIdentity || argument.kind == BoundKind.UnconvertedImplicitEnumFieldExpression) {
                 coercedArgument = CreateConversion(
                     argument.syntax,
                     argument,
@@ -6587,6 +6863,9 @@ internal partial class Binder {
                     parameterTypeWithAnnotations.type,
                     diagnostics
                 );
+            } else if (argument.kind == BoundKind.OutVariablePendingInference) {
+                coercedArgument = ((OutVariablePendingInference)argument)
+                    .SetInferredTypeWithAnnotations(parameterTypeWithAnnotations, diagnostics);
             } else if (argument.NeedsToBeConverted()) {
                 coercedArgument = BindToNaturalType(argument, diagnostics);
             }
@@ -6933,6 +7212,20 @@ internal partial class Binder {
                 case BoundKind.DataContainerExpression:
                     newArguments[i] = BindToTypeForErrorRecovery(argument);
                     break;
+                case BoundKind.OutVariablePendingInference:
+                    if (argument.HasExpressionType())
+                        break;
+
+                    var candidateType = GetCorrespondingParameterTypeLocal(i);
+
+                    if (candidateType is null) {
+                        newArguments[i] = ((OutVariablePendingInference)argument).FailInference(this, null);
+                    } else {
+                        newArguments[i] = ((OutVariablePendingInference)argument)
+                            .SetInferredTypeWithAnnotations(new TypeWithAnnotations(candidateType), null);
+                    }
+
+                    break;
                 default:
                     newArguments[i] = BindToTypeForErrorRecovery(argument, GetCorrespondingParameterTypeLocal(i));
                     break;
@@ -7008,13 +7301,13 @@ internal partial class Binder {
             identifier = null;
             boundArgument = new BoundLiteralExpression(omitted, ConstantValue.Null, null);
         } else if (argumentSyntax is ArgumentSyntax normal) {
-            refKind = normal.refKeyword is null ? RefKind.None : RefKind.Ref;
+            refKind = normal.refKindKeyword is null ? RefKind.None :
+                normal.refKindKeyword.kind == SyntaxKind.RefKeyword
+                    ? RefKind.Ref
+                    : RefKind.Out;
+
             identifier = normal.identifier;
-            boundArgument = BindValue(
-                normal.expression,
-                diagnostics,
-                refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
-            );
+            boundArgument = BindArgumentValue(normal, diagnostics, refKind);
         } else {
             throw ExceptionUtilities.Unreachable();
         }
@@ -7034,6 +7327,142 @@ internal partial class Binder {
             refKind
         );
     }
+
+    private BoundExpression BindArgumentValue(
+        ArgumentSyntax argumentSyntax,
+        BelteDiagnosticQueue diagnostics,
+        RefKind refKind) {
+        if (argumentSyntax.expression.kind == SyntaxKind.DeclarationExpression) {
+            var declarationExpression = (DeclarationExpressionSyntax)argumentSyntax.expression;
+            return BindOutDeclarationArgument(declarationExpression, diagnostics);
+        }
+
+        return BindValue(
+            argumentSyntax.expression,
+            diagnostics,
+            refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
+        );
+    }
+
+    private BoundExpression BindOutDeclarationArgument(
+        DeclarationExpressionSyntax declarationExpression,
+        BelteDiagnosticQueue diagnostics) {
+        var identifier = declarationExpression.identifier;
+        var typeSyntax = declarationExpression.type;
+        bool isVar;
+        bool isNonNullable;
+        bool isNullable;
+
+        var localSymbol = LookupLocal(identifier);
+
+        if (localSymbol is not null) {
+            var isConst = false;
+            var isConstExpr = false;
+            var declType = BindVariableTypeWithAnnotations(
+                declarationExpression,
+                diagnostics,
+                typeSyntax,
+                ref isConst,
+                ref isConstExpr,
+                out isVar,
+                out isNonNullable,
+                out isNullable,
+                out _
+            );
+
+            if (isNonNullable || isNullable)
+                diagnostics.Push(Error.OutVarAnnotated(typeSyntax.location));
+
+            localSymbol.scopeBinder.ValidateDeclarationNameConflictsInScope(localSymbol, diagnostics);
+
+            if (isVar) {
+                return new OutVariablePendingInference(
+                    declarationExpression,
+                    localSymbol,
+                    null
+                );
+            }
+
+            return new BoundDataContainerExpression(
+                declarationExpression,
+                localSymbol,
+                constantValue: null,
+                type: declType.type
+            );
+        } else {
+            var expressionVariableField = LookupDeclaredField(declarationExpression)
+                ?? throw ExceptionUtilities.Unreachable();
+
+            var receiver = SynthesizeReceiver(declarationExpression, expressionVariableField, diagnostics);
+
+            if (typeSyntax.isImplicitlyTyped) {
+                // TODO BindTypeOrAliasOrImplicitType
+                BindTypeOrImplicitType(
+                    typeSyntax,
+                    BelteDiagnosticQueue.Discarded,
+                    out isVar,
+                    out isNonNullable,
+                    out isNullable
+                );
+
+                if (isNonNullable || isNullable)
+                    diagnostics.Push(Error.OutVarAnnotated(typeSyntax.location));
+
+                if (isVar) {
+                    return new OutVariablePendingInference(
+                        declarationExpression,
+                        expressionVariableField,
+                        receiver
+                    );
+                }
+            }
+
+            var fieldType = expressionVariableField.GetFieldType(fieldsBeingBound).type;
+
+            return new BoundFieldAccessExpression(
+                declarationExpression,
+                receiver,
+                expressionVariableField,
+                null,
+                type: fieldType
+            );
+        }
+    }
+
+    internal GlobalExpressionVariable LookupDeclaredField(DeclarationExpressionSyntax declaration) {
+        return LookupDeclaredField(declaration, declaration.identifier.text);
+    }
+
+    internal GlobalExpressionVariable LookupDeclaredField(SyntaxNode node, string identifier) {
+        foreach (var member in containingType?.GetMembers(identifier) ?? []) {
+            GlobalExpressionVariable field;
+
+            if (member.kind == SymbolKind.Field &&
+                (field = member as GlobalExpressionVariable)?.syntaxTree == node.syntaxTree &&
+                field.syntaxNode == node) {
+                return field;
+            }
+        }
+
+        return null;
+    }
+
+    // TODO
+    // private NamespaceOrTypeOrAliasSymbolWithAnnotations BindTypeOrAliasOrImplicitType(
+    //     TypeSyntax syntax,
+    //     BelteDiagnosticQueue diagnostics,
+    //     out bool isVar,
+    //     out bool isNonNullable,
+    //     out bool isNullable) {
+    //     if (syntax.isImplicitlyTyped) {
+    //         return BindTypeOrAliasOrImplicitType((IdentifierNameSyntax)syntax, diagnostics, out isVar);
+    //     } else {
+    //         isVar = false;
+    //         isNonNullable = false;
+    //         isNullable = false;
+    //         return BindTypeOrAlias(syntax, diagnostics, basesBeingResolved: null);
+    //     }
+    // }
 
     private void BindArgumentAndName(
         AnalyzedArguments result,
@@ -7232,6 +7661,8 @@ internal partial class Binder {
                     return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
                 case SyntaxKind.NullptrKeyword:
                     return new BoundUnconvertedNullptrExpression(node);
+                case SyntaxKind.DefaultKeyword:
+                    return new BoundDefaultLiteral(node);
                 default:
                     throw ExceptionUtilities.UnexpectedValue(node.token.kind);
             }
@@ -7477,6 +7908,60 @@ internal partial class Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    private BoundExpression BindIsPatternExpression(IsPatternExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindRValueWithoutTargetType(node.left, diagnostics);
+        var expressionType = expression.type;
+        var hasErrors = false;
+
+        if (expressionType is null || expressionType.IsVoidType()) {
+            diagnostics.Push(Error.BadPatternExpression(node.left.location, expression));
+            hasErrors = true;
+            expression = ErrorExpression(expression.syntax, expression);
+        }
+
+        var pattern = (DeclarationPatternSyntax)node.right;
+        var localSymbol = LookupLocal(pattern.identifier) ?? throw ExceptionUtilities.Unreachable();
+
+        var sourceType = expressionType.StrippedType();
+        var targetType = localSymbol.type.StrippedType();
+
+        if (localSymbol.type.IsNullableType() && targetType.IsVerifierValue()) {
+            diagnostics.Push(Error.CannotAnnotateTypePattern(pattern.type.location, localSymbol.type, targetType));
+            hasErrors = true;
+        }
+
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+
+        if (!hasErrors && !IsCanHandle(sourceType, targetType)) {
+            diagnostics.Push(Error.PatternCannotHandleTypes(pattern.type.location, sourceType, targetType));
+            hasErrors = true;
+        }
+
+        return new BoundIsPatternExpression(
+            node,
+            expression,
+            localSymbol,
+            null,
+            boolType,
+            hasErrors
+        );
+    }
+
+    private static bool IsCanHandle(TypeSymbol sourceType, TypeSymbol targetType) {
+        if (sourceType.specialType != targetType.specialType)
+            return sourceType.specialType == SpecialType.Any || targetType.specialType == SpecialType.Any;
+
+        if (sourceType.specialType == targetType.specialType && sourceType.specialType != SpecialType.None)
+            return true;
+
+        if (sourceType.IsArray() || targetType.IsArray())
+            return sourceType.Equals(targetType);
+
+        return !((sourceType.isObjectType && targetType.isPrimitiveType) ||
+               (sourceType.isPrimitiveType && targetType.isObjectType) ||
+                targetType.isStatic);
+    }
+
     private BoundExpression BindIsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var isIsntOperator = node.operatorToken.kind == SyntaxKind.IsntKeyword;
         var resultType = (TypeSymbol)CorLibrary.GetSpecialType(SpecialType.Bool);
@@ -7509,9 +7994,9 @@ internal partial class Binder {
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
 
-        if ((operand.Type().isObjectType && strippedType.isPrimitiveType) ||
-            (operand.Type().isPrimitiveType && strippedType.isObjectType) ||
-            strippedType.isStatic) {
+        var sourceType = operand.Type().StrippedType();
+
+        if (!IsCanHandle(sourceType, strippedType)) {
             diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
             return new BoundLiteralExpression(node, new ConstantValue(isIsntOperator, SpecialType.Bool), resultType);
         }
@@ -8716,7 +9201,11 @@ internal partial class Binder {
             return new BoundNullAssertOperator(node, operand, true, null, resultType, true);
         }
 
-        return new BoundNullAssertOperator(node, operand, true, constantValue, resultType);
+        var throwIfNull = compilation.options.optimizationLevel == OptimizationLevel.Debug
+            ? true
+            : node.operatorToken.kind == SyntaxKind.ExclamationToken;
+
+        return new BoundNullAssertOperator(node, operand, throwIfNull, constantValue, resultType);
     }
 
     private BoundExpression BindNullErasureOperator(PostfixExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -8756,7 +9245,7 @@ internal partial class Binder {
     private BoundExpression BindIncrementOrNullAssertOperator(
         PostfixExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        if (node.operatorToken.kind == SyntaxKind.ExclamationToken)
+        if (node.operatorToken.kind is SyntaxKind.ExclamationToken or SyntaxKind.ExclamationExclamationToken)
             return BindNullAssertOperator(node, diagnostics);
 
         if (node.operatorToken.kind == SyntaxKind.QuestionToken)
@@ -9189,7 +9678,7 @@ internal partial class Binder {
         var rhsKind = BindValueKind.RefersToLocation;
         var lhsRefKind = boundLeft.GetRefKind();
 
-        if (lhsRefKind is RefKind.Ref)
+        if (lhsRefKind is RefKind.Ref or RefKind.Out)
             rhsKind |= BindValueKind.Assignable;
 
         return rhsKind;
@@ -9663,6 +10152,7 @@ internal partial class Binder {
                 break;
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
+            case TypeKind.Function:
                 result.Clear();
                 break;
             case TypeKind.Primitive:
@@ -10398,7 +10888,7 @@ symIsHidden:;
                 break;
         }
 
-        return type is not null && type.StrippedType().typeKind == TypeKind.FunctionPointer;
+        return type is not null && type.StrippedType().typeKind is TypeKind.FunctionPointer or TypeKind.Function;
     }
 
     private static bool IsInstance(Symbol symbol) {
@@ -11529,6 +12019,7 @@ symIsHidden:;
             ref isConstExpr,
             out var isImplicitlyTyped,
             out var isNonNullable,
+            out var isNullable,
             out var alias
         );
 
@@ -11540,6 +12031,7 @@ symIsHidden:;
             kind,
             isImplicitlyTyped,
             isNonNullable,
+            isNullable,
             node.declaration,
             typeSyntax,
             declarationType,
@@ -11555,6 +12047,7 @@ symIsHidden:;
         DataContainerDeclarationKind kind,
         bool isImplicitlyTyped,
         bool isNonNullable,
+        bool isNullable,
         VariableDeclarationSyntax declaration,
         TypeSyntax typeSyntax,
         TypeWithAnnotations declarationType,
@@ -11572,6 +12065,7 @@ symIsHidden:;
             kind,
             isImplicitlyTyped,
             isNonNullable,
+            isNullable,
             declaration,
             typeSyntax,
             declarationType,
@@ -11617,6 +12111,7 @@ symIsHidden:;
         DataContainerDeclarationKind kind,
         bool isImplicitlyTyped,
         bool isNonNullable,
+        bool isNullable,
         VariableDeclarationSyntax declaration,
         TypeSyntax typeSyntax,
         TypeWithAnnotations declarationType,
@@ -11651,7 +12146,14 @@ symIsHidden:;
                 diagnostics.Push(Error.ConstantAndVariable(localSymbol.location));
             }
 
-            initializer = BindInferredVariableInitializer(diagnostics, value, valueKind, declaration, !isNonNullable);
+            // TODO Should we ever lift the elements?
+            initializer = BindInferredVariableInitializer(
+                diagnostics,
+                value,
+                valueKind,
+                declaration,
+                false /*!isNonNullable || isNullable*/
+            );
 
             if (initializer is not null && initializer.IsLiteralNull()) {
                 diagnostics.Push(Error.NullAssignOnImplicit(declaration.location));
@@ -11676,10 +12178,12 @@ symIsHidden:;
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
                 } else {
-                    if (!initializerType.IsNullableType() && !localSymbol.isConstExpr &&
-                        !localSymbol.isConst && !isNonNullable) {
+                    if (!initializerType.IsNullableType() && ((!localSymbol.isConstExpr &&
+                        !localSymbol.isConst && !isNonNullable) || isNullable)) {
                         if (!initializer.type.IsStructType() && initializer.type.typeKind != TypeKind.FunctionPointer &&
                             initializer.type.typeKind != TypeKind.Pointer &&
+                            ((!initializer.type.specialType.IsPrimitiveType() ||
+                            initializer.type.specialType is SpecialType.Array or SpecialType.Any) || isNullable) &&
                             (initializer.kind == BoundKind.ObjectCreationExpression ||
                             initializer.constantValue is not null)) {
                             declarationType = declarationType.SetIsAnnotated();
@@ -11688,10 +12192,21 @@ symIsHidden:;
                                 initializer,
                                 diagnostics
                             );
+                            // } else if (initializer.type.IsStructType() && isNullable) {
+                            //     diagnostics.Push(Error.CannotAnnotateStruct(typeSyntax.location));
+                        } else if (initializer.type.IsPointerOrFunctionPointer() && isNullable) {
+                            diagnostics.Push(Error.CannotAnnotatePointer(typeSyntax.location));
                         }
                     } else {
                         if (isNonNullable && declarationType.IsNullableType()) {
                             declarationType = new TypeWithAnnotations(declarationType.nullableUnderlyingTypeOrSelf);
+                            initializer = GenerateConversionForAssignment(
+                                declarationType.type,
+                                initializer,
+                                diagnostics
+                            );
+                        } else if (isNullable && !declarationType.IsNullableType()) {
+                            declarationType = declarationType.SetIsAnnotated();
                             initializer = GenerateConversionForAssignment(
                                 declarationType.type,
                                 initializer,
@@ -11867,7 +12382,7 @@ symIsHidden:;
         ExpressionSyntax initializer,
         BindValueKind valueKind,
         BelteSyntaxNode errorSyntax,
-        bool shouldLiftIfPossible = true) {
+        bool shouldLiftIfPossible = false) {
         if (initializer is null) {
             diagnostics.Push(Error.NoInitOnImplicit(errorSyntax.location));
             return null;
@@ -11953,12 +12468,14 @@ symIsHidden:;
                     return false;
                 }
 
-                foreach (var member in container.GetMembers()) {
-                    if (member.name == name && member.kind == SymbolKind.NamedType) {
-                        diagnostics.Push(Warning.LocalUsingTypeName(location, name));
-                        return false;
-                    }
-                }
+                // TODO This check is really slow because it populates members
+                // TODO We need to consider how valuable this warning really is
+                // foreach (var member in container.GetMembers()) {
+                //     if (member.name == name && member.kind == SymbolKind.NamedType) {
+                //         diagnostics.Push(Warning.LocalUsingTypeName(location, name));
+                //         return false;
+                //     }
+                // }
             }
 
             if (!onlyLookingForWarnings) {
@@ -11994,12 +12511,14 @@ symIsHidden:;
         ref bool isConstExpr,
         out bool isImplicitlyTyped,
         out bool isNonNullable,
+        out bool isNullable,
         out AliasSymbol alias) {
         var declType = BindTypeOrImplicitType(
             typeSyntax.SkipRef(out _),
             diagnostics,
             out isImplicitlyTyped,
             out isNonNullable,
+            out isNullable,
             out alias
         );
 
@@ -12680,7 +13199,7 @@ symIsHidden:;
             case BoundKind.ErrorExpression:
                 return;
             case BoundKind.MethodGroup:
-                diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
+                ReportMethodGroupDiagnostics((BoundMethodGroup)operand);
                 return;
             case BoundKind.LiteralExpression:
                 if (ConstantValue.IsNull(operand.constantValue)) {
@@ -12732,6 +13251,15 @@ symIsHidden:;
             );
 
             return;
+        }
+
+        void ReportMethodGroupDiagnostics(BoundMethodGroup operand) {
+            if (!Conversions.ReportMethodGroupDiagnostics(this, operand, targetType, diagnostics)) {
+                if (targetType.StrippedType().typeKind == TypeKind.Function)
+                    diagnostics.Push(Error.MethodFunctionMismatch(syntax.location, (BoundMethodGroup)operand, targetType));
+                else
+                    diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
+            }
         }
     }
 
@@ -12885,7 +13413,14 @@ symIsHidden:;
                 : null;
         }
 
-        if (conversion.method is not null) {
+        if (conversion.kind == ConversionKind.DefaultLiteral) {
+            if (!destination.HasDefaultValue())
+                diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
+
+            source = new BoundDefaultExpression(source.syntax, targetType: null, constantValue, type: destination);
+        }
+
+        if (conversion.method is not null && conversion.kind != ConversionKind.MethodGroup) {
             var targetType = conversion.method.GetParameterTypes()[0].type;
             var argumentConversion = conversions.ClassifyConversionFromExpression(source, targetType);
             source = CreateConversion(source, argumentConversion, targetType, diagnostics);

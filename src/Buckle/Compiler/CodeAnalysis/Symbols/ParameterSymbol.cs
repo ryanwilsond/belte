@@ -43,6 +43,8 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     internal abstract bool isMetadataOptional { get; }
 
+    internal abstract bool isMetadataOut { get; }
+
     internal abstract bool hasUnscopedRefAttribute { get; }
 
     internal abstract ScopedKind effectiveScope { get; }

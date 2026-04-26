@@ -60,6 +60,11 @@ internal static class Fatal {
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifyOutAndModuleWithDll), message);
     }
 
+    internal static Diagnostic OutputIsDirectory(string path) {
+        var message = $"output file '{path}' matches the path of an existing directory";
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_OutputIsDirectory), message);
+    }
+
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Fatal);
     }

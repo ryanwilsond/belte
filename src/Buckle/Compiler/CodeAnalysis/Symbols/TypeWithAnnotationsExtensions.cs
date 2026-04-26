@@ -101,6 +101,21 @@ internal static class TypeWithAnnotationsExtensions {
 
                         break;
                     }
+                case TypeKind.Function: {
+                        var result = VisitFunctionType(
+                            (FunctionTypeSymbol)current,
+                            typeWithAnnotationsPredicate,
+                            typePredicate,
+                            arg,
+                            canDigThroughNullable,
+                            out next
+                        );
+
+                        if (result is object)
+                            return result;
+
+                        break;
+                    }
                 default:
                     throw ExceptionUtilities.UnexpectedValue(current.typeKind);
             }
@@ -159,6 +174,60 @@ internal static class TypeWithAnnotationsExtensions {
                 }
 
                 next = currentPointer.parameters[i].typeWithAnnotations;
+                return null;
+            }
+
+            static TypeSymbol VisitFunctionType(
+                FunctionTypeSymbol type,
+                Func<TypeWithAnnotations, T, bool, bool>? typeWithAnnotationsPredicate,
+                Func<TypeSymbol, T, bool, bool>? typePredicate,
+                T arg,
+                bool canDigThroughNullable,
+                out TypeWithAnnotations next) {
+                MethodSymbol current = type.signature;
+
+                if (current.parameterCount == 0) {
+                    next = current.returnTypeWithAnnotations;
+                    return null;
+                }
+
+                var result = VisitType(
+                    typeWithAnnotationsOpt: canDigThroughNullable ? default : current.returnTypeWithAnnotations,
+                    type: canDigThroughNullable ? current.returnTypeWithAnnotations.nullableUnderlyingTypeOrSelf : null,
+                    typeWithAnnotationsPredicate,
+                    typePredicate,
+                    arg,
+                    canDigThroughNullable
+                );
+
+                if (result is not null) {
+                    next = default;
+                    return result;
+                }
+
+                int i;
+                for (i = 0; i < current.parameterCount - 1; i++) {
+                    (var nextTypeWithAnnotations, var nextType) = GetNextIterationElements(
+                        current.parameters[i].typeWithAnnotations,
+                        canDigThroughNullable
+                    );
+
+                    result = VisitType(
+                        typeWithAnnotationsOpt: nextTypeWithAnnotations,
+                        type: nextType,
+                        typeWithAnnotationsPredicate,
+                        typePredicate,
+                        arg,
+                        canDigThroughNullable
+                    );
+
+                    if (result is not null) {
+                        next = default;
+                        return result;
+                    }
+                }
+
+                next = current.parameters[i].typeWithAnnotations;
                 return null;
             }
         }

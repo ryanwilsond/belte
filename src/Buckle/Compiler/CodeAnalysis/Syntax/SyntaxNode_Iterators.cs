@@ -29,7 +29,7 @@ public abstract partial class SyntaxNode {
         bool includeSelf) {
         return descendIntoTrivia
             ? DescendantNodesAndTokensImpl(span, descendIntoChildren, true, includeSelf)
-                .Where(e => e.isNode).Select(e => e.AsNode()!)
+                .Where(e => e.isNode).Select(e => e.AsNode())
             : DescendantNodesOnly(span, descendIntoChildren, includeSelf);
     }
 

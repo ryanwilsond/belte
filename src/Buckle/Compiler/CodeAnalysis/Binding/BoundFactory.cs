@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
@@ -32,6 +32,11 @@ internal static partial class BoundFactory {
     internal static BoundIsOperator IsNull(SyntaxNode syntax, BoundExpression expression) {
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
         return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), false, null, boolType);
+    }
+
+    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), true, null, boolType);
     }
 
     internal static BoundLocalDeclarationStatement LocalDeclaration(
@@ -93,12 +98,16 @@ internal static partial class BoundFactory {
         BoundExpression receiver,
         MethodSymbol method,
         params BoundExpression[] arguments) {
+        var length = arguments.Length;
+        var refKinds = new RefKind[length];
+        Array.Fill(refKinds, RefKind.None);
+
         return new BoundCallExpression(
             syntax,
             receiver,
             method,
             ImmutableArray.Create(arguments),
-            ImmutableArray.CreateRange(Enumerable.Repeat(RefKind.None, arguments.Length)),
+            ImmutableArray.Create(refKinds),
             BitVector.Empty,
             LookupResultKind.Viable,
             method.returnType
@@ -225,16 +234,5 @@ internal static partial class BoundFactory {
 
     internal static BoundNullAssertOperator Value(SyntaxNode syntax, BoundExpression expression, TypeSymbol type) {
         return new BoundNullAssertOperator(syntax, expression, false, null, type);
-    }
-
-    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
-        return new BoundIsOperator(
-            syntax,
-            expression,
-            Literal(syntax, null, expression.Type()),
-            true,
-            null,
-            CorLibrary.GetSpecialType(SpecialType.Bool)
-        );
     }
 }

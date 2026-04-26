@@ -9,6 +9,7 @@ internal static class SyntaxKindExtensions {
             SyntaxKind.ClassDeclaration => TypeKind.Class,
             SyntaxKind.EnumDeclaration => TypeKind.Enum,
             SyntaxKind.StructDeclaration => TypeKind.Struct,
+            SyntaxKind.UnionDeclaration => TypeKind.Struct,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }

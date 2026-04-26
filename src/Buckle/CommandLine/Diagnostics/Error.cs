@@ -77,7 +77,7 @@ internal static class Error {
     }
 
     internal static Diagnostic InvalidWarningLevel(string warningLevel) {
-        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 2";
+        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 3";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);
     }
 
@@ -107,8 +107,23 @@ internal static class Error {
     }
 
     internal static Diagnostic MissingVerbosePath(string arg) {
-        var message = $"missing path after '{arg}' (usage: '--verbose-path=<path>')";
+        var message = $"missing path after '{arg}' (usage: '--vpath=<path>')";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingVerbosePath), message);
+    }
+
+    internal static Diagnostic MissingMaxCoreCount(string arg) {
+        var message = $"missing core count after '{arg}' (usage: '-m:<count>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingMaxCoreCount), message);
+    }
+
+    internal static Diagnostic InvalidMaxCoreCount(string arg) {
+        var message = $"'{arg}' is not a valid core count; core count must be a positive integer";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMaxCoreCount), message);
+    }
+
+    internal static Diagnostic MissingEntryName(string arg) {
+        var message = $"missing type name after '{arg}' (usage: '--entry=<name>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingEntryName), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
@@ -70,10 +71,7 @@ public sealed partial class Compilation {
         if (previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
-        if (referenceManager is not null)
-            _referenceManager = referenceManager;
-        else
-            _referenceManager = new ReferenceManager(options.references, declarationDiagnostics);
+        _referenceManager = referenceManager ?? new ReferenceManager(options.references, declarationDiagnostics);
 
         handleManager.SendParsedMessage();
     }
@@ -299,9 +297,10 @@ public sealed partial class Compilation {
         ValueWrapper<bool> abort,
         bool verbose = false,
         bool logTime = false,
-        string verbosePath = null) {
+        string verbosePath = null,
+        bool noArtifacts = false) {
         using var context = new EvaluatorContext(options);
-        var result = Evaluate(context, abort, verbose, logTime, verbosePath);
+        var result = Evaluate(context, abort, verbose, logTime, verbosePath, noArtifacts);
         context.WaitForCompletion();
 
         if (verbose && result.heap is not null) {
@@ -318,9 +317,10 @@ public sealed partial class Compilation {
         ValueWrapper<bool> abort,
         bool verbose = false,
         bool logTime = false,
-        string verbosePath = null) {
+        string verbosePath = null,
+        bool noArtifacts = false) {
         EvaluationResult result = null;
-        Evaluate(context, abort, ref result, verbose, logTime, verbosePath);
+        Evaluate(context, abort, ref result, verbose, logTime, verbosePath, noArtifacts);
 
         if (verbose && result.heap is not null) {
             Console.WriteLine(
@@ -341,7 +341,8 @@ public sealed partial class Compilation {
         ref EvaluationResult rollingResult,
         bool verbose = false,
         bool logTime = false,
-        string verbosePath = null) {
+        string verbosePath = null,
+        bool noArtifacts = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -355,47 +356,58 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput) {
+        if (verbose && options.enableOutput && !noArtifacts) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
 
-        var evaluator = new Evaluator(program, context, options.arguments);
-        var evalResult = evaluator.Evaluate(abort, out var hasValue, out var resultType);
+        object evalResult;
 
-        Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
+        if (options.enableOutput) {
+            var evaluator = new Evaluator(program, context, options.arguments);
+            evalResult = evaluator.Evaluate(abort, out var hasValue, out var resultType);
 
-        if (verbose && options.enableOutput && evalResult is not null)
-            Console.WriteLine(evalResult);
+            Log(logTime, timer, diagnostics, $"Evaluated the program in {timer?.ElapsedMilliseconds} ms");
 
-        handleManager.SendFinishedMessage();
+            if (verbose && options.enableOutput && evalResult is not null)
+                Console.WriteLine(evalResult);
 
-        if (rollingResult is null) {
-            rollingResult = new EvaluationResult(
-                evalResult,
-                resultType,
-                hasValue,
-                diagnostics,
-                evaluator.exceptions,
-                evaluator.lastOutputWasPrint,
-                evaluator.containsIO,
-                context.heap
-            );
+            handleManager.SendFinishedMessage();
+
+            if (rollingResult is null) {
+                rollingResult = new EvaluationResult(
+                    evalResult,
+                    resultType,
+                    hasValue,
+                    diagnostics,
+                    evaluator.exceptions,
+                    evaluator.lastOutputWasPrint,
+                    evaluator.containsIO,
+                    context.heap
+                );
+            } else {
+                rollingResult.Update(
+                    evalResult,
+                    resultType,
+                    hasValue,
+                    diagnostics,
+                    evaluator.exceptions,
+                    evaluator.lastOutputWasPrint,
+                    evaluator.containsIO,
+                    context.heap
+                );
+            }
         } else {
-            rollingResult.Update(
-                evalResult,
-                resultType,
-                hasValue,
-                diagnostics,
-                evaluator.exceptions,
-                evaluator.lastOutputWasPrint,
-                evaluator.containsIO,
-                context.heap
-            );
+            handleManager.SendFinishedMessage();
         }
     }
 
-    public BelteDiagnosticQueue Emit(string outputPath, bool debugMode, bool logTime, bool verbose, string verbosePath) {
+    public BelteDiagnosticQueue Emit(
+        string outputPath,
+        bool logTime,
+        bool verbose,
+        string verbosePath,
+        bool noArtifacts) {
         if (options.buildMode == BuildMode.Independent) {
             var fatal = new BelteDiagnosticQueue();
             fatal.Push(Fatal.Unsupported.IndependentCompilation());
@@ -413,13 +425,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput) {
+        if (verbose && options.enableOutput && !noArtifacts) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
 
         if (options.buildMode == BuildMode.Dotnet)
-            ILEmitter.Emit(program, assemblyName, options.references, outputPath, debugMode, diagnostics);
+            ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
 
@@ -430,11 +442,20 @@ public sealed partial class Compilation {
         return diagnostics;
     }
 
-    public BelteDiagnosticQueue Execute(bool verbose = false, bool logTime = false, string verbosePath = null) {
-        return Execute(verbose, logTime, verbosePath, out _);
+    public BelteDiagnosticQueue Execute(
+        bool verbose = false,
+        bool logTime = false,
+        string verbosePath = null,
+        bool noArtifacts = false) {
+        return Execute(verbose, logTime, verbosePath, noArtifacts, out _);
     }
 
-    internal BelteDiagnosticQueue Execute(bool verbose, bool logTime, string verbosePath, out object result) {
+    internal BelteDiagnosticQueue Execute(
+        bool verbose,
+        bool logTime,
+        string verbosePath,
+        bool noArtifacts,
+        out object result) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         var diagnostics = GetDiagnostics();
         var program = boundProgram;
@@ -448,13 +469,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput) {
+        if (verbose && options.enableOutput && !noArtifacts) {
             EmitCFG(verbosePath);
             EmitBoundProgram(verbosePath);
         }
 
         var executor = new Executor(program, options.arguments, diagnostics);
-        result = executor.Execute(verbose, logTime, verbosePath);
+        result = executor.Execute(verbose, logTime, verbosePath, noArtifacts);
 
         if (verbose && options.enableOutput && result is not null)
             Console.WriteLine(result);
@@ -529,7 +550,8 @@ public sealed partial class Compilation {
         return _lazyUpdatePoint;
     }
 
-    internal MethodSymbol GetLateScriptUpdatePoint(Dictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+    internal MethodSymbol GetLateScriptUpdatePoint(
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         if (_lazyUpdatePoint is null)
             Interlocked.CompareExchange(ref _lazyUpdatePoint, FindLateScriptUpdatePoint(methodBodies), null);
 
@@ -629,15 +651,16 @@ public sealed partial class Compilation {
     }
 
     private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
-        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
-        var classes = globalNamespaceInternal.GetTypeMembersUnordered();
+        if (entryPoint is null)
+            return null;
 
-        foreach (var type in classes) {
-            foreach (var member in type.GetMembers(WellKnownMemberNames.UpdatePointMethodName)) {
-                if (member is MethodSymbol m && HasUpdatePointSignature(m))
-                    builder.Add(m);
-            }
-        }
+        var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var (typeName, namespaceName) = ParseEntryName(options.entryName);
+
+        AddUpdatePointCandidates(
+            builder,
+            GetSymbolsWithName(WellKnownMemberNames.UpdatePointMethodName, SymbolFilter.Member)
+        );
 
         var updatePointCandidates = builder.ToImmutableAndFree();
         MethodSymbol updatePoint = null;
@@ -659,9 +682,21 @@ public sealed partial class Compilation {
         }
 
         return updatePoint;
+
+        void AddUpdatePointCandidates(
+            ArrayBuilder<MethodSymbol> updatePointCandidates,
+            IEnumerable<Symbol> members) {
+            foreach (var member in members) {
+                if (member is MethodSymbol m &&
+                    HasUpdatePointSignature(m) && MatchesEntryName(m, typeName, namespaceName)) {
+                    updatePointCandidates.Add(m);
+                }
+            }
+        }
     }
 
-    private MethodSymbol FindLateScriptUpdatePoint(Dictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+    private static MethodSymbol FindLateScriptUpdatePoint(
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var (method, _) in methodBodies) {
@@ -703,6 +738,7 @@ public sealed partial class Compilation {
 
     private MethodSymbol FindEntryPoint(SynthesizedEntryPoint simpleEntryPoint, BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<MethodSymbol>.GetInstance();
+        var (typeName, namespaceName) = ParseEntryName(options.entryName);
 
         AddEntryPointCandidates(
             builder,
@@ -713,14 +749,41 @@ public sealed partial class Compilation {
         var entryPointCandidates = builder.ToImmutableAndFree();
         return SelectEntryPoint(simpleEntryPoint, entryPointCandidates, diagnostics, options.isScript);
 
-        static void AddEntryPointCandidates(
+        void AddEntryPointCandidates(
             ArrayBuilder<MethodSymbol> entryPointCandidates,
             IEnumerable<Symbol> members) {
             foreach (var member in members) {
-                if (member is MethodSymbol m and not SynthesizedEntryPoint && HasEntryPointSignature(m))
+                if (member is MethodSymbol m and not SynthesizedEntryPoint &&
+                    HasEntryPointSignature(m) && MatchesEntryName(m, typeName, namespaceName)) {
                     entryPointCandidates.Add(m);
+                }
             }
         }
+    }
+
+    private static (string, string) ParseEntryName(string entryName) {
+        if (entryName is null || entryName.EndsWith('.'))
+            return (null, null);
+
+        if (!entryName.Contains('.'))
+            return (entryName, null);
+
+        var position = entryName.LastIndexOf('.');
+
+        return (entryName.Substring(position + 1), entryName.Substring(0, position));
+    }
+
+    private static bool MatchesEntryName(MethodSymbol method, string typeName, string namespaceName) {
+        if (typeName is null)
+            return true;
+
+        if (method.containingType.name != typeName)
+            return false;
+
+        if (namespaceName is null || method.containingNamespace.name == namespaceName)
+            return true;
+
+        return false;
     }
 
     internal IEnumerable<Symbol> GetSymbolsWithName(string name, SymbolFilter filter) {
@@ -733,8 +796,7 @@ public sealed partial class Compilation {
     }
 
     internal IEnumerable<Symbol> GetSymbolsWithName(Func<string, bool> predicate, SymbolFilter filter) {
-        if (predicate is null)
-            throw new ArgumentNullException(nameof(predicate));
+        ArgumentNullException.ThrowIfNull(predicate);
 
         if (filter == SymbolFilter.None)
             throw new ArgumentException(nameof(filter));
@@ -929,8 +991,16 @@ public sealed partial class Compilation {
         var builder = new BelteDiagnosticQueue();
 
         if (includeParse) {
-            foreach (var syntaxTree in _syntax.syntaxTrees)
-                builder.PushRange(syntaxTree.GetDiagnostics());
+            var syntaxTrees = _syntax.syntaxTrees;
+
+            if (options.concurrentBuild) {
+                Parallel.For(0, syntaxTrees.Length, new ParallelOptions { MaxDegreeOfParallelism = options.maxCoreCount }, i => {
+                    builder.PushRange(syntaxTrees[i].GetDiagnostics());
+                });
+            } else {
+                foreach (var syntaxTree in _syntax.syntaxTrees)
+                    builder.PushRange(syntaxTree.GetDiagnostics());
+            }
         }
 
         if (includeDeclaration) {
@@ -938,12 +1008,38 @@ public sealed partial class Compilation {
             builder.PushRange(declarationDiagnostics);
         }
 
-        if (includeMethods)
+        if (includeMethods) {
+            EnsureBoundProgramAndMethodDiagnostics();
+            ReportUnusedImports();
             builder.PushRange(methodDiagnostics);
+        }
 
         builder = BelteDiagnosticQueue.CleanDiagnostics(builder);
         handleManager.SendDiagnosticsMessage(builder);
         return builder;
+    }
+
+    private void ReportUnusedImports() {
+        if (_lazyImportInfos is not null) {
+            foreach (var pair in _lazyImportInfos) {
+
+                var info = pair.Key;
+                var infoTree = info.tree;
+                var infoSpan = info.span;
+
+                if (!IsImportDirectiveUsed(infoTree, infoSpan.start)) {
+                    methodDiagnostics.Push(
+                        Warning.UnusedUsingDirective(new TextLocation(infoTree.text, infoSpan, infoTree))
+                    );
+                }
+            }
+        }
+    }
+
+    private bool IsImportDirectiveUsed(SyntaxTree syntaxTree, int position) {
+        return syntaxTree is not null &&
+            treeToUsedImportDirectivesMap.TryGetValue(syntaxTree, out var usedImports) &&
+            usedImports.Contains(position);
     }
 
     private void EnsureBoundProgramAndMethodDiagnostics() {
@@ -987,8 +1083,8 @@ public sealed partial class Compilation {
         handleManager.SendBoundMessage();
     }
 
+    [Conditional("DEBUG")]
     private void EmitCFG(string path) {
-#if DEBUG
         const string CFGName = "cfg.dot";
 
         var program = boundProgram;
@@ -1001,7 +1097,6 @@ public sealed partial class Compilation {
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);
         }
-#endif
     }
 
     private void EmitBoundProgram(string path) {

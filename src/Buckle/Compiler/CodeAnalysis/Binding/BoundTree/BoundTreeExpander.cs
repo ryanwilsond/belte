@@ -316,6 +316,7 @@ internal abstract partial class BoundTreeExpander {
 
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement, useKind),
+            BoundKind.DefaultExpression => ExpandDefaultExpression((BoundDefaultExpression)expression, out replacement, useKind),
             BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement, useKind),
             BoundKind.InitializerDictionary => ExpandInitializerDictionary((BoundInitializerDictionary)expression, out replacement, useKind),
             BoundKind.DataContainerExpression => ExpandDataContainerExpression((BoundDataContainerExpression)expression, out replacement, useKind),
@@ -363,8 +364,18 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.StackAllocExpression => ExpandStackAllocExpression((BoundStackAllocExpression)expression, out replacement, useKind),
             BoundKind.ConvertedStackAllocExpression => ExpandConvertedStackAllocExpression((BoundConvertedStackAllocExpression)expression, out replacement, useKind),
             BoundKind.InterpolatedStringExpression => ExpandInterpolatedStringExpression((BoundInterpolatedStringExpression)expression, out replacement, useKind),
+            BoundKind.FunctionLoad => ExpandFunctionLoad((BoundFunctionLoad)expression, out replacement, useKind),
+            BoundKind.IsPatternExpression => ExpandIsPatternExpression((BoundIsPatternExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandFunctionLoad(
+        BoundFunctionLoad expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandInterpolatedStringExpression(
@@ -491,7 +502,7 @@ internal abstract partial class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandArgumentList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newInvokedExpression,
@@ -610,6 +621,21 @@ internal abstract partial class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandIsPatternExpression(
+        BoundIsPatternExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newLeft);
+
+        if (statements.Count != 0 || expression.expression != newLeft) {
+            replacement = expression.Update(newLeft, expression.local, expression.constantValue, expression.type);
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandIsOperator(
         BoundIsOperator expression,
         out BoundExpression replacement,
@@ -710,6 +736,14 @@ internal abstract partial class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandLiteralExpression(
         BoundLiteralExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandDefaultExpression(
+        BoundDefaultExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
         replacement = expression;
@@ -891,7 +925,7 @@ internal abstract partial class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandExpressionList(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandArgumentList(expression.arguments, out var newArguments));
 
         replacement = expression.Update(
             newReceiver,
@@ -904,6 +938,12 @@ internal abstract partial class BoundTreeExpander {
         );
 
         return statements;
+    }
+
+    private protected virtual List<BoundStatement> ExpandArgumentList(
+        ImmutableArray<BoundExpression> arguments,
+        out ImmutableArray<BoundExpression> replacement) {
+        return ExpandExpressionList(arguments, out replacement);
     }
 
     private protected List<BoundStatement> ExpandExpressionList(
@@ -1078,7 +1118,7 @@ internal abstract partial class BoundTreeExpander {
         BoundObjectCreationExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = ExpandExpressionList(expression.arguments, out var newArguments);
+        var statements = ExpandArgumentList(expression.arguments, out var newArguments);
 
         replacement = expression.Update(
             expression.constructor,
@@ -1114,10 +1154,13 @@ internal abstract partial class BoundTreeExpander {
         if (!expression.field.isStatic) {
             // Structs are special case because they have limited expansion ability (they are non-nullable)
             // And because they are passed by value so in something like `a.b.c = x`, we can't hoist anything
+            var isTrueStructReceiver = expression.receiver.Type().IsStructType() &&
+                !(expression.receiver is BoundCallExpression c && c.receiver.StrippedType().IsStructType());
+
             var statements = ExpandExpression(
                 expression.receiver,
                 out var newReceiver,
-                expression.receiver.Type().IsStructType() ? UseKind.Writable : UseKind.StableValue
+                isTrueStructReceiver ? UseKind.Writable : UseKind.StableValue
             );
 
             if (statements.Count != 0 || expression.receiver != newReceiver) {

@@ -1216,6 +1216,9 @@ oneMoreTime:
                     EmitThisExpression((BoundThisExpression)expression);
 
                 break;
+            case BoundKind.DefaultExpression:
+                EmitDefaultExpression((BoundDefaultExpression)expression, used);
+                break;
             case BoundKind.BaseExpression:
                 if (used)
                     EmitBaseExpression((BoundBaseExpression)expression);
@@ -1258,6 +1261,9 @@ oneMoreTime:
                 break;
             case BoundKind.FunctionPointerLoad:
                 EmitFunctionPointerLoad((BoundFunctionPointerLoad)expression, used);
+                break;
+            case BoundKind.FunctionLoad:
+                EmitFunctionLoad((BoundFunctionLoad)expression, used);
                 break;
             case BoundKind.ConditionalOperator:
                 EmitConditionalOperator((BoundConditionalOperator)expression, used);
@@ -1316,6 +1322,10 @@ oneMoreTime:
         }
     }
 
+    private void EmitDefaultExpression(BoundDefaultExpression expression, bool used) {
+        EmitDefaultValue(expression.type, used, expression.syntax);
+    }
+
     private void EmitConstantExpression(TypeSymbol type, ConstantValue constant, bool used) {
         if (used) {
             if ((type is not null) && (type.typeKind == TypeKind.TemplateParameter) && constant.value is null)
@@ -1366,6 +1376,14 @@ oneMoreTime:
             }
 
             _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
+        }
+    }
+
+    private void EmitFunctionLoad(BoundFunctionLoad load, bool used) {
+        if (used) {
+            _builder.Emit(OpCode.Ldnull);
+            _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
+            _builder.EmitNewobjFunc(load.type.StrippedType() as FunctionTypeSymbol);
         }
     }
 
@@ -2026,7 +2044,8 @@ oneMoreTime:
             var originalMethod = method.originalDefinition;
 
             if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue)) {
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault)) {
                 return true;
             }
         }
@@ -2141,6 +2160,7 @@ oneMoreTime:
 
                 switch (conversion.conversion.kind) {
                     case ConversionKind.AnyBoxing:
+                    case ConversionKind.MethodGroup:
                         return true;
                     case ConversionKind.ExplicitReference:
                     case ConversionKind.ImplicitReference:
@@ -2304,17 +2324,17 @@ oneMoreTime:
 
             _builder.EmitWithSymbolToken(OpCode.Isinst, targetType);
 
-            if (!targetType.IsVerifierReference()) {
+            if (!targetType.IsVerifierReference())
                 _builder.EmitWithSymbolToken(OpCode.Unbox_Any, targetType);
-            }
         }
     }
 
     private void EmitNullAssertOperator(BoundNullAssertOperator expression, bool used) {
-        // if (!expression.throwIfNull) {
-        //     EmitExpression(expression.operand, used);
-        //     return;
-        // }
+        if (!expression.throwIfNull) {
+            EmitExpression(expression.operand, true);
+            EmitPopIfUnused(used);
+            return;
+        }
 
         EnsureGlobalsClassIsBuilt();
 
@@ -2982,11 +3002,10 @@ oneMoreTime:
     }
 
     private void EmitFieldStore(FieldSymbol field, bool refAssign) {
-        if (field.refKind != RefKind.None && !refAssign) {
+        if (field.refKind != RefKind.None && !refAssign)
             EmitIndirectStore(field.type);
-        } else {
+        else
             _builder.EmitWithSymbolToken(field.isStatic ? OpCode.Stsfld : OpCode.Stfld, field);
-        }
     }
 
     private void EmitParameterStore(BoundParameterExpression parameter, bool refAssign) {
@@ -3506,6 +3525,8 @@ oneMoreTime:
 
     private void EmitCastExpression(BoundCastExpression expression, bool used) {
         switch (expression.conversion.kind) {
+            case ConversionKind.MethodGroup:
+                throw ExceptionUtilities.UnexpectedValue(expression.conversion.kind);
             case ConversionKind.ImplicitNullToPointer:
                 EmitIntConstant(0);
                 _builder.Emit(OpCode.Conv_U);
@@ -3555,6 +3576,8 @@ oneMoreTime:
             (cast.type.IsVerifierReference() && cast.type.specialType != SpecialType.String));
 
         switch (cast.conversion.kind) {
+            case ConversionKind.MethodGroup:
+                throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
             case ConversionKind.Identity:
                 break;
             case ConversionKind.Implicit when involvesRefTypes:

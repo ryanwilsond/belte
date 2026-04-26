@@ -3,8 +3,8 @@
 The Repl (Read-Eval-Print Loop) is a command-line tool that provides the user with a simple way for testing short
 code snippets, without having to create any files or otherwise set up a project.
 
-The Repl is maintained alongside the compiler, so [*most*\*](Current/Overview.md#12-partially-supported-features)
-language features are supported in the Repl, as well as many tools for debugging.
+The Repl is maintained alongside the compiler, so [*most*\*](Current/Overview.md#11-endpoint-specific-features)
+language features are supported in the Repl, as well as many tools for inspecting code.
 
 - [Invoking the Repl](#invoking-the-repl)
 - [Interacting with the Repl](#interacting-with-the-repl)
@@ -97,21 +97,21 @@ Moves to dump locator screen:
 Example screen:
 
 ```
-#dump global::MyClass
+#dump MyClass
 
         Exit
         ..
         Select Current Symbol
-        public Nullable<int> MyClass.Add(Nullable<int> a, Nullable<int> b)
+        public int MyClass.Add(int a, int b)
         public void MyClass..ctor()
 ```
 
 Example result:
 
 ```
-#dump global::MyClass.Add
-public Nullable<int> MyClass.Add(Nullable<int> a, Nullable<int> b) {
-    return ((a.get_HasValue() && b.get_HasValue()) ? new Nullable<int>((a.get_Value() + b.get_Value())) : null)
+#dump MyClass.Add
+public int MyClass.Add(int a, int b) {
+    return (a + b)
 }
 »
 ```
@@ -128,13 +128,13 @@ Examples:
 ```belte
 » int myInt = 3;
 » #dump myInt
-Nullable<int> myInt = 3
+int myInt = 3
 ```
 
 ```belte
 » class MyClass {
-·     public int field1;
-·     string! field2;
+·     public int? field1;
+·     string field2;
 · }
 » #dump MyStruct
 class MyClass extends Object {
@@ -147,12 +147,12 @@ class MyClass extends Object {
 ```
 
 ```belte
-» int! AddAndTruncate(decimal! a, decimal! b) {
-·     return (int!)(a + b);
+» int AddAndTruncate(decimal a, decimal b) {
+·     return (int)(a + b);
 · }
 » #dump AddAndTruncate
-int! AddAndTruncate(decimal! a, decimal! b) {
-    return (int!)(decimal! a + decimal! b)
+int AddAndTruncate(decimal a, decimal b) {
+    return (int!)(decimal a + decimal b)
 }
 ```
 
@@ -230,7 +230,7 @@ For example:
 » int myInt = 3;
 » #list
 Global symbols:
-    Nullable<int> myInt
+    int myInt
 ```
 
 ### Reset Command
@@ -339,13 +339,15 @@ For example:
 » #showIL
 IL visible
 » int myInt = 9;
-<Program>$ {
-    System.Object <Program>$::<Eval>$() {
-        IL_0000: ldloca.s V_0
-        IL_0002: ldc.i4.s 9
-        IL_0004: call System.Void System.Nullable`1<System.Int32>::.ctor(T)
-        IL_0009: ret
+<Program> {
+
+    System.Void <Program>::Main() {
+        IL_0000: ldc.i4.s 9
+        IL_0002: conv.i8
+        IL_0003: stloc.0
+        IL_0004: ret
     }
+
 }
 ```
 
@@ -362,8 +364,12 @@ For example:
 » #showProgram
 Bound trees visible
 » int myInt = 5 + 6;
-any <Eval>$() {
-    int myInt = 11
+static class <Program> extends Object {
+    private static void <Program>.Main()
+}
+
+private static void <Program>.Main() {
+    myInt = 11
     return
 }
 ```
@@ -382,7 +388,7 @@ For example:
 Execution time visible
 » 5 + 4 * 8;
 37
-Finished after 39 milliseconds
+Finished after 5 milliseconds
 ```
 
 ### Show-Tokens Command
@@ -415,16 +421,18 @@ Parse trees visible
 » int myInt = 7;
 └─CompilationUnit [0..14)
   ├─GlobalStatement [0..14)
-  │ └─VariableDeclarationStatement [0..14)
-  │   ├─Type [0..3)
-  │   │ ├─IdentifierToken int [0..3)
-  │   │ └─Trail: WhitespaceTrivia [3..4)
-  │   ├─IdentifierToken myInt [4..9)
-  │   ├─Trail: WhitespaceTrivia [9..10)
-  │   ├─EqualsToken = [10..11)
-  │   ├─Trail: WhitespaceTrivia [11..12)
-  │   ├─LiteralExpression [12..13)
-  │   │ └─NumericLiteralToken 7 [12..13)
+  │ └─LocalDeclarationStatement [0..14)
+  │   ├─VariableDeclaration [0..13)
+  │   │ ├─IdentifierName [0..3)
+  │   │ │ ├─IdentifierToken int [0..3)
+  │   │ │ └─Trail: WhitespaceTrivia [3..4)
+  │   │ ├─IdentifierToken myInt [4..9)
+  │   │ ├─Trail: WhitespaceTrivia [9..10)
+  │   │ └─EqualsValueClause [10..13)
+  │   │   ├─EqualsToken = [10..11)
+  │   │   ├─Trail: WhitespaceTrivia [11..12)
+  │   │   └─LiteralExpression [12..13)
+  │   │     └─NumericLiteralToken 7 [12..13)
   │   └─SemicolonToken ; [13..14)
   └─EndOfFileToken  [14..14)
 ```
@@ -442,7 +450,7 @@ For example:
 Result type visible
 » return 1;
 1
-int8!
+int64!
 ```
 
 ### Show-Warnings Command
@@ -472,11 +480,12 @@ Usage: `#state`
 The state command displays the current Repl state. This command is made purely for debugging purposes and serves little
 use outside of development.
 
-```belte
+```txt
 » #state
 showTokens          False
 showTree            False
 showProgram         False
+showType            False
 showIL              False
 showCS              False
 showWarnings        False
@@ -486,5 +495,5 @@ currentPage         Repl
 previous            Buckle.CodeAnalysis.Compilation
 baseCompilation     Buckle.CodeAnalysis.Compilation
 tree                #state
-variables           EvaluatorContext [ Tracking 2 symbols ]
+context             EvaluatorContext [ Tracking 2 symbols ]
 ```

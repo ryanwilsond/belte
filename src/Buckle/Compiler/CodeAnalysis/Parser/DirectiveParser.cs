@@ -44,10 +44,12 @@ internal sealed class DirectiveParser : SyntaxParser {
                 );
 
                 break;
-            case SyntaxKind.HandleKeyword:
-                result = ParseHandleDirective(hash, EatToken(), isActive);
-                break;
             default:
+                if (currentToken.contextualKind == SyntaxKind.HandleKeyword) {
+                    result = ParseHandleDirective(hash, EatToken(), isActive);
+                    break;
+                }
+
                 var identifier = Match(SyntaxKind.IdentifierToken);
                 var end = ParseEndOfDirective();
                 result = SyntaxFactory.BadDirectiveTrivia(hash, identifier, end, isActive);

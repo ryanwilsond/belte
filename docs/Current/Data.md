@@ -3,6 +3,8 @@
 - [3.1](#31-data-types) Data Types
   - [3.1.1](#311-casts) Casts
   - [3.1.2](#312-string-interpolation) String Interpolation
+  - [3.1.3](#313-function-type) Function Type
+  - [3.1.4](#314-default-literal) Default Literal
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -14,6 +16,8 @@
     - [3.2.2.6](#3226-x--y) `x ?! y`
     - [3.2.2.7](#3227-xy) `x..y`
     - [3.2.2.8](#3228-xy) `x?..y`
+    - [3.2.2.9](#3229-x) `x!!`
+  - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
 - [3.3](#33-variables-and-constants) Variables and Constants
   - [3.3.1](#331-implicit-typing) Implicit Typing
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
@@ -36,9 +40,9 @@ Apart from classes, there are many primitive types. The most common ones include
 | Any | `any` | Any integer, decimal, boolean, or string value |
 | Type | `type` | Represents a type |
 
-Each of these can be set to `null` to represent they do not have a known value if they are nullable. Most types are
-nullable by default unless suffixed with `!`. Sized numerics, pointers, function pointers, structs, and type template
-arguments are always non-nullable.
+Each of these can be set to `null` to represent they do not have a known value if they are nullable. Reference types
+(classes) are nullable by default unless suffixed with `!`. Value types (primitives, pointers, structs) are non-nullable
+by default unless suffixed with `?`. Pointers and function pointers are always non-nullable.
 
 Apart from these, many types exist for specific contexts:
 
@@ -93,6 +97,38 @@ var a = new List<int>({ 1, 2, 3 });
 var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
 ```
 
+### 3.1.3 Function Type
+
+Similar to [function pointers](LowLevelFeatures.md#66-function-pointers), a data container can have a function type and
+then be assigned with unambiguous method groups.
+
+For example:
+
+```belte
+int(int, int) myFunc = Add;
+int sum = myFunc(3, 5);
+
+int Add(int a, int b) {
+  return a + b;
+}
+```
+
+Function types cannot include pointer types in the return value or parameter list. For cases where you need this
+functionality, use function pointers instead.
+
+### 3.1.4 Default Literal
+
+The `default` literal can be used to indicate `null` for nullable types or the default value for primitives.
+
+For example:
+
+```belte
+int a = default; // a = 0
+int? a = default; // a = null
+```
+
+Types with no default value (non-nullable class types) cannot use the `default` literal.
+
 ## 3.2 Operators
 
 All operators execute strictly left-to-right, meaning the left-most operand is always fully evaluated before the next
@@ -115,14 +151,15 @@ strict order of precedence:
 
 | Operators | Category |
 |-|-|
-| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x?, new, typeof, nameof, sizeof | Primary |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, x?, new, typeof, nameof, sizeof | Primary |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
+| is, isnt, as | Type-Testing |
 | x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y, is, isnt, as | Relational and Type-Testing |
+| x < y, x > y, x <= y, x >= y | Relational |
 | x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
@@ -197,6 +234,67 @@ Notice that even if `Obj.M()` returns a value, it is ignored.
 `x?..y` is a conditional [cascade expression](#3227-xy). The field assignment or call expression `y` is only performed
 if `x` is not null.
 
+#### 3.2.2.9 `x!!`
+
+`x!!` is a silent null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The
+operator's result is non-nullable. If `x` is null, a runtime null reference exception is thrown if building in
+debug mode. If in release mode, no runtime check is performed at the assertion site explicitly, meaning exceptions will
+raise elsewhere if the value is null.
+
+In the case that the operand has a class type, using this operator when the operand is null risks polluting a
+non-nullable context with null.
+
+This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
+unnecessary.
+
+### 3.2.3 Is/Isnt/As Operators
+
+Unlike normal binary operators, `is`, `isnt` and `as` have special rules for what the right operand can be.
+
+The `as` operator requires the right operand to be a type. The `as` operator attempts to cast the left operand into the
+right operand type and results in null if the cast cannot be performed. Unlike a normal cast, the `as` operator only
+performs class up/down casting.
+
+For example:
+
+```belte
+A a = new B();
+B b = a as B;
+
+class A { }
+
+class B extends  A { }
+```
+
+The `isnt` operator requires the right operand to be a type or the `null` literal. It checks if the left operand is not
+the right operand type or if the left operand is not `null`.
+
+For example:
+
+```belte
+int? a = null;
+bool b = a isnt null; // false
+```
+
+```belte
+int? a = null;
+bool b = a isnt int; // true
+```
+
+The `is` operator requires the right operand to be a type, the `null` literal, or a declaration. In the case of the
+first two, it behaves opposite of the `isnt` operand. If the right operand is a declaration, it will store the
+successful result into the declared local if the left operand matches the type.
+
+For example:
+
+```belte
+any a = 3;
+
+if (a is int t) {
+  int b = t + 3;
+}
+```
+
 ## 3.3 Variables and Constants
 
 Variables and constants both hold data. Variables can change, while constants cannot be modified after assigned.
@@ -206,7 +304,8 @@ variable with no value, making it `null` until later defined. The latter gives t
 
 ### 3.3.1 Implicit Typing
 
-Instead of using type-names to declare, implicit keywords `var` and `const` can be used if the initializer is distinct.
+Instead of using type-names to declare, implicit keywords `var`, `const`, and `constexpr` can be used if the initializer
+is distinct.
 
 Examples:
 
@@ -217,10 +316,23 @@ const b = 3; // Same as 'const int b = 3;'
 
 ## 3.4 Attributes and Modifiers
 
-All data is nullable by default. To disable this, an exclamation mark can be used:
+Reference-type data is nullable by default. To disable this, an exclamation mark can be used:
+
+```belte
+MyType! a = new MyType();
+```
+
+Value-type data is non-nullable by default. To enable nullability, a question mark can be used:
+
+```belte
+int? a = null;
+```
+
+Both of these annotations are allowed in situations where they are redundant for clarity purposes:
 
 ```belte
 int! a = 3;
+MyType? b = new MyType();
 ```
 
 ## 3.5 References

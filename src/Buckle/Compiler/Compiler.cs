@@ -1,14 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Emitting;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Diagnostics;
-using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle;
@@ -31,7 +33,12 @@ public sealed class Compiler {
         state.arguments,
         false,
         !state.noOut,
-        state.references
+        state.references,
+        state.concurrentBuild,
+        state.maxCores,
+        state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release,
+        state.entryName,
+        state.noStdLib
     );
 
     /// <summary>
@@ -79,6 +86,35 @@ public sealed class Compiler {
         }
     }
 
+    /// <summary>
+    /// Gets .NET library paths for a given library level.
+    /// </summary>
+    public static string[] ResolveLibraryLevel(int l) {
+        if (l < 0)
+            return [];
+
+        var tfm = DotnetReferenceResolver.GetTFM();
+        var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out _);
+
+        var references = new List<string>();
+
+        if (l >= 0) {
+            references.Add(Path.Join(refPackPath, "System.Runtime.dll"));
+            references.Add(Path.Join(refPackPath, "System.IO.dll"));
+            references.Add(Path.Join(refPackPath, "System.Console.dll"));
+            references.Add(Path.Join(refPackPath, "System.Collections.dll"));
+        }
+
+        if (l >= 1) {
+            references.Add(Path.Join(AppContext.BaseDirectory, "Compiler.dll"));
+            references.Add(Path.Join(AppContext.BaseDirectory, "Diagnostics.dll"));
+            references.Add(Path.Join(AppContext.BaseDirectory, "Shared.dll"));
+            references.Add(Path.Join(refPackPath, "System.Collections.Immutable.dll"));
+        }
+
+        return references.ToArray();
+    }
+
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
@@ -97,7 +133,13 @@ public sealed class Compiler {
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
         if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
-            var corLibrary = LibraryHelpers.LoadLibraries(_options.buildMode);
+            var corLibrary = LibraryHelpers.LoadLibraries(
+                _options.buildMode,
+                _options.concurrentBuild,
+                _options.maxCoreCount,
+                state.noStdLib
+            );
+
             var corLibraryDiagnostics = corLibrary.GetDiagnostics();
             Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
             Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);
@@ -135,7 +177,12 @@ public sealed class Compiler {
             _options.arguments,
             _options.isScript,
             _options.enableOutput,
-            _options.references
+            _options.references,
+            _options.concurrentBuild,
+            _options.maxCoreCount,
+            _options.optimizationLevel,
+            _options.entryName,
+            _options.noStdLib
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -151,7 +198,7 @@ public sealed class Compiler {
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
-            if (state.noOut || parseDiagnostics.AnyErrors()) {
+            if (parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(parseDiagnostics);
                 return;
             }
@@ -160,11 +207,23 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Evaluate) {
-                    var result = compilation.Evaluate((ValueWrapper<bool>)parameter, state.verboseMode, state.time, state.verbosePath);
+                    var result = compilation.Evaluate(
+                        (ValueWrapper<bool>)parameter,
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    );
+
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(state.verboseMode, state.time, state.verbosePath));
+                    diagnostics.PushRange(compilation.Execute(
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    ));
                 }
             }
 
@@ -191,7 +250,7 @@ public sealed class Compiler {
 
             var parseDiagnostics = compilation.GetParseDiagnostics();
 
-            if (state.noOut || parseDiagnostics.AnyErrors()) {
+            if (parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(compilation.GetParseDiagnostics());
                 return;
             }
@@ -224,7 +283,7 @@ public sealed class Compiler {
 
         var parseDiagnostics = compilation.GetParseDiagnostics();
 
-        if (state.noOut || parseDiagnostics.AnyErrors()) {
+        if (parseDiagnostics.AnyErrors()) {
             diagnostics.PushRange(parseDiagnostics);
             return;
         }
@@ -233,30 +292,51 @@ public sealed class Compiler {
 
         diagnostics.PushRange(compilation.Emit(
             state.outputFilename,
-            state.debugMode,
             state.time,
             state.verboseMode,
-            state.verbosePath
+            state.verbosePath,
+            state.reducedVerboseMode
         ));
 
         LogCompilationTime(timer);
     }
 
     private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
-        var builder = ArrayBuilder<SyntaxTree>.GetInstance();
         var tasks = state.tasks;
+        var length = tasks.Length;
+        var builder = new SyntaxTree[length];
 
-        for (var i = 0; i < tasks.Length; i++) {
+        var parseOptions = CreateParseOptions();
+
+        if (state.concurrentBuild) {
+            Parallel.For(0, length, new ParallelOptions { MaxDegreeOfParallelism = state.maxCores }, i => {
+                var task = tasks[i];
+
+                if (task.stage == CompilerStage.Raw)
+                    builder[i] = SyntaxTree.Load(task.inputFileName, task.fileContent.text, parseOptions);
+            });
+        } else {
+            for (var i = 0; i < length; i++) {
+                var task = tasks[i];
+
+                if (task.stage == CompilerStage.Raw)
+                    builder[i] = SyntaxTree.Load(task.inputFileName, task.fileContent.text, parseOptions);
+            }
+        }
+
+        var count = 0;
+
+        for (var i = 0; i < length; i++) {
             ref var task = ref tasks[i];
 
-            if (task.stage == CompilerStage.Raw) {
-                var syntaxTree = SyntaxTree.Load(task.inputFileName, task.fileContent.text, CreateParseOptions());
-                builder.Add(syntaxTree);
+            if (builder[i] is not null) {
+                builder[count++] = builder[i];
                 task.stage = stageToSet;
             }
         }
 
-        return builder.ToArrayAndFree();
+        Array.Resize(ref builder, count);
+        return builder;
     }
 
     private void LogParseTime(Stopwatch timer, long libTime, int count) {

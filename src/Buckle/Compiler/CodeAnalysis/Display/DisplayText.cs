@@ -308,6 +308,9 @@ public sealed class DisplayText {
             case BoundKind.FunctionPointerLoad:
                 DisplayFunctionPointerLoad(text, (BoundFunctionPointerLoad)node);
                 break;
+            case BoundKind.FunctionLoad:
+                DisplayFunctionLoad(text, (BoundFunctionLoad)node);
+                break;
             case BoundKind.FunctionPointerCallExpression:
                 DisplayFunctionPointerCallExpression(text, (BoundFunctionPointerCallExpression)node);
                 break;
@@ -332,6 +335,12 @@ public sealed class DisplayText {
                 break;
             case BoundKind.InterpolatedStringExpression:
                 DisplayInterpolatedStringExpression(text, (BoundInterpolatedStringExpression)node);
+                break;
+            case BoundKind.DefaultExpression:
+                DisplayDefaultExpression(text, (BoundDefaultExpression)node);
+                break;
+            case BoundKind.IsPatternExpression:
+                DisplayIsPatternExpression(text, (BoundIsPatternExpression)node);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -486,6 +495,10 @@ public sealed class DisplayText {
                 text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
             }
         }
+    }
+
+    private static void DisplayDefaultExpression(DisplayText text, BoundDefaultExpression _) {
+        text.Write(CreateKeyword(SyntaxKind.DefaultKeyword));
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
@@ -960,6 +973,14 @@ public sealed class DisplayText {
         SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
     }
 
+    private static void DisplayFunctionLoad(DisplayText text, BoundFunctionLoad node) {
+        text.Write(CreateIdentifier("Func"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+        SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
     private static void DisplayFunctionPointerCallExpression(
         DisplayText text,
         BoundFunctionPointerCallExpression node) {
@@ -1173,6 +1194,16 @@ public sealed class DisplayText {
     private static void DisplayIsOperator(DisplayText text, BoundIsOperator node) {
         var op = node.isNot ? SyntaxKind.IsntKeyword : SyntaxKind.IsKeyword;
         DisplayBinaryAdjacentExpression(text, node.left, node.right, op, true);
+    }
+
+    private static void DisplayIsPatternExpression(DisplayText text, BoundIsPatternExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.IsKeyword));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.local);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {

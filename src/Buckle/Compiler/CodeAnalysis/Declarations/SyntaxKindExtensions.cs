@@ -9,6 +9,7 @@ internal static class SyntaxKindExtensions {
             case SyntaxKind.ClassDeclaration:
                 return DeclarationKind.Class;
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 return DeclarationKind.Struct;
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:

@@ -170,6 +170,7 @@ internal abstract class Symbol : ISymbol {
                 case SymbolKind.ArrayType:
                 case SymbolKind.PointerType:
                 case SymbolKind.FunctionPointerType:
+                case SymbolKind.FunctionType:
                 case SymbolKind.Assembly:
                     return false;
                 default:

@@ -12,6 +12,10 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
+    public static Type AnyGetType(object o) {
+        return o.GetType();
+    }
+
     public static T AssertNull<T>(T value) {
         if (value is null)
             throw new NullReferenceException();
@@ -35,6 +39,14 @@ public static class Utilities {
 
     public static long StringLength(string str) {
         return str.Length;
+    }
+
+    public static void CreateDirectory(string path) {
+        System.IO.Directory.CreateDirectory(path);
+    }
+
+    public static void DeleteDirectory(string path) {
+        System.IO.Directory.Delete(path, recursive: true);
     }
 
     public static long TimeNow() {

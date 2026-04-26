@@ -14,6 +14,7 @@ This may change.
   - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
   - [6.5.2](#652-pointer-arithmetic) Pointer Arithmetic
 - [6.6](#66-function-pointers) Function Pointers
+  - [6.6.1](#661-calling-conventions) Calling Conventions
 - [6.7](#67-extern-methods) Extern Methods
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
@@ -108,10 +109,9 @@ int[] v = { 1, 2, 3 };
 
 To allow for better interop, several numeric types can be used to specify
 specific sizes. These being `int8`, `uint8`, `int16`, `uint16`, `int32`,
-`uint32`, `int64`, `uint64`, `float32`, `float64`. These types are always
-non-nullable.
+`uint32`, `int64`, `uint64`, `float32`, `float64`.
 
-All arithmetic upcasts to `int` and `decimal`, so casting is required in cases
+Most arithmetic upcasts to `int` and `decimal`, so casting is required in cases
 such as:
 
 ```belte
@@ -119,6 +119,9 @@ int32 myInt1 = 5;
 int32 myInt2 = 27;
 int32 myInt3 = (int32)(myInt1 | myInt2);
 ```
+
+The only case where arithmetic does not cast to `int` or `decimal` is in the
+case of `uint64` which cannot fit inside `int`.
 
 Unless knowing the specific size of the integer is required, use the normal
 `int` and `decimal` types, which (eventually) will support specifying ranges.
@@ -270,6 +273,16 @@ void** vtable = ...;
 
 var MyFunction = (void()*~)vtable[0];
 MyFunction();
+```
+
+### 6.6.1 Calling Conventions
+
+The default unmanaged calling convention is WinAPI/STDCall (they are the same). Specifying a calling convention can be
+done by following the function pointer type with `stdcall`, `winapi`, `fastcall`, `thiscall`, or `cdecl` (not case
+sensitive):
+
+```belte
+void()*~[cdecl] a;
 ```
 
 ## 6.7 Extern Methods
@@ -426,14 +439,14 @@ disambiguate the symbol.
 
 ```belte
 il {
-  call Console.PrintLine();
+  call Console.PrintLine : ();
 }
 ```
 
 ```belte
 il {
   ldstr "Hello, world!";
-  call Console.PrintLine(string);
+  call Console.PrintLine : (string?);
 }
 ```
 
@@ -442,7 +455,7 @@ operand is the type to construct.
 
 ```belte
 il {
-  newobj MyClass(int, bool);
+  newobj MyClass : (int, bool);
 }
 ```
 

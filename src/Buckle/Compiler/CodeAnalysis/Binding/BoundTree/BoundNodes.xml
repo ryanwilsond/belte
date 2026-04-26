@@ -56,6 +56,11 @@
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
+  <Node Name="OutVariablePendingInference" Base="BoundExpression">
+    <Field Name="symbol" Type="Symbol"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
   <Node Name="BoundNamespaceExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
     <Field Name="namespaceSymbol" Type="NamespaceSymbol"/>
@@ -212,8 +217,21 @@
     <Field Name="isNot" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundIsPatternExpression" Base="BoundExpression">
+    <Field Name="expression" Type="BoundExpression" Null="disallow"/>
+    <Field Name="local" Type="DataContainerSymbol"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundDefaultLiteral" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
+  <Node Name="BoundDefaultExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="targetType" Type="BoundTypeExpression?" SkipInVisitor="true"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
     <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
@@ -306,9 +324,26 @@
     <Field Name="argumentRefKindsOpt" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
     <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind" />
   </Node>
+  <Node Name="UnboundLambda" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="data" Type="UnboundLambdaState" Null="disallow"/>
+    <Field Name="functionType" Type="FunctionTypeSymbol?" Null="allow"/>
+    <Field Name="withDependencies" Type="bool"/>
+  </Node>
+  <Node Name="BoundLambda" Base="BoundExpression">
+    <Field Name="unboundLambda" Type="UnboundLambda" Null="disallow" SkipInVisitor="true"/>
+    <Field Name="symbol" Type="LambdaSymbol" Null="disallow"/>
+    <Field Name="type" Type="TypeSymbol?" Override="true"/>
+    <Field Name="body" Type="BoundBlockStatement"/>
+    <Field Name="binder" Type="Binder" Null="disallow" />
+  </Node>
   <Node Name="BoundFunctionPointerLoad" Base="BoundExpression">
     <Field Name="targetMethod" Type="MethodSymbol"/>
     <Field Name="constrainedToTypeOpt" Type="TypeSymbol?" Null="allow"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
+  <Node Name="BoundFunctionLoad" Base="BoundExpression">
+    <Field Name="targetMethod" Type="MethodSymbol"/>
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundPointerIndirectionOperator" Base="BoundExpression">

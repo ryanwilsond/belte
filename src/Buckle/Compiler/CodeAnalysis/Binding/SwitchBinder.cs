@@ -450,7 +450,18 @@ internal class SwitchBinder : LocalScopeBinder {
             boundStatementsBuilder.Add(boundStatement);
         }
 
-        boundStatementsBuilder.Add(new BoundBreakStatement(node, breakLabel));
+        // ! TODO This is a hack beyond hacks
+        // TODO We need to do proper control flow analysis
+        if (boundStatementsBuilder.Count == 0) {
+            boundStatementsBuilder.Add(new BoundBreakStatement(node, breakLabel));
+        } else {
+            var lastStatement = boundStatementsBuilder[boundStatementsBuilder.Count - 1];
+
+            if (lastStatement.kind is not BoundKind.ReturnStatement and not BoundKind.GotoStatement &&
+                (lastStatement is not BoundExpressionStatement e || e.expression.kind != BoundKind.ThrowExpression)) {
+                boundStatementsBuilder.Add(new BoundBreakStatement(node, breakLabel));
+            }
+        }
 
         return new BoundSwitchSection(
             node,
