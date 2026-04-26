@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -195,6 +194,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseClassDeclaration(attributeLists, modifiers);
             case SyntaxKind.EnumKeyword:
                 return ParseEnumDeclaration(attributeLists, modifiers);
+            case SyntaxKind.UnionKeyword:
+                return ParseUnionDeclaration(attributeLists, modifiers);
         }
 
         var resetPoint = GetResetPoint();
@@ -251,6 +252,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (kind) {
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
             case SyntaxKind.EnumDeclaration:
             case SyntaxKind.OperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
@@ -332,6 +334,40 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var closeBrace = Match(SyntaxKind.CloseBraceToken);
 
         return SyntaxFactory.StructDeclaration(
+            attributeLists,
+            modifiers,
+            keyword,
+            identifier,
+            templateParameterList,
+            constraintClauseList,
+            openBrace,
+            members,
+            closeBrace
+        );
+    }
+
+    private MemberDeclarationSyntax ParseUnionDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers,
+        bool allowIdentifier = true) {
+        var keyword = EatToken();
+        var identifier = allowIdentifier ? Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken) : null;
+
+        var templateParameterList = (allowIdentifier && currentToken.kind == SyntaxKind.LessThanToken)
+            ? ParseTemplateParameterList()
+            : null;
+        var constraintClauseList = (allowIdentifier && currentToken.kind == SyntaxKind.WhereKeyword)
+            ? ParseTemplateConstraintClauseList()
+            : null;
+
+        var openBrace = Match(SyntaxKind.OpenBraceToken);
+        var saved = _context;
+        _context |= ParserContext.InStructDefinition;
+        var members = ParseFieldList();
+        _context = saved;
+        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+        return SyntaxFactory.UnionDeclaration(
             attributeLists,
             modifiers,
             keyword,
@@ -922,7 +958,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
         while (currentToken.kind is not SyntaxKind.CloseBraceToken and not SyntaxKind.EndOfFileToken) {
             var attributeLists = ParseAttributeLists();
             var modifiers = ParseModifiers();
-            var field = ParseFieldDeclaration(attributeLists, modifiers);
+
+            var field = currentToken.kind == SyntaxKind.UnionKeyword
+                ? ParseUnionDeclaration(attributeLists, modifiers, allowIdentifier: false)
+                : ParseFieldDeclaration(attributeLists, modifiers);
+
             fieldDeclarations.Add(field);
         }
 

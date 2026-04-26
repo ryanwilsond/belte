@@ -82,6 +82,8 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
 
     internal sealed override NamedTypeSymbol enumUnderlyingType => originalDefinition.enumUnderlyingType;
 
+    internal sealed override bool isUnionStruct => originalDefinition.isUnionStruct;
+
     internal sealed override ImmutableArray<AttributeData> GetAttributes() {
         return originalDefinition.GetAttributes();
     }

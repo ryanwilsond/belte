@@ -431,6 +431,7 @@ public enum DiagnosticCode : ushort {
     ERR_BadPatternExpression = 420,
     ERR_CannotAnnotateTypePattern = 421,
     ERR_PatternCannotHandleTypes = 422,
+    ERR_FieldNoDefaultValue = 423,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

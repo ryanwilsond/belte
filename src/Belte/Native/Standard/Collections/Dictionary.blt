@@ -1,6 +1,6 @@
 
 public lowlevel sealed class Dictionary<type TKey, type TValue> {
-    private int![]! _buckets;
+    private int![]! _buckets = { };
     private Entry[] _entries;
     private int! _count = 0;
     private int! _freeList = -1;

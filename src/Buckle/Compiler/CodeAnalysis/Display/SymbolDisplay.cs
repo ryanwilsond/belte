@@ -187,6 +187,11 @@ public static class SymbolDisplay {
                     text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
                     break;
                 case TypeKind.Struct:
+                    if (namedType.isUnionStruct) {
+                        text.Write(CreateKeyword(SyntaxKind.UnionKeyword));
+                        text.Write(CreateSpace());
+                    }
+
                     text.Write(CreateKeyword(SyntaxKind.StructKeyword));
                     break;
                 case TypeKind.Primitive:

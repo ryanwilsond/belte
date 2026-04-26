@@ -58,6 +58,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private DeclaredMembersAndInitializers _lazyDeclaredMembersAndInitializers = DeclaredMembersAndInitializers.UninitializedSentinel;
     private MembersAndInitializers _lazyMembersAndInitializers;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
+    private Dictionary<FieldSymbol, AnonymousUnionType> _lazyAnonymousUnionTypes;
+    private Dictionary<AnonymousUnionType, FieldSymbol> _lazyAnonymousUnionFields;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private ThreeState _lazyAnyMemberHasAttributes;
     private int _lazyKnownCircularStruct;
@@ -156,6 +158,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal ImmutableArray<ImmutableArray<FieldInitializer>> staticInitializers
         => GetMembersAndInitializers().staticInitializers;
+
+    internal Dictionary<FieldSymbol, AnonymousUnionType> anonymousUnionTypes => _lazyAnonymousUnionTypes;
+
+    internal Dictionary<AnonymousUnionType, FieldSymbol> anonymousUnionFields => _lazyAnonymousUnionFields;
 
     internal override bool knownCircularStruct {
         get {
@@ -1459,6 +1465,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 break;
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)syntax;
                 NoteTypeParameters(typeDeclaration, builder);
                 AddNonTypeMembers(builder, typeDeclaration.members, diagnostics);
@@ -1542,40 +1549,27 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             var reportMisplacedGlobalCode = !m.containsDiagnostics;
 
             switch (m.kind) {
-                case SyntaxKind.FieldDeclaration: {
-                        var fieldSyntax = (FieldDeclarationSyntax)m;
+                case SyntaxKind.UnionDeclaration: {
+                        var unionSyntax = (UnionDeclarationSyntax)m;
 
-                        if (isImplicitClass && reportMisplacedGlobalCode)
-                            diagnostics.Push(Error.NamespaceUnexpected(fieldSyntax.declaration.identifier.location));
+                        if (unionSyntax.identifier is not null || unionSyntax.members.Count == 0)
+                            break;
 
-                        var modifiers = SourceMemberFieldSymbol.MakeModifiers(
-                            this,
-                            fieldSyntax.declaration.identifier,
-                            fieldSyntax.modifiers,
-                            diagnostics,
-                            out var modifierErrors
-                        );
+                        var unionMembers = ArrayBuilder<SourceMemberFieldSymbol>.GetInstance();
 
-                        var declaration = fieldSyntax.declaration;
-                        var fieldSymbol = declaration.argumentList is null
-                            ? new SourceMemberFieldSymbolFromDeclarator(
-                                this,
-                                declaration,
-                                modifiers,
-                                modifierErrors,
-                                diagnostics)
-                            : new SourceFixedFieldSymbol(this, declaration, modifiers, modifierErrors, diagnostics);
-
-                        builder.nonTypeMembers.Add(fieldSymbol);
-
-                        if (declaration.initializer is not null) {
-                            if (fieldSymbol.isStatic)
-                                AddInitializer(ref staticInitializers, fieldSymbol, declaration.initializer);
-                            else
-                                AddInitializer(ref instanceInitializers, fieldSymbol, declaration.initializer);
+                        foreach (var u in unionSyntax.members) {
+                            unionMembers.Add(AddFieldMember(
+                                (FieldDeclarationSyntax)u,
+                                reportMisplacedGlobalCode && !u.containsDiagnostics
+                            ));
                         }
+
+                        SetAnonymousUnionType(unionMembers.ToImmutableAndFree());
                     }
 
+                    break;
+                case SyntaxKind.FieldDeclaration:
+                    AddFieldMember((FieldDeclarationSyntax)m, reportMisplacedGlobalCode);
                     break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
@@ -1655,6 +1649,76 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         AddInitializers(builder.instanceInitializers, instanceInitializers);
         AddInitializers(builder.staticInitializers, staticInitializers);
+
+        SourceMemberFieldSymbol AddFieldMember(FieldDeclarationSyntax fieldSyntax, bool reportMisplacedGlobalCode) {
+            if (isImplicitClass && reportMisplacedGlobalCode)
+                diagnostics.Push(Error.NamespaceUnexpected(fieldSyntax.declaration.identifier.location));
+
+            var modifiers = SourceMemberFieldSymbol.MakeModifiers(
+                this,
+                fieldSyntax.declaration.identifier,
+                fieldSyntax.modifiers,
+                diagnostics,
+                out var modifierErrors
+            );
+
+            var declaration = fieldSyntax.declaration;
+            var fieldSymbol = declaration.argumentList is null
+                ? new SourceMemberFieldSymbolFromDeclarator(
+                    this,
+                    declaration,
+                    modifiers,
+                    modifierErrors,
+                    diagnostics)
+                : new SourceFixedFieldSymbol(this, declaration, modifiers, modifierErrors, diagnostics);
+
+            builder.nonTypeMembers.Add(fieldSymbol);
+
+            if (declaration.initializer is not null) {
+                if (fieldSymbol.isStatic)
+                    AddInitializer(ref staticInitializers, fieldSymbol, declaration.initializer);
+                else
+                    AddInitializer(ref instanceInitializers, fieldSymbol, declaration.initializer);
+            }
+
+            return fieldSymbol;
+        }
+
+        void SetAnonymousUnionType(ImmutableArray<SourceMemberFieldSymbol> fields) {
+            if (_lazyAnonymousUnionTypes is null)
+                Interlocked.CompareExchange(ref _lazyAnonymousUnionTypes, [], null);
+
+            AnonymousUnionType result;
+
+            lock (_lazyAnonymousUnionTypes) {
+                if (!_lazyAnonymousUnionTypes.TryGetValue(fields[0], out result)) {
+                    result = new AnonymousUnionType(this, fields);
+
+                    foreach (var field in fields)
+                        _lazyAnonymousUnionTypes.Add(field, result);
+                }
+            }
+
+            if (_lazyAnonymousUnionFields is null)
+                Interlocked.CompareExchange(ref _lazyAnonymousUnionFields, [], null);
+
+            lock (_lazyAnonymousUnionFields) {
+                if (_lazyAnonymousUnionFields.TryGetValue(result, out _))
+                    return;
+
+                var field = new SynthesizedFieldSymbol(
+                    this,
+                    result,
+                    GeneratedNames.MakeAnonymousUnionFieldName(result.name),
+                    true,
+                    false,
+                    false,
+                    false
+                );
+
+                _lazyAnonymousUnionFields.Add(result, field);
+            }
+        }
     }
 
     private static void AddInitializer(

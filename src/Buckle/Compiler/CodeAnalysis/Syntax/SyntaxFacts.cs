@@ -221,6 +221,7 @@ public static class SyntaxFacts {
             "in" => SyntaxKind.InKeyword,
             "handle" => SyntaxKind.HandleKeyword,
             "out" => SyntaxKind.OutKeyword,
+            "union" => SyntaxKind.UnionKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -378,6 +379,7 @@ public static class SyntaxFacts {
             SyntaxKind.InKeyword => "in",
             SyntaxKind.HandleKeyword => "handle",
             SyntaxKind.OutKeyword => "out",
+            SyntaxKind.UnionKeyword => "union",
             _ => null,
         };
     }

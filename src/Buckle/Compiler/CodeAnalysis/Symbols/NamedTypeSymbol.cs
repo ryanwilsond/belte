@@ -80,6 +80,8 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal virtual NamedTypeSymbol enumUnderlyingType => null;
 
+    internal virtual bool isUnionStruct => false;
+
     internal virtual bool enumFlagsAttribute => false;
 
     internal virtual bool knownCircularStruct => false;

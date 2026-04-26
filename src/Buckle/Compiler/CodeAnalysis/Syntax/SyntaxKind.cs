@@ -152,6 +152,7 @@ public enum SyntaxKind : ushort {
     FlagsKeyword,
     InKeyword,
     OutKeyword,
+    UnionKeyword,
     HandleKeyword,
 
     // Trivia
@@ -255,6 +256,7 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,

@@ -30,6 +30,8 @@
   - [4.8.1](#481-aliasing) Aliasing
   - [4.8.2](#482-global-disambiguation) Global Disambiguation
   - [4.8.3](#483-global-using-directive) Global Using Directive
+- [4.9](#49-structs) Structs
+  - [4.9.1](#491-unions) Unions
 
 ## 4.1 Classes
 
@@ -654,3 +656,81 @@ namespace N {
 var a = new A(); // ambiguous
 var a = new global::A(); // clear
 ```
+
+## 4.9 Structs
+
+Structs are similar to classes. Unlike classes, structs are value types (passed by value). Structs are a collection of
+ordered fields:
+
+```belte
+struct A {
+  int a;
+  bool b;
+}
+```
+
+Structs always have a single parameter-less constructor that sets every member to it's default value. From there,
+fields can be set.
+
+```belte
+var myStruct = new A();
+myStruct.a = 3;
+myStruct.b = true;
+
+struct A {
+  int a;
+  bool b;
+}
+```
+
+A [cascade expression](Data.md#3227-xy) can be used to simplify this process:
+
+```belte
+var myStruct = new A()
+  ..a = 3
+  ..b = true;
+
+struct A {
+  int a;
+  bool b;
+}
+```
+
+Because struct fields cannot have explicit initializers, structs can only contain fields of types with a default value.
+
+### 4.9.1 Unions
+
+A union struct is a struct where all of the fields overlap in memory. Because of this, assigning to any field in the
+union may effect the other fields:
+
+```belte
+var myUnion = new A();
+myUnion.a = 5;
+Console.PrintLine(myUnion.b); // 5
+
+union A {
+  int32 a;
+  int16 b;
+}
+```
+
+An anonymous union can be used inside of a struct to align certain fields together:
+
+```belte
+var myStruct = new A()
+  ..a = 3
+  ..c = 10;
+
+Console.PrintLine(myStruct.b); // 10
+
+struct A {
+  int32 a;
+
+  union {
+    int32 b;
+    int16 c;
+  }
+}
+```
+
+In this example, the fields `b` and `c` are overlapping with each other but not with `a`.

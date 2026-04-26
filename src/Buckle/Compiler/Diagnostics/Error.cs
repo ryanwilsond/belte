@@ -1977,6 +1977,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
     }
 
+    internal static BelteDiagnostic FieldNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a field without an initializer with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefaultValue, location, message);
+    }
+
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
         var message = $"cannot apply a null erasure operator to a null literal";
         return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);

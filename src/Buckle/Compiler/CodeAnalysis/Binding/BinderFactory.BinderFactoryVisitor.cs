@@ -498,5 +498,12 @@ internal sealed partial class BinderFactory {
         internal override Binder VisitStructDeclaration(StructDeclarationSyntax node) {
             return VisitTypeDeclarationCore(node);
         }
+
+        internal override Binder VisitUnionDeclaration(UnionDeclarationSyntax node) {
+            if (node.identifier is not null)
+                return VisitTypeDeclarationCore(node);
+
+            return VisitCore(node.parent);
+        }
     }
 }

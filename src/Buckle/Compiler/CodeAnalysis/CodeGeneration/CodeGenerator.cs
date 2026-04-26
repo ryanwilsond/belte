@@ -3002,11 +3002,10 @@ oneMoreTime:
     }
 
     private void EmitFieldStore(FieldSymbol field, bool refAssign) {
-        if (field.refKind != RefKind.None && !refAssign) {
+        if (field.refKind != RefKind.None && !refAssign)
             EmitIndirectStore(field.type);
-        } else {
+        else
             _builder.EmitWithSymbolToken(field.isStatic ? OpCode.Stsfld : OpCode.Stfld, field);
-        }
     }
 
     private void EmitParameterStore(BoundParameterExpression parameter, bool refAssign) {

@@ -52,6 +52,10 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal virtual bool requiresInstanceReceiver => !isStatic;
 
+    internal virtual bool isAnonymousUnionMember => false;
+
+    internal virtual int unionGroupId => -1;
+
     internal sealed override bool isAbstract => false;
 
     internal sealed override bool isOverride => false;

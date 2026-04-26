@@ -759,6 +759,9 @@ internal sealed class Evaluator {
         if (field.refKind != RefKind.None)
             return value.loc[value.ptr];
 
+        if (field.containingType.isUnionStruct || field.isAnonymousUnionMember)
+            value.kind = ValueKindExtensions.FromSpecialType(field.type.StrippedType().specialType, value.kind);
+
         return value;
     }
 

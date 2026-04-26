@@ -1,8 +1,8 @@
 
 public class Text {
     private int? ptr;
-    public string text;
-    public string! fontPath;
+    public string? text;
+    public string! fontPath = "";
     public Vec2 position;
     public decimal! fontSize;
     public decimal? angle;

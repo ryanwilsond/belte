@@ -322,6 +322,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 _diagnostics,
                 ref processedInstanceInitializers
             );
+
+            var unions = sourceType.anonymousUnionFields;
+
+            if (unions is not null) {
+                lock (_synthesizedNestedTypes) {
+                    foreach (var union in unions)
+                        _synthesizedNestedTypes.Add(symbol, union.Key);
+                }
+            }
         }
 
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {

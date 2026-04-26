@@ -108,11 +108,36 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         &(<receiver>.<field>)
 
+        ----> <field> is of anonymous union
+
+        <receiver>.<Union>.<field>
+
         */
         var syntax = node.syntax;
+        var field = node.field;
+
+        if (field.isAnonymousUnionMember) {
+            var containingType = (SourceNamedTypeSymbol)field.containingType;
+            var union = containingType.anonymousUnionTypes[field];
+            var unionField = containingType.anonymousUnionFields[union];
+            var receiver = (BoundExpression)Visit(node.receiver);
+
+            return new BoundFieldAccessExpression(syntax,
+                new BoundFieldAccessExpression(syntax,
+                    receiver,
+                    unionField,
+                    null,
+                    union
+                ),
+                field,
+                null,
+                node.type
+            );
+        }
+
         var result = (BoundFieldAccessExpression)base.VisitFieldAccessExpression(node);
 
-        if (node.field.isFixedSizeBuffer)
+        if (field.isFixedSizeBuffer)
             return Visit(new BoundAddressOfOperator(syntax, result, true, node.type));
 
         return result;

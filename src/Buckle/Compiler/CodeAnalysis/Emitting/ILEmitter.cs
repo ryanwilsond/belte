@@ -608,7 +608,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             );
         } else {
             var fieldRef = _fields[field.originalDefinition];
-            var constructedType = GetType(field.containingType);
+            var constructedType = GetType(GetFieldContainingType(field));
 
             return new FieldReference(
                 fieldRef.Name,
@@ -616,6 +616,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 constructedType
             );
         }
+    }
+
+    private TypeSymbol GetFieldContainingType(FieldSymbol field) {
+        if (field.isAnonymousUnionMember)
+            return ((SourceNamedTypeSymbol)field.containingType).anonymousUnionTypes[field];
+
+        return field.containingType;
     }
 
     internal override NamedTypeSymbol GetFixedImplementationType(SourceFixedFieldSymbol field) {
@@ -893,10 +900,20 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             return;
         }
 
+        var isAnonymousUnion = type is AnonymousUnionType;
+        var seenGroupIds = new HashSet<int>();
+
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (!isAnonymousUnion && f.isAnonymousUnionMember) {
+                    if (seenGroupIds.Add(f.unionGroupId))
+                        CreateAnonymousUnionField(f, typeDefinition, (SourceNamedTypeSymbol)type);
+
+                    continue;
+                }
+
                 if (f.isFixedSizeBuffer) {
-                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeDefinition);
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeDefinition, type);
                     continue;
                 }
 
@@ -907,6 +924,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                         ? _specialTypes[SpecialType.IntPtr]
                         : GetType(f.type, f.refKind != RefKind.None)
                 );
+
+                if (type.isUnionStruct)
+                    fieldDefinition.Offset = 0;
 
                 _fields.Add(f, fieldDefinition);
                 typeDefinition.Fields.Add(fieldDefinition);
@@ -928,7 +948,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeDefinition typeDefinition) {
+    private void CreateFixedSizeBufferField(
+        SourceFixedFieldSymbol field,
+        TypeDefinition typeDefinition,
+        NamedTypeSymbol parent) {
         var fixedImpl = GetFixedImplementationType(field);
 
         var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
@@ -962,6 +985,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             nestedType
         );
 
+        if (parent.isUnionStruct)
+            adaptedFieldDef.Offset = 0;
+
         typeDefinition.Fields.Add(adaptedFieldDef);
 
         _fields.Add(field, adaptedFieldDef);
@@ -969,6 +995,26 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         lock (_types)
             _types.Add(fixedImpl, nestedType);
+    }
+
+    private void CreateAnonymousUnionField(
+        FieldSymbol field,
+        TypeDefinition typeDefinition,
+        SourceNamedTypeSymbol parent) {
+        var union = parent.anonymousUnionTypes[field];
+        var unionField = parent.anonymousUnionFields[union];
+
+        var unionFieldDef = new FieldDefinition(
+            unionField.name,
+            GetFieldAttributes(unionField),
+            GetType(union)
+        );
+
+        if (parent.isUnionStruct)
+            unionFieldDef.Offset = 0;
+
+        typeDefinition.Fields.Add(unionFieldDef);
+        _fields.Add(unionField, unionFieldDef);
     }
 
     private MethodDefinition CreateMethodDefinition(
@@ -1098,7 +1144,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             attributes |= TypeAttributes.Sealed;
 
         if (type.IsStructType())
-            attributes |= TypeAttributes.SequentialLayout;
+            attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
             Accessibility.Private => TypeAttributes.NestedPrivate,

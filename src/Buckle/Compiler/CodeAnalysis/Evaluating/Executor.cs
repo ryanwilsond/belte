@@ -707,6 +707,7 @@ internal sealed partial class Executor : ModuleBuilder {
             if (!type.IsStructType())
                 continue;
 
+            var namedType = (NamedTypeSymbol)type;
             var list = new List<NamedTypeSymbol>();
 
             foreach (var member in type.GetMembers()) {
@@ -718,6 +719,11 @@ internal sealed partial class Executor : ModuleBuilder {
                         list.Add(nt.originalDefinition);
                     }
                 }
+            }
+
+            if (_program.nestedTypes.ContainsKey(namedType)) {
+                foreach (var nestedType in _program.nestedTypes[namedType])
+                    list.Add(nestedType.originalDefinition);
             }
 
             deps[type.originalDefinition] = list;
@@ -898,7 +904,7 @@ internal sealed partial class Executor : ModuleBuilder {
             attributes |= TypeAttributes.Sealed;
 
         if (type.IsStructType())
-            attributes |= TypeAttributes.SequentialLayout;
+            attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;
 
         attributes |= type.declaredAccessibility switch {
             Accessibility.Private when isNested => TypeAttributes.NestedPrivate,
@@ -969,11 +975,20 @@ internal sealed partial class Executor : ModuleBuilder {
             return;
 
         var typeBuilder = _types[type.originalDefinition];
+        var isAnonymousUnion = type is AnonymousUnionType;
+        var seenGroupIds = new HashSet<int>();
 
         foreach (var member in type.GetMembers()) {
             if (member is FieldSymbol f) {
+                if (!isAnonymousUnion && f.isAnonymousUnionMember) {
+                    if (seenGroupIds.Add(f.unionGroupId))
+                        CreateAnonymousUnionField(f, typeBuilder, (SourceNamedTypeSymbol)type);
+
+                    continue;
+                }
+
                 if (f.isFixedSizeBuffer) {
-                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeBuilder);
+                    CreateFixedSizeBufferField(f as SourceFixedFieldSymbol, typeBuilder, type);
                     continue;
                 }
 
@@ -986,6 +1001,9 @@ internal sealed partial class Executor : ModuleBuilder {
                     fieldType,
                     GetFieldAttributes(f)
                 );
+
+                if (type.isUnionStruct)
+                    fieldBuilder.SetOffset(0);
 
                 _fields.Add(f, fieldBuilder);
             } else if (member is NamedTypeSymbol t) {
@@ -1001,7 +1019,10 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private void CreateFixedSizeBufferField(SourceFixedFieldSymbol field, TypeBuilder typeBuilder) {
+    private void CreateFixedSizeBufferField(
+        SourceFixedFieldSymbol field,
+        TypeBuilder typeBuilder,
+        NamedTypeSymbol parent) {
         var fixedImpl = GetFixedImplementationType(field);
 
         var elementType = ((PointerTypeSymbol)field.type).pointedAtType;
@@ -1028,6 +1049,9 @@ internal sealed partial class Executor : ModuleBuilder {
             GetFieldAttributes(field)
         );
 
+        if (parent.isUnionStruct)
+            adaptedFieldBuilder.SetOffset(0);
+
         _fields.Add(field, adaptedFieldBuilder);
         _fields.Add(nestedBufferField, nestedBufferFieldBuilder);
 
@@ -1035,6 +1059,22 @@ internal sealed partial class Executor : ModuleBuilder {
             _types.Add(fixedImpl, nestedBuilder);
 
         nestedBuilder.CreateType();
+    }
+
+    private void CreateAnonymousUnionField(FieldSymbol field, TypeBuilder typeBuilder, SourceNamedTypeSymbol parent) {
+        var union = parent.anonymousUnionTypes[field];
+        var unionField = parent.anonymousUnionFields[union];
+
+        var unionFieldBuilder = typeBuilder.DefineField(
+            unionField.name,
+            GetType(union),
+            GetFieldAttributes(unionField)
+        );
+
+        if (parent.isUnionStruct)
+            unionFieldBuilder.SetOffset(0);
+
+        _fields.Add(unionField, unionFieldBuilder);
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {

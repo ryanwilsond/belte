@@ -5233,4 +5233,21 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0423_FieldNoDefaultValue() {
+        var text = @"
+            class A { }
+
+            struct B {
+                A! [a];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot declare a field without an initializer with type 'A!' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

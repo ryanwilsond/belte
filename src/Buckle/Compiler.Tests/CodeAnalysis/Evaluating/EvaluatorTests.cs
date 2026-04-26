@@ -359,6 +359,12 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public static int? B(int a) { return a + 3; } } return A.B(4);", 7)]
     // Structs
     [InlineData("struct A { public int! a; } var a = new A(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
+    [InlineData("union A { int32 a; int16 b; } var a = new A(); a.a = 5; return a.b;", 5)]
+    [InlineData("union A { int32 a; int16 b; } var a = new A(); a.b = 5; return a.a;", 5)]
+    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.a;", 0)]
+    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.c;", 5)]
+    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.a;", 5)]
+    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.b;", 0)]
     // If statements
     [InlineData("int? a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int? a = 0; if (a == 4) { a = 10; } return a;", 0)]

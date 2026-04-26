@@ -108,6 +108,8 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());
+        } else if (!type.type.HasDefaultValue() && declaration.initializer is null) {
+            diagnostics.Push(Error.FieldNoDefaultValue(location, type.type));
         }
 
         if (isFixedSizeBuffer) {

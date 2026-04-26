@@ -112,6 +112,8 @@
       - [4.8.1](Current/ClassesAndObjects.md#481-aliasing) Aliasing
       - [4.8.2](Current/ClassesAndObjects.md#482-global-disambiguation) Global Disambiguation
       - [4.8.3](Current/ClassesAndObjects.md#483-global-using-directive) Global Using Directive
+    - [4.9](Current/ClassesAndObjects.md#49-structs) Structs
+      - [4.9.1](Current/ClassesAndObjects.md#491-unions) Unions
   - [5](Current/StandardLibrary.md) The Standard Library
     - [5.1](Current/StandardLibrary/Console.md) Console
     - [5.2](Current/StandardLibrary/Math.md) Math
