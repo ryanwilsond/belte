@@ -11,13 +11,13 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
     private readonly Binder _binder;
     private readonly Symbol _containingSymbol;
     private readonly SyntaxNode _syntax;
-    private readonly ImmutableArray<ParameterSymbol> _parameters;
+    // private readonly ImmutableArray<ParameterSymbol> _parameters;
     private RefKind _refKind;
     private TypeWithAnnotations _returnType;
-    private readonly bool _isSynthesized;
-    private readonly bool _isAsync;
-    private readonly bool _isStatic;
-    private readonly BelteDiagnosticQueue _declarationDiagnostics;
+    // private readonly bool _isSynthesized;
+    // private readonly bool _isAsync;
+    // private readonly bool _isStatic;
+    // private readonly BelteDiagnosticQueue _declarationDiagnostics;
 
     internal static readonly TypeSymbol ReturnTypeIsBeingInferred = new UnsupportedMetadataTypeSymbol();
 
@@ -31,8 +31,8 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
         ImmutableArray<TypeWithAnnotations> parameterTypes,
         ImmutableArray<RefKind> parameterRefKinds,
         RefKind refKind,
-        TypeWithAnnotations returnType) :
-        base(new SyntaxReference(unboundLambda.syntax)) {
+        TypeWithAnnotations returnType)
+        : base(new SyntaxReference(unboundLambda.syntax)) {
         _binder = binder;
         _containingSymbol = containingSymbol;
         _syntax = unboundLambda.syntax;
@@ -58,7 +58,8 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     internal override bool isOverride => false;
 
-    internal override bool isStatic => _isStatic;
+    // internal override bool isStatic => _isStatic;
+    internal override bool isStatic => false;
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) {
         return false;
@@ -87,7 +88,8 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     public override int arity => 0;
 
-    internal override ImmutableArray<ParameterSymbol> parameters => _parameters;
+    // internal override ImmutableArray<ParameterSymbol> parameters => _parameters;
+    internal override ImmutableArray<ParameterSymbol> parameters => [];
 
     internal override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         thisParameter = null;
@@ -115,7 +117,8 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     internal override Binder withTemplateParametersBinder => _binder;
 
-    internal override bool isImplicitlyDeclared => _isSynthesized;
+    // internal override bool isImplicitlyDeclared => _isSynthesized;
+    internal override bool isImplicitlyDeclared => false;
 
     internal override bool isDeclaredConst => false;
 
@@ -126,17 +129,17 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
     }
 
     internal void GetDeclarationDiagnostics(BelteDiagnosticQueue addTo) {
-        foreach (var parameter in _parameters)
-            parameter.ForceComplete(null);
+        // foreach (var parameter in _parameters)
+        //     parameter.ForceComplete(null);
 
         GetAttributes();
         GetReturnTypeAttributes(); ;
 
-        addTo.PushRange(_declarationDiagnostics);
+        // addTo.PushRange(_declarationDiagnostics);
     }
 
     internal override void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
-        _declarationDiagnostics.PushRange(diagnostics);
+        // _declarationDiagnostics.PushRange(diagnostics);
     }
 
     private ImmutableArray<ParameterSymbol> MakeParameters(
