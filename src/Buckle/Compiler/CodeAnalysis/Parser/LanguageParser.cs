@@ -1120,6 +1120,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseSwitchStatement();
             case SyntaxKind.GotoKeyword:
                 return ParseGotoStatement();
+            case SyntaxKind.WithKeyword:
+                return ParseWithStatement();
             case SyntaxKind.ILKeyword:
                 return ParseInlineILStatement();
         }
@@ -1627,6 +1629,26 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ElseClause(keyword, statement);
     }
 
+    private WithStatementSyntax ParseWithStatement() {
+        var keyword = EatToken();
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var expression = ParseAssignmentExpression();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+
+        var tryKeyword = currentToken.kind == SyntaxKind.TryKeyword ? EatToken() : null;
+
+        var body = ParseStatement();
+
+        return SyntaxFactory.WithStatement(
+            keyword,
+            openParenthesis,
+            expression,
+            closeParenthesis,
+            tryKeyword,
+            body
+        );
+    }
+
     private StatementSyntax ParseExpressionStatement() {
         var diagnosticCount = currentToken.GetDiagnostics().Length;
         var expression = ParseExpression(allowEmpty: true);
@@ -1988,6 +2010,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseAliasQualifiedName();
             case SyntaxKind.PeriodToken:
                 return ParseImplicitEnumFieldExpression();
+            case SyntaxKind.WithKeyword:
+                return ParseWithExpression();
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.GlobalKeyword:
             default:
@@ -1999,6 +2023,22 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var period = EatToken();
         var identifier = Match(SyntaxKind.IdentifierToken);
         return SyntaxFactory.ImplicitEnumFieldExpression(period, identifier);
+    }
+
+    private WithExpressionSyntax ParseWithExpression() {
+        var keyword = EatToken();
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var expression = ParseAssignmentExpression();
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+        var body = ParseExpression();
+
+        return SyntaxFactory.WithExpression(
+            keyword,
+            openParenthesis,
+            expression,
+            closeParenthesis,
+            body
+        );
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {

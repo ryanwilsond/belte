@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -350,5 +351,182 @@ internal class SharedExpander : BoundTreeExpander {
         }
 
         return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
+        /*
+
+        with (<assignment>) {
+            <body>
+        }
+
+        ---->
+
+        temp = <assignment.left>
+        <assignment>
+        <body>
+        <assignment.left> = temp
+
+        ----> surround with try
+
+        temp = <assignment.left>
+        <assignment>
+
+        try {
+            <body>
+        } finally {
+            <assignment.left> = temp
+        }
+
+        */
+        var syntax = statement.syntax;
+        var assignment = statement.assignment;
+        var left = GetLeft(assignment, out var isRef);
+
+        var temp = GenerateTempLocal(left.type);
+
+        var statements = ExpandExpression(left, out var newLeft, UseKind.Writable);
+        statements.Add(LocalDeclaration(syntax, temp, newLeft));
+        statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+
+        if (statement.wrapWithTry) {
+            var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
+
+            foreach (var bodyStatement in statement.body)
+                bodyBuilder.AddRange(ExpandStatement(bodyStatement));
+
+            var finallyBody = Block(syntax,
+                new BoundExpressionStatement(syntax, Assignment(syntax, newLeft, Local(syntax, temp), isRef, temp.type))
+            );
+
+            statements.Add(
+                new BoundTryStatement(syntax, Block(syntax, bodyBuilder.ToArrayAndFree()), null, finallyBody)
+            );
+        } else {
+            foreach (var bodyStatement in statement.body)
+                statements.AddRange(ExpandStatement(bodyStatement));
+
+            statements.Add(
+                new BoundExpressionStatement(syntax, Assignment(syntax, newLeft, Local(syntax, temp), isRef, temp.type))
+            );
+        }
+
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandWithExpression(
+        BoundWithExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        with (<assignment>) <try> <body>
+
+        ---->
+
+        temp = <assignment.left>
+        <assignment>
+        temp2 = <body>
+        <assignment.left> = temp
+        temp2
+
+        */
+        var syntax = expression.syntax;
+        var assignment = expression.assignment;
+        var body = expression.body;
+        var left = GetLeft(assignment, out var isRef);
+
+        var temp = GenerateTempLocal(left.type);
+        var temp2 = GenerateTempLocal(body.type);
+
+        var statements = ExpandExpression(left, out var newLeft, UseKind.Writable);
+        statements.Add(LocalDeclaration(syntax, temp, newLeft));
+        statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+
+        statements.AddRange(ExpandExpression(body, out var newBody));
+        statements.Add(LocalDeclaration(syntax, temp2, newBody));
+
+        statements.Add(
+            new BoundExpressionStatement(syntax, Assignment(syntax, newLeft, Local(syntax, temp), isRef, temp.type))
+        );
+
+        replacement = Local(syntax, temp2);
+
+        return statements;
+    }
+
+    private static BoundExpression GetLeft(BoundExpression expression, out bool isRef) {
+        switch (expression.kind) {
+            case BoundKind.AssignmentOperator:
+                var assignment = (BoundAssignmentOperator)expression;
+                isRef = assignment.isRef;
+                return assignment.left;
+            case BoundKind.CompoundAssignmentOperator:
+                isRef = false;
+                return ((BoundCompoundAssignmentOperator)expression).left;
+            case BoundKind.NullCoalescingAssignmentOperator:
+                isRef = false;
+                return ((BoundNullCoalescingAssignmentOperator)expression).left;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.kind);
+        }
+    }
+
+    private List<BoundStatement> RecreateAssignment(
+        SyntaxNode syntax,
+        BoundExpression newLeft,
+        BoundExpression expression) {
+        switch (expression.kind) {
+            case BoundKind.AssignmentOperator: {
+                    var assignment = (BoundAssignmentOperator)expression;
+                    var newAssignment = new BoundAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        assignment.right,
+                        assignment.isRef,
+                        assignment.type
+                    );
+
+                    var statements = ExpandExpression(newAssignment, out var replacement);
+                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    return statements;
+                }
+            case BoundKind.CompoundAssignmentOperator: {
+                    var assignment = (BoundCompoundAssignmentOperator)expression;
+                    var newAssignment = new BoundCompoundAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        assignment.right,
+                        assignment.op,
+                        assignment.leftPlaceholder,
+                        assignment.leftConversion,
+                        assignment.finalPlaceholder,
+                        assignment.finalConversion,
+                        assignment.resultKind,
+                        assignment.originalUserDefinedOperators,
+                        assignment.type
+                    );
+
+                    var statements = ExpandExpression(newAssignment, out var replacement);
+                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    return statements;
+                }
+            case BoundKind.NullCoalescingAssignmentOperator: {
+                    var assignment = (BoundNullCoalescingAssignmentOperator)expression;
+                    var newAssignment = new BoundNullCoalescingAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        assignment.right,
+                        assignment.isPropagation,
+                        assignment.type
+                    );
+
+                    var statements = ExpandExpression(newAssignment, out var replacement);
+                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    return statements;
+                }
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.kind);
+        }
     }
 }

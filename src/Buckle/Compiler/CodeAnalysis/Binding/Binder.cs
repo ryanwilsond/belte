@@ -3061,6 +3061,8 @@ internal partial class Binder {
             case SyntaxKind.ParenthesizedLambdaExpression:
             case SyntaxKind.SimpleLambdaExpression:
                 return BindAnonymousFunction((AnonymousFunctionExpressionSyntax)node, diagnostics);
+            case SyntaxKind.WithExpression:
+                return BindWithExpression((WithExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -3150,6 +3152,20 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundWithExpression BindWithExpression(WithExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var hasErrors = false;
+
+        if (node.expression.kind != SyntaxKind.AssignmentExpression) {
+            diagnostics.Push(Error.WithExpressionNotAssignment(node.expression.location));
+            hasErrors = true;
+        }
+
+        var expression = BindExpression(node.expression, diagnostics);
+        var body = BindExpression(node.body, diagnostics);
+
+        return new BoundWithExpression(node, expression, body, body.type, hasErrors);
     }
 
     private UnboundLambda BindAnonymousFunction(
@@ -10963,6 +10979,7 @@ symIsHidden:;
             SyntaxKind.SwitchStatement => BindSwitchStatement((SwitchStatementSyntax)node, diagnostics),
             SyntaxKind.GotoStatement => BindGotoStatement((GotoStatementSyntax)node, diagnostics),
             SyntaxKind.InlineILStatement => BindInlineILStatement((InlineILStatementSyntax)node, diagnostics),
+            SyntaxKind.WithStatement => BindWithStatement((WithStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -11141,6 +11158,32 @@ symIsHidden:;
             : BindPossibleEmbeddedStatement(node.elseClause.body, diagnostics);
 
         return new BoundIfStatement(node, condition, consequence, alternative);
+    }
+
+    private BoundWithStatement BindWithStatement(WithStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var hasErrors = false;
+
+        if (node.expression.kind != SyntaxKind.AssignmentExpression) {
+            diagnostics.Push(Error.WithExpressionNotAssignment(node.expression.location));
+            hasErrors = true;
+        }
+
+        var expression = BindExpression(node.expression, diagnostics);
+        var builder = ArrayBuilder<BoundStatement>.GetInstance();
+
+        // ? We don't create a new scope if the body is a block for with statements specifically
+        if (node.body.kind == SyntaxKind.BlockStatement) {
+            var statements = ((BlockStatementSyntax)node.body).statements;
+
+            foreach (var statement in statements)
+                builder.Add(BindStatement(statement, diagnostics));
+        } else {
+            builder.Add(BindStatement(node.body, diagnostics));
+        }
+
+        var wrapWithTry = node.tryKeyword is not null;
+
+        return new BoundWithStatement(node, expression, builder.ToImmutableAndFree(), wrapWithTry, hasErrors);
     }
 
     private BoundNullBindingStatement BindNullBindingStatement(

@@ -373,6 +373,13 @@ public sealed class EvaluatorTests {
     // Null-Binding statements
     [InlineData("int? a = 10; int! b = 0; if (a -> x!) { b = x; } return b;", 10)]
     [InlineData("int? a = null; int! b = 0; if (a -> x!) { b = x; } return b;", 0)]
+    // With expressions/statements
+    [InlineData("int a = 3; return with (a = 5) a + 5;", 10)]
+    [InlineData("int a = 3; int b = with (a = 5) a + 5; return b;", 10)]
+    [InlineData("int a = 3; int b = with (a = 5) a + 5; return a;", 3)]
+    [InlineData("int a = 3; with (a = 5) try { return a + 5; }", 10)]
+    [InlineData("int a = 3; int b = 0; with (a = 5) try { b = a + 5; } return b;", 10)]
+    [InlineData("int a = 3; int b = 0; with (a = 5) try { b = a + 5; } return a;", 3)]
     // Local function statements
     [InlineData("int? A() { int? B() { return 2; } return B() + 1; } return A();", 3)]
     [InlineData("int? A() { int? B() { int? A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]

@@ -71,6 +71,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.SwitchStatement => ExpandSwitchStatement((BoundSwitchStatement)statement),
             BoundKind.InlineILStatement => ExpandInlineILStatement((BoundInlineILStatement)statement),
             BoundKind.SwitchDispatch => ExpandSwitchDispatch((BoundSwitchDispatch)statement),
+            BoundKind.WithStatement => ExpandWithStatement((BoundWithStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -78,6 +79,19 @@ internal abstract partial class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandErrorStatement(BoundErrorStatement statement) {
         // Even though there is potential for expanding the childBoundNodes, it will be an error anyways so why bother
         return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
+        var statements = ExpandExpression(statement.assignment, out var newAssignment);
+
+        var bodyStatements = ArrayBuilder<BoundStatement>.GetInstance();
+
+        foreach (var childStatement in statement.body)
+            bodyStatements.AddRange(ExpandStatement(childStatement));
+
+        statements.Add(statement.Update(newAssignment, bodyStatements.ToImmutableAndFree(), statement.wrapWithTry));
+
+        return statements;
     }
 
     private protected virtual List<BoundStatement> ExpandSwitchStatement(BoundSwitchStatement statement) {
@@ -366,8 +380,25 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.InterpolatedStringExpression => ExpandInterpolatedStringExpression((BoundInterpolatedStringExpression)expression, out replacement, useKind),
             BoundKind.FunctionLoad => ExpandFunctionLoad((BoundFunctionLoad)expression, out replacement, useKind),
             BoundKind.IsPatternExpression => ExpandIsPatternExpression((BoundIsPatternExpression)expression, out replacement, useKind),
+            BoundKind.WithExpression => ExpandWithExpression((BoundWithExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandWithExpression(
+        BoundWithExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.assignment, out var newAssignment);
+        statements.AddRange(ExpandExpression(expression.body, out var newBody));
+
+        if (statements.Count != 0 || expression.assignment != newAssignment || expression.body != newBody) {
+            replacement = expression.Update(newAssignment, newBody, expression.type);
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandFunctionLoad(

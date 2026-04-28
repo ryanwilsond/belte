@@ -25,6 +25,7 @@
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
 - [2.5](#25-switch) Switch
 - [2.6](#26-exceptions) Exceptions
+- [2.7]()
 
 ## 2.1 Functions
 
@@ -653,3 +654,32 @@ throw new Exception();
 ```
 
 This will crash the program. Throw expressions only accept objects that are or derive from `Exception`.
+
+## 2.7 With Expressions and Statements
+
+The `with` expression or statement can be used to wrap code inside of an assignment that is reversed when done.
+
+For example:
+
+```belte
+this.a = 3;
+
+return with (a = 6) SomeMethod();
+```
+
+In the above example, `SomeMethod` is ran with the field `a` set to 6, but before returning, `a` is set back to it's
+starting value of 3.
+
+In statement form:
+
+```belte
+this.a = 3;
+
+with (a = 6) try {
+  return SomeMethod();
+}
+```
+
+In the case of an exception or return or other control-flow breaking circumstance within the body of the `with`, the
+reversal will not take place as the with body is not exited normally. To ensure that the reversal always takes place,
+a `try` keyword can be specified preceding the body as seen in the above example.

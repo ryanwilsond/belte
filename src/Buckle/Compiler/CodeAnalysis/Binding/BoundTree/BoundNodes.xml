@@ -418,6 +418,15 @@
     <Field Name="consequence" Type="BoundStatement"/>
     <Field Name="alternative" Type="BoundStatement?"/>
   </Node>
+  <Node Name="BoundWithStatement" Base="BoundStatement">
+    <Field Name="assignment" Type="BoundExpression"/>
+    <Field Name="body" Type="ImmutableArray&lt;BoundStatement&gt;"/>
+    <Field Name="wrapWithTry" Type="bool"/>
+  </Node>
+  <Node Name="BoundWithExpression" Base="BoundExpression">
+    <Field Name="assignment" Type="BoundExpression"/>
+    <Field Name="body" Type="BoundExpression"/>
+  </Node>
   <Node Name="BoundGotoStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="caseExpression" Type="BoundExpression?"/>

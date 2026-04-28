@@ -5250,4 +5250,21 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0424_WithExpressionNotAssignment() {
+        var text = @"
+            int a = 3;
+
+            with ([a]) {
+                int b = 5;
+            }
+        ";
+
+        var diagnostics = @"
+            the context expression of a with statement or with expression must be an assignment
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
