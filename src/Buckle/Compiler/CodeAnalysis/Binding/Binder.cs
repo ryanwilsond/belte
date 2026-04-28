@@ -11313,7 +11313,12 @@ symIsHidden:;
             instructions.Add((opCode, constant, symbol));
         }
 
-        if (!noVerify && stackOffset != 0) {
+        if (compilation.options.buildMode == BuildMode.CSharpTranspile) {
+            diagnostics.Push(Error.Unsupported.InlineIL(node.keyword.location));
+            hasAnyErrors = true;
+        }
+
+        if (!hasAnyErrors && !noVerify && stackOffset != 0) {
             diagnostics.Push(Error.UnbalancedILStack(node.keyword.location));
             hasAnyErrors = true;
         }

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -12,20 +11,10 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// For lowering control flow structures.
 /// Runs before general lowering to simplify the number of nodes they have to cover.
 /// </summary>
-internal sealed partial class FlowLowerer : BoundTreeRewriter {
-    private readonly List<string> _localNames = [];
-    private int _tempCount = 0;
-    private MethodSymbol _container;
+internal sealed partial class FlowLowerer : SharedFlowLowerer {
+    private FlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) : base(method, diagnostics) { }
 
-    private readonly BelteDiagnosticQueue _diagnostics;
-    private int _labelCount;
-
-    private FlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
-        _container = method;
-        _diagnostics = diagnostics;
-    }
-
-    internal static BoundStatement Lower(
+    internal new static BoundStatement Lower(
         MethodSymbol method,
         BoundStatement statement,
         BelteDiagnosticQueue diagnostics) {
@@ -459,24 +448,5 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
 
     internal override BoundNode VisitSwitchStatement(BoundSwitchStatement node) {
         return SwitchStatementLocalRewriter.Rewrite(this, node);
-    }
-
-    private SynthesizedLabelSymbol GenerateLabel(string suffix = null) {
-        return new SynthesizedLabelSymbol($"Label{++_labelCount}{suffix}");
-    }
-
-    private SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
-        string name;
-
-        do {
-            name = $"temp{_tempCount++}";
-        } while (_localNames.Contains(name));
-
-        return new SynthesizedDataContainerSymbol(
-            _container,
-            new TypeWithAnnotations(type),
-            SynthesizedLocalKind.ExpanderTemp,
-            name
-        );
     }
 }

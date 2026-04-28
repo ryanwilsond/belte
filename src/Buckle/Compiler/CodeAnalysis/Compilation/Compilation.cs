@@ -500,7 +500,7 @@ public sealed partial class Compilation {
             return null;
 
         if (buildMode == BuildMode.CSharpTranspile) {
-            return CSharpEmitter.EmitToString(program, assemblyName, diagnostics);
+            return CSharpEmitter.EmitToString(program, false, diagnostics);
         } else if (buildMode == BuildMode.Dotnet) {
             return ILEmitter.EmitToString(
                 program,
