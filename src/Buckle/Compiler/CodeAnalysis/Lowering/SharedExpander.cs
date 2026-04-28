@@ -363,25 +363,25 @@ internal class SharedExpander : BoundTreeExpander {
 
         ---->
 
-        temp0 = <assignment.left>
-        <assignment>
+        temp0 = <assignment0.left>
+        <assignment0>
         ...
 
         <body>
 
-        <assignment.left> = temp0
+        <assignment0.left> = temp0
         ...
 
         ----> surround with try
 
-        temp0 = <assignment.left>
-        <assignment>
+        temp0 = <assignment0.left>
+        <assignment0>
         ...
 
         try {
             <body>
         } finally {
-            <assignment.left> = temp0
+            <assignment0.left> = temp0
             ...
         }
 
@@ -411,17 +411,17 @@ internal class SharedExpander : BoundTreeExpander {
         UseKind useKind) {
         /*
 
-        with (<assignment>) <try> <body>
+        with (<assignments>) <body>
 
         ---->
 
-        temp0 = <assignment.left>
-        <assignment>
+        temp0 = <assignment0.left>
+        <assignment0>
         ...
 
         tempN = <body>
 
-        <assignment.left> = temp0
+        <assignment0.left> = temp0
         ...
 
         tempN
