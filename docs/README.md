@@ -54,6 +54,7 @@
         - [2.4.4.4](Current/ControlFlow.md#2444-enumerated-collections) Enumerated Collections
     - [2.5](Current/ControlFlow.md#25-switch) Switch
     - [2.6](Current/ControlFlow.md#26-exceptions) Exceptions
+    - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts

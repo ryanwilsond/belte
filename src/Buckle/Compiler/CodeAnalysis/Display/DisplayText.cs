@@ -167,6 +167,9 @@ public sealed class DisplayText {
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
+            case BoundKind.WithStatement:
+                DisplayWithStatement(text, (BoundWithStatement)node);
+                break;
             case BoundKind.SequencePoint:
                 DisplaySequencePoint(text, (BoundSequencePoint)node);
                 break;
@@ -341,6 +344,9 @@ public sealed class DisplayText {
                 break;
             case BoundKind.IsPatternExpression:
                 DisplayIsPatternExpression(text, (BoundIsPatternExpression)node);
+                break;
+            case BoundKind.WithExpression:
+                DisplayWithExpression(text, (BoundWithExpression)node);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -1204,6 +1210,32 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         SymbolDisplay.AppendToDisplayText(text, node.local);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayWithExpression(DisplayText text, BoundWithExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.WithKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayArguments(text, node.assignments);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.body);
+    }
+
+    private static void DisplayWithStatement(DisplayText text, BoundWithStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.WithKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayArguments(text, node.assignments);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+
+        if (node.wrapWithTry) {
+            text.Write(CreateKeyword(SyntaxKind.TryKeyword));
+            text.Write(CreateSpace());
+        }
+
+        DisplayNode(text, node.body);
     }
 
     private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {

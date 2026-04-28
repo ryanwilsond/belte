@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -7,6 +8,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -350,5 +352,212 @@ internal class SharedExpander : BoundTreeExpander {
         }
 
         return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
+        /*
+
+        with (<assignments>) {
+            <body>
+        }
+
+        ---->
+
+        temp0 = <assignment.left>
+        <assignment>
+        ...
+
+        <body>
+
+        <assignment.left> = temp0
+        ...
+
+        ----> surround with try
+
+        temp0 = <assignment.left>
+        <assignment>
+        ...
+
+        try {
+            <body>
+        } finally {
+            <assignment.left> = temp0
+            ...
+        }
+
+        */
+        var syntax = statement.syntax;
+
+        var lefts = statement.assignments.SelectAsArray(a => GetLeft(a));
+        var temps = lefts.SelectAsArray(l => GenerateTempLocal(l.Item1.type) as DataContainerSymbol);
+
+        var statements = CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts);
+
+        if (statement.wrapWithTry) {
+            var tryBody = Block(syntax, ExpandStatement(statement.body).ToArray());
+            var finallyBody = Block(syntax, CreateWithEpilogue(syntax, newLefts, temps).ToArray());
+            statements.Add(new BoundTryStatement(syntax, tryBody, null, finallyBody));
+        } else {
+            statements.AddRange(ExpandStatement(statement.body));
+            statements.AddRange(CreateWithEpilogue(syntax, lefts, temps));
+        }
+
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandWithExpression(
+        BoundWithExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        with (<assignment>) <try> <body>
+
+        ---->
+
+        temp0 = <assignment.left>
+        <assignment>
+        ...
+
+        tempN = <body>
+
+        <assignment.left> = temp0
+        ...
+
+        tempN
+
+        */
+        var syntax = expression.syntax;
+        var body = expression.body;
+
+        var lefts = expression.assignments.SelectAsArray(a => GetLeft(a));
+        var temps = lefts.SelectAsArray(l => GenerateTempLocal(l.Item1.type) as DataContainerSymbol);
+
+        var tempN = GenerateTempLocal(body.type);
+
+        var statements = CreateWithPrologue(syntax, lefts, temps, expression.assignments, out var newLefts);
+
+        statements.AddRange(ExpandExpression(body, out var newBody));
+        statements.Add(LocalDeclaration(syntax, tempN, newBody));
+
+        statements.AddRange(CreateWithEpilogue(syntax, lefts, temps));
+
+        replacement = Local(syntax, tempN);
+        return statements;
+    }
+
+    private List<BoundStatement> CreateWithPrologue(
+        SyntaxNode syntax,
+        ImmutableArray<(BoundExpression, bool)> lefts,
+        ImmutableArray<DataContainerSymbol> temps,
+        ImmutableArray<BoundExpression> assignments,
+        out ImmutableArray<(BoundExpression, bool)> newLefts) {
+        var statements = new List<BoundStatement>();
+        var builder = ArrayBuilder<(BoundExpression, bool)>.GetInstance(lefts.Length);
+
+        for (var i = 0; i < assignments.Length; i++) {
+            var (left, isRef) = lefts[i];
+            var temp = temps[i];
+            var assignment = assignments[i];
+
+            statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.Writable));
+            statements.Add(LocalDeclaration(syntax, temp, newLeft));
+            statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+
+            builder.Add((newLeft, isRef));
+        }
+
+        newLefts = builder.ToImmutableAndFree();
+        return statements;
+    }
+
+    private List<BoundStatement> CreateWithEpilogue(
+        SyntaxNode syntax,
+        ImmutableArray<(BoundExpression, bool)> lefts,
+        ImmutableArray<DataContainerSymbol> temps) {
+        var statements = new List<BoundStatement>();
+
+        for (var i = temps.Length - 1; i >= 0; i--) {
+            var (left, isRef) = lefts[i];
+            var temp = temps[i];
+
+            statements.Add(
+                new BoundExpressionStatement(syntax, Assignment(syntax, left, Local(syntax, temp), isRef, temp.type))
+            );
+        }
+
+        return statements;
+    }
+
+    private static (BoundExpression, bool) GetLeft(BoundExpression expression) {
+        switch (expression.kind) {
+            case BoundKind.AssignmentOperator:
+                var assignment = (BoundAssignmentOperator)expression;
+                return (assignment.left, assignment.isRef);
+            case BoundKind.CompoundAssignmentOperator:
+                return (((BoundCompoundAssignmentOperator)expression).left, false);
+            case BoundKind.NullCoalescingAssignmentOperator:
+                return (((BoundNullCoalescingAssignmentOperator)expression).left, false);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.kind);
+        }
+    }
+
+    private List<BoundStatement> RecreateAssignment(
+        SyntaxNode syntax,
+        BoundExpression newLeft,
+        BoundExpression expression) {
+        switch (expression.kind) {
+            case BoundKind.AssignmentOperator: {
+                    var assignment = (BoundAssignmentOperator)expression;
+                    var newAssignment = new BoundAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        assignment.right,
+                        assignment.isRef,
+                        assignment.type
+                    );
+
+                    var statements = ExpandExpression(newAssignment, out var replacement);
+                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    return statements;
+                }
+            case BoundKind.CompoundAssignmentOperator: {
+                    var assignment = (BoundCompoundAssignmentOperator)expression;
+                    var newAssignment = new BoundCompoundAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        assignment.right,
+                        assignment.op,
+                        assignment.leftPlaceholder,
+                        assignment.leftConversion,
+                        assignment.finalPlaceholder,
+                        assignment.finalConversion,
+                        assignment.resultKind,
+                        assignment.originalUserDefinedOperators,
+                        assignment.type
+                    );
+
+                    var statements = ExpandExpression(newAssignment, out var replacement);
+                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    return statements;
+                }
+            case BoundKind.NullCoalescingAssignmentOperator: {
+                    var assignment = (BoundNullCoalescingAssignmentOperator)expression;
+                    var newAssignment = new BoundNullCoalescingAssignmentOperator(
+                        syntax,
+                        newLeft,
+                        assignment.right,
+                        assignment.isPropagation,
+                        assignment.type
+                    );
+
+                    var statements = ExpandExpression(newAssignment, out var replacement);
+                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    return statements;
+                }
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.kind);
+        }
     }
 }

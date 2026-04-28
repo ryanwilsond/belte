@@ -153,6 +153,7 @@ public enum SyntaxKind : ushort {
     InKeyword,
     OutKeyword,
     UnionKeyword,
+    WithKeyword,
     HandleKeyword,
 
     // Trivia
@@ -178,6 +179,7 @@ public enum SyntaxKind : ushort {
     BaseExpression,
     ThrowExpression,
     DeclarationExpression,
+    WithExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -232,6 +234,7 @@ public enum SyntaxKind : ushort {
     TryStatement,
     SwitchStatement,
     GotoStatement,
+    WithStatement,
     NullBindingStatement,
 
     // Statement Parts

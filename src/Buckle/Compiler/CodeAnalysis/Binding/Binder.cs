@@ -3061,6 +3061,8 @@ internal partial class Binder {
             case SyntaxKind.ParenthesizedLambdaExpression:
             case SyntaxKind.SimpleLambdaExpression:
                 return BindAnonymousFunction((AnonymousFunctionExpressionSyntax)node, diagnostics);
+            case SyntaxKind.WithExpression:
+                return BindWithExpression((WithExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -3150,6 +3152,31 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundWithExpression BindWithExpression(WithExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var assignments = BindAssignmentExpressionList(node.expressions, diagnostics, out var hasErrors);
+        var body = BindExpression(node.body, diagnostics);
+        return new BoundWithExpression(node, assignments, body, body.type, hasErrors);
+    }
+
+    private ImmutableArray<BoundExpression> BindAssignmentExpressionList(
+        SeparatedSyntaxList<ExpressionSyntax> expressions,
+        BelteDiagnosticQueue diagnostics,
+        out bool hasErrors) {
+        hasErrors = false;
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+
+        foreach (var expression in expressions) {
+            if (expression.kind != SyntaxKind.AssignmentExpression) {
+                diagnostics.Push(Error.WithExpressionNotAssignment(expression.location));
+                hasErrors = true;
+            }
+
+            builder.Add(BindExpression(expression, diagnostics));
+        }
+
+        return builder.ToImmutableAndFree();
     }
 
     private UnboundLambda BindAnonymousFunction(
@@ -10963,6 +10990,7 @@ symIsHidden:;
             SyntaxKind.SwitchStatement => BindSwitchStatement((SwitchStatementSyntax)node, diagnostics),
             SyntaxKind.GotoStatement => BindGotoStatement((GotoStatementSyntax)node, diagnostics),
             SyntaxKind.InlineILStatement => BindInlineILStatement((InlineILStatementSyntax)node, diagnostics),
+            SyntaxKind.WithStatement => BindWithStatement((WithStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -11141,6 +11169,14 @@ symIsHidden:;
             : BindPossibleEmbeddedStatement(node.elseClause.body, diagnostics);
 
         return new BoundIfStatement(node, condition, consequence, alternative);
+    }
+
+    private BoundWithStatement BindWithStatement(WithStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var assignments = BindAssignmentExpressionList(node.expressions, diagnostics, out var hasErrors);
+        var wrapWithTry = node.tryKeyword is not null;
+        var binder = wrapWithTry ? this : GetBinder(node);
+        var body = binder.BindPossibleEmbeddedStatement(node.body, diagnostics);
+        return new BoundWithStatement(node, assignments, body, wrapWithTry, hasErrors);
     }
 
     private BoundNullBindingStatement BindNullBindingStatement(
@@ -12540,10 +12576,6 @@ symIsHidden:;
 
     private BoundBlockStatement BindBlockStatement(BlockStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var binder = GetBinder(node);
-
-        if (node.modifiers?.Any(t => t.kind == SyntaxKind.LowlevelKeyword) == true)
-            binder = binder.WithAdditionalFlags(BinderFlags.LowLevelContext);
-
         return binder.BindBlockParts(node, diagnostics);
     }
 
@@ -12577,6 +12609,9 @@ symIsHidden:;
             var requiredValueKind = GetRequiredReturnValueKind(refKind);
             argument = BindValue(expressionSyntax, diagnostics, requiredValueKind);
         }
+
+        if (flags.Includes(BinderFlags.InWithBody))
+            diagnostics.Push(Warning.ExitingControlFlowInWith(node.location));
 
         var returnType = GetCurrentReturnType(out var signatureRefKind);
         var hasErrors = false;

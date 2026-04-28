@@ -5250,4 +5250,38 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0424_WithExpressionNotAssignment() {
+        var text = @"
+            int a = 3;
+
+            with ([a]) {
+                int b = 5;
+            }
+        ";
+
+        var diagnostics = @"
+            the context expression of a with statement or with expression must be an assignment
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0425_ExitingControlFlowInWith() {
+        var text = @"
+            int a = 3;
+
+            with (a = 0) {
+                [return 3;]
+            }
+        ";
+
+        var diagnostics = @"
+            exiting the with body early will result in the reversals not taking place; consider using a 'with (...) try'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

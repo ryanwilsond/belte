@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -101,8 +102,14 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             case SyntaxKind.IfStatement:
             case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
+            case SyntaxKind.WithStatement:
                 embeddedScopeDesignator = statement;
                 return new EmbeddedStatementBinder(enclosing, statement);
+            case SyntaxKind.SwitchStatement:
+                var switchStatement = (SwitchStatementSyntax)statement;
+                embeddedScopeDesignator = switchStatement.expression;
+                return new ExpressionVariableBinder(switchStatement.expression, enclosing);
+
             default:
                 embeddedScopeDesignator = null;
                 return enclosing;
@@ -303,11 +310,27 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitBlockStatement(BlockStatementSyntax node) {
-        var blockBinder = new BlockBinder(_enclosing, node);
+        var blockBinder = node.modifiers?.Any(t => t.kind == SyntaxKind.LowlevelKeyword) == true
+            ? new BlockBinder(_enclosing, node, BinderFlags.LowLevelContext)
+            : new BlockBinder(_enclosing, node);
+
         AddToMap(node, blockBinder);
 
         foreach (var statement in node.statements)
             Visit(statement, blockBinder);
+    }
+
+    internal override void VisitWithStatement(WithStatementSyntax node) {
+        Binder enclosing;
+
+        if (node.tryKeyword is null) {
+            enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InWithBody);
+            AddToMap(node, enclosing);
+        } else {
+            enclosing = _enclosing;
+        }
+
+        VisitPossibleEmbeddedStatement(node.body, enclosing);
     }
 
     internal override void VisitWhileStatement(WhileStatementSyntax node) {

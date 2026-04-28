@@ -2079,6 +2079,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_PatternCannotHandleTypes, location, message);
     }
 
+    internal static BelteDiagnostic WithExpressionNotAssignment(TextLocation location) {
+        var message = $"the context expression of a with statement or with expression must be an assignment";
+        return CreateError(DiagnosticCode.ERR_WithExpressionNotAssignment, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
