@@ -119,6 +119,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [virtual](ClassesAndObjects.md#432-overriding-modifiers)
 - [where](ClassesAndObjects.md#451-constraint-clauses)
 - [while](ControlFlow.md#241-while-loops)
+- [with](ControlFlow.md#27-with-expressions-and-statements)
 
 The following keywords are reserved names but are not yet used:
 

@@ -25,7 +25,7 @@
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
 - [2.5](#25-switch) Switch
 - [2.6](#26-exceptions) Exceptions
-- [2.7]()
+- [2.7](#27-with-expressions-and-statements) With Expressions and Statements
 
 ## 2.1 Functions
 
@@ -683,3 +683,23 @@ with (a = 6) try {
 In the case of an exception or return or other control-flow breaking circumstance within the body of the `with`, the
 reversal will not take place as the with body is not exited normally. To ensure that the reversal always takes place,
 a `try` keyword can be specified preceding the body as seen in the above example.
+
+Unlike normal blocks, the body of a with statement exposes it's locals to the enclosing scope. This is to allow values
+created inside of the block to be used in the enclosing scope:
+
+```belte
+with (a = 6) {
+  var value = SomeMethod();
+}
+
+return value;
+```
+
+Note that the body of a with statement does not have to be a block. The above example could also be written as:
+
+```belte
+with (a = 6)
+  var value = SomeMethod();
+
+return value;
+```
