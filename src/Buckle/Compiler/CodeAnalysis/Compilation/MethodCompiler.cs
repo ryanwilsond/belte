@@ -442,7 +442,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             out var importChain
         );
 
-        if (body is null || !_emitting || currentDiagnostics.AnyErrors()) {
+        if (body is null || currentDiagnostics.AnyErrors()) {
             _diagnostics.PushRangeAndFree(currentDiagnostics);
             _methodBodies.Add(method, body);
             return;
@@ -458,24 +458,27 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             state,
             _compilation.previousAnalyses,
             currentDiagnostics,
+            !_emitting,
             out var sawCompileTimeExpression
         );
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
 
-        if (!ControlFlowGraph.AllPathsReturn(loweredBody))
-            currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
+        if (_emitting) {
+            if (!ControlFlowGraph.AllPathsReturn(loweredBody))
+                currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
-        if (_compilation.options.buildMode.Evaluating()) {
-            loweredBody = EvaluatorSlotRewriter.Rewrite(
-                method,
-                loweredBody,
-                _typeLayouts,
-                _compilation.previous?.boundProgram,
-                out var slotManager
-            );
+            if (_compilation.options.buildMode.Evaluating()) {
+                loweredBody = EvaluatorSlotRewriter.Rewrite(
+                    method,
+                    loweredBody,
+                    _typeLayouts,
+                    _compilation.previous?.boundProgram,
+                    out var slotManager
+                );
 
-            _methodLayouts.Add(method, slotManager);
+                _methodLayouts.Add(method, slotManager);
+            }
         }
 
         _diagnostics.PushRangeAndFree(currentDiagnostics);
@@ -490,33 +493,32 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
+        bool transpiling,
         out bool sawCompileTimeExpression) {
-        if (state.compilation.options.buildMode == BuildMode.CSharpTranspile) {
-            sawCompileTimeExpression = true;
-            return body;
-        }
-
         var loweredBody = Lowerer.Lower(
             state.compilation.options.optimizationLevel,
             method,
             body,
             currentDiagnostics,
+            transpiling,
             out sawCompileTimeExpression
         );
 
-        loweredBody = LocalFunctionRewriter.Rewrite(
-            loweredBody,
-            state.type,
-            method,
-            methodOrdinal,
-            null,
-            state,
-            previousAnalyses,
-            currentDiagnostics,
-            null // TODO When do we want to use this?
-        );
+        if (!transpiling) {
+            loweredBody = LocalFunctionRewriter.Rewrite(
+                loweredBody,
+                state.type,
+                method,
+                methodOrdinal,
+                null,
+                state,
+                previousAnalyses,
+                currentDiagnostics,
+                null // TODO When do we want to use this?
+            );
 
-        loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
+            loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
+        }
 
         return loweredBody;
     }

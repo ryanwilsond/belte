@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
@@ -5,7 +6,9 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 using IndentedTextWriter = System.CodeDom.Compiler.IndentedTextWriter;
 
@@ -20,6 +23,23 @@ internal sealed class CSharpCodeGenerator {
     private readonly BoundBlockStatement _body;
     private readonly bool _debugMode;
     private readonly IndentedTextWriter _writer;
+
+    private static readonly Dictionary<SpecialType, string> ConvertMethods = new Dictionary<SpecialType, string>{
+        { SpecialType.Bool, "global::System.Convert.ToBoolean" },
+        { SpecialType.Int, "global::System.Convert.ToInt64" },
+        { SpecialType.Int8, "global::System.Convert.ToSByte" },
+        { SpecialType.Int16, "global::System.Convert.ToInt16" },
+        { SpecialType.Int32, "global::System.Convert.ToInt32" },
+        { SpecialType.Int64, "global::System.Convert.ToInt64" },
+        { SpecialType.UInt8, "global::System.Convert.ToByte" },
+        { SpecialType.UInt16, "global::System.Convert.ToUInt16" },
+        { SpecialType.UInt32, "global::System.Convert.ToUInt32" },
+        { SpecialType.UInt64, "global::System.Convert.ToUIn64" },
+        { SpecialType.Decimal, "global::System.Convert.ToDouble" },
+        { SpecialType.Float32, "global::System.Convert.ToSingle" },
+        { SpecialType.Float64, "global::System.Convert.ToDouble" },
+        { SpecialType.Char, "global::System.Convert.ToChar" },
+    };
 
     internal CSharpCodeGenerator(
         CSharpEmitter module,
@@ -79,9 +99,6 @@ internal sealed class CSharpCodeGenerator {
             case BoundKind.ForStatement:
                 EmitForStatement((BoundForStatement)statement);
                 break;
-            case BoundKind.ForEachStatement:
-                EmitForEachStatement((BoundForEachStatement)statement);
-                break;
             case BoundKind.ExpressionStatement:
                 EmitExpressionStatement((BoundExpressionStatement)statement);
                 break;
@@ -138,7 +155,8 @@ internal sealed class CSharpCodeGenerator {
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
         var local = node.declaration.dataContainer;
-        _writer.WriteLine($"{_module.GetType(local.type, local.isRef)} {_module.GetSafeName(local.name)} = {EmitExpression(node.declaration.initializer)};");
+        var initializer = local.isRef ? $"ref {EmitExpression(node.declaration.initializer)}" : EmitExpression(node.declaration.initializer);
+        _writer.WriteLine($"{_module.GetType(local.type, local.isRef)} {_module.GetSafeName(local.name)} = {initializer};");
     }
 
     private void EmitIfStatement(BoundIfStatement node) {
@@ -167,7 +185,7 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private void EmitWhileStatement(BoundWhileStatement node) {
-        using var curly = new CurlyIndenter(_writer, $"while ({node.condition})");
+        using var curly = new CurlyIndenter(_writer, $"while ({EmitExpression(node.condition)})");
         EmitStatement(node.body);
     }
 
@@ -178,10 +196,6 @@ internal sealed class CSharpCodeGenerator {
         using var innerCurly = new CurlyIndenter(_writer, $"for (; {EmitExpression(node.condition)};)");
         EmitStatement(node.body);
         EmitStatement(node.step);
-    }
-
-    private void EmitForEachStatement(BoundForEachStatement node) {
-        // TODO
     }
 
     private void EmitExpressionStatement(BoundExpressionStatement node) {
@@ -212,6 +226,8 @@ internal sealed class CSharpCodeGenerator {
     private void EmitReturnStatement(BoundReturnStatement node) {
         if (node.expression is null)
             _writer.WriteLine("return;");
+        else if (node.refKind != RefKind.None)
+            _writer.WriteLine($"return ref {EmitExpression(node.expression)};");
         else
             _writer.WriteLine($"return {EmitExpression(node.expression)};");
     }
@@ -288,7 +304,6 @@ internal sealed class CSharpCodeGenerator {
         return expression.kind switch {
             BoundKind.DefaultExpression => EmitDefaultExpression((BoundDefaultExpression)expression),
             BoundKind.InitializerList => EmitInitializerList((BoundInitializerList)expression),
-            BoundKind.InitializerDictionary => EmitInitializerDictionary((BoundInitializerDictionary)expression),
             BoundKind.DataContainerExpression => EmitDataContainerExpression((BoundDataContainerExpression)expression),
             BoundKind.AssignmentOperator => EmitAssignmentOperator((BoundAssignmentOperator)expression),
             BoundKind.UnaryOperator => EmitUnaryOperator((BoundUnaryOperator)expression),
@@ -325,7 +340,6 @@ internal sealed class CSharpCodeGenerator {
             BoundKind.FunctionPointerLoad => EmitFunctionPointerLoad((BoundFunctionPointerLoad)expression),
             BoundKind.FunctionPointerCallExpression => EmitFunctionPointerCallExpression((BoundFunctionPointerCallExpression)expression),
             BoundKind.SizeOfOperator => EmitSizeOfOperator((BoundSizeOfOperator)expression),
-            BoundKind.CascadeListExpression => EmitCascadeListExpression((BoundCascadeListExpression)expression),
             BoundKind.ConvertedStackAllocExpression => EmitConvertedStackAllocExpression((BoundConvertedStackAllocExpression)expression),
             BoundKind.InterpolatedStringExpression => EmitInterpolatedStringExpression((BoundInterpolatedStringExpression)expression),
             BoundKind.FunctionLoad => EmitFunctionLoad((BoundFunctionLoad)expression),
@@ -346,17 +360,15 @@ internal sealed class CSharpCodeGenerator {
         return $"{{ {string.Join(", ", node.items.Select(i => EmitExpression(i)))} }}";
     }
 
-    private string EmitInitializerDictionary(BoundInitializerDictionary node) {
-        // TODO
-        return "<initializer-dict>";
-    }
-
     private string EmitDataContainerExpression(BoundDataContainerExpression node) {
         return _module.GetSafeName(node.dataContainer.name);
     }
 
     private string EmitAssignmentOperator(BoundAssignmentOperator node) {
-        return $"{EmitExpression(node.left)} = {EmitExpression(node.right)}";
+        if (node.isRef)
+            return $"{EmitExpression(node.left)} = ref {EmitExpression(node.right)}";
+        else
+            return $"{EmitExpression(node.left)} = {EmitExpression(node.right)}";
     }
 
     private string EmitUnaryOperator(BoundUnaryOperator node) {
@@ -377,7 +389,11 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitBinaryOperator(BoundBinaryOperator node) {
-        return $"({EmitExpression(node.left)} {SyntaxFacts.GetText(node.operatorKind.ToSyntaxKind())} {EmitExpression(node.right)})";
+        var right = node.operatorKind.IsShift() && node.right.StrippedType().specialType.IsLongIntegral()
+            ? $"(global::System.Int32){EmitExpression(node.right)}"
+            : EmitExpression(node.right);
+
+        return $"({EmitExpression(node.left)} {SyntaxFacts.GetText(node.operatorKind.ToSyntaxKind())} {right})";
     }
 
     private string EmitAsOperator(BoundAsOperator node) {
@@ -425,21 +441,90 @@ internal sealed class CSharpCodeGenerator {
         return $"*{EmitExpression(node.operand)}";
     }
 
-    private string EmitCallExpression(BoundCallExpression node) {
-        var method = _module.GetSafeName(node.method.name);
-        var arguments = string.Join(", ", node.arguments.Select(a => EmitExpression(a)));
+    private string EmitCallExpression(BoundCallExpression node, bool skipReceiver = false) {
+        if (node.method.containingType.Equals(StandardLibrary.Random.underlyingNamedType))
+            return EmitRandomCall(node.method, node.arguments, node.argumentRefKinds);
 
-        if (node.receiver is null)
+        if (node.method.IsConstructor())
+            return "/* ctor call */";
+
+        var arguments = EmitArguments(node.arguments, node.argumentRefKinds);
+
+        if ((object)node.method.originalDefinition ==
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue).originalDefinition) {
+            return $"{EmitExpression(node.receiver)}.Value";
+        }
+
+        if ((object)node.method.originalDefinition ==
+            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue).originalDefinition) {
+            return $"{EmitExpression(node.receiver)}.HasValue";
+        }
+
+        var method = _module.GetMethodName(node.method);
+
+        if ((object)node.method.containingType == StandardLibrary.LowLevel.originalDefinition) {
+            if (node.method.name == "SizeOf")
+                return method;
+        }
+
+        if (node.receiver is null || skipReceiver)
             return $"{method}({arguments})";
         else
             return $"{EmitExpression(node.receiver)}.{method}({arguments})";
+    }
+
+    private string EmitRandomCall(
+        MethodSymbol method,
+        ImmutableArray<BoundExpression> arguments,
+        ImmutableArray<RefKind> refKinds) {
+        var random = _module.EnsureGlobalsClassIsBuilt(_writer);
+
+        switch (method.name) {
+            case "RandInt":
+                return $"{random}.NextInt64({EmitArguments(arguments, refKinds)})";
+            case "Random":
+                return $"{random}.NextDouble({EmitArguments(arguments, refKinds)})";
+            default:
+                throw ExceptionUtilities.UnexpectedValue(method.name);
+        }
+    }
+
+    internal string EmitArguments(ImmutableArray<BoundExpression> arguments, ImmutableArray<RefKind> refKinds) {
+        if (refKinds.IsDefault)
+            return string.Join(", ", arguments.Select(a => EmitExpression(a)));
+
+        var builder = ArrayBuilder<string>.GetInstance();
+
+        for (var i = 0; i < arguments.Length; i++) {
+            if (refKinds[i] == RefKind.None)
+                builder.Add(EmitExpression(arguments[i]));
+            else
+                builder.Add($"ref {EmitExpression(arguments[i])}");
+        }
+
+        return string.Join(", ", builder.ToArrayAndFree());
     }
 
     private string EmitCastExpression(BoundCastExpression node) {
         if (node.conversion.isImplicit)
             return EmitExpression(node.operand);
 
+        if (node.conversion.kind is ConversionKind.ImplicitNullToPointer)
+            return $"({_module.GetType(node.StrippedType())})0";
+
+        if (node.StrippedType().specialType == SpecialType.String)
+            return $"{EmitExpression(node.operand)}.ToString()";
+
+        if (node.operand.StrippedType().specialType == SpecialType.String)
+            return EmitConvertCall(node);
+
         return $"({_module.GetType(node.StrippedType())}){EmitExpression(node.operand)}";
+    }
+
+    private string EmitConvertCall(BoundCastExpression node) {
+        var argument = EmitExpression(node.operand);
+        var method = ConvertMethods[node.StrippedType().specialType];
+        return $"{method}({argument})";
     }
 
     private string EmitArrayAccessExpression(BoundArrayAccessExpression node) {
@@ -472,7 +557,7 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitObjectCreationExpression(BoundObjectCreationExpression node) {
-        return $"new {_module.GetType(node.constructor.containingType)}({string.Join(", ", node.arguments.Select(a => EmitExpression(a)))})";
+        return $"new {_module.GetType(node.constructor.containingType)}({EmitArguments(node.arguments, node.argumentRefKinds)})";
     }
 
     private string EmitArrayCreationExpression(BoundArrayCreationExpression node) {
@@ -486,6 +571,9 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitFieldAccessExpression(BoundFieldAccessExpression node) {
+        if (node.receiver is null)
+            return $"{_module.GetType(node.field.containingType)}.{_module.GetSafeName(node.field.name)}";
+
         return $"{EmitExpression(node.receiver)}.{_module.GetSafeName(node.field.name)}";
     }
 
@@ -502,7 +590,7 @@ internal sealed class CSharpCodeGenerator {
                 return $"{receiver}?[{EmitExpression(arrayAccess.index)}]";
             case BoundKind.CallExpression:
                 var callAccess = (BoundCallExpression)access;
-                return $"{receiver}?.{EmitCallExpression(callAccess)}";
+                return $"{receiver}?.{EmitCallExpression(callAccess, skipReceiver: true)}";
             default:
                 throw ExceptionUtilities.UnexpectedValue(access.kind);
         }
@@ -542,17 +630,12 @@ internal sealed class CSharpCodeGenerator {
 
     private string EmitFunctionPointerCallExpression(BoundFunctionPointerCallExpression node) {
         var method = _module.GetSafeName(node.functionPointer.name);
-        var arguments = string.Join(", ", node.arguments.Select(a => EmitExpression(a)));
+        var arguments = EmitArguments(node.arguments, node.argumentRefKindsOpt);
         return $"{method}({arguments})";
     }
 
     private string EmitSizeOfOperator(BoundSizeOfOperator node) {
         return $"sizeof({EmitExpression(node.sourceType)})";
-    }
-
-    private string EmitCascadeListExpression(BoundCascadeListExpression node) {
-        // TODO
-        return "<cascade>";
     }
 
     private string EmitConvertedStackAllocExpression(BoundConvertedStackAllocExpression node) {

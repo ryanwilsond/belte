@@ -138,6 +138,17 @@ internal static class SpecialTypeExtensions {
         }
     }
 
+    internal static bool IsLongIntegral(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Int:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static bool IsLowLevelNumeric(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Int8:

@@ -20,12 +20,14 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Nodes may be visited multiple times.
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriter {
-    private readonly Expander _expander;
+    private readonly SharedExpander _expander;
+    private readonly bool _transpiling;
 
     private bool _sawCompileTimeExpression;
 
-    private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
-        _expander = new Expander(container, diagnostics);
+    private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics, bool transpiling) {
+        _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
+        _transpiling = transpiling;
     }
 
     internal static BoundBlockStatement Lower(
@@ -33,19 +35,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
         MethodSymbol method,
         BoundStatement statement,
         BelteDiagnosticQueue diagnostics,
+        bool transpiling,
         out bool sawCompileTimeExpression) {
-        var lowerer = new Lowerer(method, diagnostics);
-        var optimize = optimizationLevel == OptimizationLevel.Release;
+        var lowerer = new Lowerer(method, diagnostics, transpiling);
+        var optimize = optimizationLevel == OptimizationLevel.Release && !transpiling;
 
         var rewrittenStatement = statement;
 
         if (optimize)
             rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
 
-        rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
-        rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
-        rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
-        rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
+        if (transpiling) {
+            rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
+            rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
+            rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
+        } else {
+            rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
+            rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
+            rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
+            rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
+        }
 
         if (optimize)
             rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
@@ -282,21 +291,23 @@ internal sealed class Lowerer : BoundTreeRewriter {
         goto <label> if <condition>.get_Value()
 
         */
-        var condition = (BoundExpression)Visit(expression.condition);
+        if (!_transpiling) {
+            var condition = (BoundExpression)Visit(expression.condition);
 
-        if (condition.constantValue is null && condition.Type().IsNullableType()) {
-            var syntax = expression.syntax;
+            if (condition.constantValue is null && condition.Type().IsNullableType()) {
+                var syntax = expression.syntax;
 
-            return VisitConditionalOperator(
-                expression.Update(
-                    RewriteNull(syntax, condition),
-                    expression.isRef,
-                    expression.trueExpression,
-                    expression.falseExpression,
-                    expression.constantValue,
-                    expression.type
-                )
-            );
+                return VisitConditionalOperator(
+                    expression.Update(
+                        RewriteNull(syntax, condition),
+                        expression.isRef,
+                        expression.trueExpression,
+                        expression.falseExpression,
+                        expression.constantValue,
+                        expression.type
+                    )
+                );
+            }
         }
 
         return base.VisitConditionalOperator(expression);
