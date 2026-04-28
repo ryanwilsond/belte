@@ -433,6 +433,7 @@ public enum DiagnosticCode : ushort {
     ERR_PatternCannotHandleTypes = 422,
     ERR_FieldNoDefaultValue = 423,
     ERR_WithExpressionNotAssignment = 424,
+    WRN_ExitingControlFlowInWith = 425,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -82,14 +82,17 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
-        var statements = ExpandExpression(statement.assignment, out var newAssignment);
+        var statements = ExpandExpressionList(statement.assignments, out var newAssignments);
+        var syntax = statement.syntax;
 
-        var bodyStatements = ArrayBuilder<BoundStatement>.GetInstance();
-
-        foreach (var childStatement in statement.body)
-            bodyStatements.AddRange(ExpandStatement(childStatement));
-
-        statements.Add(statement.Update(newAssignment, bodyStatements.ToImmutableAndFree(), statement.wrapWithTry));
+        statements.Add(
+            new BoundWithStatement(
+                syntax,
+                newAssignments,
+                Simplify(syntax, ExpandStatement(statement.body)),
+                statement.wrapWithTry
+            )
+        );
 
         return statements;
     }
@@ -389,11 +392,11 @@ internal abstract partial class BoundTreeExpander {
         BoundWithExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = ExpandExpression(expression.assignment, out var newAssignment);
+        var statements = ExpandExpressionList(expression.assignments, out var newAssignments);
         statements.AddRange(ExpandExpression(expression.body, out var newBody));
 
-        if (statements.Count != 0 || expression.assignment != newAssignment || expression.body != newBody) {
-            replacement = expression.Update(newAssignment, newBody, expression.type);
+        if (statements.Count != 0 || expression.assignments != newAssignments || expression.body != newBody) {
+            replacement = expression.Update(newAssignments, newBody, expression.type);
             return statements;
         }
 

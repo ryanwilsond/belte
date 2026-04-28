@@ -1632,7 +1632,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private WithStatementSyntax ParseWithStatement() {
         var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var expression = ParseAssignmentExpression();
+        var expressions = ParseAssignmentExpressionList();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         var tryKeyword = currentToken.kind == SyntaxKind.TryKeyword ? EatToken() : null;
@@ -1642,11 +1642,30 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.WithStatement(
             keyword,
             openParenthesis,
-            expression,
+            expressions,
             closeParenthesis,
             tryKeyword,
             body
         );
+    }
+
+    private SeparatedSyntaxList<ExpressionSyntax> ParseAssignmentExpressionList() {
+        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
+        var parseNextItem = true;
+
+        while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseParenToken) {
+            var expression = ParseAssignmentExpression();
+            nodesAndSeparators.Add(expression);
+
+            if (currentToken.kind == SyntaxKind.CommaToken) {
+                var comma = EatToken();
+                nodesAndSeparators.Add(comma);
+            } else {
+                parseNextItem = false;
+            }
+        }
+
+        return new SeparatedSyntaxList<ExpressionSyntax>(nodesAndSeparators.ToList());
     }
 
     private StatementSyntax ParseExpressionStatement() {
@@ -2028,14 +2047,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private WithExpressionSyntax ParseWithExpression() {
         var keyword = EatToken();
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
-        var expression = ParseAssignmentExpression();
+        var expressions = ParseAssignmentExpressionList();
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
         var body = ParseExpression();
 
         return SyntaxFactory.WithExpression(
             keyword,
             openParenthesis,
-            expression,
+            expressions,
             closeParenthesis,
             body
         );

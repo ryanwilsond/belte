@@ -3155,17 +3155,28 @@ internal partial class Binder {
     }
 
     private BoundWithExpression BindWithExpression(WithExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var hasErrors = false;
+        var assignments = BindAssignmentExpressionList(node.expressions, diagnostics, out var hasErrors);
+        var body = BindExpression(node.body, diagnostics);
+        return new BoundWithExpression(node, assignments, body, body.type, hasErrors);
+    }
 
-        if (node.expression.kind != SyntaxKind.AssignmentExpression) {
-            diagnostics.Push(Error.WithExpressionNotAssignment(node.expression.location));
-            hasErrors = true;
+    private ImmutableArray<BoundExpression> BindAssignmentExpressionList(
+        SeparatedSyntaxList<ExpressionSyntax> expressions,
+        BelteDiagnosticQueue diagnostics,
+        out bool hasErrors) {
+        hasErrors = false;
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+
+        foreach (var expression in expressions) {
+            if (expression.kind != SyntaxKind.AssignmentExpression) {
+                diagnostics.Push(Error.WithExpressionNotAssignment(expression.location));
+                hasErrors = true;
+            }
+
+            builder.Add(BindExpression(expression, diagnostics));
         }
 
-        var expression = BindExpression(node.expression, diagnostics);
-        var body = BindExpression(node.body, diagnostics);
-
-        return new BoundWithExpression(node, expression, body, body.type, hasErrors);
+        return builder.ToImmutableAndFree();
     }
 
     private UnboundLambda BindAnonymousFunction(
@@ -11161,29 +11172,11 @@ symIsHidden:;
     }
 
     private BoundWithStatement BindWithStatement(WithStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        var hasErrors = false;
-
-        if (node.expression.kind != SyntaxKind.AssignmentExpression) {
-            diagnostics.Push(Error.WithExpressionNotAssignment(node.expression.location));
-            hasErrors = true;
-        }
-
-        var expression = BindExpression(node.expression, diagnostics);
-        var builder = ArrayBuilder<BoundStatement>.GetInstance();
-
-        // ? We don't create a new scope if the body is a block for with statements specifically
-        if (node.body.kind == SyntaxKind.BlockStatement) {
-            var statements = ((BlockStatementSyntax)node.body).statements;
-
-            foreach (var statement in statements)
-                builder.Add(BindStatement(statement, diagnostics));
-        } else {
-            builder.Add(BindStatement(node.body, diagnostics));
-        }
-
+        var assignments = BindAssignmentExpressionList(node.expressions, diagnostics, out var hasErrors);
         var wrapWithTry = node.tryKeyword is not null;
-
-        return new BoundWithStatement(node, expression, builder.ToImmutableAndFree(), wrapWithTry, hasErrors);
+        var binder = wrapWithTry ? this : GetBinder(node);
+        var body = binder.BindPossibleEmbeddedStatement(node.body, diagnostics);
+        return new BoundWithStatement(node, assignments, body, wrapWithTry, hasErrors);
     }
 
     private BoundNullBindingStatement BindNullBindingStatement(
@@ -12583,10 +12576,6 @@ symIsHidden:;
 
     private BoundBlockStatement BindBlockStatement(BlockStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var binder = GetBinder(node);
-
-        if (node.modifiers?.Any(t => t.kind == SyntaxKind.LowlevelKeyword) == true)
-            binder = binder.WithAdditionalFlags(BinderFlags.LowLevelContext);
-
         return binder.BindBlockParts(node, diagnostics);
     }
 
@@ -12620,6 +12609,9 @@ symIsHidden:;
             var requiredValueKind = GetRequiredReturnValueKind(refKind);
             argument = BindValue(expressionSyntax, diagnostics, requiredValueKind);
         }
+
+        if (flags.Includes(BinderFlags.InWithBody))
+            diagnostics.Push(Warning.ExitingControlFlowInWith(node.location));
 
         var returnType = GetCurrentReturnType(out var signatureRefKind);
         var hasErrors = false;

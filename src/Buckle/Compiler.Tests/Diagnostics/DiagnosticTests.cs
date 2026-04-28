@@ -5267,4 +5267,21 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Warning_BU0425_ExitingControlFlowInWith() {
+        var text = @"
+            int a = 3;
+
+            with (a = 0) {
+                [return 3;]
+            }
+        ";
+
+        var diagnostics = @"
+            exiting the with body early will result in the reversals not taking place; consider using a 'with (...) try'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

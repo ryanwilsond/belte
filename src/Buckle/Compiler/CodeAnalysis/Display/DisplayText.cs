@@ -1216,7 +1216,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.WithKeyword));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.assignment);
+        DisplayArguments(text, node.assignments);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         DisplayNode(text, node.body);
@@ -1226,7 +1226,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.WithKeyword));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        DisplayNode(text, node.assignment);
+        DisplayArguments(text, node.assignments);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
 
@@ -1235,17 +1235,7 @@ public sealed class DisplayText {
             text.Write(CreateSpace());
         }
 
-        text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-        text.WriteLine();
-
-        text.indent++;
-
-        foreach (var statement in node.body)
-            DisplayNode(text, statement);
-
-        text.indent--;
-        text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
-        text.WriteLine();
+        DisplayNode(text, node.body);
     }
 
     private static void DisplayAsOperator(DisplayText text, BoundAsOperator node) {

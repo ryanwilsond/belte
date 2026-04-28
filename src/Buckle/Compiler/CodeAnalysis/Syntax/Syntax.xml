@@ -941,7 +941,7 @@
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="expressions" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
@@ -1375,7 +1375,7 @@
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="expressions" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>

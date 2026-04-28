@@ -682,24 +682,19 @@ with (a = 6) try {
 
 In the case of an exception or return or other control-flow breaking circumstance within the body of the `with`, the
 reversal will not take place as the with body is not exited normally. To ensure that the reversal always takes place,
-a `try` keyword can be specified preceding the body as seen in the above example.
+a `try` keyword can be specified preceding the body as seen in the above example which wraps the body of the with in a
+`try` block and the reversals inside a `finally` block. A warning is generated if a control-flow breaking construct is
+used without specifying `try`.
 
-Unlike normal blocks, the body of a with statement exposes it's locals to the enclosing scope. This is to allow values
-created inside of the block to be used in the enclosing scope:
-
-```belte
-with (a = 6) {
-  var value = SomeMethod();
-}
-
-return value;
-```
-
-Note that the body of a with statement does not have to be a block. The above example could also be written as:
+The with expression and statement accept multiple assignments where they are assigned in the order they are listed and
+reversed in the reverse order. For example, the following will result in the same order of reversals:
 
 ```belte
-with (a = 6)
-  var value = SomeMethod();
-
-return value;
+return with (a = 5, b = 10, c = 0) SomeMethod();
 ```
+
+```belte
+return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
+```
+
+Using a single `with` where possible is preferred as the compiler can optimize it better.

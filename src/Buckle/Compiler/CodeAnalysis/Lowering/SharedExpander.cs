@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -356,59 +357,49 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
         /*
 
-        with (<assignment>) {
+        with (<assignments>) {
             <body>
         }
 
         ---->
 
-        temp = <assignment.left>
+        temp0 = <assignment.left>
         <assignment>
+        ...
+
         <body>
-        <assignment.left> = temp
+
+        <assignment.left> = temp0
+        ...
 
         ----> surround with try
 
-        temp = <assignment.left>
+        temp0 = <assignment.left>
         <assignment>
+        ...
 
         try {
             <body>
         } finally {
-            <assignment.left> = temp
+            <assignment.left> = temp0
+            ...
         }
 
         */
         var syntax = statement.syntax;
-        var assignment = statement.assignment;
-        var left = GetLeft(assignment, out var isRef);
 
-        var temp = GenerateTempLocal(left.type);
+        var lefts = statement.assignments.SelectAsArray(a => GetLeft(a));
+        var temps = lefts.SelectAsArray(l => GenerateTempLocal(l.Item1.type) as DataContainerSymbol);
 
-        var statements = ExpandExpression(left, out var newLeft, UseKind.Writable);
-        statements.Add(LocalDeclaration(syntax, temp, newLeft));
-        statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+        var statements = CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts);
 
         if (statement.wrapWithTry) {
-            var bodyBuilder = ArrayBuilder<BoundStatement>.GetInstance();
-
-            foreach (var bodyStatement in statement.body)
-                bodyBuilder.AddRange(ExpandStatement(bodyStatement));
-
-            var finallyBody = Block(syntax,
-                new BoundExpressionStatement(syntax, Assignment(syntax, newLeft, Local(syntax, temp), isRef, temp.type))
-            );
-
-            statements.Add(
-                new BoundTryStatement(syntax, Block(syntax, bodyBuilder.ToArrayAndFree()), null, finallyBody)
-            );
+            var tryBody = Block(syntax, ExpandStatement(statement.body).ToArray());
+            var finallyBody = Block(syntax, CreateWithEpilogue(syntax, newLefts, temps).ToArray());
+            statements.Add(new BoundTryStatement(syntax, tryBody, null, finallyBody));
         } else {
-            foreach (var bodyStatement in statement.body)
-                statements.AddRange(ExpandStatement(bodyStatement));
-
-            statements.Add(
-                new BoundExpressionStatement(syntax, Assignment(syntax, newLeft, Local(syntax, temp), isRef, temp.type))
-            );
+            statements.AddRange(ExpandStatement(statement.body));
+            statements.AddRange(CreateWithEpilogue(syntax, lefts, temps));
         }
 
         return statements;
@@ -424,49 +415,89 @@ internal class SharedExpander : BoundTreeExpander {
 
         ---->
 
-        temp = <assignment.left>
+        temp0 = <assignment.left>
         <assignment>
-        temp2 = <body>
-        <assignment.left> = temp
-        temp2
+        ...
+
+        tempN = <body>
+
+        <assignment.left> = temp0
+        ...
+
+        tempN
 
         */
         var syntax = expression.syntax;
-        var assignment = expression.assignment;
         var body = expression.body;
-        var left = GetLeft(assignment, out var isRef);
 
-        var temp = GenerateTempLocal(left.type);
-        var temp2 = GenerateTempLocal(body.type);
+        var lefts = expression.assignments.SelectAsArray(a => GetLeft(a));
+        var temps = lefts.SelectAsArray(l => GenerateTempLocal(l.Item1.type) as DataContainerSymbol);
 
-        var statements = ExpandExpression(left, out var newLeft, UseKind.Writable);
-        statements.Add(LocalDeclaration(syntax, temp, newLeft));
-        statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+        var tempN = GenerateTempLocal(body.type);
+
+        var statements = CreateWithPrologue(syntax, lefts, temps, expression.assignments, out var newLefts);
 
         statements.AddRange(ExpandExpression(body, out var newBody));
-        statements.Add(LocalDeclaration(syntax, temp2, newBody));
+        statements.Add(LocalDeclaration(syntax, tempN, newBody));
 
-        statements.Add(
-            new BoundExpressionStatement(syntax, Assignment(syntax, newLeft, Local(syntax, temp), isRef, temp.type))
-        );
+        statements.AddRange(CreateWithEpilogue(syntax, lefts, temps));
 
-        replacement = Local(syntax, temp2);
+        replacement = Local(syntax, tempN);
+        return statements;
+    }
+
+    private List<BoundStatement> CreateWithPrologue(
+        SyntaxNode syntax,
+        ImmutableArray<(BoundExpression, bool)> lefts,
+        ImmutableArray<DataContainerSymbol> temps,
+        ImmutableArray<BoundExpression> assignments,
+        out ImmutableArray<(BoundExpression, bool)> newLefts) {
+        var statements = new List<BoundStatement>();
+        var builder = ArrayBuilder<(BoundExpression, bool)>.GetInstance(lefts.Length);
+
+        for (var i = 0; i < assignments.Length; i++) {
+            var (left, isRef) = lefts[i];
+            var temp = temps[i];
+            var assignment = assignments[i];
+
+            statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.Writable));
+            statements.Add(LocalDeclaration(syntax, temp, newLeft));
+            statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+
+            builder.Add((newLeft, isRef));
+        }
+
+        newLefts = builder.ToImmutableAndFree();
+        return statements;
+    }
+
+    private List<BoundStatement> CreateWithEpilogue(
+        SyntaxNode syntax,
+        ImmutableArray<(BoundExpression, bool)> lefts,
+        ImmutableArray<DataContainerSymbol> temps) {
+        var statements = new List<BoundStatement>();
+
+        for (var i = temps.Length - 1; i >= 0; i--) {
+            var (left, isRef) = lefts[i];
+            var temp = temps[i];
+
+            statements.Add(
+                new BoundExpressionStatement(syntax, Assignment(syntax, left, Local(syntax, temp), isRef, temp.type))
+            );
+        }
 
         return statements;
     }
 
-    private static BoundExpression GetLeft(BoundExpression expression, out bool isRef) {
+    private static (BoundExpression, bool) GetLeft(BoundExpression expression) {
         switch (expression.kind) {
             case BoundKind.AssignmentOperator:
                 var assignment = (BoundAssignmentOperator)expression;
-                isRef = assignment.isRef;
-                return assignment.left;
+                return (assignment.left, assignment.isRef);
             case BoundKind.CompoundAssignmentOperator:
-                isRef = false;
-                return ((BoundCompoundAssignmentOperator)expression).left;
+                return (((BoundCompoundAssignmentOperator)expression).left, false);
             case BoundKind.NullCoalescingAssignmentOperator:
-                isRef = false;
-                return ((BoundNullCoalescingAssignmentOperator)expression).left;
+                return (((BoundNullCoalescingAssignmentOperator)expression).left, false);
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
