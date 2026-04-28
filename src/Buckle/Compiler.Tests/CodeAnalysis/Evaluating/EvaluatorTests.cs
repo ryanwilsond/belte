@@ -380,6 +380,9 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 3; with (a = 5) try { return a + 5; }", 10)]
     [InlineData("int a = 3; int b = 0; with (a = 5) try { b = a + 5; } return b;", 10)]
     [InlineData("int a = 3; int b = 0; with (a = 5) try { b = a + 5; } return a;", 3)]
+    [InlineData("int a = 0; int[] b = { 1, 1, 1 }; return with (b[a++] = 5) b[a - 1];", 5)]
+    [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return a;", 1)]
+    [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return b[0];", 1)]
     // Local function statements
     [InlineData("int? A() { int? B() { return 2; } return B() + 1; } return A();", 3)]
     [InlineData("int? A() { int? B() { int? A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]

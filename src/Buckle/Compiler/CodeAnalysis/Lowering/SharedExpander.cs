@@ -399,7 +399,7 @@ internal class SharedExpander : BoundTreeExpander {
             statements.Add(new BoundTryStatement(syntax, tryBody, null, finallyBody));
         } else {
             statements.AddRange(ExpandStatement(statement.body));
-            statements.AddRange(CreateWithEpilogue(syntax, lefts, temps));
+            statements.AddRange(CreateWithEpilogue(syntax, newLefts, temps));
         }
 
         return statements;
@@ -440,7 +440,7 @@ internal class SharedExpander : BoundTreeExpander {
         statements.AddRange(ExpandExpression(body, out var newBody));
         statements.Add(LocalDeclaration(syntax, tempN, newBody));
 
-        statements.AddRange(CreateWithEpilogue(syntax, lefts, temps));
+        statements.AddRange(CreateWithEpilogue(syntax, newLefts, temps));
 
         replacement = Local(syntax, tempN);
         return statements;
