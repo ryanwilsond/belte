@@ -44,6 +44,11 @@ internal static class Error {
             var message = $"cannot make Graphics calls when the output kind is not graphics";
             return CreateError(DiagnosticCode.UNS_GraphicsCall, message);
         }
+
+        internal static BelteDiagnostic InlineIL(TextLocation location) {
+            var message = $"unsupported: cannot use inline IL when transpiling to C#";
+            return CreateError(DiagnosticCode.UNS_InlineIL, location, message);
+        }
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {

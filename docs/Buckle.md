@@ -68,6 +68,13 @@ slightly longer compile time.
 
 Note that [some features have restricted](Current/Overview.md#11-endpoint-specific-features) when using this option.
 
+### *-t*, *--transpile*
+
+Instead of producing an executable, the program is transpiled into C# source code after initial compilation.
+
+This option uses the same [feature set as *--dotnet*](Current/Overview.md#11-endpoint-specific-features) with the
+additional restriction of disallowing inline IL.
+
 ### *-o \<filename>*
 
 Specifies the output file. You cannot specify this option in junction with *-i*, *--evaluate*, or *--execute*.

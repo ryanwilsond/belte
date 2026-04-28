@@ -491,6 +491,11 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
         out bool sawCompileTimeExpression) {
+        if (state.compilation.options.buildMode == BuildMode.CSharpTranspile) {
+            sawCompileTimeExpression = true;
+            return body;
+        }
+
         var loweredBody = Lowerer.Lower(
             state.compilation.options.optimizationLevel,
             method,

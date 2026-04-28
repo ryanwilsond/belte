@@ -176,7 +176,7 @@ internal sealed partial class LocalFunctionRewriter {
             if (_currentFunction is null)
                 return;
 
-            if (symbol is DataContainerSymbol local && (local.isConstExpr || local.isGlobal))
+            if (symbol is DataContainerSymbol local && (local.isConstExpr || (local.isGlobal && _options.isScript)))
                 return;
 
             if (symbol is MethodSymbol method && _currentFunction.originalMethodSymbol == method)
