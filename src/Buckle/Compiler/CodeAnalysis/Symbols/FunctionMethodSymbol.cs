@@ -326,4 +326,8 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
     internal override bool IsMetadataVirtual(bool forceComplete = false) {
         return false;
     }
+
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
+    }
 }

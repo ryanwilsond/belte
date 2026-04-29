@@ -1090,7 +1090,7 @@ internal sealed partial class Executor : ModuleBuilder {
         var constructorBuilder = typeBuilder.DefineConstructor(
             GetMethodAttributes(method),
             CallingConventions.Standard,
-            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
+            method.parameters.Select(p => GetTypeOrIntPtr(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
         _constructors.Add(method, constructorBuilder);
@@ -1104,8 +1104,8 @@ internal sealed partial class Executor : ModuleBuilder {
             dllImportData.moduleName,
             GetMethodAttributes(method),
             CallingConventions.Standard,
-            GetType(method.returnType, method.returnsByRef),
-            method.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray(),
+            GetTypeOrIntPtr(method.returnType, method.returnsByRef),
+            method.parameters.Select(p => GetTypeOrIntPtr(p.type, p.refKind != RefKind.None)).ToArray(),
             GetCallingConvention(dllImportData.callingConvention),
             dllImportData.characterSet
         );
@@ -1151,13 +1151,13 @@ internal sealed partial class Executor : ModuleBuilder {
 
         if (body is not null)
             _methodBodies.Add(method, body);
+    }
 
-        Type GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
-            if (type.typeKind == TypeKind.FunctionPointer)
-                return typeof(IntPtr);
+    private Type GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
+        if (type.typeKind == TypeKind.FunctionPointer)
+            return typeof(IntPtr);
 
-            return GetType(type, byRef);
-        }
+        return GetType(type, byRef);
     }
 
     private void EmitMethod(MethodSymbol method, MethodBuilder methodBuilder) {

@@ -164,7 +164,8 @@ internal sealed partial class FlowLowerer {
             BoundExpression literal = Literal(syntax, val, input.type);
             var comparisonType = input.type.EnumUnderlyingTypeOrSelf();
 
-            if (operatorKind.OperandTypes() == BinaryOperatorKind.Int &&
+            // TODO Int32 or Int64 bin op kind?
+            if (operatorKind.OperandTypes() == BinaryOperatorKind.Int64 &&
                 comparisonType.specialType != SpecialType.Int32) {
                 comparisonType = CorLibrary.GetSpecialType(SpecialType.Int32);
                 input = CreateCast(syntax, comparisonType, input);

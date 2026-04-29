@@ -115,6 +115,10 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         return originalDefinition.GetReturnTypeAttributes();
     }
 
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return originalDefinition.GetUnmanagedCallersOnlyAttributeData(forceComplete);
+    }
+
     internal sealed override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
         if (!originalDefinition.TryGetThisParameter(out var originalThisParameter)) {
             thisParameter = null;

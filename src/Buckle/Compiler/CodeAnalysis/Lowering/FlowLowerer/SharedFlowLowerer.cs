@@ -110,7 +110,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
         BoundExpression condition = (isString || isArray || lengthOps.Any())
             ? Binary(syntax,
                 Local(syntax, index),
-                BinaryOperatorKind.IntLessThan,
+                BinaryOperatorKind.Int64LessThan,
                 Local(syntax, lengthOrIter),
                 CorLibrary.GetSpecialType(SpecialType.Bool))
             : InstanceCall(syntax,

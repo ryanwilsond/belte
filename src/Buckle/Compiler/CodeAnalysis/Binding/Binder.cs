@@ -7905,15 +7905,15 @@ internal partial class Binder {
             SpecialType.Float64 => BinaryOperatorKind.Float64,
             SpecialType.Decimal => BinaryOperatorKind.Float64,
             SpecialType.Char => BinaryOperatorKind.Char,
-            SpecialType.Int8 => BinaryOperatorKind.Int,
-            SpecialType.UInt8 => BinaryOperatorKind.Int,
-            SpecialType.UInt16 => BinaryOperatorKind.Int,
-            SpecialType.Int16 => BinaryOperatorKind.Int,
-            SpecialType.Int32 => BinaryOperatorKind.Int,
-            SpecialType.UInt32 => BinaryOperatorKind.UInt,
-            SpecialType.Int64 => BinaryOperatorKind.Int,
-            SpecialType.Int => BinaryOperatorKind.Int,
-            SpecialType.UInt64 => BinaryOperatorKind.UInt,
+            SpecialType.Int8 => BinaryOperatorKind.Int32,
+            SpecialType.UInt8 => BinaryOperatorKind.Int32,
+            SpecialType.UInt16 => BinaryOperatorKind.Int32,
+            SpecialType.Int16 => BinaryOperatorKind.Int32,
+            SpecialType.Int32 => BinaryOperatorKind.Int32,
+            SpecialType.UInt32 => BinaryOperatorKind.UInt32,
+            SpecialType.Int64 => BinaryOperatorKind.Int64,
+            SpecialType.Int => BinaryOperatorKind.Int64,
+            SpecialType.UInt64 => BinaryOperatorKind.UInt64,
             SpecialType.String => BinaryOperatorKind.String,
             SpecialType.Bool => BinaryOperatorKind.Bool,
             _ => BinaryOperatorKind.Error,
@@ -12338,7 +12338,7 @@ symIsHidden:;
             boundSize = ReduceNumericIfApplicable(intType, boundSize);
             boundSize = GenerateConversionForAssignment(intType, boundSize, diagnostics);
 
-            if ((int)boundSize.constantValue.value < 0) {
+            if (boundSize.constantValue is not null && (int)boundSize.constantValue.value < 0) {
                 diagnostics.Push(Error.NegativeStackAllocSize(sizeExpression.location));
                 hasErrors = true;
             }

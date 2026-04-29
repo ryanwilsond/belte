@@ -236,6 +236,7 @@ internal sealed partial class OverloadResolution {
     private void GetEnumOperations(BinaryOperatorKind kind, BoundExpression left, BoundExpression right, ArrayBuilder<BinaryOperatorSignature> results) {
         switch (kind) {
             case BinaryOperatorKind.Multiplication:
+            case BinaryOperatorKind.Power:
             case BinaryOperatorKind.Division:
             case BinaryOperatorKind.Modulo:
             case BinaryOperatorKind.RightShift:

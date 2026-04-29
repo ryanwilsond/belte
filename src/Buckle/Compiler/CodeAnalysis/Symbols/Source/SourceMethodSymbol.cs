@@ -148,6 +148,11 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         return data?.dllImportPlatformInvokeData;
     }
 
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        // TODO
+        return null;
+    }
+
     private protected override void DecodeWellKnownAttributeImpl(
         ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
         if (arguments.symbolPart == AttributeLocation.None) {

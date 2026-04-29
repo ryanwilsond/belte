@@ -142,6 +142,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal abstract DllImportData GetDllImportData();
 
+    internal abstract UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete);
+
     internal virtual void GenerateMethodBody(TypeCompilationState compilationState, BelteDiagnosticQueue diagnostics) {
         throw ExceptionUtilities.Unreachable();
     }

@@ -2538,7 +2538,8 @@ oneMoreTime:
                 return IsUnsigned(GetEnumPromotedType(op.left.type.GetEnumUnderlyingType().specialType));
             case BinaryOperatorKind.UnderlyingAndEnum:
                 return IsUnsigned(GetEnumPromotedType(op.right.type.GetEnumUnderlyingType().specialType));
-            case BinaryOperatorKind.UInt:
+            case BinaryOperatorKind.UInt32:
+            case BinaryOperatorKind.UInt64:
                 return true;
             default:
                 return false;

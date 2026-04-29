@@ -245,6 +245,28 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         return [];
     }
 
+    internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        // TODO
+        // if (!_packedFlags.isUnmanagedCallersOnlyAttributePopulated) {
+        //     var containingModule = (PEModuleSymbol)_containingModule;
+        //     var unmanagedCallersOnlyData = containingModule.module.TryGetUnmanagedCallersOnlyAttribute(_handle, new MetadataDecoder(containingModule),
+        //         static (name, value, isField) => MethodSymbol.TryDecodeUnmanagedCallersOnlyCallConvsField(name, value, isField, location: null, diagnostics: null));
+
+        //     Debug.Assert(!ReferenceEquals(unmanagedCallersOnlyData, UnmanagedCallersOnlyAttributeData.Uninitialized)
+        //                  && !ReferenceEquals(unmanagedCallersOnlyData, UnmanagedCallersOnlyAttributeData.AttributePresentDataNotBound));
+
+        //     var result = InterlockedOperations.Initialize(ref AccessUncommonFields()._lazyUnmanagedCallersOnlyAttributeData,
+        //                                                   unmanagedCallersOnlyData,
+        //                                                   UnmanagedCallersOnlyAttributeData.Uninitialized);
+
+        //     _packedFlags.SetIsUnmanagedCallersOnlyAttributePopulated();
+        //     return result;
+        // }
+
+        // return _uncommonFields?._lazyUnmanagedCallersOnlyAttributeData;
+        return null;
+    }
+
     internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
         return signature.returnParam.GetAttributes();
     }

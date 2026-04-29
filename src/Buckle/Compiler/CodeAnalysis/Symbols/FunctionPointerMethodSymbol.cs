@@ -370,6 +370,10 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
+    }
+
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
     }

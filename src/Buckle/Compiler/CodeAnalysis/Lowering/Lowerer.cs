@@ -172,7 +172,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var syntax = node.syntax;
         var type = node.type;
 
-        if ((int)node.count.constantValue.value == 0)
+        if (node.count.constantValue is not null && (int)node.count.constantValue.value == 0)
             return new BoundLiteralExpression(node.syntax, new ConstantValue(null, SpecialType.None), type);
 
         var elementType = node.elementType;
@@ -244,7 +244,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         return Binary(syntax,
             convertedCount,
-            BinaryOperatorKind.UIntMultiplication,
+            BinaryOperatorKind.UInt64Multiplication,
             sizeOf,
             uintptr
         );
@@ -425,7 +425,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                             Conversion.ExplicitPointerToInteger,
                             null
                         ),
-                        BinaryOperatorKind.UIntAddition,
+                        BinaryOperatorKind.UInt64Addition,
                         Binary(syntax,
                             Cast(syntax,
                                 binaryType,
@@ -433,7 +433,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                                 Conversion.ImplicitNumeric,
                                 null
                             ),
-                            BinaryOperatorKind.UIntMultiplication,
+                            BinaryOperatorKind.UInt64Multiplication,
                             Cast(syntax,
                                 binaryType,
                                 new BoundSizeOfOperator(syntax,

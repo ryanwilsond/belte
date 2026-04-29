@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -160,8 +161,39 @@ internal static partial class BoundFactory {
         return new BoundAssignmentOperator(syntax, left, right, isRef, type);
     }
 
+    private static BoundLiteralExpression GetFixLiteral1(SyntaxNode syntax, TypeSymbol type) {
+        var specialType = type.StrippedType().specialType;
+
+        switch (specialType) {
+            case SpecialType.Int8:
+                return Literal(syntax, (sbyte)1, type);
+            case SpecialType.Int16:
+                return Literal(syntax, (short)1, type);
+            case SpecialType.Int32:
+                return Literal(syntax, 1, type);
+            case SpecialType.UInt8:
+                return Literal(syntax, (byte)1, type);
+            case SpecialType.UInt16:
+                return Literal(syntax, (ushort)1, type);
+            case SpecialType.UInt32:
+                return Literal(syntax, 1U, type);
+            case SpecialType.UInt64:
+                return Literal(syntax, 1UL, type);
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return Literal(syntax, 1L, type);
+            case SpecialType.Float32:
+                return Literal(syntax, 1F, type);
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return Literal(syntax, 1D, type);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(specialType);
+        }
+    }
+
     internal static BoundCompoundAssignmentOperator Increment(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.StrippedType().specialType == SpecialType.Int;
+        var literal = GetFixLiteral1(syntax, operand.type);
         var opKind = OverloadResolution.BinOpEasyOut.OpKind(
             BinaryOperatorKind.Addition,
             operand.Type(),
@@ -172,7 +204,7 @@ internal static partial class BoundFactory {
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
+            literal,
             opSignature,
             null,
             null,
@@ -185,13 +217,18 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Decrement(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.StrippedType().specialType == SpecialType.Int;
-        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.Type(), operand.Type());
+        var literal = GetFixLiteral1(syntax, operand.type);
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(
+            BinaryOperatorKind.Subtraction,
+            operand.Type(),
+            operand.Type()
+        );
+
         var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
+            literal,
             opSignature,
             null,
             null,

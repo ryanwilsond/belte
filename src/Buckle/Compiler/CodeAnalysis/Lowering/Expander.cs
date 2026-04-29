@@ -379,7 +379,7 @@ internal sealed class Expander : SharedExpander {
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
             replacement = Call(
                 syntax,
-                StandardLibrary.GetPowerMethod(op.IsLifted(), op.OperandTypes() == BinaryOperatorKind.Int),
+                StandardLibrary.GetPowerMethod(op.IsLifted(), op.OperandTypes() == BinaryOperatorKind.Int64),
                 newLeft,
                 newRight
             );

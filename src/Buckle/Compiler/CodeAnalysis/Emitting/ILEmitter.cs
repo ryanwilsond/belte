@@ -1067,13 +1067,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         containingType.Methods.Add(methodDefinition);
 
         return methodDefinition;
+    }
 
-        TypeReference GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
-            if (type.typeKind == TypeKind.FunctionPointer)
-                return _specialTypes[SpecialType.IntPtr];
+    private TypeReference GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
+        if (type.typeKind == TypeKind.FunctionPointer)
+            return _specialTypes[SpecialType.IntPtr];
 
-            return GetType(type, byRef);
-        }
+        return GetType(type, byRef);
     }
 
     private MethodDefinition CreatePInvokeMethodDefinition(MethodSymbol method, TypeDefinition containingType) {
@@ -1081,7 +1081,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var methodDefinition = new MethodDefinition(
             method.name,
             GetMethodAttributes(method),
-            GetType(method.returnType, method.returnsByRef)
+            GetTypeOrIntPtr(method.returnType, method.returnsByRef)
         );
 
         var moduleReference = new ModuleReference(dllImportData.moduleName);
@@ -1099,7 +1099,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var parameterDefinition = new Mono.Cecil.ParameterDefinition(
                 parameter.name,
                 ParameterAttributes.None,
-                GetType(parameter.type, parameter.refKind != RefKind.None)
+                GetTypeOrIntPtr(parameter.type, parameter.refKind != RefKind.None)
             );
 
             methodDefinition.Parameters.Add(parameterDefinition);

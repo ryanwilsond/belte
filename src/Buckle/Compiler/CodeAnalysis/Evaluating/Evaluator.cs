@@ -1770,7 +1770,7 @@ internal sealed class Evaluator {
 
         switch (operatorKind.Operator()) {
             case UnaryOperatorKind.UnaryMinus:
-                if (operatorKind.OperandTypes() == UnaryOperatorKind.Int)
+                if (operatorKind.OperandTypes() is UnaryOperatorKind.Int32 or UnaryOperatorKind.Int64)
                     operand.int64 = -operand.int64;
                 else
                     operand.@double = -operand.@double;
@@ -1828,11 +1828,11 @@ internal sealed class Evaluator {
         if (operandType is BinaryOperatorKind.Enum or
             BinaryOperatorKind.EnumAndUnderlying or BinaryOperatorKind.UnderlyingAndEnum) {
             operandType = GetEnumPromotedType(node.left.StrippedType().GetEnumUnderlyingType().StrippedType().specialType) switch {
-                SpecialType.Int32 => BinaryOperatorKind.Int,
-                SpecialType.UInt32 => BinaryOperatorKind.UInt,
-                SpecialType.Int64 => BinaryOperatorKind.Int,
-                SpecialType.UInt64 => BinaryOperatorKind.UInt,
-                SpecialType.Int => BinaryOperatorKind.Int,
+                SpecialType.Int32 => BinaryOperatorKind.Int32,
+                SpecialType.UInt32 => BinaryOperatorKind.UInt32,
+                SpecialType.Int64 => BinaryOperatorKind.Int64,
+                SpecialType.UInt64 => BinaryOperatorKind.UInt64,
+                SpecialType.Int => BinaryOperatorKind.Int64,
                 SpecialType.String => BinaryOperatorKind.String,
                 _ => throw ExceptionUtilities.Unreachable(),
             };
@@ -1851,10 +1851,12 @@ internal sealed class Evaluator {
         switch (op) {
             case BinaryOperatorKind.Addition:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 += right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 += right.uint64;
                         break;
                     case BinaryOperatorKind.String:
@@ -1873,10 +1875,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Subtraction:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 -= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 -= right.uint64;
                         break;
                     case BinaryOperatorKind.Float32:
@@ -1892,10 +1896,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Multiplication:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 *= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 *= right.uint64;
                         break;
                     case BinaryOperatorKind.Float32:
@@ -1911,13 +1917,15 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Division:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         if (right.int64 == 0)
                             throw new BelteDivideByZeroException(node.syntax.location);
 
                         left.int64 /= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         if (right.uint64 == 0)
                             throw new BelteDivideByZeroException(node.syntax.location);
 
@@ -1944,10 +1952,12 @@ internal sealed class Evaluator {
                 left.kind = ValueKind.Bool;
 
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.@bool = left.int64 < right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.@bool = left.uint64 < right.uint64;
                         break;
                     case BinaryOperatorKind.Float32:
@@ -1965,10 +1975,12 @@ internal sealed class Evaluator {
                 left.kind = ValueKind.Bool;
 
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.@bool = left.int64 > right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.@bool = left.uint64 > right.uint64;
                         break;
                     case BinaryOperatorKind.Float32:
@@ -1986,10 +1998,12 @@ internal sealed class Evaluator {
                 left.kind = ValueKind.Bool;
 
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.@bool = left.int64 <= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.@bool = left.uint64 <= right.uint64;
                         break;
                     case BinaryOperatorKind.Float32:
@@ -2007,10 +2021,12 @@ internal sealed class Evaluator {
                 left.kind = ValueKind.Bool;
 
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.@bool = left.int64 >= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.@bool = left.uint64 >= right.uint64;
                         break;
                     case BinaryOperatorKind.Float32:
@@ -2026,10 +2042,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.And:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 &= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 &= right.uint64;
                         break;
                     case BinaryOperatorKind.Bool:
@@ -2042,10 +2060,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Or:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 |= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 |= right.uint64;
                         break;
                     case BinaryOperatorKind.Bool:
@@ -2058,10 +2078,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Xor:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 ^= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 ^= right.uint64;
                         break;
                     case BinaryOperatorKind.Bool:
@@ -2074,10 +2096,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.LeftShift:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 <<= Convert.ToInt32(right.int64);
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 <<= Convert.ToInt32(right.uint64);
                         break;
                     default:
@@ -2087,10 +2111,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.RightShift:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 >>= Convert.ToInt32(right.int64);
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 >>= Convert.ToInt32(right.uint64);
                         break;
                     default:
@@ -2100,10 +2126,12 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.UnsignedRightShift:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         left.int64 >>>= Convert.ToInt32(right.int64);
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 >>>= Convert.ToInt32(right.uint64);
                         break;
                     default:
@@ -2113,13 +2141,15 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Modulo:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int32:
+                    case BinaryOperatorKind.Int64:
                         if (right.int64 == 0)
                             throw new BelteDivideByZeroException(node.syntax.location);
 
                         left.int64 %= right.int64;
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt32:
+                    case BinaryOperatorKind.UInt64:
                         if (right.uint64 == 0)
                             throw new BelteDivideByZeroException(node.syntax.location);
 
@@ -2144,10 +2174,10 @@ internal sealed class Evaluator {
                 break;
             case BinaryOperatorKind.Power:
                 switch (operandType) {
-                    case BinaryOperatorKind.Int:
+                    case BinaryOperatorKind.Int64:
                         left.int64 = (long)Math.Pow(left.int64, right.int64);
                         break;
-                    case BinaryOperatorKind.UInt:
+                    case BinaryOperatorKind.UInt64:
                         left.uint64 = (ulong)Math.Pow(left.uint64, right.uint64);
                         break;
                     case BinaryOperatorKind.Float32:
@@ -2178,10 +2208,12 @@ internal sealed class Evaluator {
             return EvaluatorValue.Literal(left.kind == ValueKind.Null == isEqual);
 
         switch (operandType) {
-            case BinaryOperatorKind.Int:
+            case BinaryOperatorKind.Int32:
+            case BinaryOperatorKind.Int64:
                 left.@bool = left.int64 == right.int64;
                 break;
-            case BinaryOperatorKind.UInt:
+            case BinaryOperatorKind.UInt32:
+            case BinaryOperatorKind.UInt64:
                 left.@bool = left.uint64 == right.uint64;
                 break;
             case BinaryOperatorKind.Float64:
