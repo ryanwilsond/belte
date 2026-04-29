@@ -631,8 +631,12 @@ internal partial class Binder {
                     return namespaceOrNonNullableType;
             }
 
-            if (typeToCheck.specialType == SpecialType.Void || typeToCheck.type.IsStructType() || typeToCheck.isStatic)
+            if (typeToCheck.specialType == SpecialType.Void ||
+                typeToCheck.type.IsStructType() ||
+                typeToCheck.isStatic ||
+                typeToCheck.type.IsEnumType()) {
                 return typeToCheck;
+            }
 
             // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
             if (typeToCheck.type is TemplateParameterSymbol t &&
@@ -9061,8 +9065,15 @@ internal partial class Binder {
                 ? method.parameterTypesWithAnnotations.Select(p => RefKind.None).ToImmutableArray()
                 : method.parameterRefKinds;
 
+            // TODO propagate unmanaged calling convention from attribute data
+            var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
+            var callingConvention = (unmanagedAttribute is null ||
+                unmanagedAttribute == UnmanagedCallersOnlyAttributeData.Uninitialized)
+                    ? CallingConvention.Winapi
+                    : CallingConvention.Unmanaged;
+
             var functionPointerType = FunctionPointerTypeSymbol.CreateFromParts(
-                CallingConvention.Winapi,
+                callingConvention,
                 method.returnTypeWithAnnotations,
                 method.refKind,
                 method.parameterTypesWithAnnotations,

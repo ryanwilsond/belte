@@ -8,13 +8,10 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
-                // "-r",
-                // "--clearsubmissions",
-                "src",
-                "-m:1"
+                "-r",
+                "--clearsubmissions",
             ],
-            // "cwd": "${workspaceFolder}",
-            "cwd": "${workspaceFolder}/../../Belte/DOOM",
+            "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "stopAtEntry": false,
         },

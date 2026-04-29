@@ -5284,4 +5284,37 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
+
+    // ! We don't error check attributes right now
+    // [Fact]
+    // public void Reports_Error_BU0426_UnmanagedRequiresStatic() {
+    //     var text = @"
+    //         public class A {
+    //             \[Unmanaged\]
+    //             public void M() { }
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0427_UnmanagedCannotBeTemplate() {
+    //     var text = @"
+    //         public class A<type T> {
+    //             \[Unmanaged\]
+    //             public void M() { }
+    //         }
+    //     ";
+
+    //     var diagnostics = @"
+    //         methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

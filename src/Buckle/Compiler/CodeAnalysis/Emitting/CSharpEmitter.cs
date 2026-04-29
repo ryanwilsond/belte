@@ -256,6 +256,12 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
                 builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention}, CharSet = {charSet})]");
         }
 
+        var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
+
+        if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
+            builder.Append("[global::System.Runtime.InteropServices.UnmanagedCallersOnly([typeof(global::System.Runtime.CompilerServices.CallConvCdecl)])]");
+        }
+
         if (includeAccessibility) {
             builder.Append(method.declaredAccessibility switch {
                 Accessibility.Private => "private ",

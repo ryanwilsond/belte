@@ -287,6 +287,7 @@ internal static partial class ConstraintsHelpers {
                     return;
                 case TypeKind.Error:
                 case TypeKind.Class:
+                case TypeKind.Enum:
                 case TypeKind.Struct:
                     var typeArguments = ((NamedTypeSymbol)current).templateArguments;
 

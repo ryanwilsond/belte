@@ -195,6 +195,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             return;
 
         EmitRuntimeConfig(outputPath);
+        var dllPath = Path.ChangeExtension(outputPath, ".dll");
 
         if (debugMode) {
             var debugPath = Path.ChangeExtension(outputPath, ".pdb");
@@ -207,10 +208,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 SymbolWriterProvider = new PortablePdbWriterProvider()
             };
 
-            _assemblyDefinition.Write(outputPath, writerParameters);
+            _assemblyDefinition.Write(dllPath, writerParameters);
         } else {
-            _assemblyDefinition.Write(outputPath);
+            _assemblyDefinition.Write(dllPath);
         }
+
+        EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
     }
 
     private void EmitRuntimeConfig(string outputPath) {
@@ -222,6 +225,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var content = $"{{\"runtimeOptions\": {{\"tfm\": \"net{_tfm}\",\"framework\": {{\"name\": \"Microsoft.NETCore.App\",\"version\": \"{_version}\"}}}}}}";
 
         File.WriteAllText(runtimeConfigPath, content);
+    }
+
+    private void EmitAppHost(string outputPath, string dllPath) {
+        var dllName = Path.GetFileName(dllPath);
+        var appHostPath = DotnetReferenceResolver.ResolveAppHostPath(_version);
+        Microsoft.NET.HostModel.AppHost.HostWriter.CreateAppHost(appHostPath, outputPath, dllName);
     }
 
     private string EmitToString(bool programOnly) {
@@ -1059,6 +1068,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _methodTypeParameters.Add(method, genericBuilder.ToArrayAndFree());
         }
 
+        SetCustomAttributes(method, methodDefinition);
+
         _methods.Add(method, methodDefinition);
 
         if (body is not null)
@@ -1067,6 +1078,47 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         containingType.Methods.Add(methodDefinition);
 
         return methodDefinition;
+    }
+
+    private void SetCustomAttributes(MethodSymbol method, MethodDefinition methodDefinition) {
+        var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
+
+        if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
+            var unmanagedAttr = _assemblyDefinition.MainModule
+                .ImportReference(typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute));
+            var callConvCdecl = _assemblyDefinition.MainModule
+                .ImportReference(typeof(System.Runtime.CompilerServices.CallConvCdecl));
+
+            var attrCtor = _assemblyDefinition.MainModule.ImportReference(
+                typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute)
+                    .GetConstructor(Type.EmptyTypes)
+            );
+
+            var attr = new CustomAttribute(attrCtor);
+
+            var typeArray = new CustomAttributeArgument(
+                _assemblyDefinition.MainModule.ImportReference(typeof(Type[])),
+                new CustomAttributeArgument[] {
+                new CustomAttributeArgument(_assemblyDefinition.MainModule.ImportReference(typeof(Type)), callConvCdecl)
+                }
+            );
+
+            var callConvsField = typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute)
+                .GetField(nameof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute.CallConvs));
+
+            // var propRef = new PropertyDefinition(
+            //     callConvsField.Name,
+            //     PropertyAttributes.None,
+            //     _assemblyDefinition.MainModule.ImportReference(typeof(Type[]))
+            // );
+
+            attr.Fields.Add(new CustomAttributeNamedArgument(
+                callConvsField.Name,
+                typeArray
+            ));
+
+            methodDefinition.CustomAttributes.Add(attr);
+        }
     }
 
     private TypeReference GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
@@ -1104,6 +1156,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             methodDefinition.Parameters.Add(parameterDefinition);
         }
+
+        SetCustomAttributes(method, methodDefinition);
 
         _methods.Add(method, methodDefinition);
         containingType.Methods.Add(methodDefinition);

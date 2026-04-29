@@ -54,6 +54,18 @@ internal static class DotnetReferenceResolver {
         return File.Exists(dllPath) ? dllPath : null;
     }
 
+    internal static string ResolveAppHostPath(string version) {
+        var dotnetRoot = GetDotnetRoot();
+        // TODO Support multiple platforms
+        var packsDir = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Host.win-x64", version);
+        var appHost = Path.Combine(packsDir, "runtimes", "win-x64", "native", "apphost.exe");
+
+        if (!File.Exists(appHost))
+            return null;
+
+        return appHost;
+    }
+
     private static List<string> GetInstalledRuntimeVersions() {
         return GetInstalledVersionsCore("--list-runtimes");
     }

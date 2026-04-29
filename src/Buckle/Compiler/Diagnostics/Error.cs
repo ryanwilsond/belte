@@ -2084,6 +2084,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_WithExpressionNotAssignment, location, message);
     }
 
+    internal static BelteDiagnostic UnmanagedRequiresStatic(TextLocation location) {
+        var message = $"'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions";
+        return CreateError(DiagnosticCode.ERR_UnmanagedRequiresStatic, location, message);
+    }
+
+    internal static BelteDiagnostic UnmanagedCannotBeTemplate(TextLocation location) {
+        var message = $"methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type";
+        return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -218,8 +218,8 @@ Hello, world!
 
 ## Building to a .NET DLL
 
-Both the `-d` and `--type=dll` options output a .NET dll. The former outputs a dll alongside a runtime config file so
-that the dll is ready to run by using `dotnet <path/to/dll>`.
+Both the `-d` and `--type=dll` options output a .NET dll. The former outputs a dll alongside a runtime config file and
+an app host executable so that the program is ready to run by using `<path/to/dll>.exe`.
 
 The `--type=dll` option outputs a dll that can be referenced by other applications, but is not a runnable application
 itself. There is no entry point.

@@ -77,6 +77,7 @@
 
   <ItemGroup>
     <PackageReference Include="Lokad.ILPack" Version="0.3.0" />
+    <PackageReference Include="Microsoft.NET.HostModel" Version="3.1.16" />
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.3" />
     <PackageReference Include="System.CodeDom" Version="7.0.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.PooledObjects" Version="3.9.0-5.21120.8" />

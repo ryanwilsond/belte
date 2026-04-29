@@ -719,6 +719,9 @@ internal sealed partial class Executor : ModuleBuilder {
                         list.Add(nt.originalDefinition);
                     }
                 }
+
+                if (member is SourceFixedFieldSymbol fix)
+                    list.Add(GetFixedImplementationType(fix));
             }
 
             if (_program.nestedTypes.ContainsKey(namedType)) {
@@ -750,6 +753,7 @@ internal sealed partial class Executor : ModuleBuilder {
                 Visit(type.originalDefinition);
         }
 
+        // TODO Crashes on struct with fixed buffers that is nested in class
         foreach (var type in result) {
             var tb = _types[type];
             var baked = tb.CreateType();
@@ -1110,6 +1114,8 @@ internal sealed partial class Executor : ModuleBuilder {
             dllImportData.characterSet
         );
 
+        SetCustomAttributes(method, methodBuilder);
+
         methodBuilder.SetImplementationFlags(
             System.Reflection.MethodImplAttributes.PreserveSig
         );
@@ -1147,10 +1153,37 @@ internal sealed partial class Executor : ModuleBuilder {
             method.parameters.Select(p => GetTypeOrIntPtr(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
+        SetCustomAttributes(method, methodBuilder);
+
         _methods.Add(method, methodBuilder);
 
         if (body is not null)
             _methodBodies.Add(method, body);
+    }
+
+    private void SetCustomAttributes(MethodSymbol method, MethodBuilder methodBuilder) {
+        var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
+
+        if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
+            var attrCtor = typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute)
+                .GetConstructor(Type.EmptyTypes);
+
+            var unmanagedType = typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute);
+            var callConvsField = unmanagedType
+                .GetField(nameof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute.CallConvs));
+
+            // TODO We only support Cdecl right now
+            var callConvArray = new Type[] { typeof(System.Runtime.CompilerServices.CallConvCdecl) };
+
+            var attrBuilder = new CustomAttributeBuilder(
+                attrCtor,
+                Array.Empty<object>(),
+                [callConvsField],
+                [callConvArray]
+            );
+
+            methodBuilder.SetCustomAttribute(attrBuilder);
+        }
     }
 
     private Type GetTypeOrIntPtr(TypeSymbol type, bool byRef) {

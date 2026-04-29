@@ -81,4 +81,6 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription RequiresLocationAttribute = new AttributeDescription("System.Runtime.CompilerServices", "RequiresLocationAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription ScopedRefAttribute = new AttributeDescription("System.Runtime.CompilerServices", "ScopedRefAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription DllImportAttribute = new AttributeDescription("System.Runtime.InteropServices", "DllImportAttribute", Signatures_HasThis_Void_String_Only);
+    internal static readonly AttributeDescription UnmanagedCallersOnlyAttribute = new AttributeDescription("System.Runtime.InteropServices", "UnmanagedCallersOnlyAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription UnmanagedAttribute = new AttributeDescription("", "UnmanagedAttribute", Signatures_HasThis_Void_Only);
 }

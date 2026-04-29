@@ -121,7 +121,7 @@ internal sealed class SourceAttributeData : AttributeData {
             return -1;
 
         // TODO Temporary, treated as intrinsic
-        if (description.name == "DllImportAttribute")
+        if (description.name == "DllImportAttribute" || description.name == "UnmanagedAttribute")
             return 1;
 
         var ctor = attributeConstructor;
