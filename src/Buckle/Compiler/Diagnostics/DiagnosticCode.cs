@@ -436,6 +436,7 @@ public enum DiagnosticCode : ushort {
     WRN_ExitingControlFlowInWith = 425,
     ERR_UnmanagedRequiresStatic = 426,
     ERR_UnmanagedCannotBeTemplate = 427,
+    ERR_DestructorInStaticClass = 428,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

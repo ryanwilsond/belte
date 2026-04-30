@@ -2094,6 +2094,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
     }
 
+    internal static BelteDiagnostic DestructorInStaticClass(TextLocation location) {
+        var message = $"static classes cannot contain destructors";
+        return CreateError(DiagnosticCode.ERR_DestructorInStaticClass, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

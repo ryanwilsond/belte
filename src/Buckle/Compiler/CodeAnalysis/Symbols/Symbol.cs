@@ -162,6 +162,8 @@ internal abstract class Symbol : ISymbol {
                         case MethodKind.Ordinary:
                         case MethodKind.LocalFunction:
                             break;
+                        case MethodKind.Destructor:
+                            return true;
                         default:
                             return false;
                     }

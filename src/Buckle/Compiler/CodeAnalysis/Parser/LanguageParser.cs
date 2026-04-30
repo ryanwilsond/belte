@@ -180,6 +180,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if ((_context & ParserContext.InClassDefinition) != 0 && currentToken.kind == SyntaxKind.ConstructorKeyword)
             return ParseConstructorDeclaration(attributeLists, modifiers);
 
+        if ((_context & ParserContext.InClassDefinition) != 0 && currentToken.kind == SyntaxKind.DestructorKeyword)
+            return ParseDestructorDeclaration(attributeLists, modifiers);
+
         if ((_context & ParserContext.InClassDefinition) != 0 &&
             currentToken.contextualKind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword) {
             return ParseConversionDeclaration(attributeLists, modifiers);
@@ -256,6 +259,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.EnumDeclaration:
             case SyntaxKind.OperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
+            case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:
                 return true;
@@ -562,6 +566,26 @@ internal sealed partial class LanguageParser : SyntaxParser {
             parameterList,
             implicitKeyword,
             constructorInitializer,
+            body
+        );
+    }
+
+    private DestructorDeclarationSyntax ParseDestructorDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var destructorKeyword = Match(SyntaxKind.DestructorKeyword, SyntaxKind.OpenParenToken);
+        var parameterList = SyntaxFactory.ParameterList(
+            Match(SyntaxKind.OpenParenToken),
+            default,
+            Match(SyntaxKind.CloseParenToken)
+        );
+        var body = ParseBlockStatement();
+
+        return SyntaxFactory.DestructorDeclaration(
+            attributeLists,
+            modifiers,
+            destructorKeyword,
+            parameterList,
             body
         );
     }

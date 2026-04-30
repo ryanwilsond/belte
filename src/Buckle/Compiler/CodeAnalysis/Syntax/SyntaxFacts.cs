@@ -223,6 +223,7 @@ public static class SyntaxFacts {
             "out" => SyntaxKind.OutKeyword,
             "union" => SyntaxKind.UnionKeyword,
             "with" => SyntaxKind.WithKeyword,
+            "destructor" => SyntaxKind.DestructorKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -382,6 +383,7 @@ public static class SyntaxFacts {
             SyntaxKind.OutKeyword => "out",
             SyntaxKind.UnionKeyword => "union",
             SyntaxKind.WithKeyword => "with",
+            SyntaxKind.DestructorKeyword => "destructor",
             _ => null,
         };
     }

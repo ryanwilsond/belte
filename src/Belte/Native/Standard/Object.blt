@@ -2,6 +2,8 @@
 public class Object {
     public constructor() { }
 
+    destructor() { }
+
     public virtual string? ToString() {
         return LowLevel.GetTypeName(this);
     }

@@ -419,6 +419,8 @@ internal sealed partial class BinderFactory {
             switch (syntax.kind) {
                 case SyntaxKind.ConstructorDeclaration:
                     return WellKnownMemberNames.InstanceConstructorName;
+                case SyntaxKind.DestructorDeclaration:
+                    return WellKnownMemberNames.DestructorName;
                 case SyntaxKind.OperatorDeclaration:
                     var operatorDeclaration = (OperatorDeclarationSyntax)syntax;
                     return SyntaxFacts.GetOperatorMemberName(operatorDeclaration);

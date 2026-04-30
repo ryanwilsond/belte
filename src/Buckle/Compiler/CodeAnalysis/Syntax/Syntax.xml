@@ -658,6 +658,19 @@
     <Field Name="constructorInitializer" Type="ConstructorInitializerSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
+  <Node Name="DestructorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="DestructorDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="destructorKeyword" Type="SyntaxToken">
+      <Kind Name="DestructorKeyword"/>
+    </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+  </Node>
   <Node Name="FieldDeclarationSyntax" Base="MemberDeclarationSyntax">
     <Kind Name="FieldDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>

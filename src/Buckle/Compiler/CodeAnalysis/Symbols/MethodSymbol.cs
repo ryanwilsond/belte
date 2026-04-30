@@ -223,6 +223,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         switch (kind) {
             case MethodKind.Constructor:
             case MethodKind.StaticConstructor:
+            case MethodKind.Destructor:
                 return false;
             case MethodKind.LocalFunction:
             case MethodKind.Operator:

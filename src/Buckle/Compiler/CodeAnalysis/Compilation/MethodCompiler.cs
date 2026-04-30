@@ -617,6 +617,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             }
         }
 
+        if (method.methodKind == MethodKind.Destructor && body is not null) {
+            return ConstructDestructorBody(
+                method,
+                body,
+                state.compilation.options.optimizationLevel == OptimizationLevel.Debug
+            );
+        }
+
         var constructorInitializer = BindImplicitConstructorInitializerIfAny(method, state, syntaxNode, diagnostics);
 
         if (includeInitializers)
@@ -708,5 +716,75 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
     private static bool PassesFilter(Predicate<Symbol> filter, Symbol symbol) {
         return (filter is null) || filter(symbol);
+    }
+
+    internal static BoundBlockStatement ConstructDestructorBody(
+        MethodSymbol method,
+        BoundBlockStatement block,
+        bool generateSequencePoint) {
+        var syntax = block.syntax;
+        var baseTypeFinalize = GetBaseTypeFinalizeMethod(method);
+
+        if (baseTypeFinalize is not null) {
+            BoundStatement baseFinalizeCall = new BoundExpressionStatement(syntax,
+                new BoundCallExpression(syntax,
+                    new BoundBaseExpression(syntax, method.containingType),
+                    baseTypeFinalize,
+                    [],
+                    [],
+                    BitVector.Empty,
+                    LookupResultKind.Empty,
+                    baseTypeFinalize.returnType
+                )
+            );
+
+            if (syntax.kind == SyntaxKind.BlockStatement && generateSequencePoint) {
+                baseFinalizeCall = new BoundSequencePointWithLocation(
+                    syntax,
+                    baseFinalizeCall,
+                    ((BlockStatementSyntax)syntax).closeBrace.location
+                );
+            }
+
+            return new BoundBlockStatement(syntax,
+                [new BoundTryStatement(syntax,
+                    block,
+                    null,
+                    new BoundBlockStatement(syntax,
+                        [baseFinalizeCall],
+                        [],
+                        []
+                    )
+                )],
+                [],
+                []
+            );
+        }
+
+        return block;
+    }
+
+    private static MethodSymbol GetBaseTypeFinalizeMethod(MethodSymbol method) {
+        var baseType = method.containingType.baseType;
+
+        while (baseType is not null) {
+            foreach (var member in baseType.GetMembers(WellKnownMemberNames.DestructorName)) {
+                if (member.kind == SymbolKind.Method) {
+                    var baseTypeMethod = (MethodSymbol)member;
+                    var accessibility = baseTypeMethod.declaredAccessibility;
+
+                    if ((accessibility == Accessibility.Protected) &&
+                        baseTypeMethod.parameterCount == 0 &&
+                        baseTypeMethod.arity == 0 &&
+                        baseTypeMethod.returnsVoid) {
+                        return baseTypeMethod;
+                    }
+                }
+            }
+
+            baseType = baseType.baseType;
+        }
+
+        return null;
     }
 }

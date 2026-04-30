@@ -528,6 +528,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             var isNew = sourceMethod.isNew;
                             CheckNonOverrideMember(method, isNew, method.overriddenOrHiddenMembers, diagnostics);
                         }
+                    } else if (method.methodKind == MethodKind.Destructor) {
+                        // TODO Do we care about this error
+                        // MethodSymbol overridden = method.GetFirstRuntimeOverriddenMethodIgnoringNewSlot(out _);
+
+                        // // NOTE: Dev11 doesn't expose symbols, so it can treat destructors as override and let them go through the normal
+                        // // checks.  Roslyn can't, since the language says they are not virtual/override and that's what we need to expose
+                        // // in the symbol model.  Having said that, Dev11 doesn't seem to produce override errors other than this one
+                        // // (see SymbolPreparer::prepareOperator).
+                        // if ((object)overridden != null && overridden.IsMetadataFinal) {
+                        //     diagnostics.Add(ErrorCode.ERR_CantOverrideSealed, method.GetFirstLocation(), method, overridden);
+                        // }
                     }
 
                     break;
@@ -1116,7 +1127,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         foreach (var valuesByName in GetMembersByName().Values) {
             foreach (var member in valuesByName) {
                 if (member.declaredAccessibility.HasProtected()) {
-                    diagnostics.Push(Error.ProtectedInStatic(member.location, member));
+                    if (member.kind != SymbolKind.Method || ((MethodSymbol)member).methodKind != MethodKind.Destructor)
+                        diagnostics.Push(Error.ProtectedInStatic(member.location, member));
                 }
             }
         }
@@ -1599,6 +1611,16 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         );
 
                         builder.nonTypeMembers.Add(constructor);
+                    }
+                    break;
+                case SyntaxKind.DestructorDeclaration: {
+                        var destructorSyntax = (DestructorDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(destructorSyntax.destructorKeyword.location));
+
+                        var destructor = new SourceDestructorSymbol(this, destructorSyntax, diagnostics);
+                        builder.nonTypeMembers.Add(destructor);
                     }
                     break;
                 case SyntaxKind.OperatorDeclaration: {

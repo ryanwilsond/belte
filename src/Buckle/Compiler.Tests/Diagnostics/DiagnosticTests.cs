@@ -5317,4 +5317,19 @@ public sealed class DiagnosticTests {
 
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
+
+    [Fact]
+    public void Reports_Warning_BU0428_DestructorInStaticClass() {
+        var text = @"
+            public static class A {
+                [destructor]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            static classes cannot contain destructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }
