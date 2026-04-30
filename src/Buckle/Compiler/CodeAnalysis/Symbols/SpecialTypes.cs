@@ -24,6 +24,7 @@ internal static class SpecialTypes {
         { "global::intptr", SpecialType.IntPtr },
         { "global::uintptr", SpecialType.UIntPtr },
         { "global::bool", SpecialType.Bool },
+        { "global::winbool", SpecialType.WinBool },
         { "global::char", SpecialType.Char },
         { "global::string", SpecialType.String },
         { "global::type", SpecialType.Type },

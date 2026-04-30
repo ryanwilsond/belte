@@ -67,10 +67,11 @@ public lowlevel sealed class List<type T> {
             return;
         }
 
-        int! newCapacity = _length + 10;
+        int! newCapacity = _length * 2;
         T[] newArray = new T[newCapacity];
         Array<T>.Copy(newArray, _array, 0, _length);
         _array = newArray;
+        _array[_length] = value;
 
         _length++;
         _res = newCapacity;
@@ -83,7 +84,7 @@ public lowlevel sealed class List<type T> {
             return;
         }
 
-        int! newCapacity = _length + list._length + 10;
+        int! newCapacity = _length + list._length * 2;
         T[] newArray = new T[newCapacity];
         Array<T>.Copy(newArray, _array, 0, _length);
         Array<T>.Copy(newArray, list._array, _length, list._length);
@@ -91,6 +92,18 @@ public lowlevel sealed class List<type T> {
 
         _length += list._length;
         _res = newCapacity;
+    }
+
+    public void RemoveAt(int! index) {
+        index = PosIndex(index);
+
+        if (index < 0 || index >= _length)
+            return;
+
+        for (int! i = index; i < _length - 1; i++)
+            _array[i] = _array[i + 1];
+
+        _length--;
     }
 
     public void Assign(int! index, T value) {

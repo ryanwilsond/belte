@@ -549,14 +549,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers) {
         var constructorKeyword = Match(SyntaxKind.ConstructorKeyword, SyntaxKind.OpenParenToken);
         var parameterList = ParseParameterList();
+        var implicitKeyword = currentToken.contextualKind == SyntaxKind.ImplicitKeyword
+            ? ConvertToKeyword(EatToken())
+            : null;
         var constructorInitializer = currentToken.kind == SyntaxKind.ColonToken ? ParseConstructorInitializer() : null;
-        var body = (BlockStatementSyntax)ParseBlockStatement();
+        var body = ParseBlockStatement();
 
         return SyntaxFactory.ConstructorDeclaration(
             attributeLists,
             modifiers,
             constructorKeyword,
             parameterList,
+            implicitKeyword,
             constructorInitializer,
             body
         );
@@ -579,6 +583,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             ? ParseTemplateParameterList()
             : null;
         var parameterList = ParseParameterList();
+        var implicitKeyword = currentToken.contextualKind == SyntaxKind.ImplicitKeyword
+            ? ConvertToKeyword(EatToken())
+            : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -588,7 +595,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (currentToken.kind == SyntaxKind.SemicolonToken)
             semicolon = Match(SyntaxKind.SemicolonToken);
         else
-            body = (BlockStatementSyntax)ParseBlockStatement();
+            body = ParseBlockStatement();
 
         return SyntaxFactory.MethodDeclaration(
             attributeLists,
@@ -597,6 +604,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             identifier,
             templateParameterList,
             parameterList,
+            implicitKeyword,
             constraintClauseList,
             body,
             semicolon
@@ -616,7 +624,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
 
         var parameterList = ParseParameterList();
-        var body = (BlockStatementSyntax)ParseBlockStatement();
+        var body = ParseBlockStatement();
 
         switch (parameterList.parameters.Count) {
             case 1:
@@ -673,6 +681,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             operatorToken,
             rightOperatorToken,
             parameterList,
+            null,
             body
         );
     }
@@ -689,7 +698,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
         var type = ParseType(false);
         var parameterList = ParseParameterList();
-        var body = (BlockStatementSyntax)ParseBlockStatement();
+        var body = ParseBlockStatement();
 
         if (parameterList.parameters.Count != 1) {
             operatorKeyword = AddDiagnostic(
@@ -705,6 +714,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             operatorKeyword,
             type,
             parameterList,
+            null,
             body
         );
     }
@@ -718,10 +728,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
             ? ParseTemplateParameterList()
             : null;
         var parameterList = ParseParameterList();
+        var implicitKeyword = currentToken.contextualKind == SyntaxKind.ImplicitKeyword
+            ? ConvertToKeyword(EatToken())
+            : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
-        var body = (BlockStatementSyntax)ParseBlockStatement();
+        var body = ParseBlockStatement();
 
         return SyntaxFactory.LocalFunctionStatement(
             attributeLists,
@@ -730,6 +743,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             identifier,
             templateParameterList,
             parameterList,
+            implicitKeyword,
             constraintClauseList,
             body
         );

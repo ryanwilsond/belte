@@ -339,9 +339,6 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
-        if (from != SpecialType.String && to != SpecialType.String)
-            throw ExceptionUtilities.UnexpectedValue((from, to));
-
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
                 iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToBoolean_S);
@@ -426,6 +423,12 @@ internal sealed class CecilILBuilder : ILBuilder {
                 break;
             case (SpecialType.Float64, SpecialType.String):
                 iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToString_F64);
+                break;
+            case (SpecialType.WinBool, SpecialType.Bool):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToBoolean_I32);
+                break;
+            case (SpecialType.Bool, SpecialType.WinBool):
+                iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.Convert_ToInt32_B);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue((from, to));

@@ -578,6 +578,9 @@ public static partial class BuckleCommandLine {
                 case "-l1":
                     l = 1;
                     break;
+                case "-l2":
+                    l = 2;
+                    break;
                 case "--sae":
                     sae = true;
                     break;

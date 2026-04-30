@@ -2325,7 +2325,9 @@ internal sealed partial class OverloadResolution {
 
         if (argRefKind == RefKind.None) {
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument);
-            var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
+            var conversion = (candidate is MethodSymbol m && m.coerceArguments)
+                ? conversions.ClassifyConversionFromExpression(argument, parameterType)
+                : conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
             return conversion;
         }
 

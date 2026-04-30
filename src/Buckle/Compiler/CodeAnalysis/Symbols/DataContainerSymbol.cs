@@ -72,8 +72,10 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
             switch (declarationKind) {
                 case DataContainerDeclarationKind.Constant:
                 case DataContainerDeclarationKind.ConstantExpression:
-                case DataContainerDeclarationKind.ForEachLocal:
-                case DataContainerDeclarationKind.NullBindingLocal:
+                    // TODO Assignment doesn't really make sense but we allow it because assigning to fields does make sense
+                    // TODO We should probably differentiate between local assignment and local modification
+                    // case DataContainerDeclarationKind.ForEachLocal:
+                    // case DataContainerDeclarationKind.NullBindingLocal:
                     return false;
                 default:
                     return true;

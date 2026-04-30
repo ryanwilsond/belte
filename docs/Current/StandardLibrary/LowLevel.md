@@ -20,6 +20,7 @@ The Belte public interface for the LowLevel class can be found
 | `void Sort<type T>(T!)` | Sorts the given array, or does nothing if not passed an array. |
 | `int32 SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. (Using the [`sizeof` operator](../LowLevelFeatures.md#69-sizeof-operator) is preferred.) |
 | `uint8* CreateLPCSTR(string!)` | Creates a raw `uint8` (representing ascii characters) array with the content of the passed string and returns a pointer to the first element. |
+| `uint8* CreateLPCSTR_UTF(string!)` | Creates a raw `uint8` (representing utf-8 characters) array with the content of the passed string and returns a pointer to the first element. |
 | `char* CreateLPCWSTR(string!)` | Creates a raw `char!` (representing unicode characters) array with the content of the passed string and returns a pointer to the first element. |
 | `void FreeLPCSTR(uint8*)` | Frees the memory used by a raw `uint8` array. |
 | `void FreeLPCWSTR(char*)` | Frees the memory used by a raw `char!` array. |

@@ -511,6 +511,7 @@ internal sealed partial class CodeGenerator {
                     EmitIntConstant((short)value);
 
                 break;
+            case SpecialType.WinBool:
             case SpecialType.Int32:
                 if (promoteToLong)
                     EmitLongConstant((int)value);
@@ -1993,7 +1994,7 @@ oneMoreTime:
     private void EmitDefaultValue(TypeSymbol type, bool used, SyntaxNode syntaxNode) {
         if (used) {
             if (!type.IsTemplateParameter()) {
-                var constantValue = type.IsVerifierValue() ? LiteralUtilities.GetDefaultValue(type.specialType) : null;
+                var constantValue = LiteralUtilities.TryGetDefaultValue(type);
 
                 if (constantValue is not null) {
                     EmitConstantValue(new ConstantValue(constantValue, type.specialType), type);
@@ -3882,6 +3883,9 @@ oneMoreTime:
 
         if (specialType == SpecialType.Decimal)
             return SpecialType.Float64;
+
+        if (specialType == SpecialType.WinBool)
+            return SpecialType.Int32;
 
         return specialType;
     }

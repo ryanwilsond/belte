@@ -37,6 +37,7 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Object, typeof(object) },
         { SpecialType.Any, typeof(object) },
         { SpecialType.Bool, typeof(bool) },
+        { SpecialType.WinBool, typeof(int) },
         { SpecialType.Int, typeof(long) },
         { SpecialType.Int8, typeof(sbyte) },
         { SpecialType.Int16, typeof(short) },
@@ -1114,6 +1115,20 @@ internal sealed partial class Executor : ModuleBuilder {
             dllImportData.characterSet
         );
 
+        if (method.returnType.specialType == SpecialType.Bool) {
+            var marshalAsCtor = typeof(System.Runtime.InteropServices.MarshalAsAttribute)
+                .GetConstructor([typeof(System.Runtime.InteropServices.UnmanagedType)]);
+
+            var attr = new CustomAttributeBuilder(
+                marshalAsCtor,
+                [System.Runtime.InteropServices.UnmanagedType.I1]
+            );
+
+            var returnParam = methodBuilder.DefineParameter(0, ParameterAttributes.None, null);
+
+            returnParam.SetCustomAttribute(attr);
+        }
+
         SetCustomAttributes(method, methodBuilder);
 
         methodBuilder.SetImplementationFlags(
@@ -1532,6 +1547,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetType_A", typeof(Belte.Runtime.Utilities).GetMethod("AnyGetType", Flags, [typeof(object)]) },
             { "LowLevel_ThrowNullConditionException", typeof(Belte.Runtime.ThrowHelper).GetMethod("ThrowNullConditionException", Flags, Type.EmptyTypes) },
             { "LowLevel_CreateLPCSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCSTR", Flags, [typeof(string)]) },
+            { "LowLevel_CreateLPCSTR_UTF_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCSTR_UTF", Flags, [typeof(string)]) },
             { "LowLevel_CreateLPCWSTR_S", typeof(Belte.Runtime.Utilities).GetMethod("CreateLPCWSTR", Flags, [typeof(string)]) },
             { "LowLevel_FreeLPCSTR_U*", typeof(Belte.Runtime.Utilities).GetMethod("FreeLPCSTR", Flags, [typeof(byte*)]) },
             { "LowLevel_FreeLPCWSTR_C*", typeof(Belte.Runtime.Utilities).GetMethod("FreeLPCWSTR", Flags, [typeof(char*)]) },

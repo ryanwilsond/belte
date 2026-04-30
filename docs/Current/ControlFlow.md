@@ -7,6 +7,7 @@
   - [2.1.4](#214-named-arguments) Named Arguments
   - [2.1.5](#215-template-arguments) Template Arguments
   - [2.1.6](#216-ref-arguments) Ref Arguments
+  - [2.1.7](#217-argument-coercion) Argument Coercion
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
@@ -158,6 +159,25 @@ int Func(out int a) {
 Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
 the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
 used as the type for an out parameter.
+
+### 2.1.7 Argument Coercion
+
+Normally, passing arguments uses normal casting rules. By using the `implicit` keyword between the parameter list and
+body, explicit casts from arguments to parameters will be treated as though they were implicit:
+
+```belte
+F(3.3); // Explicit decimal -> int cast not needed
+
+void F(int a) implicit { }
+```
+
+Without the `implicit` keyword, the call in the above example would have to be written:
+
+```belte
+F((int)3.3);
+
+void F(int a) { }
+```
 
 ## 2.2 Entry Point
 

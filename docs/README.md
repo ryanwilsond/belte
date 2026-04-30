@@ -36,6 +36,7 @@
       - [2.1.4](Current/ControlFlow.md#214-named-arguments) Named Arguments
       - [2.1.5](Current/ControlFlow.md#215-template-arguments) Template Arguments
       - [2.1.6](Current/ControlFlow.md#216-ref-arguments) Ref Arguments
+      - [2.1.7](Current/ControlFlow.md#217-argument-coercion) Argument Coercion
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
@@ -141,6 +142,7 @@
     - [6.6](Current/LowLevelFeatures.md#66-function-pointers) Function Pointers
       - [6.6.1](Current/LowLevelFeatures.md#661-calling-conventions) Calling Conventions
     - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
+      - [6.7.1](Current/LowLevelFeatures.md#671-winbool) WinBool
     - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
     - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator

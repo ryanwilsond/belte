@@ -33,6 +33,7 @@ new List<int>();
 |-|-|
 | `void Append(T)` | Adds an element to the end of the list. |
 | `void AppendRange(List<T>)` | Adds a List of elements to the end of the list. |
+| `void RemoveAt(int!)` | Removes the element at the given index if it exists. |
 | `void Assign(int!, T)` | Assigns a value at a specified index. |
 | `void Clear()` | Removes all elements form the list. |
 | `void Fill(T)` | Fills the entire list with a value. |

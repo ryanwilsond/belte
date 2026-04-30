@@ -151,22 +151,6 @@ public static partial class SyntaxFactory {
         );
     }
 
-    internal static MethodDeclarationSyntax MethodWithParent(BlockStatementSyntax body) {
-        return MethodDeclaration(
-            List<AttributeListSyntax>(),
-            SyntaxTokenList.Empty,
-            IdentifierName(""),
-            Identifier(""),
-            TemplateParameterList(),
-            ParameterList(),
-            ConstraintClauseList(),
-            body,
-            Token(SyntaxKind.SemicolonToken),
-            body.statements[0],
-            body.statements[0].position
-        );
-    }
-
     /// <summary>
     /// Creates a <see cref="ReturnStatementSyntax" />.
     /// </summary>

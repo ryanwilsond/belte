@@ -155,7 +155,7 @@ option.
 
 Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d*/*--dotnet* option was specified.
 
-### *-l0*, *-l1*
+### *-l0*, *-l1*, *-l2*
 
 Automatically includes certain library references. Each level includes all of the libraries from previous levels.
 
@@ -163,6 +163,7 @@ Automatically includes certain library references. Each level includes all of th
 |-|-|
 | `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Collections.dll` |
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.Immutable.dll` |
+| `l2` | All .NET SDK libraries |
 
 ### *--time*
 

@@ -530,6 +530,9 @@
   </AbstractNode>
   <AbstractNode Name="BaseMethodDeclarationSyntax" Base="MemberDeclarationSyntax">
     <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </AbstractNode>
   <Node Name="VariableDeclarationSyntax" Base="SyntaxNode">
@@ -649,6 +652,9 @@
       <Kind Name="ConstructorKeyword"/>
     </Field>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
     <Field Name="constructorInitializer" Type="ConstructorInitializerSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
@@ -671,6 +677,9 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
@@ -687,6 +696,9 @@
     </Field>
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
   <Node Name="OperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
@@ -700,6 +712,9 @@
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="rightOperatorToken" Type="SyntaxToken" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
   <!-- Statements -->
@@ -733,6 +748,9 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>

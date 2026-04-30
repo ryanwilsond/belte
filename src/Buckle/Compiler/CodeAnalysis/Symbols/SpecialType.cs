@@ -12,6 +12,7 @@ public enum SpecialType : byte {
     Any,
     String,
     Bool,
+    WinBool,
     Char,
     Int,
     Decimal,

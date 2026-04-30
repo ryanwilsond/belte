@@ -938,17 +938,27 @@ internal partial class Binder {
         if (errorResult is not null)
             return new TypeWithAnnotations(errorResult);
 
-        if (qualifier is null) {
+        var result = LookupResult.GetInstance();
+        var options = LookupOptions.NamespacesOrTypesOnly;
+
+        var performedLookup = false;
+
+        // Prefer user-defined symbols over special types EXCEPT during template binding
+        // ? The only reason we make this exception is to prevent infinite loops in binding
+        if (node.parent.parent.kind != SyntaxKind.TemplateParameterList) {
+            LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, node.location, true);
+            performedLookup = true;
+        }
+
+        if (!result.isMultiViable && qualifier is null) {
             var specialType = SpecialTypes.GetTypeFromMetadataName(string.Concat("global::", name));
 
             if (specialType != SpecialType.None)
                 return new TypeWithAnnotations(CorLibrary.GetSpecialType(specialType));
         }
 
-        var result = LookupResult.GetInstance();
-        var options = LookupOptions.NamespacesOrTypesOnly;
-
-        LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, node.location, true);
+        if (!performedLookup)
+            LookupSymbolsSimpleName(result, qualifier, name, 0, basesBeingResolved, options, node.location, true);
 
         var bindingResult = ResultSymbol(result, name, 0, node, diagnostics, out _, qualifier, options);
 

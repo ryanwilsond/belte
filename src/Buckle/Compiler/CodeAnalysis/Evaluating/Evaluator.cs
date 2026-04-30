@@ -940,6 +940,7 @@ internal sealed class Evaluator {
                 value.kind = ValueKind.Bool;
                 value.@bool = fromType switch {
                     SpecialType.String => Convert.ToBoolean(value.@string),
+                    SpecialType.Int32 => value.int32 == 0 ? false : true,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1028,6 +1029,7 @@ internal sealed class Evaluator {
                 };
 
                 break;
+            case SpecialType.WinBool:
             case SpecialType.Int32:
                 value.kind = ValueKind.Int32;
                 value.int32 = fromType switch {

@@ -304,9 +304,6 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
 
-        if (from != SpecialType.String && to != SpecialType.String)
-            throw ExceptionUtilities.UnexpectedValue((from, to));
-
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", flags, [typeof(string)]));
@@ -391,6 +388,12 @@ internal sealed class RefILBuilder : ILBuilder {
                 break;
             case (SpecialType.Float64, SpecialType.String):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(double)]));
+                break;
+            case (SpecialType.WinBool, SpecialType.Bool):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", flags, [typeof(int)]));
+                break;
+            case (SpecialType.Bool, SpecialType.WinBool):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt32", flags, [typeof(bool)]));
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue((from, to));

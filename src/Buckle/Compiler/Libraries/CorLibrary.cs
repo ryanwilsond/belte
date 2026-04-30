@@ -12,7 +12,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 29;
+    private const int TotalSpecialTypes = 30;
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
     private const int TotalWellKnownMembers = 4;
 
@@ -148,6 +148,7 @@ internal sealed class CorLibrary {
         RegisterSpecialType(new PrimitiveTypeSymbol("any", SpecialType.Any));
         RegisterSpecialType(new PrimitiveTypeSymbol("int", SpecialType.Int));
         RegisterSpecialType(new PrimitiveTypeSymbol("bool", SpecialType.Bool));
+        RegisterSpecialType(new PrimitiveTypeSymbol("winbool", SpecialType.WinBool));
         RegisterSpecialType(new PrimitiveTypeSymbol("char", SpecialType.Char));
         RegisterSpecialType(new PrimitiveTypeSymbol("string", SpecialType.String));
         RegisterSpecialType(new PrimitiveTypeSymbol("decimal", SpecialType.Decimal));

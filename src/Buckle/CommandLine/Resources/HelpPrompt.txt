@@ -21,8 +21,9 @@ Options:
   --modulename=<name>         Specify the module name (used with .NET integration only).
   --ref=<file>|--reference=<file>     Specify a reference (used with .NET integration only).
   --debug                     Emit a .NET PDB file for debugging.
-  -l0                         Compile with core .NET libraries
-  -l1                         l0 plus compiler libraries for meta-programming
+  -l0                         Compile with core .NET libraries.
+  -l1                         l0 plus compiler libraries for meta-programming.
+  -l2                         l1 plus all .NET SDK libraries.
 
   --type=[console|graphics|dll]         Specify the type of Belte project (default console).
   --entry=<name>              Specify a type name to search for the entry point in.

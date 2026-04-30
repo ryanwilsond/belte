@@ -231,6 +231,10 @@ public sealed class EvaluatorTests {
     [InlineData("any! a = 3; var b = a is int t; return t;", 3)]
     [InlineData("int a = 3; var b = a is any t; return b;", true)]
     [InlineData("int a = 3; var b = a is any t; return t;", 3)]
+    [InlineData("winbool a = true; return a;", 1)]
+    [InlineData("winbool a = false; return a;", 0)]
+    [InlineData("winbool a = true; if (a) return 10; else return 5;", 10)]
+    [InlineData("winbool a = false; if (a) return 10; else return 5;", 5)]
     // Name expressions
     [InlineData("int? a = 3; int? b = 6; return a;", 3)]
     [InlineData("int? a = 3; int? b = 6; return b;", 6)]
@@ -283,6 +287,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public static void F(out int a) { a = 3; } public static int M() { F(out int a); return a; } } return A.M();", 3)]
     [InlineData("class A { public static void F(out int a) { a = 3; } public static int M() { F(out var a); return a; } } return A.M();", 3)]
     [InlineData("class A { public static void F(out int a) { a = 3; } public static int M() { int a = 0; F(out a); return a; } } return A.M();", 3)]
+    [InlineData("int F(int a) implicit { return a; } return F(3);", 3)]
+    [InlineData("int F(int a) implicit { return a; } return F(3.3);", 3)]
     // Cast expressions
     [InlineData("return (decimal?)3;", 3)]
     [InlineData("return (int?)3.4;", 3)]

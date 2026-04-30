@@ -1130,10 +1130,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private MethodDefinition CreatePInvokeMethodDefinition(MethodSymbol method, TypeDefinition containingType) {
         var dllImportData = method.GetDllImportData();
+        var returnType = GetTypeOrIntPtr(method.returnType, method.returnsByRef);
         var methodDefinition = new MethodDefinition(
             method.name,
             GetMethodAttributes(method),
-            GetTypeOrIntPtr(method.returnType, method.returnsByRef)
+            returnType
         );
 
         var moduleReference = new ModuleReference(dllImportData.moduleName);
@@ -1156,6 +1157,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             methodDefinition.Parameters.Add(parameterDefinition);
         }
+
+        if (method.returnType.specialType == SpecialType.Bool)
+            methodDefinition.MethodReturnType.MarshalInfo = new MarshalInfo(NativeType.I1);
 
         SetCustomAttributes(method, methodDefinition);
 
@@ -1606,6 +1610,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             (SpecialType.Object, "System.Object"),
             (SpecialType.Any, "System.Object"),
             (SpecialType.Bool, "System.Boolean"),
+            (SpecialType.WinBool, "System.Int32"),
             (SpecialType.Int, "System.Int64"),
             (SpecialType.String, "System.String"),
             (SpecialType.Decimal, "System.Double"),
@@ -1662,6 +1667,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.String_Equality_SS = ResolveMethod("System.String", "op_Equality", ["System.String", "System.String"]);
         NetMethodReference.String_get_Chars_I = ResolveMethod("System.String", "get_Chars", ["System.Int32"]);
         NetMethodReference.Convert_ToBoolean_S = ResolveMethod("System.Convert", "ToBoolean", ["System.String"]);
+        NetMethodReference.Convert_ToBoolean_I32 = ResolveMethod("System.Convert", "ToBoolean", ["System.Int32"]);
         NetMethodReference.Convert_ToInt64_S = ResolveMethod("System.Convert", "ToInt64", ["System.String"]);
         NetMethodReference.Convert_ToInt64_D = ResolveMethod("System.Convert", "ToInt64", ["System.Double"]);
         NetMethodReference.Convert_ToDouble_S = ResolveMethod("System.Convert", "ToDouble", ["System.String"]);
@@ -1669,6 +1675,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Convert_ToString_I = ResolveMethod("System.Convert", "ToString", ["System.Int64"]);
         NetMethodReference.Convert_ToString_D = ResolveMethod("System.Convert", "ToString", ["System.Double"]);
         NetMethodReference.Convert_ToInt32_S = ResolveMethod("System.Convert", "ToInt32", ["System.String"]);
+        NetMethodReference.Convert_ToInt32_B = ResolveMethod("System.Convert", "ToInt32", ["System.Boolean"]);
         NetMethodReference.Convert_ToChar_S = ResolveMethod("System.Convert", "ToChar", ["System.String"]);
         NetMethodReference.Convert_ToByte_S = ResolveMethod("System.Convert", "ToByte", ["System.String"]);
         NetMethodReference.Convert_ToUInt16_S = ResolveMethod("System.Convert", "ToUInt16", ["System.String"]);
@@ -1717,6 +1724,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
                 { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
                 { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
+                { "LowLevel_CreateLPCSTR_UTF_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR_UTF", ["System.String"]) },
                 { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
                 { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
                 { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
@@ -1762,7 +1770,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
                 { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
                 { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
-                { "File_WriteText_S", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
+                { "File_WriteText_SS", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
                 { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
                 { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
                 { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
@@ -1776,6 +1784,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
                 { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
                 { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
+                { "LowLevel_CreateLPCSTR_UTF_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR_UTF", ["System.String"]) },
                 { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
                 { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
                 { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },

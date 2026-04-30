@@ -91,7 +91,7 @@
             "patterns": [
                 {
                     "name": "storage.type.built-in.belte",
-                    "match": "\\b(int|decimal|string|void|bool|type|char|any|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float32|float64|intptr|uintptr)\\b"
+                    "match": "\\b(int|decimal|string|void|bool|type|char|any|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float32|float64|intptr|uintptr|winbool)\\b"
                 },
                 {
                     "name": "storage.type.class.belte",

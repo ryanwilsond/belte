@@ -101,6 +101,14 @@ public static class Utilities {
         return (byte*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(str);
     }
 
+    public unsafe static byte* CreateLPCSTR_UTF(string str) {
+        var utf8 = System.Text.Encoding.UTF8.GetBytes(str);
+        var ptr = (byte*)System.Runtime.InteropServices.Marshal.AllocHGlobal(utf8.Length + 1);
+        System.Runtime.InteropServices.Marshal.Copy(utf8, 0, (nint)ptr, utf8.Length);
+        ptr[utf8.Length] = 0;
+        return ptr;
+    }
+
     public unsafe static char* CreateLPCWSTR(string str) {
         return (char*)System.Runtime.InteropServices.Marshal.StringToHGlobalUni(str);
     }

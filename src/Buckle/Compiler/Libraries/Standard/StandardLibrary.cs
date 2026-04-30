@@ -239,6 +239,18 @@ internal static class StandardLibrary {
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
         );
 
+        var createLPCSTR_UTF =
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedSimpleOrdinaryMethodSymbol(
+                    "CreateLPCSTR_UTF",
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))),
+                    RefKind.None,
+                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                ),
+            null,
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
+        );
+
         var createLPCWSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
@@ -344,6 +356,7 @@ internal static class StandardLibrary {
             sizeOf,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
             createLPCSTR,
+            createLPCSTR_UTF,
             createLPCWSTR,
             freeLPCWSTR,
             freeLPCSTR,

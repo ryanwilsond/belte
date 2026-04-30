@@ -115,6 +115,7 @@ internal static class LiteralUtilities {
                 };
 
                 break;
+            case SpecialType.WinBool:
             case SpecialType.Int32:
                 result = sourceType switch {
                     SpecialType.Int8 => (int)(sbyte)value,
@@ -131,6 +132,7 @@ internal static class LiteralUtilities {
                     SpecialType.Decimal => unchecked((int)(double)value),
                     SpecialType.String => Convert.ToInt32(value),
                     SpecialType.Char => (int)(char)value,
+                    SpecialType.Bool => (bool)value ? 1 : 0,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
 
@@ -364,6 +366,7 @@ internal static class LiteralUtilities {
             case SpecialType.Float32:
             case SpecialType.Float64:
             case SpecialType.Bool:
+            case SpecialType.WinBool:
             case SpecialType.Char:
             case SpecialType.UIntPtr:
             case SpecialType.IntPtr:
@@ -390,6 +393,7 @@ internal static class LiteralUtilities {
             case SpecialType.Float32:
             case SpecialType.Float64:
             case SpecialType.Bool:
+            case SpecialType.WinBool:
             case SpecialType.Char:
                 return true;
             default:
@@ -412,6 +416,7 @@ internal static class LiteralUtilities {
             SpecialType.Float32 => 0F,
             SpecialType.Float64 => 0D,
             SpecialType.Bool => false,
+            SpecialType.WinBool => 0,
             SpecialType.Char => '\0',
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };

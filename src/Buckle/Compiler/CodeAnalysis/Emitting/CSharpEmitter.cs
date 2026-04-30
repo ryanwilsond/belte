@@ -30,6 +30,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
         { SpecialType.Object, "global::System.Object" },
         { SpecialType.Any, "global::System.Object" },
         { SpecialType.Bool, "global::System.Boolean" },
+        { SpecialType.WinBool, "global::System.Int32" },
         { SpecialType.Int, "global::System.Int64" },
         { SpecialType.Int8, "global::System.SByte" },
         { SpecialType.Int16, "global::System.Int16" },
@@ -254,6 +255,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
                 builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention})]");
             else
                 builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention}, CharSet = {charSet})]");
+
+            if (method.returnType.specialType == SpecialType.Bool) {
+                builder.Append("[return: global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.I1)]");
+            }
         }
 
         var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
@@ -612,6 +617,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
             { "LowLevel_GetTypeName_O", "global::Belte.Runtime.Utilities.GetTypeName" },
             { "LowLevel_GetType_A", "global::Belte.Runtime.Utilities.AnyGetType" },
             { "LowLevel_CreateLPCSTR_S", "global::Belte.Runtime.Utilities.CreateLPCSTR" },
+            { "LowLevel_CreateLPCSTR_UTF_S", "global::Belte.Runtime.Utilities.CreateLPCSTR_UTF" },
             { "LowLevel_CreateLPCWSTR_S", "global::Belte.Runtime.Utilities.CreateLPCWSTR" },
             { "LowLevel_FreeLPCSTR_U*", "global::Belte.Runtime.Utilities.FreeLPCSTR" },
             { "LowLevel_FreeLPCWSTR_C*", "global::Belte.Runtime.Utilities.FreeLPCWSTR" },

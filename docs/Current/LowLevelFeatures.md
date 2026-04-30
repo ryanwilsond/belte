@@ -16,6 +16,7 @@ This may change.
 - [6.6](#66-function-pointers) Function Pointers
   - [6.6.1](#661-calling-conventions) Calling Conventions
 - [6.7](#67-extern-methods) Extern Methods
+  - [6.7.1](#671-winbool) WinBool
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
@@ -309,6 +310,16 @@ by default. The calling convention can be specified using the
 ```belte
 [DllImport("example.dll", CallingConvention: CallingConvention.Cdecl)]
 static extern void SomeMethod();
+```
+
+### 6.7.1 WinBool
+
+For interop with Windows dlls such as Win32, note that `WINBOOL` is often used,
+which is 4 bytes instead of 1. For such cases, use the primitive `winbool`:
+
+```belte
+[DllImport("user32.dll")]
+static extern winbool! UpdateWindow(int64* hWnd);
 ```
 
 ## 6.8 Fixed Size Buffers

@@ -7,6 +7,7 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Any:
             case SpecialType.String:
             case SpecialType.Bool:
+            case SpecialType.WinBool:
             case SpecialType.Int:
             case SpecialType.Enum:
             case SpecialType.Decimal:
@@ -92,6 +93,7 @@ internal static class SpecialTypeExtensions {
         switch (specialType) {
             case SpecialType.Int:
             case SpecialType.Decimal:
+            case SpecialType.WinBool:
             case SpecialType.Char:
             case SpecialType.Int8:
             case SpecialType.Int16:
@@ -126,6 +128,7 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Char:
             case SpecialType.Int8:
             case SpecialType.Int16:
+            case SpecialType.WinBool:
             case SpecialType.Int32:
             case SpecialType.Int64:
             case SpecialType.UInt8:
@@ -199,6 +202,8 @@ internal static class SpecialTypeExtensions {
                 return sizeof(double);
             case SpecialType.Bool:
                 return sizeof(bool);
+            case SpecialType.WinBool:
+                return sizeof(int);
             default:
                 return 0;
         }
@@ -210,6 +215,7 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Object:
             case SpecialType.Void:
             case SpecialType.Bool:
+            case SpecialType.WinBool:
             case SpecialType.Char:
             case SpecialType.UInt8:
             case SpecialType.Int8:

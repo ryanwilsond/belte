@@ -14,6 +14,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
+        coerceArguments = ExtractImplicitKeyword() is not null;
     }
 
     internal sealed override bool hidesBaseMethodsByName => false;
@@ -31,6 +32,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
     internal virtual Binder outerBinder => null;
 
     internal virtual Binder withTemplateParametersBinder => null;
+
+    internal override bool coerceArguments { get; }
 
     internal BelteSyntaxNode syntaxNode => (BelteSyntaxNode)syntaxReference.node;
 
@@ -320,6 +323,17 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         return SyntaxTree.Dummy.GetRoot();
     }
 
+    internal SyntaxToken ExtractImplicitKeyword() {
+        var node = syntaxReference.node;
+
+        if (node is BaseMethodDeclarationSyntax methodDeclaration)
+            return methodDeclaration.implicitKeyword;
+        else if (node is LocalFunctionStatementSyntax statement)
+            return statement.implicitKeyword;
+
+        return null;
+    }
+
     internal bool CheckAndReportValidUnmanagedCallersOnlyTarget(SyntaxNode node, BelteDiagnosticQueue diagnostics) {
         if (!isStatic || isAbstract || isVirtual || methodKind is not (MethodKind.Ordinary or MethodKind.LocalFunction)) {
             diagnostics?.Push(Error.UnmanagedRequiresStatic(node.location));
@@ -431,8 +445,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
                 case "CallingConvention":
                     // invalid values will be ignored
                     callingConvention = namedArg.Value.value switch {
-                        1 => CallingConvention.Winapi,
-                        2 => CallingConvention.Cdecl,
+                        1U => CallingConvention.Winapi,
+                        2U => CallingConvention.Cdecl,
                         _ => CallingConvention.Winapi,
                     };
                     // callingConvention = namedArg.Value.DecodeValue<CallingConvention>(SpecialType.UInt32);
