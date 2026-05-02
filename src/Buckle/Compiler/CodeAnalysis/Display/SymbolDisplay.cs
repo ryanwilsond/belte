@@ -99,7 +99,7 @@ public static class SymbolDisplay {
             if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
         } else if (type.specialType == SpecialType.Void) {
-            text.Write(CreateIdentifier("void"));
+            text.Write(CreateKeyword("void"));
         } else if (type is NamedTypeSymbol namedType) {
             if (namedType.specialType == SpecialType.Nullable &&
                 (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
@@ -540,6 +540,11 @@ public static class SymbolDisplay {
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        }
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0 && method.coerceArguments) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.ImplicitKeyword));
         }
 
         DisplayTemplateConstraints(text, method.templateConstraints, format);

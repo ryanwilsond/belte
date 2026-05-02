@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis;
@@ -103,7 +102,7 @@ public sealed class Compiler {
             references.Add(Path.Join(refPackPath, "System.Runtime.dll"));
             references.Add(Path.Join(refPackPath, "System.IO.dll"));
             references.Add(Path.Join(refPackPath, "System.Console.dll"));
-            references.Add(Path.Join(refPackPath, "System.Collections.dll"));
+            references.Add(Path.Join(refPackPath, "System.Runtime.InteropServices.dll"));
         }
 
         if (l >= 1) {
@@ -112,8 +111,10 @@ public sealed class Compiler {
             references.Add(Path.Join(AppContext.BaseDirectory, "Shared.dll"));
         }
 
-        if (l == 1)
+        if (l == 1) {
             references.Add(Path.Join(refPackPath, "System.Collections.Immutable.dll"));
+            references.Add(Path.Join(refPackPath, "System.Collections.dll"));
+        }
 
         if (l >= 2)
             references.AddRange(Directory.EnumerateFiles(refPackPath, "*.dll"));

@@ -224,6 +224,7 @@ public static class SyntaxFacts {
             "union" => SyntaxKind.UnionKeyword,
             "with" => SyntaxKind.WithKeyword,
             "destructor" => SyntaxKind.DestructorKeyword,
+            "defer" => SyntaxKind.DeferKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -384,6 +385,7 @@ public static class SyntaxFacts {
             SyntaxKind.UnionKeyword => "union",
             SyntaxKind.WithKeyword => "with",
             SyntaxKind.DestructorKeyword => "destructor",
+            SyntaxKind.DeferKeyword => "defer",
             _ => null,
         };
     }

@@ -240,6 +240,23 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return None;
         }
 
+        // TODO Could move this to easy out
+        if (source.specialType is SpecialType.IntPtr or SpecialType.UIntPtr ||
+            target.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+            if (source.specialType == target.specialType)
+                return Identity;
+
+            if (source.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+                if (target.specialType.IsNumeric() || target.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+                    return ExplicitNumeric;
+            }
+
+            if (target.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+                if (source.specialType.IsNumeric() || source.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+                    return ExplicitNumeric;
+            }
+        }
+
         // Handle most primitive conversions
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
             return new Conversion(EasyOut.Classify(source, target));
@@ -263,13 +280,13 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return ExplicitPointerToPointer;
         }
 
-        if (source.specialType.IsNumeric() && target.typeKind == TypeKind.Pointer) {
-            if (source.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)
+        if (source.specialType.IsNumeric() && target.IsPointerOrFunctionPointer()) {
+            if (!source.specialType.IsFloatingPoint())
                 return ExplicitIntegerToPointer;
         }
 
-        if (target.specialType.IsNumeric() && source.typeKind == TypeKind.Pointer) {
-            if (target.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)
+        if (target.specialType.IsNumeric() && source.IsPointerOrFunctionPointer()) {
+            if (!target.specialType.IsFloatingPoint())
                 return ExplicitPointerToInteger;
         }
 

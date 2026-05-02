@@ -507,6 +507,32 @@ public sealed class EvaluatorTests {
     [InlineData("try { int? a = 56/1; return a; } catch { return 3; }", 56)]
     [InlineData("int? a = 3; try { int? x = 0; int? b = 56/x; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 6)]
     [InlineData("int? a = 3; try { int? b = 56/1; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 59)]
+    // Defer statements
+    [InlineData("int a = 3; defer a = 6; return a;", 3)]
+    [InlineData(@"
+        class A {
+            public static void F(out int a) {
+                a = 3;
+                defer a = 6;
+            }
+            public static int M() {
+                F(out var a);
+                return a;
+            }
+        }
+        return A.M();", 6)]
+    [InlineData(@"
+        class A {
+            public static int F(out int a) {
+                a = 3;
+                defer a = 6;
+                return a;
+            }
+            public static int M() {
+                return F(out var a) + a;
+            }
+        }
+        return A.M();", 9)]
     // Switch statements
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 3: b = 5; } return b;", 5)]
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 4: b = 5; } return b;", 1)]

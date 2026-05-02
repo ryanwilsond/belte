@@ -25,8 +25,11 @@
     - [2.4.4.3](#2443-indexed-collections) Indexed Collections
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
 - [2.5](#25-switch) Switch
-- [2.6](#26-exceptions) Exceptions
+- [2.6](#26-exceptions-and-handling) Exceptions and Handling
+  - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
+- [2.8](#28-defer-statements) Defer Statements
+- [2.9](#29-using-statements) Using Statements
 
 ## 2.1 Functions
 
@@ -665,7 +668,7 @@ switch (...) {
 }
 ```
 
-## 2.6 Exceptions
+## 2.6 Exceptions and Handling
 
 To break from the normal flow of the program, usually in the case of an error, an exception can be thrown:
 
@@ -674,6 +677,48 @@ throw new Exception();
 ```
 
 This will crash the program. Throw expressions only accept objects that are or derive from `Exception`.
+
+### 2.6.1 Try/Catch/Finally
+
+A try block can be used to prevent the program the crashes if an exception is thrown. For example:
+
+```belte
+try {
+  ...
+} catch {
+  Console.PrintLine("exception thrown");
+}
+```
+
+Where flow continues normally after the catch block is ran. A catch block is only ran if an exception is thrown inside
+of the try body.
+
+A finally body can be used to ensure a piece of code always runs:
+
+```belte
+try {
+  ...
+} finally {
+  Console.PrintLine("done");
+}
+```
+
+Regardless of whether or not an exception was thrown in the try body, the finally body always after the try body runs.
+This holds true even if the try body exits:
+
+```belte
+int Func() {
+  try {
+    return 3;
+  } finally {
+    Console.PrintLine("done");
+  }
+}
+```
+
+In this example, `Func` will return `3`, but the finally body will execute before exiting the function.
+
+A try block must contain one catch body, one finally body, or both.
 
 ## 2.7 With Expressions and Statements
 
@@ -718,3 +763,187 @@ return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
 ```
 
 Using a single `with` where possible is preferred as the compiler can optimize it better.
+
+## 2.8 Defer Statements
+
+`defer` statements defer the execution of an expression to the end of the current block, regardless of how the block
+exits.
+
+For example:
+
+```belte
+defer Console.PrintLine("deferred");
+Console.PrintLine("not deferred");
+```
+
+This will output:
+
+```txt
+deferred
+not deferred
+```
+
+Defer statements are evaluated in reverse order of their placement inside the block:
+
+```belte
+defer Console.PrintLine(1);
+defer Console.PrintLine(2);
+defer Console.PrintLine(3);
+```
+
+```txt
+3
+2
+1
+```
+
+Defer statements are placed inside of a [finally block](#261-trycatchfinally) so even if the program throws in the same
+block, the defer statements will still run.
+
+Defer statements can be used for resource cleanup:
+
+```belte
+var a = GetSomeResource();
+defer a.Dispose();
+
+...
+```
+
+Defer statements are useful when the block can return in multiple places. Instead of writing cleanup code multiple
+times, a defer statement can be used:
+
+```belte
+var a = GetSomeResource();
+
+if (err) {
+  a.Dispose();
+  return 1;
+}
+
+a.Dispose();
+return 0;
+```
+
+Becomes:
+
+```belte
+var a = GetSomeResource();
+defer a.Dispose();
+
+if (err) {
+  return 1;
+}
+
+return 0;
+```
+
+Note that even though defer statements are ran at the end of a block, they do not directly effect return statements:
+
+```belte
+int a = 3;
+defer a = 6;
+return a;
+```
+
+In the above example, `3` is returned. This is not a special case but rather a side effect of how returns interact with
+finally blocks, where the return value is stored, the finally is evaluated, then the stored return value is returned.
+
+Consider this code:
+
+```belte
+int F(out int a) {
+  a = 3;
+  defer a = 6;
+  return a;
+}
+
+Console.PrintLine(F(out var a));
+Console.PrintLine(a);
+```
+
+```txt
+3
+6
+```
+
+The function `F` returns 3 because that was the value of `a` at the return site, but the deferred assignment to `a` does
+ultimately happen resulting in the out parameter `a` to be 6.
+
+Because defer statements are attached to block scopes, the following:
+
+```belte
+{
+  defer Console.PrintLine("first block");
+}
+
+{
+  defer Console.PrintLine("second block");
+}
+```
+
+Will output:
+
+```txt
+first block
+second block
+```
+
+## 2.9 Using Statements
+
+Similar to defer statements, using statements imply certain execution on block exit. For using statements, this is the
+calling of a public parameter-less method `void Dispose()` on the local attached to the using. For example:
+
+```belte
+using (var a = new A()) {
+  Console.PrintLine("using body");
+}
+
+Console.PrintLine("outside using");
+
+class A {
+  public void Dispose() { ... }
+}
+```
+
+This is equivalent to:
+
+```belte
+var a = new A();
+
+try {
+  Console.PrintLine("using body");
+} finally {
+  a?.Dispose();
+}
+
+Console.PrintLine("outside using");
+
+class A {
+  public void Dispose() { ... }
+}
+```
+
+Instead of attaching a body to the using, it can be scoped to the enclosing block. This will result in all statements
+after the using local declaration to be wrapped in the try:
+
+```belte
+Console.PrintLine("not captured by using");
+
+using var a = new A();
+
+Console.PrintLine("captured by using");
+```
+
+This is equivalent to:
+
+```belte
+Console.PrintLine("not captured by using");
+
+var a = new A();
+
+try {
+  Console.PrintLine("captured by using");
+} finally {
+  a?.Dispose();
+}
+```

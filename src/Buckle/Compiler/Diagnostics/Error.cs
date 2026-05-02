@@ -182,9 +182,15 @@ internal static class Error {
         var message = $"called object is not a method";
         return CreateError(DiagnosticCode.ERR_CannotCallNonMethod, location, message);
     }
+
     internal static BelteDiagnostic InvalidExpressionStatement(TextLocation location) {
         var message = "only assignment, call, throw, and increment expressions can be used as a statement";
         return CreateError(DiagnosticCode.ERR_InvalidExpressionStatement, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidDeferStatement(TextLocation location) {
+        var message = "only assignment, call, throw, and increment expressions can be deferred";
+        return CreateError(DiagnosticCode.ERR_InvalidDeferStatement, location, message);
     }
 
     internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location) {
@@ -2097,6 +2103,11 @@ internal static class Error {
     internal static BelteDiagnostic DestructorInStaticClass(TextLocation location) {
         var message = $"static classes cannot contain destructors";
         return CreateError(DiagnosticCode.ERR_DestructorInStaticClass, location, message);
+    }
+
+    internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless method named 'Dispose'";
+        return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

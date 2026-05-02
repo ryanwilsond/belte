@@ -56,6 +56,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ForStatement => ExpandForStatement((BoundForStatement)statement),
             BoundKind.ForEachStatement => ExpandForEachStatement((BoundForEachStatement)statement),
             BoundKind.ExpressionStatement => ExpandExpressionStatement((BoundExpressionStatement)statement),
+            BoundKind.DeferStatement => ExpandDeferStatement((BoundDeferStatement)statement),
             BoundKind.LabelStatement => ExpandLabelStatement((BoundLabelStatement)statement),
             BoundKind.GotoStatement => ExpandGotoStatement((BoundGotoStatement)statement),
             BoundKind.ConditionalGotoStatement => ExpandConditionalGotoStatement((BoundConditionalGotoStatement)statement),
@@ -72,6 +73,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.InlineILStatement => ExpandInlineILStatement((BoundInlineILStatement)statement),
             BoundKind.SwitchDispatch => ExpandSwitchDispatch((BoundSwitchDispatch)statement),
             BoundKind.WithStatement => ExpandWithStatement((BoundWithStatement)statement),
+            BoundKind.UsingStatement => ExpandUsingStatement((BoundUsingStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -175,7 +177,9 @@ internal abstract partial class BoundTreeExpander {
         if (statements.Count > 0 || statement.declaration.initializer != replacement) {
             statements.Add(new BoundLocalDeclarationStatement(
                 syntax,
-                new BoundDataContainerDeclaration(syntax, statement.declaration.dataContainer, replacement)
+                new BoundDataContainerDeclaration(syntax, statement.declaration.dataContainer, replacement),
+                statement.isUsing,
+                statement.disposeMethod
             ));
 
             return statements;
@@ -218,6 +222,19 @@ internal abstract partial class BoundTreeExpander {
         return statements;
     }
 
+    private protected virtual List<BoundStatement> ExpandUsingStatement(BoundUsingStatement statement) {
+        // ! Inheritors are responsible for expanding the declaration
+        var syntax = statement.syntax;
+
+        return [
+            new BoundUsingStatement(
+                syntax,
+                statement.declaration,
+                Simplify(syntax, ExpandStatement(statement.body))
+            )
+        ];
+    }
+
     private protected virtual List<BoundStatement> ExpandForStatement(BoundForStatement statement) {
         // For loops have to be expanded after they have been lowered
         return [statement];
@@ -238,8 +255,19 @@ internal abstract partial class BoundTreeExpander {
 
         if (statements.Count != 0 || statement.expression != replacement) {
             if (replacement is not null)
-                statements.Add(new BoundExpressionStatement(statement.syntax, replacement));
+                statements.Add(statement.Update(replacement));
 
+            return statements;
+        }
+
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandDeferStatement(BoundDeferStatement statement) {
+        var statements = ExpandExpression(statement.expression, out var replacement);
+
+        if (statements.Count != 0 || statement.expression != replacement) {
+            statements.Add(statement.Update(replacement));
             return statements;
         }
 

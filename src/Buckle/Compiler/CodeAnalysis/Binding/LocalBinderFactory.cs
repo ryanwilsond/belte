@@ -185,6 +185,18 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         }
     }
 
+    internal override void VisitUsingStatement(UsingStatementSyntax node) {
+        var usingBinder = new UsingStatementBinder(_enclosing, node);
+        AddToMap(node, usingBinder);
+
+        var declarationSyntax = node.declaration;
+
+        VisitRankSpecifiers(declarationSyntax.type, usingBinder);
+        Visit(declarationSyntax, usingBinder);
+
+        VisitPossibleEmbeddedStatement(node.statement, usingBinder);
+    }
+
     internal override void VisitSwitchStatement(SwitchStatementSyntax node) {
         AddToMap(node.expression, _enclosing);
         Visit(node.expression, _enclosing);

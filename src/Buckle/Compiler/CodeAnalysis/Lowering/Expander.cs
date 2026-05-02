@@ -337,7 +337,7 @@ internal sealed class Expander : SharedExpander {
 
         ----> <left> is nullable and <right> is nullable
 
-        ((HasValue(<left>) && HasValue(<right>)) ? new Nullable( Value(<left>) <op> Value(<right>) ) : null)
+        ((HasValue(<left>) & HasValue(<right>)) ? new Nullable( Value(<left>) <op> Value(<right>) ) : null)
 
         ----> <left> is nullable
 
@@ -1481,20 +1481,22 @@ internal sealed class Expander : SharedExpander {
         var dictionaryType = (NamedTypeSymbol)expression.StrippedType();
         var tempLocal = GenerateTempLocal(expression.Type());
         var statements = new List<BoundStatement>() {
-            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(
-                syntax,
-                tempLocal,
-                new BoundObjectCreationExpression(
+            new BoundLocalDeclarationStatement(syntax,
+                new BoundDataContainerDeclaration(
                     syntax,
-                    dictionaryType.instanceConstructors[0],
-                    [],
-                    [],
-                    [],
-                    default,
-                    false,
-                    expression.Type()
+                    tempLocal,
+                    new BoundObjectCreationExpression(
+                        syntax,
+                        dictionaryType.instanceConstructors[0],
+                        [],
+                        [],
+                        [],
+                        default,
+                        false,
+                        expression.Type()
+                    )
                 )
-            ))
+            )
         };
 
         var method = dictionaryType.GetMembers("Add").Single() as MethodSymbol;

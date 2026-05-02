@@ -54,6 +54,115 @@ internal class SharedExpander : BoundTreeExpander {
         return base.ExpandLocalDeclarationStatement(statement);
     }
 
+    private protected override List<BoundStatement> ExpandUsingStatement(BoundUsingStatement statement) {
+        /*
+
+        using (<declaration>)
+            <body>
+
+        ---->
+
+        <declaration>
+        try {
+            <body>
+        } finally {
+            <declaration.dispose>
+        }
+
+        */
+        var syntax = statement.syntax;
+        var symbol = statement.declaration.declaration.dataContainer;
+        var disposeMethod = statement.declaration.disposeMethod;
+
+        var statements = ExpandLocalDeclarationStatement(
+            new BoundLocalDeclarationStatement(syntax, statement.declaration.declaration, false, null)
+        );
+
+        var bodyStatements = ExpandStatement(statement.body);
+
+        statements.Add(CreateUsingTry(syntax, bodyStatements.ToImmutableArray(), symbol, disposeMethod));
+
+        return statements;
+    }
+
+    internal BoundTryStatement CreateUsingTry(
+        SyntaxNode syntax,
+        ImmutableArray<BoundStatement> tryBody,
+        DataContainerSymbol local,
+        MethodSymbol disposeMethod) {
+        ImmutableArray<BoundStatement> finallyBody;
+
+        BoundExpression call = new BoundCallExpression(
+            syntax,
+            Local(syntax, local),
+            disposeMethod,
+            [],
+            [],
+            BitVector.Empty,
+            LookupResultKind.Empty,
+            disposeMethod.returnType
+        );
+
+        if (local.type.IsNullableType()) {
+            var breakLabel = GenerateLabel();
+
+            finallyBody = [
+                GotoIf(syntax, breakLabel, IsNull(syntax, Local(syntax, local))),
+                new BoundExpressionStatement(syntax, call),
+                Label(syntax, breakLabel)
+            ];
+        } else {
+            finallyBody = [new BoundExpressionStatement(syntax, call)];
+        }
+
+        return new BoundTryStatement(syntax,
+            new BoundBlockStatement(syntax, tryBody, [], []),
+            null,
+            new BoundBlockStatement(syntax, finallyBody, [], [])
+        );
+    }
+
+    private protected override List<BoundStatement> ExpandExpressionStatement(BoundExpressionStatement statement) {
+        /*
+
+        ----> (... ? <call> : null) where <call> returns void
+
+        goto break if ...
+        <call>
+        break:
+
+        */
+        var statements = ExpandExpression(statement.expression, out var replacement);
+
+        if (statements.Count == 0 && statement.expression == replacement)
+            return [statement];
+
+        if (replacement is BoundConditionalOperator c && c.trueExpression.type.IsVoidType())
+            return RewriteVoidTernaryCall(c);
+
+        if (replacement is not null)
+            statements.Add(statement.Update(replacement));
+
+        return statements;
+    }
+
+    internal List<BoundStatement> RewriteVoidTernaryCall(BoundConditionalOperator conditional) {
+        if (!conditional.falseExpression.IsLiteralNull())
+            throw ExceptionUtilities.Unreachable();
+
+        var syntax = conditional.syntax;
+
+        var breakLabel = GenerateLabel();
+
+        var statements = new List<BoundStatement> {
+            GotoIfNot(syntax, breakLabel, conditional.condition),
+            new BoundExpressionStatement(syntax, conditional.trueExpression),
+            Label(syntax, breakLabel)
+        };
+
+        return statements;
+    }
+
     private protected override List<BoundStatement> ExpandCastExpression(
         BoundCastExpression expression,
         out BoundExpression replacement,

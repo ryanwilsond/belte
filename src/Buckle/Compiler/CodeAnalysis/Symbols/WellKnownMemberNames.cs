@@ -41,5 +41,6 @@ internal static class WellKnownMemberNames {
     internal const string TopLevelStatementsEntryPointTypeName = "<Program>";
     internal const string EnumBackingFieldName = "value__";
     internal const string DestructorName = "Finalize";
+    internal const string Dispose = "Dispose";
     internal new const string ToString = "ToString";
 }

@@ -475,7 +475,10 @@ internal sealed partial class CodeGenerator {
         }
     }
 
-    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type, bool promoteToLong = true) {
+    internal void EmitConstantValue(ConstantValue constant, TypeSymbol type, bool promoteToLong = false) {
+        // TODO As far as I can tell, we never want to "promoteToLong", yet it used to be the default
+        // Not really sure why but want to investigate before removing
+
         var value = constant.value;
 
         if (value is null) {

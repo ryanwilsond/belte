@@ -1162,11 +1162,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseWithStatement();
             case SyntaxKind.ILKeyword:
                 return ParseInlineILStatement();
+            case SyntaxKind.DeferKeyword:
+                return ParseDeferStatement();
         }
 
         var resetPoint = GetResetPoint();
 
         attributeLists ??= ParseAttributeLists();
+
+        if (modifiers is null && currentToken.kind == SyntaxKind.UsingKeyword)
+            return ParseUsingStatementOrLocalDeclaration(attributeLists);
+
         modifiers ??= ParseModifiers();
         var type = ParseType(allowArraySize: true);
 
@@ -1188,6 +1194,38 @@ internal sealed partial class LanguageParser : SyntaxParser {
         Reset(resetPoint);
 
         return ParseExpressionStatement();
+    }
+
+    private StatementSyntax ParseUsingStatementOrLocalDeclaration(SyntaxList<AttributeListSyntax> attributeLists) {
+        var usingKeyword = EatToken();
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            var openParenthesis = EatToken();
+            var declaration = ParseVariableDeclaration();
+            var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+            var body = ParseStatement();
+
+            return SyntaxFactory.UsingStatement(
+                attributeLists,
+                usingKeyword,
+                openParenthesis,
+                declaration,
+                closeParenthesis,
+                body
+            );
+        } else {
+            var modifiers = ParseModifiers();
+            var declaration = ParseVariableDeclaration();
+            var semicolon = Match(SyntaxKind.SemicolonToken);
+
+            return SyntaxFactory.LocalDeclarationStatement(
+                attributeLists,
+                usingKeyword,
+                modifiers,
+                declaration,
+                semicolon
+            );
+        }
     }
 
     private StatementSyntax ParseLocalDeclarationStatement(
@@ -1685,6 +1723,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
             tryKeyword,
             body
         );
+    }
+
+    private DeferStatementSyntax ParseDeferStatement() {
+        var keyword = EatToken();
+        var expression = ParseExpression();
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.DeferStatement(keyword, expression, semicolon);
     }
 
     private SeparatedSyntaxList<ExpressionSyntax> ParseAssignmentExpressionList() {

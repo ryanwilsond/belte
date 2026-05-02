@@ -76,6 +76,7 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
                     // TODO We should probably differentiate between local assignment and local modification
                     // case DataContainerDeclarationKind.ForEachLocal:
                     // case DataContainerDeclarationKind.NullBindingLocal:
+                    // case DataContainerDeclarationKind.UsingLocal:
                     return false;
                 default:
                     return true;

@@ -10996,6 +10996,8 @@ symIsHidden:;
             SyntaxKind.BlockStatement => BindBlockStatement((BlockStatementSyntax)node, diagnostics),
             SyntaxKind.ReturnStatement => BindReturnStatement((ReturnStatementSyntax)node, diagnostics),
             SyntaxKind.ExpressionStatement => BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics),
+            SyntaxKind.DeferStatement => BindDeferStatement((DeferStatementSyntax)node, diagnostics),
+            SyntaxKind.UsingStatement => BindUsingStatement((UsingStatementSyntax)node, diagnostics),
             SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
             SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
             SyntaxKind.LocalFunctionStatement => BindLocalFunctionStatement((LocalFunctionStatementSyntax)node, diagnostics),
@@ -12066,6 +12068,15 @@ symIsHidden:;
         }
     }
 
+    private BoundStatement BindUsingStatement(UsingStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var usingBinder = GetBinder(node);
+        return usingBinder.BindUsingStatementParts(diagnostics, usingBinder);
+    }
+
+    internal virtual BoundStatement BindUsingStatementParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindUsingStatementParts(diagnostics, originalBinder);
+    }
+
     private BoundLocalDeclarationStatement BindLocalDeclarationStatement(
         LocalDeclarationStatementSyntax node,
         BelteDiagnosticQueue diagnostics) {
@@ -12101,11 +12112,12 @@ symIsHidden:;
             diagnostics,
             true,
             node.modifiers,
+            node.usingKeyword is not null,
             node
         );
     }
 
-    private protected BoundLocalDeclarationStatement BindVariableDeclaration(
+    internal BoundLocalDeclarationStatement BindVariableDeclaration(
         DataContainerDeclarationKind kind,
         bool isImplicitlyTyped,
         bool isNonNullable,
@@ -12117,6 +12129,7 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics,
         bool includeBoundType,
         SyntaxTokenList modifiers,
+        bool isUsing,
         BelteSyntaxNode associatedSyntaxNode = null) {
         var dataContainer = LocateDeclaredVariableSymbol(declaration, typeSyntax, modifiers);
 
@@ -12134,6 +12147,7 @@ symIsHidden:;
             alias,
             diagnostics,
             includeBoundType,
+            isUsing,
             associatedSyntaxNode
         );
     }
@@ -12180,6 +12194,7 @@ symIsHidden:;
         AliasSymbol alias,
         BelteDiagnosticQueue diagnostics,
         bool includeBoundType,
+        bool isUsing,
         BelteSyntaxNode associatedSyntaxNode = null) {
         var localDiagnostics = BelteDiagnosticQueue.GetInstance();
         associatedSyntaxNode ??= declaration;
@@ -12399,6 +12414,23 @@ symIsHidden:;
             boundDeclType = new BoundTypeExpression(typeSyntax, declarationType, alias, declarationType.type);
         }
 
+        MethodSymbol disposeMethod = null;
+
+        if (isUsing) {
+            var stripped = declarationType.type.StrippedType();
+            disposeMethod = stripped.GetMembers(WellKnownMemberNames.Dispose)
+                .Where(s => s is MethodSymbol m &&
+                            m.parameterCount == 0 &&
+                            m.declaredAccessibility == Accessibility.Public).SingleOrDefault() as MethodSymbol;
+
+            if (disposeMethod is null) {
+                diagnostics.Push(Error.UsingWithoutDispose(
+                    associatedSyntaxNode?.location ?? declaration.location,
+                    stripped
+                ));
+            }
+        }
+
         return new BoundLocalDeclarationStatement(
             associatedSyntaxNode,
             new BoundDataContainerDeclaration(
@@ -12406,6 +12438,8 @@ symIsHidden:;
                 localSymbol,
                 hasErrors ? BindToTypeForErrorRecovery(initializer) : initializer
             ),
+            isUsing,
+            disposeMethod,
             hasErrors | nameConflict
         );
     }
@@ -12565,7 +12599,7 @@ symIsHidden:;
         };
     }
 
-    private TypeWithAnnotations BindVariableTypeWithAnnotations(
+    internal TypeWithAnnotations BindVariableTypeWithAnnotations(
         BelteSyntaxNode declarationNode,
         BelteDiagnosticQueue diagnostics,
         TypeSyntax typeSyntax,
@@ -12707,26 +12741,43 @@ symIsHidden:;
 
         return new BoundExpressionStatement(node, expression);
 
-        static bool IsInvalidExpressionStatement(BoundExpression expression) {
-            if (expression is BoundCompileTimeExpression cte)
-                return IsInvalidExpressionStatement(cte.expression);
+    }
 
-            switch (expression.kind) {
-                case BoundKind.AssignmentOperator:
-                case BoundKind.ErrorExpression:
-                case BoundKind.CompoundAssignmentOperator:
-                case BoundKind.ThrowExpression:
-                case BoundKind.IncrementOperator:
-                case BoundKind.NullCoalescingAssignmentOperator:
-                case BoundKind.FunctionPointerCallExpression:
-                case BoundKind.CompileTimeExpression:
-                case BoundKind.CallExpression:
-                case BoundKind.CascadeListExpression:
+    private static bool IsInvalidExpressionStatement(BoundExpression expression) {
+        if (expression is BoundCompileTimeExpression cte)
+            return IsInvalidExpressionStatement(cte.expression);
+
+        switch (expression.kind) {
+            case BoundKind.AssignmentOperator:
+            case BoundKind.ErrorExpression:
+            case BoundKind.CompoundAssignmentOperator:
+            case BoundKind.ThrowExpression:
+            case BoundKind.IncrementOperator:
+            case BoundKind.NullCoalescingAssignmentOperator:
+            case BoundKind.FunctionPointerCallExpression:
+            case BoundKind.CompileTimeExpression:
+            case BoundKind.CallExpression:
+            case BoundKind.CascadeListExpression:
+                return false;
+            case BoundKind.ConditionalAccessExpression:
+                var conditionalAccess = (BoundConditionalAccessExpression)expression;
+
+                if (conditionalAccess.accessExpression.kind == BoundKind.CallExpression)
                     return false;
-                default:
-                    return true;
-            }
+
+                return true;
+            default:
+                return true;
         }
+    }
+
+    private BoundDeferStatement BindDeferStatement(DeferStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
+
+        if (IsInvalidExpressionStatement(expression))
+            diagnostics.Push(Error.InvalidDeferStatement(node.expression.location));
+
+        return new BoundDeferStatement(node, expression);
     }
 
     private BindValueKind GetRequiredReturnValueKind(RefKind refKind) {

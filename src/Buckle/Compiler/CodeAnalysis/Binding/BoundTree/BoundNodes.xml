@@ -384,6 +384,9 @@
   <Node Name="BoundExpressionStatement" Base="BoundStatement">
     <Field Name="expression" Type="BoundExpression"/>
   </Node>
+  <Node Name="BoundDeferStatement" Base="BoundStatement">
+    <Field Name="expression" Type="BoundExpression"/>
+  </Node>
   <Node Name="BoundConditionalGotoStatement" Base="BoundStatement">
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="condition" Type="BoundExpression"/>
@@ -514,6 +517,12 @@
   </Node>
   <Node Name="BoundLocalDeclarationStatement" Base="BoundStatement">
     <Field Name="declaration" Type="BoundDataContainerDeclaration"/>
+    <Field Name="isUsing" Type="bool"/>
+    <Field Name="disposeMethod" Type="MethodSymbol?"/>
+  </Node>
+  <Node Name="BoundUsingStatement" Base="BoundStatement">
+    <Field Name="declaration" Type="BoundLocalDeclarationStatement"/>
+    <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundNopStatement" Base="BoundStatement"/>
   <Node Name="BoundReturnStatement" Base="BoundStatement">

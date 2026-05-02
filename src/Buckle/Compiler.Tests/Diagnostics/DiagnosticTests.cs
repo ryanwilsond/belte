@@ -5319,7 +5319,7 @@ public sealed class DiagnosticTests {
     // }
 
     [Fact]
-    public void Reports_Warning_BU0428_DestructorInStaticClass() {
+    public void Reports_Error_BU0428_DestructorInStaticClass() {
         var text = @"
             public static class A {
                 [destructor]() { }
@@ -5330,6 +5330,35 @@ public sealed class DiagnosticTests {
             static classes cannot contain destructors
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0429_InvalidDeferStatement() {
+        var text = @"
+            int a = 3;
+            defer [a];
+        ";
+
+        var diagnostics = @"
+            only assignment, call, throw, and increment expressions can be deferred
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0430_UsingWithoutDispose() {
+        var text = @"
+            {
+                [using int a = 3;]
+            }
+        ";
+
+        var diagnostics = @"
+            'int': type used in a using statement must define a public parameterless method named 'Dispose'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

@@ -1077,6 +1077,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         containingType.Methods.Add(methodDefinition);
 
+        if (method.methodKind == MethodKind.Destructor) {
+            var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));
+            methodDefinition.Overrides.Add(baseFinalize);
+        }
+
         return methodDefinition;
     }
 
@@ -1241,7 +1246,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             attributes |= MethodAttributes.Static;
         if (method.isAbstract)
             attributes |= MethodAttributes.Abstract | MethodAttributes.Virtual;
-        if (method.isVirtual)
+        if (method.IsMetadataVirtual())
             attributes |= MethodAttributes.Virtual;
         if (method.isOverride)
             attributes |= MethodAttributes.Virtual;
@@ -1718,6 +1723,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
                 { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
                 { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
+                { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
                 { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
                 { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
                 { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
@@ -1740,6 +1746,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
                 { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
                 { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
+                { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
                 { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
                 { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
                 { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },

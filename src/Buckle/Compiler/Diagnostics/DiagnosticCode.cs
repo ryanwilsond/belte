@@ -437,6 +437,8 @@ public enum DiagnosticCode : ushort {
     ERR_UnmanagedRequiresStatic = 426,
     ERR_UnmanagedCannotBeTemplate = 427,
     ERR_DestructorInStaticClass = 428,
+    ERR_InvalidDeferStatement = 429,
+    ERR_UsingWithoutDispose = 430,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -65,7 +65,7 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void DefineInitialHiddenSequencePoint() { }
 
     internal override void BeginTry() {
-        if (!_needsEpilogue) {
+        if (!_needsEpilogue && !_method.returnsVoid) {
             _needsEpilogue = true;
             _epilogue = new object();
             _returnLocal = ((RefVariableDefinition)AllocateSlot(

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -23,6 +24,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private readonly SharedExpander _expander;
     private readonly bool _transpiling;
 
+    private List<BoundDeferStatement> _deferStatements = [];
     private bool _sawCompileTimeExpression;
 
     private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics, bool transpiling) {
@@ -77,6 +79,71 @@ internal sealed class Lowerer : BoundTreeRewriter {
     internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
         _sawCompileTimeExpression = true;
         return base.VisitCompileTimeExpression(node);
+    }
+
+    internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
+        var savedDefers = _deferStatements;
+        _deferStatements = [];
+
+        var block = (BoundBlockStatement)base.VisitBlockStatement(node);
+
+        var builder = ArrayBuilder<BoundStatement>.GetInstance();
+
+        for (var i = block.statements.Length - 1; i >= 0; i--) {
+            var statement = block.statements[i];
+
+            if (statement is BoundLocalDeclarationStatement ld && ld.isUsing) {
+                var syntax = ld.syntax;
+                var declaration = ld.declaration;
+                var tryBody = builder.Reverse().ToImmutableArray();
+                builder = ArrayBuilder<BoundStatement>.GetInstance();
+
+                builder.Add(_expander.CreateUsingTry(ld.syntax, tryBody, declaration.dataContainer, ld.disposeMethod));
+                builder.Add(new BoundLocalDeclarationStatement(syntax, declaration));
+            } else {
+                builder.Add(statement);
+            }
+        }
+
+        block = block.Update(builder.Reverse().ToImmutableArray(), block.locals, block.localFunctions);
+
+        if (_deferStatements.Count > 0)
+            block = RewriteDefers(block);
+
+        _deferStatements = savedDefers;
+        return block;
+    }
+
+    private BoundBlockStatement RewriteDefers(BoundBlockStatement block) {
+        var syntax = block.syntax;
+        var finallyBlock = ArrayBuilder<BoundStatement>.GetInstance();
+
+        for (var i = _deferStatements.Count - 1; i >= 0; i--) {
+            var defer = _deferStatements[i];
+
+            if (defer.expression is BoundConditionalOperator c && c.trueExpression.type.IsVoidType())
+                finallyBlock.AddRange(_expander.RewriteVoidTernaryCall(c));
+            else
+                finallyBlock.Add(new BoundExpressionStatement(defer.syntax, defer.expression));
+        }
+
+        return new BoundBlockStatement(
+            syntax,
+            [new BoundTryStatement(
+                syntax,
+                block,
+                null,
+                new BoundBlockStatement(syntax, finallyBlock.ToImmutableAndFree(), [], [])
+            )],
+            [],
+            []
+        );
+    }
+
+    internal override BoundNode VisitDeferStatement(BoundDeferStatement node) {
+        var visited = (BoundDeferStatement)base.VisitDeferStatement(node);
+        _deferStatements.Add(visited);
+        return Nop();
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
@@ -274,7 +341,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         declaration.initializer,
                         CorLibrary.GetOrCreateNullableType(declaration.initializer.Type())
                     )
-                )
+                ),
+                statement.isUsing,
+                statement.disposeMethod
             ));
         }
 

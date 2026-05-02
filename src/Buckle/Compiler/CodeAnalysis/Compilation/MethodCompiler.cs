@@ -764,7 +764,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         return block;
     }
 
-    private static MethodSymbol GetBaseTypeFinalizeMethod(MethodSymbol method) {
+    internal static MethodSymbol GetBaseTypeFinalizeMethod(MethodSymbol method) {
         var baseType = method.containingType.baseType;
 
         while (baseType is not null) {

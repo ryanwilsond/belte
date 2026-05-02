@@ -22,13 +22,36 @@ internal sealed class CecilILBuilder : ILBuilder {
     private readonly ILEmitter _module;
     private readonly MethodSymbol _method;
     private readonly MethodDefinition _definition;
-    private readonly Stack<object> _tryStack;
+    private readonly Stack<TryFrame> _tryStack;
     private readonly Dictionary<StringText, Document> _documents;
 
     private SyntaxTree _lastSeqPointTree;
     private int _initialHiddenSequencePointMarker = -1;
 
+    private object _epilogue;
+    private Mono.Cecil.Cil.VariableDefinition _returnLocal;
+    private bool _needsEpilogue;
+
     internal readonly ILProcessor iLProcessor;
+
+    private class TryFrame {
+        internal Instruction outerTryStart;
+        internal Instruction outerTryEnd;
+
+        internal Instruction innerTryStart;
+        internal Instruction innerTryEnd;
+
+        internal Instruction handlerStart;
+        internal Instruction handlerEnd;
+
+        internal Instruction finallyStart;
+        internal Instruction finallyEnd;
+
+        internal Instruction leaveTarget;
+
+        internal bool hasCatch;
+        internal bool hasFinally;
+    }
 
     internal CecilILBuilder(MethodSymbol method, ILEmitter module, MethodDefinition definition) {
         _method = method;
@@ -40,7 +63,7 @@ internal sealed class CecilILBuilder : ILBuilder {
         _unhandledSwitches = [];
         _documents = [];
         _localSlotManager = new CecilLocalSlotManager();
-        _tryStack = new Stack<object>();
+        _tryStack = new Stack<TryFrame>();
     }
 
     private int _count => iLProcessor.Body.Instructions.Count;
@@ -54,6 +77,15 @@ internal sealed class CecilILBuilder : ILBuilder {
     internal override int instructionsEmitted => iLProcessor.Body.Instructions.Count;
 
     internal override void Finish() {
+        if (_needsEpilogue) {
+            MarkLabel(_epilogue);
+
+            if (!_method.returnsVoid)
+                iLProcessor.Emit(OpCodes.Ldloc, _returnLocal);
+
+            Emit(CodeGeneration.OpCode.Ret);
+        }
+
         foreach (var (instructionIndex, target) in _unhandledGotos) {
             var targetLabel = target;
             var targetInstructionIndex = ((CecilLabelInfo)_labels[targetLabel]).targetInstructionIndex;
@@ -196,23 +228,113 @@ internal sealed class CecilILBuilder : ILBuilder {
     }
 
     internal override void BeginTry() {
-        throw new NotImplementedException();
+        if (!_needsEpilogue && !_method.returnsVoid) {
+            _needsEpilogue = true;
+            _epilogue = new object();
+            _returnLocal = ((CecilVariableDefinition)AllocateSlot(
+                _method.returnType,
+                _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+            )).variableDefinition;
+        }
+
+        var ctx = new TryFrame();
+
+        ctx.outerTryStart = iLProcessor.Create(OpCodes.Nop);
+        iLProcessor.Append(ctx.outerTryStart);
+
+        ctx.innerTryStart = ctx.outerTryStart;
+
+        ctx.leaveTarget = iLProcessor.Create(OpCodes.Nop);
+
+        _tryStack.Push(ctx);
     }
 
     internal override void BeginCatch() {
-        throw new NotImplementedException();
+        var ctx = _tryStack.Peek();
+        ctx.hasCatch = true;
+
+        iLProcessor.Append(iLProcessor.Create(OpCodes.Leave, ctx.leaveTarget));
+
+        ctx.innerTryEnd = iLProcessor.Create(OpCodes.Nop);
+        iLProcessor.Append(ctx.innerTryEnd);
+
+        ctx.handlerStart = ctx.innerTryEnd;
+        // ctx.handlerStart = iLProcessor.Create(OpCodes.Nop);
+        // iLProcessor.Append(ctx.handlerStart);
     }
 
     internal override void BeginFinally() {
-        throw new NotImplementedException();
+        var ctx = _tryStack.Peek();
+        ctx.hasFinally = true;
+
+        iLProcessor.Append(iLProcessor.Create(OpCodes.Leave, ctx.leaveTarget));
+
+        if (!ctx.hasCatch) {
+            ctx.innerTryEnd = iLProcessor.Create(OpCodes.Nop);
+            iLProcessor.Append(ctx.innerTryEnd);
+        } else {
+            ctx.handlerEnd = iLProcessor.Create(OpCodes.Nop);
+            iLProcessor.Append(ctx.handlerEnd);
+        }
+
+        ctx.outerTryEnd = ctx.handlerEnd ?? ctx.innerTryEnd;
+
+        ctx.finallyStart = ctx.outerTryEnd;
+
+        // ctx.finallyStart = iLProcessor.Create(OpCodes.Nop);
+        // iLProcessor.Append(ctx.finallyStart);
     }
 
     internal override void EndTry(bool emitEndFinally) {
-        throw new NotImplementedException();
+        var ctx = _tryStack.Pop();
+
+        if (ctx.hasFinally) {
+            iLProcessor.Emit(OpCodes.Endfinally);
+            ctx.finallyEnd = iLProcessor.Create(OpCodes.Nop);
+            iLProcessor.Append(ctx.finallyEnd);
+        } else if (ctx.hasCatch) {
+            ctx.handlerEnd ??= iLProcessor.Create(OpCodes.Nop);
+            iLProcessor.Append(ctx.handlerEnd);
+        }
+
+        iLProcessor.Append(ctx.leaveTarget);
+
+        if (ctx.hasCatch) {
+            var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
+                CatchType = _module.GetType(CorLibrary.GetSpecialType(SpecialType.Exception)),
+                TryStart = ctx.innerTryStart,
+                TryEnd = ctx.innerTryEnd,
+                HandlerStart = ctx.handlerStart,
+                HandlerEnd = ctx.handlerEnd
+            };
+
+            iLProcessor.Body.ExceptionHandlers.Add(handler);
+        }
+
+        if (ctx.hasFinally) {
+            var handler = new ExceptionHandler(ExceptionHandlerType.Finally) {
+                TryStart = ctx.outerTryStart,
+                TryEnd = ctx.outerTryEnd,
+                HandlerStart = ctx.finallyStart,
+                HandlerEnd = ctx.finallyEnd
+            };
+
+            iLProcessor.Body.ExceptionHandlers.Add(handler);
+        }
+
+        if (_tryStack.Count > 0)
+            iLProcessor.Emit(OpCodes.Leave, _tryStack.Peek().leaveTarget);
     }
 
     internal override void EmitReturn() {
-        iLProcessor.Emit(OpCodes.Ret);
+        if (_tryStack.Count == 0) {
+            Emit(CodeGeneration.OpCode.Ret);
+        } else {
+            if (!_method.returnsVoid)
+                iLProcessor.Emit(OpCodes.Stloc, _returnLocal);
+
+            EmitBranch(CodeGeneration.OpCode.Leave, _epilogue);
+        }
     }
 
     internal override void EmitCalli(FunctionPointerTypeSymbol type) {

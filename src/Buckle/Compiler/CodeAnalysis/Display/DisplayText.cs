@@ -116,6 +116,9 @@ public sealed class DisplayText {
             case BoundKind.ExpressionStatement:
                 DisplayExpressionStatement(text, (BoundExpressionStatement)node);
                 break;
+            case BoundKind.DeferStatement:
+                DisplayDeferStatement(text, (BoundDeferStatement)node);
+                break;
             case BoundKind.LocalDeclarationStatement:
                 DisplayLocalDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
@@ -852,6 +855,13 @@ public sealed class DisplayText {
     }
 
     private static void DisplayExpressionStatement(DisplayText text, BoundExpressionStatement node) {
+        DisplayNode(text, node.expression);
+        text.WriteLine();
+    }
+
+    private static void DisplayDeferStatement(DisplayText text, BoundDeferStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
+        text.Write(CreateSpace());
         DisplayNode(text, node.expression);
         text.WriteLine();
     }

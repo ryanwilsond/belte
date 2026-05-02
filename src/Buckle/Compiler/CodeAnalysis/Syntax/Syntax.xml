@@ -745,11 +745,29 @@
   <Node Name="LocalDeclarationStatementSyntax" Base="StatementSyntax">
     <Kind Name="LocalDeclarationStatement"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="usingKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="UsingKeyword"/>
+    </Field>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
     <Field Name="declaration" Type="VariableDeclarationSyntax"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
+  </Node>
+  <Node Name="UsingStatementSyntax" Base="StatementSyntax">
+    <Kind Name="UsingStatement"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="usingKeyword" Type="SyntaxToken">
+      <Kind Name="UsingKeyword"/>
+    </Field>
+    <Field Name="OpenParenToken" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="declaration" Type="VariableDeclarationSyntax"/>
+    <Field Name="CloseParenToken" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="statement" Type="StatementSyntax"/>
   </Node>
   <Node Name="LocalFunctionStatementSyntax" Base="StatementSyntax">
     <Kind Name="LocalFunctionStatement"/>
@@ -862,6 +880,16 @@
   <Node Name="ExpressionStatementSyntax" Base="StatementSyntax">
     <Kind Name="ExpressionStatement"/>
     <Field Name="expression" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
+  <Node Name="DeferStatementSyntax" Base="StatementSyntax">
+    <Kind Name="DeferStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="DeferKeyword"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>

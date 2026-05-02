@@ -141,8 +141,8 @@ internal sealed partial class Executor : ModuleBuilder {
         var mainMethod = _programType.GetMethod(
             entryPoint.name,
             _programNamedType.isStatic
-                ? BindingFlags.Public | BindingFlags.Static
-                : BindingFlags.Public | BindingFlags.Instance
+                ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+                : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
         );
 
         if (_graphicsEnabled && _graphicsInitialized && _program.updatePoint is not null) {
@@ -938,7 +938,14 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
-        var attributes = MethodAttributes.Public | MethodAttributes.HideBySig;
+        var attributes = MethodAttributes.HideBySig;
+
+        attributes |= method.declaredAccessibility switch {
+            Accessibility.Private => MethodAttributes.Private,
+            Accessibility.Public => MethodAttributes.Public,
+            Accessibility.Protected => MethodAttributes.Family,
+            _ => 0
+        };
 
         if (method.isStatic)
             attributes |= MethodAttributes.Static;
@@ -1174,6 +1181,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
         if (body is not null)
             _methodBodies.Add(method, body);
+
+        if (method.methodKind == MethodKind.Destructor) {
+            var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));
+            typeBuilder.DefineMethodOverride(methodBuilder, baseFinalize);
+        }
     }
 
     private void SetCustomAttributes(MethodSymbol method, MethodBuilder methodBuilder) {
@@ -1442,6 +1454,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private void GenerateSTLMap() {
         const BindingFlags Flags = BindingFlags.Public | BindingFlags.Static;
         const BindingFlags InstFlags = BindingFlags.Public | BindingFlags.Instance;
+        const BindingFlags FamilyFlags = BindingFlags.Instance | BindingFlags.NonPublic;
 
         _stlMap = new Dictionary<string, MethodInfo>() {
             { "Console_Clear", typeof(Console).GetMethod("Clear", Flags, Type.EmptyTypes) },
@@ -1570,6 +1583,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },
+            { "Object<>_Finalize", typeof(object).GetMethod("Finalize", FamilyFlags, Type.EmptyTypes) },
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", Flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", Flags, [typeof(string)]) },
