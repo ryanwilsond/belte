@@ -5,6 +5,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// All types of things to be found in a source file.
 /// </summary>
 public enum SyntaxKind : ushort {
+    // ! Order matters (see SyntaxFacts)
     None = 0,
     List = GreenNode.ListKind,
 
@@ -45,6 +46,7 @@ public enum SyntaxKind : ushort {
     AsteriskAsteriskToken,
     QuestionQuestionToken,
     ExclamationEqualsToken,
+    ExclamationExclamationToken,
     EqualsEqualsToken,
     LessThanEqualsToken,
     LessThanLessThanToken,
@@ -72,6 +74,15 @@ public enum SyntaxKind : ushort {
     QuestionPeriodPeriodToken,
     QuestionExclamationToken,
     QuestionExclamationEqualsToken,
+    EqualsGreaterThanToken,
+
+    // Tokens with text
+    BadToken,
+    IdentifierToken,
+    NumericLiteralToken,
+    StringLiteralToken,
+    CharacterLiteralToken,
+    InterpolatedStringLiteralToken,
 
     // Keywords
     TypeOfKeyword,
@@ -114,6 +125,7 @@ public enum SyntaxKind : ushort {
     VirtualKeyword,
     OverrideKeyword,
     ConstructorKeyword,
+    DestructorKeyword,
     AsKeyword,
     WhereKeyword,
     ThrowKeyword,
@@ -139,13 +151,12 @@ public enum SyntaxKind : ushort {
     DefineKeyword,
     UndefKeyword,
     FlagsKeyword,
-
-    // Tokens with text
-    BadToken,
-    IdentifierToken,
-    NumericLiteralToken,
-    StringLiteralToken,
-    CharacterLiteralToken,
+    InKeyword,
+    OutKeyword,
+    UnionKeyword,
+    WithKeyword,
+    DeferKeyword,
+    HandleKeyword,
 
     // Trivia
     EndOfLineTrivia,
@@ -161,6 +172,7 @@ public enum SyntaxKind : ushort {
     DefineDirectiveTrivia,
     UndefDirectiveTrivia,
     DisabledTextTrivia,
+    HandleDirectiveTrivia,
 
     // Expressions
     ParenthesizedExpression,
@@ -168,6 +180,8 @@ public enum SyntaxKind : ushort {
     ThisExpression,
     BaseExpression,
     ThrowExpression,
+    DeclarationExpression,
+    WithExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -177,6 +191,8 @@ public enum SyntaxKind : ushort {
     PrefixExpression,
     PostfixExpression,
     AssignmentExpression,
+    IsPatternExpression,
+    DeclarationPattern,
 
     // Primary expressions
     LiteralExpression,
@@ -192,13 +208,21 @@ public enum SyntaxKind : ushort {
     CascadeExpression,
     StackAllocExpression,
     ImplicitEnumFieldExpression,
+    InterpolatedStringExpression,
+    ParenthesizedLambdaExpression,
+    SimpleLambdaExpression,
+    InterpolatedStringText,
+    Interpolation,
+    InterpolatedStringStartToken,
+    InterpolatedStringEndToken,
 
     // Statements
     EmptyStatement,
     BlockStatement,
     InlineILStatement,
-    ILInstruction,
     ExpressionStatement,
+    DeferStatement,
+    UsingStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
@@ -209,17 +233,23 @@ public enum SyntaxKind : ushort {
     WhileStatement,
     DoWhileStatement,
     ForStatement,
+    ForEachStatement,
     IfStatement,
-    ElseClause,
     TryStatement,
-    CatchClause,
-    FinallyClause,
     SwitchStatement,
+    GotoStatement,
+    WithStatement,
+    NullBindingStatement,
+
+    // Statement Parts
+    ILInstruction,
     SwitchSection,
     CaseSwitchLabel,
     DefaultSwitchLabel,
     MultiCaseSwitchLabel,
-    GotoStatement,
+    CatchClause,
+    FinallyClause,
+    ElseClause,
 
     // Directives
     UsingDirective,
@@ -233,12 +263,14 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,
     MethodDeclaration,
     ConstructorDeclaration,
     ConstructorInitializer,
+    DestructorDeclaration,
     OperatorDeclaration,
     ConversionDeclaration,
 
@@ -250,8 +282,10 @@ public enum SyntaxKind : ushort {
     EmptyName,
     ArrayType,
     NonNullableType,
+    NullableType,
     PointerType,
     FunctionPointerType,
+    FunctionType,
     ReferenceType,
     BaseType,
     NameEquals,

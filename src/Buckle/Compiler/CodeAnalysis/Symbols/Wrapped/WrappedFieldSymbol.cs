@@ -33,6 +33,10 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     internal override bool isFixedSizeBuffer => underlyingField.isFixedSizeBuffer;
 
+    internal override bool isAnonymousUnionMember => underlyingField.isAnonymousUnionMember;
+
+    internal override int unionGroupId => underlyingField.unionGroupId;
+
     internal override ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress) {
         return underlyingField.GetConstantValue(inProgress);
     }

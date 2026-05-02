@@ -60,7 +60,8 @@ internal abstract partial class PENamedTypeSymbol {
                     ownedParams[i] = new PETemplateParameterSymbol(
                         moduleSymbol,
                         this,
-                        (ushort)i, _genericParameterHandles[firstIndex + i]
+                        (ushort)i,
+                        _genericParameterHandles[firstIndex + i]
                     );
                 }
 

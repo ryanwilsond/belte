@@ -227,6 +227,10 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return VisitBaseNamespaceDeclaration(node);
     }
 
+    internal override SingleNamespaceOrTypeDeclaration VisitFileScopedNamespaceDeclaration(FileScopedNamespaceDeclarationSyntax node) {
+        return VisitBaseNamespaceDeclaration(node);
+    }
+
     private SingleNamespaceDeclaration VisitBaseNamespaceDeclaration(BaseNamespaceDeclarationSyntax node) {
         var children = VisitNamespaceChildren(node, node.members, ((CoreInternalSyntax.BaseNamespaceDeclarationSyntax)node.green).members);
 
@@ -251,6 +255,22 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         }
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+        if (node is FileScopedNamespaceDeclarationSyntax) {
+            if (node.parent is FileScopedNamespaceDeclarationSyntax) {
+                diagnostics.Push(Error.MultipleFileScopedNamespaces(node.name.location));
+            } else if (node.parent is NamespaceDeclarationSyntax) {
+                diagnostics.Push(Error.FileScopedAndNormalNamespace(node.name.location));
+            } else {
+                var compilationUnit = (CompilationUnitSyntax)node.parent;
+
+                if (node != compilationUnit.members[0])
+                    diagnostics.Push(Error.FileScopedNamespaceNotFirstMember(node.name.location));
+            }
+        } else {
+            if (node.parent is FileScopedNamespaceDeclarationSyntax)
+                diagnostics.Push(Error.FileScopedAndNormalNamespace(node.name.location));
+        }
 
         if (ContainsTemplate(node.name))
             diagnostics.Push(Error.UnexpectedTemplateName(node.name.location));
@@ -288,6 +308,13 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
     internal override SingleNamespaceOrTypeDeclaration VisitStructDeclaration(StructDeclarationSyntax node) {
         return VisitTypeDeclaration(node, DeclarationKind.Struct);
+    }
+
+    internal override SingleNamespaceOrTypeDeclaration VisitUnionDeclaration(UnionDeclarationSyntax node) {
+        if (node.identifier is not null)
+            return VisitTypeDeclaration(node, DeclarationKind.Struct);
+
+        return base.VisitUnionDeclaration(node);
     }
 
     internal override SingleNamespaceOrTypeDeclaration VisitEnumDeclaration(EnumDeclarationSyntax node) {
@@ -366,12 +393,12 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return new SingleTypeDeclaration(
             kind: kind,
-            name: node.identifier.text,
+            name: node.identifier?.text,
             arity: node.arity,
             modifiers: modifiers,
             declFlags: declFlags,
             syntaxReference: new SyntaxReference(node),
-            nameLocation: node.identifier.location,
+            nameLocation: node.identifier?.location ?? node.keyword.location,
             memberNames: memberNames,
             children: VisitTypeChildren(node),
             diagnostics: diagnostics.ToImmutableAndFree()
@@ -477,12 +504,14 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 return ((CoreInternalSyntax.CompilationUnitSyntax)member).attributeLists.Any();
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 return ((CoreInternalSyntax.TypeDeclarationSyntax)member).attributeLists.Any();
             case SyntaxKind.FieldDeclaration:
                 return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();
             case SyntaxKind.MethodDeclaration:
             case SyntaxKind.OperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
+            case SyntaxKind.DestructorDeclaration:
                 return ((CoreInternalSyntax.BaseMethodDeclarationSyntax)member).attributeLists.Any();
         }
 
@@ -501,6 +530,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             case SyntaxKind.ConstructorDeclaration:
                 set.Add(WellKnownMemberNames.InstanceConstructorName);
                 break;
+            case SyntaxKind.DestructorDeclaration:
+                set.Add(WellKnownMemberNames.DestructorName);
+                break;
             case SyntaxKind.OperatorDeclaration:
                 var opDecl = (CoreInternalSyntax.OperatorDeclarationSyntax)member;
                 var name = SyntaxFacts.GetOperatorMemberName(opDecl);
@@ -510,10 +542,14 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     }
 
     private static bool HasAnyNonTypeMemberNames(CoreInternalSyntax.BelteSyntaxNode member, bool skipGlobalStatements) {
+        if (member is CoreInternalSyntax.UnionDeclarationSyntax u && u.identifier is null)
+            return true;
+
         switch (member.kind) {
             case SyntaxKind.FieldDeclaration:
             case SyntaxKind.MethodDeclaration:
             case SyntaxKind.ConstructorDeclaration:
+            case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.OperatorDeclaration:
                 return true;
             case SyntaxKind.GlobalStatement:

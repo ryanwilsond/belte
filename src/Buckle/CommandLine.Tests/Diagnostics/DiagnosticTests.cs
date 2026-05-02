@@ -177,16 +177,16 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(args, diagnostics, _writer);
     }
 
-    // [Fact]
-    // public void Reports_Fatal_CL0015_CannotSpecifyReferencesWithoutDotnet() {
-    //     var args = new string[] { "--ref=some/fake/path" };
+    [Fact]
+    public void Reports_Fatal_CL0015_CannotSpecifyReferencesWithoutDotnet() {
+        var args = new string[] { "--ref=BelteTestsAssertDiagnosticCL0015.dll", "--evaluate" };
 
-    //     var diagnostics = @"
-    //         cannot specify references without .NET integration
-    //     ";
+        var diagnostics = @"
+            cannot specify references without .NET integration
+        ";
 
-    //     AssertDiagnostics(args, diagnostics, _writer);
-    // }
+        AssertDiagnostics(args, diagnostics, _writer, filesToCreate: "BelteTestsAssertDiagnosticCL0015.dll");
+    }
 
     [Fact]
     public void Reports_Error_CL0016_NoInputFiles() {
@@ -210,11 +210,11 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(args, diagnostics, _writer);
     }
 
-    // TODO Really weird: this test produces a no such binary operator error for operands 'Object!' and 'Object!'
+    // ! Not sure what is wrong with this test
     // [Fact]
     // public void Reports_Info_CL0018_IgnoringUnknownFileType() {
     //     var fileName = "BelteTestsAssertDiagnosticCL0018.ablt";
-    //     var args = new string[] { fileName };
+    //     var args = new string[] { fileName, "--type=dll" };
 
     //     var diagnostics = @"
     //         unknown file type of input file 'BelteTestsAssertDiagnosticCL0018.ablt'; ignoring
@@ -237,15 +237,14 @@ public sealed class DiagnosticTests {
 
     [Fact]
     public void Reports_Info_CL0020_IgnoringCompiledFile() {
-        var args = new string[] { "BelteTestsAssertDiagnosticCL0020.exe" };
+        var fileName = "BelteTestsAssertDiagnosticCL0020.exe";
+        var args = new string[] { fileName, "--type=dll" };
 
         var diagnostics = @"
             BelteTestsAssertDiagnosticCL0020.exe: file already compiled; ignoring
         ";
 
-        AssertDiagnostics(
-            args, diagnostics, _writer, DiagnosticSeverity.Info, false, "BelteTestsAssertDiagnosticCL0020.exe"
-        );
+        AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Info, false, fileName);
     }
 
     // [Fact]
@@ -297,7 +296,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "--warnlevel=a" };
 
         var diagnostics = @"
-            invalid warning level 'a'; warning level must be a number between 0 and 2
+            invalid warning level 'a'; warning level must be a number between 0 and 3
         ";
 
         AssertDiagnostics(args, diagnostics, _writer);
@@ -335,4 +334,104 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_CL0029_MissingType() {
+        var args = new string[] { "--type" };
+
+        var diagnostics = @"
+            missing project type after '--type' (usage: '--type=[console|graphics|...]')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0030_UnrecognizedType() {
+        var args = new string[] { "--type=asdf" };
+
+        var diagnostics = @"
+            unrecognized project type 'asdf'
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Fatal_CL0031_DLLWithWrongBuildMode() {
+        var args = new string[] { "--type=dll", "--execute" };
+
+        var diagnostics = @"
+            cannot compile to a dynamically linked library without .NET integration
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Fatal_CL0032_CannotSpecifyOutAndModuleWithDll() {
+        var args = new string[] { "--type=dll", "-o", "file.dll", "--modulename=file" };
+
+        var diagnostics = @"
+            cannot specify an output file and module name when building a dynamically linked library
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0033_MissingVerbosePath() {
+        var args = new string[] { "--vpath" };
+
+        var diagnostics = @"
+            missing path after '--vpath' (usage: '--vpath=<path>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0034_MissingMaxCoreCount() {
+        var args = new string[] { "-m" };
+
+        var diagnostics = @"
+            missing core count after '-m' (usage: '-m:<count>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0035_InvalidMaxCoreCount() {
+        var args = new string[] { "-m:a" };
+
+        var diagnostics = @"
+            'a' is not a valid core count; core count must be a positive integer
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0036_MissingEntryName() {
+        var args = new string[] { "--entry" };
+
+        var diagnostics = @"
+            missing type name after '--entry' (usage: '--entry=<name>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    // ! Requires --noout to be not passed
+    // [Fact]
+    // public void Reports_Fatal_CL0037_OutputIsDirectory() {
+    //     var args = new string[] { "-o", "../../Debug", "-d" };
+
+    //     var diagnostics = @"
+    //         output file '../../Debug' matches the path of an existing directory
+    //     ";
+
+    //     AssertDiagnostics(args, diagnostics, _writer, noInputFiles: true);
+    // }
 }

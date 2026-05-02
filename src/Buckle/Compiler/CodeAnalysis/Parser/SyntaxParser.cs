@@ -13,8 +13,8 @@ internal abstract partial class SyntaxParser : IDisposable {
         new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
 
     private protected readonly Lexer _lexer;
+    private protected readonly bool _isIncremental;
     private readonly LexerMode _mode;
-    private readonly bool _isIncremental;
     private readonly Blender _firstBlender;
     private readonly List<Diagnostic> _futureDiagnostics;
 
@@ -59,13 +59,20 @@ internal abstract partial class SyntaxParser : IDisposable {
     // Used for reusing nodes from the old tree. Just validate and call EatNode to reuse an old node.
     internal SyntaxNode currentNode {
         get {
-            var node = _currentNode.node;
+            var node = _currentNode?.node;
 
             if (node is not null)
                 return node;
 
             ReadCurrentNode();
-            return _currentNode.node;
+            return _currentNode?.node;
+        }
+    }
+
+    private protected SyntaxKind _currentNodeKind {
+        get {
+            var cn = currentNode;
+            return cn is not null ? cn.kind : SyntaxKind.None;
         }
     }
 
@@ -303,8 +310,8 @@ internal abstract partial class SyntaxParser : IDisposable {
         _futureDiagnostics.Add(diagnostic);
     }
 
-    private protected SyntaxNode EatNode() {
-        var saved = currentNode;
+    private protected GreenNode EatNode() {
+        var saved = currentNode.green;
 
         if (_tokenOffset >= _blendedTokens.Length)
             AddTokenSlot();
@@ -343,6 +350,23 @@ internal abstract partial class SyntaxParser : IDisposable {
             return _blendedTokens[_tokenOffset].token;
         else
             return _lexedTokens[_tokenOffset];
+    }
+
+    private protected static SyntaxToken ConvertToKeyword(SyntaxToken token) {
+        if (token.kind != token.contextualKind) {
+            var kw = token.isFabricated
+                ? SyntaxFactory.Missing(token.contextualKind, token.leadingTrivia.node, token.trailingTrivia.node)
+                : SyntaxFactory.Token(token.leadingTrivia.node, token.contextualKind, token.trailingTrivia.node);
+
+            var d = token.GetDiagnostics();
+
+            if (d is not null && d.Length > 0)
+                kw = kw.WithDiagnosticsGreen(d);
+
+            return kw;
+        }
+
+        return token;
     }
 
     private protected void AddLexedToken(SyntaxToken token) {
@@ -385,7 +409,14 @@ internal abstract partial class SyntaxParser : IDisposable {
         BlendedNodesPool.ForgetTrackedObject(old, replacement: _blendedTokens);
     }
 
-    private protected SyntaxToken Match(SyntaxKind kind, SyntaxKind? nextWanted = null, bool report = true) {
+    private protected SyntaxToken Match(
+        SyntaxKind kind,
+        SyntaxKind? nextWanted = null,
+        bool report = true,
+        bool contextual = false) {
+        if (contextual && currentToken.contextualKind == kind)
+            return ConvertToKeyword(EatToken());
+
         if (currentToken.kind == kind)
             return EatToken();
 
@@ -431,11 +462,15 @@ internal abstract partial class SyntaxParser : IDisposable {
         }
     }
 
-    private protected SyntaxToken MatchTwo(SyntaxKind kind1, SyntaxKind kind2, bool report = true) {
-        if (currentToken.kind == kind1)
-            return Match(kind1, report: report);
-        else if (currentToken.kind == kind2)
-            return Match(kind2, report: report);
+    private protected SyntaxToken MatchTwo(
+        SyntaxKind kind1,
+        SyntaxKind kind2,
+        bool report = true,
+        bool contextual = false) {
+        if (currentToken.kind == kind1 || (contextual && currentToken.contextualKind == kind1))
+            return Match(kind1, report: report, contextual: contextual);
+        else if (currentToken.kind == kind2 || (contextual && currentToken.contextualKind == kind2))
+            return Match(kind2, report: report, contextual: contextual);
 
         var peek = Peek(1);
 
@@ -474,7 +509,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             : Error.UnexpectedTokenExpectedOthers(unexpected, kind1, kind2);
     }
 
-    private static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
+    private protected static Diagnostic GetUnexpectedTokenError(SyntaxKind unexpected, SyntaxKind expected) {
         return unexpected == SyntaxKind.EndOfFileToken
             ? Error.ExpectedTokenAtEOF(expected)
             : Error.UnexpectedTokenExpectedAnother(unexpected, expected);

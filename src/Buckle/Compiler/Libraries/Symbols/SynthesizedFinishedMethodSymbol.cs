@@ -37,4 +37,8 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
     internal override DllImportData GetDllImportData() {
         return null;
     }
+
+    internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
+    }
 }

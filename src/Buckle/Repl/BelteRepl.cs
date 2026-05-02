@@ -26,7 +26,7 @@ namespace Repl;
 /// </summary>
 public sealed partial class BelteRepl : Repl {
     private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true, false);
+        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true);
     // TODO Any benefit to generating numbered assembly names so they are unique?
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
@@ -163,6 +163,9 @@ public sealed partial class BelteRepl : Repl {
 
         for (var i = 0; i < texts.Count; i++) {
             var line = texts[i].text;
+            var ln = line.Length;
+            var exp = fullText.Substring(offset, line.Length);
+            var expln = exp.Length;
 
             if (fullText.Substring(offset, line.Length) == line) {
                 offset += line.Length;
@@ -333,13 +336,13 @@ public sealed partial class BelteRepl : Repl {
         }
 
         if (state.showCS) {
-            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile);
+            var code = compilation.EmitToString(out _, BuildMode.CSharpTranspile, true);
             writer.Write(code);
         }
 
         if (state.showIL) {
             try {
-                var code = compilation.EmitToString(out _, BuildMode.Dotnet);
+                var code = compilation.EmitToString(out _, BuildMode.Dotnet, true);
                 writer.Write(code);
             } catch (KeyNotFoundException) {
                 handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.FailedILGeneration()));
@@ -867,13 +870,16 @@ public sealed partial class BelteRepl : Repl {
                 WriteDisplayText(pageText);
             }
 
-            if (currentSymbols.Length > 0 && currentGlobals.Count > 0) {
+            if (currentSymbols.Length > 0 && currentGlobals.Count > 0 && !(index + 1 >= writer.height)) {
                 Console.BackgroundColor = state.colorTheme.background;
                 writer.SetCursorPosition(0, index);
                 writer.WriteLine("Globals:");
             }
 
             foreach (var global in currentGlobals) {
+                if (index + 1 >= writer.height)
+                    break;
+
                 writer.SetCursorPosition(9, index++);
 
                 if (targetIndex == index - 3)

@@ -87,6 +87,8 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
                         FromBounds(typeDecl, typeDecl.identifier.span.start, typeDecl.identifier.span.end)
                     );
                 case CompilationUnitSyntax:
+                case NamespaceDeclarationSyntax:
+                case FileScopedNamespaceDeclarationSyntax:
                     return node;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(syntax.kind);

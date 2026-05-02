@@ -30,6 +30,13 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
         }
     }
 
+    internal override bool isAnonymousUnionMember => syntaxReference is not null &&
+        syntaxReference.node.parent.parent is UnionDeclarationSyntax u && u.identifier is null;
+
+    internal override int unionGroupId => !isAnonymousUnionMember
+        ? -1
+        : syntaxReference.node.parent.parent.position;
+
     internal static DeclarationModifiers MakeModifiers(
         NamedTypeSymbol containingSymbol,
         SyntaxToken firstIdentifier,

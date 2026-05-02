@@ -56,7 +56,11 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitReturn();
 
+    internal abstract void EmitSwitch(object[] labels);
+
     internal abstract void EmitCalli(FunctionPointerTypeSymbol type);
+
+    internal abstract void EmitNewobjFunc(FunctionTypeSymbol type);
 
     internal abstract void EmitLocalAddress(DataContainerSymbol local);
 

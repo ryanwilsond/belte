@@ -2,6 +2,8 @@ using System;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -47,6 +49,41 @@ internal sealed partial class Conversions {
         }
 
         return new Conversion(result, isImplicit: true);
+    }
+
+    internal bool HasIdentityOrImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (HasIdentityConversionInternal(source, destination)) {
+            return true;
+        }
+
+        return HasImplicitReferenceConversion(source, destination);
+    }
+
+    internal bool HasImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (!source.isObjectType && !source.IsArray())
+            return false;
+
+        if (destination.specialType == SpecialType.Object)
+            return true;
+
+        switch (source.typeKind) {
+            case TypeKind.Class:
+                if (destination.IsClassType() && Conversion.IsBaseClass(source, destination))
+                    return true;
+
+                return false;
+                // TODO These types:
+                // case TypeKind.TypeParameter:
+                //     return HasImplicitReferenceTypeParameterConversion((TypeParameterSymbol)source, destination);
+                // case TypeKind.Array:
+                //     return HasImplicitConversionFromArray(source, destination);
+        }
+
+        return false;
+    }
+
+    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
+        return type1.Equals(type2, TypeCompareKind.IgnoreArraySizesAndLowerBounds);
     }
 
     private Conversion GetImplicitNullptrExpressionConversion(
@@ -100,10 +137,12 @@ internal sealed partial class Conversions {
         BoundUnconvertedImplicitEnumFieldExpression node,
         TypeSymbol targetType) {
         if (targetType.StrippedType().IsEnumType()) {
-            if (targetType.IsNullableType())
-                return new Conversion(ConversionKind.ImplicitNullable, [Conversion.ImplicitEnum]);
+            var conversion = Conversion.Identity;
 
-            return Conversion.ImplicitEnum;
+            if (targetType.IsNullableType())
+                conversion = new Conversion(ConversionKind.ImplicitNullable, [conversion]);
+
+            return conversion;
         }
 
         return Conversion.None;
@@ -159,9 +198,12 @@ internal sealed partial class Conversions {
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
         var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
 
-        if (result.exists || sourceExpression is BoundUnconvertedInitializerList ||
-            sourceExpression.IsLiteralNull() || sourceExpression is BoundUnconvertedImplicitEnumFieldExpression) {
-            // We tried our best. There are no built-in conversions for lists.
+        if (result.exists || sourceExpression.IsLiteralNull() ||
+            sourceExpression is BoundUnconvertedInitializerList or
+                                BoundUnconvertedImplicitEnumFieldExpression or
+                                BoundUnconvertedNullptrExpression or
+                                BoundMethodGroup) {
+            // We tried our best. No further built-in conversions for these cases.
             return result;
         }
 
@@ -199,7 +241,12 @@ internal sealed partial class Conversions {
     }
 
     internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target) {
-        return FastClassifyConversion(source, target);
+        var conversion = FastClassifyConversion(source, target);
+
+        if (conversion.exists)
+            return conversion;
+
+        return Conversion.Classify(source, target);
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
@@ -240,6 +287,10 @@ internal sealed partial class Conversions {
                 return GetImplicitNullptrExpressionConversion(nullptr, target); ;
             case BoundUnconvertedImplicitEnumFieldExpression fieldAccess:
                 return GetImplicitEnumFieldExpressionConversion(fieldAccess, target);
+            case BoundMethodGroup methodGroup:
+                return GetMethodGroupConversion(methodGroup, target);
+            case BoundDefaultLiteral literal:
+                return Conversion.DefaultLiteral;
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -269,6 +320,110 @@ internal sealed partial class Conversions {
             return conversion;
 
         return Conversion.None;
+    }
+
+    private Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
+        if (destination.StrippedType().typeKind != TypeKind.Function)
+            return Conversion.None;
+
+        var methodSymbol = (destination.StrippedType() as FunctionTypeSymbol).signature;
+        var resolution = ResolveMethodGroup(_binder, source, methodSymbol);
+        var conversion = (resolution.isEmpty || resolution.hasAnyErrors)
+            ? Conversion.None
+            : ToConversion(resolution.overloadResolutionResult, resolution.methodGroup, methodSymbol.parameterCount);
+
+        resolution.Free();
+        return conversion;
+    }
+
+    private static Conversion ToConversion(
+        OverloadResolutionResult<MethodSymbol> result,
+        MethodGroup methodGroup,
+        int parameterCount) {
+        if (!result.succeeded)
+            return Conversion.None;
+
+        var method = result.bestResult.member;
+        return new Conversion(ConversionKind.MethodGroup, method);
+    }
+
+    private static MethodGroupResolution ResolveMethodGroup(
+        Binder binder,
+        BoundMethodGroup source,
+        MethodSymbol functionMethod) {
+        if (functionMethod is not null) {
+            var analyzedArguments = AnalyzedArguments.GetInstance();
+            GetFunctionArguments(source.syntax, analyzedArguments, functionMethod.parameters);
+            var resolution = binder.ResolveMethodGroup(
+                source,
+                analyzedArguments,
+                functionMethod.refKind,
+                functionMethod.returnType,
+                true
+            );
+
+            analyzedArguments.Free();
+            return resolution;
+        } else {
+            return binder.ResolveMethodGroup(source, analyzedArguments: null);
+        }
+    }
+
+    internal static bool ReportMethodGroupDiagnostics(
+        Binder binder,
+        BoundMethodGroup expr,
+        TypeSymbol targetType,
+        BelteDiagnosticQueue diagnostics) {
+        if (targetType.StrippedType() is not FunctionTypeSymbol s)
+            return false;
+
+        var resolution = ResolveMethodGroup(binder, expr, s.signature);
+        var hasErrors = resolution.hasAnyErrors;
+
+        if (resolution.methodGroup is not null) {
+            var result = resolution.overloadResolutionResult;
+
+            if (result is not null) {
+                if (result.succeeded) {
+                } else if (!hasErrors && !resolution.isEmpty && resolution.resultKind == LookupResultKind.Viable) {
+                    var overloadDiagnostics = BelteDiagnosticQueue.GetInstance();
+                    result.ReportDiagnostics(
+                        binder: binder,
+                        location: expr.syntax.location,
+                        node: expr.syntax,
+                        diagnostics: overloadDiagnostics,
+                        name: expr.name,
+                        receiver: resolution.methodGroup.receiver,
+                        invokedExpression: expr.syntax,
+                        arguments: resolution.analyzedArguments,
+                        memberGroup: resolution.methodGroup.methods.ToImmutable(),
+                        typeContainingConstructor: null,
+                        isMethodGroupConversion: true,
+                        returnRefKind: s.signature?.refKind,
+                        functionTypeSymbol: s
+                    );
+
+                    hasErrors = overloadDiagnostics.AnyErrors();
+                    diagnostics.PushRangeAndFree(overloadDiagnostics);
+                }
+            }
+        }
+
+        resolution.Free();
+        return hasErrors;
+    }
+
+    private static void GetFunctionArguments(
+        SyntaxNode syntax,
+        AnalyzedArguments analyzedArguments,
+        ImmutableArray<ParameterSymbol> delegateParameters) {
+        foreach (var p in delegateParameters) {
+            var parameter = p;
+            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(
+                new BoundParameterExpression(syntax, parameter, null, parameter.type)
+            ));
+            analyzedArguments.refKinds.Add(parameter.refKind);
+        }
     }
 
     private Conversion ClassifyStandardImplicitConversion(
@@ -745,11 +900,17 @@ internal sealed partial class Conversions {
             case ConversionKind.ExplicitUserDefined:
             case ConversionKind.ExplicitNullable:
             case ConversionKind.ExplicitReference:
+            case ConversionKind.ExplicitNumeric:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
+            case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.AnyUnboxing:
                 return false;
             case ConversionKind.Identity:
             case ConversionKind.ImplicitNullable:
+            case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitReference:
+            case ConversionKind.ImplicitNullToPointer:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ImplicitConstant:
             case ConversionKind.NullLiteral:

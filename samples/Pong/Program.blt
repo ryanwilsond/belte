@@ -11,11 +11,11 @@
 // When `Main` is present in a non-static class, a single instance of that class is automatically created and managed
 // by the compiler, allowing you to modify and access instance data.
 class Program {
-    Vec2! centerOfScreen;
-    Vec2! ballPosition;
-    Vec2! lPaddleTargetPosition;
-    Vec2! rPaddleTargetPosition;
-    Vec2! ballVelocity;
+    Vec2 centerOfScreen;
+    Vec2 ballPosition;
+    Vec2 lPaddleTargetPosition;
+    Vec2 rPaddleTargetPosition;
+    Vec2 ballVelocity;
 
     Sprite ball;
     Sprite lPaddle;

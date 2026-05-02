@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -7,20 +6,14 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed partial class FlowLowerer : BoundTreeRewriter {
-    private readonly List<string> _localNames = [];
-    private int _tempCount = 0;
-    private MethodSymbol _container;
+/// <summary>
+/// For lowering control flow structures.
+/// Runs before general lowering to simplify the number of nodes they have to cover.
+/// </summary>
+internal sealed partial class FlowLowerer : SharedFlowLowerer {
+    private FlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) : base(method, diagnostics) { }
 
-    private readonly BelteDiagnosticQueue _diagnostics;
-    private int _labelCount;
-
-    private FlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
-        _container = method;
-        _diagnostics = diagnostics;
-    }
-
-    internal static BoundStatement Lower(
+    internal new static BoundStatement Lower(
         MethodSymbol method,
         BoundStatement statement,
         BelteDiagnosticQueue diagnostics) {
@@ -223,6 +216,58 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
         );
     }
 
+    internal override BoundNode VisitNullBindingStatement(BoundNullBindingStatement node) {
+        /*
+
+        if (<source> -> <target>!)
+            <body>
+        <elseClause>
+
+        ---->
+
+        {
+            var temp = <source>
+
+            if (temp isnt null) {
+                <target> = temp!
+                <body>
+            } <elseClause>
+        }
+
+        */
+        var syntax = node.syntax;
+        var temp = GenerateTempLocal(node.expression.Type());
+        var condition = new BoundIsOperator(
+            syntax,
+            Local(syntax, temp),
+            Literal(syntax, null, temp.type),
+            true,
+            null,
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
+
+        return Visit(
+            Block(syntax,
+                node.locals,
+                new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                    temp,
+                    node.expression
+                )),
+                new BoundIfStatement(syntax,
+                    condition,
+                    Block(syntax,
+                        new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                            node.valueLocal,
+                            new BoundNullAssertOperator(syntax, Local(syntax, temp), true, null, node.valueLocal.type)
+                        )),
+                        node.consequence
+                    ),
+                    node.alternative
+                )
+            )
+        );
+    }
+
     internal override BoundNode VisitBreakStatement(BoundBreakStatement statement) {
         /*
 
@@ -251,24 +296,5 @@ internal sealed partial class FlowLowerer : BoundTreeRewriter {
 
     internal override BoundNode VisitSwitchStatement(BoundSwitchStatement node) {
         return SwitchStatementLocalRewriter.Rewrite(this, node);
-    }
-
-    private SynthesizedLabelSymbol GenerateLabel(string suffix = null) {
-        return new SynthesizedLabelSymbol($"Label{++_labelCount}{suffix}");
-    }
-
-    private SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
-        string name;
-
-        do {
-            name = $"temp{_tempCount++}";
-        } while (_localNames.Contains(name));
-
-        return new SynthesizedDataContainerSymbol(
-            _container,
-            new TypeWithAnnotations(type),
-            SynthesizedLocalKind.ExpanderTemp,
-            name
-        );
     }
 }

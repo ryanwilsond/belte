@@ -17,12 +17,13 @@ internal sealed class LargeTextWriter : SourceTextWriter {
     /// <summary>
     /// Creates a new <see cref="LargeTextWriter" /> with a starting capacity.
     /// </summary>
-    internal LargeTextWriter(int length) {
+    internal LargeTextWriter(int length, Encoding encoding) {
         _chunks = ArrayBuilder<char[]>.GetInstance(1 + length / LargeText.ChunkSize);
         _bufferSize = Math.Min(LargeText.ChunkSize, length);
+        Encoding = encoding;
     }
 
-    public override Encoding Encoding => Encoding.UTF8;
+    public override Encoding Encoding { get; }
 
     public override void Write(char value) {
         if (_buffer is not null && _currentUsed < _buffer.Length) {
@@ -87,7 +88,7 @@ internal sealed class LargeTextWriter : SourceTextWriter {
 
     internal override SourceText ToSourceText() {
         Flush();
-        return new LargeText(_chunks.ToImmutableAndFree());
+        return new LargeText(_chunks.ToImmutableAndFree(), Encoding);
     }
 
     /// <summary>

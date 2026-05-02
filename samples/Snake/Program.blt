@@ -9,8 +9,8 @@
 */
 
 class Program {
-    string! direction;
-    string! pendingDirection;
+    string! direction = "";
+    string! pendingDirection = "";
     decimal! snakeTimer;
     int! scoreCounter = 0;
     int! highScoreCounter = 21;

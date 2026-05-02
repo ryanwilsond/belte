@@ -20,7 +20,7 @@ public sealed class SyntaxFactTests {
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
         Assert.Equal(1, tokens.Count);
         var token = tokens[0];
-        Assert.Equal(kind, token.kind);
+        Assert.Equal(kind, token.contextualKind);
         Assert.Equal(text, token.text);
     }
 

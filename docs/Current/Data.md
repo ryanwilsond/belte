@@ -1,16 +1,35 @@
 # 3 Data
 
 - [3.1](#31-data-types) Data Types
+  - [3.1.1](#311-casts) Casts
+  - [3.1.2](#312-string-interpolation) String Interpolation
+  - [3.1.3](#313-function-type) Function Type
+  - [3.1.4](#314-default-literal) Default Literal
 - [3.2](#32-operators) Operators
+  - [3.2.1](#321-operator-precedence) Operator Precedence
+  - [3.2.2](#322-uncommon-operators) Uncommon Operators
+    - [3.2.2.1](#3221-x) `x!`
+    - [3.2.2.2](#3222-x) `x?`
+    - [3.2.2.3](#3223-ai) `a?[i]`
+    - [3.2.2.4](#3224-xy) `x?.y`
+    - [3.2.2.5](#3225-x--y) `x ?? y`
+    - [3.2.2.6](#3226-x--y) `x ?! y`
+    - [3.2.2.7](#3227-xy) `x..y`
+    - [3.2.2.8](#3228-xy) `x?..y`
+    - [3.2.2.9](#3229-x) `x!!`
+  - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
 - [3.3](#33-variables-and-constants) Variables and Constants
+  - [3.3.1](#331-implicit-typing) Implicit Typing
 - [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
 - [3.5](#35-references) References
 - [3.6](#36-arrays) Arrays
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
+  - [3.7.1](#371-examples) Examples
+  - [3.7.2](#372-side-effects) Side Effects
 
 ## 3.1 Data Types
 
-Apart from classes, there are five distinct data types:
+Apart from classes, there are many primitive types. The most common ones include:
 
 | Name | Identifier | Values |
 |-|-|-|
@@ -19,6 +38,18 @@ Apart from classes, there are five distinct data types:
 | Boolean | `bool` | `true` or `false` |
 | String | `string` | Spans of characters, no length limit |
 | Any | `any` | Any integer, decimal, boolean, or string value |
+| Type | `type` | Represents a type |
+
+Each of these can be set to `null` to represent they do not have a known value if they are nullable. Reference types
+(classes) are nullable by default unless suffixed with `!`. Value types (primitives, pointers, structs) are non-nullable
+by default unless suffixed with `?`. Pointers and function pointers are always non-nullable.
+
+Apart from these, many types exist for specific contexts:
+
+- See also [arrays and initializer lists](LowLevelFeatures.md#63-arrays).
+- See also [initializer dictionaries](StandardLibrary/Dictionary.md#5724-initializer-dictionaries).
+- See also [sized numeric types](LowLevelFeatures.md#64-numerics).
+- See also [pointer and function pointer types](LowLevelFeatures.md#65-pointers).
 
 ### 3.1.1 Casts
 
@@ -26,7 +57,7 @@ To convert from one data type to another, a cast can be used. If a cast is impli
 no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(int)"123"`).
 
 | From | To | Cast Type | Notes |
-|-|-|-|
+|-|-|-|-|
 | Integer | Decimal | Implicit | |
 | Integer | String | Explicit | |
 | Integer | Bool | None | |
@@ -43,11 +74,75 @@ no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(i
 In addition, nullability affects casting:
 
 | From | To | Cast Type | Notes |
-|-|-|-|
+|-|-|-|-|
 | type | type! | Explicit | Can throw |
 | type! | type | Implicit | |
 
+### 3.1.2 String Interpolation
+
+Prefixing a string literal with `f` allows expressions to be embedded into the string, denoted by enclosing brace pairs.
+
+The expressions within a string will automatically be casted to a string if they are a primitive. Otherwise
+`Object.ToString()` is called on the expression.
+
+For example:
+
+```belte
+var a = 3;
+var b = f"A equals {a}"; // b = "A equals 3"
+```
+
+```belte
+var a = new List<int>({ 1, 2, 3 });
+var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
+```
+
+### 3.1.3 Function Type
+
+Similar to [function pointers](LowLevelFeatures.md#66-function-pointers), a data container can have a function type and
+then be assigned with unambiguous method groups.
+
+For example:
+
+```belte
+int(int, int) myFunc = Add;
+int sum = myFunc(3, 5);
+
+int Add(int a, int b) {
+  return a + b;
+}
+```
+
+Function types cannot include pointer types in the return value or parameter list. For cases where you need this
+functionality, use function pointers instead.
+
+### 3.1.4 Default Literal
+
+The `default` literal can be used to indicate `null` for nullable types or the default value for primitives.
+
+For example:
+
+```belte
+int a = default; // a = 0
+int? a = default; // a = null
+```
+
+Types with no default value (non-nullable class types) cannot use the `default` literal.
+
 ## 3.2 Operators
+
+All operators execute strictly left-to-right, meaning the left-most operand is always fully evaluated before the next
+operand is.
+
+For example, in the expression `F() + G()`, `F()` is always executed before `G()`.
+
+The `?!`, `??`, `&&`, `||`, and `[]` operators short-circuit meaning depending on the result of the left operand, the
+right operand might not be executed at all.
+
+Lifted binary operators result in `null` if either operand is `null`, but do not short circuit. This includes the
+equality operators `==` and `!=`. To check if an expression is null, use the `x is null` or `x isnt null` operators.
+
+For example, in the expression `null + G()`, `G()` is executed even though the expression results in `null`.
 
 ### 3.2.1 Operator Precedence
 
@@ -56,14 +151,15 @@ strict order of precedence:
 
 | Operators | Category |
 |-|-|
-| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, new, typeof, nameof, sizeof | Primary |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, x?, new, typeof, nameof, sizeof | Primary |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
+| is, isnt, as | Type-Testing |
 | x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y, is, isnt | Relational and Type-Testing |
+| x < y, x > y, x <= y, x >= y | Relational |
 | x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
@@ -77,33 +173,41 @@ strict order of precedence:
 
 #### 3.2.2.1 `x!`
 
-`x!` is a null assertion. It guarantees that `x` is not null. If `x` is null, a null reference exception is thrown.
+`x!` is a null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The operator's
+result is non-nullable. If `x` is null, a runtime null reference exception is thrown.
 
-#### 3.2.2.2 `a?[i]`
+#### 3.2.2.2 `x?`
 
-`a?[i]` is a conditional indexer. If `a` is null, the index is not performed.
+`x?` is a null erasure. If `x` is null, the exception results in the default value of the type of `x`, where the type
+of `x` must be a primitive.
+
+#### 3.2.2.3 `a?[i]`
+
+`a?[i]` is a conditional indexer. If `a` is null, the index is not performed. `i` will not execute if `a` is null.
 
 This operator is syntax sugar for `a is null ? null : a![i]`.
 
-#### 3.2.2.3 `x?.y`
+#### 3.2.2.4 `x?.y`
 
 `x?.y` is a conditional member access. If `a` is null, the access is not performed.
 
 This operator is syntax sugar for `x is null ? null : x!.y`.
 
-#### 3.2.2.4 `x ?? y`
+#### 3.2.2.5 `x ?? y`
 
-`x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result.
+`x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result. `y` will not
+execute if `x` is not null.
 
 This operator is syntax sugar for `x is null ? y : null`.
 
-#### 3.2.2.5 `x ?! y`
+#### 3.2.2.6 `x ?! y`
 
-`x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result.
+`x ?! y` is a null propagation expression. If `x` is null, `x` is the result. Otherwise `y` is the result. `y` will not
+execute if `x` is null.
 
 This operator is syntax sugar for `x is null ? null : y`.
 
-#### 3.2.2.6 `x..y`
+#### 3.2.2.7 `x..y`
 
 `x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
 discarded.
@@ -123,10 +227,73 @@ temp.f = 3;
 var a = temp;
 ```
 
-#### 3.2.2.7 `x?..y`
+Notice that even if `Obj.M()` returns a value, it is ignored.
 
-`x?..y` is a conditional [cascade expression](#3226-xy). The field assignment or call expression `y` is only performed
+#### 3.2.2.8 `x?..y`
+
+`x?..y` is a conditional [cascade expression](#3227-xy). The field assignment or call expression `y` is only performed
 if `x` is not null.
+
+#### 3.2.2.9 `x!!`
+
+`x!!` is a silent null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The
+operator's result is non-nullable. If `x` is null, a runtime null reference exception is thrown if building in
+debug mode. If in release mode, no runtime check is performed at the assertion site explicitly, meaning exceptions will
+raise elsewhere if the value is null.
+
+In the case that the operand has a class type, using this operator when the operand is null risks polluting a
+non-nullable context with null.
+
+This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
+unnecessary.
+
+### 3.2.3 Is/Isnt/As Operators
+
+Unlike normal binary operators, `is`, `isnt` and `as` have special rules for what the right operand can be.
+
+The `as` operator requires the right operand to be a type. The `as` operator attempts to cast the left operand into the
+right operand type and results in null if the cast cannot be performed. Unlike a normal cast, the `as` operator only
+performs class up/down casting.
+
+For example:
+
+```belte
+A a = new B();
+B b = a as B;
+
+class A { }
+
+class B extends  A { }
+```
+
+The `isnt` operator requires the right operand to be a type or the `null` literal. It checks if the left operand is not
+the right operand type or if the left operand is not `null`.
+
+For example:
+
+```belte
+int? a = null;
+bool b = a isnt null; // false
+```
+
+```belte
+int? a = null;
+bool b = a isnt int; // true
+```
+
+The `is` operator requires the right operand to be a type, the `null` literal, or a declaration. In the case of the
+first two, it behaves opposite of the `isnt` operand. If the right operand is a declaration, it will store the
+successful result into the declared local if the left operand matches the type.
+
+For example:
+
+```belte
+any a = 3;
+
+if (a is int t) {
+  int b = t + 3;
+}
+```
 
 ## 3.3 Variables and Constants
 
@@ -137,7 +304,8 @@ variable with no value, making it `null` until later defined. The latter gives t
 
 ### 3.3.1 Implicit Typing
 
-Instead of using type-names to declare, implicit keywords `var` and `const` can be used if the initializer is distinct.
+Instead of using type-names to declare, implicit keywords `var`, `const`, and `constexpr` can be used if the initializer
+is distinct.
 
 Examples:
 
@@ -148,10 +316,23 @@ const b = 3; // Same as 'const int b = 3;'
 
 ## 3.4 Attributes and Modifiers
 
-All data is nullable by default. To disable this, an exclamation mark can be used:
+Reference-type data is nullable by default. To disable this, an exclamation mark can be used:
+
+```belte
+MyType! a = new MyType();
+```
+
+Value-type data is non-nullable by default. To enable nullability, a question mark can be used:
+
+```belte
+int? a = null;
+```
+
+Both of these annotations are allowed in situations where they are redundant for clarity purposes:
 
 ```belte
 int! a = 3;
+MyType? b = new MyType();
 ```
 
 ## 3.5 References
@@ -229,7 +410,10 @@ function pointer, the compiler does not attempt to evaluate the expression.
 If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
 If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
 expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
-evaluate.
+evaluate. In both of these cases, consider potential [side effects](#372-side-effects).
+
+For more complex compile-time execution/meta-programming consider using
+[compiler handles](LowLevelFeatures.md#613-compiler-handle).
 
 ### 3.7.1 Examples
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -117,6 +118,8 @@ public abstract partial class SyntaxNode {
     public bool isList => green.isList;
 
     public bool isFabricated => green.isFabricated;
+
+    public bool containsDirectives => green.containsDirectives;
 
     /// <summary>
     /// The underlying basic node information.
@@ -382,6 +385,10 @@ public abstract partial class SyntaxNode {
         }
 
         return null;
+    }
+
+    internal IList<DirectiveTriviaSyntax> GetDirectives(Func<DirectiveTriviaSyntax, bool> filter = null) {
+        return ((SyntaxNodeOrToken)this).GetDirectives(filter);
     }
 
     private static SyntaxNode GetParent(SyntaxNode node, bool ascendOutOfTrivia) {

@@ -1,8 +1,9 @@
+using System;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -12,14 +13,40 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
-        if (type is not null)
-            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.StrippedType().specialType), type);
+        if (type is not null) {
+            type = type.StrippedType();
+
+            if (type.IsEnumType())
+                type = ((NamedTypeSymbol)type).enumUnderlyingType;
+
+            return new BoundLiteralExpression(syntax, new ConstantValue(value, type.specialType), type);
+        }
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         return new BoundLiteralExpression(
             syntax,
             new ConstantValue(value, specialType),
             CorLibrary.GetSpecialType(specialType)
+        );
+    }
+
+    internal static BoundIsOperator IsNull(SyntaxNode syntax, BoundExpression expression) {
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), false, null, boolType);
+    }
+
+    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        return new BoundIsOperator(syntax, expression, Literal(syntax, null, expression.type), true, null, boolType);
+    }
+
+    internal static BoundLocalDeclarationStatement LocalDeclaration(
+        SyntaxNode syntax,
+        DataContainerSymbol local,
+        BoundExpression initializer) {
+        return new BoundLocalDeclarationStatement(
+            syntax,
+            new BoundDataContainerDeclaration(syntax, local, initializer)
         );
     }
 
@@ -72,12 +99,16 @@ internal static partial class BoundFactory {
         BoundExpression receiver,
         MethodSymbol method,
         params BoundExpression[] arguments) {
+        var length = arguments.Length;
+        var refKinds = new RefKind[length];
+        Array.Fill(refKinds, RefKind.None);
+
         return new BoundCallExpression(
             syntax,
             receiver,
             method,
             ImmutableArray.Create(arguments),
-            ImmutableArray.CreateRange(Enumerable.Repeat(RefKind.None, arguments.Length)),
+            ImmutableArray.Create(refKinds),
             BitVector.Empty,
             LookupResultKind.Viable,
             method.returnType
@@ -130,8 +161,39 @@ internal static partial class BoundFactory {
         return new BoundAssignmentOperator(syntax, left, right, isRef, type);
     }
 
+    private static BoundLiteralExpression GetFixLiteral1(SyntaxNode syntax, TypeSymbol type) {
+        var specialType = type.StrippedType().specialType;
+
+        switch (specialType) {
+            case SpecialType.Int8:
+                return Literal(syntax, (sbyte)1, type);
+            case SpecialType.Int16:
+                return Literal(syntax, (short)1, type);
+            case SpecialType.Int32:
+                return Literal(syntax, 1, type);
+            case SpecialType.UInt8:
+                return Literal(syntax, (byte)1, type);
+            case SpecialType.UInt16:
+                return Literal(syntax, (ushort)1, type);
+            case SpecialType.UInt32:
+                return Literal(syntax, 1U, type);
+            case SpecialType.UInt64:
+                return Literal(syntax, 1UL, type);
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return Literal(syntax, 1L, type);
+            case SpecialType.Float32:
+                return Literal(syntax, 1F, type);
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return Literal(syntax, 1D, type);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(specialType);
+        }
+    }
+
     internal static BoundCompoundAssignmentOperator Increment(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.StrippedType().specialType == SpecialType.Int;
+        var literal = GetFixLiteral1(syntax, operand.type);
         var opKind = OverloadResolution.BinOpEasyOut.OpKind(
             BinaryOperatorKind.Addition,
             operand.Type(),
@@ -142,7 +204,7 @@ internal static partial class BoundFactory {
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
+            literal,
             opSignature,
             null,
             null,
@@ -155,13 +217,18 @@ internal static partial class BoundFactory {
     }
 
     internal static BoundCompoundAssignmentOperator Decrement(SyntaxNode syntax, BoundExpression operand) {
-        var isInt = operand.StrippedType().specialType == SpecialType.Int;
-        var opKind = OverloadResolution.BinOpEasyOut.OpKind(BinaryOperatorKind.Subtraction, operand.Type(), operand.Type());
+        var literal = GetFixLiteral1(syntax, operand.type);
+        var opKind = OverloadResolution.BinOpEasyOut.OpKind(
+            BinaryOperatorKind.Subtraction,
+            operand.Type(),
+            operand.Type()
+        );
+
         var opSignature = new BinaryOperatorSignature(opKind, operand.Type(), operand.Type(), operand.Type());
         return new BoundCompoundAssignmentOperator(
             syntax,
             operand,
-            isInt ? Literal(syntax, 1L, operand.Type()) : Literal(syntax, 1D, operand.Type()),
+            literal,
             opSignature,
             null,
             null,
@@ -204,16 +271,5 @@ internal static partial class BoundFactory {
 
     internal static BoundNullAssertOperator Value(SyntaxNode syntax, BoundExpression expression, TypeSymbol type) {
         return new BoundNullAssertOperator(syntax, expression, false, null, type);
-    }
-
-    internal static BoundIsOperator HasValue(SyntaxNode syntax, BoundExpression expression) {
-        return new BoundIsOperator(
-            syntax,
-            expression,
-            Literal(syntax, null, expression.Type()),
-            true,
-            null,
-            CorLibrary.GetSpecialType(SpecialType.Bool)
-        );
     }
 }

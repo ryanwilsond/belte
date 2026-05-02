@@ -58,6 +58,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override bool isMetadataFinal => underlyingMethod.isMetadataFinal;
 
+    internal override bool coerceArguments => underlyingMethod.coerceArguments;
+
     internal override bool IsMetadataVirtual(bool forceComplete = false)
         => underlyingMethod.IsMetadataVirtual(forceComplete);
 

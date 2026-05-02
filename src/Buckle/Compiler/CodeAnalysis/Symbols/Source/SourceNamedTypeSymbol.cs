@@ -150,6 +150,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         }
     }
 
+    internal override bool isUnionStruct => typeKind == TypeKind.Struct &&
+        _declaration.declarations[0].syntaxReference.node.kind == SyntaxKind.UnionDeclaration;
+
     internal bool isSimpleProgram => _declaration.declarations.Any(static d => d.isSimpleProgram);
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
@@ -599,6 +602,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         switch (node.kind) {
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)node;
                 templateParameterList = typeDeclaration.templateParameterList;
                 return typeDeclaration.constraintClauseList?.constraintClauses;

@@ -160,6 +160,16 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_NamespaceNameShadowsBelte, location, message);
     }
 
+    internal static BelteDiagnostic UnusedUsingDirective(TextLocation location) {
+        var message = $"using directive is unnecessary";
+        return CreateWarning(DiagnosticCode.WRN_UnusedUsingDirective, location, message);
+    }
+
+    internal static BelteDiagnostic ExitingControlFlowInWith(TextLocation location) {
+        var message = $"exiting the with body early will result in the reversals not taking place; consider using a 'with (...) try'";
+        return CreateWarning(DiagnosticCode.WRN_ExitingControlFlowInWith, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

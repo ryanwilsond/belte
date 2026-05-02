@@ -69,6 +69,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual TypeSymbol receiverType => containingType;
 
+    internal virtual bool coerceArguments => false;
+
     internal new virtual MethodSymbol originalDefinition => this;
 
     internal new bool isDefinition => (object)this == originalDefinition;
@@ -141,6 +143,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     }
 
     internal abstract DllImportData GetDllImportData();
+
+    internal abstract UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete);
 
     internal virtual void GenerateMethodBody(TypeCompilationState compilationState, BelteDiagnosticQueue diagnostics) {
         throw ExceptionUtilities.Unreachable();
@@ -219,6 +223,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         switch (kind) {
             case MethodKind.Constructor:
             case MethodKind.StaticConstructor:
+            case MethodKind.Destructor:
                 return false;
             case MethodKind.LocalFunction:
             case MethodKind.Operator:

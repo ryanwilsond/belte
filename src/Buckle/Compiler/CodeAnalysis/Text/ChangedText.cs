@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Text;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -28,6 +29,8 @@ internal sealed partial class ChangedText : SourceText {
     public override char this[int index] => _newText[index];
 
     public override int length => _newText.length;
+
+    internal override Encoding encoding => _newText.encoding;
 
     public override string ToString(TextSpan span) {
         return _newText.ToString(span);

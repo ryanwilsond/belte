@@ -1,11 +1,11 @@
 
 public class Vec4 {
-    public decimal a;
-    public decimal b;
-    public decimal c;
-    public decimal d;
+    public decimal? a;
+    public decimal? b;
+    public decimal? c;
+    public decimal? d;
 
-    public constructor(decimal a, decimal b, decimal c, decimal d) {
+    public constructor(decimal? a, decimal? b, decimal? c, decimal? d) {
         this.a = a;
         this.b = b;
         this.c = c;

@@ -14,6 +14,7 @@ internal sealed partial class ILEmitter {
         internal static MethodReference String_Equality_SS;
         internal static MethodReference String_get_Chars_I;
         internal static MethodReference Convert_ToBoolean_S;
+        internal static MethodReference Convert_ToBoolean_I32;
         internal static MethodReference Convert_ToInt64_S;
         internal static MethodReference Convert_ToInt64_D;
         internal static MethodReference Convert_ToDouble_S;
@@ -21,6 +22,7 @@ internal sealed partial class ILEmitter {
         internal static MethodReference Convert_ToString_I;
         internal static MethodReference Convert_ToString_D;
         internal static MethodReference Convert_ToInt32_S;
+        internal static MethodReference Convert_ToInt32_B;
         internal static MethodReference Convert_ToChar_S;
         internal static MethodReference Convert_ToByte_S;
         internal static MethodReference Convert_ToUInt16_S;
@@ -47,6 +49,7 @@ internal sealed partial class ILEmitter {
         internal static MethodReference Nullable_ctor;
         internal static MethodReference Nullable_Value;
         internal static MethodReference Nullable_HasValue;
+        internal static MethodReference Nullable_GetValueOrDefault;
         internal static MethodReference Type_GetTypeFromHandle;
         internal static MethodReference NullReferenceException_ctor;
         internal static MethodReference NullConditionException_ctor;

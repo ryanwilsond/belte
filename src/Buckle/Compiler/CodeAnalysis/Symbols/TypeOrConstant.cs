@@ -17,8 +17,8 @@ internal sealed class TypeOrConstant {
         this.type = type;
     }
 
-    internal TypeOrConstant(TypeSymbol type, bool isNullable = false)
-        : this(new TypeWithAnnotations(type, isNullable)) { }
+    internal TypeOrConstant(TypeSymbol type, bool? isNullable = null)
+        : this(isNullable is null ? new TypeWithAnnotations(type) : new TypeWithAnnotations(type, isNullable.Value)) { }
 
     internal bool isConstant { get; }
 

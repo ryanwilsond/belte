@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.Text;
 using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -65,8 +66,9 @@ public partial class SyntaxTree {
     public static SyntaxTree Parse(
         string text,
         ParseOptions options = null,
-        SourceCodeKind kind = SourceCodeKind.Regular) {
-        var sourceText = SourceText.From(text);
+        SourceCodeKind kind = SourceCodeKind.Regular,
+        Encoding encoding = null) {
+        var sourceText = SourceText.From(text, encoding);
         return Parse(sourceText, options, kind);
     }
 
@@ -100,8 +102,8 @@ public partial class SyntaxTree {
     /// <param name="fileName">File name of source file.</param>
     /// <param name="text">Content of source file.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Load(string fileName, string text, ParseOptions options) {
-        var sourceText = SourceText.From(text, fileName);
+    internal static SyntaxTree Load(string fileName, string text, ParseOptions options, Encoding encoding = null) {
+        var sourceText = SourceText.From(text, encoding, fileName);
 
         return Parse(sourceText, options);
     }
@@ -113,7 +115,7 @@ public partial class SyntaxTree {
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Load(string fileName, ParseOptions options) {
         var text = File.ReadAllText(fileName);
-        var sourceText = SourceText.From(text, fileName);
+        var sourceText = SourceText.From(text, null, fileName);
 
         return Parse(sourceText, options);
     }

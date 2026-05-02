@@ -18,4 +18,6 @@ internal abstract class ThisParameterSymbolBase : ParameterSymbol {
     internal sealed override bool isThis => true;
 
     internal sealed override bool isImplicitlyDeclared => true;
+
+    internal sealed override bool isMetadataOut => false;
 }

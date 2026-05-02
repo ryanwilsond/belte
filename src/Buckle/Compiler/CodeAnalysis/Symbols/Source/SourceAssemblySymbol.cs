@@ -176,6 +176,7 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol, IAt
                         _state.NotePartComplete(CompletionParts.FinishAttributeChecks);
                         diagnostics.Free();
                     }
+
                     break;
                 case CompletionParts.Module:
                     sourceModule.ForceComplete(location);

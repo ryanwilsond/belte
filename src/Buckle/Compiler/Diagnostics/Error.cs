@@ -39,6 +39,16 @@ internal static class Error {
             var message = $"unsupported: cannot use non-integral enums when building for .NET, transpiling to C#, or executing";
             return CreateError(DiagnosticCode.UNS_NonIntegralEnum, location, message);
         }
+
+        internal static Diagnostic GraphicsCall() {
+            var message = $"cannot make Graphics calls when the output kind is not graphics";
+            return CreateError(DiagnosticCode.UNS_GraphicsCall, message);
+        }
+
+        internal static BelteDiagnostic InlineIL(TextLocation location) {
+            var message = $"unsupported: cannot use inline IL when transpiling to C#";
+            return CreateError(DiagnosticCode.UNS_InlineIL, location, message);
+        }
     }
 
     internal static BelteDiagnostic InvalidReference(string reference) {
@@ -154,7 +164,7 @@ internal static class Error {
     }
 
     internal static Diagnostic AmbiguousElse() {
-        var message = "ambiguous which if-statement this else-clause belongs to; use curly braces";
+        var message = "ambiguous which statement this else-clause belongs to; use curly braces";
         return CreateError(DiagnosticCode.ERR_AmbiguousElse, message);
     }
 
@@ -172,9 +182,15 @@ internal static class Error {
         var message = $"called object is not a method";
         return CreateError(DiagnosticCode.ERR_CannotCallNonMethod, location, message);
     }
+
     internal static BelteDiagnostic InvalidExpressionStatement(TextLocation location) {
         var message = "only assignment, call, throw, and increment expressions can be used as a statement";
         return CreateError(DiagnosticCode.ERR_InvalidExpressionStatement, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidDeferStatement(TextLocation location) {
+        var message = "only assignment, call, throw, and increment expressions can be deferred";
+        return CreateError(DiagnosticCode.ERR_InvalidDeferStatement, location, message);
     }
 
     internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location) {
@@ -742,8 +758,13 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic MethodGroupCannotBeUsedAsValue(TextLocation location, BoundMethodGroup methodGroup) {
-        var message = $"method group '{methodGroup}' cannot be used as a value";
+        var message = $"method group '{methodGroup.name}' cannot be used as a value";
         return CreateError(DiagnosticCode.ERR_MethodGroupCannotBeUsedAsValue, location, message);
+    }
+
+    internal static BelteDiagnostic MethodFunctionMismatch(TextLocation location, BoundMethodGroup methodGroup, TypeSymbol type) {
+        var message = $"no overload for '{methodGroup.name}' matches function '{type}'";
+        return CreateError(DiagnosticCode.ERR_MethodFunctionMismatch, location, message);
     }
 
     internal static BelteDiagnostic LocalShadowsParameter(TextLocation location, string name) {
@@ -1498,7 +1519,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IncompatibleEntryPointReturn(TextLocation location, Symbol symbol) {
-        var message = $"entry point '{symbol}' must return void to maintain compatibility with .NET";
+        var message = $"entry point '{symbol}' must return `void` or `int32!` to maintain compatibility with .NET";
         return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
     }
 
@@ -1518,7 +1539,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation on a struct type";
+        var message = $"cannot use a nullable or non-nullable annotation on a struct type";
         return CreateError(DiagnosticCode.ERR_CannotAnnotateStruct, location, message);
     }
 
@@ -1892,6 +1913,203 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_WrongEnumTargetType, location, message);
     }
 
+    internal static BelteDiagnostic MultipleFileScopedNamespaces(TextLocation location) {
+        var message = $"file can only contain one file-scoped namespace declaration";
+        return CreateError(DiagnosticCode.ERR_MultipleFileScopedNamespaces, location, message);
+    }
+
+    internal static BelteDiagnostic FileScopedAndNormalNamespace(TextLocation location) {
+        var message = $"file can not contain both file-scoped and normal namespace declarations";
+        return CreateError(DiagnosticCode.ERR_FileScopedAndNormalNamespace, location, message);
+    }
+
+    internal static BelteDiagnostic FileScopedNamespaceNotFirstMember(TextLocation location) {
+        var message = $"file-scoped namespace must precede all other members in a file";
+        return CreateError(DiagnosticCode.ERR_FileScopedNamespaceNotFirstMember, location, message);
+    }
+
+    internal static BelteDiagnostic EntryConstructor(TextLocation location) {
+        var message = $"entry point type cannot define instance constructors";
+        return CreateError(DiagnosticCode.ERR_EntryConstructor, location, message);
+    }
+
+    internal static BelteDiagnostic StructLayoutCycle(TextLocation location, Symbol member, Symbol type) {
+        var message = $"struct member '{member}' of type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' causes a cycle in the struct layout";
+        return CreateError(DiagnosticCode.ERR_StructLayoutCycle, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidForEachExpression(TextLocation location) {
+        var message = $"for iterator expression must be an array, string, Enumerator or define the iter operator or define the length and [] operators";
+        return CreateError(DiagnosticCode.ERR_InvalidForEachExpression, location, message);
+    }
+
+    internal static BelteDiagnostic LengthMustReturnInt(TextLocation location) {
+        var message = $"length operator must return 'int!'";
+        return CreateError(DiagnosticCode.ERR_LengthMustReturnInt, location, message);
+    }
+
+    internal static BelteDiagnostic IterMustReturnEnumerator(TextLocation location) {
+        var message = $"iter operator must return 'Enumerator!'";
+        return CreateError(DiagnosticCode.ERR_IterMustReturnEnumerator, location, message);
+    }
+
+    internal static BelteDiagnostic UnexpectedParameterList(TextLocation location) {
+        var message = $"unexpected parameter list (operand is not a method)";
+        return CreateError(DiagnosticCode.ERR_UnexpectedParameterList, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidParameterList(TextLocation location, string name) {
+        var message = $"no overload for method '{name}' matches the parameter list";
+        return CreateError(DiagnosticCode.ERR_InvalidParameterList, location, message);
+    }
+
+    internal static BelteDiagnostic NamespaceUnexpected(TextLocation location) {
+        var message = $"namespaces cannot directly contain fields, methods, or statements";
+        return CreateError(DiagnosticCode.ERR_NamespaceUnexpected, location, message);
+    }
+
+    internal static BelteDiagnostic NullErasureOnNonNullableType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot apply a null erasure operator to an expression with type '{type}' as it is a non-nullable type";
+        return CreateError(DiagnosticCode.ERR_NullErasureOnNonNullableType, location, message);
+    }
+
+    internal static BelteDiagnostic NullErasureOnTypeWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot apply a null erasure operator to an expression with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_NullErasureOnTypeWithNoDefault, location, message);
+    }
+
+    internal static BelteDiagnostic TypeWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a default literal for type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_TypeWithNoDefault, location, message);
+    }
+
+    internal static BelteDiagnostic OutNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use the out modifier for type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
+    }
+
+    internal static BelteDiagnostic FieldNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a field without an initializer with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefaultValue, location, message);
+    }
+
+    internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
+        var message = $"cannot apply a null erasure operator to a null literal";
+        return CreateError(DiagnosticCode.ERR_NullErasureOnNull, location, message);
+    }
+
+    internal static BelteDiagnostic NullBindingRequiresNullable(TextLocation location) {
+        var message = $"the source expression type of a null-binding contract must be nullable";
+        return CreateError(DiagnosticCode.ERR_NullBindingRequiresNullable, location, message);
+    }
+
+    internal static BelteDiagnostic NullBindingOnNull(TextLocation location) {
+        var message = $"cannot create a null-binding contract on a null literal";
+        return CreateError(DiagnosticCode.ERR_NullBindingOnNull, location, message);
+    }
+
+    internal static BelteDiagnostic NoHandleTarget(TextLocation location, TypeSymbol type) {
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains no valid handle method";
+        return CreateError(DiagnosticCode.ERR_NoHandleTarget, location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousHandleTarget(TextLocation location, TypeSymbol type) {
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains more than one valid handle method";
+        return CreateError(DiagnosticCode.ERR_AmbiguousHandleTarget, location, message);
+    }
+
+    internal static BelteDiagnostic FunctionCannotContainPointer(TextLocation location) {
+        var message = $"function types cannot contain pointers or function pointers; consider using a function pointer instead";
+        var suggestion = $"%*";
+        return CreateError(DiagnosticCode.ERR_FunctionCannotContainPointer, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic BadReturnType(TextLocation location, MethodSymbol method, TypeSymbol type, TypeSymbol expected) {
+        var message = $"'{type} {method}' has the wrong return type; expected '{expected}'";
+        return CreateError(DiagnosticCode.ERR_BadReturnType, location, message);
+    }
+
+    internal static BelteDiagnostic FunctionRefMismatch(TextLocation location, Symbol method, TypeSymbol type) {
+        var message = $"ref mismatch between '{method}' and function '{type}'";
+        return CreateError(DiagnosticCode.ERR_FunctionRefMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownCallingConvention(TextLocation location, string text) {
+        var message = $"unrecognized calling convention '{text}'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'";
+        return CreateError(DiagnosticCode.ERR_UnknownCallingConvention, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotatePointer(TextLocation location) {
+        var message = $"cannot use a nullable annotation on a pointer or function pointer type";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotatePointer, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTypeTemplate(TextLocation location) {
+        var message = $"type template parameters cannot be nullable";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTypeTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTemplate(TextLocation location) {
+        var message = $"cannot use a non-nullable annotation on a template parameter type";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultLiteralNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the default literal";
+        return CreateError(DiagnosticCode.ERR_DefaultLiteralNoTargetType, location, message);
+    }
+
+    internal static BelteDiagnostic TypeInferenceFailedForOut(TextLocation location, string text) {
+        var message = $"cannot infer the type of implicitly-typed out data container '{text}'";
+        return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
+    }
+
+    internal static BelteDiagnostic OutVarAnnotated(TextLocation location) {
+        var message = $"cannot annotate the type of an implicitly typed out data container";
+        return CreateError(DiagnosticCode.ERR_OutVarAnnotated, location, message);
+    }
+
+    internal static BelteDiagnostic BadPatternExpression(TextLocation location, BoundExpression expression) {
+        var message = $"invalid operand for pattern match; value required, but found '{expression}'";
+        return CreateError(DiagnosticCode.ERR_BadPatternExpression, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAnnotateTypePattern(TextLocation location, TypeSymbol type, TypeSymbol underlyingType) {
+        var message = $"cannot use nullable type '{type}' in a pattern; use the underlying type '{underlyingType}' or a null-binding contract instead";
+        var suggestion = $"{underlyingType}";
+        return CreateError(DiagnosticCode.ERR_CannotAnnotateTypePattern, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic PatternCannotHandleTypes(TextLocation location, TypeSymbol source, TypeSymbol target) {
+        var message = $"an expression of type '{source}' cannot be handled by a pattern of type '{target}'";
+        return CreateError(DiagnosticCode.ERR_PatternCannotHandleTypes, location, message);
+    }
+
+    internal static BelteDiagnostic WithExpressionNotAssignment(TextLocation location) {
+        var message = $"the context expression of a with statement or with expression must be an assignment";
+        return CreateError(DiagnosticCode.ERR_WithExpressionNotAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic UnmanagedRequiresStatic(TextLocation location) {
+        var message = $"'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions";
+        return CreateError(DiagnosticCode.ERR_UnmanagedRequiresStatic, location, message);
+    }
+
+    internal static BelteDiagnostic UnmanagedCannotBeTemplate(TextLocation location) {
+        var message = $"methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type";
+        return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
+    }
+
+    internal static BelteDiagnostic DestructorInStaticClass(TextLocation location) {
+        var message = $"static classes cannot contain destructors";
+        return CreateError(DiagnosticCode.ERR_DestructorInStaticClass, location, message);
+    }
+
+    internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless method named 'Dispose'";
+        return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
@@ -1920,9 +2138,9 @@ internal static class Error {
         else if (factValue is not null)
             return $"'{factValue}'";
 
-        if (type.ToString().EndsWith("Statement")) {
+        if (type.IsStatement()) {
             return "statement";
-        } else if (type.ToString().EndsWith("Expression")) {
+        } else if (type.IsExpression()) {
             return "expression";
         } else if (type.IsKeyword()) {
             return "keyword";

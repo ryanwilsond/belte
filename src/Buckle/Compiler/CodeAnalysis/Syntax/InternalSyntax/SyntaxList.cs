@@ -1,4 +1,5 @@
 using System;
+using Buckle.Utilities;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -130,6 +131,10 @@ internal partial class SyntaxList : GreenNode {
 
     internal virtual void CopyTo(ArrayElement<GreenNode>[] array, int offset) {
         Array.Copy(children, 0, array, offset, children.Length);
+    }
+
+    internal sealed override SyntaxNode GetStructure(Syntax.SyntaxTrivia parentTrivia) {
+        throw ExceptionUtilities.Unreachable();
     }
 
     private void InitializeChildren() {

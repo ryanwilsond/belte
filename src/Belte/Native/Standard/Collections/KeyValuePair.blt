@@ -1,0 +1,5 @@
+
+public lowlevel struct KeyValuePair<type TKey, type TValue> {
+    public TKey key;
+    public TValue value;
+}

@@ -7,10 +7,15 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class ErrorTypeSymbol {
     private protected sealed class ErrorTemplateParameterSymbol : TemplateParameterSymbol {
-        internal ErrorTemplateParameterSymbol(ErrorTypeSymbol container, string name, int ordinal) {
+        internal ErrorTemplateParameterSymbol(
+            ErrorTypeSymbol container,
+            string name,
+            int ordinal,
+            TypeWithAnnotations underlyingType) {
             containingSymbol = container;
             this.name = name;
             this.ordinal = ordinal;
+            this.underlyingType = underlyingType;
         }
 
         public override string name { get; }
@@ -27,7 +32,7 @@ internal abstract partial class ErrorTypeSymbol {
 
         internal override bool isImplicitlyDeclared => true;
 
-        internal override TypeWithAnnotations underlyingType => null;
+        internal override TypeWithAnnotations underlyingType { get; }
 
         internal override TypeOrConstant defaultValue => null;
 

@@ -415,10 +415,10 @@ internal static class ConstantFolding {
                     SpecialType.Int16 => new ConstantValue(-(short)value, specialType),
                     SpecialType.Int32 => new ConstantValue(-(int)value, specialType),
                     SpecialType.Int64 => new ConstantValue(-(long)value, specialType),
-                    SpecialType.UInt8 => new ConstantValue(-(byte)value, specialType),
-                    SpecialType.UInt16 => new ConstantValue(-(ushort)value, specialType),
-                    SpecialType.UInt32 => new ConstantValue(-(uint)value, specialType),
-                    SpecialType.UInt64 => new ConstantValue(-Convert.ToInt64(value), specialType),
+                    SpecialType.UInt8 => new ConstantValue(-(int)(byte)value, SpecialType.Int32),
+                    SpecialType.UInt16 => new ConstantValue(-(int)(ushort)value, SpecialType.Int32),
+                    SpecialType.UInt32 => new ConstantValue(-(long)(uint)value, SpecialType.Int64),
+                    SpecialType.UInt64 => new ConstantValue(-Convert.ToInt64(value), SpecialType.Int64),
                     SpecialType.Float32 => new ConstantValue(-(float)value, specialType),
                     SpecialType.Float64 => new ConstantValue(-(double)value, specialType),
                     _ => throw ExceptionUtilities.UnexpectedValue(specialType),
@@ -434,7 +434,7 @@ internal static class ConstantFolding {
                     SpecialType.UInt8 => new ConstantValue(~(byte)value, specialType),
                     SpecialType.UInt16 => new ConstantValue(~(ushort)value, specialType),
                     SpecialType.UInt32 => new ConstantValue(~(uint)value, specialType),
-                    SpecialType.UInt64 => new ConstantValue(~(long)value, specialType),
+                    SpecialType.UInt64 => new ConstantValue(~(ulong)value, specialType),
                     _ => throw ExceptionUtilities.UnexpectedValue(specialType),
                 };
             default:
@@ -504,7 +504,12 @@ internal static class ConstantFolding {
         if (constantValue.value is null && !target.isNullable)
             return null;
 
-        var specialType = target.type.StrippedType().specialType;
+        var targetType = target.type.StrippedType();
+
+        if (targetType.IsEnumType())
+            targetType = ((NamedTypeSymbol)targetType).enumUnderlyingType;
+
+        var specialType = targetType.specialType;
 
         // Preserve "actual" type
         if (specialType == SpecialType.Any)

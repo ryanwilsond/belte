@@ -52,28 +52,3 @@ E.g.
 buckle samples/Donut -d -o donut.dll
 dotnet donut.dll
 ```
-
-### Building using `dotnet build`
-
-> Note: using `dotnet build` or `dotnet run` commands builds the Buckle compiler before building the sample project,
-> potentially slowing down build times
-
-To compile a sample, locate into the desired sample directory and run `dotnet build`. This will place the finished
-executable into `<sample directory>/bin/Debug/net10.0/<sample name>.exe`, which you can then run.
-
-Alternatively, run `dotnet run` instead of the build command to automatically run the program after it is compiled.
-
-E.g.
-
-```bash
-cd samples/HelloWorld
-dotnet build
-./bin/Debug/net10.0/HelloWorld.exe
-```
-
-or equivalently:
-
-```bash
-cd samples/HelloWorld
-dotnet run
-```

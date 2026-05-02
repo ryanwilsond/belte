@@ -78,8 +78,7 @@ internal partial class PEParameterSymbol : ParameterSymbol {
                 var inOutFlags = _flags & (ParameterAttributes.Out | ParameterAttributes.In);
 
                 if (inOutFlags == ParameterAttributes.Out) {
-                    // refKind = RefKind.Out;
-                    // TODO no equiv
+                    refKind = RefKind.Out;
                 } else if (!isReturn && moduleSymbol.module.HasRequiresLocationAttribute(handle)) {
                     refKind = RefKind.RefConstParameter;
                 } else if (moduleSymbol.module.HasIsReadOnlyAttribute(handle)) {
@@ -172,6 +171,8 @@ internal partial class PEParameterSymbol : ParameterSymbol {
     internal bool useUpdatedEscapeRules => _moduleSymbol.useUpdatedEscapeRules;
 
     internal override bool isMetadataOptional => (_flags & ParameterAttributes.Optional) != 0;
+
+    internal override bool isMetadataOut => (_flags & ParameterAttributes.Out) != 0;
 
     internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;
 

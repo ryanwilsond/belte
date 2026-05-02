@@ -18,7 +18,7 @@ Please delete options that are not relevant.
   - List the breaking changes (APIs, language features, etc.)
 - [ ] Code quality improvements/refactoring
 
-# Checklist
+## Checklist
 
 - [ ] My code follows the style guidelines of this project
 - [ ] I have performed a self-review of my code
@@ -28,19 +28,4 @@ Please delete options that are not relevant.
 - [ ] My changes generate no new warnings
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-- [ ] I have added a test case(s) to the diagnostics tests (e.g. [src/Buckle/Compiler.Tests/Diagnostics/DiagnosticTests.cs](../blob/staging/src/Buckle/Compiler.Tests/Diagnostics/DiagnosticTests.cs)) if any new errors or warnings were added
-
-**If no new syntax was added delete this section:**
-
-Make sure to update each of the following places to support your new syntax. Please delete items that are not relevant.
-
-- [ ] I added my new syntax to [Syntax.xml](../blob/staging/src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml) file
-- [ ] I updated the Parser
-- [ ] I updated the Binder
-- [ ] I updated the Lowerer
-- [ ] I updated the Optimizer
-- [ ] I updated the Expander
-- [ ] I updated the DisplayText
-- [ ] I updated the Evaluator
-- [ ] I updated the CodeGenerator
-~~I updated the CSharpEmitter class~~ (Temporarily not required)
+- [ ] I have added a test case(s) to the diagnostics tests if any new errors or warnings were added

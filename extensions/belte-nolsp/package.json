@@ -32,14 +32,28 @@
 					"light": "./images/belte-icon128x.png",
 					"dark": "./images/belte-icon128x.png"
 				}
-			}
+			},
+            {
+                "id": "belte-markdown-injection"
+            }
 		],
 		"grammars": [
 			{
 				"language": "belte",
 				"scopeName": "source.belte",
 				"path": "./belte.tmLanguage.json"
-			}
+			},
+            {
+                "language": "belte-markdown-injection",
+                "scopeName": "markdown.belte.codeblock",
+                "path": "./belte-markdown-injection.json",
+                "injectTo": [
+                    "text.html.markdown"
+                ],
+                "embeddedLanguages": {
+                    "meta.embedded.block.belte": "belte"
+                }
+            }
 		],
         "breakpoints": [
             {

@@ -9,15 +9,15 @@ internal sealed class UnmanagedCallersOnlyAttributeData {
 
     internal const string CallConvsPropertyName = "CallConvs";
 
-    internal static UnmanagedCallersOnlyAttributeData Create(ImmutableHashSet<NamedTypeSymbol>? callingConventionTypes)
+    internal static UnmanagedCallersOnlyAttributeData Create(ImmutableHashSet<CallingConvention> callingConventionTypes)
         => callingConventionTypes switch {
             null or { IsEmpty: true } => PlatformDefault,
             _ => new UnmanagedCallersOnlyAttributeData(callingConventionTypes)
         };
 
-    internal readonly ImmutableHashSet<NamedTypeSymbol> callingConventionTypes;
+    internal readonly ImmutableHashSet<CallingConvention> callingConventionTypes;
 
-    private UnmanagedCallersOnlyAttributeData(ImmutableHashSet<NamedTypeSymbol> callingConventionTypes) {
+    private UnmanagedCallersOnlyAttributeData(ImmutableHashSet<CallingConvention> callingConventionTypes) {
         this.callingConventionTypes = callingConventionTypes;
     }
 

@@ -8,6 +8,8 @@ whether or not a program was compiled in debug mode.
 - [7.1](#71-defineundef) Define/Undef
 - [7.2](#72-control) Control
 
+Information on `#handle` is [documented elsewhere](LowLevelFeatures.md#613-compiler-handle).
+
 ## 7.1 Define/Undef
 
 Use `#define <name>` to define a constant. Use `#undef <name>` to remove that

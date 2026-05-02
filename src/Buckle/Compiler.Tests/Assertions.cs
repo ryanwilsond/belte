@@ -16,9 +16,9 @@ namespace Buckle.Tests;
 /// </summary>
 internal static class Assertions {
     private static CompilationOptions DefaultEvalOptions
-        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, [], enableOutput: false);
+        => new CompilationOptions(BuildMode.Evaluate, OutputKind.ConsoleApplication, []);
     private static CompilationOptions DefaultExecOptions
-        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, [], enableOutput: false);
+        => new CompilationOptions(BuildMode.Execute, OutputKind.ConsoleApplication, []);
 
     private readonly static Compilation BaseCompilation;
 
@@ -48,7 +48,7 @@ internal static class Assertions {
                 BaseCompilation
             );
 
-            var execDiags = execCompilation.Execute(false, false, null, out execResult);
+            var execDiags = execCompilation.Execute(false, false, null, false, out execResult);
             Assert.Empty(execDiags.Errors().ToArray());
 
             computedValue = execResult;

@@ -18,8 +18,7 @@ internal abstract partial class SourceEnumConstantSymbol {
         private protected override ConstantValue MakeConstantValue(
             HashSet<SourceFieldSymbolWithSyntaxReference> dependencies,
             BelteDiagnosticQueue diagnostics) {
-            var constantType = containingType.enumUnderlyingType.specialType;
-            return new ConstantValue(LiteralUtilities.GetDefaultValue(constantType), constantType);
+            return LiteralUtilities.TryGetDefaultValue(containingType.enumUnderlyingType);
         }
     }
 }

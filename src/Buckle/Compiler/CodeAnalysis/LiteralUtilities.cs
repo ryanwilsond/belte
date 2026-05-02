@@ -60,6 +60,14 @@ internal static class LiteralUtilities {
         var sourceType = sourceTypeSymbol.StrippedType().specialType;
         var targetType = targetTypeSymbol.StrippedType().specialType;
 
+        return TrySpecialCastCore(value, sourceType, targetType, out result);
+    }
+
+    internal static bool TrySpecialCastCore(
+        object value,
+        SpecialType sourceType,
+        SpecialType targetType,
+        out object result) {
         switch (targetType) {
             case SpecialType.Bool:
                 result = Convert.ToBoolean(value);
@@ -107,6 +115,7 @@ internal static class LiteralUtilities {
                 };
 
                 break;
+            case SpecialType.WinBool:
             case SpecialType.Int32:
                 result = sourceType switch {
                     SpecialType.Int8 => (int)(sbyte)value,
@@ -123,6 +132,7 @@ internal static class LiteralUtilities {
                     SpecialType.Decimal => unchecked((int)(double)value),
                     SpecialType.String => Convert.ToInt32(value),
                     SpecialType.Char => (int)(char)value,
+                    SpecialType.Bool => (bool)value ? 1 : 0,
                     _ => throw ExceptionUtilities.UnexpectedValue(sourceType),
                 };
 
@@ -298,7 +308,6 @@ internal static class LiteralUtilities {
     }
 
     internal static object ReduceNumeric(object value, bool unsigned) {
-        // TODO We handle this during binding, maybe the Lexer should instead?
         if (value is null)
             return null;
 
@@ -342,6 +351,56 @@ internal static class LiteralUtilities {
         return dec;
     }
 
+    internal static bool TypeHasDefaultValue(SpecialType type) {
+        switch (type) {
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Bool:
+            case SpecialType.WinBool:
+            case SpecialType.Char:
+            case SpecialType.UIntPtr:
+            case SpecialType.IntPtr:
+            case SpecialType.Pointer:
+            case SpecialType.FunctionPointer:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static bool TypeHasConstantDefaultValue(SpecialType type) {
+        switch (type) {
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Bool:
+            case SpecialType.WinBool:
+            case SpecialType.Char:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static object GetDefaultValue(SpecialType type) {
         return type switch {
             SpecialType.Int => 0L,
@@ -357,9 +416,19 @@ internal static class LiteralUtilities {
             SpecialType.Float32 => 0F,
             SpecialType.Float64 => 0D,
             SpecialType.Bool => false,
+            SpecialType.WinBool => 0,
             SpecialType.Char => '\0',
-            SpecialType.String => "",
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
+    }
+
+    internal static ConstantValue TryGetDefaultValue(TypeSymbol type) {
+        if (type.IsNullableType())
+            return ConstantValue.Null;
+
+        if (TypeHasConstantDefaultValue(type.specialType))
+            return new ConstantValue(GetDefaultValue(type.specialType), type.specialType);
+
+        return null;
     }
 }

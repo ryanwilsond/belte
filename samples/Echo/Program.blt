@@ -19,8 +19,8 @@ public static class Program {
         if (argc > 0) {
             Console.PrintLine("Arguments:");
 
-            for (int i = 0; i < argc; i++)
-                Console.PrintLine("\t" + args[i]);
+            for (arg in args)
+                Console.PrintLine(f"\t{arg}");
         }
     }
 }

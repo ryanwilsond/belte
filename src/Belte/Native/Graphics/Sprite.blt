@@ -1,12 +1,12 @@
 
 public class Sprite {
     public Vec2 position;
-    public int rotation;
+    public int? rotation;
     public Rect src;
     public Rect dst;
     public Texture texture;
 
-    public constructor(Texture texture, Vec2 position, Vec2 scale, int rotation) {
+    public constructor(Texture texture, Vec2 position, Vec2 scale, int? rotation) {
         this.position = position;
         this.rotation = rotation;
         this.texture = texture;
@@ -24,7 +24,7 @@ public class Sprite {
         );
     }
 
-    public constructor(Texture texture, Rect src, Rect dst, int rotation) {
+    public constructor(Texture texture, Rect src, Rect dst, int? rotation) {
         this.src = src ?? new Rect(0, 0, texture.width, texture.height);
         this.dst = dst;
         this.rotation = rotation;
@@ -33,14 +33,14 @@ public class Sprite {
         position = new Vec2(dst.x + dst.w / 2, dst.y + dst.h / 2);
     }
 
-    public void SetPosition(int x, int y) {
+    public void SetPosition(int? x, int? y) {
         dst.x = x! - dst.w / 2;
         dst.y = y! - dst.h / 2;
         position.x = x;
         position.y = y;
     }
 
-    public void SetPosition(decimal x, decimal y) {
+    public void SetPosition(decimal? x, decimal? y) {
         dst.x = (int!)(x! - dst.w / 2);
         dst.y = (int!)(y! - dst.h / 2);
         position.x = x;

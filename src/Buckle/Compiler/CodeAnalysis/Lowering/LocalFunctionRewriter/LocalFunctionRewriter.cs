@@ -127,10 +127,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
                 _compilationState.AddSynthesizedType(_containingType, frame);
 
-                var typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(frame);
-
-                foreach (var typeLayout in typeLayouts)
-                    _compilationState.typeLayouts.Add(typeLayout.Key, typeLayout.Value);
+                lock (_compilationState.typeLayouts)
+                    EvaluatorTypeLayoutVisitor.CreateTypeLayouts(_compilationState.typeLayouts, frame);
 
                 if (frame.constructor is not null) {
                     AddSynthesizedMethod(
@@ -327,6 +325,26 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         }
 
         return base.VisitFunctionPointerLoad(node);
+    }
+
+    internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
+        if (node.targetMethod.methodKind == MethodKind.LocalFunction) {
+            ImmutableArray<BoundExpression> arguments = default;
+            ImmutableArray<RefKind> argRefKinds = default;
+
+            RemapLocalFunction(
+                node.syntax,
+                node.targetMethod,
+                out var receiver,
+                out var remappedMethod,
+                ref arguments,
+                ref argRefKinds
+            );
+
+            return node.Update(remappedMethod, node.type);
+        }
+
+        return base.VisitFunctionLoad(node);
     }
 
     internal override BoundNode VisitBaseExpression(BoundBaseExpression node) {

@@ -499,6 +499,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             return CallingMethodScope;
 
         switch (expression.kind) {
+            case BoundKind.DefaultLiteral:
+            case BoundKind.DefaultExpression:
             case BoundKind.PointerIndexAccessExpression:
             case BoundKind.PointerIndirectionOperator:
                 return CallingMethodScope;
@@ -964,6 +966,9 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             case BoundKind.ConditionalAccessExpression:
             case BoundKind.ArrayAccessExpression:
                 return false;
+            case BoundKind.DefaultLiteral:
+            case BoundKind.DefaultExpression:
+                return true;
             default:
                 diagnostics.Push(Error.InternalError(node.location));
                 return false;
@@ -1140,7 +1145,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 continue;
             }
 
-            if (parameter.type.IsRefLikeOrAllowsRefLikeType() &&
+            if (parameter.type.IsRefLikeOrAllowsRefLikeType() && parameter.refKind != RefKind.Out &&
                 GetParameterValEscapeLevel(parameter) is { } valEscapeLevel) {
                 escapeValues.Add(new EscapeValue(parameter, argument, valEscapeLevel, isRefEscape: false));
             }
@@ -1256,6 +1261,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
     private static uint GetParameterValEscape(ParameterSymbol parameter) {
         return parameter switch {
+            { refKind: RefKind.Out } => ReturnOnlyScope,
             _ => CallingMethodScope
         };
     }

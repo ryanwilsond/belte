@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Text;
@@ -20,9 +21,10 @@ internal sealed class LargeText : SourceText {
     /// </summary>
     /// <param name="fileName">File name of the <see cref="LargeText" /> (where the text came from).</param>
     /// <param name="text">The contents of the file the <see cref="LargeText" /> comes from.</param>
-    internal LargeText(ImmutableArray<char[]> chunks) {
+    internal LargeText(ImmutableArray<char[]> chunks, Encoding encoding) {
         _chunks = chunks;
         _chunkStartOffsets = new int[chunks.Length];
+        this.encoding = encoding;
 
         var offset = 0;
         for (var i = 0; i < chunks.Length; i++) {
@@ -34,6 +36,8 @@ internal sealed class LargeText : SourceText {
     }
 
     public override int length => _length;
+
+    internal override Encoding encoding { get; }
 
     public override char this[int index] {
         get {

@@ -42,6 +42,10 @@ internal static class SyntaxNodeExtensions {
                     var nullableTypeSyntax = (NonNullableTypeSyntax)type;
                     stack.Push(nullableTypeSyntax.type);
                     break;
+                case SyntaxKind.NullableType:
+                    var underlyingTypeSyntax = (NullableTypeSyntax)type;
+                    stack.Push(underlyingTypeSyntax.type);
+                    break;
                 case SyntaxKind.PointerType:
                     var pointerTypeSyntax = (PointerTypeSyntax)type;
                     stack.Push(pointerTypeSyntax.elementType);
@@ -55,6 +59,15 @@ internal static class SyntaxNodeExtensions {
 
                     for (var i = functionPointerTypeSyntax.parameterList.parameters.Count - 1; i >= 0; i--) {
                         var paramType = functionPointerTypeSyntax.parameterList.parameters[i].type;
+                        stack.Push(paramType);
+                    }
+
+                    break;
+                case SyntaxKind.FunctionType:
+                    var functionTypeSyntax = (FunctionTypeSyntax)type;
+
+                    for (var i = functionTypeSyntax.parameterList.parameters.Count - 1; i >= 0; i--) {
+                        var paramType = functionTypeSyntax.parameterList.parameters[i].type;
                         stack.Push(paramType);
                     }
 

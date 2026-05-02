@@ -149,6 +149,7 @@ internal sealed partial class OverloadResolution {
         BoundExpression receiver,
         AnalyzedArguments arguments,
         OverloadResolutionResult<T> result,
+        bool isMethodGroupConversion = false,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null)
         where T : Symbol {
@@ -165,6 +166,7 @@ internal sealed partial class OverloadResolution {
             receiver,
             arguments,
             completeResults: false,
+            isMethodGroupConversion,
             returnRefKind,
             returnType,
             checkOverriddenOrHidden: checkOverriddenOrHidden
@@ -180,6 +182,7 @@ internal sealed partial class OverloadResolution {
                 receiver,
                 arguments,
                 completeResults: true,
+                isMethodGroupConversion,
                 returnRefKind,
                 returnType,
                 checkOverriddenOrHidden: checkOverriddenOrHidden
@@ -233,6 +236,7 @@ internal sealed partial class OverloadResolution {
     private void GetEnumOperations(BinaryOperatorKind kind, BoundExpression left, BoundExpression right, ArrayBuilder<BinaryOperatorSignature> results) {
         switch (kind) {
             case BinaryOperatorKind.Multiplication:
+            case BinaryOperatorKind.Power:
             case BinaryOperatorKind.Division:
             case BinaryOperatorKind.Modulo:
             case BinaryOperatorKind.RightShift:
@@ -1003,6 +1007,7 @@ internal sealed partial class OverloadResolution {
         BoundExpression receiver,
         AnalyzedArguments arguments,
         bool completeResults,
+        bool isMethodGroupConversion,
         RefKind returnRefKind,
         TypeSymbol returnType,
         bool checkOverriddenOrHidden)
@@ -1034,11 +1039,41 @@ internal sealed partial class OverloadResolution {
         RemoveStaticInstanceMismatches(results, arguments, receiver);
         RemoveConstraintViolations(results);
 
+        if (isMethodGroupConversion)
+            RemoveFunctionConversionsWithWrongReturnType(results, returnRefKind, returnType);
+
         if (!AnyValidResult(results))
             return;
 
         RemoveLowerPriorityMembers<MemberResolutionResult<T>, T>(results);
         RemoveWorseMembers(results, arguments);
+    }
+
+    private void RemoveFunctionConversionsWithWrongReturnType<TMember>(
+        ArrayBuilder<MemberResolutionResult<TMember>> results,
+        RefKind? returnRefKind,
+        TypeSymbol returnType) where TMember : Symbol {
+        for (var f = 0; f < results.Count; ++f) {
+            var result = results[f];
+
+            if (!result.result.isValid)
+                continue;
+
+            var method = (MethodSymbol)(Symbol)result.member;
+            bool returnsMatch;
+
+            if (returnType is null || method.returnType.Equals(returnType, TypeCompareKind.AllIgnoreOptions))
+                returnsMatch = true;
+            else if (returnRefKind == RefKind.None)
+                returnsMatch = conversions.HasIdentityOrImplicitReferenceConversion(method.returnType, returnType);
+            else
+                returnsMatch = false;
+
+            if (!returnsMatch)
+                results[f] = result.WithResult(MemberAnalysisResult.WrongReturnType());
+            else if (method.refKind != returnRefKind)
+                results[f] = result.WithResult(MemberAnalysisResult.WrongRefKind());
+        }
     }
 
     private void RemoveConstraintViolations<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)
@@ -1701,6 +1736,11 @@ internal sealed partial class OverloadResolution {
 
         var nodeKind = node.kind;
 
+        if (nodeKind == BoundKind.OutVariablePendingInference) {
+            okToDowngradeToNeither = false;
+            return BetterResult.Neither;
+        }
+
         // TODO See other comment about function conversions
         // switch ((conv1.kind, conv2.kind)) {
         //     case (ConversionKind.FunctionType, ConversionKind.FunctionType):
@@ -2202,7 +2242,7 @@ internal sealed partial class OverloadResolution {
         return default;
     }
 
-    private MemberAnalysisResult IsApplicable(
+    internal MemberAnalysisResult IsApplicable(
         Symbol candidate,
         EffectiveParameters parameters,
         AnalyzedArguments arguments,
@@ -2249,9 +2289,8 @@ internal sealed partial class OverloadResolution {
                 conversions.Add(conversion);
             }
 
-            if (!badArguments.isNull && !completeResults) {
+            if (!badArguments.isNull && !completeResults)
                 break;
-            }
         }
 
         MemberAnalysisResult result;
@@ -2281,9 +2320,14 @@ internal sealed partial class OverloadResolution {
 
         var argType = argument.Type();
 
+        if (argument.kind == BoundKind.OutVariablePendingInference)
+            return Conversion.Identity;
+
         if (argRefKind == RefKind.None) {
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument);
-            var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
+            var conversion = (candidate is MethodSymbol m && m.coerceArguments)
+                ? conversions.ClassifyConversionFromExpression(argument, parameterType)
+                : conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
             return conversion;
         }
 
