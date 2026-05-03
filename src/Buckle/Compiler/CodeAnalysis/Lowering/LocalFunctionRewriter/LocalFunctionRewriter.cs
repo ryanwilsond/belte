@@ -321,7 +321,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 ref argRefKinds
             );
 
-            return node.Update(remappedMethod, constrainedToTypeOpt: node.constrainedToTypeOpt, node.type);
+            return node.Update(remappedMethod, constrainedToType: node.constrainedToType, node.type);
         }
 
         return base.VisitFunctionPointerLoad(node);

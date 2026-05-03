@@ -2670,6 +2670,10 @@ done:
 
     private ExpressionSyntax ParseObjectOrArrayCreationExpression() {
         var keyword = Match(SyntaxKind.NewKeyword);
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken)
+            return ParseObjectCreationExpression(keyword, null);
+
         var type = ParseType(allowArraySize: true, allowFunctionType: false);
 
         if (IsArrayType(type))
@@ -2680,7 +2684,9 @@ done:
         static bool IsArrayType(TypeSyntax syntax) {
             if (syntax is ArrayTypeSyntax a)
                 return true;
-            else if (syntax is NonNullableTypeSyntax n)
+            else if (syntax is NonNullableTypeSyntax nn)
+                return IsArrayType(nn.type);
+            else if (syntax is NullableTypeSyntax n)
                 return IsArrayType(n.type);
             else if (syntax is ReferenceTypeSyntax r)
                 return IsArrayType(r.type);

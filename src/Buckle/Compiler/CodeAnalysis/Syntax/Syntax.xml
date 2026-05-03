@@ -1244,7 +1244,7 @@
     <Field Name="newKeyword" Type="SyntaxToken">
       <Kind Name="NewKeyword"/>
     </Field>
-    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="type" Type="TypeSyntax" Optional="true"/>
     <Field Name="argumentList" Type="ArgumentListSyntax" Optional="true"/>
   </Node>
   <Node Name="ArrayCreationExpressionSyntax" Base="ExpressionSyntax">

@@ -2583,7 +2583,7 @@ internal sealed partial class OverloadResolution {
 
             return argumentPosition;
         } else {
-            var name = arguments.names[argumentPosition].GetValueOrDefault().Name;
+            var name = arguments.names[argumentPosition].GetValueOrDefault().name;
 
             for (var p = 0; p < memberParameters.Length; p++) {
                 if (memberParameters[p].name == name) {

@@ -2582,6 +2582,9 @@ internal sealed class Evaluator {
                 ? receiver.StrippedType()
                 : _context.heap[thisParameter.ptr].type.StrippedType();
 
+            // TODO Use GetLeastOverriddenMember instead
+            // var newMethod = method.GetLeastOverriddenMethod((NamedTypeSymbol)typeToLookup);
+
             var newMethod = typeToLookup
                 .GetMembersUnordered()
                 .Where(s => s is MethodSymbol m &&

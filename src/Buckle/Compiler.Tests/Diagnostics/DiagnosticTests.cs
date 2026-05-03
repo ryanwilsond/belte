@@ -5361,4 +5361,30 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0431_ObjectCreationNoTargetType() {
+        var text = @"
+            var a = [new ()];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the implicit object creation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0432_ObjectCreationIllegalTargetType() {
+        var text = @"
+            int a = [new ()];
+        ";
+
+        var diagnostics = @"
+            'int' is not a valid type for object creation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -1509,11 +1509,43 @@ internal partial class Binder {
                 );
 
                 break;
+            case BoundUnconvertedObjectCreationExpression expr: {
+                    if (reportNoTargetType && !expr.hasAnyErrors)
+                        diagnostics.Push(Error.ObjectCreationNoTargetType(expr.syntax.location));
+
+                    result = BindObjectCreationForErrorRecovery(expr, diagnostics);
+                }
+
+                break;
             default:
                 result = expression;
                 break;
         }
 
+        return result;
+    }
+
+    internal BoundExpression BindObjectCreationForErrorRecovery(
+        BoundUnconvertedObjectCreationExpression node,
+        BelteDiagnosticQueue diagnostics) {
+        var arguments = AnalyzedArguments.GetInstance(
+            node.arguments.Select(a => new BoundExpressionOrTypeOrConstant(a)).ToImmutableArray(),
+            node.arguments.Select(a => false).ToImmutableArray(),
+            node.arguments.Select(a => a.syntax).ToImmutableArray(),
+            node.arguments.Select(a => a.type).ToImmutableArray(),
+            node.argumentRefKinds,
+            node.argumentNames
+        );
+
+        var result = MakeErrorExpressionForObjectCreation(
+            node.syntax,
+            CreateErrorType(),
+            arguments,
+            node.syntax,
+            diagnostics
+        );
+
+        arguments.Free();
         return result;
     }
 
@@ -4377,6 +4409,9 @@ internal partial class Binder {
     private protected BoundExpression BindObjectCreationExpression(
         ObjectCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
+        if (node.type is null)
+            return BindImplicitObjectCreationExpression(node, diagnostics);
+
         var typeWithAnnotations = BindType(node.type, diagnostics);
         var type = typeWithAnnotations.nullableUnderlyingTypeOrSelf;
         var originalType = type;
@@ -4402,6 +4437,8 @@ internal partial class Binder {
                 );
             case TypeKind.TemplateParameter:
                 return BindTemplateParameterCreationExpression(node, (TemplateParameterSymbol)type, diagnostics);
+            case TypeKind.Pointer:
+            case TypeKind.FunctionPointer:
             case TypeKind.Array: {
                     var error = Error.InvalidObjectCreation(node.type.location);
                     diagnostics.Push(error);
@@ -4419,6 +4456,24 @@ internal partial class Binder {
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }
+    }
+
+    private BoundExpression BindImplicitObjectCreationExpression(
+        ObjectCreationExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var arguments = AnalyzedArguments.GetInstance();
+        BindArgumentsAndNames(node.argumentList, diagnostics, arguments);
+
+        var result = new BoundUnconvertedObjectCreationExpression(
+            node,
+            arguments.arguments.Select(a => a.expression).ToImmutableArray(),
+            arguments.names.ToImmutableOrNull(),
+            arguments.refKinds.ToImmutableOrNull(),
+            binder: this
+        );
+
+        arguments.Free();
+        return result;
     }
 
     private BoundExpression BindTemplateParameterCreationExpression(
@@ -6608,20 +6663,36 @@ internal partial class Binder {
         FunctionTypeSymbol functionType,
         BelteDiagnosticQueue diagnostics) {
         if (!result.succeeded) {
-            result.ReportDiagnostics(
-                this,
-                GetLocationForOverloadResolutionDiagnostic(node, expression),
-                node,
-                diagnostics,
-                methodName,
-                methodGroup.receiver,
-                expression,
-                analyzedArguments,
-                methodGroup.methods.ToImmutable(),
-                null,
-                false,
-                functionTypeSymbol: functionType
-            );
+            if (analyzedArguments.anyErrors) {
+                foreach (var argument in analyzedArguments.arguments) {
+                    if (argument.isExpression) {
+                        switch (argument.expression) {
+                            case UnboundLambda unboundLambda:
+                                // var boundWithErrors = unboundLambda.BindForErrorRecovery();
+                                // diagnostics.AddRange(boundWithErrors.Diagnostics);
+                                break;
+                            case BoundUnconvertedObjectCreationExpression _:
+                                _ = BindToNaturalType(argument.expression, diagnostics);
+                                break;
+                        }
+                    }
+                }
+            } else {
+                result.ReportDiagnostics(
+                    this,
+                    GetLocationForOverloadResolutionDiagnostic(node, expression),
+                    node,
+                    diagnostics,
+                    methodName,
+                    methodGroup.receiver,
+                    expression,
+                    analyzedArguments,
+                    methodGroup.methods.ToImmutable(),
+                    null,
+                    false,
+                    functionTypeSymbol: functionType
+                );
+            }
 
             return CreateErrorCall(node, methodGroup.receiver, methodGroup.resultKind, analyzedArguments);
         }
@@ -13506,6 +13577,23 @@ symIsHidden:;
             );
         }
 
+        if (conversion.kind == ConversionKind.ObjectCreation) {
+            var objectCreaiton = ConvertObjectCreationExpression(
+                (BoundUnconvertedObjectCreationExpression)source,
+                destination,
+                conversion,
+                diagnostics
+            );
+
+            return new BoundCastExpression(
+                node,
+                objectCreaiton,
+                conversion,
+                null,
+                destination
+            );
+        }
+
         if (conversion.isIdentity) {
             source = BindToNaturalType(source, diagnostics);
 
@@ -13561,6 +13649,73 @@ symIsHidden:;
             destination: destination,
             diagnostics: diagnostics
         );
+    }
+
+    private static BoundExpression ConvertObjectCreationExpression(
+        BoundUnconvertedObjectCreationExpression node,
+        TypeSymbol destination,
+        Conversion conversion,
+        BelteDiagnosticQueue diagnostics) {
+        var arguments = AnalyzedArguments.GetInstance(
+            node.arguments.Select(a => new BoundExpressionOrTypeOrConstant(a)).ToImmutableArray(),
+            node.arguments.Select(a => false).ToImmutableArray(),
+            node.arguments.Select(a => a.syntax).ToImmutableArray(),
+            node.arguments.Select(a => a.type).ToImmutableArray(),
+            node.argumentRefKinds,
+            node.argumentNames
+        );
+
+        var expr = BindObjectCreationExpression(
+            node.syntax,
+            node.binder,
+            destination.StrippedType(),
+            arguments,
+            diagnostics
+        );
+
+        arguments.Free();
+
+        return expr;
+
+        static BoundExpression BindObjectCreationExpression(
+            SyntaxNode syntax,
+            Binder binder,
+            TypeSymbol type,
+            AnalyzedArguments arguments,
+            BelteDiagnosticQueue diagnostics) {
+            switch (type.typeKind) {
+                case TypeKind.Enum:
+                case TypeKind.Struct:
+                case TypeKind.Class:
+                    return binder.BindClassCreationExpression(
+                        syntax,
+                        type.name,
+                        typeNode: syntax,
+                        (NamedTypeSymbol)type,
+                        arguments,
+                        diagnostics
+                    );
+                case TypeKind.TemplateParameter:
+                    return binder.BindTemplateParameterCreationExpression(
+                        syntax,
+                        (TemplateParameterSymbol)type,
+                        arguments,
+                        typeSyntax: syntax,
+                        wasTargetTyped: true,
+                        diagnostics
+                    );
+                case TypeKind.Array:
+                case TypeKind.Pointer:
+                case TypeKind.FunctionPointer:
+                case TypeKind.Primitive:
+                    diagnostics.Push(Error.ObjectCreationIllegalTargetType(syntax.location, type));
+                    goto case TypeKind.Error;
+                case TypeKind.Error:
+                    return binder.MakeErrorExpressionForObjectCreation(syntax, type, arguments, syntax, diagnostics);
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(type.typeKind);
+            }
+        }
     }
 
     private BoundExpression ConvertImplicitEnumFieldExpression(
@@ -13889,9 +14044,9 @@ symIsHidden:;
         // var namedArguments = visitor.VisitNamedArguments(boundAttribute.namedArguments, diagnostics, ref hasErrors);
         var namedBuilder = ArrayBuilder<KeyValuePair<string, TypedConstant>>.GetInstance();
 
-        if (boundAttribute.constructorArgumentNamesOpt != default) {
+        if (boundAttribute.constructorArgumentNames != default) {
             for (var i = 0; i < arguments.Length; i++) {
-                var name = boundAttribute.constructorArgumentNamesOpt[i];
+                var name = boundAttribute.constructorArgumentNames[i];
                 var expression = arguments[i];
 
                 if (name is null || expression.constantValue is null)
@@ -13909,7 +14064,7 @@ symIsHidden:;
 
         var namedArguments = namedBuilder.ToImmutable();
 
-        var argsToParamsOpt = boundAttribute.constructorArgumentsToParamsOpt;
+        var argsToParamsOpt = boundAttribute.constructorArgumentsToParams;
         ImmutableArray<TypedConstant> rewrittenArguments;
 
         if (hasErrors || attributeConstructor.parameterCount == 0) {

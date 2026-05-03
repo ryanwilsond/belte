@@ -110,7 +110,11 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
     }
 
     internal override BoundNode VisitFunctionPointerLoad(BoundFunctionPointerLoad node) {
-        return node.Update(VisitMethodSymbol(node.targetMethod), VisitType(node.constrainedToTypeOpt), VisitType(node.type));
+        return node.Update(
+            VisitMethodSymbol(node.targetMethod),
+            VisitType(node.constrainedToType),
+            VisitType(node.type)
+        );
     }
 
     internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {

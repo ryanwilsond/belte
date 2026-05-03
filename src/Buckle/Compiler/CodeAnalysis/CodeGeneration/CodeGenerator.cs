@@ -237,7 +237,7 @@ internal sealed partial class CodeGenerator {
         }
 
         var method = ptrInvocation.functionPointer.signature;
-        EmitArguments(ptrInvocation.arguments, method.parameters, ptrInvocation.argumentRefKindsOpt);
+        EmitArguments(ptrInvocation.arguments, method.parameters, ptrInvocation.argumentRefKinds);
 
         if (temp is not null) {
             _builder.EmitLocalLoad(temp);
@@ -1372,11 +1372,10 @@ oneMoreTime:
     private void EmitFunctionPointerLoad(BoundFunctionPointerLoad load, bool used) {
         if (used) {
             if ((load.targetMethod.isAbstract || load.targetMethod.isVirtual) && load.targetMethod.isStatic) {
-                if (load.constrainedToTypeOpt is not { typeKind: TypeKind.TemplateParameter }) {
+                if (load.constrainedToType is not { typeKind: TypeKind.TemplateParameter })
                     throw ExceptionUtilities.Unreachable();
-                }
 
-                _builder.EmitWithSymbolToken(OpCode.Constrained, load.constrainedToTypeOpt);
+                _builder.EmitWithSymbolToken(OpCode.Constrained, load.constrainedToType);
             }
 
             _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);

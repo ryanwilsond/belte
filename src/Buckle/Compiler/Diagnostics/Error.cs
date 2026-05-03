@@ -846,6 +846,12 @@ internal static class Error {
         var message = $"there is no target type for the implicit enum field";
         return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
     }
+
+    internal static BelteDiagnostic ObjectCreationNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the implicit object creation";
+        return CreateError(DiagnosticCode.ERR_ObjectCreationNoTargetType, location, message);
+    }
+
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
         var message = $"a field initializer cannot reference non-static member '{symbol}'";
         return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);
@@ -2108,6 +2114,11 @@ internal static class Error {
     internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
         var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless method named 'Dispose'";
         return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
+    }
+
+    internal static BelteDiagnostic ObjectCreationIllegalTargetType(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.ObjectCreationFormat)}' is not a valid type for object creation";
+        return CreateError(DiagnosticCode.ERR_ObjectCreationIllegalTargetType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

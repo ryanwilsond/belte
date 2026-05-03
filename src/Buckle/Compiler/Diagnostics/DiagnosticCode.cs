@@ -439,6 +439,8 @@ public enum DiagnosticCode : ushort {
     ERR_DestructorInStaticClass = 428,
     ERR_InvalidDeferStatement = 429,
     ERR_UsingWithoutDispose = 430,
+    ERR_ObjectCreationNoTargetType = 431,
+    ERR_ObjectCreationIllegalTargetType = 432,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

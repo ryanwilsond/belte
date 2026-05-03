@@ -412,6 +412,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.FunctionLoad => ExpandFunctionLoad((BoundFunctionLoad)expression, out replacement, useKind),
             BoundKind.IsPatternExpression => ExpandIsPatternExpression((BoundIsPatternExpression)expression, out replacement, useKind),
             BoundKind.WithExpression => ExpandWithExpression((BoundWithExpression)expression, out replacement, useKind),
+            BoundKind.UnconvertedObjectCreationExpression => ExpandUnconvertedObjectCreationExpression((BoundUnconvertedObjectCreationExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -544,6 +545,14 @@ internal abstract partial class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandUnconvertedObjectCreationExpression(
+        BoundUnconvertedObjectCreationExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandFunctionPointerLoad(
         BoundFunctionPointerLoad expression,
         out BoundExpression replacement,
@@ -569,7 +578,7 @@ internal abstract partial class BoundTreeExpander {
         replacement = expression.Update(
             newInvokedExpression,
             newArguments,
-            expression.argumentRefKindsOpt,
+            expression.argumentRefKinds,
             expression.resultKind,
             expression.type
         );

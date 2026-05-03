@@ -778,4 +778,17 @@ public static class SyntaxFacts {
     private static bool IsBeforeToken(int position, SyntaxToken firstExcluded) {
         return firstExcluded.kind == SyntaxKind.None || position < firstExcluded.span.start;
     }
+
+    internal static bool IsNamedArgumentName(SyntaxNode node) {
+        // TODO Sufficient?
+        if (node.kind != SyntaxKind.IdentifierName)
+            return false;
+
+        var parent1 = node.parent;
+
+        if (parent1 is null || parent1.kind != SyntaxKind.Argument)
+            return false;
+
+        return true;
+    }
 }

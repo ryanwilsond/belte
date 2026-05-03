@@ -245,6 +245,9 @@ public sealed class DisplayText {
             case BoundKind.ObjectCreationExpression:
                 DisplayObjectCreationExpression(text, (BoundObjectCreationExpression)node);
                 break;
+            case BoundKind.UnconvertedObjectCreationExpression:
+                DisplayUnconvertedObjectCreationExpression(text, (BoundUnconvertedObjectCreationExpression)node);
+                break;
             case BoundKind.ArrayCreationExpression:
                 DisplayArrayCreationExpression(text, (BoundArrayCreationExpression)node);
                 break;
@@ -1107,6 +1110,14 @@ public sealed class DisplayText {
 
     private static void DisplayUnconvertedNullptrExpression(DisplayText text, BoundUnconvertedNullptrExpression _) {
         text.Write(CreateKeyword(SyntaxKind.NullptrKeyword));
+    }
+
+    private static void DisplayUnconvertedObjectCreationExpression(
+        DisplayText text,
+        BoundUnconvertedObjectCreationExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.NewKeyword));
+        text.Write(CreateSpace());
+        DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {

@@ -757,6 +757,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
             return node;
 
+        if (node.conversion.kind == ConversionKind.ObjectCreation)
+            return node.operand;
+
         return base.VisitCastExpression(node);
     }
 

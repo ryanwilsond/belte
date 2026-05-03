@@ -630,7 +630,7 @@ internal sealed class CSharpCodeGenerator {
 
     private string EmitFunctionPointerCallExpression(BoundFunctionPointerCallExpression node) {
         var method = _module.GetSafeName(node.functionPointer.name);
-        var arguments = EmitArguments(node.arguments, node.argumentRefKindsOpt);
+        var arguments = EmitArguments(node.arguments, node.argumentRefKinds);
         return $"{method}({arguments})";
     }
 

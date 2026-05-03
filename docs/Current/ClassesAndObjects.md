@@ -66,6 +66,15 @@ class MyClass {
 }
 ```
 
+When the target type of the object creation is clear from context, the type can be omitted. Alternatively, implicit
+typing can be used. The follow are all equivalent:
+
+```belte
+MyClass a = new MyClass();
+MyClass a = new ();
+var a = new MyClass();
+```
+
 ### 4.1.2 Inheritance
 
 The `extends` keyword is used to specify that a class inherits from another, meaning it adopts all of that classes

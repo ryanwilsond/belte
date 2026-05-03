@@ -27,6 +27,13 @@
   <AbstractNode Name="BoundObjectCreationExpressionBase" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </AbstractNode>
+  <Node Name="BoundUnconvertedObjectCreationExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="argumentNames" Type="ImmutableArray&lt;(string name, TextLocation location)?&gt;" Null="allow"/>
+    <Field Name="argumentRefKinds" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
+    <Field Name="binder" Type="Binder" Null="disallow"/>
+  </Node>
   <Node Name="BoundGlobalStatement" Base="BoundInitializer">
     <Field Name="statement" Type="BoundStatement"/>
   </Node>
@@ -142,8 +149,8 @@
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="constructor" Type="MethodSymbol?"/>
     <Field Name="constructorArguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
-    <Field Name="constructorArgumentNamesOpt" Type="ImmutableArray&lt;string&gt;" Null="allow"/>
-    <Field Name="constructorArgumentsToParamsOpt" Type="ImmutableArray&lt;int&gt;" Null="allow"/>
+    <Field Name="constructorArgumentNames" Type="ImmutableArray&lt;string&gt;" Null="allow"/>
+    <Field Name="constructorArgumentsToParams" Type="ImmutableArray&lt;int&gt;" Null="allow"/>
     <Field Name="constructorExpanded" Type="bool" />
     <Field Name="constructorDefaultArguments" Type="BitVector"/>
     <Field Name="namedArguments" Type ="ImmutableArray&lt;BoundAssignmentOperator&gt;"/>
@@ -321,7 +328,7 @@
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="invokedExpression" Type="BoundExpression"/>
     <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
-    <Field Name="argumentRefKindsOpt" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
+    <Field Name="argumentRefKinds" Type="ImmutableArray&lt;RefKind&gt;" Null="allow"/>
     <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind" />
   </Node>
   <Node Name="UnboundLambda" Base="BoundExpression">
@@ -339,7 +346,7 @@
   </Node>
   <Node Name="BoundFunctionPointerLoad" Base="BoundExpression">
     <Field Name="targetMethod" Type="MethodSymbol"/>
-    <Field Name="constrainedToTypeOpt" Type="TypeSymbol?" Null="allow"/>
+    <Field Name="constrainedToType" Type="TypeSymbol?" Null="allow"/>
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundFunctionLoad" Base="BoundExpression">
