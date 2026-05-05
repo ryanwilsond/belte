@@ -46,4 +46,8 @@ public enum DiagnosticCode : ushort {
     ERR_InvalidMaxCoreCount = 35,
     ERR_MissingEntryName = 36,
     FTL_OutputIsDirectory = 37,
+    ERR_MissingFileAssociation = 38,
+    ERR_UnrecognizedFileAssociation = 39,
+    ERR_MissingPathFlat = 40,
+    WRN_UnableToCopyFile = 41,
 }

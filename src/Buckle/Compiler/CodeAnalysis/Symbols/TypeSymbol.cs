@@ -141,6 +141,9 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             return true;
         }
 
+        if (IsEnumType())
+            return this.GetEnumUnderlyingType().HasDefaultValue();
+
         return false;
     }
 

@@ -201,10 +201,10 @@ public static class LibraryHelpers {
         foreach (var member in members) {
             switch (member) {
                 case MethodSymbol method:
-                    builder.Add(new SynthesizedFinishedMethodSymbol(method, namedType, null));
+                    builder.Add(new SynthesizedFinishedMethodSymbol(method, namedType, default));
                     break;
                 case NamedTypeSymbol type:
-                    builder.Add(new SynthesizedFinishedNamedTypeSymbol(type, namedType, null));
+                    builder.Add(new SynthesizedFinishedNamedTypeSymbol(type, namedType, default));
                     break;
                 case FieldSymbol field:
                     builder.Add(new SynthesizedFieldSymbol(

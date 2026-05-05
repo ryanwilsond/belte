@@ -26,6 +26,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
     private readonly Predicate<Symbol> _filter;
+    private readonly bool _collectSymbols;
 
     private ConcurrentQueue<Action> _workQueue;
     private ManualResetEventSlim _signal;
@@ -47,7 +48,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         MethodSymbol updatePoint,
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         Predicate<Symbol> filter,
-        bool emitting) {
+        bool emitting,
+        bool collectSymbols) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
@@ -59,13 +61,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _methodLayouts = [];
         _typeLayouts = typeLayouts;
         _synthesizedNestedTypes = [];
+        _collectSymbols = collectSymbols;
     }
 
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
         Predicate<Symbol> filter,
-        bool skipEntryPoint = false) {
+        bool skipEntryPoint = false,
+        bool collectSymbols = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
         var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
 
@@ -98,7 +102,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             updatePoint,
             typeLayouts,
             filter,
-            !transpiling
+            !transpiling,
+            collectSymbols
         );
 
         if (compilation.options.concurrentBuild) {
@@ -355,6 +360,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     if (f.isFixedSizeBuffer)
                         SetFixedImplementationType(f as SourceMemberFieldSymbol);
 
+                    if (_collectSymbols) {
+                        f.type.VisitType(
+                            SymbolCollector.VisitTypePredicate,
+                            new SymbolCollectorArgument() { compiler = this, visited = [] },
+                            true
+                        );
+                    }
+
                     break;
             }
         }
@@ -406,6 +419,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
         if (method.isAbstract || method.originalDefinition is PEMethodSymbol)
+            return;
+
+        if (_methodBodies.ContainsKey(method))
             return;
 
         var oldImportChain = state.currentImportChain;
@@ -481,9 +497,12 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             }
         }
 
+        if (_collectSymbols)
+            SymbolCollector.Collect(this, loweredBody);
+
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         state.currentImportChain = oldImportChain;
-        _methodBodies.Add(method, loweredBody);
+        _methodBodies.TryAdd(method, loweredBody);
     }
 
     private static BoundBlockStatement LowerBody(
@@ -786,5 +805,54 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         }
 
         return null;
+    }
+
+    internal sealed class SymbolCollector : BoundTreeWalker {
+        private readonly MethodCompiler _compiler;
+        private readonly HashSet<NamedTypeSymbol> _visited;
+        private readonly SymbolCollectorArgument _argument;
+
+        private SymbolCollector(MethodCompiler compiler) {
+            _compiler = compiler;
+            _visited = [];
+            _argument = new SymbolCollectorArgument() { compiler = _compiler, visited = _visited };
+        }
+
+        internal static void Collect(MethodCompiler compiler, BoundBlockStatement body) {
+            var collector = new SymbolCollector(compiler);
+            collector.Visit(body);
+        }
+
+        internal override BoundNode Visit(BoundNode node) {
+            if (node is BoundExpression expression && expression.type is not null)
+                expression.type.VisitType(VisitTypePredicate, _argument);
+
+            return base.Visit(node);
+        }
+
+        internal static bool VisitTypePredicate(
+            TypeSymbol type,
+            SymbolCollectorArgument arg,
+            bool canDigThroughNullable = true) {
+            if (type is NamedTypeSymbol t && t.IsFromCompilation(arg.compiler._compilation)) {
+                if (arg.visited.Add(t)) {
+                    var compiler = arg.compiler;
+
+                    if (!compiler._types.Contains(t) && !PassesFilter(compiler._filter, t)) {
+                        if (compiler._compilation.options.concurrentBuild)
+                            compiler.Enqueue(() => compiler.CompileNamedType(t));
+                        else
+                            compiler.CompileNamedType(t);
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    internal struct SymbolCollectorArgument {
+        internal MethodCompiler compiler;
+        internal HashSet<NamedTypeSymbol> visited;
     }
 }

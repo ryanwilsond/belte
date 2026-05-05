@@ -372,6 +372,7 @@ internal static class LiteralUtilities {
             case SpecialType.IntPtr:
             case SpecialType.Pointer:
             case SpecialType.FunctionPointer:
+            case SpecialType.Enum:
                 return true;
             default:
                 return false;
@@ -428,6 +429,9 @@ internal static class LiteralUtilities {
 
         if (TypeHasConstantDefaultValue(type.specialType))
             return new ConstantValue(GetDefaultValue(type.specialType), type.specialType);
+
+        if (type.IsEnumType())
+            return TryGetDefaultValue(type.GetEnumUnderlyingType());
 
         return null;
     }

@@ -9,6 +9,10 @@ Buckle is the Belte programming language compiler.
 
 ## Options Summary
 
+Arguments passed that are not associated with options will be interpreted as paths. Files will be treated as source
+files based on their file extension. Directories will treat all files within them (recursively) as source files based
+on their file extensions.
+
 ### *-h*, *--help*
 
 Displays a brief options summary.
@@ -79,6 +83,17 @@ additional restriction of disallowing inline IL.
 
 Specifies the output file. You cannot specify this option in junction with *-i*, *--evaluate*, or *--execute*.
 
+### *-x [blt|belte|none] file...*, *--lang [blt|belte|none] file...*
+
+Specifies a language association for the following files instead of inferring association from file extension.
+Currently, the only language association option is `blt` or `belte` which both mean Belte source files (this reflects
+the default inferred file extensions). The option lasts for the rest of the command-line arguments or until it is
+changes. Using `none` will reset to inferring file types from extensions.
+
+### *--flat \<path>*
+
+Specifies an input file or directory, but in the case of a directory does not search recursively for input files.
+
 ### *-m:\<count>*
 
 Specifies the maximum number of CPU cores to use. Without this option the compilation will be concurrent and use
@@ -145,17 +160,21 @@ Specifies the module name used when .NET integration is enabled. Defaults to the
 without the file extension, or *a* is no output file was specified. This option is purely used for debugging purposes
 and should not need to be used. This option is only valid in junction with the *-d*/*--dotnet* option.
 
-### *--ref=\<file>*, *--reference=\<file>*
+### *--ref[,flat,copy]=\<path>*, *--reference[,flat,copy]=\<path>*
 
 Adds a reference when .NET integration is enabled. This reference is a path to a DLL that will be added to the program
 and can then be referenced from within the program. This option is only valid in junction with the *-d*/*--dotnet*
-option.
+option. If the specified path is a directory, all files ending in `.dll` inside of that directory (recursively) will be
+added as references.
+
+Optionally, `,flat` can be appended to specify that directories should not be searched recursively. `,copy` can be
+appended to specify that the references libraries should be copied to the output directory.
 
 ### *--debug*
 
 Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d*/*--dotnet* option was specified.
 
-### *-l0*, *-l1*, *-l2*
+### *-l0*, *-l1*, *-lall*
 
 Automatically includes certain library references. Each level includes all of the libraries from previous levels.
 
@@ -163,7 +182,7 @@ Automatically includes certain library references. Each level includes all of th
 |-|-|
 | `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Runtime.InteropServices.dll` |
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
-| `l2` | All .NET SDK libraries |
+| `lall` | All .NET SDK libraries |
 
 ### *--time*
 

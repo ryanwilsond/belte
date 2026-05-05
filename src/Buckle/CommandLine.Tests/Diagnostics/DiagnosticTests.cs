@@ -65,7 +65,7 @@ public sealed class DiagnosticTests {
         var args = new string[] { "--ref" };
 
         var diagnostics = @"
-            missing name after '--ref' (usage: '--ref=<name>')
+            missing name after '--ref' (usage: '--ref[,flat,copy]=<path>')
         ";
 
         AssertDiagnostics(args, diagnostics, _writer);
@@ -434,4 +434,39 @@ public sealed class DiagnosticTests {
 
     //     AssertDiagnostics(args, diagnostics, _writer, noInputFiles: true);
     // }
+
+    [Fact]
+    public void Reports_Error_CL0038_MissingFileAssociation() {
+        var args = new string[] { "-x" };
+
+        var diagnostics = @"
+            missing file association after '-x'
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0039_UnrecognizedFileAssociation() {
+        var args = new string[] { "-xc" };
+
+        var diagnostics = @"
+            unrecognized file association 'c'
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0040_MissingPathFlat() {
+        var args = new string[] { "--flat" };
+
+        var diagnostics = @"
+            missing path after '--flat' (usage: '--flat <path>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    // ! Warning_CL0041_UnableToCopyFile
 }

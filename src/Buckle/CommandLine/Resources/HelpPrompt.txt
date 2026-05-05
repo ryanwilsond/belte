@@ -14,25 +14,27 @@ Options:
   --execute                   Compile and run using the executor.
   -t|--transpile              Compile and transpile into C#.
   -o <file>                   Specify output file.
+  -x|--lang [blt|belte|none] file...      Specify the language of the following input files.
+  --flat <path>               Specify an input without searching recursively.
 
   -m:<count>                  Specify the maximum number of CPU cores to use.
 
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).
-  --ref=<file>|--reference=<file>     Specify a reference (used with .NET integration only).
+  --ref|--reference[,flat,copy]=<path>    Specify a reference (used with .NET integration only).
   --debug                     Emit a .NET PDB file for debugging.
   -l0                         Compile with core .NET libraries.
   -l1                         l0 plus compiler libraries for meta-programming.
-  -l2                         l1 plus all .NET SDK libraries.
+  -lall                       l1 plus all .NET SDK libraries.
 
-  --type=[console|graphics|dll]         Specify the type of Belte project (default console).
+  --type=[console|graphics|dll]           Specify the type of Belte project (default console).
   --entry=<name>              Specify a type name to search for the entry point in.
   --nostdlib                  Disable compiling with the Standard Library.
 
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
-  --wignore=<[BU|RE|CL]<code>,...>    Specify a specific warning to suppress.
-  --winclude=<[BU|RE|CL]<code>,...>   Specify a specific warning to report.
+  --wignore=<[BU|RE|CL]<code>,...>        Specify a specific warning to suppress.
+  --winclude=<[BU|RE|CL]<code>,...>       Specify a specific warning to report.
 
   --time                      Display timing information for each compilation stage.
   --verbose                   Display additional information about the compilation process.

@@ -51,7 +51,9 @@ internal sealed class HandleManager {
             foreach (var syntax in _handlesSyntax) {
                 if (syntax is HandleDirectiveTriviaSyntax h) {
                     var handle = CreateHandle(h, out var priority);
-                    builder.Add(priority, handle);
+
+                    if (handle is not null)
+                        builder.Add(priority, handle);
                 }
             }
 
@@ -120,20 +122,32 @@ internal sealed class HandleManager {
         var previousDiagnostics = _compilation.declarationDiagnostics.ToArray();
 
         var foundHandleMethod = handleCandidates[0];
+
+        // We start only by compiling the handle class but will compile any other types we run into
         var program = MethodCompiler.CompileMethodBodies(
             _compilation,
             _compilation.declarationDiagnostics,
-            s => (object)s.originalDefinition == foundHandleClass.originalDefinition ||
-                 (object)s.containingType?.originalDefinition == foundHandleClass.originalDefinition ||
-                 (s is NamespaceSymbol),
-            skipEntryPoint: true
+            s => {
+                if (s is not NamedTypeSymbol n)
+                    return true;
+
+                var current = n;
+
+                while (current is not null) {
+                    if ((object)current.originalDefinition == foundHandleClass.originalDefinition)
+                        return true;
+
+                    current = current.containingType;
+                }
+
+                return false;
+            },
+            skipEntryPoint: true,
+            collectSymbols: true
         );
 
-        if (_compilation.declarationDiagnostics.AnyErrors()) {
-            // Diagnostics will be resolved on the normal compilation pass
-            _compilation.SetDeclarationDiagnostics(new BelteDiagnosticQueue(previousDiagnostics));
+        if (_compilation.declarationDiagnostics.AnyErrors())
             return null;
-        }
 
         return new Handle(
             program,

@@ -4,6 +4,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis;
 
@@ -48,5 +49,20 @@ public sealed class CompilerContext {
 
     internal void ReplaceBoundProgram(BoundProgram program) {
         _compilation.ReplaceBoundProgram(program, _compilation.methodDiagnostics);
+    }
+
+    internal static MethodSymbol SynthesizeEntryPoint(MethodSymbol entryPoint, string newName) {
+        var newEntry = new SynthesizedFinishedMethodSymbol(
+            new SynthesizedSimpleOrdinaryMethodSymbol(
+                newName,
+                entryPoint.returnTypeWithAnnotations,
+                RefKind.None,
+                entryPoint.isStatic ? DeclarationModifiers.Static : DeclarationModifiers.None
+            ),
+            entryPoint.containingType,
+            entryPoint.parameters
+        );
+
+        return newEntry;
     }
 }

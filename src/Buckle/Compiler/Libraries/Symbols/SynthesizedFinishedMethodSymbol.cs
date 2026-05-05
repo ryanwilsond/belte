@@ -10,10 +10,10 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
     internal SynthesizedFinishedMethodSymbol(
         MethodSymbol underlyingMethod,
         Symbol containingSymbol,
-        ImmutableArray<ParameterSymbol>? parameters = null)
+        ImmutableArray<ParameterSymbol> parameters = default)
         : base(underlyingMethod) {
         this.containingSymbol = containingSymbol;
-        this.parameters = parameters ?? underlyingMethod.parameters;
+        this.parameters = parameters.IsDefault ? underlyingMethod.parameters : parameters;
     }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => underlyingMethod.templateParameters;

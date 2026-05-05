@@ -5356,7 +5356,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'int': type used in a using statement must define a public parameterless method named 'Dispose'
+            'int': type used in a using statement must define a public parameterless instance method named 'Dispose'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

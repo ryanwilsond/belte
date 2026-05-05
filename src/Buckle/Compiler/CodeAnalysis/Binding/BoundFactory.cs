@@ -135,6 +135,10 @@ internal static partial class BoundFactory {
         return new BoundDataContainerExpression(syntax, symbol, null, symbol.type);
     }
 
+    internal static BoundParameterExpression Parameter(SyntaxNode syntax, ParameterSymbol symbol) {
+        return new BoundParameterExpression(syntax, symbol, null, symbol.type);
+    }
+
     internal static BoundExpression CreateCast(
         SyntaxNode syntax,
         TypeSymbol type,

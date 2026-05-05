@@ -1003,10 +1003,12 @@ public sealed partial class Compilation {
             }
         }
 
-        if (includeDeclaration) {
+        if (includeDeclaration)
             assembly.ForceComplete(null);
+
+        // ? We include these on parse to collect early #handle diagnostics
+        if (includeDeclaration || includeParse)
             builder.PushRange(declarationDiagnostics);
-        }
 
         if (includeMethods) {
             EnsureBoundProgramAndMethodDiagnostics();

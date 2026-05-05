@@ -18,7 +18,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a C# source.
 /// </summary>
-internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
+internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> {
     private static readonly string IndentString = "    ";
 
     private readonly BelteDiagnosticQueue _diagnostics;
@@ -463,21 +463,21 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
         }
     }
 
-    internal override bool VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {
         using var curly = new CurlyIndenter(argument, $"namespace {GetSafeName(symbol.name)}");
 
         foreach (var member in symbol.GetMembers())
             member.Accept(this, argument);
 
-        return false;
+        return null;
     }
 
-    internal override bool VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
         if (symbol.specialType is SpecialType.Object or SpecialType.Exception)
-            return false;
+            return null;
 
         if (symbol is PENamedTypeSymbol or SynthesizedFinishedNamedTypeSymbol)
-            return false;
+            return null;
 
         using var curly = new CurlyIndenter(
             argument,
@@ -490,15 +490,15 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
         return false;
     }
 
-    internal override bool VisitField(FieldSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitField(FieldSymbol symbol, IndentedTextWriter argument) {
         argument.WriteLine($"{GetFieldAttributes(symbol)}{GetFieldSignature(symbol)};");
-        return false;
+        return null;
     }
 
-    internal override bool VisitMethod(MethodSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitMethod(MethodSymbol symbol, IndentedTextWriter argument) {
         if (symbol.isAbstract || symbol.isExtern) {
             argument.WriteLine($"{GetMethodAttributes(symbol)}{GetMethodSignature(symbol)};");
-            return false;
+            return null;
         }
 
         var body = _methodBodies[symbol];
@@ -510,7 +510,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
 
         generator.Generate();
 
-        return false;
+        return null;
     }
 
     private void GenerateSTLMap() {

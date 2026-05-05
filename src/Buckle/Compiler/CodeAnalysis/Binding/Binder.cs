@@ -2004,8 +2004,9 @@ internal partial class Binder {
         // TODO This is a simplified check compared to the "canonical" nullability rules laid out in BindNamespaceOrTypeOrAliasSymbol
         // TODO Unfortunately we can't check the template parameter constraints without causing a loop? (double check)
         // This isn't a big deal because all it does is restrict implicit casting, it doesn't cause broken behavior
-        if (foundElementType.typeKind is TypeKind.Class or TypeKind.Array ||
-            foundElementType.specialType == SpecialType.Any || (shouldLift && shouldLiftIfPossible)) {
+        if ((foundElementType.typeKind is TypeKind.Class or TypeKind.Array ||
+            foundElementType.specialType == SpecialType.Any || (shouldLift && shouldLiftIfPossible)) &&
+            !foundElementType.IsNullableType()) {
             foundTypeWithAnnotations = foundTypeWithAnnotations.SetIsAnnotated();
         }
 
@@ -6365,9 +6366,9 @@ internal partial class Binder {
                 analyzedArguments,
                 diagnostics
             );
-        } else if (boundExpression.Type().kind == SymbolKind.FunctionPointerType) {
+        } else if (boundExpression.Type()?.kind == SymbolKind.FunctionPointerType) {
             result = BindFunctionPointerInvocation(node, boundExpression, analyzedArguments, diagnostics);
-        } else if (boundExpression.StrippedType().kind == SymbolKind.FunctionType) {
+        } else if (boundExpression.StrippedType()?.kind == SymbolKind.FunctionType) {
             result = BindFunctionInvocation(
                 node,
                 expression,
@@ -9350,10 +9351,7 @@ internal partial class Binder {
             return new BoundNullErasureOperator(node, operand, null, null, operandType, true);
         }
 
-        var defaultValue = new ConstantValue(
-            LiteralUtilities.GetDefaultValue(resultType.specialType),
-            resultType.specialType
-        );
+        var defaultValue = LiteralUtilities.TryGetDefaultValue(resultType);
 
         if (ConstantValue.IsNull(constantValue))
             constantValue = defaultValue;
@@ -12489,12 +12487,25 @@ symIsHidden:;
 
         if (isUsing) {
             var stripped = declarationType.type.StrippedType();
-            disposeMethod = stripped.GetMembers(WellKnownMemberNames.Dispose)
-                .Where(s => s is MethodSymbol m &&
-                            m.parameterCount == 0 &&
-                            m.declaredAccessibility == Accessibility.Public).SingleOrDefault() as MethodSymbol;
+            var lookupResult = LookupResult.GetInstance();
+            LookupMembersInternal(
+                lookupResult,
+                stripped,
+                WellKnownMemberNames.Dispose,
+                0,
+                null,
+                LookupOptions.MustBeInstance | LookupOptions.MustBeInvocableIfMember,
+                this,
+                null,
+                false
+            );
 
-            if (disposeMethod is null) {
+            if (lookupResult.isMultiViable) {
+                disposeMethod = lookupResult.symbols.SingleOrDefault(s => s is MethodSymbol m && m.parameterCount == 0)
+                    as MethodSymbol;
+            }
+
+            if (!lookupResult.isMultiViable || disposeMethod is null) {
                 diagnostics.Push(Error.UsingWithoutDispose(
                     associatedSyntaxNode?.location ?? declaration.location,
                     stripped

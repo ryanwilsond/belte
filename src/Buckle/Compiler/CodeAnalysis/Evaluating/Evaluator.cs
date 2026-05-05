@@ -586,7 +586,10 @@ internal sealed class Evaluator {
         return EvaluatorValue.None;
     }
 
-    private EvaluatorValue EvaluateCompileTimeExpression(BoundCompileTimeExpression node, bool used, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateCompileTimeExpression(
+        BoundCompileTimeExpression node,
+        bool used,
+        ValueWrapper<bool> abort) {
         if (_insideExpressionEvaluation)
             return EvaluateExpression(node.expression, used, abort);
 
@@ -605,10 +608,10 @@ internal sealed class Evaluator {
             return EvaluatorValue.Null;
 
         if (!type.IsTemplateParameter()) {
-            var constantValue = type.IsVerifierValue() ? LiteralUtilities.GetDefaultValue(type.specialType) : null;
+            var constantValue = LiteralUtilities.TryGetDefaultValue(type);
 
             if (constantValue is not null)
-                return EvaluatorValue.Literal(constantValue, type.specialType);
+                return EvaluatorValue.Literal(constantValue.value, type.specialType);
         }
 
         if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.UIntPtr or SpecialType.IntPtr) {
@@ -746,7 +749,10 @@ internal sealed class Evaluator {
         return EvaluatorValue.None;
     }
 
-    private EvaluatorValue EvaluateFieldSlotExpression(BoundFieldSlotExpression node, bool used, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateFieldSlotExpression(
+        BoundFieldSlotExpression node,
+        bool used,
+        ValueWrapper<bool> abort) {
         var field = node.field;
 
         if (!used) {
@@ -765,7 +771,10 @@ internal sealed class Evaluator {
         return value;
     }
 
-    private EvaluatorValue EvaluateFieldNoIndirection(BoundFieldSlotExpression node, bool used, ValueWrapper<bool> abort) {
+    private EvaluatorValue EvaluateFieldNoIndirection(
+        BoundFieldSlotExpression node,
+        bool used,
+        ValueWrapper<bool> abort) {
         var field = node.field;
 
         if (field.isStatic) {

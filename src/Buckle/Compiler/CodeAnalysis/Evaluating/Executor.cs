@@ -25,7 +25,7 @@ internal sealed partial class Executor : ModuleBuilder {
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
 
-    private static readonly ConcurrentDictionary<string, Assembly> AssemblyCache = [];
+    private static readonly Dictionary<string, Assembly> AssemblyCache = [];
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
@@ -71,7 +71,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly ConcurrentDictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
     private readonly ConcurrentDictionary<TypeSymbol, Type> _enums = [];
     private readonly ConcurrentDictionary<MethodSymbol, MethodInfo> _methods = [];
-    private readonly ConcurrentDictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, Type[]> _methodTypeParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, ConstructorInfo> _constructors = [];
     private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
     private readonly ConcurrentDictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
@@ -253,7 +253,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
             if (type is ArrayTypeSymbol array) {
                 var elementType = GetType(array.elementType);
-                return elementType.MakeArrayType(array.rank);
+
+                if (array.rank == 1)
+                    return elementType.MakeArrayType();
+                else
+                    return elementType.MakeArrayType(array.rank);
             }
 
             if (type is PointerTypeSymbol pointer) {
@@ -275,10 +279,12 @@ internal sealed partial class Executor : ModuleBuilder {
 
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
-                    var containingMethodTypeParameters = _methodTypeParameters[
-                        (MethodSymbol)type.containingSymbol.originalDefinition
-                    ];
+                    var key = (MethodSymbol)type.containingSymbol.originalDefinition;
 
+                    if (!_methodTypeParameters.ContainsKey(key))
+                        TryGetPEMethodTypeParameters(key);
+
+                    var containingMethodTypeParameters = _methodTypeParameters[key];
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
@@ -345,6 +351,13 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
+    private void TryGetPEMethodTypeParameters(MethodSymbol method) {
+        var info = GetMethod(method);
+
+        if (info.IsGenericMethod)
+            _methodTypeParameters.Add(method, info.GetGenericArguments());
+    }
+
     private Type GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
             return Type.GetType($"System.Action", throwOnError: true);
@@ -389,7 +402,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 throw;
             }
 
-            AssemblyCache.Add(metadata.location, assembly);
+            lock (AssemblyCache)
+                AssemblyCache.TryAdd(metadata.location, assembly);
         }
 
         var stack = new Stack<PENamedTypeSymbol>();
@@ -457,8 +471,51 @@ internal sealed partial class Executor : ModuleBuilder {
             if (IsEmitType(containingType) || containingType.GenericTypeArguments.Any(IsEmitType))
                 containingType = ResolveType((PENamedTypeSymbol)m.containingType);
 
-            var paramTypes = m.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
-            value = containingType.GetMethod(m.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance, paramTypes);
+            var targetParams = m.GetParameters();
+            var candidates = containingType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
+
+            foreach (var candidate in candidates) {
+                if (candidate.Name != method.name)
+                    continue;
+
+                var candParams = candidate.GetParameters();
+
+                if (candParams.Length != targetParams.Length)
+                    continue;
+
+                var allMatch = true;
+
+                for (var i = 0; i < candParams.Length; i++) {
+                    var candP = candParams[i];
+                    var p = targetParams[i];
+
+                    if (candP.Name != p.name) {
+                        allMatch = false;
+                        break;
+                    }
+
+                    if (m.templateParameters.Any(t => p.type.ContainsTemplateParameter(t)))
+                        continue;
+
+                    var pType = GetType(p.type, p.refKind != RefKind.None);
+
+                    if (pType != candP.ParameterType) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+
+                if (allMatch) {
+                    value = candidate;
+                    break;
+                }
+            }
+
+            if (value is null)
+                // ! Technically reachable in complicated overload cases
+                // TODO not sure what to do there without implementing a full overload resolution system
+                throw ExceptionUtilities.Unreachable();
+
             found = true;
         }
 

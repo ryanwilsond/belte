@@ -2112,7 +2112,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
-        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless method named 'Dispose'";
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless instance method named 'Dispose'";
         return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
     }
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -39,10 +40,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
     private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
-    private readonly ConcurrentDictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
     private readonly string _tfm;
     private readonly string _version;
+    private readonly Lock _resolveLock = new();
 
     private Dictionary<string, MethodReference> _stlMap;
 
@@ -83,10 +85,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
 
         if (string.IsNullOrEmpty(objectDll))
-            objectDll = Path.Combine(refPackPath, "System.Runtime.dll");
+            objectDll = Path.Join(refPackPath, "System.Runtime.dll");
 
         if (string.IsNullOrEmpty(consoleDll))
-            consoleDll = Path.Combine(refPackPath, "System.Console.dll");
+            consoleDll = Path.Join(refPackPath, "System.Console.dll");
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(objectDll),
@@ -314,7 +316,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             if (type is ArrayTypeSymbol array) {
                 var elementType = GetType(array.elementType);
-                return elementType.MakeArrayType(array.rank);
+
+                if (array.rank == 1)
+                    return elementType.MakeArrayType();
+                else
+                    return elementType.MakeArrayType(array.rank);
             }
 
             if (type is PointerTypeSymbol pointer) {
@@ -333,10 +339,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
-                    var containingMethodTypeParameters = _methodTypeParameters[
-                        (MethodSymbol)type.containingSymbol.originalDefinition
-                    ];
+                    var key = (MethodSymbol)type.containingSymbol.originalDefinition;
 
+                    if (!_methodTypeParameters.ContainsKey(key))
+                        TryGetPEMethodTypeParameters(key);
+
+                    var containingMethodTypeParameters = _methodTypeParameters[key];
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
@@ -379,7 +387,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 foreach (var generic in allTypeArgs)
                     typeReference.GenericArguments.Add(generic);
 
-                _assemblyDefinition.MainModule.ImportReference(typeReference.Resolve());
+                _assemblyDefinition.MainModule.ImportReference(Resolve(typeReference));
                 return typeReference;
             }
 
@@ -398,10 +406,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private TypeDefinition Resolve(TypeReference reference) {
+        lock (_resolveLock)
+            return reference.Resolve();
+    }
+
+    private MethodDefinition Resolve(MethodReference reference) {
+        lock (_resolveLock)
+            return reference.Resolve();
+    }
+
+    private void TryGetPEMethodTypeParameters(MethodSymbol method) {
+        var reference = GetMethod(method);
+
+        if (reference is GenericInstanceMethod g)
+            _methodTypeParameters.Add(method, g.GenericArguments.ToArray());
+    }
+
     private TypeReference GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
             var typeRef = ResolveType(null, "System.Action");
-            _assemblyDefinition.MainModule.ImportReference(typeRef.Resolve());
+            _assemblyDefinition.MainModule.ImportReference(Resolve(typeRef));
             return typeRef;
         } else if (signature.returnsVoid) {
             var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
@@ -410,7 +435,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             foreach (var p in signature.GetParameterTypes())
                 genericRef.GenericArguments.Add(GetType(p.type));
 
-            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            _assemblyDefinition.MainModule.ImportReference(Resolve(genericRef));
             return genericRef;
         } else {
             var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
@@ -421,7 +446,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             genericRef.GenericArguments.Add(GetType(signature.returnType));
 
-            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            _assemblyDefinition.MainModule.ImportReference(Resolve(genericRef));
             return genericRef;
         }
     }
@@ -434,8 +459,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             value = ResolveMethod(
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
-                m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
+                m.GetParameterTypes()
+                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
+                    .ToArray()
             );
+
             found = true;
         }
 
@@ -466,9 +494,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var constructedType = GetType(method.containingType);
 
             if (method.arity > 0) {
-                var generic = new GenericInstanceMethod(value) {
-                    DeclaringType = constructedType
-                };
+                var def = _assemblyDefinition.MainModule.ImportReference(Resolve(value));
+                var generic = new GenericInstanceMethod(def);
+                // TODO Not necessary?
+                // {
+                //     DeclaringType = constructedType
+                // };
 
                 foreach (var p in method.templateArguments.Select(t => GetType(t.type.type)).ToArray())
                     generic.GenericArguments.Add(p);
@@ -608,7 +639,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal FieldReference GetField(FieldSymbol field) {
         if (field.originalDefinition is PEFieldSymbol f) {
             var peType = GetType(field.containingType);
-            var peField = peType.Resolve().Fields.Single(e => e.Name == f.name);
+            var peField = Resolve(peType).Fields.Single(e => e.Name == f.name);
 
             return new FieldReference(
                 peField.Name,
@@ -817,7 +848,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _types.Add(type.originalDefinition, typeDefinition);
 
-        CreateNestedTypes(type, typeDefinition, workingParams);
+        // ? CreateNestedTypes calls CreateNestedTypes directly
+        if (!isNested)
+            CreateNestedTypes(type, typeDefinition, workingParams);
 
         return typeDefinition;
     }
@@ -1500,12 +1533,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var topType = stack.Pop();
         var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
         var currentFoundType = ResolveType(null, displayName);
-        _assemblyDefinition.MainModule.ImportReference(currentFoundType.Resolve());
+        _assemblyDefinition.MainModule.ImportReference(Resolve(currentFoundType));
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
-            currentFoundType = currentFoundType.Resolve().NestedTypes.First(t => t.Name == nestedType.name);
-            _assemblyDefinition.MainModule.ImportReference(currentFoundType.Resolve());
+            currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
+            _assemblyDefinition.MainModule.ImportReference(Resolve(currentFoundType));
         }
 
         return currentFoundType;
@@ -1544,7 +1577,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private MethodReference ResolveMethod(PENamedTypeSymbol type, string methodName, string[] parameterTypeNames) {
         var foundType = ResolveType(type);
 
-        if (TryResolveMethodCore([foundType.Resolve()], methodName, parameterTypeNames, out var methodRef1))
+        if (TryResolveMethodCore([Resolve(foundType)], methodName, parameterTypeNames, out var methodRef1))
             return methodRef1;
 
         throw new BelteInternalException($"Required method not found: {foundType.Name} {methodName} {parameterTypeNames.Length}");
@@ -1593,6 +1626,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var allParametersMatch = true;
 
             for (var i = 0; i < parameterTypeNames.Length; i++) {
+                // ? We treat null as we don't want to check this one (used for unresolved type arguments)
+                if (parameterTypeNames[i] is null)
+                    continue;
+
                 if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
                     allParametersMatch = false;
                     break;

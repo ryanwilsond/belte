@@ -571,7 +571,7 @@ internal sealed partial class CodeGenerator {
                     if (IsValueType(underlyingType)) {
                         EmitConstantValue(new ConstantValue(value, underlyingDiscriminator), underlyingType);
                         _builder.EmitNewobjNullable(underlyingType);
-                    } else if (underlyingType.specialType == SpecialType.Any) {
+                    } else if (underlyingType.specialType is SpecialType.Any or SpecialType.Object) {
                         goto case SpecialType.Any;
                     } else {
                         var inferredType = InferType(value);
@@ -580,6 +580,7 @@ internal sealed partial class CodeGenerator {
                 }
 
                 break;
+            case SpecialType.Object:
             case SpecialType.Any: {
                     // TODO Ensure constantValue is never lying to us
                     var inferredType = constant.specialType == SpecialType.None

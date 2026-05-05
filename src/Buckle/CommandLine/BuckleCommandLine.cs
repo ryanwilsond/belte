@@ -54,6 +54,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0264, "BU"),
         new DiagnosticInfo(0265, "BU"),
         new DiagnosticInfo(0416, "BU"),
+        new DiagnosticInfo(0041, "CL"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [
@@ -69,7 +70,14 @@ public static partial class BuckleCommandLine {
         int err;
 
         var processName = Process.GetCurrentProcess().ProcessName;
-        var state = DecodeOptions(args, out var diagnostics, out var dialogs, out var multipleExplains, out var sae);
+        var state = DecodeOptions(
+            args,
+            out var diagnostics,
+            out var dialogs,
+            out var multipleExplains,
+            out var sae,
+            out var pendingReferenceCopies
+        );
 
         var compiler = new Compiler(state) {
             me = processName
@@ -133,7 +141,7 @@ public static partial class BuckleCommandLine {
         }
 
         if (state.verboseMode && !state.noOut)
-            LogCompilerState(state);
+            LogCompilerState(state, pendingReferenceCopies);
 
         compiler.Compile();
 
@@ -151,6 +159,8 @@ public static partial class BuckleCommandLine {
             ResolveSae(sae);
             return RuntimeErrorExitCode;
         }
+
+        ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
 
         ResolveSae(sae);
         return SuccessExitCode;
@@ -311,7 +321,7 @@ public static partial class BuckleCommandLine {
         if (diagnostics.Count == 0)
             return SuccessExitCode;
 
-        var worst = diagnostics.ToList().Select(d => (int)d.info.severity).Max();
+        var worst = diagnostics.ToList().Max(d => (int)d.info.severity);
         var diagnostic = diagnostics.Pop();
 
         while (diagnostic is not null) {
@@ -369,16 +379,14 @@ public static partial class BuckleCommandLine {
             switch (task.stage) {
                 case CompilerStage.Raw:
                 case CompilerStage.Compiled:
-                    for (var j = 0; j < 3; j++) {
+                    for (var j = 1; j < 4; j++) {
                         try {
                             task.fileContent.text = File.ReadAllText(task.inputFileName);
                             opened = true;
                             break;
                         } catch (IOException) {
-                            Thread.Sleep(100);
-
-                            if (j == 2)
-                                break;
+                            if (j < 3)
+                                Thread.Sleep(j * 10);
                         }
                     }
 
@@ -387,16 +395,14 @@ public static partial class BuckleCommandLine {
 
                     break;
                 case CompilerStage.Assembled:
-                    for (var j = 0; j < 3; j++) {
+                    for (var j = 1; j < 4; j++) {
                         try {
                             task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
                             opened = true;
                             break;
                         } catch (IOException) {
-                            Thread.Sleep(100);
-
-                            if (j == 2)
-                                break;
+                            if (j < 3)
+                                Thread.Sleep(j * 10);
                         }
                     }
 
@@ -413,7 +419,7 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static void LogCompilerState(CompilerState state) {
+    private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies) {
         Console.WriteLine();
         Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.severity)}");
         Console.WriteLine($"Warning reporting level: {state.warningLevel}");
@@ -430,6 +436,11 @@ public static partial class BuckleCommandLine {
         Console.WriteLine(".NET Information:");
         Console.WriteLine($"    Module name: {state.moduleName}");
         Console.WriteLine($"    References: {string.Join(", ", state.references.Select(r => $"\"{r}\""))}");
+        Console.WriteLine($"    Pending copies: ({pendingReferenceCopies.Length})");
+
+        foreach (var pendingCopy in pendingReferenceCopies)
+            Console.WriteLine($"        {pendingCopy} -> {Path.Join(state.outputFilename, Path.GetFileName(pendingCopy))}");
+
         Console.WriteLine();
         Console.WriteLine($"Verbose output path: \"{state.verbosePath}\"");
         Console.WriteLine();
@@ -454,10 +465,12 @@ public static partial class BuckleCommandLine {
         out DiagnosticQueue<Diagnostic> diagnostics,
         out ShowDialogs dialogs,
         out bool multipleExplains,
-        out bool saExit) {
+        out bool saExit,
+        out string[] pendingReferenceCopies) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
+        var copies = new List<string>();
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
         var arguments = Array.Empty<string>();
@@ -472,6 +485,8 @@ public static partial class BuckleCommandLine {
 
         var l = -1;
         var sae = false;
+
+        string currentFileAssociation = null;
 
         var tempDialogs = new ShowDialogs {
             help = false,
@@ -578,7 +593,7 @@ public static partial class BuckleCommandLine {
                 case "-l1":
                     l = 1;
                     break;
-                case "-l2":
+                case "-lall":
                     l = 2;
                     break;
                 case "--sae":
@@ -597,7 +612,7 @@ public static partial class BuckleCommandLine {
             var arg = args[i];
 
             if (!arg.StartsWith('-')) {
-                diagnostics.Move(ResolveInputFileOrDir(arg, ref tasks));
+                ResolveInputFileOrDir(arg, tasks, currentFileAssociation, diagnostics);
                 continue;
             }
 
@@ -639,11 +654,16 @@ public static partial class BuckleCommandLine {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingModuleName(arg));
                 }
             } else if (arg.StartsWith("--ref")) {
-                if (arg != "--ref" && arg != "--ref=" && arg.StartsWith("--ref="))
-                    references.Add(arg.Substring(6));
-                else if (arg != "--reference" && arg != "--reference=" && arg.StartsWith("--reference="))
-                    references.Add(arg.Substring(12));
+                bool err;
+
+                if (arg != "--reference" && arg != "--reference=" && arg.StartsWith("--reference"))
+                    err = ResolveInputRefs(arg.Substring(11), references, copies, diagnostics);
+                else if (arg != "--ref" && arg != "--ref=")
+                    err = ResolveInputRefs(arg.Substring(5), references, copies, diagnostics);
                 else
+                    err = true;
+
+                if (err)
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
             } else if (arg.StartsWith("--severity")) {
                 if (arg == "--severity" || arg == "--severity=" || !arg.StartsWith("--severity=")) {
@@ -734,6 +754,33 @@ public static partial class BuckleCommandLine {
                 }
 
                 state.entryName = arg.Substring(8);
+            } else if (arg.StartsWith("-x") || arg.StartsWith("--lang")) {
+                var isShorthand = arg.StartsWith("-x");
+
+                if (isShorthand && arg != "-x") {
+                    currentFileAssociation = GetFileAssociation(arg.Substring(2), diagnostics);
+                    continue;
+                }
+
+                if (!isShorthand && arg != "--lang") {
+                    currentFileAssociation = GetFileAssociation(arg.Substring(6), diagnostics);
+                    continue;
+                }
+
+                if (i < args.Length - 1)
+                    currentFileAssociation = GetFileAssociation(args[++i], diagnostics);
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingFileAssociation(arg));
+            } else if (arg.StartsWith("--flat")) {
+                if (arg != "--flat") {
+                    ResolveInputFileOrDir(arg.Substring(6), tasks, currentFileAssociation, diagnostics, false);
+                    continue;
+                }
+
+                if (i < args.Length - 1)
+                    ResolveInputFileOrDir(args[++i], tasks, currentFileAssociation, diagnostics, false);
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingPathFlat());
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
@@ -755,6 +802,7 @@ public static partial class BuckleCommandLine {
             state.concurrentBuild = false;
 
         references.AddRange(Compiler.ResolveLibraryLevel(l));
+        pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;
         diagnostics.Move(diagnosticsCL);
@@ -845,7 +893,7 @@ public static partial class BuckleCommandLine {
             diagnostics.Push(Belte.Diagnostics.Fatal.NoInputFiles());
         }
 
-        ResolveOutputFileNames(ref state.tasks, state.finishStage, specifyOut ? state.outputFilename : null);
+        ResolveOutputFileNames(state.tasks, state.finishStage, specifyOut ? state.outputFilename : null);
 
         return state;
     }
@@ -905,8 +953,32 @@ public static partial class BuckleCommandLine {
         return infos;
     }
 
+    private static void ResolveReferenceCopies(string outputPath, string[] references, string me, CompilerState state) {
+        var path = Path.GetDirectoryName(outputPath);
+
+        foreach (var reference in references) {
+            var destination = Path.Join(path, Path.GetFileName(reference));
+            var opened = false;
+
+            for (var j = 1; j < 4; j++) {
+                try {
+                    File.Copy(reference, destination, overwrite: true);
+                    opened = true;
+                    break;
+                } catch (IOException) {
+                    if (j < 3)
+                        Thread.Sleep(j * 10);
+                }
+            }
+
+            if (!opened)
+                // ? We are moments away from exiting so we will just call resolve ourselves instead of creating a queue
+                ResolveDiagnostic(Belte.Diagnostics.Warning.UnableToCopyFile(reference, destination), me, state);
+        }
+    }
+
     private static void ResolveOutputFileNames(
-        ref FileState[] tasks,
+        FileState[] tasks,
         CompilerStage finishStage,
         string outputFilename) {
         if (tasks.Length == 1 && outputFilename is not null) {
@@ -931,17 +1003,92 @@ public static partial class BuckleCommandLine {
         }
     }
 
-    private static DiagnosticQueue<Diagnostic> ResolveInputFileOrDir(string name, ref List<FileState> tasks) {
-        var fileNames = new List<string>();
-        var diagnostics = new DiagnosticQueue<Diagnostic>();
+    private static string GetFileAssociation(string arg, DiagnosticQueue<Diagnostic> diagnostics) {
+        switch (arg) {
+            case "blt":
+            case "belte":
+            case "s":
+            case "asm":
+            case "o":
+            case "obj":
+            case "exe":
+                return arg;
+            case "none":
+                return null;
+            default:
+                diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedFileAssociation(arg));
+                return null;
+        }
+    }
+
+    private static bool ResolveInputRefs(
+        string arg,
+        List<string> references,
+        List<string> copies,
+        DiagnosticQueue<Diagnostic> diagnostics) {
+        var flat = false;
+        var copy = false;
+
+        string name;
+
+        if (arg.StartsWith('=')) {
+            name = arg.Substring(1);
+        } else if (arg.StartsWith(",flat,copy=") || arg.StartsWith(",copy,flat=")) {
+            flat = true;
+            copy = true;
+            name = arg.Substring(11);
+        } else if (arg.StartsWith(",flat=")) {
+            flat = true;
+            name = arg.Substring(6);
+        } else if (arg.StartsWith(",copy=")) {
+            copy = true;
+            name = arg.Substring(6);
+        } else {
+            return true;
+        }
 
         if (Directory.Exists(name)) {
-            fileNames.AddRange(Directory.GetFiles(name));
+            var files = Directory.GetFiles(
+                name,
+                "*.dll",
+                flat ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories
+            );
+
+            references.AddRange(files);
+
+            if (copy)
+                copies.AddRange(files);
+        } else if (File.Exists(name)) {
+            references.Add(name);
+
+            if (copy)
+                copies.Add(name);
+        } else {
+            diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(name));
+        }
+
+        return false;
+    }
+
+    private static void ResolveInputFileOrDir(
+        string name,
+        List<FileState> tasks,
+        string fileAssociation,
+        DiagnosticQueue<Diagnostic> diagnostics,
+        bool recursive = true) {
+        var fileNames = new List<string>();
+
+        if (Directory.Exists(name)) {
+            fileNames.AddRange(Directory.GetFiles(
+                name,
+                "*",
+                recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly
+            ));
         } else if (File.Exists(name)) {
             fileNames.Add(name);
         } else {
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(name));
-            return diagnostics;
+            return;
         }
 
         foreach (var fileName in fileNames) {
@@ -949,8 +1096,14 @@ public static partial class BuckleCommandLine {
                 inputFileName = fileName
             };
 
-            var parts = task.inputFileName.Split('.');
-            var type = parts[parts.Length - 1];
+            string type;
+
+            if (fileAssociation is null) {
+                var parts = task.inputFileName.Split('.');
+                type = parts[parts.Length - 1];
+            } else {
+                type = fileAssociation;
+            }
 
             switch (type) {
                 case "belte":
@@ -975,7 +1128,5 @@ public static partial class BuckleCommandLine {
 
             tasks.Add(task);
         }
-
-        return diagnostics;
     }
 }
