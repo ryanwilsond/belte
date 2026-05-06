@@ -17,6 +17,8 @@ Options:
   -x|--lang [blt|belte|none] file...      Specify the language of the following input files.
   --flat <path>               Specify an input without searching recursively.
 
+  -- arg...                   Specify arguments to pass to the program.
+
   -m:<count>                  Specify the maximum number of CPU cores to use.
 
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).

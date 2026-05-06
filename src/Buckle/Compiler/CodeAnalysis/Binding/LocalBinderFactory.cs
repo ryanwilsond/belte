@@ -141,6 +141,10 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         VisitTypeDeclaration(node);
     }
 
+    internal override void VisitFileScopedClassDeclaration(FileScopedClassDeclarationSyntax node) {
+        VisitTypeDeclaration(node);
+    }
+
     private void VisitTypeDeclaration(TypeDeclarationSyntax node) { }
 
     internal override void VisitOperatorDeclaration(OperatorDeclarationSyntax node) {

@@ -441,6 +441,8 @@ public enum DiagnosticCode : ushort {
     ERR_UsingWithoutDispose = 430,
     ERR_ObjectCreationNoTargetType = 431,
     ERR_ObjectCreationIllegalTargetType = 432,
+    ERR_FileScopedClassNotFirstMember = 433,
+    ERR_FileScopedClassWithinNonFileScoped = 434,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

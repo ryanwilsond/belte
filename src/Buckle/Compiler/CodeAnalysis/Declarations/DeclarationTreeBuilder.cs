@@ -306,6 +306,11 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return VisitTypeDeclaration(node, DeclarationKind.Class);
     }
 
+    internal override SingleNamespaceOrTypeDeclaration VisitFileScopedClassDeclaration(
+        FileScopedClassDeclarationSyntax node) {
+        return VisitTypeDeclaration(node, DeclarationKind.Class);
+    }
+
     internal override SingleNamespaceOrTypeDeclaration VisitStructDeclaration(StructDeclarationSyntax node) {
         return VisitTypeDeclaration(node, DeclarationKind.Struct);
     }
@@ -374,14 +379,43 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             ? SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes
             : SingleTypeDeclaration.TypeDeclarationFlags.None;
 
-        if (node is ClassDeclarationSyntax cds && cds.baseType is not null)
+        if ((node is ClassDeclarationSyntax cds && cds.baseType is not null) ||
+            (node is FileScopedClassDeclarationSyntax fds && fds.baseType is not null)) {
             declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+        }
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
         if (node.arity == 0) {
             // TODO error
             // Symbol.ReportErrorIfHasConstraints(node.ConstraintClauses, diagnostics);
+        }
+
+        if (node is FileScopedClassDeclarationSyntax) {
+            // TODO Do we want to disallow direct nested file-scoped classes?
+            // if (node.parent is FileScopedClassDeclarationSyntax) {
+            //     diagnostics.Push(Error.MultipleFileScopedNamespaces(node.name.location));
+            if (node.parent is ClassDeclarationSyntax or NamespaceDeclarationSyntax) {
+                diagnostics.Push(Error.FileScopedClassWithinNonFileScoped(node.identifier.location));
+            } else {
+                var parent = node.parent;
+                var incorrectNesting = false;
+
+                switch (parent.kind) {
+                    case SyntaxKind.CompilationUnit:
+                        incorrectNesting = node != ((CompilationUnitSyntax)parent).members[0];
+                        break;
+                    case SyntaxKind.FileScopedNamespaceDeclaration:
+                        incorrectNesting = node != ((FileScopedNamespaceDeclarationSyntax)parent).members[0];
+                        break;
+                    case SyntaxKind.FileScopedClassDeclaration:
+                        incorrectNesting = node != ((FileScopedClassDeclarationSyntax)parent).members[0];
+                        break;
+                }
+
+                if (incorrectNesting)
+                    diagnostics.Push(Error.FileScopedClassNotFirstMember(node.identifier.location));
+            }
         }
 
         var memberNames = GetNonTypeMemberNames(

@@ -75,6 +75,33 @@ MyClass a = new ();
 var a = new MyClass();
 ```
 
+Similar to namespaces, a class can be file scoped so that all members following the declaration are members of the
+class:
+
+```belte
+class MyClass;
+
+int a;
+
+int GetA() {
+  return this.a
+}
+```
+
+Unlike normal classes, members will default to being public instead of private if no accessibility modifier is
+specified. Additionally, members inside of a static file-scoped class will also be static even if the static modifier is
+not specified:
+
+```belte
+static class Program;
+
+void Main(string[]! args) {
+  ...
+}
+```
+
+In the above example, `Main` is public and static and is a valid entry point.
+
 ### 4.1.2 Inheritance
 
 The `extends` keyword is used to specify that a class inherits from another, meaning it adopts all of that classes

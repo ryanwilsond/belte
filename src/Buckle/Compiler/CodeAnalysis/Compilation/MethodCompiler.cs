@@ -16,7 +16,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
 
-internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
+internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
@@ -475,6 +475,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _compilation.previousAnalyses,
             currentDiagnostics,
             !_emitting,
+            ref _entryPoint,
             out var sawCompileTimeExpression
         );
 
@@ -513,6 +514,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
         bool transpiling,
+        ref MethodSymbol entryPoint,
         out bool sawCompileTimeExpression) {
         var loweredBody = Lowerer.Lower(
             state.compilation.options.optimizationLevel,
@@ -533,7 +535,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 state,
                 previousAnalyses,
                 currentDiagnostics,
-                null // TODO When do we want to use this?
+                null, // TODO When do we want to use this?
+                ref entryPoint
             );
 
             loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
@@ -673,18 +676,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     false
                 );
 
-                if (newEntryPoint is not null && !bodyHasLogic) {
-                    body = new BoundBlockStatement(
-                        syntax,
-                        [
-                            ..body.statements,
-                            BoundFactory.Statement(syntax, BoundFactory.Call(syntax, newEntryPoint)),
-                            new BoundReturnStatement(syntax, RefKind.None, null),
-                        ],
-                        [],
-                        []
-                    );
-                }
+                if (newEntryPoint is not null && !bodyHasLogic)
+                    entryPoint = newEntryPoint;
             }
         }
 
@@ -805,54 +798,5 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         }
 
         return null;
-    }
-
-    internal sealed class SymbolCollector : BoundTreeWalker {
-        private readonly MethodCompiler _compiler;
-        private readonly HashSet<NamedTypeSymbol> _visited;
-        private readonly SymbolCollectorArgument _argument;
-
-        private SymbolCollector(MethodCompiler compiler) {
-            _compiler = compiler;
-            _visited = [];
-            _argument = new SymbolCollectorArgument() { compiler = _compiler, visited = _visited };
-        }
-
-        internal static void Collect(MethodCompiler compiler, BoundBlockStatement body) {
-            var collector = new SymbolCollector(compiler);
-            collector.Visit(body);
-        }
-
-        internal override BoundNode Visit(BoundNode node) {
-            if (node is BoundExpression expression && expression.type is not null)
-                expression.type.VisitType(VisitTypePredicate, _argument);
-
-            return base.Visit(node);
-        }
-
-        internal static bool VisitTypePredicate(
-            TypeSymbol type,
-            SymbolCollectorArgument arg,
-            bool canDigThroughNullable = true) {
-            if (type is NamedTypeSymbol t && t.IsFromCompilation(arg.compiler._compilation)) {
-                if (arg.visited.Add(t)) {
-                    var compiler = arg.compiler;
-
-                    if (!compiler._types.Contains(t) && !PassesFilter(compiler._filter, t)) {
-                        if (compiler._compilation.options.concurrentBuild)
-                            compiler.Enqueue(() => compiler.CompileNamedType(t));
-                        else
-                            compiler.CompileNamedType(t);
-                    }
-                }
-            }
-
-            return false;
-        }
-    }
-
-    internal struct SymbolCollectorArgument {
-        internal MethodCompiler compiler;
-        internal HashSet<NamedTypeSymbol> visited;
     }
 }

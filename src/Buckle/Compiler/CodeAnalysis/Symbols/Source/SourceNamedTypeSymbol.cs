@@ -233,6 +233,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             switch (decl.syntaxReference.node.kind) {
                 case SyntaxKind.ClassDeclaration:
                     return ((ClassDeclarationSyntax)decl.syntaxReference.node).baseType;
+                case SyntaxKind.FileScopedClassDeclaration:
+                    return ((FileScopedClassDeclarationSyntax)decl.syntaxReference.node).baseType;
                 case SyntaxKind.EnumDeclaration:
                     return ((EnumDeclarationSyntax)decl.syntaxReference.node).baseType;
                 default:

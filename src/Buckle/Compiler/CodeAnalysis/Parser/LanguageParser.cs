@@ -53,7 +53,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         // TODO How do we distinguish compilation attributes from attributes of the first member?
         // var attributeLists = ParseAttributeLists();
         var usings = ParseUsings();
-        var members = ParseMembers(true);
+        var members = ParseMembers(isGlobal: true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
         return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), usings, members, endOfFile);
     }
@@ -254,6 +254,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private bool CanReuseMemberDeclaration(SyntaxKind kind, bool isGlobal) {
         switch (kind) {
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
             case SyntaxKind.EnumDeclaration:
@@ -462,25 +463,47 @@ internal sealed partial class LanguageParser : SyntaxParser {
             ? ParseTemplateConstraintClauseList()
             : null;
 
-        var openBrace = Match(SyntaxKind.OpenBraceToken);
-        var saved = _context;
-        _context |= ParserContext.InClassDefinition;
-        var members = ParseMembers();
-        _context = saved;
-        var closeBrace = Match(SyntaxKind.CloseBraceToken);
+        if (currentToken.kind == SyntaxKind.SemicolonToken) {
+            var semicolon = EatToken();
+            var saved = _context;
+            _context |= ParserContext.InClassDefinition;
+            var members = ParseMembers();
+            _context = saved;
 
-        return SyntaxFactory.ClassDeclaration(
-            attributeLists,
-            modifiers,
-            keyword,
-            identifier,
-            templateParameterList,
-            baseType,
-            constraintClauseList,
-            openBrace,
-            members,
-            closeBrace
-        );
+            return SyntaxFactory.FileScopedClassDeclaration(
+                attributeLists,
+                modifiers,
+                keyword,
+                identifier,
+                templateParameterList,
+                baseType,
+                constraintClauseList,
+                semicolon,
+                null,
+                members,
+                null
+            );
+        } else {
+            var openBrace = Match(SyntaxKind.OpenBraceToken);
+            var saved = _context;
+            _context |= ParserContext.InClassDefinition;
+            var members = ParseMembers();
+            _context = saved;
+            var closeBrace = Match(SyntaxKind.CloseBraceToken);
+
+            return SyntaxFactory.ClassDeclaration(
+                attributeLists,
+                modifiers,
+                keyword,
+                identifier,
+                templateParameterList,
+                baseType,
+                constraintClauseList,
+                openBrace,
+                members,
+                closeBrace
+            );
+        }
     }
 
     private BaseTypeSyntax ParseBaseType() {

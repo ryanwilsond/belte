@@ -53,7 +53,9 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
-            containingSymbol.typeKind == TypeKind.Class ? DeclarationModifiers.Private : DeclarationModifiers.Public,
+            (containingSymbol.typeKind == TypeKind.Class && !containingSymbol.IsFileScoped())
+                ? DeclarationModifiers.Private
+                : DeclarationModifiers.Public,
             allowedModifiers,
             firstIdentifier.location,
             diagnostics,

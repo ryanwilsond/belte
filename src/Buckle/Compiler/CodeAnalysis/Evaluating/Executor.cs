@@ -149,8 +149,8 @@ internal sealed partial class Executor : ModuleBuilder {
             var updateMethod = _programType.GetMethod(
                 _program.updatePoint.name,
                 _programNamedType.isStatic
-                    ? BindingFlags.Public | BindingFlags.Static
-                    : BindingFlags.Public | BindingFlags.Instance
+                    ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+                    : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
             );
 
             var updateAction = (Action<double>)Delegate.CreateDelegate(typeof(Action<double>), Program, updateMethod);

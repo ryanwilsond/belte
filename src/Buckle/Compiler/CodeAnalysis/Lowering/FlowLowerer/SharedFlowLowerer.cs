@@ -13,13 +13,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
     private int _tempCount = 0;
     private int _labelCount;
 
-    private protected readonly MethodSymbol _container;
     private protected readonly BelteDiagnosticQueue _diagnostics;
 
     private protected SharedFlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
         _container = method;
         _diagnostics = diagnostics;
     }
+
+    private protected MethodSymbol _container { get; set; }
 
     internal static BoundStatement Lower(
         MethodSymbol method,
@@ -178,6 +179,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
                 node.continueLabel
             )
         ]));
+    }
+
+    internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {
+        var oldContainer = _container;
+        _container = node.symbol;
+        var newNode = base.VisitLocalFunctionStatement(node);
+        _container = oldContainer;
+        return newNode;
     }
 
     private protected SynthesizedLabelSymbol GenerateLabel(string suffix = null) {

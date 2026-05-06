@@ -5387,4 +5387,33 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0433_FileScopedClassNotFirstMember() {
+        var text = @"
+            class A { }
+            class [B];
+        ";
+
+        var diagnostics = @"
+            file-scoped class must precede all other members in a namespace or type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0434_FileScopedClassWithinNonFileScoped() {
+        var text = @"
+            class A {
+                class [B];
+            }
+        ";
+
+        var diagnostics = @"
+            file-scoped class cannot be contained within a non-file-scoped namespace or non-file-scoped class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

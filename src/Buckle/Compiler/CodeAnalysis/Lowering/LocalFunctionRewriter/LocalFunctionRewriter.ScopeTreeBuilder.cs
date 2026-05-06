@@ -186,7 +186,7 @@ internal sealed partial class LocalFunctionRewriter {
                 var scope = _currentScope;
                 var function = _currentFunction;
 
-                while (function != null && symbol.containingSymbol != function.originalMethodSymbol) {
+                while (function is not null && symbol.containingSymbol != function.originalMethodSymbol) {
                     function.capturedVariables.Add(symbol);
 
                     while (scope.containingFunction == function)

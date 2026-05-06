@@ -94,6 +94,10 @@ changes. Using `none` will reset to inferring file types from extensions.
 
 Specifies an input file or directory, but in the case of a directory does not search recursively for input files.
 
+### *-- arg...*
+
+All arguments after *--* will be passed to the program if evaluating or executing, otherwise they are ignored.
+
 ### *-m:\<count>*
 
 Specifies the maximum number of CPU cores to use. Without this option the compilation will be concurrent and use

@@ -263,6 +263,7 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    FileScopedClassDeclaration,
     UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,

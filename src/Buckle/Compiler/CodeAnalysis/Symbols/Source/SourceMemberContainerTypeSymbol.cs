@@ -98,6 +98,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         _state.NotePartComplete(CompletionParts.TemplateArguments);
 
         enumFlagsAttribute = syntaxReference.node is EnumDeclarationSyntax e && e.flagsKeyword is not null;
+
+        isFileScoped = declaration.syntaxReferences[0].node.kind == SyntaxKind.FileScopedClassDeclaration;
     }
 
     public override string name => _declaration.name;
@@ -118,7 +120,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override bool requiresCompletion => true;
 
-    internal sealed override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+    internal sealed override Accessibility declaredAccessibility
+        => ModifierHelpers.EffectiveAccessibility(_modifiers, isFileScoped);
 
     internal sealed override NamedTypeSymbol constructedFrom => this;
 
@@ -162,6 +165,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal Dictionary<FieldSymbol, AnonymousUnionType> anonymousUnionTypes => _lazyAnonymousUnionTypes;
 
     internal Dictionary<AnonymousUnionType, FieldSymbol> anonymousUnionFields => _lazyAnonymousUnionFields;
+
+    internal bool isFileScoped { get; }
 
     internal override bool knownCircularStruct {
         get {
@@ -1476,6 +1481,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).members, diagnostics);
                 break;
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)syntax;

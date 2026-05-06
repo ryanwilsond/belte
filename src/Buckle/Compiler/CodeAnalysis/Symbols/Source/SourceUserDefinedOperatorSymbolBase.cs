@@ -285,10 +285,11 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     }
 
     private protected static DeclarationModifiers MakeDeclarationModifiers(
+        NamedTypeSymbol containingType,
         BaseMethodDeclarationSyntax syntax,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = DeclarationModifiers.Private;
+        var defaultAccess = containingType.IsFileScoped() ? DeclarationModifiers.Public : DeclarationModifiers.Private;
         var allowedModifiers = DeclarationModifiers.Static
             | DeclarationModifiers.LowLevel
             | DeclarationModifiers.AccessibilityMask;

@@ -1934,6 +1934,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FileScopedNamespaceNotFirstMember, location, message);
     }
 
+    internal static BelteDiagnostic FileScopedClassNotFirstMember(TextLocation location) {
+        var message = $"file-scoped class must precede all other members in a namespace or type";
+        return CreateError(DiagnosticCode.ERR_FileScopedClassNotFirstMember, location, message);
+    }
+
+    internal static BelteDiagnostic FileScopedClassWithinNonFileScoped(TextLocation location) {
+        var message = $"file-scoped class cannot be contained within a non-file-scoped namespace or non-file-scoped class";
+        return CreateError(DiagnosticCode.ERR_FileScopedClassWithinNonFileScoped, location, message);
+    }
+
     internal static BelteDiagnostic EntryConstructor(TextLocation location) {
         var message = $"entry point type cannot define instance constructors";
         return CreateError(DiagnosticCode.ERR_EntryConstructor, location, message);
