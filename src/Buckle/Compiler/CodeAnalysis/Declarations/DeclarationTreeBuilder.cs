@@ -112,7 +112,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         SingleTypeDeclaration.TypeDeclarationFlags declFlags) {
         return new SingleTypeDeclaration(
             kind: DeclarationKind.ImplicitClass,
-            name: "",
+            name: TypeSymbol.ImplicitTypeName,
             arity: 0,
             modifiers: DeclarationModifiers.Public | DeclarationModifiers.Sealed,
             declFlags: declFlags,
