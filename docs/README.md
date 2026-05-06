@@ -7,6 +7,7 @@
 - #### Buckle Docs
 
   - [Using Buckle](Buckle.md)
+  - [Build Scripts](Build.md)
   - [Using the Repl](Repl.md)
   - [Building Buckle](Building.md)
 

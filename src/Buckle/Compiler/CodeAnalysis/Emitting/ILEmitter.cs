@@ -196,7 +196,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (!_program.compilation.options.enableOutput)
             return;
 
-        EmitRuntimeConfig(outputPath);
+        var isDll = _program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+
+        if (!isDll)
+            EmitRuntimeConfig(outputPath);
+
         var dllPath = Path.ChangeExtension(outputPath, ".dll");
 
         if (debugMode) {
@@ -215,7 +219,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _assemblyDefinition.Write(dllPath);
         }
 
-        EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
+        if (!isDll)
+            EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
     }
 
     private void EmitRuntimeConfig(string outputPath) {

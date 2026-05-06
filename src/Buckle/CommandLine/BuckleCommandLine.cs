@@ -2,10 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Hashing;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using Buckle;
+using Buckle.Building;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Repl;
@@ -20,6 +24,8 @@ public static partial class BuckleCommandLine {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
     private const int RuntimeErrorExitCode = 3;
+
+    private const long MaxBuildCacheSize = 3 * 1_000_000_000L;
 
     private static readonly DiagnosticInfo[] WarningLevel1 = [
         new DiagnosticInfo(0001, "BU"),
@@ -70,6 +76,10 @@ public static partial class BuckleCommandLine {
         int err;
 
         var processName = Process.GetCurrentProcess().ProcessName;
+
+        if (args.Length > 0 && args[0] == "build")
+            return ProcessBuildArgs(processName, args);
+
         var state = DecodeOptions(
             args,
             out var diagnostics,
@@ -166,6 +176,360 @@ public static partial class BuckleCommandLine {
         return SuccessExitCode;
     }
 
+    private static int ProcessBuildArgs(string processName, string[] args) {
+        int err;
+
+        var buildState = DecodeBuildOptions(args, out var diagnostics);
+        var state = new CompilerState {
+            noOut = false,
+            warningLevel = 1,
+            severity = DiagnosticSeverity.Warning,
+            verboseMode = buildState.showInfo,
+            reducedVerboseMode = buildState.showInfo,
+            time = buildState.showTime,
+            debugMode = false,
+            concurrentBuild = false,
+        };
+
+        var inputFileName = buildState.buildScript;
+
+        if (!File.Exists(inputFileName)) {
+            diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(inputFileName));
+        } else {
+            var opened = false;
+
+            for (var j = 1; j < 4; j++) {
+                try {
+                    buildState.buildScriptText = File.ReadAllText(inputFileName);
+                    opened = true;
+                    break;
+                } catch (IOException) {
+                    if (j < 3)
+                        Thread.Sleep(j * 10);
+                }
+            }
+
+            if (!opened)
+                diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(inputFileName));
+        }
+
+        err = ResolveDiagnostics(diagnostics, processName, state);
+
+        if (err > 0)
+            return err;
+
+        buildState.buildDirectory = GetBuildDirectory();
+        var hash = HashStrings(GetVersionString(), buildState.buildScriptText);
+        hash.Append(HashVersion(BuildInfo.APIVersion));
+        buildState.buildHash = hash.GetCurrentHashAsUInt64();
+
+        if (buildState.showInfo)
+            LogBuildState(buildState);
+
+        err = GetOrCreateBuildScript(processName, buildState, diagnostics, out var compiler, out var builder);
+
+        if (err > 0)
+            return err;
+
+        err = ResolveDiagnostics(diagnostics, processName, state);
+
+        if (err > 0)
+            return err;
+
+        compiler.state = ToCompilerState(diagnostics, builder, out var pendingReferenceCopies);
+        state = compiler.state;
+
+        err = ResolveDiagnostics(diagnostics, processName, state);
+
+        if (err > 0)
+            return err;
+
+        if (!state.noOut)
+            CleanOutputFiles(compiler, diagnostics);
+
+        ReadInputFiles(compiler, diagnostics);
+
+        err = ResolveDiagnostics(diagnostics, processName, state);
+
+        if (err > 0)
+            return err;
+
+        if (state.verboseMode && !state.noOut)
+            LogCompilerState(state, pendingReferenceCopies);
+
+        compiler.Compile();
+
+        err = ResolveDiagnostics(compiler);
+
+        if (err > 0)
+            return err;
+
+        if (compiler.exceptions.Count > 0) {
+            foreach (var exception in compiler.exceptions)
+                DiagnosticFormatter.PrettyPrintException(exception);
+
+            return RuntimeErrorExitCode;
+        }
+
+        ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+
+        return SuccessExitCode;
+    }
+
+    private static XxHash64 HashStrings(params string[] strings) {
+        var hasher = new XxHash64();
+
+        foreach (var s in strings) {
+            var bytes = Encoding.UTF8.GetBytes(s);
+            Span<byte> len = stackalloc byte[4];
+            BitConverter.TryWriteBytes(len, bytes.Length);
+
+            hasher.Append(len);
+            hasher.Append(bytes);
+        }
+
+        return hasher;
+    }
+
+    private static byte[] HashVersion(Version version) {
+        using var ms = new MemoryStream();
+
+        WriteInt(ms, version.Major);
+        WriteInt(ms, version.Minor);
+        WriteInt(ms, version.Build);
+        WriteInt(ms, version.Revision);
+
+        return ms.ToArray();
+
+        static void WriteInt(Stream s, int value) {
+            Span<byte> buffer = stackalloc byte[4];
+            BitConverter.TryWriteBytes(buffer, value);
+            s.Write(buffer);
+        }
+    }
+
+    private static CompilerState ToCompilerState(
+        DiagnosticQueue<Diagnostic> diagnostics,
+        Builder builder,
+        out string[] pendingReferenceCopies) {
+        var references = new List<string>();
+        var copies = new List<string>();
+
+        foreach (var (reference, options) in builder.refs) {
+            if (Directory.Exists(reference)) {
+                var files = Directory.GetFiles(
+                    reference,
+                    "*.dll",
+                    ((options & RefOptions.Flat) != 0) ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories
+                );
+
+                references.AddRange(files);
+
+                if ((options & RefOptions.Copy) != 0)
+                    copies.AddRange(files);
+            } else if (File.Exists(reference)) {
+                references.Add(reference);
+
+                if ((options & RefOptions.Copy) != 0)
+                    copies.Add(reference);
+            } else {
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
+            }
+        }
+
+        pendingReferenceCopies = copies.ToArray();
+
+        references.AddRange(Compiler.ResolveLibraryLevel(builder.l));
+
+        var outputFilename = builder.output ?? "a.exe";
+
+        var tasks = new List<FileState>();
+
+        foreach (var input in builder.inputs)
+            ResolveInputFileOrDir(input, tasks, null, diagnostics);
+
+        var verboseMode = builder.verboseMode is VerboseMode.Normal or VerboseMode.Reduced;
+
+        var maxCores = builder.maxCores > 0 ? builder.maxCores : Environment.ProcessorCount - 2;
+        var concurrentBuild = maxCores > 1;
+
+        return new CompilerState() {
+            buildMode = builder.buildMode,
+            moduleName = "a",
+            references = references.ToArray(),
+            debugMode = false,
+            severity = DiagnosticSeverity.Error,
+            warningLevel = 1,
+            includeWarnings = [],
+            excludeWarnings = [],
+            finishStage = CompilerStage.Finished,
+            outputFilename = outputFilename,
+            tasks = tasks.ToArray(),
+            noOut = false,
+            arguments = [],
+            projectType = builder.outputKind,
+            verboseMode = verboseMode,
+            reducedVerboseMode = builder.verboseMode == VerboseMode.Reduced,
+            verbosePath = null,
+            time = builder.verboseMode != VerboseMode.Off,
+            concurrentBuild = concurrentBuild,
+            maxCores = maxCores,
+            entryName = null,
+            noStdLib = false
+        };
+    }
+
+    private static int GetOrCreateBuildScript(
+        string processName,
+        BuildState state,
+        DiagnosticQueue<Diagnostic> diagnostics,
+        out Compiler compiler,
+        out Builder builder) {
+        var cacheDirectory = Path.Combine(state.buildDirectory, state.buildHash.ToString());
+        var reuse = false;
+
+        var index = LoadOrBuildIndex(state.buildDirectory);
+
+        state.dllPath = Path.Combine(cacheDirectory, "build.dll");
+        state.metaPath = Path.Combine(cacheDirectory, "meta.json");
+
+        if (Directory.Exists(cacheDirectory)) {
+            if (state.showInfo)
+                Console.WriteLine("Reusing existing build artifacts");
+
+            if (!File.Exists(state.dllPath) || !File.Exists(state.metaPath)) {
+                if (state.showInfo)
+                    Console.WriteLine("    Existing cache data is malformed: clearing and recreating");
+
+                Directory.Delete(cacheDirectory);
+                reuse = false;
+            } else {
+                UpdateLastAccess(
+                    state.buildDirectory,
+                    index,
+                    state.dllPath,
+                    state.metaPath,
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                );
+
+                reuse = true;
+            }
+        }
+
+        var buildManager = new BuildManager(processName, state);
+
+        compiler = buildManager.compiler;
+
+        if (!reuse) {
+            if (state.showInfo)
+                Console.WriteLine("Creating new build artifacts");
+
+            buildManager.CompileBuildScript(cacheDirectory, index);
+
+            var err = ResolveDiagnostics(buildManager.compiler);
+
+            if (err > 0) {
+                builder = null;
+                return err;
+            }
+        }
+
+        builder = buildManager.RunBuildScript(diagnostics);
+        PruneCache(state.buildDirectory, index);
+        return SuccessExitCode;
+    }
+
+    private static void UpdateLastAccess(
+        string cacheRoot,
+        CacheIndex index,
+        string entryPath,
+        string metaPath,
+        long newLastAccess) {
+        if (!index.entries.TryGetValue(entryPath, out var entry))
+            return;
+
+        entry.lastAccess = newLastAccess;
+
+        var json = File.ReadAllText(metaPath);
+        var meta = JsonSerializer.Deserialize<CacheMetadata>(json);
+        meta.lastAccess = newLastAccess;
+        File.WriteAllText(metaPath, JsonSerializer.Serialize(meta));
+
+        BuildManager.SaveIndex(cacheRoot, index);
+    }
+
+    private static void PruneCache(string cacheRoot, CacheIndex index) {
+        if (index.totalSizeBytes <= MaxBuildCacheSize)
+            return;
+
+        var targetSize = (long)(MaxBuildCacheSize * 0.5);
+
+        var ordered = index.entries.Values
+            .OrderBy(e => e.lastAccess)
+            .ToList();
+
+        foreach (var entry in ordered) {
+            if (index.totalSizeBytes <= targetSize)
+                break;
+
+            try {
+                if (Directory.Exists(entry.path))
+                    Directory.Delete(entry.path, recursive: true);
+            } catch {
+                continue;
+            }
+
+            index.totalSizeBytes -= entry.sizeBytes;
+            index.entries.Remove(entry.path);
+        }
+
+        BuildManager.SaveIndex(cacheRoot, index);
+    }
+
+    private static CacheIndex LoadOrBuildIndex(string cacheRoot) {
+        var indexPath = Path.Combine(cacheRoot, "index.json");
+
+        if (File.Exists(indexPath))
+            return JsonSerializer.Deserialize<CacheIndex>(File.ReadAllText(indexPath));
+
+        var index = new CacheIndex();
+
+        foreach (var dir in Directory.EnumerateDirectories(cacheRoot)) {
+            var metaPath = Path.Combine(dir, "meta.json");
+
+            if (!File.Exists(metaPath))
+                continue;
+
+            try {
+                var meta = JsonSerializer.Deserialize<CacheMetadata>(File.ReadAllText(metaPath));
+
+                var entry = new CacheIndexEntry {
+                    path = dir,
+                    lastAccess = meta.lastAccess,
+                    sizeBytes = meta.sizeBytes
+                };
+
+                index.entries[dir] = entry;
+                index.totalSizeBytes += meta.sizeBytes;
+            } catch {
+                // ignore corrupt entries
+            }
+        }
+
+        BuildManager.SaveIndex(cacheRoot, index);
+        return index;
+    }
+
+    private static string GetBuildDirectory() {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var buildFolder = Path.Combine(localAppData, "Buckle", "Build");
+
+        if (!Directory.Exists(buildFolder))
+            Directory.CreateDirectory(buildFolder);
+
+        return buildFolder;
+    }
+
     private static void ResolveSae(bool sae) {
         if (sae) {
             Console.Write("'--sae' specified: Press any key to continue...");
@@ -226,11 +590,14 @@ public static partial class BuckleCommandLine {
     }
 
     private static void ShowVersionDialog() {
-        var assembly = Assembly.GetExecutingAssembly();
+        Console.WriteLine($"Version: Buckle {GetVersionString()}");
+    }
 
+    private static string GetVersionString() {
+        var assembly = Assembly.GetExecutingAssembly();
         using var stream = assembly.GetManifestResourceStream("CommandLine.Resources.Version.txt");
         using var reader = new StreamReader(stream);
-        Console.WriteLine($"Version: Buckle {reader.ReadLine()}");
+        return reader.ReadLine();
     }
 
     private static DiagnosticSeverity ResolveDiagnostic<Type>(
@@ -419,6 +786,14 @@ public static partial class BuckleCommandLine {
         }
     }
 
+    private static void LogBuildState(BuildState state) {
+        Console.WriteLine();
+        Console.WriteLine("Build Script Information:");
+        Console.WriteLine($"    Build script: \"{state.buildScript}\"");
+        Console.WriteLine($"    Build hash: {state.buildHash}");
+        Console.WriteLine();
+    }
+
     private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies) {
         Console.WriteLine();
         Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.severity)}");
@@ -458,6 +833,40 @@ public static partial class BuckleCommandLine {
         }
 
         Console.WriteLine();
+    }
+
+    private static BuildState DecodeBuildOptions(
+        string[] args,
+        out DiagnosticQueue<Diagnostic> diagnostics) {
+        var state = new BuildState {
+            showTime = false,
+            showInfo = false,
+            buildScript = "Build.blt"
+        };
+
+        diagnostics = new DiagnosticQueue<Diagnostic>();
+
+        for (var i = 1; i < args.Length; i++) {
+            var arg = args[i];
+
+            switch (arg) {
+                case "--info":
+                    state.showInfo = true;
+                    break;
+                case "--time":
+                    state.showTime = true;
+                    break;
+                default:
+                    if (i == 1 && !arg.StartsWith('-'))
+                        state.buildScript = arg;
+                    else
+                        diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
+
+                    break;
+            }
+        }
+
+        return state;
     }
 
     private static CompilerState DecodeOptions(

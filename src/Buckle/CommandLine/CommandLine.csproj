@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <Content Remove="../../../lib/Belte.Runtime.dll"/>
-    <Content Remove="../../../lib/Belte.Graphics.dll"/>
+    <Content Remove="../../../lib/Belte.Runtime.dll" />
+    <Content Remove="../../../lib/Belte.Graphics.dll" />
     <Content Remove="../../../bin/release/freetype6.dll" />
     <Content Remove="../../../bin/release/openal.dll" />
     <Content Remove="../../../bin/release/SDL2.dll" />
@@ -48,15 +48,16 @@
     <ProjectReference Include="..\Repl\Repl.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="10.0.7" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <Target Name="CopyFreetypeDll" AfterTargets="Build">
-    <Copy
-      SourceFiles="$(OutputPath)/lib/x64/freetype6.dll"
-      DestinationFolder="$(OutputPath)"
-      SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(OutputPath)/lib/x64/freetype6.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

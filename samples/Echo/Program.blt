@@ -11,8 +11,8 @@
 
 */
 
-void Main(string![]! args) {
-    var argc = LowLevel.Length<string![]>(args);
+void Main(string[]! args) {
+    var argc = LowLevel.Length<string[]>(args);
     Console.PrintLine("Number of arguments: " + (string)argc);
 
     if (argc > 0) {

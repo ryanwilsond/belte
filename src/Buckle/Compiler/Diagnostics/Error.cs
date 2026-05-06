@@ -697,6 +697,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoSuitableEntryPoint, message);
     }
 
+    internal static Diagnostic NoBuildMethod() {
+        var message = $"no suitable build method found";
+        return CreateError(DiagnosticCode.ERR_NoBuildMethod, message);
+    }
+
     internal static BelteDiagnostic ArrayOfStaticType(TextLocation location, TypeSymbol type) {
         var message = $"array elements cannot be of static type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_ArrayOfStaticType, location, message);

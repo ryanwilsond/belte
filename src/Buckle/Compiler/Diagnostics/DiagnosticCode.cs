@@ -443,6 +443,7 @@ public enum DiagnosticCode : ushort {
     ERR_ObjectCreationIllegalTargetType = 432,
     ERR_FileScopedClassNotFirstMember = 433,
     ERR_FileScopedClassWithinNonFileScoped = 434,
+    ERR_NoBuildMethod = 435,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

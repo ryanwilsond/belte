@@ -17,6 +17,18 @@ on their file extensions.
 
 Displays a brief options summary.
 
+### *build*
+
+Instead of using normal options, a build script can be used to drive the compilation. The build script is found
+automatically by searching the working directory for a file named `Build.blt`. When using this
+option, only *--time* and *--info* can be specified in addition. All other arguments must be defined in the build script
+itself.
+
+Optionally, the build script can be specified manually by passing it's path as an argument immediately following
+*build*.
+
+> [Build script info](Build.md)
+
 ### *-i* (Default)
 
 Instead of producing an executable, the program is run immediately after being compiled. This is the default behavior
