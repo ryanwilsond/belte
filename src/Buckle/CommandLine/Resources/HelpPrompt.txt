@@ -5,6 +5,7 @@ Options:
   --version                   Display compiler version information.
   --noout                     Disable any file output the compiler would have produced.
 
+  new                         Create a new project in the working directory.
   build                       Search for build script instead of using normal options.
 
   -r|--repl                   Invoke the Repl.

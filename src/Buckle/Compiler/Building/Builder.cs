@@ -15,7 +15,7 @@ public sealed class Builder {
         maxCores = 0;
     }
 
-    public List<string> inputs { get; }
+    public List<(string, InputOptions)> inputs { get; }
 
     public List<(string, RefOptions)> refs { get; }
 
@@ -28,7 +28,11 @@ public sealed class Builder {
     public int maxCores { get; private set; }
 
     public void AddInput(string path) {
-        inputs.Add(path);
+        inputs.Add((path, InputOptions.None));
+    }
+
+    public void AddInput(string path, InputOptions options) {
+        inputs.Add((path, options));
     }
 
     public void IncludeNETSDK() {

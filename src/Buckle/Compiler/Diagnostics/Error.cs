@@ -1530,7 +1530,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IncompatibleEntryPointReturn(TextLocation location, Symbol symbol) {
-        var message = $"entry point '{symbol}' must return `void` or `int32!` to maintain compatibility with .NET";
+        var message = $"entry point '{symbol}' must return `void` or `int32!`";
         return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
     }
 

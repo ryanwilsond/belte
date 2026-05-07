@@ -192,27 +192,27 @@ only allowed if only one file in the compilation contains these top-level statem
 A function named `Main` is treated as the entry point if it is declared otherwise. To support command-line arguments,
 the `Main` function can optionally take in arguments to retrieve them (similar to C).
 
-Valid `Main` signatures:
+**Valid** `Main` signatures:
 
 ```belte
 void Main();
-int Main();
-void Main(string![]! args);
-int Main(string![]! args);
+int32 Main();
+void Main(string[]! args);
+int32 Main(string[]! args);
 ```
 
 Where `args` is an array of command-line arguments.
 
 Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (case sensitive), and
-the parameter must have the exact type, but the parameter name can be anything:
+the parameter must have the exact type, but the parameter name can be anything.
 
 **Invalid** `Main` signatures:
 
-```bete
+```belte
 void main(); // Name does not match casing
 string Main(); // Cannot return 'string'
-void Main(int! argc, string![]! argv); // Must have 0 or 1 parameters
-int Main(string a); // Invalid parameter type, must be 'string![]!'
+void Main(int argc, string[]! argv); // Must have 0 or 1 parameters
+int32 Main(string a); // Invalid parameter type, must be 'string[]!'
 ```
 
 ### 2.2.2 Program and Update
@@ -250,7 +250,7 @@ public class Program {
     myField++;
   }
 
-  public void Update(decimal! deltaTime) {
+  public void Update(decimal deltaTime) {
     Console.PrintLine(myField);
   }
 }

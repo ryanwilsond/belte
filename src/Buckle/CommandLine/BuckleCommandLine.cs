@@ -77,8 +77,14 @@ public static partial class BuckleCommandLine {
 
         var processName = Process.GetCurrentProcess().ProcessName;
 
-        if (args.Length > 0 && args[0] == "build")
-            return ProcessBuildArgs(processName, args);
+        if (args.Length > 0) {
+            switch (args[0]) {
+                case "build":
+                    return ProcessBuildArgs(processName, args);
+                case "new":
+                    return ProcessNewArgs(processName, args);
+            }
+        }
 
         var state = DecodeOptions(
             args,
@@ -173,6 +179,106 @@ public static partial class BuckleCommandLine {
         ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
 
         ResolveSae(sae);
+        return SuccessExitCode;
+    }
+
+    private static int ProcessNewArgs(string processName, string[] args) {
+        int err;
+
+        var name = DecodeNewOptions(args, out var diagnostics, out var outputKind);
+        const string BuildScriptName = "Build.blt";
+        const string SrcName = "src";
+        const string ProgramName = "Program.blt";
+
+        // We don't compile anything but we still need diagnostic reporting rules
+        var state = new CompilerState {
+            warningLevel = 1,
+            severity = DiagnosticSeverity.Warning,
+            time = false,
+        };
+
+        if (File.Exists(BuildScriptName))
+            diagnostics.Push(Belte.Diagnostics.Error.CannotCreateNew(BuildScriptName));
+
+        if (Directory.Exists(SrcName))
+            diagnostics.Push(Belte.Diagnostics.Error.CannotCreateNew(SrcName));
+
+        err = ResolveDiagnostics(diagnostics, processName, state);
+
+        if (err > 0)
+            return err;
+
+        var isGraphics = outputKind == OutputKind.GraphicsApplication;
+        var buildMode = isGraphics ? BuildMode.Execute : BuildMode.Dotnet;
+
+        var buildScriptContent =
+@$"using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {{
+    builder.AddInput(""src""); {(isGraphics ? "" : $"\n    builder.SetOutput(\"bin/{name}\");")}
+    builder.buildMode = BuildMode.{buildMode};
+    builder.outputKind = OutputKind.{outputKind};
+    // builder.AddRef(""lib"", RefOptions.Copy);
+}}
+";
+
+        string programContent;
+
+        switch (outputKind) {
+            case OutputKind.ConsoleApplication:
+                programContent =
+@$"
+namespace {name};
+static class Program;
+
+void Main(string[]! args) {{
+    Console.PrintLine(""Hello, world!"");
+}}
+";
+
+                break;
+            case OutputKind.GraphicsApplication:
+                programContent =
+@$"
+namespace {name};
+class Program;
+
+void Main(string[]! args) {{
+    Graphics.Initialize(""{name}"", 1280, 720, false);
+}}
+
+void Update(decimal deltaTime) {{
+    Graphics.Fill(0, 0, 0);
+}}
+";
+
+                break;
+            case OutputKind.DynamicallyLinkedLibrary:
+                programContent =
+@$"
+namespace {name};
+
+public class {name} {{
+
+}}
+";
+
+                break;
+            default:
+                throw new UnreachableException();
+        }
+
+        File.WriteAllText(BuildScriptName, buildScriptContent);
+        Directory.CreateDirectory(SrcName);
+        File.WriteAllText(Path.Combine(SrcName, ProgramName), programContent);
+
+        if (!isGraphics && !Directory.Exists("bin"))
+            Directory.CreateDirectory("bin");
+
+        if (!Directory.Exists("lib"))
+            Directory.CreateDirectory("lib");
+
         return SuccessExitCode;
     }
 
@@ -342,11 +448,12 @@ public static partial class BuckleCommandLine {
         references.AddRange(Compiler.ResolveLibraryLevel(builder.l));
 
         var outputFilename = builder.output ?? "a.exe";
+        var moduleName = Path.GetFileNameWithoutExtension(outputFilename);
 
         var tasks = new List<FileState>();
 
-        foreach (var input in builder.inputs)
-            ResolveInputFileOrDir(input, tasks, null, diagnostics);
+        foreach (var (input, options) in builder.inputs)
+            ResolveInputFileOrDir(input, tasks, null, diagnostics, recursive: (options & InputOptions.Flat) == 0);
 
         var verboseMode = builder.verboseMode is VerboseMode.Normal or VerboseMode.Reduced;
 
@@ -355,7 +462,7 @@ public static partial class BuckleCommandLine {
 
         return new CompilerState() {
             buildMode = builder.buildMode,
-            moduleName = "a",
+            moduleName = moduleName,
             references = references.ToArray(),
             debugMode = false,
             severity = DiagnosticSeverity.Error,
@@ -833,6 +940,46 @@ public static partial class BuckleCommandLine {
         }
 
         Console.WriteLine();
+    }
+
+    private static string DecodeNewOptions(
+        string[] args,
+        out DiagnosticQueue<Diagnostic> diagnostics,
+        out OutputKind outputKind) {
+        outputKind = OutputKind.ConsoleApplication;
+        diagnostics = new DiagnosticQueue<Diagnostic>();
+        var name = "Project";
+
+        for (var i = 1; i < args.Length; i++) {
+            var arg = args[i];
+
+            if (i == 1 && !arg.StartsWith('-')) {
+                name = arg;
+                continue;
+            }
+
+            if (arg.StartsWith("--type")) {
+                if (arg == "--type" || arg == "--type=" || !arg.StartsWith("--type=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingType(arg));
+                    continue;
+                }
+
+                var type = arg.Substring(7).ToLower();
+
+                if (type == "console")
+                    outputKind = OutputKind.ConsoleApplication;
+                else if (type == "graphics")
+                    outputKind = OutputKind.GraphicsApplication;
+                else if (type == "dll")
+                    outputKind = OutputKind.DynamicallyLinkedLibrary;
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedType(type));
+            } else {
+                diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
+            }
+        }
+
+        return name;
     }
 
     private static BuildState DecodeBuildOptions(

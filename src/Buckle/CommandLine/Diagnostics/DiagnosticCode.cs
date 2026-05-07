@@ -50,4 +50,5 @@ public enum DiagnosticCode : ushort {
     ERR_UnrecognizedFileAssociation = 39,
     ERR_MissingPathFlat = 40,
     WRN_UnableToCopyFile = 41,
+    ERR_CannotCreateNew = 42,
 }

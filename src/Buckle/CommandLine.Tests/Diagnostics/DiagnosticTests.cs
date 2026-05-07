@@ -469,4 +469,6 @@ public sealed class DiagnosticTests {
     }
 
     // ! Warning_CL0041_UnableToCopyFile
+
+    // ! Error_CL0042_CannotCreateNew
 }

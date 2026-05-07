@@ -122,6 +122,12 @@ internal sealed partial class Executor : ModuleBuilder {
         if (entryPoint is null)
             return null;
 
+        if (_graphicsEnabled && _graphicsInitialized &&
+            !(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int32)) {
+            _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+            return null;
+        }
+
         _programNamedType = entryPoint.containingType;
         graphicsHandlerField = typeof(Executor).GetField("GraphicsHandler", BindingFlags.Public | BindingFlags.Static);
 
@@ -195,10 +201,24 @@ internal sealed partial class Executor : ModuleBuilder {
         object result;
 
         if (_graphicsEnabled && _graphicsInitialized) {
-            var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
-            GraphicsHandler.SetExecuteMain(mainAction);
+            if (_program.entryPoint.parameterCount == 0 && _program.entryPoint.returnsVoid) {
+                var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction);
+            } else if (_program.entryPoint.parameterCount == 0) {
+                var mainAction = (Func<int>)Delegate.CreateDelegate(typeof(Func<int>), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction);
+            } else if (_program.entryPoint.parameterCount == 1 && _program.entryPoint.returnsVoid) {
+                var mainAction = (Action<string[]>)Delegate.CreateDelegate(typeof(Action<string[]>), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction, _arguments);
+            } else if (_program.entryPoint.parameterCount == 1) {
+                var mainAction = (Func<string[], int>)Delegate.CreateDelegate(typeof(Func<string[], int>), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction, _arguments);
+            } else {
+                throw ExceptionUtilities.Unreachable();
+            }
+
             GraphicsHandler.Run();
-            result = null;
+            result = GraphicsHandler.GetMainReturnOrNull();
         } else {
             result = mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
         }

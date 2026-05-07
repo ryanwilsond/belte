@@ -17,12 +17,20 @@ on their file extensions.
 
 Displays a brief options summary.
 
+### *new*
+
+Creates a starter build script. Optionally accepts a namespace name as the next argument. Only the
+[*--type*](#--typeconsolegraphics-default-console) option can be specified in addition.
+
+The generated build script will be placed at `Build.blt` in the working directory, and an entry point will be created
+at `src/Program.blt`. Both locations must be unoccupied.
+
 ### *build*
 
 Instead of using normal options, a build script can be used to drive the compilation. The build script is found
-automatically by searching the working directory for a file named `Build.blt`. When using this
-option, only *--time* and *--info* can be specified in addition. All other arguments must be defined in the build script
-itself.
+automatically by searching the working directory for a file named `Build.blt`. When using this option, only
+[*--time*](#--time) and [*--info*](#--info) can be specified in addition. All other arguments must be defined in the
+build script itself.
 
 Optionally, the build script can be specified manually by passing it's path as an argument immediately following
 *build*.

@@ -141,6 +141,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingPathFlat), message);
     }
 
+    internal static Diagnostic CannotCreateNew(string arg) {
+        var message = $"'{arg}': cannot create new project because location is occupied";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCreateNew), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }
