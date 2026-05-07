@@ -913,10 +913,7 @@
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="DeferKeyword"/>
     </Field>
-    <Field Name="expression" Type="ExpressionSyntax"/>
-    <Field Name="semicolon" Type="SyntaxToken">
-      <Kind Name="SemicolonToken"/>
-    </Field>
+    <Field Name="statement" Type="StatementSyntax"/>
   </Node>
   <Node Name="ForStatementSyntax" Base="StatementSyntax">
     <Kind Name="ForStatement"/>

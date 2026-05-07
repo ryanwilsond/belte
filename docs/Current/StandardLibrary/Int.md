@@ -10,5 +10,5 @@ The Belte public interface for the Int class can be found
 ## 5.9.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `int? Parse(string?)` | Tries to parse the given string into an int. Returns null if the string is not a valid int. |

@@ -32,7 +32,7 @@
 Apart from classes, there are many primitive types. The most common ones include:
 
 | Name | Identifier | Values |
-|-|-|-|
+| - | - | - |
 | Integer | `int` | Integers from -2,147,483,647 to 2,147,483,647 |
 | Decimal | `decimal` | Numbers approximately from ±5.0 × 10<sup>−324</sup> to ±1.7 × 10<sup>308</sup> |
 | Boolean | `bool` | `true` or `false` |
@@ -57,7 +57,7 @@ To convert from one data type to another, a cast can be used. If a cast is impli
 no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(int)"123"`).
 
 | From | To | Cast Type | Notes |
-|-|-|-|-|
+| - | - | - | - |
 | Integer | Decimal | Implicit | |
 | Integer | String | Explicit | |
 | Integer | Bool | None | |
@@ -74,7 +74,7 @@ no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(i
 In addition, nullability affects casting:
 
 | From | To | Cast Type | Notes |
-|-|-|-|-|
+| - | - | - | - |
 | type | type! | Explicit | Can throw |
 | type! | type | Implicit | |
 
@@ -150,7 +150,7 @@ Operators are used to interact with data. Each operator takes in one or more ope
 strict order of precedence:
 
 | Operators | Category |
-|-|-|
+| - | - |
 | a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, x?, new, typeof, nameof, sizeof | Primary |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |

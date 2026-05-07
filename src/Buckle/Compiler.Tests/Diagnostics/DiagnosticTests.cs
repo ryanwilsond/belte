@@ -5334,14 +5334,15 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0429_InvalidDeferStatement() {
+    public void Reports_Error_BU0429_CannotReturnFromDefer() {
         var text = @"
-            int a = 3;
-            defer [a];
+            defer {
+                [return;]
+            }
         ";
 
         var diagnostics = @"
-            only assignment, call, throw, and increment expressions can be deferred
+            control cannot leave the body of a defer statement
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

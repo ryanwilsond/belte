@@ -1750,9 +1750,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private DeferStatementSyntax ParseDeferStatement() {
         var keyword = EatToken();
-        var expression = ParseExpression();
-        var semicolon = Match(SyntaxKind.SemicolonToken);
-        return SyntaxFactory.DeferStatement(keyword, expression, semicolon);
+        var statement = ParseStatement();
+        return SyntaxFactory.DeferStatement(keyword, statement);
     }
 
     private SeparatedSyntaxList<ExpressionSyntax> ParseAssignmentExpressionList() {

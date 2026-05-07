@@ -44,12 +44,12 @@ The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed
 
 For more information specifically on the Repl, see the [Repl help doc](Repl.md).
 
-### *--type=*[console|graphics|...] (Default *console*)
+### *--type=*\[console|graphics|...] (Default *console*)
 
 Specifies the project type.
 
-|||
-|-|-|
+| | |
+| - | - |
 | `console` (Default) | An application that interfaces purely with the console. |
 | `graphics` | An application that creates a window. |
 | `dll` | Builds into a dynamically linked library. |
@@ -72,7 +72,7 @@ method of running the program is always evaluation.
 
 The program is run in a virtual environment. The Repl uses this mode.
 
-Note that [some features have restricted](Current/Overview.md#11-endpoint-specific-features) when using this option.
+Note that [some features have restricted](Current/Overview.md#12-endpoint-specific-features) when using this option.
 
 ### *--execute*
 
@@ -82,20 +82,20 @@ method of running the program is always execution.
 The program is emitted to a dynamic assembly and ran, offering better performance than *--evaluate* at the cost of
 slightly longer compile time.
 
-Note that [some features have restricted](Current/Overview.md#11-endpoint-specific-features) when using this option.
+Note that [some features have restricted](Current/Overview.md#12-endpoint-specific-features) when using this option.
 
 ### *-t*, *--transpile*
 
 Instead of producing an executable, the program is transpiled into C# source code after initial compilation.
 
-This option uses the same [feature set as *--dotnet*](Current/Overview.md#11-endpoint-specific-features) with the
+This option uses the same [feature set as *--dotnet*](Current/Overview.md#12-endpoint-specific-features) with the
 additional restriction of disallowing inline IL.
 
 ### *-o \<filename>*
 
 Specifies the output file. You cannot specify this option in junction with *-i*, *--evaluate*, or *--execute*.
 
-### *-x [blt|belte|none] file...*, *--lang [blt|belte|none] file...*
+### *-x \[blt|belte|none] file...*, *--lang \[blt|belte|none] file...*
 
 Specifies a language association for the following files instead of inferring association from file extension.
 Currently, the only language association option is `blt` or `belte` which both mean Belte source files (this reflects
@@ -121,7 +121,7 @@ The compiler stores all diagnostics of any severity. However, diagnostics are on
 is greater than or equal to the given severity level. The default is *warning*.
 
 | Severity | Description |
-|-|-|
+| - | - |
 | *all* | Everything is shown. |
 | *debug* | Verbose information is shown. Used for debugging purposes. |
 | *info* | Any information hidden by default. |
@@ -138,11 +138,11 @@ warning level. The default level is *1*.
 
 > [List of which warnings are included on each level](WarningLevels.md)
 
-### *--wignore=<*[BU|RE|CL]*\<code>,...>*
+### *--wignore=<*\[BU|RE|CL]*\<code>,...>*
 
 Suppresses specified warnings. Warnings should be comma delimited. Warnings should be specified using their codes.
 
-### *--winclude=<*[BU|RE|CL]*\<code>,...>*
+### *--winclude=<*\[BU|RE|CL]*\<code>,...>*
 
 Specifically avoids suppressing specific warnings, even if the [severity level](#--severityseverity-default-warning) or
 [warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited.
@@ -176,7 +176,7 @@ Specifies the module name used when .NET integration is enabled. Defaults to the
 without the file extension, or *a* is no output file was specified. This option is purely used for debugging purposes
 and should not need to be used. This option is only valid in junction with the *-d*/*--dotnet* option.
 
-### *--ref[,flat,copy]=\<path>*, *--reference[,flat,copy]=\<path>*
+### *--ref\[,flat,copy]=\<path>*, *--reference\[,flat,copy]=\<path>*
 
 Adds a reference when .NET integration is enabled. This reference is a path to a DLL that will be added to the program
 and can then be referenced from within the program. This option is only valid in junction with the *-d*/*--dotnet*
@@ -195,7 +195,7 @@ Emits a .NET PDB file containing debugging symbols. Only emits the file if the *
 Automatically includes certain library references. Each level includes all of the libraries from previous levels.
 
 | l# | Libraries |
-|-|-|
+| - | - |
 | `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Runtime.InteropServices.dll` |
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
 | `lall` | All .NET SDK libraries |
@@ -248,7 +248,7 @@ buckle Program.blt
 
 *Result (via stdout)*
 
-```
+```txt
 Hello, world!
 ```
 

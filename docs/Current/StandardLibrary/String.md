@@ -10,7 +10,7 @@ The Belte public interface for the String class can be found
 ## 5.4.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `int? Ascii(string!)` | Returns the ascii value of the given string given that it is 1 character long. Returns null otherwise. (Note that the ascii value of a `char` can be attained directly by casting it to an `int`.) |
 | `string! Char(int!)` | Returns a string of length 1 containing the corresponding character of the given ascii code. (Note that the `char` of an ascii value can be attained directly by casting an `int` to a `char`.) |
 | `bool! IsDigit(char?)` | If the given char is 0 through 9. |

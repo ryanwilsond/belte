@@ -38,10 +38,10 @@ Low-level contexts are created by applying the `lowlevel` modifier to a type
 declaration, method, or block.
 
 ```belte
-lowlevel class A { ... }
-lowlevel struct A { ... }
-lowlevel void M() { ... }
-lowlevel { ... }
+lowlevel class A { /* ... */ }
+lowlevel struct A { /* ... */ }
+lowlevel void M() { /* ... */ }
+lowlevel { /* ... */ }
 ```
 
 The low-level context extends from the declaration to all statements inside. In
@@ -160,13 +160,13 @@ Pointers support any level of indirection:
 int! myInt = 3;
 int* ptr1 = &myInt;
 int** ptr2 = &ptr1;
-...
+// ...
 ```
 
 Pointers can be freely cast to reinterpret them:
 
 ```belte
-void* ptr = ...;
+void* ptr = /* ... */;
 
 int* myIntPtr = (int*)ptr;
 int myInt = *myIntPtr;
@@ -182,7 +182,7 @@ MyClass* ptr2 = (MyClass*)ptr;
 (*ptr2).Method(); // Undefined behavior
 
 class MyClass {
-  public void Method() { ... }
+  public void Method() { /* ... */ }
 }
 ```
 
@@ -209,7 +209,7 @@ do the arithmetic, then cast it back.
 For example:
 
 ```belte
-void* myPtr = ...;
+void* myPtr = /* ... */;
 // Offset the pointer by 8 bytes
 myPtr = (void*)((int64)myPtr + 8);
 ```
@@ -218,14 +218,14 @@ Indexing an operator will automatically offset the pointer and then dereference
 it:
 
 ```belte
-char* myPtr = ...;
+char* myPtr = /* ... */;
 char! myChar = myPtr[10];
 ```
 
 The above example is equivalent to:
 
 ```belte
-char* myPtr = ...;
+char* myPtr = /* ... */;
 char! myChar = *((char*)((int64)myPtr + 10 * sizeof(char!)));
 ```
 
@@ -252,7 +252,7 @@ When not using `var`, the explicit function pointer type can be written as
 ```belte
 int32(bool, string)* myPtr = &MyMethod;
 
-int32 MyMethod(bool arg1, string arg2) { ... }
+int32 MyMethod(bool arg1, string arg2) { /* ... */ }
 ```
 
 Function pointers are treated the same as normal pointers in that they can be
@@ -262,7 +262,7 @@ mark it as such with a `~`.
 Consider this example of calling the first function of a vtable:
 
 ```belte
-void** vtable = ...;
+void** vtable = /* ... */;
 
 ((void()*~)vtable[0])();
 ```
@@ -270,7 +270,7 @@ void** vtable = ...;
 For clarity, the function pointer set to a temporary:
 
 ```belte
-void** vtable = ...;
+void** vtable = /* ... */;
 
 var MyFunction = (void()*~)vtable[0];
 MyFunction();
@@ -343,7 +343,7 @@ be indexed:
 var myStruct = new MyStruct();
 myStruct.field[0] = 5;
 myStruct.field[1] = 10;
-...
+// ...
 
 struct MyStruct {
   int32 field[32];
@@ -374,7 +374,7 @@ The following table shows all types with a known size at compile time. All other
 types compute their size at runtime.
 
 | Type | Size |
-|-|-|
+| - | - |
 | `bool!` | 1 |
 | `int8` | 1 |
 | `uint8` | 1 |
@@ -403,7 +403,7 @@ in a pointer to the start of the memory.
 int32* ptr = stackalloc int32[10];
 ptr[0] = 5;
 ptr[1] = 10;
-...
+// ...
 ```
 
 ### 6.10.1 Stackalloc Locals
@@ -533,9 +533,9 @@ message. The second argument gives an interface to interact with the compilation
 adding symbols or collecting general information.
 
 The required parameter types of the handle come from a shipped `Compiler.dll` that lives alongside the actual compiler
-program. This library is not referenced by default so a
-[`--ref=<path>` argument](../Buckle.md#--reffile---referencefile) must be used. Some parts of the compiler rely on
-other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
+program. This library is not referenced by default so either [`-l1`](../Buckle.md#-l0--l1--lall) or a
+[`--ref=<path>`](../Buckle.md#--refflatcopypath---referenceflatcopypath) option must be used. Some parts of the compiler
+rely on other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
 
 Basic example:
 
@@ -561,14 +561,14 @@ public static class HandleClass {
 ```
 
 The handler is run during compilation using the Executor regardless of the target endpoint, so keep in mind
-[feature availability](Overview.md#11-endpoint-specific-features).
+[feature availability](Overview.md#12-endpoint-specific-features).
 
 ### 6.13.1 Messages
 
 The following is a current list of all messages types, any extra data they might include, and when they are triggered.
 
 | MessageKind | Description |
-|-|-|
+| - | - |
 | `Parsed` | Triggered whenever a parsed syntax tree is added to the compilation. |
 | `Bound` | Triggered after method bodies have finished compiling into the abstract syntax tree. |
 | `BeforeEmit` | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |

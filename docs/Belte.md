@@ -497,7 +497,7 @@ C++/C#:
 
 ```cpp
 class C {
-  C() { ... }
+  C() { /* ... */ }
 }
 ```
 
@@ -505,7 +505,7 @@ Belte:
 
 ```belte
 class C {
-  constructor() { ... }
+  constructor() { /* ... */ }
 }
 ```
 
@@ -539,15 +539,15 @@ the scope as low-level:
 
 ```belte
 lowlevel class C {
-  ...
+  // ...
 }
 
 lowlevel void F() {
-  ...
+  // ...
 }
 
 lowlevel {
-  ...
+  // ...
 }
 ```
 

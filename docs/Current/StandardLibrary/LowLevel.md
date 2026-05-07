@@ -12,7 +12,7 @@ The Belte public interface for the LowLevel class can be found
 ## 5.8.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `int! GetHashCode(Object!)` | Equivalent to calling `Object.GetHashCode()`. |
 | `string! GetTypeName(Object!)` | Equivalent to calling `Object.GetTypeName()`. |
 | `type! GetType(any!)` | Gets the type of the passed value. |

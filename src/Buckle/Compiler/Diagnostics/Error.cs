@@ -188,9 +188,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidExpressionStatement, location, message);
     }
 
-    internal static BelteDiagnostic InvalidDeferStatement(TextLocation location) {
-        var message = "only assignment, call, throw, and increment expressions can be deferred";
-        return CreateError(DiagnosticCode.ERR_InvalidDeferStatement, location, message);
+    internal static BelteDiagnostic CannotReturnFromDefer(TextLocation location) {
+        var message = "control cannot leave the body of a defer statement";
+        return CreateError(DiagnosticCode.ERR_CannotReturnFromDefer, location, message);
     }
 
     internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location) {

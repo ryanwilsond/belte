@@ -18,17 +18,18 @@
 - #### Belte Language Docs in Its Current State
 
   - [1](Current/Overview.md) Overview
-    - [1.1](Current/Overview.md#11-endpoint-specific-features) Endpoint Specific Features
-    - [1.2](Current/Overview.md#12-keywords) Keywords
-      - [1.2.1](Current/Overview.md#121-non-contextual-keywords) Non-Contextual Keywords
-      - [1.2.2](Current/Overview.md#122-contextual-keywords) Contextual Keywords
-    - [1.3](Current/Overview.md#13-nullability-and-types) Nullability and Types
-      - [1.3.1](Current/Overview.md#131-normal-types) Normal Types
-      - [1.3.2](Current/Overview.md#132-pointers-and-function-pointers) Pointers and Function Pointers
-      - [1.3.3](Current/Overview.md#133-initializers) Initializers
-      - [1.3.4](Current/Overview.md#134-fields) Fields
-      - [1.3.5](Current/Overview.md#135-implicit-typing) Implicit Typing
-      - [1.3.6](Current/Overview.md#136-null-flow-analysis) Null-Flow Analysis
+    - [1.1](Current/Overview.md#11-conventions) Conventions
+    - [1.2](Current/Overview.md#12-endpoint-specific-features) Endpoint Specific Features
+    - [1.3](Current/Overview.md#13-keywords) Keywords
+      - [1.3.1](Current/Overview.md#131-non-contextual-keywords) Non-Contextual Keywords
+      - [1.3.2](Current/Overview.md#132-contextual-keywords) Contextual Keywords
+    - [1.4](Current/Overview.md#14-nullability-and-types) Nullability and Types
+      - [1.4.1](Current/Overview.md#141-normal-types) Normal Types
+      - [1.4.2](Current/Overview.md#142-pointers-and-function-pointers) Pointers and Function Pointers
+      - [1.4.3](Current/Overview.md#143-initializers) Initializers
+      - [1.4.4](Current/Overview.md#144-fields) Fields
+      - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
+      - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions

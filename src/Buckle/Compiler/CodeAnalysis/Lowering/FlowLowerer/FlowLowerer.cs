@@ -21,19 +21,6 @@ internal sealed partial class FlowLowerer : SharedFlowLowerer {
         return (BoundStatement)lowerer.Visit(statement);
     }
 
-    internal override BoundNode VisitTryStatement(BoundTryStatement node) {
-        if (node.finallyBody is not null) {
-            foreach (var statement in ((BoundBlockStatement)node.finallyBody).statements) {
-                if (statement.kind == BoundKind.ReturnStatement) {
-                    _diagnostics.Push(Error.CannotReturnFromFinally(statement.syntax.location));
-                    break;
-                }
-            }
-        }
-
-        return base.VisitTryStatement(node);
-    }
-
     internal override BoundNode VisitIfStatement(BoundIfStatement statement) {
         /*
 

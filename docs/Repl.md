@@ -3,7 +3,7 @@
 The Repl (Read-Eval-Print Loop) is a command-line tool that provides the user with a simple way for testing short
 code snippets, without having to create any files or otherwise set up a project.
 
-The Repl is maintained alongside the compiler, so [*most*\*](Current/Overview.md#11-endpoint-specific-features)
+The Repl is maintained alongside the compiler, so [*most*\*](Current/Overview.md#12-endpoint-specific-features)
 language features are supported in the Repl, as well as many tools for inspecting code.
 
 - [Invoking the Repl](#invoking-the-repl)
@@ -27,7 +27,7 @@ by invoking the `#exit` command.
 The Repl supports standard keyboard input, with some special actions.
 
 | Keystrokes | Description |
-|-|-|
+| - | - |
 | Ctrl + Enter | Forces the evaluation of a submission in it's current state, even if it does not parse |
 | Shift + Enter | Enters a new line at the current cursor position, even if the submission would have submitted |
 | Alt + Enter | Abandons a submission without evaluating it |
@@ -38,7 +38,7 @@ The Repl supports standard keyboard input, with some special actions.
 The Repl provides many commands usefully for debug snippets or code.
 
 | Command Name | Usage | Description |
-|-|-|-|
+| - | - | - |
 | [Clear](#clear-command) | `#clear` | Clear the screen |
 | [Dump](#dump-command-no-arguments) | `#dump` | Locate a symbol to show the contents of |
 | [Dump](#dump-command) | `#dump <signature>` | Show contents of symbol \<signature> |
@@ -85,7 +85,7 @@ locator can be used to dig into natively written library types.
 
 Moves to dump locator screen:
 
-```
+```belte
 #dump [none]
 
         Exit
@@ -96,7 +96,7 @@ Moves to dump locator screen:
 
 Example screen:
 
-```
+```belte
 #dump MyClass
 
         Exit
@@ -108,7 +108,7 @@ Example screen:
 
 Example result:
 
-```
+```belte
 #dump MyClass.Add
 public int MyClass.Add(int a, int b) {
     return (a + b)
@@ -217,7 +217,7 @@ The Repl:
 Usage: `#list <mode=global>`
 
 | Mode | |
-|-|-|
+| - | - |
 | `global` | User-declared globals |
 | `type` | User-defined and included types |
 | `all` | All |
@@ -297,7 +297,7 @@ Opens the Repl settings page.
 All Repl settings:
 
 | Setting Name | Options | Default | Description |
-|-|-|-|-|
+| - | - | - | - |
 | Theme | Dark, Light, Green, Purpura, TrafficStop | Dark | The color theme of the Repl; each contributor gets their own color theme! |
 
 ### Show C# Command

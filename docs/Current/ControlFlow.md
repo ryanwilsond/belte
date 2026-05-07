@@ -320,9 +320,9 @@ For example:
 int? a = null;
 
 if ((a > 4)?) {
-  ...
+  // ...
 } else {
-  ...
+  // ...
 }
 ```
 
@@ -626,14 +626,14 @@ Switch statements can be used when comparing an expression to a set of known val
 by a label. Switch statements can switch over primitive integral types and strings.
 
 ```belte
-int a = ...
+int a = /* ... */;
 
 switch (a) {
   case 1:
     Console.PrintLine("a was 1");
   case 2:
     Console.PrintLine("a was 2");
-  ...
+  // ...
 }
 ```
 
@@ -641,30 +641,30 @@ To share code across multiple cases, empty case labels can be stacked. Additiona
 catch any values not covered by the cases:
 
 ```belte
-switch (...) {
+switch (/* ... */) {
   case 1:
   case 2:
   case 3:
-    ...
+    // ...
   default:
-    ...
+    // ...
 }
 ```
 
 Cases do not fall through, but you can use gotos to move around the case labels:
 
 ```belte
-switch (...) {
+switch (/* ... */) {
   case 1:
-    ...
+    // ...
     goto default;
   case 2:
-    ...
+    // ...
     goto case 3;
   case 3:
-    ...
+    // ...
   default:
-    ...
+    // ...
 }
 ```
 
@@ -684,7 +684,7 @@ A try block can be used to prevent the program the crashes if an exception is th
 
 ```belte
 try {
-  ...
+  // ...
 } catch {
   Console.PrintLine("exception thrown");
 }
@@ -697,7 +697,7 @@ A finally body can be used to ensure a piece of code always runs:
 
 ```belte
 try {
-  ...
+  // ...
 } finally {
   Console.PrintLine("done");
 }
@@ -717,6 +717,16 @@ int Func() {
 ```
 
 In this example, `Func` will return `3`, but the finally body will execute before exiting the function.
+
+A finally block cannot return:
+
+```belte
+try {
+  // ...
+} finally {
+  return; // Invalid
+}
+```
 
 A try block must contain one catch body, one finally body, or both.
 
@@ -766,7 +776,7 @@ Using a single `with` where possible is preferred as the compiler can optimize i
 
 ## 2.8 Defer Statements
 
-`defer` statements defer the execution of an expression to the end of the current block, regardless of how the block
+`defer` statements defer the execution of a statement to the end of the current block, regardless of how the block
 exits.
 
 For example:
@@ -806,7 +816,7 @@ Defer statements can be used for resource cleanup:
 var a = GetSomeResource();
 defer a.Dispose();
 
-...
+// ...
 ```
 
 Defer statements are useful when the block can return in multiple places. Instead of writing cleanup code multiple
@@ -888,6 +898,22 @@ first block
 second block
 ```
 
+Because defer statements can defer most statements, blocks can be deferred:
+
+```belte
+defer {
+  SomeFunc1();
+  SomeFunc2();
+  // ...
+}
+```
+
+Similar to [finally blocks](#261-trycatchfinally), defer statements cannot return.
+
+```belte
+defer return; // Invalid
+```
+
 ## 2.9 Using Statements
 
 Similar to defer statements, using statements imply certain execution on block exit. For using statements, this is the
@@ -901,7 +927,7 @@ using (var a = new A()) {
 Console.PrintLine("outside using");
 
 class A {
-  public void Dispose() { ... }
+  public void Dispose() { /* ... */ }
 }
 ```
 
@@ -919,7 +945,7 @@ try {
 Console.PrintLine("outside using");
 
 class A {
-  public void Dispose() { ... }
+  public void Dispose() { /* ... */ }
 }
 ```
 

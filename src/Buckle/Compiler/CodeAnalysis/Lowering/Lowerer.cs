@@ -120,11 +120,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         for (var i = _deferStatements.Count - 1; i >= 0; i--) {
             var defer = _deferStatements[i];
-
-            if (defer.expression is BoundConditionalOperator c && c.trueExpression.type.IsVoidType())
-                finallyBlock.AddRange(_expander.RewriteVoidTernaryCall(c));
-            else
-                finallyBlock.Add(Statement(defer.syntax, defer.expression));
+            finallyBlock.Add(defer.statement);
         }
 
         return new BoundBlockStatement(

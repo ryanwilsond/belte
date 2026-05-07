@@ -12,7 +12,7 @@ The Belte public interface for the Console class can be found
 ## 5.1.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `int GetWidth()` | Gets the console character width. |
 | `int GetHeight()` | Gets the console character height. |
 | `string! Input()` | Gets a line of input from the console. |
@@ -39,7 +39,7 @@ The Color class contains all available console colors that can be used via stati
 values are passed into `SetForegroundColor` `SetBackgroundColor`.
 
 | Name | Value |
-|-|-|
+| - | - |
 | `Black` | `0` |
 | `DarkBlue` | `1` |
 | `DarkGreen` | `2` |

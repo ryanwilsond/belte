@@ -349,6 +349,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         VisitPossibleEmbeddedStatement(node.body, enclosing);
     }
 
+    internal override void VisitDeferStatement(DeferStatementSyntax node) {
+        var enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InDeferBody);
+        AddToMap(node, enclosing);
+        VisitPossibleEmbeddedStatement(node.statement, enclosing);
+    }
+
     internal override void VisitWhileStatement(WhileStatementSyntax node) {
         var whileBinder = new WhileBinder(_enclosing, node);
         AddToMap(node, whileBinder);

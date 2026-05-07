@@ -12750,6 +12750,12 @@ symIsHidden:;
         if (flags.Includes(BinderFlags.InWithBody))
             diagnostics.Push(Warning.ExitingControlFlowInWith(node.location));
 
+        if (flags.Includes(BinderFlags.InFinallyBlock))
+            diagnostics.Push(Error.CannotReturnFromFinally(node.location));
+
+        if (flags.Includes(BinderFlags.InDeferBody))
+            diagnostics.Push(Error.CannotReturnFromDefer(node.location));
+
         var returnType = GetCurrentReturnType(out var signatureRefKind);
         var hasErrors = false;
 
@@ -12854,12 +12860,8 @@ symIsHidden:;
     }
 
     private BoundDeferStatement BindDeferStatement(DeferStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
-
-        if (IsInvalidExpressionStatement(expression))
-            diagnostics.Push(Error.InvalidDeferStatement(node.expression.location));
-
-        return new BoundDeferStatement(node, expression);
+        var statement = BindPossibleEmbeddedStatement(node.statement, diagnostics);
+        return new BoundDeferStatement(node, statement);
     }
 
     private BindValueKind GetRequiredReturnValueKind(RefKind refKind) {

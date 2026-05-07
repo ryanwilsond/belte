@@ -96,7 +96,7 @@ not specified:
 static class Program;
 
 void Main(string[]! args) {
-  ...
+  // ...
 }
 ```
 
@@ -242,7 +242,7 @@ class MyClass {
 Operator overloading is used to allow custom classes to use syntactical operators. The overloadable operators are:
 
 | Operators | Notes |
-|-|-|
+| - | - |
 | `+x`, `-x`, `!x`, `~x`, `++`, `--`, `x[]` | |
 | `x + y`, `x - y`, `x * y`, `x / y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | |
 | `x == y`, `x != y`, `x < y`, `x > y`, `x <= y`, `x >= y` | Must be overloaded in the following pairs: `==` and `!=`, `<` and `>`, `<=` and `>=` |
@@ -448,7 +448,7 @@ These expressions are enforced at compile-time, and as such they must be computa
 at compile time, the set of allowed expressions is limited:
 
 | Expression | Additional Restrictions |
-|-|-|
+| - | - |
 | Unary | |
 | Binary | |
 | Ternary | |
@@ -464,7 +464,7 @@ Given the class definition:
 
 ```belte
 class Int<int min, int max> where { min <= max; } {
-  ...
+  // ...
 }
 ```
 
@@ -497,7 +497,7 @@ but explicit values can be specified. The underlying integral type defaults to `
 enum MyEnum extends uint8 {
   Field1,
   Field2,
-  ...
+  // ...
 }
 ```
 
@@ -507,7 +507,7 @@ Where `Field1` equals 0 and `Field2` equals 1. Explicitly declaring field values
 enum MyEnum {
   Field1 = 300,
   Field2 = 400,
-  ...
+  // ...
 }
 ```
 
@@ -518,7 +518,7 @@ MyEnum myLocal = MyEnum.Field1;
 
 enum MyEnum {
   Field1,
-  ...
+  // ...
 }
 ```
 
@@ -595,10 +595,10 @@ Namespaces can optionally be defined in a source file to organize types. Namespa
 ```belte
 namespace MyNamespace {
   class A {
-    ...
+    // ...
   }
 
-  ...
+  // ...
 }
 ```
 
@@ -609,7 +609,7 @@ used per file if they are file scoped:
 namespace MyNamespace;
 
 class A {
-  ...
+  // ...
 }
 ```
 
@@ -648,7 +648,7 @@ Using directives can be tied to the source file or to a namespace:
 
 ```belte
 namespace A {
-  using ...;
+  using /* ... */;
 }
 ```
 

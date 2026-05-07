@@ -865,8 +865,7 @@ public sealed class DisplayText {
     private static void DisplayDeferStatement(DisplayText text, BoundDeferStatement node) {
         text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
         text.Write(CreateSpace());
-        DisplayNode(text, node.expression);
-        text.WriteLine();
+        DisplayNode(text, node.statement);
     }
 
     private static void DisplayFieldAccessExpression(

@@ -264,14 +264,9 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandDeferStatement(BoundDeferStatement statement) {
-        var statements = ExpandExpression(statement.expression, out var replacement);
-
-        if (statements.Count != 0 || statement.expression != replacement) {
-            statements.Add(statement.Update(replacement));
-            return statements;
-        }
-
-        return [statement];
+        return [
+            statement.Update(Simplify(statement.syntax, ExpandStatement(statement.statement)))
+        ];
     }
 
     private protected virtual List<BoundStatement> ExpandLabelStatement(BoundLabelStatement statement) {
