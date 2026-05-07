@@ -4,6 +4,7 @@ Buckle is the Belte programming language compiler.
 
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
+- [Build Scripts](#build-scripts)
 - [Building to a .NET DLL](#building-to-a-net-dll)
 - [Debugging a Program](#debugging-a-program)
 
@@ -36,6 +37,11 @@ Optionally, the build script can be specified manually by passing it's path as a
 *build*.
 
 > [Build script info](Build.md)
+
+### *--clearcache*
+
+Build scripts are cached to reduce compilation overhead. The cache will automatically manage its size, but it can be
+completely deleted with this option (it will regenerate as needed).
 
 ### *-i* (Default)
 
@@ -259,6 +265,39 @@ buckle Program.blt
 ```txt
 Hello, world!
 ```
+
+## Build Scripts
+
+Instead of passing compilation options directly, a build script can be used. To generate a starter build script, the
+[`new`](#new) command can be used. It accepts an optional project name and project type.
+
+Some examples:
+
+```bash
+buckle new
+buckle new MyProject
+buckle new --type=dll
+```
+
+This command will create a `Build.blt` script in the working directory, and an entry point at `src/Program.blt`.
+
+From there, you can use the [`build`](#build) command:
+
+```bash
+buckle build
+```
+
+This will compile the project and place it into `bin/<project name>.exe`.
+
+To see a hello world program, run the following commands in an empty directory:
+
+```bash
+buckle new
+buckle build
+./bin/project.exe
+```
+
+> [Read more about customizing build scripts](Build.md)
 
 ## Building to a .NET DLL
 

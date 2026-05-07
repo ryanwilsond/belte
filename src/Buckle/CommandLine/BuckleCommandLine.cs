@@ -99,7 +99,11 @@ public static partial class BuckleCommandLine {
             me = processName
         };
 
-        var hasDialog = dialogs.machine || dialogs.version || dialogs.help || dialogs.error is not null;
+        var hasDialog = dialogs.machine ||
+                        dialogs.version ||
+                        dialogs.help ||
+                        dialogs.error is not null ||
+                        dialogs.clearCache;
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
@@ -660,6 +664,9 @@ public class {name} {{
         if (dialogs.error is not null && !multipleExplains)
             ShowErrorHelp(dialogs.error, out diagnostics);
 
+        if (dialogs.clearCache)
+            ShowClearCacheDialog();
+
         return diagnostics;
     }
 
@@ -680,6 +687,22 @@ public class {name} {{
         diagnostics = new DiagnosticQueue<Diagnostic>();
         diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
         return;
+    }
+
+    private static void ShowClearCacheDialog() {
+        var cacheRoot = GetBuildDirectory();
+        var indexPath = Path.Combine(cacheRoot, "index.json");
+        long? size = null;
+
+        if (File.Exists(indexPath))
+            size = JsonSerializer.Deserialize<CacheIndex>(File.ReadAllText(indexPath)).totalSizeBytes;
+
+        Directory.Delete(cacheRoot, recursive: true);
+
+        if (size is null)
+            Console.WriteLine("Deleted build cache");
+        else
+            Console.WriteLine($"Deleted build cache ({size.Value} bytes)");
     }
 
     private static void ShowHelpDialog() {
@@ -1049,6 +1072,7 @@ public class {name} {{
             machine = false,
             version = false,
             clearSubmissions = false,
+            clearCache = false,
             error = null,
         };
 
@@ -1129,6 +1153,9 @@ public class {name} {{
                     break;
                 case "--clearsubmissions":
                     tempDialogs.clearSubmissions = true;
+                    break;
+                case "--clearcache":
+                    tempDialogs.clearCache = true;
                     break;
                 case "--noout":
                     state.noOut = true;
@@ -1363,7 +1390,7 @@ public class {name} {{
         dialogs = tempDialogs;
         diagnostics.Move(diagnosticsCL);
 
-        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error is not null)
+        if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error is not null || dialogs.clearCache)
             return state;
 
         state.tasks = tasks.ToArray();
