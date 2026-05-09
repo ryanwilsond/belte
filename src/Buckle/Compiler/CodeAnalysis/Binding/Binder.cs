@@ -9805,6 +9805,11 @@ internal partial class Binder {
 
     #region Lookup
 
+    internal void AddLookupSymbolsInfo(LookupSymbolsInfo result, LookupOptions options = LookupOptions.Default) {
+        for (var scope = this; scope is not null; scope = scope.next)
+            scope.AddLookupSymbolsInfoInSingleBinder(result, options, originalBinder: this);
+    }
+
     internal Symbol ResultSymbol(
         LookupResult result,
         string simpleName,

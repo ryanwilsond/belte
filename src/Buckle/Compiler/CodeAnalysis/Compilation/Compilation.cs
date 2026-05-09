@@ -335,6 +335,10 @@ public sealed partial class Compilation {
         return new Compilation(assemblyName, options, previous, _syntax, _referenceManager, namespaceSymbol);
     }
 
+    public bool ContainsSyntaxTree(SyntaxTree syntaxTree) {
+        return syntaxTree is not null && _syntax.state.rootNamespaces.ContainsKey(syntaxTree);
+    }
+
     internal void Evaluate(
         EvaluatorContext context,
         ValueWrapper<bool> abort,

@@ -41,4 +41,7 @@ internal sealed class PreprocessingSymbol : IPreprocessingSymbol {
     public ImmutableArray<DisplayTextSegment> ToDisplaySegments(SymbolDisplayFormat format = null) {
         return SymbolDisplay.ToDisplaySegments(this, format);
     }
+
+    // TODO This could be more complicated
+    bool ISymbol.canBeReferencedByName => true;
 }

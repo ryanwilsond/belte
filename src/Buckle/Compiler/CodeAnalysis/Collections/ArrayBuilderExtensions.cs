@@ -108,4 +108,24 @@ internal static class ArrayBuilderExtensions {
         builder.Free();
         return result;
     }
+
+    internal static void RemoveWhere<TItem, TArg>(
+        this ArrayBuilder<TItem> builder,
+        Func<TItem, int, TArg, bool> filter,
+        TArg arg) {
+        var writeIndex = 0;
+
+        for (var i = 0; i < builder.Count; i++) {
+            var item = builder[i];
+
+            if (!filter(item, i, arg)) {
+                if (writeIndex != i)
+                    builder[writeIndex] = item;
+
+                writeIndex++;
+            }
+        }
+
+        builder.Count = writeIndex;
+    }
 }

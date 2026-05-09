@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -13,7 +14,7 @@ namespace Buckle.CodeAnalysis;
 
 internal abstract class BelteSemanticModel : SemanticModel {
     /*
-    public new abstract Compilation compilation { get; }
+    internal new abstract Compilation compilation { get; }
 
     internal new abstract BelteSyntaxNode root { get; }
 
@@ -21,7 +22,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         BelteSyntaxNode node,
         bool allowNamedArgumentName = false,
         bool isSpeculative = false) {
-        if (!isSpeculative && IsInStructuredTriviaOtherThanCrefOrNameAttribute(node))
+        if (!isSpeculative && IsInStructuredTriviaOtherThanNameAttribute(node))
             return false;
 
         switch (node.kind) {
@@ -48,8 +49,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
         }
     }
 
-    #region Abstract worker methods
-
     internal abstract SymbolInfo GetSymbolInfoWorker(
         BelteSyntaxNode node,
         SymbolInfoOptions options,
@@ -63,8 +62,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         int position,
         ExpressionSyntax expression,
         SpeculativeBindingOption bindingOption,
-        out Binder binder,
-        out ImmutableArray<Symbol> crefSymbols);
+        out Binder binder);
 
     internal abstract ImmutableArray<Symbol> GetMemberGroupWorker(
         BelteSyntaxNode node,
@@ -74,10 +72,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
     internal abstract Optional<object> GetConstantValueWorker(
         BelteSyntaxNode node,
         CancellationToken cancellationToken = default);
-
-    #endregion Abstract worker methods
-
-    #region Helpers for speculative binding
 
     internal Binder GetSpeculativeBinder(
         int position,
@@ -189,8 +183,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return position;
     }
 
-    #endregion Helpers for speculative binding
-
     private protected override IOperation GetOperationCore(SyntaxNode node, CancellationToken cancellationToken) {
         var bnode = (BelteSyntaxNode)node;
         CheckSyntaxNode(bnode);
@@ -201,94 +193,58 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return null;
     }
 
-    #region GetSymbolInfo
-
-    public SymbolInfo GetSymbolInfo(ExpressionSyntax expression, CancellationToken cancellationToken = default) {
+    internal SymbolInfo GetSymbolInfo(ExpressionSyntax expression, CancellationToken cancellationToken = default) {
         CheckSyntaxNode(expression);
 
         if (!CanGetSemanticInfo(expression, allowNamedArgumentName: true)) {
             return SymbolInfo.None;
         } else if (SyntaxFacts.IsNamedArgumentName(expression)) {
             return this.GetNamedArgumentSymbolInfo((IdentifierNameSyntax)expression, cancellationToken);
-        } else if (SyntaxFacts.IsDeclarationExpressionType(expression, out DeclarationExpressionSyntax parent)) {
-            return GetSymbolInfoFromSymbolOrNone(TypeFromVariable(parent.identifier, cancellationToken).type);
+        } else if (IsDeclarationExpressionType(expression, out DeclarationExpressionSyntax parent)) {
+            return GetSymbolInfoFromSymbolOrNone(TypeFromVariable(parent.identifier, cancellationToken));
         } else if (expression is DeclarationExpressionSyntax declaration) {
-            if (declaration.Designation.kind != SyntaxKind.SingleVariableDesignation) {
+            if (declaration.identifier.kind != SyntaxKind.IdentifierToken)
                 return SymbolInfo.None;
-            }
 
-            var symbol = GetDeclaredSymbol((SingleVariableDesignationSyntax)declaration.Designation, cancellationToken);
-            if ((object)symbol == null) {
+            var symbol = GetDeclaredSymbol(declaration.identifier, cancellationToken);
+
+            if (symbol is null)
                 return SymbolInfo.None;
-            }
+
             return new SymbolInfo(symbol);
         }
 
         return this.GetSymbolInfoWorker(expression, SymbolInfoOptions.DefaultOptions, cancellationToken);
     }
 
+    private static bool IsDeclarationExpressionType(SyntaxNode node, out DeclarationExpressionSyntax parent) {
+        parent = node.ModifyingRefTypeOrSelf().parent as DeclarationExpressionSyntax;
+        return node == parent?.type.SkipRef(out _);
+    }
+
     private static SymbolInfo GetSymbolInfoFromSymbolOrNone(ITypeSymbol type) {
-        if (type?.Kind != SymbolKind.ErrorType) {
+        if (type?.kind != SymbolKind.ErrorType)
             return new SymbolInfo(type);
-        }
 
         return SymbolInfo.None;
     }
 
-    /// <summary>
-    /// Given a variable designation (typically in the left-hand-side of a deconstruction declaration statement),
-    /// figure out its type by looking at the declared symbol of the corresponding variable.
-    /// </summary>
-    private (ITypeSymbol Type, CodeAnalysis.NullableAnnotation Annotation) TypeFromVariable(SingleVariableDesignationSyntax variableDesignation, CancellationToken cancellationToken) {
-        var variable = GetDeclaredSymbol(variableDesignation, cancellationToken);
+    private ITypeSymbol TypeFromVariable(SyntaxToken identifier, CancellationToken cancellationToken) {
+        var variable = GetDeclaredSymbol(identifier, cancellationToken);
 
         switch (variable) {
-            case ILocalSymbol local:
-                return (local.Type, local.NullableAnnotation);
+            case IDataContainerSymbol local:
+                return local.type;
             case IFieldSymbol field:
-                return (field.Type, field.NullableAnnotation);
+                return field.type;
         }
 
         return default;
     }
 
-    /// <summary>
-    /// Returns what 'Add' method symbol(s), if any, corresponds to the given expression syntax
-    /// within <see cref="BaseObjectCreationExpressionSyntax.Initializer"/>.
-    /// </summary>
-    public SymbolInfo GetCollectionInitializerSymbolInfo(ExpressionSyntax expression, CancellationToken cancellationToken = default(CancellationToken)) {
-        CheckSyntaxNode(expression);
-
-        if (expression.Parent != null && expression.Parent.kind == SyntaxKind.CollectionInitializerExpression) {
-            // Find containing object creation expression
-
-            InitializerExpressionSyntax initializer = (InitializerExpressionSyntax)expression.Parent;
-
-            // Skip containing object initializers
-            while (initializer.Parent != null &&
-                   initializer.Parent.kind == SyntaxKind.SimpleAssignmentExpression &&
-                   ((AssignmentExpressionSyntax)initializer.Parent).Right == initializer &&
-                   initializer.Parent.Parent != null &&
-                   initializer.Parent.Parent.kind == SyntaxKind.ObjectInitializerExpression) {
-                initializer = (InitializerExpressionSyntax)initializer.Parent.Parent;
-            }
-
-            if (initializer.Parent is BaseObjectCreationExpressionSyntax objectCreation &&
-                objectCreation.Initializer == initializer &&
-                CanGetSemanticInfo(objectCreation, allowNamedArgumentName: false)) {
-                return GetCollectionInitializerSymbolInfoWorker((InitializerExpressionSyntax)expression.Parent, expression, cancellationToken);
-            }
-        }
-
-        return SymbolInfo.None;
-    }
-
-    /// <summary>
-    /// Returns what symbol(s), if any, the given constructor initializer syntax bound to in the program.
-    /// </summary>
-    /// <param name="constructorInitializer">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public SymbolInfo GetSymbolInfo(ConstructorInitializerSyntax constructorInitializer, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal SymbolInfo GetSymbolInfo(
+        ConstructorInitializerSyntax constructorInitializer,
+        CancellationToken cancellationToken = default) {
         CheckSyntaxNode(constructorInitializer);
 
         return CanGetSemanticInfo(constructorInitializer)
@@ -296,25 +252,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
             : SymbolInfo.None;
     }
 
-    /// <summary>
-    /// Returns what symbol(s), if any, the given constructor initializer syntax bound to in the program.
-    /// </summary>
-    /// <param name="constructorInitializer">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public SymbolInfo GetSymbolInfo(PrimaryConstructorBaseTypeSyntax constructorInitializer, CancellationToken cancellationToken = default(CancellationToken)) {
-        CheckSyntaxNode(constructorInitializer);
-
-        return CanGetSemanticInfo(constructorInitializer)
-            ? GetSymbolInfoWorker(constructorInitializer, SymbolInfoOptions.DefaultOptions, cancellationToken)
-            : SymbolInfo.None;
-    }
-
-    /// <summary>
-    /// Returns what symbol(s), if any, the given attribute syntax bound to in the program.
-    /// </summary>
-    /// <param name="attributeSyntax">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public SymbolInfo GetSymbolInfo(AttributeSyntax attributeSyntax, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal SymbolInfo GetSymbolInfo(AttributeSyntax attributeSyntax, CancellationToken cancellationToken = default) {
         CheckSyntaxNode(attributeSyntax);
 
         return CanGetSemanticInfo(attributeSyntax)
@@ -322,129 +260,80 @@ internal abstract class BelteSemanticModel : SemanticModel {
             : SymbolInfo.None;
     }
 
-    /// <summary>
-    /// Gets the semantic information associated with a documentation comment cref.
-    /// </summary>
-    public SymbolInfo GetSymbolInfo(CrefSyntax crefSyntax, CancellationToken cancellationToken = default(CancellationToken)) {
-        CheckSyntaxNode(crefSyntax);
-
-        return CanGetSemanticInfo(crefSyntax)
-            ? GetSymbolInfoWorker(crefSyntax, SymbolInfoOptions.DefaultOptions, cancellationToken)
-            : SymbolInfo.None;
-    }
-
-    /// <summary>
-    /// Binds the expression in the context of the specified location and gets symbol information.
-    /// This method is used to get symbol information about an expression that did not actually
-    /// appear in the source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and
-    /// accessibility. This character position must be within the FullSpan of the Root syntax
-    /// node in this SemanticModel.
-    /// </param>
-    /// <param name="expression">A syntax node that represents a parsed expression. This syntax
-    /// node need not and typically does not appear in the source code referred to by the
-    /// SemanticModel instance.</param>
-    /// <param name="bindingOption">Indicates whether to binding the expression as a full expressions,
-    /// or as a type or namespace. If SpeculativeBindingOption.BindAsTypeOrNamespace is supplied, then
-    /// expression should derive from TypeSyntax.</param>
-    /// <returns>The symbol information for the topmost node of the expression.</returns>
-    /// <remarks>
-    /// The passed in expression is interpreted as a stand-alone expression, as if it
-    /// appeared by itself somewhere within the scope that encloses "position".
-    ///
-    /// <paramref name="bindingOption"/> is ignored if <paramref name="position"/> is within a documentation
-    /// comment cref attribute value.
-    /// </remarks>
-    public SymbolInfo GetSpeculativeSymbolInfo(int position, ExpressionSyntax expression, SpeculativeBindingOption bindingOption) {
-        if (!CanGetSemanticInfo(expression, isSpeculative: true)) return SymbolInfo.None;
-
-        Binder binder;
-        ImmutableArray<Symbol> crefSymbols;
-        BoundNode boundNode = GetSpeculativelyBoundExpression(position, expression, bindingOption, out binder, out crefSymbols); //calls CheckAndAdjustPosition
-        Debug.Assert(boundNode == null || crefSymbols.IsDefault);
-        if (boundNode == null) {
-            return crefSymbols.IsDefault ? SymbolInfo.None : GetCrefSymbolInfo(OneOrMany.Create(crefSymbols), SymbolInfoOptions.DefaultOptions, hasParameterList: false);
-        }
-
-        var symbolInfo = this.GetSymbolInfoForNode(SymbolInfoOptions.DefaultOptions, boundNode, boundNode, boundNodeForSyntacticParent: null, binderOpt: binder);
-
-        return symbolInfo;
-    }
-
-    /// <summary>
-    /// Bind the attribute in the context of the specified location and get semantic information
-    /// such as type, symbols and diagnostics. This method is used to get semantic information about an attribute
-    /// that did not actually appear in the source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel. In order to obtain
-    /// the correct scoping rules for the attribute, position should be the Start position of the Span of the symbol that
-    /// the attribute is being applied to.
-    /// </param>
-    /// <param name="attribute">A syntax node that represents a parsed attribute. This syntax node
-    /// need not and typically does not appear in the source code referred to SemanticModel instance.</param>
-    /// <returns>The semantic information for the topmost node of the attribute.</returns>
-    public SymbolInfo GetSpeculativeSymbolInfo(int position, AttributeSyntax attribute) {
-        Debug.Assert(CanGetSemanticInfo(attribute, isSpeculative: true));
-
-        Binder binder;
-        BoundNode boundNode = GetSpeculativelyBoundAttribute(position, attribute, out binder); //calls CheckAndAdjustPosition
-        if (boundNode == null)
+    internal SymbolInfo GetSpeculativeSymbolInfo(
+        int position,
+        ExpressionSyntax expression,
+        SpeculativeBindingOption bindingOption) {
+        if (!CanGetSemanticInfo(expression, isSpeculative: true))
             return SymbolInfo.None;
 
-        var symbolInfo = this.GetSymbolInfoForNode(SymbolInfoOptions.DefaultOptions, boundNode, boundNode, boundNodeForSyntacticParent: null, binderOpt: binder);
+        BoundNode boundNode = GetSpeculativelyBoundExpression(
+            position,
+            expression,
+            bindingOption,
+            out var binder
+        );
+
+        if (boundNode is null)
+            return SymbolInfo.None;
+
+        var symbolInfo = this.GetSymbolInfoForNode(
+            SymbolInfoOptions.DefaultOptions,
+            boundNode,
+            boundNode,
+            boundNodeForSyntacticParent: null,
+            binderOpt: binder
+        );
 
         return symbolInfo;
     }
 
-    /// <summary>
-    /// Bind the constructor initializer in the context of the specified location and get semantic information
-    /// such as type, symbols and diagnostics. This method is used to get semantic information about a constructor
-    /// initializer that did not actually appear in the source code.
-    ///
-    /// NOTE: This will only work in locations where there is already a constructor initializer.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.
-    /// Furthermore, it must be within the span of an existing constructor initializer.
-    /// </param>
-    /// <param name="constructorInitializer">A syntax node that represents a parsed constructor initializer. This syntax node
-    /// need not and typically does not appear in the source code referred to SemanticModel instance.</param>
-    /// <returns>The semantic information for the topmost node of the constructor initializer.</returns>
-    public SymbolInfo GetSpeculativeSymbolInfo(int position, ConstructorInitializerSyntax constructorInitializer) {
-        Debug.Assert(CanGetSemanticInfo(constructorInitializer, isSpeculative: true));
+    internal SymbolInfo GetSpeculativeSymbolInfo(int position, AttributeSyntax attribute) {
+        BoundNode boundNode = GetSpeculativelyBoundAttribute(position, attribute, out var binder);
 
+        if (boundNode is null)
+            return SymbolInfo.None;
+
+        var symbolInfo = this.GetSymbolInfoForNode(
+            SymbolInfoOptions.DefaultOptions,
+            boundNode,
+            boundNode,
+            boundNodeForSyntacticParent: null,
+            binderOpt: binder
+        );
+
+        return symbolInfo;
+    }
+
+    internal SymbolInfo GetSpeculativeSymbolInfo(int position, ConstructorInitializerSyntax constructorInitializer) {
         position = CheckAndAdjustPosition(position);
 
-        if (constructorInitializer == null) {
+        if (constructorInitializer is null)
             throw new ArgumentNullException(nameof(constructorInitializer));
-        }
 
-        // NOTE: since we're going to be depending on a MemberModel to do the binding for us,
-        // we need to find a constructor initializer in the tree of this semantic model.
-        // NOTE: This approach will not allow speculative binding of a constructor initializer
-        // on a constructor that didn't formerly have one.
-        // TODO: Should we support positions that are not in existing constructor initializers?
-        // If so, we will need to build up the context that would otherwise be built up by
-        // InitializerMemberModel.
-        var existingConstructorInitializer = this.Root.FindToken(position).Parent.AncestorsAndSelf().OfType<ConstructorInitializerSyntax>().FirstOrDefault();
+        var existingConstructorInitializer = this.root.FindToken(position).parent
+            .AncestorsAndSelf()
+            .OfType<ConstructorInitializerSyntax>()
+            .FirstOrDefault();
 
-        if (existingConstructorInitializer == null) {
+        if (existingConstructorInitializer is null)
             return SymbolInfo.None;
-        }
 
         MemberSemanticModel memberModel = GetMemberModel(existingConstructorInitializer);
 
-        if (memberModel == null) {
+        if (memberModel is null)
             return SymbolInfo.None;
-        }
 
         var binder = memberModel.GetEnclosingBinder(position);
-        if (binder != null) {
-            binder = new ExecutableCodeBinder(constructorInitializer, binder.ContainingMemberOrLambda, binder);
 
-            BoundExpressionStatement bnode = binder.BindConstructorInitializer(constructorInitializer, BindingDiagnosticBag.Discarded);
+        if (binder is not null) {
+            binder = new ExecutableCodeBinder(constructorInitializer, binder.containingMember, binder);
+
+            BoundExpressionStatement bnode = binder.BindConstructorInitializer(
+                constructorInitializer,
+                BelteDiagnosticQueue.Discarded
+            );
+
             var binfo = GetSymbolInfoFromBoundConstructorInitializer(memberModel, binder, bnode);
             return binfo;
         } else {
@@ -452,303 +341,140 @@ internal abstract class BelteSemanticModel : SemanticModel {
         }
     }
 
-    private static SymbolInfo GetSymbolInfoFromBoundConstructorInitializer(MemberSemanticModel memberModel, Binder binder, BoundExpressionStatement bnode) {
-        BoundExpression expression = bnode.Expression;
-
-        while (expression is BoundSequence sequence) {
-            expression = sequence.Value;
-        }
-
-        return memberModel.GetSymbolInfoForNode(SymbolInfoOptions.DefaultOptions, expression, expression, boundNodeForSyntacticParent: null, binderOpt: binder);
+    private static SymbolInfo GetSymbolInfoFromBoundConstructorInitializer(
+        MemberSemanticModel memberModel,
+        Binder binder,
+        BoundExpressionStatement bnode) {
+        var expression = bnode.expression;
+        return memberModel.GetSymbolInfoForNode(
+            SymbolInfoOptions.DefaultOptions,
+            expression,
+            expression,
+            boundNodeForSyntacticParent: null,
+            binderOpt: binder
+        );
     }
 
-    /// <summary>
-    /// Bind the constructor initializer in the context of the specified location and get semantic information
-    /// about symbols. This method is used to get semantic information about a constructor
-    /// initializer that did not actually appear in the source code.
-    ///
-    /// NOTE: This will only work in locations where there is already a constructor initializer.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the span of an existing constructor initializer.
-    /// </param>
-    /// <param name="constructorInitializer">A syntax node that represents a parsed constructor initializer. This syntax node
-    /// need not and typically does not appear in the source code referred to SemanticModel instance.</param>
-    /// <returns>The semantic information for the topmost node of the constructor initializer.</returns>
-    public SymbolInfo GetSpeculativeSymbolInfo(int position, PrimaryConstructorBaseTypeSyntax constructorInitializer) {
-        Debug.Assert(CanGetSemanticInfo(constructorInitializer, isSpeculative: true));
-
-        position = CheckAndAdjustPosition(position);
-
-        if (constructorInitializer == null) {
-            throw new ArgumentNullException(nameof(constructorInitializer));
-        }
-
-        // NOTE: since we're going to be depending on a MemberModel to do the binding for us,
-        // we need to find a constructor initializer in the tree of this semantic model.
-        // NOTE: This approach will not allow speculative binding of a constructor initializer
-        // on a constructor that didn't formerly have one.
-        // TODO: Should we support positions that are not in existing constructor initializers?
-        // If so, we will need to build up the context that would otherwise be built up by
-        // InitializerMemberModel.
-        var existingConstructorInitializer = this.Root.FindToken(position).Parent.AncestorsAndSelf().OfType<PrimaryConstructorBaseTypeSyntax>().FirstOrDefault();
-
-        if (existingConstructorInitializer == null) {
-            return SymbolInfo.None;
-        }
-
-        MemberSemanticModel memberModel = GetMemberModel(existingConstructorInitializer);
-
-        if (memberModel == null) {
-            return SymbolInfo.None;
-        }
-
-        var argumentList = existingConstructorInitializer.ArgumentList;
-        var binder = memberModel.GetEnclosingBinder(LookupPosition.IsBetweenTokens(position, argumentList.OpenParenToken, argumentList.CloseParenToken) ? position : argumentList.OpenParenToken.SpanStart);
-        if (binder != null) {
-            binder = new ExecutableCodeBinder(constructorInitializer, binder.ContainingMemberOrLambda, binder);
-
-            BoundExpressionStatement bnode = binder.BindConstructorInitializer(constructorInitializer, BindingDiagnosticBag.Discarded);
-            SymbolInfo binfo = GetSymbolInfoFromBoundConstructorInitializer(memberModel, binder, bnode);
-            return binfo;
-        } else {
-            return SymbolInfo.None;
-        }
-    }
-
-    /// <summary>
-    /// Bind the cref in the context of the specified location and get semantic information
-    /// such as type, symbols and diagnostics. This method is used to get semantic information about a cref
-    /// that did not actually appear in the source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel. In order to obtain
-    /// the correct scoping rules for the cref, position should be the Start position of the Span of the original cref.
-    /// </param>
-    /// <param name="cref">A syntax node that represents a parsed cref. This syntax node
-    /// need not and typically does not appear in the source code referred to SemanticModel instance.</param>
-    /// <param name="options">SymbolInfo options.</param>
-    /// <returns>The semantic information for the topmost node of the cref.</returns>
-    public SymbolInfo GetSpeculativeSymbolInfo(int position, CrefSyntax cref, SymbolInfoOptions options = SymbolInfoOptions.DefaultOptions) {
-        Debug.Assert(CanGetSemanticInfo(cref, isSpeculative: true));
-
-        position = CheckAndAdjustPosition(position);
-        return this.GetCrefSymbolInfo(position, cref, options, HasParameterList(cref));
-    }
-
-    #endregion GetSymbolInfo
-
-    #region GetTypeInfo
-
-    /// <summary>
-    /// Gets type information about a constructor initializer.
-    /// </summary>
-    /// <param name="constructorInitializer">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public TypeInfo GetTypeInfo(ConstructorInitializerSyntax constructorInitializer, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal TypeInfo GetTypeInfo(
+        ConstructorInitializerSyntax constructorInitializer,
+        CancellationToken cancellationToken = default) {
         CheckSyntaxNode(constructorInitializer);
 
         return CanGetSemanticInfo(constructorInitializer)
             ? GetTypeInfoWorker(constructorInitializer, cancellationToken)
-            : CSharpTypeInfo.None;
+            : BelteTypeInfo.None;
     }
 
-    public abstract TypeInfo GetTypeInfo(SelectOrGroupClauseSyntax node, CancellationToken cancellationToken = default(CancellationToken));
-
-    public TypeInfo GetTypeInfo(PatternSyntax pattern, CancellationToken cancellationToken = default(CancellationToken)) {
-        while (pattern is ParenthesizedPatternSyntax pp)
-            pattern = pp.Pattern;
-
+    internal TypeInfo GetTypeInfo(PatternSyntax pattern, CancellationToken cancellationToken = default) {
         CheckSyntaxNode(pattern);
         return GetTypeInfoWorker(pattern, cancellationToken);
     }
 
-    /// <summary>
-    /// Gets type information about an expression.
-    /// </summary>
-    /// <param name="expression">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public TypeInfo GetTypeInfo(ExpressionSyntax expression, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal TypeInfo GetTypeInfo(ExpressionSyntax expression, CancellationToken cancellationToken = default) {
         CheckSyntaxNode(expression);
 
         if (!CanGetSemanticInfo(expression)) {
-            return CSharpTypeInfo.None;
-        } else if (SyntaxFacts.IsDeclarationExpressionType(expression, out DeclarationExpressionSyntax parent)) {
-            switch (parent.Designation.kind) {
-                case SyntaxKind.SingleVariableDesignation:
-                    var (declarationType, annotation) = ((ITypeSymbol, CodeAnalysis.NullableAnnotation))TypeFromVariable((SingleVariableDesignationSyntax)parent.Designation, cancellationToken);
-                    var declarationTypeSymbol = declarationType.GetSymbol();
-                    var nullabilityInfo = annotation.ToNullabilityInfo(declarationTypeSymbol);
-                    return new CSharpTypeInfo(declarationTypeSymbol, declarationTypeSymbol, nullabilityInfo, nullabilityInfo, Conversion.Identity);
-
-                case SyntaxKind.DiscardDesignation:
-                    var declarationInfo = GetTypeInfoWorker(parent, cancellationToken);
-                    return new CSharpTypeInfo(declarationInfo.Type, declarationInfo.Type, declarationInfo.Nullability, declarationInfo.Nullability, Conversion.Identity);
-
-                case SyntaxKind.ParenthesizedVariableDesignation:
-                    if (((TypeSyntax)expression).IsVar) {
-                        var varTypeInfo = GetTypeInfoWorker(expression, cancellationToken);
-                        if (varTypeInfo.Type is { TypeKind: not TypeKind.Error }) {
-                            return varTypeInfo;
-                        }
-
-                        return GetTypeInfoWorker(parent, cancellationToken);
-                    }
-
-                    break;
+            return BelteTypeInfo.None;
+        } else if (IsDeclarationExpressionType(expression, out DeclarationExpressionSyntax parent)) {
+            switch (parent.identifier.kind) {
+                case SyntaxKind.IdentifierToken:
+                    var declarationType = TypeFromVariable(parent.identifier, cancellationToken);
+                    var declarationTypeSymbol = (TypeSymbol)declarationType;
+                    return new BelteTypeInfo(declarationTypeSymbol, declarationTypeSymbol, Conversion.Identity);
             }
         }
 
         return GetTypeInfoWorker(expression, cancellationToken);
     }
 
-    /// <summary>
-    /// Gets type information about an attribute.
-    /// </summary>
-    /// <param name="attributeSyntax">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public TypeInfo GetTypeInfo(AttributeSyntax attributeSyntax, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal TypeInfo GetTypeInfo(AttributeSyntax attributeSyntax, CancellationToken cancellationToken = default) {
         CheckSyntaxNode(attributeSyntax);
 
         return CanGetSemanticInfo(attributeSyntax)
             ? GetTypeInfoWorker(attributeSyntax, cancellationToken)
-            : CSharpTypeInfo.None;
+            : BelteTypeInfo.None;
     }
 
-    /// <summary>
-    /// Gets the conversion that occurred between the expression's type and type implied by the expression's context.
-    /// </summary>
-    public Conversion GetConversion(SyntaxNode expression, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal Conversion GetConversion(SyntaxNode expression, CancellationToken cancellationToken = default) {
         var csnode = (BelteSyntaxNode)expression;
 
         CheckSyntaxNode(csnode);
 
         var info = CanGetSemanticInfo(csnode)
             ? GetTypeInfoWorker(csnode, cancellationToken)
-            : CSharpTypeInfo.None;
+            : BelteTypeInfo.None;
 
-        return info.ImplicitConversion;
+        return info.implicitConversion;
     }
 
-    /// <summary>
-    /// Binds the expression in the context of the specified location and gets type information.
-    /// This method is used to get type information about an expression that did not actually
-    /// appear in the source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and
-    /// accessibility. This character position must be within the FullSpan of the Root syntax
-    /// node in this SemanticModel.
-    /// </param>
-    /// <param name="expression">A syntax node that represents a parsed expression. This syntax
-    /// node need not and typically does not appear in the source code referred to by the
-    /// SemanticModel instance.</param>
-    /// <param name="bindingOption">Indicates whether to binding the expression as a full expressions,
-    /// or as a type or namespace. If SpeculativeBindingOption.BindAsTypeOrNamespace is supplied, then
-    /// expression should derive from TypeSyntax.</param>
-    /// <returns>The type information for the topmost node of the expression.</returns>
-    /// <remarks>The passed in expression is interpreted as a stand-alone expression, as if it
-    /// appeared by itself somewhere within the scope that encloses "position".</remarks>
-    public TypeInfo GetSpeculativeTypeInfo(int position, ExpressionSyntax expression, SpeculativeBindingOption bindingOption) {
+    internal TypeInfo GetSpeculativeTypeInfo(
+        int position,
+        ExpressionSyntax expression,
+        SpeculativeBindingOption bindingOption) {
         return GetSpeculativeTypeInfoWorker(position, expression, bindingOption);
     }
 
-    internal CSharpTypeInfo GetSpeculativeTypeInfoWorker(int position, ExpressionSyntax expression, SpeculativeBindingOption bindingOption) {
-        if (!CanGetSemanticInfo(expression, isSpeculative: true)) {
-            return CSharpTypeInfo.None;
-        }
+    internal BelteTypeInfo GetSpeculativeTypeInfoWorker(
+        int position,
+        ExpressionSyntax expression,
+        SpeculativeBindingOption bindingOption) {
+        if (!CanGetSemanticInfo(expression, isSpeculative: true))
+            return BelteTypeInfo.None;
 
-        ImmutableArray<Symbol> crefSymbols;
-        BoundNode boundNode = GetSpeculativelyBoundExpression(position, expression, bindingOption, out _, out crefSymbols); //calls CheckAndAdjustPosition
-        Debug.Assert(boundNode == null || crefSymbols.IsDefault);
-        if (boundNode == null) {
-            return !crefSymbols.IsDefault && crefSymbols.Length == 1
-                ? GetTypeInfoForSymbol(crefSymbols[0])
-                : CSharpTypeInfo.None;
-        }
+        BoundNode boundNode = GetSpeculativelyBoundExpression(position, expression, bindingOption, out _);
+
+        if (boundNode is null)
+            return BelteTypeInfo.None;
 
         var typeInfo = GetTypeInfoForNode(boundNode, boundNode, boundNodeForSyntacticParent: null);
 
         return typeInfo;
     }
 
-    /// <summary>
-    /// Gets the conversion that occurred between the expression's type and type implied by the expression's context.
-    /// </summary>
-    public Conversion GetSpeculativeConversion(int position, ExpressionSyntax expression, SpeculativeBindingOption bindingOption) {
+    internal Conversion GetSpeculativeConversion(
+        int position,
+        ExpressionSyntax expression,
+        SpeculativeBindingOption bindingOption) {
         var info = this.GetSpeculativeTypeInfoWorker(position, expression, bindingOption);
-        return info.ImplicitConversion;
+        return info.implicitConversion;
     }
 
-    #endregion GetTypeInfo
-
-    #region GetMemberGroup
-
-    /// <summary>
-    /// Gets a list of method or indexed property symbols for a syntax node.
-    /// </summary>
-    /// <param name="expression">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public ImmutableArray<ISymbol> GetMemberGroup(ExpressionSyntax expression, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal ImmutableArray<ISymbol> GetMemberGroup(
+        ExpressionSyntax expression,
+        CancellationToken cancellationToken = default) {
         CheckSyntaxNode(expression);
 
         return CanGetSemanticInfo(expression)
-            ? this.GetMemberGroupWorker(expression, SymbolInfoOptions.DefaultOptions, cancellationToken).GetPublicSymbols()
+            ? this.GetMemberGroupWorker(expression, SymbolInfoOptions.DefaultOptions, cancellationToken)
+                .GetPublicSymbols()
             : ImmutableArray<ISymbol>.Empty;
     }
 
-    /// <summary>
-    /// Gets a list of method or indexed property symbols for a syntax node.
-    /// </summary>
-    /// <param name="attribute">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public ImmutableArray<ISymbol> GetMemberGroup(AttributeSyntax attribute, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal ImmutableArray<ISymbol> GetMemberGroup(
+        AttributeSyntax attribute,
+        CancellationToken cancellationToken = default) {
         CheckSyntaxNode(attribute);
 
         return CanGetSemanticInfo(attribute)
-            ? this.GetMemberGroupWorker(attribute, SymbolInfoOptions.DefaultOptions, cancellationToken).GetPublicSymbols()
+            ? this.GetMemberGroupWorker(attribute, SymbolInfoOptions.DefaultOptions, cancellationToken)
+                .GetPublicSymbols()
             : ImmutableArray<ISymbol>.Empty;
     }
 
-    /// <summary>
-    /// Gets a list of method symbols for a syntax node.
-    /// </summary>
-    /// <param name="initializer">The syntax node to get semantic information for.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    public ImmutableArray<ISymbol> GetMemberGroup(ConstructorInitializerSyntax initializer, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal ImmutableArray<ISymbol> GetMemberGroup(
+        ConstructorInitializerSyntax initializer,
+        CancellationToken cancellationToken = default) {
         CheckSyntaxNode(initializer);
 
         return CanGetSemanticInfo(initializer)
-            ? this.GetMemberGroupWorker(initializer, SymbolInfoOptions.DefaultOptions, cancellationToken).GetPublicSymbols()
+            ? this.GetMemberGroupWorker(initializer, SymbolInfoOptions.DefaultOptions, cancellationToken)
+                .GetPublicSymbols()
             : ImmutableArray<ISymbol>.Empty;
     }
 
-    #endregion GetMemberGroup
-
-    #region GetIndexerGroup
-
-    /// <summary>
-    /// Returns the list of accessible, non-hidden indexers that could be invoked with the given expression as receiver.
-    /// </summary>
-    /// <param name="expression">Potential indexer receiver.</param>
-    /// <param name="cancellationToken">To cancel the computation.</param>
-    /// <returns>Accessible, non-hidden indexers.</returns>
-    /// <remarks>
-    /// If the receiver is an indexer expression, the list will contain the indexers that could be applied to the result
-    /// of accessing the indexer, not the set of candidates that were considered during construction of the indexer expression.
-    /// </remarks>
-    public ImmutableArray<IPropertySymbol> GetIndexerGroup(ExpressionSyntax expression, CancellationToken cancellationToken = default(CancellationToken)) {
-        CheckSyntaxNode(expression);
-
-        return CanGetSemanticInfo(expression)
-            ? this.GetIndexerGroupWorker(expression, SymbolInfoOptions.DefaultOptions, cancellationToken)
-            : ImmutableArray<IPropertySymbol>.Empty;
-    }
-
-    #endregion GetIndexerGroup
-
-    #region GetConstantValue
-
-    public Optional<object> GetConstantValue(ExpressionSyntax expression, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal Optional<object> GetConstantValue(
+        ExpressionSyntax expression,
+        CancellationToken cancellationToken = default) {
         CheckSyntaxNode(expression);
 
         return CanGetSemanticInfo(expression)
@@ -756,495 +482,268 @@ internal abstract class BelteSemanticModel : SemanticModel {
             : default(Optional<object>);
     }
 
-    #endregion GetConstantValue
-
-    /// <summary>
-    /// Gets the semantic information associated with a query clause.
-    /// </summary>
-    public abstract QueryClauseInfo GetQueryClauseInfo(QueryClauseSyntax node, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// If <paramref name="nameSyntax"/> resolves to an alias name, return the AliasSymbol corresponding
-    /// to A. Otherwise return null.
-    /// </summary>
-    public IAliasSymbol GetAliasInfo(IdentifierNameSyntax nameSyntax, CancellationToken cancellationToken = default(CancellationToken)) {
+    internal IAliasSymbol GetAliasInfo(IdentifierNameSyntax nameSyntax, CancellationToken cancellationToken = default) {
         CheckSyntaxNode(nameSyntax);
 
         if (!CanGetSemanticInfo(nameSyntax))
             return null;
 
-        SymbolInfo info = GetSymbolInfoWorker(nameSyntax, SymbolInfoOptions.PreferTypeToConstructors | SymbolInfoOptions.PreserveAliases, cancellationToken);
-        return info.Symbol as IAliasSymbol;
+        SymbolInfo info = GetSymbolInfoWorker(
+            nameSyntax,
+            SymbolInfoOptions.PreferTypeToConstructors | SymbolInfoOptions.PreserveAliases,
+            cancellationToken
+        );
+
+        return info.symbol as IAliasSymbol;
     }
 
-    /// <summary>
-    /// Binds the name in the context of the specified location and sees if it resolves to an
-    /// alias name. If it does, return the AliasSymbol corresponding to it. Otherwise, return null.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and
-    /// accessibility. This character position must be within the FullSpan of the Root syntax
-    /// node in this SemanticModel.
-    /// </param>
-    /// <param name="nameSyntax">A syntax node that represents a name. This syntax
-    /// node need not and typically does not appear in the source code referred to by the
-    /// SemanticModel instance.</param>
-    /// <param name="bindingOption">Indicates whether to binding the name as a full expression,
-    /// or as a type or namespace. If SpeculativeBindingOption.BindAsTypeOrNamespace is supplied, then
-    /// expression should derive from TypeSyntax.</param>
-    /// <remarks>The passed in name is interpreted as a stand-alone name, as if it
-    /// appeared by itself somewhere within the scope that encloses "position".</remarks>
-    public IAliasSymbol GetSpeculativeAliasInfo(int position, IdentifierNameSyntax nameSyntax, SpeculativeBindingOption bindingOption) {
-        Binder binder;
-        ImmutableArray<Symbol> crefSymbols;
-        BoundNode boundNode = GetSpeculativelyBoundExpression(position, nameSyntax, bindingOption, out binder, out crefSymbols); //calls CheckAndAdjustPosition
-        Debug.Assert(boundNode == null || crefSymbols.IsDefault);
-        if (boundNode == null) {
-            return !crefSymbols.IsDefault && crefSymbols.Length == 1
-                ? (crefSymbols[0] as AliasSymbol).GetPublicSymbol()
-                : null;
-        }
+    internal IAliasSymbol GetSpeculativeAliasInfo(
+        int position,
+        IdentifierNameSyntax nameSyntax,
+        SpeculativeBindingOption bindingOption) {
+        BoundNode boundNode = GetSpeculativelyBoundExpression(position, nameSyntax, bindingOption, out var binder);
 
-        var symbolInfo = this.GetSymbolInfoForNode(SymbolInfoOptions.PreferTypeToConstructors | SymbolInfoOptions.PreserveAliases,
-            boundNode, boundNode, boundNodeForSyntacticParent: null, binderOpt: binder);
+        if (boundNode is null)
+            return null;
 
-        return symbolInfo.Symbol as IAliasSymbol;
+        var symbolInfo = this.GetSymbolInfoForNode(
+            SymbolInfoOptions.PreferTypeToConstructors | SymbolInfoOptions.PreserveAliases,
+            boundNode,
+            boundNode,
+            boundNodeForSyntacticParent: null,
+            binderOpt: binder
+        );
+
+        return symbolInfo.symbol as IAliasSymbol;
     }
 
-    /// <summary>
-    /// Gets the binder that encloses the position.
-    /// </summary>
     internal Binder GetEnclosingBinder(int position) {
         Binder result = GetEnclosingBinderInternal(position);
-        Debug.Assert(result == null || result.IsSemanticModelBinder);
         return result;
     }
 
     internal abstract Binder GetEnclosingBinderInternal(int position);
 
-    /// <summary>
-    /// Gets the MemberSemanticModel that contains the node.
-    /// </summary>
     internal abstract MemberSemanticModel GetMemberModel(SyntaxNode node);
 
     internal bool IsInTree(SyntaxNode node) {
-        return node.SyntaxTree == this.syntaxTree;
+        return node.syntaxTree == this.syntaxTree;
     }
 
-    private static bool IsInStructuredTriviaOtherThanCrefOrNameAttribute(BelteSyntaxNode node) {
-        while (node != null) {
-            if (node.kind == SyntaxKind.XmlCrefAttribute || node.kind == SyntaxKind.XmlNameAttribute) {
-                return false;
-            } else if (node.IsStructuredTrivia) {
+    private static bool IsInStructuredTriviaOtherThanNameAttribute(BelteSyntaxNode node) {
+        while (node is not null) {
+            if (node.isStructuredTrivia)
                 return true;
-            } else {
-                node = node.ParentOrStructuredTriviaParent;
-            }
+            else
+                node = node.parentOrStructuredTriviaParent;
         }
+
         return false;
     }
 
-    /// <summary>
-    /// Given a position, locates the containing token.  If the position is actually within the
-    /// leading trivia of the containing token or if that token is EOF, moves one token to the
-    /// left.  Returns the start position of the resulting token.
-    ///
-    /// This has the effect of moving the position left until it hits the beginning of a non-EOF
-    /// token.
-    ///
-    /// Throws an ArgumentOutOfRangeException if position is not within the root of this model.
-    /// </summary>
-    protected int CheckAndAdjustPosition(int position) {
+    private protected int CheckAndAdjustPosition(int position) {
         SyntaxToken unused;
         return CheckAndAdjustPosition(position, out unused);
     }
 
-    protected int CheckAndAdjustPosition(int position, out SyntaxToken token) {
-        int fullStart = this.Root.Position;
-        int fullEnd = this.Root.FullSpan.End;
-        bool atEOF = position == fullEnd && position == this.syntaxTree.GetRoot().FullSpan.End;
+    private protected int CheckAndAdjustPosition(int position, out SyntaxToken token) {
+        int fullStart = this.root.position;
+        int fullEnd = this.root.fullSpan.end;
+        bool atEOF = position == fullEnd && position == this.syntaxTree.GetRoot().fullSpan.end;
 
-        if ((fullStart <= position && position < fullEnd) || atEOF) // allow for EOF
-        {
-            token = (atEOF ? (BelteSyntaxNode)this.syntaxTree.GetRoot() : Root).FindTokenIncludingCrefAndNameAttributes(position);
+        if ((fullStart <= position && position < fullEnd) || atEOF) {
+            // TODO ?
+            // token = (atEOF ? (BelteSyntaxNode)this.syntaxTree.GetRoot() : root).FindTokenIncludingCrefAndNameAttributes(position);
+            token = (atEOF ? (BelteSyntaxNode)this.syntaxTree.GetRoot() : root).FindToken(position);
 
-            if (position < token.SpanStart) // NB: Span, not FullSpan
-            {
-                // If this is already the first token, then the result will be default(SyntaxToken)
+            if (position < token.span.start)
                 token = token.GetPreviousToken();
-            }
 
-            // If the first token in the root is missing, it's possible to step backwards
-            // past the start of the root.  All sorts of bad things will happen in that case,
-            // so just use the start of the root span.
-            // CONSIDER: this should only happen when we step past the first token found, so
-            // the start of that token would be another possible return value.
-            return Math.Max(token.SpanStart, fullStart);
+            return Math.Max(token.span.start, fullStart);
         } else if (fullStart == fullEnd && position == fullEnd) {
-            // The root is an empty span and isn't the full compilation unit. No other choice here.
             token = default(SyntaxToken);
             return fullStart;
         }
 
-        throw new ArgumentOutOfRangeException(nameof(position), position,
-            string.Format(CSharpResources.PositionIsNotWithinSyntax, Root.FullSpan));
+        throw new ArgumentOutOfRangeException(nameof(position), position, "PositionIsNotWithinSyntax");
     }
 
-    /// <summary>
-    /// A convenience method that determines a position from a node.  If the node is missing,
-    /// then its position will be adjusted using CheckAndAdjustPosition.
-    /// </summary>
-    protected int GetAdjustedNodePosition(SyntaxNode node) {
-        Debug.Assert(IsInTree(node));
+    private protected int GetAdjustedNodePosition(SyntaxNode node) {
+        var fullSpan = this.root.fullSpan;
+        var position = node.span.start;
 
-        var fullSpan = this.Root.FullSpan;
-        var position = node.SpanStart;
-
-        // skip zero-width tokens to get the position, but never get past the end of the node
         SyntaxToken firstToken = node.GetFirstToken(includeZeroWidth: false);
-        if (firstToken.Node is object) {
-            int betterPosition = firstToken.SpanStart;
-            if (betterPosition < node.Span.End) {
+
+        if (firstToken.node is not null) {
+            int betterPosition = firstToken.span.start;
+
+            if (betterPosition < node.span.end)
                 position = betterPosition;
-            }
         }
 
-        if (fullSpan.IsEmpty) {
-            Debug.Assert(position == fullSpan.Start);
-            // At end of zero-width full span. No need to call
-            // CheckAndAdjustPosition since that will simply
-            // return the original position.
+        if (fullSpan.length == 0) {
             return position;
-        } else if (position == fullSpan.End) {
-            Debug.Assert(node.Width == 0);
-            // For zero-width node at the end of the full span,
-            // check and adjust the preceding position.
+        } else if (position == fullSpan.end) {
             return CheckAndAdjustPosition(position - 1);
-        } else if (node.IsMissing || node.HasErrors || node.Width == 0 || node.IsPartOfStructuredTrivia()) {
+        } else if (node.isFabricated || node.containsDiagnostics || node.width == 0 || node.IsPartOfStructuredTrivia()) {
             return CheckAndAdjustPosition(position);
         } else {
-            // No need to adjust position.
             return position;
         }
     }
 
-    [Conditional("DEBUG")]
-    protected void AssertPositionAdjusted(int position) {
-        Debug.Assert(position == CheckAndAdjustPosition(position), "Expected adjusted position");
-    }
-
-    protected void CheckSyntaxNode(BelteSyntaxNode syntax) {
-        if (syntax == null) {
+    private protected void CheckSyntaxNode(BelteSyntaxNode syntax) {
+        if (syntax is null)
             throw new ArgumentNullException(nameof(syntax));
-        }
 
-        if (!IsInTree(syntax)) {
-            throw new ArgumentException(CSharpResources.SyntaxNodeIsNotWithinSynt);
-        }
+        if (!IsInTree(syntax))
+            throw new ArgumentException("SyntaxNodeIsNotWithinSynt");
     }
 
-    // This method ensures that the given syntax node to speculate is non-null and doesn't belong to a SyntaxTree of any model in the chain.
     private void CheckModelAndSyntaxNodeToSpeculate(BelteSyntaxNode syntax) {
-        if (syntax == null) {
+        if (syntax is null)
             throw new ArgumentNullException(nameof(syntax));
-        }
 
-        if (this.IsSpeculativeSemanticModel) {
-            throw new InvalidOperationException(CSharpResources.ChainingSpeculativeModelIsNotSupported);
-        }
+        if (this.isSpeculativeSemanticModel)
+            throw new InvalidOperationException("ChainingSpeculativeModelIsNotSupported");
 
-        if (this.Compilation.ContainsSyntaxTree(syntax.SyntaxTree)) {
-            throw new ArgumentException(CSharpResources.SpeculatedSyntaxNodeCannotBelongToCurrentCompilation);
-        }
+        if (this.compilation.ContainsSyntaxTree(syntax.syntaxTree))
+            throw new ArgumentException("SpeculatedSyntaxNodeCannotBelongToCurrentCompilation");
     }
 
-    /// <summary>
-    /// Gets the available named symbols in the context of the specified location and optional container. Only
-    /// symbols that are accessible and visible from the given location are returned.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration scope and
-    /// accessibility.</param>
-    /// <param name="container">The container to search for symbols within. If null then the enclosing declaration
-    /// scope around position is used.</param>
-    /// <param name="name">The name of the symbol to find. If null is specified then symbols
-    /// with any names are returned.</param>
-    /// <param name="includeReducedExtensionMethods">Consider (reduced) extension methods.</param>
-    /// <returns>A list of symbols that were found. If no symbols were found, an empty list is returned.</returns>
-    /// <remarks>
-    /// The "position" is used to determine what variables are visible and accessible. Even if "container" is
-    /// specified, the "position" location is significant for determining which members of "containing" are
-    /// accessible.
-    ///
-    /// Labels are not considered (see <see cref="LookupLabels"/>).
-    ///
-    /// Non-reduced extension methods are considered regardless of the value of <paramref name="includeReducedExtensionMethods"/>.
-    /// </remarks>
-    public ImmutableArray<ISymbol> LookupSymbols(
+    internal ImmutableArray<ISymbol> LookupSymbols(
         int position,
         NamespaceOrTypeSymbol container = null,
-        string name = null,
-        bool includeReducedExtensionMethods = false) {
-        var options = includeReducedExtensionMethods ? LookupOptions.IncludeExtensionMethods : LookupOptions.Default;
+        string name = null) {
+        var options = LookupOptions.Default;
         return LookupSymbolsInternal(position, container, name, options, useBaseReferenceAccessibility: false);
     }
 
-    /// <summary>
-    /// Gets the available base type members in the context of the specified location.  Akin to
-    /// calling <see cref="LookupSymbols"/> with the container set to the immediate base type of
-    /// the type in which <paramref name="position"/> occurs.  However, the accessibility rules
-    /// are different: protected members of the base type will be visible.
-    ///
-    /// Consider the following example:
-    ///
-    ///   public class Base
-    ///   {
-    ///       protected void M() { }
-    ///   }
-    ///
-    ///   public class Derived : Base
-    ///   {
-    ///       void Test(Base b)
-    ///       {
-    ///           b.M(); // Error - cannot access protected member.
-    ///           base.M();
-    ///       }
-    ///   }
-    ///
-    /// Protected members of an instance of another type are only accessible if the instance is known
-    /// to be "this" instance (as indicated by the "base" keyword).
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration scope and
-    /// accessibility.</param>
-    /// <param name="name">The name of the symbol to find. If null is specified then symbols
-    /// with any names are returned.</param>
-    /// <returns>A list of symbols that were found. If no symbols were found, an empty list is returned.</returns>
-    /// <remarks>
-    /// The "position" is used to determine what variables are visible and accessible.
-    ///
-    /// Non-reduced extension methods are considered, but reduced extension methods are not.
-    /// </remarks>
-    public new ImmutableArray<ISymbol> LookupBaseMembers(
-        int position,
-        string name = null) {
-        return LookupSymbolsInternal(position, container: null, name: name, options: LookupOptions.Default, useBaseReferenceAccessibility: true);
+    internal new ImmutableArray<ISymbol> LookupBaseMembers(int position, string name = null) {
+        return LookupSymbolsInternal(
+            position,
+            container: null,
+            name: name,
+            options: LookupOptions.Default,
+            useBaseReferenceAccessibility: true
+        );
     }
 
-    /// <summary>
-    /// Gets the available named static member symbols in the context of the specified location and optional container.
-    /// Only members that are accessible and visible from the given location are returned.
-    ///
-    /// Non-reduced extension methods are considered, since they are static methods.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration scope and
-    /// accessibility.</param>
-    /// <param name="container">The container to search for symbols within. If null then the enclosing declaration
-    /// scope around position is used.</param>
-    /// <param name="name">The name of the symbol to find. If null is specified then symbols
-    /// with any names are returned.</param>
-    /// <returns>A list of symbols that were found. If no symbols were found, an empty list is returned.</returns>
-    /// <remarks>
-    /// The "position" is used to determine what variables are visible and accessible. Even if "container" is
-    /// specified, the "position" location is significant for determining which members of "containing" are
-    /// accessible.
-    /// </remarks>
-    public ImmutableArray<ISymbol> LookupStaticMembers(
+    internal ImmutableArray<ISymbol> LookupStaticMembers(
         int position,
         NamespaceOrTypeSymbol container = null,
         string name = null) {
-        return LookupSymbolsInternal(position, container, name, LookupOptions.MustNotBeInstance, useBaseReferenceAccessibility: false);
+        return LookupSymbolsInternal(
+            position,
+            container,
+            name,
+            LookupOptions.MustNotBeInstance,
+            useBaseReferenceAccessibility: false
+        );
     }
 
-    /// <summary>
-    /// Gets the available named namespace and type symbols in the context of the specified location and optional container.
-    /// Only members that are accessible and visible from the given location are returned.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration scope and
-    /// accessibility.</param>
-    /// <param name="container">The container to search for symbols within. If null then the enclosing declaration
-    /// scope around position is used.</param>
-    /// <param name="name">The name of the symbol to find. If null is specified then symbols
-    /// with any names are returned.</param>
-    /// <returns>A list of symbols that were found. If no symbols were found, an empty list is returned.</returns>
-    /// <remarks>
-    /// The "position" is used to determine what variables are visible and accessible. Even if "container" is
-    /// specified, the "position" location is significant for determining which members of "containing" are
-    /// accessible.
-    ///
-    /// Does not return NamespaceOrTypeSymbol, because there could be aliases.
-    /// </remarks>
-    public ImmutableArray<ISymbol> LookupNamespacesAndTypes(
+    internal ImmutableArray<ISymbol> LookupNamespacesAndTypes(
         int position,
         NamespaceOrTypeSymbol container = null,
         string name = null) {
-        return LookupSymbolsInternal(position, container, name, LookupOptions.NamespacesOrTypesOnly, useBaseReferenceAccessibility: false);
+        return LookupSymbolsInternal(
+            position,
+            container,
+            name,
+            LookupOptions.NamespacesOrTypesOnly,
+            useBaseReferenceAccessibility: false
+        );
     }
 
-    /// <summary>
-    /// Gets the available named label symbols in the context of the specified location and optional container.
-    /// Only members that are accessible and visible from the given location are returned.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration scope and
-    /// accessibility.</param>
-    /// <param name="name">The name of the symbol to find. If null is specified then symbols
-    /// with any names are returned.</param>
-    /// <returns>A list of symbols that were found. If no symbols were found, an empty list is returned.</returns>
-    /// <remarks>
-    /// The "position" is used to determine what variables are visible and accessible. Even if "container" is
-    /// specified, the "position" location is significant for determining which members of "containing" are
-    /// accessible.
-    /// </remarks>
-    public new ImmutableArray<ISymbol> LookupLabels(
-        int position,
-        string name = null) {
-        return LookupSymbolsInternal(position, container: null, name: name, options: LookupOptions.LabelsOnly, useBaseReferenceAccessibility: false);
+    internal new ImmutableArray<ISymbol> LookupLabels(int position, string name = null) {
+        // TODO
+        throw new NotImplementedException();
+        // return LookupSymbolsInternal(
+        //     position,
+        //     container: null,
+        //     name: name,
+        //     options: LookupOptions.LabelsOnly,
+        //     useBaseReferenceAccessibility: false
+        // );
     }
 
-    /// <summary>
-    /// Gets the available named symbols in the context of the specified location and optional
-    /// container. Only symbols that are accessible and visible from the given location are
-    /// returned.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration
-    /// scope and accessibility.</param>
-    /// <param name="container">The container to search for symbols within. If null then the
-    /// enclosing declaration scope around position is used.</param>
-    /// <param name="name">The name of the symbol to find. If null is specified then symbols
-    /// with any names are returned.</param>
-    /// <param name="options">Additional options that affect the lookup process.</param>
-    /// <param name="useBaseReferenceAccessibility">Ignore 'throughType' in accessibility checking.
-    /// Used in checking accessibility of symbols accessed via 'MyBase' or 'base'.</param>
-    /// <remarks>
-    /// The "position" is used to determine what variables are visible and accessible. Even if
-    /// "container" is specified, the "position" location is significant for determining which
-    /// members of "containing" are accessible.
-    /// </remarks>
-    /// <exception cref="ArgumentException">Throws an argument exception if the passed lookup options are invalid.</exception>
     private ImmutableArray<ISymbol> LookupSymbolsInternal(
         int position,
         NamespaceOrTypeSymbol container,
         string name,
         LookupOptions options,
         bool useBaseReferenceAccessibility) {
-        Debug.Assert((options & LookupOptions.UseBaseReferenceAccessibility) == 0, "Use the useBaseReferenceAccessibility parameter.");
-        if (useBaseReferenceAccessibility) {
+        if (useBaseReferenceAccessibility)
             options |= LookupOptions.UseBaseReferenceAccessibility;
-        }
-        Debug.Assert(!options.IsAttributeTypeLookup()); // Not exposed publicly.
 
-        options.ThrowIfInvalid();
+        // TODO
+        // options.ThrowIfInvalid();
 
         SyntaxToken token;
         position = CheckAndAdjustPosition(position, out token);
 
-        if ((object)container == null || container.Kind == SymbolKind.Namespace) {
-            options &= ~LookupOptions.IncludeExtensionMethods;
-        }
-
         var binder = GetEnclosingBinder(position);
-        if (binder == null) {
+
+        if (binder is null)
             return ImmutableArray<ISymbol>.Empty;
-        }
 
         if (useBaseReferenceAccessibility) {
-            Debug.Assert((object)container == null);
-            TypeSymbol containingType = binder.ContainingType;
+            TypeSymbol containingType = binder.containingType;
             TypeSymbol baseType = null;
 
-            // For a script class or a submission class base should have no members.
-            if ((object)containingType != null && containingType.Kind == SymbolKind.NamedType && ((NamedTypeSymbol)containingType).IsScriptClass) {
-                return ImmutableArray<ISymbol>.Empty;
-            }
-
-            if ((object)containingType == null || (object)(baseType = containingType.BaseTypeNoUseSiteDiagnostics) == null) {
+            if (containingType is null || (object)(baseType = containingType.baseType) is null) {
                 throw new ArgumentException(
                     "Not a valid position for a call to LookupBaseMembers (must be in a type with a base type)",
-                    nameof(position));
+                    nameof(position)
+                );
             }
+
             container = baseType;
         }
 
-        if (!binder.IsInMethodBody &&
-            (options & (LookupOptions.NamespaceAliasesOnly | LookupOptions.NamespacesOrTypesOnly | LookupOptions.LabelsOnly)) == 0) {
-            // Method type parameters are not in scope outside a method
-            // body unless the position is either:
-            // a) in a type-only context inside an expression, or
-            // b) inside of an XML name attribute in an XML doc comment,
-            // c) inside a nameof context.
-            var parentExpr = token.Parent as ExpressionSyntax;
-            if (parentExpr != null && !(parentExpr.Parent is XmlNameAttributeSyntax) && !SyntaxFacts.IsInTypeOnlyContext(parentExpr) && !binder.IsInsideNameof) {
-                options |= LookupOptions.MustNotBeMethodTypeParameter;
-            }
-        }
-
         var info = LookupSymbolsInfo.GetInstance();
-        info.FilterName = name;
+        info.filterName = name;
 
-        if ((object)container == null) {
+        if (container is null)
             binder.AddLookupSymbolsInfo(info, options);
-        } else {
+        else
             binder.AddMemberLookupSymbolsInfo(info, container, options, binder);
-        }
 
         var results = ArrayBuilder<ISymbol>.GetInstance(info.Count);
 
-        if (name == null) {
-            // If they didn't provide a name, then look up all names and associated arities
-            // and find all the corresponding symbols.
-            foreach (string foundName in info.Names) {
+        if (name is null) {
+            foreach (string foundName in info.names)
                 AppendSymbolsWithName(results, foundName, binder, container, options, info);
-            }
         } else {
-            // They provided a name.  Find all the arities for that name, and then look all of those up.
             AppendSymbolsWithName(results, name, binder, container, options, info);
         }
 
         info.Free();
 
-        if ((options & LookupOptions.IncludeExtensionMethods) != 0) {
-            var lookupResult = LookupResult.GetInstance();
-
-            options |= LookupOptions.AllMethodsOnArityZero;
-            options &= ~LookupOptions.MustBeInstance;
-
-            var discardedUseSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
-            binder.LookupExtensionMethods(lookupResult, name, 0, options, ref discardedUseSiteInfo);
-
-            if (lookupResult.IsMultiViable) {
-                TypeSymbol containingType = (TypeSymbol)container;
-                foreach (MethodSymbol extensionMethod in lookupResult.Symbols) {
-                    var reduced = extensionMethod.ReduceExtensionMethod(containingType, Compilation);
-                    if ((object)reduced != null) {
-                        results.Add(reduced.GetPublicSymbol());
-                    }
-                }
-            }
-
-            lookupResult.Free();
-        }
-
-        if (name == null)
-            results.RemoveWhere(static (symbol, _, _) => !symbol.CanBeReferencedByName, arg: default(VoidResult));
+        if (name is null)
+            results.RemoveWhere(static (symbol, _, _) => !symbol.canBeReferencedByName, arg: default(VoidResult));
 
         return results.ToImmutableAndFree();
     }
 
-    private void AppendSymbolsWithName(ArrayBuilder<ISymbol> results, string name, Binder binder, NamespaceOrTypeSymbol container, LookupOptions options, LookupSymbolsInfo info) {
+    private void AppendSymbolsWithName(
+        ArrayBuilder<ISymbol> results,
+        string name,
+        Binder binder,
+        NamespaceOrTypeSymbol container,
+        LookupOptions options,
+        LookupSymbolsInfo info) {
         LookupSymbolsInfo.IArityEnumerable arities;
         Symbol uniqueSymbol;
 
         if (info.TryGetAritiesAndUniqueSymbol(name, out arities, out uniqueSymbol)) {
-            if ((object)uniqueSymbol != null) {
-                // This name mapped to something unique.  We don't need to proceed
-                // with a costly lookup.  Just add it straight to the results.
-                results.Add(RemapSymbolIfNecessary(uniqueSymbol).GetPublicSymbol());
+            if (uniqueSymbol is not null) {
+                results.Add(RemapSymbolIfNecessary(uniqueSymbol));
             } else {
-                // The name maps to multiple symbols. Actually do a real lookup so
-                // that we will properly figure out hiding and whatnot.
-                if (arities != null) {
-                    foreach (var arity in arities) {
+                if (arities is not null) {
+                    foreach (var arity in arities)
                         this.AppendSymbolsWithNameAndArity(results, name, arity, binder, container, options);
-                    }
                 } else {
-                    //non-unique symbol with non-zero arity doesn't seem possible.
                     this.AppendSymbolsWithNameAndArity(results, name, 0, binder, container, options);
                 }
             }
@@ -1258,41 +757,44 @@ internal abstract class BelteSemanticModel : SemanticModel {
         Binder binder,
         NamespaceOrTypeSymbol container,
         LookupOptions options) {
-        Debug.Assert(results != null);
-
-        // Don't need to de-dup since AllMethodsOnArityZero can't be set at this point (not exposed in CommonLookupOptions).
-        Debug.Assert((options & LookupOptions.AllMethodsOnArityZero) == 0);
-
         var lookupResult = LookupResult.GetInstance();
 
-        var discardedUseSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
         binder.LookupSymbolsSimpleName(
             lookupResult,
             container,
             name,
             arity,
             basesBeingResolved: null,
-            options: options & ~LookupOptions.IncludeExtensionMethods,
-            diagnose: false,
-            useSiteInfo: ref discardedUseSiteInfo);
+            options: options,
+            errorLocation: null,
+            diagnose: false
+        );
 
-        if (lookupResult.IsMultiViable) {
-            if (lookupResult.Symbols.Any(t => t.Kind == SymbolKind.NamedType || t.Kind == SymbolKind.Namespace || t.Kind == SymbolKind.ErrorType)) {
-                // binder.ResultSymbol is defined only for type/namespace lookups
+        if (lookupResult.isMultiViable) {
+            if (lookupResult.symbols.Any(
+                t => t.kind == SymbolKind.NamedType || t.kind == SymbolKind.Namespace || t.kind == SymbolKind.ErrorType
+                )) {
                 bool wasError;
-                Symbol singleSymbol = binder.ResultSymbol(lookupResult, name, arity, this.Root, BindingDiagnosticBag.Discarded, true, out wasError, container, options);
+                Symbol singleSymbol = binder.ResultSymbol(
+                    lookupResult,
+                    name,
+                    arity,
+                    this.root,
+                    BelteDiagnosticQueue.Discarded,
+                    out wasError,
+                    container,
+                    options
+                );
 
                 if (!wasError) {
-                    results.Add(RemapSymbolIfNecessary(singleSymbol).GetPublicSymbol());
+                    results.Add(RemapSymbolIfNecessary(singleSymbol));
                 } else {
-                    foreach (var symbol in lookupResult.Symbols) {
-                        results.Add(RemapSymbolIfNecessary(symbol).GetPublicSymbol());
-                    }
+                    foreach (var symbol in lookupResult.symbols)
+                        results.Add(RemapSymbolIfNecessary(symbol));
                 }
             } else {
-                foreach (var symbol in lookupResult.Symbols) {
-                    results.Add(RemapSymbolIfNecessary(symbol).GetPublicSymbol());
-                }
+                foreach (var symbol in lookupResult.symbols)
+                    results.Add(RemapSymbolIfNecessary(symbol));
             }
         }
 
@@ -1301,83 +803,45 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     private Symbol RemapSymbolIfNecessary(Symbol symbol) {
         switch (symbol) {
-            case LocalSymbol _:
+            case DataContainerSymbol _:
             case ParameterSymbol _:
-            case MethodSymbol { MethodKind: MethodKind.LambdaMethod }:
+            case MethodSymbol { methodKind: MethodKind.Lambda }:
                 return RemapSymbolIfNecessaryCore(symbol);
-
             default:
                 return symbol;
         }
     }
 
-    /// <summary>
-    /// Remaps a local, parameter, localfunction, or lambda symbol, if that symbol or its containing
-    /// symbols were reinferred. This should only be called when nullable semantic analysis is enabled.
-    /// </summary>
     internal abstract Symbol RemapSymbolIfNecessaryCore(Symbol symbol);
 
-    /// <summary>
-    /// Determines if the symbol is accessible from the specified location.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and
-    /// accessibility. This character position must be within the FullSpan of the Root syntax
-    /// node in this SemanticModel.
-    /// </param>
-    /// <param name="symbol">The symbol that we are checking to see if it accessible.</param>
-    /// <returns>
-    /// True if "symbol is accessible, false otherwise.</returns>
-    /// <remarks>
-    /// This method only checks accessibility from the point of view of the accessibility
-    /// modifiers on symbol and its containing types. Even if true is returned, the given symbol
-    /// may not be able to be referenced for other reasons, such as name hiding.
-    /// </remarks>
-    public bool IsAccessible(int position, Symbol symbol) {
+    internal bool IsAccessible(int position, Symbol symbol) {
         position = CheckAndAdjustPosition(position);
 
-        if ((object)symbol == null) {
+        if (symbol is null)
             throw new ArgumentNullException(nameof(symbol));
-        }
 
         var binder = this.GetEnclosingBinder(position);
-        if (binder != null) {
-            var discardedUseSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
-            return binder.IsAccessible(symbol, ref discardedUseSiteInfo, null);
-        }
+
+        if (binder is not null)
+            return binder.IsAccessible(symbol, null);
 
         return false;
-    }
-
-    /// <summary>
-    /// Field-like events can be used as fields in types that can access private
-    /// members of the declaring type of the event.
-    /// </summary>
-    public bool IsEventUsableAsField(int position, EventSymbol symbol) {
-        return symbol is object && symbol.HasAssociatedField && this.IsAccessible(position, symbol.AssociatedField); //calls CheckAndAdjustPosition
     }
 
     private bool IsInTypeofExpression(int position) {
-        var token = this.Root.FindToken(position);
-        var curr = token.Parent;
-        while (curr != this.Root) {
-            if (curr.IsKind(SyntaxKind.TypeOfExpression)) {
-                return true;
-            }
+        var token = this.root.FindToken(position);
+        var curr = token.parent;
 
-            curr = curr.ParentOrStructuredTriviaParent;
+        while (curr != this.root) {
+            if (curr.kind == SyntaxKind.TypeOfExpression)
+                return true;
+
+            curr = curr.parentOrStructuredTriviaParent;
         }
 
         return false;
     }
 
-    // Gets the semantic info from a specific bound node and a set of diagnostics
-    // lowestBoundNode: The lowest node in the bound tree associated with node
-    // highestBoundNode: The highest node in the bound tree associated with node
-    // boundNodeForSyntacticParent: The lowest node in the bound tree associated with node.Parent.
-    // binderOpt: If this is null, then the one enclosing the bound node's syntax will be used (unsafe during speculative binding).
-    [PerformanceSensitive(
-        "https://github.com/dotnet/roslyn/issues/23582",
-        Constraint = "Provide " + nameof(ArrayBuilder<Symbol>) + " capacity to reduce number of allocations.")]
     internal SymbolInfo GetSymbolInfoForNode(
         SymbolInfoOptions options,
         BoundNode lowestBoundNode,
@@ -1386,17 +850,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         Binder binderOpt) {
         BoundExpression boundExpr;
 
-        switch (highestBoundNode) {
-            case BoundRecursivePattern pat:
-                return GetSymbolInfoForDeconstruction(pat);
-        }
         switch (lowestBoundNode) {
-            case BoundPositionalSubpattern subpattern:
-                return GetSymbolInfoForSubpattern(subpattern.Symbol);
-            case BoundPropertySubpattern subpattern:
-                return GetSymbolInfoForSubpattern(subpattern.Member?.Symbol);
-            case BoundPropertySubpatternMember subpatternMember:
-                return GetSymbolInfoForSubpattern(subpatternMember.Symbol);
             case BoundExpression boundExpr2:
                 boundExpr = boundExpr2;
                 break;
@@ -1404,53 +858,50 @@ internal abstract class BelteSemanticModel : SemanticModel {
                 return SymbolInfo.None;
         }
 
-        // TODO: Should parenthesized expression really not have symbols? At least for C#, I'm not sure that
-        // is right. For example, C# allows the assignment statement:
-        //    (i) = 9;
-        // So we don't think this code should special case parenthesized expressions.
-
-        // Get symbols and result kind from the lowest and highest nodes associated with the
-        // syntax node.
         OneOrMany<Symbol> symbols = GetSemanticSymbols(
-            boundExpr, boundNodeForSyntacticParent, binderOpt, options, out bool isDynamic, out LookupResultKind resultKind, out ImmutableArray<Symbol> unusedMemberGroup);
+            boundExpr,
+            boundNodeForSyntacticParent,
+            binderOpt,
+            options,
+            out LookupResultKind resultKind,
+            out ImmutableArray<Symbol> unusedMemberGroup
+        );
 
         if (highestBoundNode is BoundExpression highestBoundExpr) {
             LookupResultKind highestResultKind;
-            bool highestIsDynamic;
             ImmutableArray<Symbol> unusedHighestMemberGroup;
             OneOrMany<Symbol> highestSymbols = GetSemanticSymbols(
-                highestBoundExpr, boundNodeForSyntacticParent, binderOpt, options, out highestIsDynamic, out highestResultKind, out unusedHighestMemberGroup);
+                highestBoundExpr,
+                boundNodeForSyntacticParent,
+                binderOpt,
+                options,
+                out highestResultKind,
+                out unusedHighestMemberGroup
+            );
 
-            if ((symbols.Count != 1 || resultKind == LookupResultKind.OverloadResolutionFailure) && highestSymbols.Count > 0) {
+            if ((symbols.Count != 1 ||
+                resultKind == LookupResultKind.OverloadResolutionFailure) && highestSymbols.Count > 0) {
                 symbols = highestSymbols;
                 resultKind = highestResultKind;
-                isDynamic = highestIsDynamic;
             } else if (highestResultKind != LookupResultKind.Empty && highestResultKind < resultKind) {
                 resultKind = highestResultKind;
-                isDynamic = highestIsDynamic;
-            } else if (highestBoundExpr.Kind == BoundKind.TypeOrValueExpression) {
-                symbols = highestSymbols;
-                resultKind = highestResultKind;
-                isDynamic = highestIsDynamic;
-            } else if (highestBoundExpr.Kind == BoundKind.UnaryOperator) {
+                // } else if (highestBoundExpr.kind == BoundKind.TypeOrValueExpression) {
+                //     symbols = highestSymbols;
+                //     resultKind = highestResultKind;
+                //     isDynamic = highestIsDynamic;
+            } else if (highestBoundExpr.kind == BoundKind.UnaryOperator) {
                 if (IsUserDefinedTrueOrFalse((BoundUnaryOperator)highestBoundExpr)) {
                     symbols = highestSymbols;
                     resultKind = highestResultKind;
-                    isDynamic = highestIsDynamic;
-                } else {
-                    Debug.Assert(ReferenceEquals(lowestBoundNode, highestBoundNode), "How is it that this operator has the same syntax node as its operand?");
                 }
             }
         }
 
         if (resultKind == LookupResultKind.Empty) {
-            // Empty typically indicates an error symbol that was created because no real
-            // symbol actually existed.
             return SymbolInfoFactory.Create(ImmutableArray<Symbol>.Empty, LookupResultKind.Empty, isDynamic);
         } else {
-            // Caas clients don't want ErrorTypeSymbol in the symbols, but the best guess
-            // instead. If no best guess, then nothing is returned.
             var builder = ArrayBuilder<Symbol>.GetInstance(symbols.Count);
+
             foreach (Symbol symbol in symbols) {
                 AddUnwrappingErrorTypes(builder, symbol);
             }
@@ -1458,61 +909,40 @@ internal abstract class BelteSemanticModel : SemanticModel {
             symbols = builder.ToOneOrManyAndFree();
         }
 
-        if ((options & SymbolInfoOptions.ResolveAliases) != 0) {
+        if ((options & SymbolInfoOptions.ResolveAliases) != 0)
             symbols = UnwrapAliases(symbols);
-        }
 
-        if (resultKind == LookupResultKind.Viable && symbols.Count > 1) {
+        if (resultKind == LookupResultKind.Viable && symbols.Count > 1)
             resultKind = LookupResultKind.OverloadResolutionFailure;
-        }
 
         return SymbolInfoFactory.Create(symbols, resultKind, isDynamic);
     }
 
-    private static SymbolInfo GetSymbolInfoForSubpattern(Symbol subpatternSymbol) {
-        if (subpatternSymbol?.OriginalDefinition is ErrorTypeSymbol originalErrorType) {
-            return new SymbolInfo(originalErrorType.CandidateSymbols.GetPublicSymbols(), originalErrorType.ResultKind.ToCandidateReason());
-        }
-
-        return new SymbolInfo(subpatternSymbol.GetPublicSymbol());
-    }
-
-    private SymbolInfo GetSymbolInfoForDeconstruction(BoundRecursivePattern pat) {
-        return new SymbolInfo(pat.DeconstructMethod.GetPublicSymbol());
-    }
-
     private static void AddUnwrappingErrorTypes(ArrayBuilder<Symbol> builder, Symbol s) {
-        var originalErrorSymbol = s.OriginalDefinition as ErrorTypeSymbol;
-        if ((object)originalErrorSymbol != null) {
-            builder.AddRange(originalErrorSymbol.CandidateSymbols);
-        } else {
+        var originalErrorSymbol = s.originalDefinition as ErrorTypeSymbol;
+
+        if (originalErrorSymbol is not null)
+            builder.AddRange(originalErrorSymbol.candidateSymbols);
+        else
             builder.Add(s);
-        }
     }
 
     private static bool IsUserDefinedTrueOrFalse(BoundUnaryOperator @operator) {
-        UnaryOperatorKind operatorKind = @operator.OperatorKind;
+        UnaryOperatorKind operatorKind = @operator.operatorKind;
         return operatorKind == UnaryOperatorKind.UserDefinedTrue || operatorKind == UnaryOperatorKind.UserDefinedFalse;
     }
 
-    // Gets the semantic info from a specific bound node and a set of diagnostics
-    // lowestBoundNode: The lowest node in the bound tree associated with node
-    // highestBoundNode: The highest node in the bound tree associated with node
-    // boundNodeForSyntacticParent: The lowest node in the bound tree associated with node.Parent.
-    internal CSharpTypeInfo GetTypeInfoForNode(
+    internal BelteTypeInfo GetTypeInfoForNode(
         BoundNode lowestBoundNode,
         BoundNode highestBoundNode,
         BoundNode boundNodeForSyntacticParent) {
-        BoundPattern pattern = lowestBoundNode as BoundPattern ?? highestBoundNode as BoundPattern ?? (highestBoundNode is BoundSubpattern sp ? sp.Pattern : null);
-        if (pattern != null) {
-            var discardedUseSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
-            // https://github.com/dotnet/roslyn/issues/35032: support patterns
-            return new CSharpTypeInfo(
-                pattern.InputType, pattern.NarrowedType, nullability: default, convertedNullability: default,
-                Compilation.Conversions.ClassifyBuiltInConversion(pattern.InputType, pattern.NarrowedType, isChecked: false, ref discardedUseSiteInfo));
-        }
-        if (lowestBoundNode is BoundPropertySubpatternMember member) {
-            return new CSharpTypeInfo(member.Type, member.Type, nullability: default, convertedNullability: default, Conversion.Identity);
+        BoundPattern pattern = lowestBoundNode as BoundPattern ?? highestBoundNode as BoundPattern;
+
+        if (pattern is not null) {
+            return new BelteTypeInfo(
+                pattern.InputType,
+                pattern.NarrowedType,
+                compilation.Conversions.ClassifyBuiltInConversion(pattern.InputType, pattern.NarrowedType, isChecked: false, ref discardedUseSiteInfo));
         }
 
         var boundExpr = lowestBoundNode as BoundExpression;
@@ -1694,10 +1124,10 @@ internal abstract class BelteSemanticModel : SemanticModel {
                 conversion = Conversion.Identity;
             }
 
-            return new CSharpTypeInfo(type, convertedType, nullability, convertedNullability, conversion);
+            return new BelteTypeInfo(type, convertedType, nullability, convertedNullability, conversion);
         }
 
-        return CSharpTypeInfo.None;
+        return BelteTypeInfo.None;
 
         static (TypeSymbol, NullabilityInfo) getTypeAndNullability(BoundExpression expr) => (expr.Type, expr.TopLevelNullability);
     }
@@ -1772,13 +1202,13 @@ internal abstract class BelteSemanticModel : SemanticModel {
     }
 
     // Gets TypeInfo for a type or namespace or alias reference.
-    internal static CSharpTypeInfo GetTypeInfoForSymbol(Symbol symbol) {
+    internal static BelteTypeInfo GetTypeInfoForSymbol(Symbol symbol) {
         Debug.Assert((object)symbol != null);
 
         // Determine type. Dig through aliases if necessary.
         TypeSymbol type = UnwrapAlias(symbol) as TypeSymbol;
         // https://github.com/dotnet/roslyn/issues/35033: Examine this and make sure that we're using the correct nullabilities
-        return new CSharpTypeInfo(type, type, default, default, Conversion.Identity);
+        return new BelteTypeInfo(type, type, default, default, Conversion.Identity);
     }
 
     protected static Symbol UnwrapAlias(Symbol symbol) {
@@ -1807,7 +1237,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
     }
 
     // This is used by other binding APIs to invoke the right binder API
-    internal virtual BoundNode Bind(Binder binder, BelteSyntaxNode node, BindingDiagnosticBag diagnostics) {
+    internal virtual BoundNode Bind(Binder binder, BelteSyntaxNode node, BelteDiagnosticQueue diagnostics) {
         if (Compilation.TestOnlyCompilationData is MemberSemanticModel.MemberSemanticBindingCounter counter) {
             counter.BindCount++;
         }
@@ -1828,97 +1258,40 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return null;
     }
 
-    /// <summary>
-    /// Analyze control-flow within a part of a method body.
-    /// </summary>
-    /// <param name="firstStatement">The first statement to be included in the analysis.</param>
-    /// <param name="lastStatement">The last statement to be included in the analysis.</param>
-    /// <returns>An object that can be used to obtain the result of the control flow analysis.</returns>
-    /// <exception cref="ArgumentException">The two statements are not contained within the same statement list.</exception>
-    public virtual ControlFlowAnalysis AnalyzeControlFlow(StatementSyntax firstStatement, StatementSyntax lastStatement) {
+    internal virtual ControlFlowAnalysis AnalyzeControlFlow(StatementSyntax firstStatement, StatementSyntax lastStatement) {
         // Only supported on a SyntaxTreeSemanticModel.
         throw new NotSupportedException();
     }
 
-    /// <summary>
-    /// Analyze control-flow within a part of a method body.
-    /// </summary>
-    /// <param name="statement">The statement to be included in the analysis.</param>
-    /// <returns>An object that can be used to obtain the result of the control flow analysis.</returns>
-    public virtual ControlFlowAnalysis AnalyzeControlFlow(StatementSyntax statement) {
+    internal virtual ControlFlowAnalysis AnalyzeControlFlow(StatementSyntax statement) {
         return AnalyzeControlFlow(statement, statement);
     }
 
-    /// <summary>
-    /// Analyze data-flow within an <see cref="ConstructorInitializerSyntax"/>.
-    /// </summary>
-    /// <param name="constructorInitializer">The ctor-init within the associated SyntaxTree to analyze.</param>
-    /// <returns>An object that can be used to obtain the result of the data flow analysis.</returns>
-    public virtual DataFlowAnalysis AnalyzeDataFlow(ConstructorInitializerSyntax constructorInitializer) {
+    internal virtual DataFlowAnalysis AnalyzeDataFlow(ConstructorInitializerSyntax constructorInitializer) {
         // Only supported on a SyntaxTreeSemanticModel.
         throw new NotSupportedException();
     }
 
-    /// <summary>
-    /// Analyze data-flow within an <see cref="PrimaryConstructorBaseTypeSyntax.ArgumentList"/>.
-    /// </summary>
-    /// <param name="primaryConstructorBaseType">The node within the associated SyntaxTree to analyze.</param>
-    /// <returns>An object that can be used to obtain the result of the data flow analysis.</returns>
-    public virtual DataFlowAnalysis AnalyzeDataFlow(PrimaryConstructorBaseTypeSyntax primaryConstructorBaseType) {
+    internal virtual DataFlowAnalysis AnalyzeDataFlow(PrimaryConstructorBaseTypeSyntax primaryConstructorBaseType) {
         // Only supported on a SyntaxTreeSemanticModel.
         throw new NotSupportedException();
     }
 
-    /// <summary>
-    /// Analyze data-flow within an <see cref="ExpressionSyntax"/>.
-    /// </summary>
-    /// <param name="expression">The expression within the associated SyntaxTree to analyze.</param>
-    /// <returns>An object that can be used to obtain the result of the data flow analysis.</returns>
-    public virtual DataFlowAnalysis AnalyzeDataFlow(ExpressionSyntax expression) {
+    internal virtual DataFlowAnalysis AnalyzeDataFlow(ExpressionSyntax expression) {
         // Only supported on a SyntaxTreeSemanticModel.
         throw new NotSupportedException();
     }
 
-    /// <summary>
-    /// Analyze data-flow within a part of a method body.
-    /// </summary>
-    /// <param name="firstStatement">The first statement to be included in the analysis.</param>
-    /// <param name="lastStatement">The last statement to be included in the analysis.</param>
-    /// <returns>An object that can be used to obtain the result of the data flow analysis.</returns>
-    /// <exception cref="ArgumentException">The two statements are not contained within the same statement list.</exception>
-    public virtual DataFlowAnalysis AnalyzeDataFlow(StatementSyntax firstStatement, StatementSyntax lastStatement) {
+    internal virtual DataFlowAnalysis AnalyzeDataFlow(StatementSyntax firstStatement, StatementSyntax lastStatement) {
         // Only supported on a SyntaxTreeSemanticModel.
         throw new NotSupportedException();
     }
 
-    /// <summary>
-    /// Analyze data-flow within a part of a method body.
-    /// </summary>
-    /// <param name="statement">The statement to be included in the analysis.</param>
-    /// <returns>An object that can be used to obtain the result of the data flow analysis.</returns>
-    public virtual DataFlowAnalysis AnalyzeDataFlow(StatementSyntax statement) {
+    internal virtual DataFlowAnalysis AnalyzeDataFlow(StatementSyntax statement) {
         return AnalyzeDataFlow(statement, statement);
     }
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a method body that did not appear in this source code.
-    /// Given <paramref name="position"/> must lie within an existing method body of the Root syntax node for this SemanticModel.
-    /// Locals and labels declared within this existing method body are not considered to be in scope of the speculated method body.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel and must be
-    /// within the FullSpan of a Method body within the Root syntax node.</param>
-    /// <param name="method">A syntax node that represents a parsed method declaration. This method should not be
-    /// present in the syntax tree associated with this object, but must have identical signature to the method containing
-    /// the given <paramref name="position"/> in this SemanticModel.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="method"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="method"/> node is contained any SyntaxTree in the current Compilation</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="method"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModelForMethodBody(int position, BaseMethodDeclarationSyntax method, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModelForMethodBody(int position, BaseMethodDeclarationSyntax method, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(method);
         var result = TryGetSpeculativeSemanticModelForMethodBodyCore((SyntaxTreeSemanticModel)this, position, method, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -1927,24 +1300,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelForMethodBodyCore(SyntaxTreeSemanticModel parentModel, int position, BaseMethodDeclarationSyntax method, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a method body that did not appear in this source code.
-    /// Given <paramref name="position"/> must lie within an existing method body of the Root syntax node for this SemanticModel.
-    /// Locals and labels declared within this existing method body are not considered to be in scope of the speculated method body.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel and must be
-    /// within the FullSpan of a Method body within the Root syntax node.</param>
-    /// <param name="accessor">A syntax node that represents a parsed accessor declaration. This accessor should not be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="accessor"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="accessor"/> node is contained any SyntaxTree in the current Compilation</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="accessor"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModelForMethodBody(int position, AccessorDeclarationSyntax accessor, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModelForMethodBody(int position, AccessorDeclarationSyntax accessor, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(accessor);
         var result = TryGetSpeculativeSemanticModelForMethodBodyCore((SyntaxTreeSemanticModel)this, position, accessor, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -1953,26 +1309,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelForMethodBodyCore(SyntaxTreeSemanticModel parentModel, int position, AccessorDeclarationSyntax accessor, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a type syntax node that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of a type syntax that did not appear in source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.
-    /// </param>
-    /// <param name="type">A syntax node that represents a parsed expression. This expression should not be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="bindingOption">Indicates whether to bind the expression as a full expression,
-    /// or as a type or namespace.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="type"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="type"/> node is contained any SyntaxTree in the current Compilation</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="type"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, TypeSyntax type, out SemanticModel speculativeModel, SpeculativeBindingOption bindingOption = SpeculativeBindingOption.BindAsExpression) {
+    internal bool TryGetSpeculativeSemanticModel(int position, TypeSyntax type, out SemanticModel speculativeModel, SpeculativeBindingOption bindingOption = SpeculativeBindingOption.BindAsExpression) {
         CheckModelAndSyntaxNodeToSpeculate(type);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, type, bindingOption, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -1981,23 +1318,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, TypeSyntax type, SpeculativeBindingOption bindingOption, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a statement that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of a statement that did not appear in source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.</param>
-    /// <param name="statement">A syntax node that represents a parsed statement. This statement should not be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="statement"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="statement"/> node is contained any SyntaxTree in the current Compilation</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="statement"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, StatementSyntax statement, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, StatementSyntax statement, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(statement);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, statement, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -2006,24 +1327,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, StatementSyntax statement, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with an initializer that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of a field initializer or default parameter value that did not appear in source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.
-    /// </param>
-    /// <param name="initializer">A syntax node that represents a parsed initializer. This initializer should not be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="initializer"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="initializer"/> node is contained any SyntaxTree in the current Compilation.</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="initializer"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, EqualsValueClauseSyntax initializer, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, EqualsValueClauseSyntax initializer, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(initializer);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, initializer, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -2032,24 +1336,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, EqualsValueClauseSyntax initializer, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with an expression body that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of an expression body that did not appear in source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.
-    /// </param>
-    /// <param name="expressionBody">A syntax node that represents a parsed expression body. This node should not be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="expressionBody"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="expressionBody"/> node is contained any SyntaxTree in the current Compilation.</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="expressionBody"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, ArrowExpressionClauseSyntax expressionBody, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, ArrowExpressionClauseSyntax expressionBody, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(expressionBody);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, expressionBody, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -2058,27 +1345,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, ArrowExpressionClauseSyntax expressionBody, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a constructor initializer that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of a constructor initializer that did not appear in source code.
-    ///
-    /// NOTE: This will only work in locations where there is already a constructor initializer.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.
-    /// Furthermore, it must be within the span of an existing constructor initializer.
-    /// </param>
-    /// <param name="constructorInitializer">A syntax node that represents a parsed constructor initializer.
-    /// This node should not be present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="constructorInitializer"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="constructorInitializer"/> node is contained any SyntaxTree in the current Compilation.</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="constructorInitializer"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, ConstructorInitializerSyntax constructorInitializer, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, ConstructorInitializerSyntax constructorInitializer, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(constructorInitializer);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, constructorInitializer, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -2087,26 +1354,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, ConstructorInitializerSyntax constructorInitializer, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a constructor initializer that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of a constructor initializer that did not appear in source code.
-    ///
-    /// NOTE: This will only work in locations where there is already a constructor initializer.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the span of an existing constructor initializer.
-    /// </param>
-    /// <param name="constructorInitializer">A syntax node that represents a parsed constructor initializer.
-    /// This node should not be present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="constructorInitializer"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="constructorInitializer"/> node is contained any SyntaxTree in the current Compilation.</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="constructorInitializer"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, PrimaryConstructorBaseTypeSyntax constructorInitializer, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, PrimaryConstructorBaseTypeSyntax constructorInitializer, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(constructorInitializer);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, constructorInitializer, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -2115,27 +1363,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, PrimaryConstructorBaseTypeSyntax constructorInitializer, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with a cref that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of a cref that did not appear in source code.
-    ///
-    /// NOTE: This will only work in locations where there is already a cref.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.
-    /// Furthermore, it must be within the span of an existing cref.
-    /// </param>
-    /// <param name="crefSyntax">A syntax node that represents a parsed cref syntax.
-    /// This node should not be present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="crefSyntax"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="crefSyntax"/> node is contained any SyntaxTree in the current Compilation.</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="crefSyntax"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, CrefSyntax crefSyntax, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, CrefSyntax crefSyntax, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(crefSyntax);
         var result = TryGetSpeculativeSemanticModelCore((SyntaxTreeSemanticModel)this, position, crefSyntax, out PublicSemanticModel speculativeSyntaxTreeModel);
         speculativeModel = speculativeSyntaxTreeModel;
@@ -2144,23 +1372,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
 
     internal abstract bool TryGetSpeculativeSemanticModelCore(SyntaxTreeSemanticModel parentModel, int position, CrefSyntax crefSyntax, out PublicSemanticModel speculativeModel);
 
-    /// <summary>
-    /// Get a SemanticModel object that is associated with an attribute that did not appear in
-    /// this source code. This can be used to get detailed semantic information about sub-parts
-    /// of an attribute that did not appear in source code.
-    /// </summary>
-    /// <param name="position">A character position used to identify a declaration scope and accessibility. This
-    /// character position must be within the FullSpan of the Root syntax node in this SemanticModel.</param>
-    /// <param name="attribute">A syntax node that represents a parsed attribute. This attribute should not be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="speculativeModel">A SemanticModel object that can be used to inquire about the semantic
-    /// information associated with syntax nodes within <paramref name="attribute"/>.</param>
-    /// <returns>Flag indicating whether a speculative semantic model was created.</returns>
-    /// <exception cref="ArgumentException">Throws this exception if the <paramref name="attribute"/> node is contained any SyntaxTree in the current Compilation.</exception>
-    /// <exception cref="ArgumentNullException">Throws this exception if <paramref name="attribute"/> is null.</exception>
-    /// <exception cref="InvalidOperationException">Throws this exception if this model is a speculative semantic model, i.e. <see cref="SemanticModel.IsSpeculativeSemanticModel"/> is true.
-    /// Chaining of speculative semantic model is not supported.</exception>
-    public bool TryGetSpeculativeSemanticModel(int position, AttributeSyntax attribute, out SemanticModel speculativeModel) {
+    internal bool TryGetSpeculativeSemanticModel(int position, AttributeSyntax attribute, out SemanticModel speculativeModel) {
         CheckModelAndSyntaxNodeToSpeculate(attribute);
 
         var binder = GetSpeculativeBinderForAttribute(position, attribute);
@@ -2170,59 +1382,22 @@ internal abstract class BelteSemanticModel : SemanticModel {
         }
 
         AliasSymbol aliasOpt;
-        var attributeType = (NamedTypeSymbol)binder.BindType(attribute.Name, BindingDiagnosticBag.Discarded, out aliasOpt).Type;
+        var attributeType = (NamedTypeSymbol)binder.BindType(attribute.Name, BelteDiagnosticQueue.Discarded, out aliasOpt).Type;
         speculativeModel = ((SyntaxTreeSemanticModel)this).CreateSpeculativeAttributeSemanticModel(position, attribute, binder, aliasOpt, attributeType);
         return true;
     }
 
-    /// <summary>
-    /// If this is a speculative semantic model, then returns its parent semantic model.
-    /// Otherwise, returns null.
-    /// </summary>
-    public new abstract CSharpSemanticModel ParentModel {
+    internal new abstract CSharpSemanticModel ParentModel {
         get;
     }
 
-    /// <summary>
-    /// The SyntaxTree that this object is associated with.
-    /// </summary>
-    public new abstract SyntaxTree syntaxTree {
+    internal new abstract SyntaxTree syntaxTree {
         get;
     }
 
-    /// <summary>
-    /// Determines what type of conversion, if any, would be used if a given expression was
-    /// converted to a given type.  If isExplicitInSource is true, the conversion produced is
-    /// that which would be used if the conversion were done for a cast expression.
-    /// </summary>
-    /// <param name="expression">An expression which much occur within the syntax tree
-    /// associated with this object.</param>
-    /// <param name="destination">The type to attempt conversion to.</param>
-    /// <param name="isExplicitInSource">True if the conversion should be determined as for a cast expression.</param>
-    /// <returns>Returns a Conversion object that summarizes whether the conversion was
-    /// possible, and if so, what kind of conversion it was. If no conversion was possible, a
-    /// Conversion object with a false "Exists" property is returned.</returns>
-    /// <remarks>To determine the conversion between two types (instead of an expression and a
-    /// type), use Compilation.ClassifyConversion.</remarks>
-    public abstract Conversion ClassifyConversion(ExpressionSyntax expression, ITypeSymbol destination, bool isExplicitInSource = false);
+    internal abstract Conversion ClassifyConversion(ExpressionSyntax expression, ITypeSymbol destination, bool isExplicitInSource = false);
 
-    /// <summary>
-    /// Determines what type of conversion, if any, would be used if a given expression was
-    /// converted to a given type.  If isExplicitInSource is true, the conversion produced is
-    /// that which would be used if the conversion were done for a cast expression.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration
-    /// scope and accessibility.</param>
-    /// <param name="expression">The expression to classify. This expression does not need to be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="destination">The type to attempt conversion to.</param>
-    /// <param name="isExplicitInSource">True if the conversion should be determined as for a cast expression.</param>
-    /// <returns>Returns a Conversion object that summarizes whether the conversion was
-    /// possible, and if so, what kind of conversion it was. If no conversion was possible, a
-    /// Conversion object with a false "Exists" property is returned.</returns>
-    /// <remarks>To determine the conversion between two types (instead of an expression and a
-    /// type), use Compilation.ClassifyConversion.</remarks>
-    public Conversion ClassifyConversion(int position, ExpressionSyntax expression, ITypeSymbol destination, bool isExplicitInSource = false) {
+    internal Conversion ClassifyConversion(int position, ExpressionSyntax expression, ITypeSymbol destination, bool isExplicitInSource = false) {
         if ((object)destination == null) {
             throw new ArgumentNullException(nameof(destination));
         }
@@ -2245,7 +1420,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         position = CheckAndAdjustPosition(position);
         var binder = this.GetEnclosingBinder(position);
         if (binder != null) {
-            var bnode = binder.BindExpression(expression, BindingDiagnosticBag.Discarded);
+            var bnode = binder.BindExpression(expression, BelteDiagnosticQueue.Discarded);
 
             if (bnode != null && !cdestination.IsErrorType()) {
                 var discardedUseSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
@@ -2257,34 +1432,8 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return Conversion.NoConversion;
     }
 
-    /// <summary>
-    /// Determines what type of conversion, if any, would be used if a given expression was
-    /// converted to a given type using an explicit cast.
-    /// </summary>
-    /// <param name="expression">An expression which much occur within the syntax tree
-    /// associated with this object.</param>
-    /// <param name="destination">The type to attempt conversion to.</param>
-    /// <returns>Returns a Conversion object that summarizes whether the conversion was
-    /// possible, and if so, what kind of conversion it was. If no conversion was possible, a
-    /// Conversion object with a false "Exists" property is returned.</returns>
-    /// <remarks>To determine the conversion between two types (instead of an expression and a
-    /// type), use Compilation.ClassifyConversion.</remarks>
     internal abstract Conversion ClassifyConversionForCast(ExpressionSyntax expression, TypeSymbol destination);
 
-    /// <summary>
-    /// Determines what type of conversion, if any, would be used if a given expression was
-    /// converted to a given type using an explicit cast.
-    /// </summary>
-    /// <param name="position">The character position for determining the enclosing declaration
-    /// scope and accessibility.</param>
-    /// <param name="expression">The expression to classify. This expression does not need to be
-    /// present in the syntax tree associated with this object.</param>
-    /// <param name="destination">The type to attempt conversion to.</param>
-    /// <returns>Returns a Conversion object that summarizes whether the conversion was
-    /// possible, and if so, what kind of conversion it was. If no conversion was possible, a
-    /// Conversion object with a false "Exists" property is returned.</returns>
-    /// <remarks>To determine the conversion between two types (instead of an expression and a
-    /// type), use Compilation.ClassifyConversion.</remarks>
     internal Conversion ClassifyConversionForCast(int position, ExpressionSyntax expression, TypeSymbol destination) {
         if ((object)destination == null) {
             throw new ArgumentNullException(nameof(destination));
@@ -2293,7 +1442,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         position = CheckAndAdjustPosition(position);
         var binder = this.GetEnclosingBinder(position);
         if (binder != null) {
-            var bnode = binder.BindExpression(expression, BindingDiagnosticBag.Discarded);
+            var bnode = binder.BindExpression(expression, BelteDiagnosticQueue.Discarded);
 
             if (bnode != null && !destination.IsErrorType()) {
                 var discardedUseSiteInfo = CompoundUseSiteInfo<AssemblySymbol>.Discarded;
@@ -2305,335 +1454,85 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return Conversion.NoConversion;
     }
 
-    #region "GetDeclaredSymbol overloads for MemberDeclarationSyntax and its subtypes"
+    internal abstract ISymbol GetDeclaredSymbol(
+        MemberDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a member declaration syntax, get the corresponding symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a member.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    /// <remarks>
-    /// NOTE:   We have no GetDeclaredSymbol overloads for following subtypes of MemberDeclarationSyntax:
-    /// NOTE:   (1) GlobalStatementSyntax as they don't declare any symbols.
-    /// NOTE:   (2) IncompleteMemberSyntax as there are no symbols for incomplete members.
-    /// NOTE:   (3) BaseFieldDeclarationSyntax or its subtypes as these declarations can contain multiple variable declarators.
-    /// NOTE:       GetDeclaredSymbol should be called on the variable declarators directly.
-    /// </remarks>
-    public abstract ISymbol GetDeclaredSymbol(MemberDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract IMethodSymbol GetDeclaredSymbol(
+        LocalFunctionStatementSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a local function declaration syntax, get the corresponding symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a member.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IMethodSymbol GetDeclaredSymbol(LocalFunctionStatementSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract IMethodSymbol GetDeclaredSymbol(
+        CompilationUnitSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a compilation unit syntax, get the corresponding Simple Program entry point symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The compilation unit that declares the entry point member.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IMethodSymbol GetDeclaredSymbol(CompilationUnitSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract INamespaceSymbol GetDeclaredSymbol(
+        NamespaceDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a namespace declaration syntax node, get the corresponding namespace symbol for
-    /// the declaration assembly.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a namespace.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The namespace symbol that was declared by the namespace declaration.</returns>
-    public abstract INamespaceSymbol GetDeclaredSymbol(NamespaceDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract INamespaceSymbol GetDeclaredSymbol(
+        FileScopedNamespaceDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a namespace declaration syntax node, get the corresponding namespace symbol for
-    /// the declaration assembly.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a namespace.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The namespace symbol that was declared by the namespace declaration.</returns>
-    public abstract INamespaceSymbol GetDeclaredSymbol(FileScopedNamespaceDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract INamedTypeSymbol GetDeclaredSymbol(
+        TypeDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a type declaration, get the corresponding type symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a type.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The type symbol that was declared.</returns>
-    /// <remarks>
-    /// NOTE:   We have no GetDeclaredSymbol overloads for subtypes of BaseTypeDeclarationSyntax as all of them return a NamedTypeSymbol.
-    /// </remarks>
-    public abstract INamedTypeSymbol GetDeclaredSymbol(BaseTypeDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract IFieldSymbol GetDeclaredSymbol(
+        EnumMemberDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a delegate declaration, get the corresponding type symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a delegate.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The type symbol that was declared.</returns>
-    public abstract INamedTypeSymbol GetDeclaredSymbol(DelegateDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract IMethodSymbol GetDeclaredSymbol(
+        BaseMethodDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a enum member declaration, get the corresponding field symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares an enum member.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IFieldSymbol GetDeclaredSymbol(EnumMemberDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract ISymbol GetDeclaredSymbol(
+        ArgumentSyntax declaratorSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a base method declaration syntax, get the corresponding method symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a method.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    /// <remarks>
-    /// NOTE:   We have no GetDeclaredSymbol overloads for subtypes of BaseMethodDeclarationSyntax as all of them return a MethodSymbol.
-    /// </remarks>
-    public abstract IMethodSymbol GetDeclaredSymbol(BaseMethodDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract ISymbol GetDeclaredSymbol(
+        VariableDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    #region GetDeclaredSymbol overloads for BasePropertyDeclarationSyntax and its subtypes
+    internal abstract ISymbol GetDeclaredSymbol(
+        SyntaxToken declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a syntax node that declares a property, indexer or an event, get the corresponding declared symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a property, indexer or an event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract ISymbol GetDeclaredSymbol(BasePropertyDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract ILabelSymbol GetDeclaredSymbol(
+        SwitchLabelSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a syntax node that declares a property, get the corresponding declared symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a property.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IPropertySymbol GetDeclaredSymbol(PropertyDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract IAliasSymbol GetDeclaredSymbol(
+        UsingDirectiveSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a syntax node that declares an indexer, get the corresponding declared symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares an indexer.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IPropertySymbol GetDeclaredSymbol(IndexerDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract IParameterSymbol GetDeclaredSymbol(
+        ParameterSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Given a syntax node that declares a (custom) event, get the corresponding event symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a event.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IEventSymbol GetDeclaredSymbol(EventDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract ImmutableArray<ISymbol> GetDeclaredSymbols(
+        FieldDeclarationSyntax declarationSyntax,
+        CancellationToken cancellationToken = default);
 
-    #endregion
-
-    #endregion
-
-    // Anonymous types and Tuple expressions are an interesting case here because they declare their own types
-    //
-    // In both cases there is no distinct syntax that creates the type and the syntax that describes the type is the literal itself.
-    // Surely - if you need to modify the anonymous type or a type of a tuple literal, you would be modifying these expressions.
-    //
-    // As a result we support GetDeclaredSymbol on the whole AnonymousObjectCreationExpressionSyntax/TupleExpressionSyntax.
-    // The implementation returns the type of the expression.
-    //
-    // In addition to that GetDeclaredSymbol works on the AnonymousObjectMemberDeclaratorSyntax/ArgumentSyntax
-    // The implementation returns the property/field symbol that is declared by the corresponding syntax.
-    //
-    // Example:
-    //              GetDeclaredSymbol => Type: (int Alice, int Bob)
-    //             _____ |__________
-    //            [                 ]
-    // var tuple = (Alice: 1, Bob: 2);
-    //                        [     ]
-    //                           \GetDeclaredSymbol => Field: (int Alice, int Bob).Bob
-    //
-    // A special note must be made about the locations of the corresponding symbols - they refer to the actual syntax
-    // of the literal or the anonymous type creation expression
-    //
-    // This way IDEs can unambiguously implement such services as "Go to definition"
-    //
-    // I.E. GetSymbolInfo for "Bob" in "tuple.Bob" should point to the same field as returned by GetDeclaredSymbol when applied to
-    // the ArgumentSyntax "Bob: 2", since that is where the field was declared, where renames should be applied and so on.
-    //
-    //
-    // In comparison to anonymous types, tuples have one special behavior.
-    // It is permitted for tuple literals to not have a natural type as long as there is a target type which determines the types of the fields.
-    // As, such for the purpose of GetDeclaredSymbol, the type symbol that is returned for tuple literals has target-typed fields,
-    // but yet with the original names.
-    //
-    //                               GetDeclaredSymbol => Type: (string Alice, short Bob)
-    //                         ________ |__________
-    //                         [                   ]
-    // (string, short) tuple = (Alice: null, Bob: 2);
-    //                         [           ]
-    //                              \GetDeclaredSymbol => Field: (string Alice, short Bob).Alice
-    //
-    // In particular, the location of the field declaration is "Alice: null" and not the "string"
-    //                 the location of the type is "(Alice: null, Bob: 2)" and not the "(string, short)"
-    //
-    // The reason for this behavior is that, even though there might not be other references to "Alice" field in the code,
-    // the name "Alice" itself evidently refers to something named "Alice" and should still work with
-    // all the related APIs and services such as "Find all References", "Go to definition", "symbolic rename" etc...
-    //
-    //                         GetSymbolInfo => Field: (string Alice, short Bob).Alice
-    //                         __ |__
-    //                         [     ]
-    // (string, short) tuple = (Alice: null, Bob: 2);
-    //
-
-    /// <summary>
-    /// Given a syntax node of anonymous object creation initializer, get the anonymous object property symbol.
-    /// </summary>
-    /// <param name="declaratorSyntax">The syntax node that declares a property.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IPropertySymbol GetDeclaredSymbol(AnonymousObjectMemberDeclaratorSyntax declaratorSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a syntax node of anonymous object creation expression, get the anonymous object type symbol.
-    /// </summary>
-    /// <param name="declaratorSyntax">The syntax node that declares an anonymous object.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract INamedTypeSymbol GetDeclaredSymbol(AnonymousObjectCreationExpressionSyntax declaratorSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a syntax node of a tuple expression, get the tuple type symbol.
-    /// </summary>
-    /// <param name="declaratorSyntax">The tuple expression node.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract INamedTypeSymbol GetDeclaredSymbol(TupleExpressionSyntax declaratorSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a syntax node of an argument expression, get the declared symbol.
-    /// </summary>
-    /// <param name="declaratorSyntax">The argument syntax node.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    /// <remarks>
-    /// Generally ArgumentSyntax nodes do not declare symbols, except when used as arguments of a tuple literal.
-    /// Example:  var x = (Alice: 1, Bob: 2);
-    ///           ArgumentSyntax "Alice: 1" declares a tuple element field "(int Alice, int Bob).Alice"
-    /// </remarks>
-    public abstract ISymbol GetDeclaredSymbol(ArgumentSyntax declaratorSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a syntax node that declares a property or member accessor, get the corresponding
-    /// symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares an accessor.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IMethodSymbol GetDeclaredSymbol(AccessorDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a syntax node that declares an expression body, get the corresponding symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares an expression body.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract IMethodSymbol GetDeclaredSymbol(ArrowExpressionClauseSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a variable declarator syntax, get the corresponding symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a variable.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract ISymbol GetDeclaredSymbol(VariableDeclaratorSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a variable designation syntax, get the corresponding symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a variable.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbol that was declared.</returns>
-    public abstract ISymbol GetDeclaredSymbol(SingleVariableDesignationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a labeled statement syntax, get the corresponding label symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node of the labeled statement.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The label symbol for that label.</returns>
-    public abstract ILabelSymbol GetDeclaredSymbol(LabeledStatementSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a switch label syntax, get the corresponding label symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node of the switch label.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The label symbol for that label.</returns>
-    public abstract ILabelSymbol GetDeclaredSymbol(SwitchLabelSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a using declaration get the corresponding symbol for the using alias that was
-    /// introduced.
-    /// </summary>
-    /// <param name="declarationSyntax"></param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The alias symbol that was declared.</returns>
-    /// <remarks>
-    /// If the using directive is an error because it attempts to introduce an alias for which an existing alias was
-    /// previously declared in the same scope, the result is a newly-constructed AliasSymbol (i.e. not one from the
-    /// symbol table).
-    /// </remarks>
-    public abstract IAliasSymbol GetDeclaredSymbol(UsingDirectiveSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given an extern alias declaration get the corresponding symbol for the alias that was introduced.
-    /// </summary>
-    /// <param name="declarationSyntax"></param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The alias symbol that was declared, or null if a duplicate alias symbol was declared.</returns>
-    public abstract IAliasSymbol GetDeclaredSymbol(ExternAliasDirectiveSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a parameter declaration syntax node, get the corresponding symbol.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares a parameter.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The parameter that was declared.</returns>
-    public abstract IParameterSymbol GetDeclaredSymbol(ParameterSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    /// <summary>
-    /// Given a base field declaration syntax, get the corresponding symbols.
-    /// </summary>
-    /// <param name="declarationSyntax">The syntax node that declares one or more fields or events.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The symbols that were declared.</returns>
-    internal abstract ImmutableArray<ISymbol> GetDeclaredSymbols(BaseFieldDeclarationSyntax declarationSyntax, CancellationToken cancellationToken = default(CancellationToken));
-
-    protected ParameterSymbol GetParameterSymbol(
+    private protected ParameterSymbol GetParameterSymbol(
         ImmutableArray<ParameterSymbol> parameters,
         ParameterSyntax parameter,
-        CancellationToken cancellationToken = default(CancellationToken)) {
+        CancellationToken cancellationToken = default) {
         foreach (var symbol in parameters) {
             cancellationToken.ThrowIfCancellationRequested();
 
-            foreach (var location in symbol.Locations) {
+            foreach (var location in symbol.locations) {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (location.SourceTree == this.syntaxTree && parameter.Span.Contains(location.SourceSpan)) {
+                if (location.tree == this.syntaxTree && parameter.span.Contains(location.span))
                     return symbol;
-                }
             }
         }
 
         return null;
     }
 
-    /// <summary>
-    /// Given a type parameter declaration (field or method), get the corresponding symbol
-    /// </summary>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <param name="typeParameter"></param>
-    public abstract ITypeParameterSymbol GetDeclaredSymbol(TypeParameterSyntax typeParameter, CancellationToken cancellationToken = default(CancellationToken));
+    internal abstract ITypeParameterSymbol GetDeclaredSymbol(TypeParameterSyntax typeParameter, CancellationToken cancellationToken = default(CancellationToken));
 
     internal BinderFlags GetSemanticModelBinderFlags() {
         return this.IgnoresAccessibility
@@ -2641,11 +1540,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
             : BinderFlags.SemanticModel;
     }
 
-    /// <summary>
-    /// Given a foreach statement, get the symbol for the iteration variable
-    /// </summary>
-    /// <param name="forEachStatement"></param>
-    public ILocalSymbol GetDeclaredSymbol(ForEachStatementSyntax forEachStatement) {
+    internal ILocalSymbol GetDeclaredSymbol(ForEachStatementSyntax forEachStatement) {
         Binder enclosingBinder = this.GetEnclosingBinder(GetAdjustedNodePosition(forEachStatement));
 
         if (enclosingBinder == null) {
@@ -2665,20 +1560,9 @@ internal abstract class BelteSemanticModel : SemanticModel {
             : local).GetPublicSymbol();
     }
 
-    /// <summary>
-    /// Given a local symbol, gets an updated version of that local symbol adjusted for nullability analysis
-    /// if the analysis affects the local.
-    /// </summary>
-    /// <param name="originalSymbol">The original symbol from initial binding.</param>
-    ///
-    /// <returns>The nullability-adjusted local, or the original symbol if the nullability analysis made no adjustments or was not run.</returns>
     internal abstract LocalSymbol GetAdjustedLocalSymbol(SourceLocalSymbol originalSymbol);
 
-    /// <summary>
-    /// Given a catch declaration, get the symbol for the exception variable
-    /// </summary>
-    /// <param name="catchDeclaration"></param>
-    public ILocalSymbol GetDeclaredSymbol(CatchDeclarationSyntax catchDeclaration) {
+    internal ILocalSymbol GetDeclaredSymbol(CatchDeclarationSyntax catchDeclaration) {
         BelteSyntaxNode catchClause = catchDeclaration.Parent; //Syntax->Binder map is keyed on clause, not decl
         Debug.Assert(catchClause.kind == SyntaxKind.CatchClause);
         Binder enclosingBinder = this.GetEnclosingBinder(GetAdjustedNodePosition(catchClause));
@@ -2701,23 +1585,18 @@ internal abstract class BelteSemanticModel : SemanticModel {
             : null;
     }
 
-    // Get the symbols and possible method or property group associated with a bound node, as
-    // they should be exposed through GetSemanticInfo.
-    // NB: It is not safe to pass a null binderOpt during speculative binding.
     private OneOrMany<Symbol> GetSemanticSymbols(
         BoundExpression boundNode,
         BoundNode boundNodeForSyntacticParent,
         Binder binderOpt,
         SymbolInfoOptions options,
-        out bool isDynamic,
         out LookupResultKind resultKind,
         out ImmutableArray<Symbol> memberGroup) {
         memberGroup = ImmutableArray<Symbol>.Empty;
         OneOrMany<Symbol> symbols = OneOrMany<Symbol>.Empty;
         resultKind = LookupResultKind.Viable;
-        isDynamic = false;
 
-        switch (boundNode.Kind) {
+        switch (boundNode.kind) {
             case BoundKind.MethodGroup:
                 symbols = GetMethodGroupSemanticSymbols((BoundMethodGroup)boundNode, boundNodeForSyntacticParent, binderOpt, out resultKind, out isDynamic, out memberGroup);
                 break;
@@ -3552,10 +2431,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return symbols;
     }
 
-    /// <summary>
-    /// Get the semantic info of a named argument in an invocation-like expression (e.g. `x` in `M(x: 3)`)
-    /// or the name in a Subpattern (e.g. either `Name` in `e is (Name: 3){Name: 3}`).
-    /// </summary>
     private SymbolInfo GetNamedArgumentSymbolInfo(IdentifierNameSyntax identifierNameSyntax, CancellationToken cancellationToken) {
         Debug.Assert(SyntaxFacts.IsNamedArgumentName(identifierNameSyntax));
 
@@ -3618,9 +2493,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
         }
     }
 
-    /// <summary>
-    /// Find the first parameter named "argumentName".
-    /// </summary>
     private static ParameterSymbol FindNamedParameter(ImmutableArray<ParameterSymbol> parameters, string argumentName) {
         foreach (ParameterSymbol param in parameters) {
             if (param.Name == argumentName)
@@ -3786,10 +2658,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
         Debug.Assert(methods.Count == filteredMethods.Count);
     }
 
-    /// <summary>
-    /// If the call represents an extension method invocation with an explicit receiver, return the original
-    /// methods as ReducedExtensionMethodSymbols. Otherwise, return the original methods unchanged.
-    /// </summary>
     private static OneOrMany<MethodSymbol> CreateReducedExtensionMethodsFromOriginalsIfNecessary(BoundCall call, CSharpCompilation compilation) {
         var methods = call.OriginalMethodsOpt;
         TypeSymbol extensionThisType = null;
@@ -3816,11 +2684,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return filteredMethodBuilder.ToOneOrManyAndFree();
     }
 
-    /// <summary>
-    /// If the call represents an extension method with an explicit receiver, return a
-    /// ReducedExtensionMethodSymbol if it can be constructed. Otherwise, return the
-    /// original call method.
-    /// </summary>
     private OneOrMany<Symbol> CreateReducedExtensionMethodIfPossible(BoundCall call) {
         var method = call.Method;
         Debug.Assert((object)method != null);
@@ -3847,41 +2710,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return OneOrMany.Create<Symbol>(method);
     }
 
-    /// <summary>
-    /// Gets for each statement info.
-    /// </summary>
-    /// <param name="node">The node.</param>
-    public abstract ForEachStatementInfo GetForEachStatementInfo(ForEachStatementSyntax node);
-
-    /// <summary>
-    /// Gets for each statement info.
-    /// </summary>
-    /// <param name="node">The node.</param>
-    public abstract ForEachStatementInfo GetForEachStatementInfo(CommonForEachStatementSyntax node);
-
-    /// <summary>
-    /// Gets deconstruction assignment info.
-    /// </summary>
-    /// <param name="node">The node.</param>
-    public abstract DeconstructionInfo GetDeconstructionInfo(AssignmentExpressionSyntax node);
-
-    /// <summary>
-    /// Gets deconstruction foreach info.
-    /// </summary>
-    /// <param name="node">The node.</param>
-    public abstract DeconstructionInfo GetDeconstructionInfo(ForEachVariableStatementSyntax node);
-
-    /// <summary>
-    /// Gets await expression info.
-    /// </summary>
-    /// <param name="node">The node.</param>
-    public abstract AwaitExpressionInfo GetAwaitExpressionInfo(AwaitExpressionSyntax node);
-
-    /// <summary>
-    /// If the given node is within a preprocessing directive, gets the preprocessing symbol info for it.
-    /// </summary>
-    /// <param name="node">Preprocessing symbol identifier node.</param>
-    public PreprocessingSymbolInfo GetPreprocessingSymbolInfo(IdentifierNameSyntax node) {
+    internal PreprocessingSymbolInfo GetPreprocessingSymbolInfo(IdentifierNameSyntax node) {
         CheckSyntaxNode(node);
 
         if (node.Ancestors().Any(n => SyntaxFacts.IsPreprocessorDirective(n.kind))) {
@@ -3892,46 +2721,21 @@ internal abstract class BelteSemanticModel : SemanticModel {
         return PreprocessingSymbolInfo.None;
     }
 
-    /// <summary>
-    /// Options to control the internal working of GetSymbolInfoWorker. Not currently exposed
-    /// to public clients, but could be if desired.
-    /// </summary>
     [Flags]
     internal enum SymbolInfoOptions {
-        /// <summary>
-        /// When binding "C" new C(...), return the type C and do not return information about
-        /// which constructor was bound to. Bind "new C(...)" to get information about which constructor
-        /// was chosen.
-        /// </summary>
         PreferTypeToConstructors = 0x1,
-
-        /// <summary>
-        /// When binding "C" new C(...), return the constructor of C that was bound to, if C unambiguously
-        /// binds to a single type with at least one constructor.
-        /// </summary>
         PreferConstructorsToType = 0x2,
-
-        /// <summary>
-        /// When binding a name X that was declared with a "using X=OtherTypeOrNamespace", return OtherTypeOrNamespace.
-        /// </summary>
         ResolveAliases = 0x4,
-
-        /// <summary>
-        /// When binding a name X that was declared with a "using X=OtherTypeOrNamespace", return the alias symbol X.
-        /// </summary>
         PreserveAliases = 0x8,
 
-        // Default Options.
         DefaultOptions = PreferConstructorsToType | ResolveAliases
     }
 
-    public ISymbol GetEnclosingSymbol(int position) {
+    internal ISymbol GetEnclosingSymbol(int position) {
         position = CheckAndAdjustPosition(position);
         var binder = GetEnclosingBinder(position);
-        return binder is null ? null : binder.ContainingMemberOrLambda.GetPublicSymbol();
+        return binder is null ? null : binder.containingMember;
     }
-
-    #region SemanticModel Members
 
     private protected sealed override Compilation _compilationCore => compilation;
 
@@ -3976,10 +2780,6 @@ internal abstract class BelteSemanticModel : SemanticModel {
                 return GetTypeInfo(initializer, cancellationToken);
             case AttributeSyntax attribute:
                 return GetTypeInfo(attribute, cancellationToken);
-            case SelectOrGroupClauseSyntax selectOrGroupClause:
-                return GetTypeInfo(selectOrGroupClause, cancellationToken);
-            case PatternSyntax pattern:
-                return GetTypeInfo(pattern, cancellationToken);
         }
 
         return BelteTypeInfo.None;
@@ -4067,12 +2867,8 @@ internal abstract class BelteSemanticModel : SemanticModel {
         cancellationToken.ThrowIfCancellationRequested();
 
         switch (node) {
-            case AccessorDeclarationSyntax accessor:
-                return GetDeclaredSymbol(accessor, cancellationToken);
-            case BaseTypeDeclarationSyntax type:
+            case TypeDeclarationSyntax type:
                 return GetDeclaredSymbol(type, cancellationToken);
-            case QueryClauseSyntax clause:
-                return GetDeclaredSymbol(clause, cancellationToken);
             case MemberDeclarationSyntax member:
                 return GetDeclaredSymbol(member, cancellationToken);
         }
@@ -4080,48 +2876,30 @@ internal abstract class BelteSemanticModel : SemanticModel {
         switch (node.kind) {
             case SyntaxKind.LocalFunctionStatement:
                 return GetDeclaredSymbol((LocalFunctionStatementSyntax)node, cancellationToken);
-            case SyntaxKind.LabeledStatement:
-                return GetDeclaredSymbol((LabeledStatementSyntax)node, cancellationToken);
             case SyntaxKind.CaseSwitchLabel:
             case SyntaxKind.DefaultSwitchLabel:
                 return GetDeclaredSymbol((SwitchLabelSyntax)node, cancellationToken);
-            case SyntaxKind.AnonymousObjectCreationExpression:
-                return GetDeclaredSymbol((AnonymousObjectCreationExpressionSyntax)node, cancellationToken);
-            case SyntaxKind.AnonymousObjectMemberDeclarator:
-                return GetDeclaredSymbol((AnonymousObjectMemberDeclaratorSyntax)node, cancellationToken);
-            case SyntaxKind.TupleExpression:
-                return GetDeclaredSymbol((TupleExpressionSyntax)node, cancellationToken);
             case SyntaxKind.Argument:
                 return GetDeclaredSymbol((ArgumentSyntax)node, cancellationToken);
-            case SyntaxKind.VariableDeclarator:
-                return GetDeclaredSymbol((VariableDeclaratorSyntax)node, cancellationToken);
-            case SyntaxKind.SingleVariableDesignation:
-                return GetDeclaredSymbol((SingleVariableDesignationSyntax)node, cancellationToken);
-            case SyntaxKind.TupleElement:
-                return GetDeclaredSymbol((TupleElementSyntax)node, cancellationToken);
+            case SyntaxKind.VariableDeclaration:
+                return GetDeclaredSymbol((VariableDeclarationSyntax)node, cancellationToken);
+            case SyntaxKind.IdentifierToken:
+                return GetDeclaredSymbol((SyntaxToken)node, cancellationToken);
             case SyntaxKind.NamespaceDeclaration:
                 return GetDeclaredSymbol((NamespaceDeclarationSyntax)node, cancellationToken);
             case SyntaxKind.FileScopedNamespaceDeclaration:
                 return GetDeclaredSymbol((FileScopedNamespaceDeclarationSyntax)node, cancellationToken);
             case SyntaxKind.Parameter:
                 return GetDeclaredSymbol((ParameterSyntax)node, cancellationToken);
-            case SyntaxKind.TypeParameter:
-                return GetDeclaredSymbol((TypeParameterSyntax)node, cancellationToken);
             case SyntaxKind.UsingDirective:
                 var usingDirective = (UsingDirectiveSyntax)node;
 
-                if (usingDirective.Alias is null)
+                if (usingDirective.alias is null)
                     break;
 
                 return GetDeclaredSymbol(usingDirective, cancellationToken);
             case SyntaxKind.ForEachStatement:
                 return GetDeclaredSymbol((ForEachStatementSyntax)node);
-            case SyntaxKind.CatchDeclaration:
-                return GetDeclaredSymbol((CatchDeclarationSyntax)node);
-            case SyntaxKind.JoinIntoClause:
-                return GetDeclaredSymbol((JoinIntoClauseSyntax)node, cancellationToken);
-            case SyntaxKind.QueryContinuation:
-                return GetDeclaredSymbol((QueryContinuationSyntax)node, cancellationToken);
             case SyntaxKind.CompilationUnit:
                 return GetDeclaredSymbol((CompilationUnitSyntax)node, cancellationToken);
         }
@@ -4134,7 +2912,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         CancellationToken cancellationToken = default) {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (declaration is BaseFieldDeclarationSyntax field)
+        if (declaration is FieldDeclarationSyntax field)
             return this.GetDeclaredSymbols(field, cancellationToken);
 
         if (declaration is TypeDeclarationSyntax typeDeclaration) {
@@ -4143,7 +2921,7 @@ internal abstract class BelteSemanticModel : SemanticModel {
         }
 
         var symbol = GetDeclaredSymbolCore(declaration, cancellationToken);
-        return symbol != null
+        return symbol is not null
             ? ImmutableArray.Create(symbol)
             : ImmutableArray<ISymbol>.Empty;
     }
@@ -4251,7 +3029,5 @@ internal abstract class BelteSemanticModel : SemanticModel {
     private protected sealed override bool IsAccessibleCore(int position, ISymbol symbol) {
         return this.IsAccessible(position, symbol.EnsureCSharpSymbolOrNull(nameof(symbol)));
     }
-
-    #endregion
     */
 }

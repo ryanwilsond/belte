@@ -29,6 +29,8 @@ public interface ISymbol {
 
     Compilation declaringCompilation { get; }
 
+    bool canBeReferencedByName { get; }
+
     string ToDisplayString(SymbolDisplayFormat format = null);
 
     ImmutableArray<DisplayTextSegment> ToDisplaySegments(SymbolDisplayFormat format = null);
