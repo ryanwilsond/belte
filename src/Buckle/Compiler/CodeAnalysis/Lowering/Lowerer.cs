@@ -184,6 +184,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <receiver>.<Union>.<field>
 
+        ----> <receiver> is of enum
+
+        (<receiver> & <field>) != 0
+
         */
         var syntax = node.syntax;
         var field = node.field;
@@ -211,6 +215,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (field.isFixedSizeBuffer)
             return Visit(new BoundAddressOfOperator(syntax, result, true, node.type));
+
+        if (field.isStatic && field.containingType.IsEnumType()) {
+            var enumUnderlyingType = field.containingType.enumUnderlyingType;
+
+            return Visit(Binary(syntax,
+                Binary(syntax,
+                    result.receiver,
+                    BinaryOperatorKind.And | Binder.RelationalOperatorType(enumUnderlyingType),
+                    Literal(syntax, result.field.constantValue, enumUnderlyingType),
+                    enumUnderlyingType
+                ),
+                BinaryOperatorKind.Equal | Binder.RelationalOperatorType(enumUnderlyingType),
+                Literal(
+                    syntax,
+                    result.field.constantValue,
+                    enumUnderlyingType
+                ),
+                CorLibrary.GetSpecialType(SpecialType.Bool)
+            ));
+        }
 
         return result;
     }

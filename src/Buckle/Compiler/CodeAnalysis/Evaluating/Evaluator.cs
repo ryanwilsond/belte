@@ -2845,6 +2845,13 @@ internal sealed class Evaluator {
                     }
 
                     return true;
+                case "LowLevel_SizeOf": {
+                        // TODO
+                        // TODO EvaluateSizeOf()
+                        result = EvaluatorValue.Null;
+                    }
+
+                    return true;
                 case "Random_RandInt_I?":
                     _lazyRandom ??= new Random();
                     var max = (int)EvaluateExpression(arguments[0], true, abort).int64;

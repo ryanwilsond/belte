@@ -6074,7 +6074,7 @@ internal partial class Binder {
         //     hasError = true;
         // }
 
-        if (!hasError)
+        if (!hasError && !isEnumField)
             hasError = CheckInstanceOrStatic(node, receiver, fieldSymbol, ref resultKind, diagnostics);
 
         if (!hasError && fieldSymbol.isFixedSizeBuffer && !isInsideNameof) {
@@ -6111,7 +6111,7 @@ internal partial class Binder {
 
         ConstantValue constantValueOpt = null;
 
-        if ((fieldSymbol.isConstExpr || isEnumField) && !isInsideNameof) {
+        if ((fieldSymbol.isConstExpr || (isEnumField && !IsInstanceReceiver(receiver))) && !isInsideNameof) {
             constantValueOpt = fieldSymbol.GetConstantValue(constantFieldsInProgress);
 
             if ((object)constantValueOpt == (object)ConstantValue.Unset)
@@ -6125,7 +6125,10 @@ internal partial class Binder {
 
         IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics);
 
-        var fieldType = fieldSymbol.GetFieldType(fieldsBeingBound).type;
+        var fieldType = (isEnumField && IsInstanceReceiver(receiver))
+            ? CorLibrary.GetSpecialType(SpecialType.Bool)
+            : fieldSymbol.GetFieldType(fieldsBeingBound).type;
+
         BoundExpression expr = new BoundFieldAccessExpression(
             node,
             receiver,

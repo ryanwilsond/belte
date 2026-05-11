@@ -25,6 +25,7 @@
   - [4.6.1](#461-flags) Flags
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
   - [4.6.3](#463-experimental-underlying-types) Experimental Underlying Types
+  - [4.6.4](#464-bit-testing) Bit Testing
 - [4.7](#47-namespaces) Namespaces
 - [4.8](#48-using-directives) Using Directives
   - [4.8.1](#481-aliasing) Aliasing
@@ -587,6 +588,32 @@ enum MyEnum extends string {
 ```
 
 This feature is experimental and may be removed.
+
+### 4.6.4 Bit Testing
+
+The traditional way to test for the presence of a enum field is to use a bit test:
+
+```belte
+var f = F.B;
+
+if ((f & F.B) != 0) { /* ... */ }
+
+enum flags F {
+  None,
+  A,
+  B,
+  C
+}
+```
+
+To simplify this, enum fields can be qualified with an instance receiver in which case the bit test will be performed
+implicitly:
+
+```belte
+var f = F.B;
+
+if (f.B) { /* ... */ }
+```
 
 ## 4.7 Namespaces
 

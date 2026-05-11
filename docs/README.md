@@ -114,6 +114,7 @@
       - [4.6.1](Current/ClassesAndObjects.md#461-flags) Flags
       - [4.6.2](Current/ClassesAndObjects.md#462-implicit-enum-fields) Implicit Enum Fields
       - [4.6.3](Current/ClassesAndObjects.md#463-experimental-underlying-types) Experimental Underlying Types
+      - [4.6.4](Current/ClassesAndObjects.md#464-bit-testing) Bit Testing
     - [4.7](Current/ClassesAndObjects.md#47-namespaces) Namespaces
     - [4.8](Current/ClassesAndObjects.md#48-using-directives) Using Directives
       - [4.8.1](Current/ClassesAndObjects.md#481-aliasing) Aliasing
