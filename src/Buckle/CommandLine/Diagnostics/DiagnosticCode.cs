@@ -51,4 +51,6 @@ public enum DiagnosticCode : ushort {
     ERR_MissingPathFlat = 40,
     WRN_UnableToCopyFile = 41,
     ERR_CannotCreateNew = 42,
+    ERR_CannotRunBuildMode = 43,
+    ERR_UnableToRun = 44,
 }

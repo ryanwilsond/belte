@@ -469,6 +469,14 @@ public sealed class DiagnosticTests {
     }
 
     // ! Warning_CL0041_UnableToCopyFile
+    // ? Requires creating build script
 
     // ! Error_CL0042_CannotCreateNew
+    // ? Requires creating build script
+
+    // ! Error_CL0043_CannotRunBuildMode
+    // ? Requires creating build script
+
+    // ! Error_CL0044_UnableToRun
+    // ? Not sure what causes a failed process start consistently
 }

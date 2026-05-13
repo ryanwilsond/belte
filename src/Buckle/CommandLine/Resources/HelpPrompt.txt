@@ -7,6 +7,7 @@ Options:
 
   new                         Create a new project in the working directory.
   build                       Search for build script instead of using normal options.
+  run                         Build then run.
   --clearcache                Delete all build script caches.
 
   -r|--repl                   Invoke the Repl.

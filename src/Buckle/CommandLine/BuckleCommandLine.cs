@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Hashing;
@@ -79,10 +80,12 @@ public static partial class BuckleCommandLine {
 
         if (args.Length > 0) {
             switch (args[0]) {
-                case "build":
-                    return ProcessBuildArgs(processName, args);
                 case "new":
                     return ProcessNewArgs(processName, args);
+                case "build":
+                    return ProcessBuildArgs(processName, args);
+                case "run":
+                    return ProcessRunArgs(processName, args);
             }
         }
 
@@ -220,7 +223,7 @@ public static partial class BuckleCommandLine {
 using Buckle.Building;
 
 void Build(Builder builder) {{
-    builder.AddInput(""src""); {(isGraphics ? "" : $"\n    builder.SetOutput(\"bin/{name}\");")}
+    builder.AddInput(""src"");{(isGraphics ? "" : $"\n    builder.SetOutput(\"bin/{name}\");")}
     builder.buildMode = BuildMode.{buildMode};
     builder.outputKind = OutputKind.{outputKind};
     // builder.AddRef(""lib"", RefOptions.Copy);
@@ -287,10 +290,14 @@ public class {name} {{
     }
 
     private static int ProcessBuildArgs(string processName, string[] args) {
+        return ProcessBuildArgs(processName, args, out _);
+    }
+
+    private static int ProcessBuildArgs(string processName, string[] args, out CompilerState state) {
         int err;
 
-        var buildState = DecodeBuildOptions(args, out var diagnostics);
-        var state = new CompilerState {
+        var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments);
+        state = new CompilerState {
             noOut = false,
             warningLevel = 1,
             severity = DiagnosticSeverity.Warning,
@@ -348,6 +355,7 @@ public class {name} {{
 
         compiler.state = ToCompilerState(diagnostics, builder, out var pendingReferenceCopies);
         state = compiler.state;
+        state.arguments = arguments;
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
@@ -386,12 +394,75 @@ public class {name} {{
         return SuccessExitCode;
     }
 
+    private static int ProcessRunArgs(string processName, string[] args) {
+        int err;
+
+        err = ProcessBuildArgs(processName, args, out var state);
+
+        if (err > 0)
+            return err;
+
+        switch (state.buildMode) {
+            case BuildMode.CSharpTranspile:
+            case BuildMode.Repl:
+            case BuildMode.None:
+                err = (int)ResolveDiagnostic(Belte.Diagnostics.Error.CannotRunBuildMode(), processName, state);
+                break;
+            case BuildMode.AutoRun:
+            case BuildMode.Evaluate:
+            case BuildMode.Execute:
+            case BuildMode.Interpret:
+                // Already executed from build
+                break;
+            case BuildMode.Dotnet:
+                err = ExecuteRun(processName, state);
+                break;
+            case BuildMode.Independent:
+            default:
+                throw new UnreachableException();
+        }
+
+        if (err > 0)
+            return err;
+
+        return SuccessExitCode;
+    }
+
+    private static int ExecuteRun(string processName, CompilerState state) {
+        var outputFilename = Path.ChangeExtension(state.outputFilename, ".exe");
+
+        if (!File.Exists(outputFilename))
+            return (int)ResolveDiagnostic(Belte.Diagnostics.Error.UnableToOpenFile(outputFilename), processName, state);
+
+        var startInfo = new ProcessStartInfo() {
+            CreateNoWindow = false,
+            UseShellExecute = false,
+            FileName = outputFilename,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+
+        foreach (var arg in state.arguments)
+            startInfo.ArgumentList.Add(arg);
+
+        try {
+            var process = Process.Start(startInfo);
+
+            process.WaitForExit();
+            return process.ExitCode;
+        } catch (Win32Exception e) {
+            return (int)ResolveDiagnostic(Belte.Diagnostics.Error.UnableToRun(e.Message), processName, state);
+        }
+    }
+
     private static XxHash64 HashStrings(params string[] strings) {
         var hasher = new XxHash64();
 
         foreach (var s in strings) {
             var bytes = Encoding.UTF8.GetBytes(s);
+            // Currently always exactly 2 strings so no overflow potential
+#pragma warning disable CA2014
             Span<byte> len = stackalloc byte[4];
+#pragma warning restore CA2014
             BitConverter.TryWriteBytes(len, bytes.Length);
 
             hasher.Append(len);
@@ -1007,7 +1078,8 @@ public class {name} {{
 
     private static BuildState DecodeBuildOptions(
         string[] args,
-        out DiagnosticQueue<Diagnostic> diagnostics) {
+        out DiagnosticQueue<Diagnostic> diagnostics,
+        out string[] arguments) {
         var state = new BuildState {
             showTime = false,
             showInfo = false,
@@ -1015,9 +1087,17 @@ public class {name} {{
         };
 
         diagnostics = new DiagnosticQueue<Diagnostic>();
+        arguments = Array.Empty<string>();
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
+
+            if (arg == "--") {
+                if (args.Length > i + 1)
+                    arguments = args[(i + 1)..];
+
+                break;
+            }
 
             switch (arg) {
                 case "--info":

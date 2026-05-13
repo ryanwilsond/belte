@@ -146,6 +146,16 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCreateNew), message);
     }
 
+    internal static Diagnostic CannotRunBuildMode() {
+        var message = $"unable to run project; project does not have a runnable build mode";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotRunBuildMode), message);
+    }
+
+    internal static Diagnostic UnableToRun(string msg) {
+        var message = $"failed to start process: {msg}";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnableToRun), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

@@ -36,7 +36,17 @@ build script itself.
 Optionally, the build script can be specified manually by passing it's path as an argument immediately following
 *build*.
 
+For relevant build modes, arguments can be passed with the [*--*](#---arg) option.
+
 > [Build script info](Build.md)
+
+### *run*
+
+Performs the same actions as [*build*](#build) but then immediately runs the output if applicable. If the build mode
+does not produce a runnable output, this command fails. For build modes that execute immediately anyways
+(Executing, Evaluating, etc.), this command performs identically to *build*.
+
+Arguments can be passed with the [*--*](#---arg) option.
 
 ### *--clearcache*
 
