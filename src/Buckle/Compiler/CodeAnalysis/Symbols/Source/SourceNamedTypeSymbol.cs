@@ -603,6 +603,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         out TemplateParameterListSyntax templateParameterList) {
         switch (node.kind) {
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)node;

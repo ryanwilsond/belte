@@ -371,6 +371,12 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.c;", 5)]
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.a;", 5)]
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.b;", 0)]
+    // Enums
+    [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
+    [InlineData("enum flags A { q, w, e, r, t } return A.t;", 8)]
+    [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
+    [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.w;", false)]
+    [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.t;", true)]
     // If statements
     [InlineData("int? a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int? a = 0; if (a == 4) { a = 10; } return a;", 0)]
@@ -559,11 +565,7 @@ public sealed class EvaluatorTests {
     [InlineData("T Test<type T>() { return default; } return Test<int>();", 0)]
     // Misc for coverage
     [InlineData("using H = int?; H myVar = 3; return myVar;", 3)]
-    [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
-    [InlineData("enum flags A { q, w, e, r, t } return A.t;", 8)]
-    [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
-    [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.w;", false)]
-    [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.t;", true)]
+    [InlineData("class A<type T>;", null)]
     [InlineData("class P { int? a = 3; public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
     [InlineData("class P { public int? M(int? a, int? b) { return a + b; } public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
     [InlineData("class P { public static T M<type T>() { T a = default; return a; } } return P.M<int?>();", null)]

@@ -537,6 +537,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             case SyntaxKind.CompilationUnit:
                 return ((CoreInternalSyntax.CompilationUnitSyntax)member).attributeLists.Any();
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
                 return ((CoreInternalSyntax.TypeDeclarationSyntax)member).attributeLists.Any();
