@@ -1667,6 +1667,8 @@ internal partial class Binder {
             ? p.type
             : (parameter as TemplateParameterSymbol).underlyingType.type;
 
+        valueBeforeConversion = ReduceNumericIfApplicable(parameterType, valueBeforeConversion);
+
         var locals = defaultValueBinder.GetDeclaredLocalsForScope(defaultValueSyntax);
         var value = defaultValueBinder.GenerateConversionForAssignment(
             parameterType,
@@ -7112,7 +7114,7 @@ internal partial class Binder {
             }
 
             var parameterDefaultValue = parameter.explicitDefaultConstantValue;
-            var defaultConstantValue = parameterDefaultValue.value;
+            var defaultConstantValue = parameterDefaultValue?.value;
             // var callerSourceLocation = enableCallerInfo ? GetCallerLocation(syntax) : null;
             BoundExpression defaultValue;
 
@@ -7134,9 +7136,12 @@ internal partial class Binder {
             //     var argument = argumentsBuilder[argumentIndex];
             //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(argument.Syntax.ToString()), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
 
-            // TODO Any issue with just creating a literal null instead of default expression?
             if (defaultConstantValue is null) {
-                defaultValue = BoundFactory.Literal(syntax, null, parameter.type);
+                defaultValue = new BoundLiteralExpression(
+                    syntax,
+                    LiteralUtilities.TryGetDefaultValue(parameter.type),
+                    parameter.type
+                );
             } else {
                 TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
                 defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
@@ -12543,10 +12548,15 @@ symIsHidden:;
     internal static BoundExpression ReduceNumericIfApplicable(TypeSymbol declarationType, BoundExpression expression) {
         var declarationSpecialType = declarationType.StrippedType().specialType;
 
-        if (expression is BoundLiteralExpression l && l.type is not null && l.type.specialType.IsNumeric() &&
-            declarationSpecialType.IsNumeric()) {
+        var shouldTryToReduce =
+            (expression.kind == BoundKind.LiteralExpression || expression.constantValue is not null) &&
+            expression.type is not null &&
+            expression.type.specialType.IsNumeric() &&
+            declarationSpecialType.IsNumeric();
+
+        if (shouldTryToReduce) {
             var literalValue = LiteralUtilities.ReduceNumeric(
-                l.constantValue.value,
+                expression.constantValue.value,
                 declarationSpecialType.IsUnsigned()
             );
 

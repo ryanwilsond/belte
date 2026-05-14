@@ -4233,12 +4233,11 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0352_InvalidFixedArraySize() {
         var text = @"
             struct A {
-                int32 a\[[[-1]]\];
+                int32 a\[[-1]\];
             }
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'int32!' implicitly; an explicit conversion exists (are you missing a cast?)
             fixed size buffers must have a length greater than zero
         ";
 
