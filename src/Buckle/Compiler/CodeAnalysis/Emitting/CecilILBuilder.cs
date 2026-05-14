@@ -14,7 +14,7 @@ using Mono.Cecil.Cil;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal sealed class CecilILBuilder : ILBuilder {
+internal sealed partial class CecilILBuilder : ILBuilder {
     private const int HiddenLine = 0xFEEFEE;
 
     private readonly List<(int instructionIndex, object target)> _unhandledGotos;
@@ -33,25 +33,6 @@ internal sealed class CecilILBuilder : ILBuilder {
     private bool _needsEpilogue;
 
     internal readonly ILProcessor iLProcessor;
-
-    private class TryFrame {
-        internal Instruction outerTryStart;
-        internal Instruction outerTryEnd;
-
-        internal Instruction innerTryStart;
-        internal Instruction innerTryEnd;
-
-        internal Instruction handlerStart;
-        internal Instruction handlerEnd;
-
-        internal Instruction finallyStart;
-        internal Instruction finallyEnd;
-
-        internal Instruction leaveTarget;
-
-        internal bool hasCatch;
-        internal bool hasFinally;
-    }
 
     internal CecilILBuilder(MethodSymbol method, ILEmitter module, MethodDefinition definition) {
         _method = method;
@@ -208,6 +189,10 @@ internal sealed class CecilILBuilder : ILBuilder {
     internal override void EmitLoadArgument(int slot) {
         slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
         iLProcessor.Emit(OpCodes.Ldarg, _definition.Parameters[slot]);
+    }
+
+    internal override void EmitUnreachableException() {
+        iLProcessor.Emit(OpCodes.Newobj, ILEmitter.NetMethodReference.UnreachableException_ctor);
     }
 
     internal override void EmitLoadArgumentAddr(int slot) {

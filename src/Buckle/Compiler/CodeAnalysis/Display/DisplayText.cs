@@ -170,6 +170,9 @@ public sealed class DisplayText {
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
+            case BoundKind.UnreachableStatement:
+                DisplayUnreachableStatement(text);
+                break;
             case BoundKind.WithStatement:
                 DisplayWithStatement(text, (BoundWithStatement)node);
                 break;
@@ -530,6 +533,11 @@ public sealed class DisplayText {
 
     private static void DisplayContinueStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
+        text.WriteLine();
+    }
+
+    private static void DisplayUnreachableStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.UnreachableKeyword));
         text.WriteLine();
     }
 

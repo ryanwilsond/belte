@@ -35,6 +35,7 @@ again:
                     case BoundKind.GotoStatement:
                     case BoundKind.ConditionalGotoStatement:
                     case BoundKind.ReturnStatement:
+                    case BoundKind.UnreachableStatement:
                     case BoundKind.ExpressionStatement
                         when (node as BoundExpressionStatement).expression is BoundThrowExpression:
                         _statements.Add(node);

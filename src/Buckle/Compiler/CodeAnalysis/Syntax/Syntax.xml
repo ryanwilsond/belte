@@ -883,6 +883,15 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="UnreachableStatementSyntax" Base="StatementSyntax">
+    <Kind Name="UnreachableStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="UnreachableKeyword"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="DoWhileStatementSyntax" Base="StatementSyntax">
     <Kind Name="DoWhileStatement"/>
     <Field Name="doKeyword" Type="SyntaxToken">

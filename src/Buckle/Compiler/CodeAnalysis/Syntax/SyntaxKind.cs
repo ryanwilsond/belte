@@ -156,6 +156,7 @@ public enum SyntaxKind : ushort {
     UnionKeyword,
     WithKeyword,
     DeferKeyword,
+    UnreachableKeyword,
     HandleKeyword,
 
     // Trivia
@@ -221,8 +222,8 @@ public enum SyntaxKind : ushort {
     BlockStatement,
     InlineILStatement,
     ExpressionStatement,
-    DeferStatement,
     UsingStatement,
+    WithStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
@@ -238,7 +239,8 @@ public enum SyntaxKind : ushort {
     TryStatement,
     SwitchStatement,
     GotoStatement,
-    WithStatement,
+    DeferStatement,
+    UnreachableStatement,
     NullBindingStatement,
 
     // Statement Parts

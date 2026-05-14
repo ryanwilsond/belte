@@ -1753,6 +1753,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
+        NetMethodReference.UnreachableException_ctor = ResolveMethod("System.Diagnostics.UnreachableException", ".ctor", []);
         NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T"]);
         NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T"]);
         NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);

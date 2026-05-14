@@ -11091,6 +11091,7 @@ symIsHidden:;
             SyntaxKind.GotoStatement => BindGotoStatement((GotoStatementSyntax)node, diagnostics),
             SyntaxKind.InlineILStatement => BindInlineILStatement((InlineILStatementSyntax)node, diagnostics),
             SyntaxKind.WithStatement => BindWithStatement((WithStatementSyntax)node, diagnostics),
+            SyntaxKind.UnreachableStatement => BindUnreachableStatement((UnreachableStatementSyntax)node),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -11397,6 +11398,11 @@ symIsHidden:;
 
         return new BoundBreakStatement(node, target);
     }
+
+    private BoundStatement BindUnreachableStatement(UnreachableStatementSyntax node) {
+        return new BoundUnreachableStatement(node);
+    }
+
 
     private BoundStatement BindContinueStatement(ContinueStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var target = continueLabel;

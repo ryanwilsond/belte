@@ -504,6 +504,8 @@ internal sealed class Evaluator {
                         }
 
                         break;
+                    case BoundKind.UnreachableStatement:
+                        throw new BelteEvaluatorException("The program executed an instruction that was thought to be unreachable.", s.syntax.location);
                     default:
                         throw ExceptionUtilities.UnexpectedValue(s.kind);
                 }

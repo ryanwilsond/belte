@@ -46,6 +46,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitWithSymbolToken(OpCode opCode, MethodSymbol type);
 
+    internal abstract void EmitUnreachableException();
+
     internal abstract void BeginTry();
 
     internal abstract void BeginCatch();

@@ -225,6 +225,7 @@ public static class SyntaxFacts {
             "with" => SyntaxKind.WithKeyword,
             "destructor" => SyntaxKind.DestructorKeyword,
             "defer" => SyntaxKind.DeferKeyword,
+            "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -386,6 +387,7 @@ public static class SyntaxFacts {
             SyntaxKind.WithKeyword => "with",
             SyntaxKind.DestructorKeyword => "destructor",
             SyntaxKind.DeferKeyword => "defer",
+            SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };
     }

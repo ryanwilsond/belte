@@ -1191,6 +1191,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseBreakStatement();
             case SyntaxKind.ContinueKeyword:
                 return ParseContinueStatement();
+            case SyntaxKind.UnreachableKeyword:
+                return ParseUnreachableStatement();
             case SyntaxKind.ReturnKeyword:
                 return ParseReturnStatement();
             case SyntaxKind.SwitchKeyword:
@@ -1534,15 +1536,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private StatementSyntax ParseContinueStatement() {
         var keyword = EatToken();
         var semicolon = Match(SyntaxKind.SemicolonToken);
-
         return SyntaxFactory.ContinueStatement(keyword, semicolon);
     }
 
     private StatementSyntax ParseBreakStatement() {
         var keyword = EatToken();
         var semicolon = Match(SyntaxKind.SemicolonToken);
-
         return SyntaxFactory.BreakStatement(keyword, semicolon);
+    }
+
+    private StatementSyntax ParseUnreachableStatement() {
+        var keyword = EatToken();
+        var semicolon = Match(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.UnreachableStatement(keyword, semicolon);
     }
 
     private StatementSyntax ParseDoWhileStatement() {

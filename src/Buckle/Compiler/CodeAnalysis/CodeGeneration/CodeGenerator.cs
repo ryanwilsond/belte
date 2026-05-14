@@ -695,6 +695,9 @@ internal sealed partial class CodeGenerator {
             case BoundKind.ReturnStatement:
                 EmitReturnStatement((BoundReturnStatement)statement);
                 break;
+            case BoundKind.UnreachableStatement:
+                EmitUnreachableStatement();
+                break;
             case BoundKind.TryStatement:
                 EmitTryStatement((BoundTryStatement)statement);
                 break;
@@ -1059,6 +1062,11 @@ oneMoreTime:
         }
 
         _builder.EmitReturn();
+    }
+
+    private void EmitUnreachableStatement() {
+        _builder.EmitUnreachableException();
+        _builder.Emit(OpCode.Throw);
     }
 
     private void EmitTryStatement(BoundTryStatement statement) {

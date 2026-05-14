@@ -74,6 +74,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.SwitchDispatch => ExpandSwitchDispatch((BoundSwitchDispatch)statement),
             BoundKind.WithStatement => ExpandWithStatement((BoundWithStatement)statement),
             BoundKind.UsingStatement => ExpandUsingStatement((BoundUsingStatement)statement),
+            BoundKind.UnreachableStatement => ExpandUnreachableStatement((BoundUnreachableStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -342,6 +343,10 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandContinueStatement(BoundContinueStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandUnreachableStatement(BoundUnreachableStatement statement) {
         return [statement];
     }
 

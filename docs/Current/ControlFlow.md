@@ -24,12 +24,15 @@
     - [2.4.4.2](#2442-array-collections) Array Collections
     - [2.4.4.3](#2443-indexed-collections) Indexed Collections
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
+  - [2.4.5](#245-break) Break
+  - [2.4.6](#246-continue) Continue
 - [2.5](#25-switch) Switch
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
 - [2.8](#28-defer-statements) Defer Statements
 - [2.9](#29-using-statements) Using Statements
+- [2.10](#210-unreachable-statements) Unreachable Statements
 
 ## 2.1 Functions
 
@@ -973,3 +976,21 @@ try {
   a?.Dispose();
 }
 ```
+
+## 2.10 Unreachable Statements
+
+An `unreachable;` statement can be used as a shorthand for throwing an unreachable code exception.
+
+For example, in the case of an non-exhaustive switch:
+
+```belte
+switch (/* ... */) {
+  // ...
+}
+
+unreachable;
+```
+
+This can be used when the compiler cannot prove a method always returns and errs.
+
+Note that because this turns into a [`throw`](#261-trycatchfinally), it will be caught by enclosing catch blocks.

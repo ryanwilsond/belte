@@ -380,6 +380,7 @@
   <Node Name="BoundContinueStatement" Base="BoundStatement">
     <Field Name="label" Type="SynthesizedLabelSymbol"/>
   </Node>
+  <Node Name="BoundUnreachableStatement" Base="BoundStatement"/>
   <Node Name="BoundBlockStatement" Base="BoundStatement">
     <Field Name="statements" Type="ImmutableArray&lt;BoundStatement&gt;"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

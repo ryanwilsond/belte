@@ -118,6 +118,11 @@ internal sealed class RefILBuilder : ILBuilder {
         }
     }
 
+    internal override void EmitUnreachableException() {
+        if (_logger is not null) Log(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
+        _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
+    }
+
     internal override void FreeTemp(VariableDefinition temp) {
         // TODO Reflection does not handle slot freeing, we would need to do this manually by keeping a stack
         // var cLocal = ((RefVariableDefinition)temp).localBuilder;

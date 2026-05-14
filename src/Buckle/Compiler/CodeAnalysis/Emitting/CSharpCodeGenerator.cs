@@ -126,6 +126,9 @@ internal sealed class CSharpCodeGenerator {
             case BoundKind.ContinueStatement:
                 EmitContinueStatement((BoundContinueStatement)statement);
                 break;
+            case BoundKind.UnreachableStatement:
+                EmitUnreachableException();
+                break;
             case BoundKind.LocalFunctionStatement:
                 EmitLocalFunctionStatement((BoundLocalFunctionStatement)statement);
                 break;
@@ -253,6 +256,10 @@ internal sealed class CSharpCodeGenerator {
 
     private void EmitContinueStatement(BoundContinueStatement _) {
         _writer.WriteLine("continue;");
+    }
+
+    private void EmitUnreachableException() {
+        _writer.WriteLine("throw new System.Diagnostics.UnreachableException();");
     }
 
     private void EmitLocalFunctionStatement(BoundLocalFunctionStatement node) {
