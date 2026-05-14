@@ -1,4 +1,6 @@
 
 public static class Int {
     public static int? Parse(string? text);
+
+    public static string? ToString(int! num, string! format);
 }

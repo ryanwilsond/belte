@@ -161,6 +161,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol GenerateInt() {
         return StaticClass("Int", [
             StaticMethod("Parse", SpecialType.Int, true, [("text", SpecialType.String, true)]),
+            StaticMethod("ToString", SpecialType.String, true, [("num", SpecialType.Int), ("format", SpecialType.String)]),
         ]);
     }
 
@@ -736,6 +737,8 @@ internal static class StandardLibrary {
                 => { if (a is null) return null;
                      if (long.TryParse((string)a, out var result)) return result;
                      return null; }) },
+            { "Int_ToString_IS", new Func<object, object, object, object>((a, b, c)
+                => { return ((long)a).ToString((string)b); }) },
         };
     }
 }

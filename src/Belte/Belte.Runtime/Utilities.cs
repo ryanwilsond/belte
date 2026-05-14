@@ -93,6 +93,10 @@ public static class Utilities {
         return null;
     }
 
+    public static string IntToString(long num, string format) {
+        return num.ToString(format);
+    }
+
     public static string[] Split(string text, string separator) {
         return text.Split(separator);
     }

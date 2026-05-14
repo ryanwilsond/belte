@@ -65,13 +65,16 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void DefineInitialHiddenSequencePoint() { }
 
     internal override void BeginTry() {
-        if (!_needsEpilogue && !_method.returnsVoid) {
+        if (!_needsEpilogue) {
             _needsEpilogue = true;
             _epilogue = new object();
-            _returnLocal = ((RefVariableDefinition)AllocateSlot(
-                _method.returnType,
-                _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
-            )).localBuilder;
+
+            if (!_method.returnsVoid) {
+                _returnLocal = ((RefVariableDefinition)AllocateSlot(
+                    _method.returnType,
+                    _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+                )).localBuilder;
+            }
         }
 
         _iLGenerator.BeginExceptionBlock();

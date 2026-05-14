@@ -69,6 +69,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
     private readonly Dictionary<NamedTypeSymbol, Type> _bakedTypes = [];
     private readonly ConcurrentDictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
+    private readonly ConcurrentDictionary<TypeSymbol, TypeBuilder> _workingNestedEnums = [];
     private readonly ConcurrentDictionary<TypeSymbol, Type> _enums = [];
     private readonly ConcurrentDictionary<MethodSymbol, MethodInfo> _methods = [];
     private readonly ConcurrentDictionary<MethodSymbol, Type[]> _methodTypeParameters = [];
@@ -294,8 +295,12 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
-            if (type.IsEnumType() && type.originalDefinition is not PENamedTypeSymbol)
+            if (type.IsEnumType() && type.originalDefinition is not PENamedTypeSymbol) {
+                if (_workingNestedEnums.TryGetValue(type.originalDefinition, out var found))
+                    return found;
+
                 return _enums[type.originalDefinition];
+            }
 
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
@@ -948,19 +953,35 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         void AddNestedType(NamedTypeSymbol nestedType, string[] workingParams) {
-            var nestedBuilder = typeBuilder.DefineNestedType(
-                GetTypeName(nestedType, true),
-                GetTypeAttributes(nestedType, true),
-                GetBaseType(nestedType)
-            );
+            if (nestedType.IsEnumType()) {
+                var nestedBuilder = typeBuilder.DefineNestedType(
+                    GetTypeName(nestedType, true),
+                    GetTypeAttributes(nestedType, true) & TypeAttributes.VisibilityMask,
+                    GetBaseType(nestedType)
+                );
 
-            workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
+                if (nestedType.enumFlagsAttribute) {
+                    var flagsCtor = typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes);
+                    var flagsAttr = new CustomAttributeBuilder(flagsCtor, []);
+                    nestedBuilder.SetCustomAttribute(flagsAttr);
+                }
 
-            if (workingParams.Length > 0)
-                nestedBuilder.DefineGenericParameters(workingParams);
+                _workingNestedEnums.TryAdd(nestedType, nestedBuilder);
+            } else {
+                var nestedBuilder = typeBuilder.DefineNestedType(
+                    GetTypeName(nestedType, true),
+                    GetTypeAttributes(nestedType, true),
+                    GetBaseType(nestedType)
+                );
 
-            CreateNestedTypes(nestedType, nestedBuilder, workingParams);
-            _types.Add(nestedType.originalDefinition, nestedBuilder);
+                workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
+
+                if (workingParams.Length > 0)
+                    nestedBuilder.DefineGenericParameters(workingParams);
+
+                CreateNestedTypes(nestedType, nestedBuilder, workingParams);
+                _types.Add(nestedType.originalDefinition, nestedBuilder);
+            }
         }
     }
 
@@ -1060,14 +1081,49 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
-        if (type.IsEnumType())
+        if (type.IsEnumType()) {
+            if (_workingNestedEnums.TryGetValue(type.originalDefinition, out var nestedBuilder)) {
+                var underlyingType = GetType(type.enumUnderlyingType);
+                nestedBuilder.DefineField(
+                    "value__",
+                    underlyingType,
+                    FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName
+                );
+
+                foreach (var member in type.GetMembers()) {
+                    if (member is not FieldSymbol f)
+                        continue;
+
+                    var fieldBuilder = nestedBuilder.DefineField(
+                        f.name,
+                        underlyingType,
+                        FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal
+                    );
+
+                    fieldBuilder.SetConstant(f.constantValue);
+                }
+
+                var finalEnum = nestedBuilder.CreateType();
+                _enums.Add(type, finalEnum);
+
+                foreach (var member in type.GetMembers()) {
+                    if (member is not FieldSymbol f)
+                        continue;
+
+                    _fields.Add(f, finalEnum.GetField(f.name));
+                }
+            }
+
             return;
+        }
 
         var typeBuilder = _types[type.originalDefinition];
         var isAnonymousUnion = type is AnonymousUnionType;
         var seenGroupIds = new HashSet<int>();
 
-        foreach (var member in type.GetMembers()) {
+        var members = type.GetMembers();
+
+        foreach (var member in members) {
             if (member is FieldSymbol f) {
                 if (!isAnonymousUnion && f.isAnonymousUnionMember) {
                     if (seenGroupIds.Add(f.unionGroupId))
@@ -1657,6 +1713,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_IsDigit_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsDigit", Flags, [typeof(char?)]) },
             { "String_Substring_SI?I?", typeof(Belte.Runtime.Utilities).GetMethod("Substring", Flags, [typeof(string), typeof(long?), typeof(long?)]) },
             { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
+            { "Int_ToString_IS", typeof(Belte.Runtime.Utilities).GetMethod("IntToString", Flags, [typeof(long), typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },

@@ -381,6 +381,8 @@ public sealed class EvaluatorTests {
     [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.t | A.r; return a.Test();", true)]
     [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.r; return a.Test();", false)]
     [InlineData("enum flags A { q, w, e, r, t, public static bool Test() { return true; } } return A.Test();", true)]
+    [InlineData("class C { public A a; public enum A { q, w } } C c = new C(); c.a = C.A.q; return c.a == .q;", true)]
+    [InlineData("class C { public A a; public enum A { q, w } } C c = new C(); c.a = C.A.w; return c.a == .q;", false)]
     // If statements
     [InlineData("int? a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int? a = 0; if (a == 4) { a = 10; } return a;", 0)]
@@ -513,6 +515,7 @@ public sealed class EvaluatorTests {
         return b.T();", "B")]
     [InlineData("lowlevel class A { public int?[] b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r[0]++; return a.b[0];", 2)]
     // Try statements
+    [InlineData("try { return; } finally { }", null)]
     [InlineData("try { int? x = 0; int? a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int? a = 56/1; return a; } catch { return 3; }", 56)]
     [InlineData("int? a = 3; try { int? x = 0; int? b = 56/x; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 6)]

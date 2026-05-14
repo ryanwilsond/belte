@@ -213,13 +213,16 @@ internal sealed partial class CecilILBuilder : ILBuilder {
     }
 
     internal override void BeginTry() {
-        if (!_needsEpilogue && !_method.returnsVoid) {
+        if (!_needsEpilogue) {
             _needsEpilogue = true;
             _epilogue = new object();
-            _returnLocal = ((CecilVariableDefinition)AllocateSlot(
-                _method.returnType,
-                _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
-            )).variableDefinition;
+
+            if (!_method.returnsVoid) {
+                _returnLocal = ((CecilVariableDefinition)AllocateSlot(
+                    _method.returnType,
+                    _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+                )).variableDefinition;
+            }
         }
 
         var ctx = new TryFrame();
