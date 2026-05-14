@@ -15,6 +15,7 @@ internal sealed class DirectiveParser : SyntaxParser {
         bool endIsActive,
         bool isAfterFirstTokenInFile,
         bool isAfterNonWhitespaceOnLine) {
+        var hashPosition = _lexer.position;
         var hash = Match(SyntaxKind.HashToken);
 
         if (isAfterNonWhitespaceOnLine)
@@ -45,6 +46,14 @@ internal sealed class DirectiveParser : SyntaxParser {
 
                 break;
             default:
+                if (currentToken.kind == SyntaxKind.ExclamationToken) {
+                    if (hashPosition != 0 || hash.trailingTrivia.Count > 0)
+                        hash = AddDiagnostic(hash, Error.ShebangNotOnFirstLine());
+
+                    result = ParseShebangDirective(hash, EatToken(), isActive);
+                    break;
+                }
+
                 if (currentToken.contextualKind == SyntaxKind.HandleKeyword) {
                     result = ParseHandleDirective(hash, EatToken(), isActive);
                     break;
@@ -57,6 +66,11 @@ internal sealed class DirectiveParser : SyntaxParser {
         }
 
         return result;
+    }
+
+    private DirectiveTriviaSyntax ParseShebangDirective(SyntaxToken hash, SyntaxToken exclamation, bool isActive) {
+        var eod = _lexer.LexEndOfDirectiveWithOptionalPreprocessingMessage();
+        return SyntaxFactory.ShebangDirectiveTrivia(hash, exclamation, eod, isActive);
     }
 
     private DirectiveTriviaSyntax ParseHandleDirective(SyntaxToken hash, SyntaxToken keyword, bool isActive) {

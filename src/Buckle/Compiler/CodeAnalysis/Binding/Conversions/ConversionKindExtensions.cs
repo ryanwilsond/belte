@@ -20,6 +20,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.MethodGroup:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ObjectCreation:
+            case ConversionKind.ConditionalExpression:
                 return true;
             default:
                 return false;

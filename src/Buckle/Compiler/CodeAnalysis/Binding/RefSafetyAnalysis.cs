@@ -751,6 +751,24 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 }
 
                 return true;
+            case BoundKind.UnconvertedConditionalOperator: {
+                    var conditional = (BoundUnconvertedConditionalOperator)expression;
+                    return CheckValEscape(
+                        conditional.trueExpression.syntax,
+                        conditional.trueExpression,
+                        escapeFrom,
+                        escapeTo,
+                        checkingReceiver: false,
+                        diagnostics: diagnostics
+                    ) && CheckValEscape(
+                        conditional.falseExpression.syntax,
+                        conditional.falseExpression,
+                        escapeFrom,
+                        escapeTo,
+                        checkingReceiver: false,
+                        diagnostics: diagnostics
+                    );
+                }
             case BoundKind.InitializerList:
                 var colExpr = (BoundInitializerList)expression;
                 return CheckValEscape(colExpr.items, escapeFrom, escapeTo, diagnostics);

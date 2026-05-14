@@ -173,6 +173,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         return current;
     }
 
+    internal static Conversion MakeConditionalExpression(ImmutableArray<Conversion> innerConversions) {
+        return new Conversion(ConversionKind.ConditionalExpression, innerConversions);
+    }
+
     /// <summary>
     /// Classify what type of <see cref="Conversion" /> is required to go from one type to the other.
     /// </summary>

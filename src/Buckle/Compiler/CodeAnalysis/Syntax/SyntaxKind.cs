@@ -173,6 +173,8 @@ public enum SyntaxKind : ushort {
     DefineDirectiveTrivia,
     UndefDirectiveTrivia,
     DisabledTextTrivia,
+    ShebangDirectiveTrivia,
+    PreprocessingMessageTrivia,
     HandleDirectiveTrivia,
 
     // Expressions

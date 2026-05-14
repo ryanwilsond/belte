@@ -5419,4 +5419,44 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0435_NoBuildMethod
     // Requires CLI args
+
+    [Fact]
+    public void Reports_Error_BU0436_ShebangNotOnFirstLine() {
+        var text = @"
+            ;
+            [#]!asdf
+        ";
+
+        var diagnostics = @"
+            '#!' must be the first characters on the first line of the file
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0437_AmbiguousTernary() {
+        var text = @"
+            var a = [true ? (int32)1 : (uint32)1];
+        ";
+
+        var diagnostics = @"
+            the type of conditional expression cannot be determined because 'int32!' and 'uint32!' implicitly convert to one another
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0438_InvalidTernary() {
+        var text = @"
+            var a = [true ? 1 : null];
+        ";
+
+        var diagnostics = @"
+            the type of conditional expression cannot be determined because there is no implicit conversion between 'int!' and '<null>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

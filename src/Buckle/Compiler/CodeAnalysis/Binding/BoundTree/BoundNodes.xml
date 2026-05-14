@@ -188,6 +188,14 @@
     <Field Name="falseExpression" Type="BoundExpression"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundUnconvertedConditionalOperator" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="condition" Type="BoundExpression"/>
+    <Field Name="trueExpression" Type="BoundExpression"/>
+    <Field Name="falseExpression" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+    <Field Name="noCommonError" Type="BelteDiagnostic"/>
+  </Node>
   <Node Name="BoundDataContainerExpression" Base="BoundExpression">
     <Field Name="dataContainer" Type="DataContainerSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>

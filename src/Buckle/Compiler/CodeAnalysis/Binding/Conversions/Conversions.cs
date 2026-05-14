@@ -321,7 +321,7 @@ internal sealed partial class Conversions {
         if (Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
-        return Conversion.None;
+        return GetConditionalExpressionConversion(sourceExpression, target);
     }
 
     private Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
@@ -898,6 +898,10 @@ internal sealed partial class Conversions {
     private static bool IsEncompassingImplicitConversionKind(ConversionKind kind) {
         switch (kind) {
             case ConversionKind.None:
+            case ConversionKind.MethodGroup:
+            case ConversionKind.ConditionalExpression:
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
             case ConversionKind.ImplicitUserDefined:
             case ConversionKind.ExplicitUserDefined:
             case ConversionKind.ExplicitNullable:
@@ -921,6 +925,29 @@ internal sealed partial class Conversions {
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);
         }
+    }
+
+    private Conversion GetConditionalExpressionConversion(BoundExpression source, TypeSymbol destination) {
+        if (source is not BoundUnconvertedConditionalOperator conditionalOperator)
+            return Conversion.None;
+
+        var trueConversion = ClassifyImplicitConversionFromExpression(
+            conditionalOperator.trueExpression,
+            destination
+        );
+
+        if (!trueConversion.exists)
+            return Conversion.None;
+
+        var falseConversion = ClassifyImplicitConversionFromExpression(
+            conditionalOperator.falseExpression,
+            destination
+        );
+
+        if (!falseConversion.exists)
+            return Conversion.None;
+
+        return Conversion.MakeConditionalExpression([trueConversion, falseConversion]);
     }
 
     private TypeSymbol MostEncompassedType<T>(

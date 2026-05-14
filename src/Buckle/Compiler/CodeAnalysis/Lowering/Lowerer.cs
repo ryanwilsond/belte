@@ -787,7 +787,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
             return node;
 
         if (node.conversion.kind == ConversionKind.ObjectCreation)
-            return node.operand;
+            return Visit(node.operand);
+
+        if (node.conversion.kind == ConversionKind.ConditionalExpression)
+            return Visit(node.operand);
 
         return base.VisitCastExpression(node);
     }

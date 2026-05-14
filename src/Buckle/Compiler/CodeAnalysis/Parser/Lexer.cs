@@ -357,6 +357,10 @@ internal sealed partial class Lexer : IDisposable {
                 _position++;
                 _kind = SyntaxKind.OpenParenToken;
                 break;
+            case '!':
+                _position++;
+                _kind = SyntaxKind.ExclamationToken;
+                break;
             case '0':
             case '1':
             case '2':
@@ -1125,6 +1129,45 @@ internal sealed partial class Lexer : IDisposable {
                     break;
             }
         }
+    }
+
+    internal SyntaxToken LexEndOfDirectiveWithOptionalPreprocessingMessage() {
+        var leading = LexOptionalPreprocessingMessage() is { } message
+            ? SyntaxFactory.Trivia(SyntaxKind.PreprocessingMessageTrivia, message, null)
+            : null;
+
+        return LexEndOfDirectiveAfterOptionalPreprocessingMessage(leading);
+    }
+
+    private SyntaxToken LexEndOfDirectiveAfterOptionalPreprocessingMessage(SyntaxTrivia leading) {
+        var directiveTriviaCache = _directiveTriviaCache;
+        directiveTriviaCache?.Clear();
+        _directiveTriviaCache = null;
+
+        ReadDirectiveTrailingTrivia(includeEndOfLine: true, ref directiveTriviaCache);
+        var trailing = directiveTriviaCache?.ToListNode();
+        _directiveTriviaCache = directiveTriviaCache;
+
+        var endOfDirective = SyntaxFactory.Token(SyntaxKind.EndOfDirectiveToken, string.Empty, null, leading, trailing);
+
+        return endOfDirective;
+    }
+
+    private string LexOptionalPreprocessingMessage() {
+        PooledStringBuilder builder = null;
+
+        while (true) {
+            var ch = _current;
+
+            if (ch is '\n' or '\r' or '\0')
+                break;
+
+            builder ??= PooledStringBuilder.GetInstance();
+            builder.Builder.Append(ch);
+            _position++;
+        }
+
+        return builder?.ToStringAndFree();
     }
 
     private BelteSyntaxNode ReadDirective(

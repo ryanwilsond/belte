@@ -1490,6 +1490,25 @@ internal partial class Binder {
 
                 result = new BoundLiteralExpression(expression.syntax, null, CreateErrorType());
                 break;
+            case BoundUnconvertedConditionalOperator op: {
+                    var type = op.type;
+                    var hasErrors = op.hasErrors;
+
+                    if (type is null) {
+                        type = CreateErrorType();
+                        hasErrors = true;
+
+                        if (!op.hasAnyErrors) {
+                            // TODO In the case that the types have the same name but are from different assemblies, this error gets cryptic
+                            // TODO Eventually we will want something like a SymbolDistinguisher in this case
+                            diagnostics.Push(op.noCommonError);
+                        }
+                    }
+
+                    result = ConvertConditionalExpression(op, type, conversionIfTargetTyped: null, diagnostics, hasErrors);
+                }
+
+                break;
             case BoundUnconvertedImplicitEnumFieldExpression:
                 if (reportNoTargetType && !expression.hasAnyErrors)
                     diagnostics.Push(Error.EnumFieldNoTargetType(expression.syntax.location));
@@ -2209,6 +2228,12 @@ internal partial class Binder {
                         elementAccess.type
                     );
                 }
+
+                break;
+            case BoundKind.UnconvertedObjectCreationExpression:
+            case BoundKind.UnconvertedConditionalOperator:
+                if (kind == BindValueKind.RValue)
+                    return expression;
 
                 break;
         }
@@ -9067,21 +9092,25 @@ internal partial class Binder {
         );
 
         if (bestType is null) {
-            // ErrorCode noCommonTypeError = hadMultipleCandidates ? ErrorCode.ERR_AmbigQM : ErrorCode.ERR_InvalidQM;
-            // TODO error & UnconvertedConditionalOperator
-            return new BoundConditionalOperator(
+            var noCommonError = hadMultipleCandidates
+                ? Error.AmbiguousTernary(node.location, trueExpr.type, falseExpr.type)
+                : Error.InvalidTernary(node.location, trueExpr.type, falseExpr.type);
+
+            constantValue = ConstantFolding.FoldConditional(condition, trueExpr, falseExpr, null);
+
+            return new BoundUnconvertedConditionalOperator(
                 node,
                 condition,
-                false,
                 trueExpr,
                 falseExpr,
                 constantValue,
-                null,
-                constantValue is null
+                noCommonError,
+                false
             );
         }
 
         bool hasErrors;
+
         if (bestType.IsErrorType()) {
             trueExpr = BindToNaturalType(trueExpr, diagnostics, false);
             falseExpr = BindToNaturalType(falseExpr, diagnostics, false);
@@ -13432,8 +13461,8 @@ symIsHidden:;
                 }
 
                 break;
-            case BoundKind.ConditionalOperator: {
-                    var conditionalOperator = (BoundConditionalOperator)operand;
+            case BoundKind.UnconvertedConditionalOperator: {
+                    var conditionalOperator = (BoundUnconvertedConditionalOperator)operand;
                     var reportedError = false;
                     TryConversion(conditionalOperator.trueExpression, ref reportedError);
                     TryConversion(conditionalOperator.falseExpression, ref reportedError);
@@ -13481,6 +13510,53 @@ symIsHidden:;
                     diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
             }
         }
+    }
+
+    private BoundExpression ConvertConditionalExpression(
+        BoundUnconvertedConditionalOperator source,
+        TypeSymbol destination,
+        Conversion? conversionIfTargetTyped,
+        BelteDiagnosticQueue diagnostics,
+        bool hasErrors = false) {
+        var targetTyped = conversionIfTargetTyped is not null;
+        var conversion = conversionIfTargetTyped.GetValueOrDefault();
+        var underlyingConversions = conversion.underlyingConversions;
+        var condition = source.condition;
+        hasErrors |= source.hasErrors || destination.IsErrorType();
+
+        var trueExpr = targetTyped
+            ? CreateConversion(
+                source.trueExpression.syntax,
+                source.trueExpression,
+                underlyingConversions[0],
+                isCast: false,
+                destination,
+                diagnostics
+            )
+            : GenerateConversionForAssignment(destination, source.trueExpression, diagnostics);
+        var falseExpr = targetTyped
+            ? CreateConversion(
+                source.falseExpression.syntax,
+                source.falseExpression,
+                underlyingConversions[1],
+                isCast: false,
+                destination,
+                diagnostics
+            )
+            : GenerateConversionForAssignment(destination, source.falseExpression, diagnostics);
+
+        var constantValue = ConstantFolding.FoldConditional(condition, trueExpr, falseExpr, destination);
+
+        return new BoundConditionalOperator(
+            source.syntax,
+            condition,
+            isRef: false,
+            trueExpr,
+            falseExpr,
+            constantValue,
+            destination,
+            hasErrors
+        );
     }
 
     internal void GenerateImplicitConversionErrorForList(
@@ -13576,7 +13652,8 @@ symIsHidden:;
                 listExpression,
                 conversion,
                 null,
-                destination
+                destination,
+                hasErrors
             );
         }
 
@@ -13593,7 +13670,8 @@ symIsHidden:;
                 ptrExpression,
                 conversion,
                 null,
-                destination
+                destination,
+                hasErrors
             );
         }
 
@@ -13610,7 +13688,8 @@ symIsHidden:;
                 fieldExpression,
                 conversion,
                 fieldExpression.constantValue,
-                destination
+                destination,
+                hasErrors
             );
         }
 
@@ -13627,7 +13706,26 @@ symIsHidden:;
                 objectCreaiton,
                 conversion,
                 null,
-                destination
+                destination,
+                hasErrors
+            );
+        }
+
+        if (conversion.kind == ConversionKind.ConditionalExpression) {
+            var convertedConditional = ConvertConditionalExpression(
+                (BoundUnconvertedConditionalOperator)source,
+                destination,
+                conversionIfTargetTyped: conversion,
+                diagnostics
+            );
+
+            return new BoundCastExpression(
+                node,
+                convertedConditional,
+                conversion,
+                convertedConditional.constantValue,
+                destination,
+                hasErrors
             );
         }
 

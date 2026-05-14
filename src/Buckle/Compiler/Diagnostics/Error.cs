@@ -2136,6 +2136,21 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ObjectCreationIllegalTargetType, location, message);
     }
 
+    internal static Diagnostic ShebangNotOnFirstLine() {
+        var message = $"'#!' must be the first characters on the first line of the file";
+        return CreateError(DiagnosticCode.ERR_ShebangNotOnFirstLine, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousTernary(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"the type of conditional expression cannot be determined because '{type1.ToNullOrString()}' and '{type2.ToNullOrString()}' implicitly convert to one another";
+        return CreateError(DiagnosticCode.ERR_AmbiguousTernary, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidTernary(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"the type of conditional expression cannot be determined because there is no implicit conversion between '{type1.ToNullOrString()}' and '{type2.ToNullOrString()}'";
+        return CreateError(DiagnosticCode.ERR_InvalidTernary, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -29,4 +29,5 @@ internal enum ConversionKind : byte {
     ListExpression,
     MethodGroup,
     ObjectCreation,
+    ConditionalExpression,
 }

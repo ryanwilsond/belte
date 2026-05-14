@@ -462,19 +462,13 @@ internal static class ConstantFolding {
         ConstantValue center,
         ConstantValue right,
         TypeSymbol type) {
-        var specialType = type.specialType;
+        var specialType = type?.specialType;
 
-        if (ConstantValue.IsNotNull(left) &&
-            (bool)left.value &&
-            center is not null) {
-            return new ConstantValue(center.value, specialType);
-        }
+        if (ConstantValue.IsNotNull(left) && (bool)left.value && center is not null)
+            return new ConstantValue(center.value, specialType ?? center.specialType);
 
-        if (ConstantValue.IsNotNull(left) &&
-            !(bool)left.value &&
-            right is not null) {
-            return new ConstantValue(right.value, specialType);
-        }
+        if (ConstantValue.IsNotNull(left) && !(bool)left.value && right is not null)
+            return new ConstantValue(right.value, specialType ?? right.specialType);
 
         return null;
     }

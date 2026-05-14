@@ -209,6 +209,10 @@
                 {
                     "name": "comment.line.double-slash.documentation",
                     "match": "///.*"
+                },
+                {
+                    "name": "comment.shebang",
+                    "match": "#!.*"
                 }
             ]
         }
