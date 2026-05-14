@@ -25,6 +25,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
+    private readonly Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> _enumMethodContainerTypes;
     private readonly Predicate<Symbol> _filter;
     private readonly bool _collectSymbols;
 
@@ -47,6 +48,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
+        Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> enumMethodContainerTypes,
         Predicate<Symbol> filter,
         bool emitting,
         bool collectSymbols) {
@@ -62,6 +64,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _typeLayouts = typeLayouts;
         _synthesizedNestedTypes = [];
         _collectSymbols = collectSymbols;
+        _enumMethodContainerTypes = enumMethodContainerTypes;
     }
 
     internal static BoundProgram CompileMethodBodies(
@@ -80,11 +83,29 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         // Unfortunately we have to do this even if we don't use it
         // We have to allow any future programs to use layouts from this one
         EvaluatorTypeLayoutVisitor.CreateTypeLayouts(typeLayouts, globalNamespace);
-        var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
+        var previousProgram = compilation?.previous?.boundProgram;
+        var previousLayouts = previousProgram?.typeLayouts;
 
         if (previousLayouts is not null) {
             foreach (var layout in previousLayouts)
                 typeLayouts.TryAdd(layout.Key, layout.Value);
+        }
+
+        // TODO If this gets expensive we can store it in the bound program directly instead of recalculating
+        // Figured that this usually will be really small
+        var enumMethodContainerTypes = new Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer>();
+
+        if (previousProgram is not null) {
+            var current = previousProgram;
+
+            do {
+                foreach (var type in current.types) {
+                    if (type is SynthesizedEnumMethodContainer enumContainer)
+                        enumMethodContainerTypes.Add(enumContainer.enumType, enumContainer);
+                }
+
+                current = current.previous;
+            } while (current is not null);
         }
 
         var entryPoint = (emittingToDll || skipEntryPoint) ? null : GetEntryPoint(compilation, diagnostics);
@@ -101,6 +122,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             entryPoint,
             updatePoint,
             typeLayouts,
+            enumMethodContainerTypes,
             filter,
             !transpiling,
             collectSymbols
@@ -413,6 +435,21 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
     }
 
+    internal MethodSymbol GetEnumMethod(NamedTypeSymbol enumType, MethodSymbol originalMethod) {
+        if (_enumMethodContainerTypes.TryGetValue(enumType, out var container))
+            return container.methodMap[originalMethod];
+
+        var synthesizedContainer = new SynthesizedEnumMethodContainer(enumType, enumType.containingNamespace);
+
+        lock (_enumMethodContainerTypes)
+            _enumMethodContainerTypes.TryAdd(enumType, synthesizedContainer);
+
+        lock (_types)
+            _types.Add(synthesizedContainer);
+
+        return synthesizedContainer.methodMap[originalMethod];
+    }
+
     private void CompileMethod(
         MethodSymbol method,
         int methodOrdinal,
@@ -479,6 +516,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             out var sawCompileTimeExpression
         );
 
+        if (method.methodKind == MethodKind.Ordinary && method.containingType.IsEnumType())
+            method = GetEnumMethod(method.containingType, method);
+
         _sawCompileTimeExpression |= sawCompileTimeExpression;
 
         if (_emitting) {
@@ -506,7 +546,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _methodBodies.TryAdd(method, loweredBody);
     }
 
-    private static BoundBlockStatement LowerBody(
+    private BoundBlockStatement LowerBody(
         MethodSymbol method,
         int methodOrdinal,
         BoundBlockStatement body,
@@ -517,6 +557,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         ref MethodSymbol entryPoint,
         out bool sawCompileTimeExpression) {
         var loweredBody = Lowerer.Lower(
+            this,
             state.compilation.options.optimizationLevel,
             method,
             body,

@@ -409,43 +409,59 @@ internal sealed partial class LanguageParser : SyntaxParser {
             baseType,
             null,
             openBrace,
-            null,
             members,
             closeBrace
         );
     }
 
-    private SeparatedSyntaxList<EnumMemberDeclarationSyntax> ParseEnumMembers() {
-        var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
-        var parseNextMember = true;
+    private SyntaxList<MemberDeclarationSyntax> ParseEnumMembers() {
+        var members = SyntaxListBuilder<MemberDeclarationSyntax>.Create();
+        var lastTokenPosition = -1;
 
-        while (parseNextMember &&
-            currentToken.kind != SyntaxKind.CloseBraceToken &&
-            currentToken.kind != SyntaxKind.EndOfFileToken) {
-            var expression = ParseEnumMember();
-            nodesAndSeparators.Add(expression);
+        while (currentToken.kind is not SyntaxKind.CloseBraceToken and not SyntaxKind.EndOfFileToken &&
+            IsMakingProgress(ref lastTokenPosition)) {
+            var member = ParseEnumMember(out var definitivelyLastMember);
+            members.Add(member);
 
-            if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = EatToken();
-                nodesAndSeparators.Add(comma);
-            } else {
-                parseNextMember = false;
-            }
+            if (definitivelyLastMember)
+                break;
         }
 
-        return new SeparatedSyntaxList<EnumMemberDeclarationSyntax>(nodesAndSeparators.ToList());
+        return members.ToList();
     }
 
-    private EnumMemberDeclarationSyntax ParseEnumMember() {
-        if (_isIncrementalAndFactoryContextMatches && _currentNodeKind == SyntaxKind.EnumMemberDeclaration)
-            return (EnumMemberDeclarationSyntax)EatNode();
+    private MemberDeclarationSyntax ParseEnumMember(out bool definitivelyLastMember) {
+        definitivelyLastMember = false;
+
+        if (_isIncrementalAndFactoryContextMatches &&
+            _currentNodeKind is SyntaxKind.EnumMemberDeclaration or SyntaxKind.MethodDeclaration) {
+            return (MemberDeclarationSyntax)EatNode();
+        }
 
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
+
+        var resetPoint = GetResetPoint();
+        var returnType = ParseType();
+
+        if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnostics) {
+            if (PeekIsPostReturnFunction())
+                return ParseMethodDeclaration(attributeLists, modifiers, returnType);
+        }
+
+        Reset(resetPoint);
+
         var identifier = Match(SyntaxKind.IdentifierToken);
         var equalsValue = currentToken.kind == SyntaxKind.EqualsToken ? ParseEqualsValueClause(false) : null;
 
-        return SyntaxFactory.EnumMemberDeclaration(attributeLists, modifiers, identifier, equalsValue);
+        SyntaxToken comma = null;
+
+        if (currentToken.kind == SyntaxKind.CommaToken)
+            comma = EatToken();
+        else
+            definitivelyLastMember = true;
+
+        return SyntaxFactory.EnumMemberDeclaration(attributeLists, modifiers, identifier, equalsValue, comma);
     }
 
     private MemberDeclarationSyntax ParseClassDeclaration(

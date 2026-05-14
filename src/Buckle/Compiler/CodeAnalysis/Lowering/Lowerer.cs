@@ -23,23 +23,32 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly SharedExpander _expander;
     private readonly bool _transpiling;
+    private readonly MethodCompiler _methodCompiler;
+    private readonly MethodSymbol _method;
 
     private List<BoundDeferStatement> _deferStatements = [];
     private bool _sawCompileTimeExpression;
 
-    private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics, bool transpiling) {
+    private Lowerer(
+        MethodCompiler methodCompiler,
+        MethodSymbol container,
+        BelteDiagnosticQueue diagnostics,
+        bool transpiling) {
+        _methodCompiler = methodCompiler;
         _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
         _transpiling = transpiling;
+        _method = container;
     }
 
     internal static BoundBlockStatement Lower(
+        MethodCompiler methodCompiler,
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
         BoundStatement statement,
         BelteDiagnosticQueue diagnostics,
         bool transpiling,
         out bool sawCompileTimeExpression) {
-        var lowerer = new Lowerer(method, diagnostics, transpiling);
+        var lowerer = new Lowerer(methodCompiler, method, diagnostics, transpiling);
         var optimize = optimizationLevel == OptimizationLevel.Release && !transpiling;
 
         var rewrittenStatement = statement;
@@ -783,7 +792,65 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitCastExpression(node);
     }
 
+    internal override BoundNode VisitThisExpression(BoundThisExpression node) {
+        if (node.type.IsEnumType()) {
+            var parameter = _methodCompiler.GetEnumMethod(_method.containingType, _method).parameters[0];
+            return Parameter(node.syntax, parameter);
+        }
+
+        return base.VisitThisExpression(node);
+    }
+
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
+        /*
+
+        <receiver>.<method>(<args>)
+
+        ----> <receiver> is of enum type
+
+        <method>(<receiver>,<args>)
+
+        */
+        var method = expression.method;
+
+        if (method.containingType?.IsEnumType() == true) {
+            var newArguments = ArrayBuilder<BoundExpression>.GetInstance();
+            var newArgumentRefKinds = ArrayBuilder<RefKind>.GetInstance();
+
+            if (!method.isStatic) {
+                var thisArgument = (BoundExpression)Visit(expression.receiver);
+
+                if (thisArgument.type.IsNullableType()) {
+                    thisArgument = (BoundExpression)Visit(
+                        Value(thisArgument.syntax, thisArgument, thisArgument.StrippedType())
+                    );
+                }
+
+                newArguments.Add(thisArgument);
+                newArgumentRefKinds.Add(RefKind.None);
+            }
+
+            for (var i = 0; i < expression.arguments.Length; i++) {
+                newArguments.Add((BoundExpression)Visit(expression.arguments[i]));
+                newArgumentRefKinds.Add(expression.argumentRefKinds[i]);
+            }
+
+            var newMethod = _methodCompiler.GetEnumMethod(method.containingType, method);
+
+            return base.VisitCallExpression(
+                new BoundCallExpression(
+                    expression.syntax,
+                    null,
+                    newMethod,
+                    newArguments.ToImmutableAndFree(),
+                    newArgumentRefKinds.ToImmutableAndFree(),
+                    expression.defaultArguments, // TODO We don't use this but if we decide to it needs to be updated
+                    expression.resultKind,
+                    expression.type
+                )
+            );
+        }
+
         ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < expression.arguments.Length; i++) {
@@ -807,7 +874,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitCallExpression(
             expression.Update(
                 expression.receiver,
-                expression.method,
+                method,
                 arguments,
                 expression.argumentRefKinds,
                 expression.defaultArguments,

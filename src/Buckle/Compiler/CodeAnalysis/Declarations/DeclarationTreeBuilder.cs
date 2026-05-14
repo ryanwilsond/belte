@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -354,7 +355,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     private BoxedMemberNames GetEnumMemberNames(
         EnumDeclarationSyntax enumDeclaration,
         ref SingleTypeDeclaration.TypeDeclarationFlags declFlags) {
-        var members = enumDeclaration.enumMembers;
+        var members = enumDeclaration.members;
         var cnt = members.Count;
 
         if (cnt != 0)
@@ -367,11 +368,12 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return GetOrComputeMemberNames(
             enumDeclaration,
-            static (memberNamesBuilder, members) => {
+            (memberNamesBuilder, members) => {
                 foreach (var member in members)
-                    memberNamesBuilder.Add(member.identifier.text);
+                    AddNonTypeMemberNames((CoreInternalSyntax.BelteSyntaxNode)member.green, memberNamesBuilder);
             },
-            members);
+            members
+        );
     }
 
     private SingleTypeDeclaration VisitTypeDeclaration(TypeDeclarationSyntax node, DeclarationKind kind) {
@@ -572,6 +574,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 var opDecl = (CoreInternalSyntax.OperatorDeclarationSyntax)member;
                 var name = SyntaxFacts.GetOperatorMemberName(opDecl);
                 set.Add(name);
+                break;
+            case SyntaxKind.EnumMemberDeclaration:
+                set.Add(((CoreInternalSyntax.EnumMemberDeclarationSyntax)member).identifier.text);
                 break;
         }
     }

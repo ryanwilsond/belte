@@ -26,6 +26,7 @@
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
   - [4.6.3](#463-experimental-underlying-types) Experimental Underlying Types
   - [4.6.4](#464-bit-testing) Bit Testing
+  - [4.6.5](#465-methods) Methods
 - [4.7](#47-namespaces) Namespaces
 - [4.8](#48-using-directives) Using Directives
   - [4.8.1](#481-aliasing) Aliasing
@@ -569,12 +570,20 @@ enum flags MyEnum {
 
 ### 4.6.2 Implicit Enum Fields
 
-In target typed expressions, an implicit enum field expression can be used which
-omits the enum type name. The following are equivalent:
+In target typed expressions, an implicit enum field expression can be used which omits the enum type name. The following
+are equivalent:
 
 ```belte
 var myLocal = MyEnum.Field1;
 MyEnum myLocal = .Field1;
+```
+
+Any target typed expression context supports this shorthand, which also includes method arguments:
+
+```belte
+Func(.Field1);
+
+void Func(MyEnum param) { /* ... */ }
 ```
 
 ### 4.6.3 Experimental Underlying Types
@@ -613,6 +622,58 @@ implicitly:
 var f = F.B;
 
 if (f.B) { /* ... */ }
+```
+
+### 4.6.5 Methods
+
+Enums don't contain methods in metadata, but methods can be written inside of an enum for convenience.
+
+A static method is treated the same as an ordinary static method where it is qualified with the enum name. A non-static
+method is called off of a receiver that is of the enclosing enum type. Inside of a non-static enum method, `this` refers
+to an instance of the enum (that is, the value type).
+
+For example:
+
+```belte
+var f = F.B;
+return f.IsAOrB(); // true
+
+enum flags F {
+  None,
+  A,
+  B,
+  C,
+
+  public bool IsAOrB() {
+    return this == .A || this == .B;
+  }
+}
+```
+
+Note that by using the [bit testing shorthand](#464-bit-testing) the method `IsAOrB` could also be written:
+
+```belte
+public bool IsAOrB() {
+  return this.A || this.B;
+}
+```
+
+Methods inside of an enum can inter-splice the enum fields, but note that any preceding fields must include a trailing
+comma for the method to be parsed correctly:
+
+```belte
+enum E {
+  public static void M1() { }
+
+  A,
+  B,
+
+  public static void M2() { }
+
+  C,
+
+  public static void M3() { }
+}
 ```
 
 ## 4.7 Namespaces

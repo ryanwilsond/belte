@@ -377,6 +377,10 @@ public sealed class EvaluatorTests {
     [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
     [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.w;", false)]
     [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.t;", true)]
+    [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = .t; return a.Test();", true)]
+    [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.t | A.r; return a.Test();", true)]
+    [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.r; return a.Test();", false)]
+    [InlineData("enum flags A { q, w, e, r, t, public static bool Test() { return true; } } return A.Test();", true)]
     // If statements
     [InlineData("int? a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int? a = 0; if (a == 4) { a = 10; } return a;", 0)]

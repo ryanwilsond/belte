@@ -1471,7 +1471,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         switch (syntax.kind) {
             case SyntaxKind.EnumDeclaration:
-                AddEnumMembers(builder, (EnumDeclarationSyntax)syntax, diagnostics);
+                var enumDeclaration = (EnumDeclarationSyntax)syntax;
+                AddEnumMembers(builder, enumDeclaration, diagnostics);
+                AddNonTypeMembers(builder, enumDeclaration.members, diagnostics);
                 break;
             case SyntaxKind.CompilationUnit:
                 AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
@@ -1516,16 +1518,19 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         var otherSymbolOffset = 0;
 
-        foreach (var member in syntax.enumMembers) {
+        foreach (var member in syntax.members) {
+            if (member is not EnumMemberDeclarationSyntax enumMember)
+                break;
+
             SourceEnumConstantSymbol symbol;
-            var valueOpt = member.equalsValue;
+            var valueOpt = enumMember.equalsValue;
 
             if (valueOpt is not null) {
-                symbol = SourceEnumConstantSymbol.CreateExplicitValuedConstant(this, member, diagnostics);
+                symbol = SourceEnumConstantSymbol.CreateExplicitValuedConstant(this, enumMember, diagnostics);
             } else {
                 symbol = SourceEnumConstantSymbol.CreateImplicitValuedConstant(
                     this,
-                    member,
+                    enumMember,
                     otherSymbol,
                     otherSymbolOffset,
                     diagnostics
@@ -1944,7 +1949,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         return SpecialType.None;
     }
 
-    private static Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> ToNameKeyedDictionary(
+    internal static Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> ToNameKeyedDictionary(
         ImmutableArray<Symbol> symbols) {
         if (symbols is [var symbol]) {
             return new Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>>(
