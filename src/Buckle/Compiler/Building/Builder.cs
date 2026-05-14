@@ -11,8 +11,11 @@ public sealed class Builder {
         outputKind = OutputKind.ConsoleApplication;
         inputs = [];
         refs = [];
+        wincludes = [];
+        wexcludes = [];
         l = 0;
         maxCores = 0;
+        warningLevel = 1;
     }
 
     public List<(string, InputOptions)> inputs { get; }
@@ -26,6 +29,12 @@ public sealed class Builder {
     public VerboseMode verboseMode { get; private set; }
 
     public int maxCores { get; private set; }
+
+    public List<string> wincludes { get; private set; }
+
+    public List<string> wexcludes { get; private set; }
+
+    public int warningLevel { get; private set; }
 
     public void AddInput(string path) {
         inputs.Add((path, InputOptions.None));
@@ -53,5 +62,17 @@ public sealed class Builder {
 
     public void SetMaxCores(int coreCount) {
         maxCores = coreCount;
+    }
+
+    public void ExcludeWarnings(string[] codes) {
+        wexcludes.AddRange(codes);
+    }
+
+    public void IncludeWarnings(string[] codes) {
+        wincludes.AddRange(codes);
+    }
+
+    public void SetWarningLevel(int level) {
+        warningLevel = level;
     }
 }

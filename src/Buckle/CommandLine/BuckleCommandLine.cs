@@ -535,15 +535,18 @@ public class {name} {{
         var maxCores = builder.maxCores > 0 ? builder.maxCores : Environment.ProcessorCount - 2;
         var concurrentBuild = maxCores > 1;
 
+        var includeWarnings = ParseAndVerifyWarningCodes(builder.wincludes.ToArray(), diagnostics).ToArray();
+        var excludeWarnings = ParseAndVerifyWarningCodes(builder.wexcludes.ToArray(), diagnostics).ToArray();
+
         return new CompilerState() {
             buildMode = builder.buildMode,
             moduleName = moduleName,
             references = references.ToArray(),
             debugMode = false,
             severity = DiagnosticSeverity.Error,
-            warningLevel = 1,
-            includeWarnings = [],
-            excludeWarnings = [],
+            warningLevel = builder.warningLevel,
+            includeWarnings = includeWarnings,
+            excludeWarnings = excludeWarnings,
             finishStage = CompilerStage.Finished,
             outputFilename = outputFilename,
             tasks = tasks.ToArray(),
@@ -1565,6 +1568,12 @@ public class {name} {{
         string codesString,
         DiagnosticQueue<Diagnostic> diagnostics) {
         var codes = codesString.Split(',');
+        return ParseAndVerifyWarningCodes(codes, diagnostics);
+    }
+
+    private static List<DiagnosticInfo> ParseAndVerifyWarningCodes(
+        string[] codes,
+        DiagnosticQueue<Diagnostic> diagnostics) {
         var infos = new List<DiagnosticInfo>();
 
         foreach (var code in codes) {

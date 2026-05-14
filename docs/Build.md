@@ -5,6 +5,7 @@
 - [Build Mode & Output Kind](#build-mode--output-kind)
 - [References](#references)
 - [Concurrent Builds](#concurrent-builds)
+- [Diagnostics](#diagnostics)
 - [Logging](#logging)
 
 ## Introduction
@@ -152,6 +153,34 @@ using Buckle.Building;
 
 void Build(Builder builder) {
   builder.SetMaxCores(1);
+}
+```
+
+## Diagnostics
+
+The diagnostic reporting warning level can be set with `Builder.SetWarningLevel(level)`. The default is `1`.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetWarningLevel(2);
+}
+```
+
+Specific warnings can be included and excluded by using `Builder.IncludeWarnings(codes)` and
+`Builder.ExcludeWarnings(codes)`. Both of these can be called multiple times and they will be aggregated.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.IncludeWarnings({ "BU0002", "BU0041" });
+  builder.ExcludeWarnings({ "BU0026" });
 }
 ```
 
