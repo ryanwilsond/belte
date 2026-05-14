@@ -92,10 +92,11 @@ These keywords are reserved names and cannot be used as identifiers.
 - [base](ClassesAndObjects.md#413-base-access)
 - [break](ControlFlow.md#245-break)
 - [case](ControlFlow.md#25-switch)
+- [catch](ControlFlow.md#261-trycatchfinally)
 - [class](ClassesAndObjects.md#41-classes)
-- [constexpr](ClassesAndObjects.md#433-static--constexpr)
 - [const](Data.md#33-variables-and-constants) (locals)
 - [const](ClassesAndObjects.md#434-const) (methods)
+- [constexpr](ClassesAndObjects.md#433-static--constexpr)
 - [constructor](ClassesAndObjects.md#44-constructors)
 - [continue](ControlFlow.md#246-continue)
 - [default](Data.md#314-default-literal) (literal)
@@ -111,6 +112,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [extends](ClassesAndObjects.md#4512-special-constraints) (template constraints)
 - [extern](LowLevelFeatures.md#67-extern-methods)
 - [false](Data.md#31-data-types)
+- [finally](ControlFlow.md#261-trycatchfinally)
 - [for](ControlFlow.md#243-for-loops) (for loop)
 - [for](ControlFlow.md#244-for-each-loops) (for each loop)
 - [global](ClassesAndObjects.md#483-global-using-directive) (global using)
@@ -150,6 +152,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [this](ClassesAndObjects.md#411-declaring-and-using-classes)
 - [throw](ControlFlow.md#26-exceptions-and-handling)
 - [true](Data.md#31-data-types)
+- [try](ControlFlow.md#261-trycatchfinally)
 - [typeof](Data.md#32-operators)
 - [undef](Preprocessor.md#71-defineundef)
 - [unreachable](ControlFlow.md#210-unreachable-statements)
@@ -159,12 +162,6 @@ These keywords are reserved names and cannot be used as identifiers.
 - [where](ClassesAndObjects.md#451-constraint-clauses)
 - [while](ControlFlow.md#241-while-loops)
 - [with](ControlFlow.md#27-with-expressions-and-statements)
-
-The following keywords are reserved names but are not yet used:
-
-- catch
-- finally
-- try
 
 ### 1.3.2 Contextual Keywords
 

@@ -1,6 +1,4 @@
-<p align="center">
-<img width="300" src="./images/BelteCapital.png" alt="Belte Logo">
-</p>
+# Belte Language Highlighting
 
 Syntax highlighting for the Belte programming language.
 
