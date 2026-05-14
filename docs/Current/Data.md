@@ -152,10 +152,10 @@ strict order of precedence:
 | Operators | Category |
 | - | - |
 | a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, x?, new, typeof, nameof, sizeof | Primary |
+| x ** y | Power |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
 | is, isnt, as | Type-Testing |
-| x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
@@ -168,6 +168,9 @@ strict order of precedence:
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |
 | c ? t : f | Tertiary Conditional |
+
+Note that all binary operators are left-associative except for the power operator. For example `2 + 3 + 4` will parse as
+`(2 + 3) + 4` while `2 ** 3 ** 4` will parse as `2 ** (3 ** 4)`.
 
 ### 3.2.2 Uncommon Operators
 

@@ -1071,7 +1071,12 @@ internal sealed class Expander : SharedExpander {
         var operand = expression.operand;
 
         if (expression.conversion.kind == ConversionKind.MethodGroup) {
-            replacement = new BoundFunctionLoad(syntax, expression.conversion.method, expression.type);
+            var method = expression.conversion.method;
+            var receiver = (!method.RequiresInstanceReceiver() && !method.isAbstract && !method.isVirtual)
+                ? new BoundTypeExpression(syntax, null, null, method.containingType)
+                : ((BoundMethodGroup)operand).receiver;
+
+            replacement = new BoundFunctionLoad(syntax, receiver, expression.conversion.method, expression.type);
             return [];
         }
 

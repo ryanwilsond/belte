@@ -349,7 +349,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 ref argRefKinds
             );
 
-            return node.Update(remappedMethod, node.type);
+            return node.Update(receiver, remappedMethod, node.type);
         }
 
         return base.VisitFunctionLoad(node);

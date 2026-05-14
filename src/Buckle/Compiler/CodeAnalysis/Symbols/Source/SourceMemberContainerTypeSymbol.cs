@@ -1533,6 +1533,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     enumMember,
                     otherSymbol,
                     otherSymbolOffset,
+                    enumFlagsAttribute,
                     diagnostics
                 );
             }
@@ -1543,15 +1544,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 otherSymbol = symbol;
                 otherSymbolOffset = 1;
             } else {
-                otherSymbolOffset = Next(otherSymbolOffset);
+                otherSymbolOffset++;
             }
-        }
-
-        int Next(int offset) {
-            if (enumFlagsAttribute && (offset & (offset - 1)) == 0)
-                return offset << 1;
-
-            return offset + 1;
         }
     }
 

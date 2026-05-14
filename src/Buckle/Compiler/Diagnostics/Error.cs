@@ -2151,6 +2151,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidTernary, location, message);
     }
 
+    internal static BelteDiagnostic CannotTakeFunctionPointerOfNonStatic(TextLocation location, MethodSymbol method) {
+        var message = $"cannot create a function pointer to '{method}' because it is not a static method";
+        return CreateError(DiagnosticCode.ERR_CannotTakeFunctionPointerOfNonStatic, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -67,6 +67,8 @@ void TopLevelFunction(int param) {
 }
 ```
 
+Nested functions marked `static` cannot access locals of the enclosing scope.
+
 ### 2.1.2 Overloads
 
 As long as the signatures are different, it is valid to declare multiple functions with the same name (overloads). When

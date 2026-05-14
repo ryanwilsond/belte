@@ -176,7 +176,11 @@ internal sealed partial class LocalFunctionRewriter {
             if (_currentFunction is null)
                 return;
 
-            if (symbol is DataContainerSymbol local && (local.isConstExpr || (local.isGlobal && _options.isScript)))
+            // Optimization: In the case of script evaluator globals we can skip capturing because they're always accessible
+            var canSkipCapturing = symbol is DataContainerSymbol local &&
+                (local.isConstExpr || (local.isGlobal && _options.isScript && _options.buildMode.Evaluating()));
+
+            if (canSkipCapturing)
                 return;
 
             if (symbol is MethodSymbol method && _currentFunction.originalMethodSymbol == method)

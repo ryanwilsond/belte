@@ -5459,4 +5459,24 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0439_CannotTakeFunctionPointerOfNonStatic() {
+        var text = @"
+            class A {
+                public static void M() {
+                    int a = 3;
+                    int F() { return a; }
+                    int()* g = &[F];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot create a function pointer to 'F()' because it is not a static method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

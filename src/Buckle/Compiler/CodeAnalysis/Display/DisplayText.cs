@@ -1003,6 +1003,12 @@ public sealed class DisplayText {
         text.Write(CreateIdentifier("Func"));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+
+        if (node.receiver is not null) {
+            DisplayNode(node.receiver);
+            text.Write(CreatePunctuation(SyntaxKind.PercentToken));
+        }
+
         SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }

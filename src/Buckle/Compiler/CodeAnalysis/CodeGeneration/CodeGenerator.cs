@@ -372,10 +372,17 @@ internal sealed partial class CodeGenerator {
             if (local.refKind == RefKind.None)
                 throw ExceptionUtilities.UnexpectedValue(local.refKind);
         } else {
-            _builder.EmitLocalAddress(local);
+            EmitLocalAddress(local);
         }
 
         return null;
+    }
+
+    internal void EmitLocalAddress(DataContainerSymbol local) {
+        if (local.isRef)
+            _builder.EmitLocalLoad(local);
+        else
+            _builder.EmitLocalAddress(local);
     }
 
     private VariableDefinition EmitParameterAddress(BoundParameterExpression parameter, AddressKind addressKind) {
@@ -1393,7 +1400,25 @@ oneMoreTime:
 
     private void EmitFunctionLoad(BoundFunctionLoad load, bool used) {
         if (used) {
-            _builder.Emit(OpCode.Ldnull);
+            var method = load.targetMethod;
+            var receiver = load.receiver;
+
+            if (method.isStatic) {
+                _builder.Emit(OpCode.Ldnull);
+
+                if (method.isAbstract || method.isVirtual) {
+                    if (receiver is not BoundTypeExpression { type.typeKind: TypeKind.TemplateParameter })
+                        throw ExceptionUtilities.Unreachable();
+
+                    _builder.EmitWithSymbolToken(OpCode.Constrained, receiver.type);
+                }
+            } else {
+                EmitExpression(load.receiver, true);
+
+                if (!receiver.type.IsVerifierReference())
+                    EmitBox(receiver.type);
+            }
+
             _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
             _builder.EmitNewobjFunc(load.type.StrippedType() as FunctionTypeSymbol);
         }

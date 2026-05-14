@@ -358,6 +358,7 @@
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundFunctionLoad" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="targetMethod" Type="MethodSymbol"/>
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>

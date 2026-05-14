@@ -76,6 +76,17 @@ public sealed class EvaluatorContext : IDisposable {
         return _globals[symbol.name].Item2;
     }
 
+    internal int GetSlotOfGlobalOrAllocate(DataContainerSymbol symbol) {
+        if (_globals.TryGetValue(symbol.name, out var value))
+            return value.Item2;
+
+        var index = _bumpPointer++;
+        EnsureCapacity(_bumpPointer);
+        _globals.Add(symbol.name, (symbol, index));
+
+        return index;
+    }
+
     internal void AddOrUpdateGlobal(DataContainerSymbol symbol, EvaluatorValue value) {
         if (_globals.TryGetValue(symbol.name, out var pair)) {
             globalSlots[pair.Item2] = value;

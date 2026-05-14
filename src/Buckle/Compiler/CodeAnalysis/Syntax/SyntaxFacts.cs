@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -18,11 +19,11 @@ public static class SyntaxFacts {
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
     public static int GetBinaryPrecedence(this SyntaxKind type) {
         switch (type) {
+            case SyntaxKind.AsteriskAsteriskToken:
+                return 18;
             case SyntaxKind.IsKeyword:
             case SyntaxKind.IsntKeyword:
             case SyntaxKind.AsKeyword:
-                return 15;
-            case SyntaxKind.AsteriskAsteriskToken:
                 return 14;
             case SyntaxKind.AsteriskToken:
             case SyntaxKind.SlashToken:
@@ -84,10 +85,10 @@ public static class SyntaxFacts {
             case SyntaxKind.ExclamationExclamationToken:
             case SyntaxKind.NewKeyword:
                 return 19;
-            // ! Precedence 17 must remain unused (it is used to correctly parse cascade lists)
+            // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
             case SyntaxKind.PeriodPeriodToken:
             case SyntaxKind.QuestionPeriodPeriodToken:
-                return 16;
+                return 15;
             default:
                 return 0;
         }
@@ -110,7 +111,7 @@ public static class SyntaxFacts {
             case SyntaxKind.AsteriskToken:
             case SyntaxKind.DollarToken:
             case SyntaxKind.DollarQuestionToken:
-                return 18;
+                return 17;
             default:
                 return 0;
         }
@@ -144,6 +145,15 @@ public static class SyntaxFacts {
             SyntaxKind.QuestionToken => SyntaxKind.ColonToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type),
         };
+    }
+
+    internal static Associativity GetOperatorAssociativity(this SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.AsteriskAsteriskToken:
+                return Associativity.Right;
+            default:
+                return Associativity.Left;
+        }
     }
 
     /// <summary>

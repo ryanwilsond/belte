@@ -447,6 +447,7 @@ public enum DiagnosticCode : ushort {
     ERR_ShebangNotOnFirstLine = 436,
     ERR_AmbiguousTernary = 437,
     ERR_InvalidTernary = 438,
+    ERR_CannotTakeFunctionPointerOfNonStatic = 439,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

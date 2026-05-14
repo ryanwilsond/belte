@@ -551,8 +551,8 @@ enum flags MyEnum {
 ```
 
 Beyond documentation, the `flags` keyword also changes the default value behavior of enum fields. Instead of
-incrementally counting up from 0, enum fields will count up in powers of 2 (0, 1, 2, 4, 8, etc.) so that when the fields
-are combined their bits do not conflict. You can still give fields explicit values like normal.
+incrementally counting up from 0, enum fields will count up in powers of 2 starting at 1 (1, 2, 4, 8, etc.) so that when
+the fields are combined their bits do not conflict. You can still give fields explicit values like normal.
 
 Additionally, flags enums string cast will display each field component of the value. For example:
 
@@ -562,9 +562,19 @@ var myString = (string)myLocal;
 // myString = "Field1, Field2"
 
 enum flags MyEnum {
-  None,
   Field1,
   Field2,
+}
+```
+
+If a default flag at 0 is created the fields will still count up by powers of 2:
+
+```belte
+enum flags MyEnum {
+  None = 0,
+  Field1, // 1
+  Field2, // 2
+  Field3, // 4
 }
 ```
 

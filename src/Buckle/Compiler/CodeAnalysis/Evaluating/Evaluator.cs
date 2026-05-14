@@ -1592,9 +1592,6 @@ internal sealed class Evaluator {
         BoundAssignmentOperator node,
         UseKind useKind,
         ValueWrapper<bool> abort) {
-        if (node.left is BoundDataContainerExpression)
-            return EvaluateGlobalAssignment(node, useKind, abort);
-
         var lhs = EvaluateAssignmentPreamble(node, abort);
         var value = EvaluateAssignmentValue(node, abort);
         value = EvaluateAssignmentDuplication(useKind, value);
@@ -1673,29 +1670,11 @@ internal sealed class Evaluator {
         }
     }
 
-    private EvaluatorValue EvaluateGlobalAssignment(
-        BoundAssignmentOperator node,
-        UseKind useKind,
-        ValueWrapper<bool> abort) {
-        var global = (node.left as BoundDataContainerExpression).dataContainer;
-        var value = EvaluateAssignmentValue(node, abort);
-        value = EvaluateAssignmentDuplication(useKind, value);
-
-        if (global.refKind != RefKind.None && !node.isRef) {
-            _context.TryGetGlobal(global, out var indirect);
-            IndirectStore(node.syntax.location, indirect, value);
-        } else {
-            _context.AddOrUpdateGlobal(global, value);
-        }
-
-        return EvaluateAssignmentPostfix(node, value, useKind);
-    }
-
     private EvaluatorValue EvaluateAssignmentPostfix(
         BoundAssignmentOperator node,
         EvaluatorValue value,
         UseKind useKind) {
-        if (node.syntax.kind == Syntax.SyntaxKind.LocalDeclarationStatement)
+        if (node.syntax.kind == SyntaxKind.LocalDeclarationStatement)
             _lastValue = EvaluatorValue.None;
 
         if (useKind == UseKind.UsedAsValue && node.isRef)
@@ -1729,6 +1708,15 @@ internal sealed class Evaluator {
             case BoundKind.StackSlotExpression: {
                     var left = (BoundStackSlotExpression)assignmentTarget;
                     expr = EvaluatorValue.Ref(_stack.Peek().values, left.slot);
+                }
+
+                break;
+            case BoundKind.DataContainerExpression: {
+                    var left = (BoundDataContainerExpression)assignmentTarget;
+                    expr = EvaluatorValue.Ref(
+                        _context.globalSlots,
+                        _context.GetSlotOfGlobalOrAllocate(left.dataContainer)
+                    );
                 }
 
                 break;
@@ -2300,7 +2288,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateAddress(BoundExpression node, AddressKind addressKind, ValueWrapper<bool> abort) {
         switch (node.kind) {
             case BoundKind.DataContainerExpression:
-                return EvaluateGlobalAddress((BoundDataContainerExpression)node);
+                return EvaluateGlobalAddress((BoundDataContainerExpression)node, addressKind);
             case BoundKind.StackSlotExpression:
                 return EvaluateStackAddress((BoundStackSlotExpression)node, addressKind, abort);
             case BoundKind.FieldSlotExpression:
@@ -2407,7 +2395,17 @@ internal sealed class Evaluator {
         return EvaluateAddress(receiver, addressKind, abort);
     }
 
-    private EvaluatorValue EvaluateGlobalAddress(BoundDataContainerExpression node) {
+    private EvaluatorValue EvaluateGlobalAddress(BoundDataContainerExpression node, AddressKind addressKind) {
+        if (!HasHome(node, addressKind))
+            throw ExceptionUtilities.Unreachable();
+
+        if (node.dataContainer.isRef) {
+            if (!_context.TryGetGlobal(node.dataContainer, out var value))
+                throw new BelteInternalException($"Attempted to find global '{node.dataContainer.name}' that doesn't exist.");
+
+            return value;
+        }
+
         return EvaluatorValue.Ref(_context.globalSlots, _context.GetSlotOfGlobal(node.dataContainer));
     }
 
@@ -2419,6 +2417,9 @@ internal sealed class Evaluator {
             return EvaluateAddressOfTempClone(node, abort);
 
         if (node.symbol is ParameterSymbol p && p.refKind != RefKind.None)
+            return _stack.Peek().values[node.slot];
+
+        if (node.symbol is DataContainerSymbol d && d.isRef)
             return _stack.Peek().values[node.slot];
 
         return EvaluatorValue.Ref(_stack.Peek().values, node.slot);

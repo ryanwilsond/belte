@@ -2021,7 +2021,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 }
             }
 
-            if (precedence == 0 || precedence <= parentPrecedence || IsTerminator())
+            var associativity = currentToken.kind.GetOperatorAssociativity();
+            var shouldBreak = associativity == Associativity.Left
+                ? precedence <= parentPrecedence
+                : precedence < parentPrecedence;
+
+            if (precedence == 0 || shouldBreak || IsTerminator())
                 break;
 
             var operatorToken = EatToken();

@@ -9199,6 +9199,9 @@ internal partial class Binder {
                 paramRefKinds
             );
 
+            if (!method.isStatic)
+                diagnostics.Push(Error.CannotTakeFunctionPointerOfNonStatic(node.operand.location, method));
+
             return new BoundFunctionPointerLoad(
                 node,
                 group.methods.FirstOrDefault(),
