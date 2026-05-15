@@ -132,11 +132,12 @@ internal class SharedExpander : BoundTreeExpander {
         break:
 
         */
-        var statements = ExpandExpression(statement.expression, out var replacement);
+        var statements = ExpandExpression(statement.expression, out var replacement, UseKind.None);
 
         if (statements.Count == 0 && statement.expression == replacement)
             return [statement];
 
+        // TODO Could this instead be moved into conditional access operator detecting UseKind.None?
         if (replacement is BoundConditionalOperator c && c.trueExpression.type.IsVoidType())
             return RewriteVoidTernaryCall(c);
 
@@ -178,7 +179,7 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandCascadeListExpression(
         BoundCascadeListExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         var syntax = expression.syntax;
         var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.Writable);
         var tempLocal = GenerateTempLocal(expression.Type());
@@ -330,7 +331,7 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandInterpolatedStringExpression(
         BoundInterpolatedStringExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         var syntax = expression.syntax;
         var stringType = CorLibrary.GetSpecialType(SpecialType.String);
         var nullableStringType = CorLibrary.GetNullableType(SpecialType.String);
@@ -517,7 +518,7 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandWithExpression(
         BoundWithExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         /*
 
         with (<assignments>) <body>

@@ -252,7 +252,7 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandExpressionStatement(BoundExpressionStatement statement) {
-        var statements = ExpandExpression(statement.expression, out var replacement);
+        var statements = ExpandExpression(statement.expression, out var replacement, UseKind.None);
 
         if (statements.Count != 0 || statement.expression != replacement) {
             if (replacement is not null)

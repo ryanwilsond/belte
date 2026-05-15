@@ -242,6 +242,9 @@ public static class SyntaxFacts {
 
     internal static bool IsContextualKeyword(SyntaxKind kind) {
         switch (kind) {
+            case SyntaxKind.DefineKeyword:
+            case SyntaxKind.ElifKeyword:
+            case SyntaxKind.EndifKeyword:
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
@@ -249,6 +252,7 @@ public static class SyntaxFacts {
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.PrimitiveKeyword:
+            case SyntaxKind.UndefKeyword:
                 return true;
             default:
                 return false;

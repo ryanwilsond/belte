@@ -102,11 +102,8 @@ These keywords are reserved names and cannot be used as identifiers.
 - [default](Data.md#314-default-literal) (literal)
 - [default](ControlFlow.md#25-switch) (switch label)
 - [defer](ControlFlow.md#28-defer-statements)
-- [define](Preprocessor.md#71-defineundef)
 - [do](ControlFlow.md#242-do-while-loops)
-- [elif](Preprocessor.md#72-control)
 - [else](ControlFlow.md#23-conditionals)
-- [endif](Preprocessor.md#72-control)
 - [enum](ClassesAndObjects.md#46-enums)
 - [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
 - [extends](ClassesAndObjects.md#4512-special-constraints) (template constraints)
@@ -154,7 +151,6 @@ These keywords are reserved names and cannot be used as identifiers.
 - [true](Data.md#31-data-types)
 - [try](ControlFlow.md#261-trycatchfinally)
 - [typeof](Data.md#32-operators)
-- [undef](Preprocessor.md#71-defineundef)
 - [unreachable](ControlFlow.md#210-unreachable-statements)
 - [using](ClassesAndObjects.md#48-using-directives) (using directive)
 - [using](ControlFlow.md#29-using-statements) (using statement)
@@ -167,6 +163,9 @@ These keywords are reserved names and cannot be used as identifiers.
 
 These keywords only act as keywords inside specific contexts. As such they can be used as identifiers in most places.
 
+- [define](Preprocessor.md#71-defineundef)
+- [elif](Preprocessor.md#72-control)
+- [endif](Preprocessor.md#72-control)
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [flags](ClassesAndObjects.md#461-flags)
 - [handle](LowLevelFeatures.md#613-compiler-handle)
@@ -175,6 +174,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [notnull](ClassesAndObjects.md#4512-special-constraints)
 - [noverify](LowLevelFeatures.md#6111-verification)
 - [primitive](ClassesAndObjects.md#4512-special-constraints)
+- [undef](Preprocessor.md#71-defineundef)
 
 ## 1.4 Nullability and Types
 

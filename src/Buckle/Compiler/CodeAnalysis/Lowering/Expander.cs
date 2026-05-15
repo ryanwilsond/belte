@@ -101,7 +101,7 @@ internal sealed class Expander : SharedExpander {
 
         <left> <op>= <right>
 
-        ----> UseKind.Value
+        ----> UseKind.Value, UseKind.None
 
         <left> = <left> <op> <right>
 
@@ -137,7 +137,7 @@ internal sealed class Expander : SharedExpander {
             expression.type
         ), out var assignment, UseKind.Value));
 
-        if (useKind == UseKind.Value) {
+        if (useKind is UseKind.Value or UseKind.None) {
             replacement = assignment;
             return statements;
         } else {
@@ -150,7 +150,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandNullCoalescingOperator(
         BoundNullCoalescingOperator expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         /*
 
         <left> <op> <right>
@@ -198,7 +198,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandNullErasureOperator(
         BoundNullErasureOperator expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         /*
 
         <operand>?
@@ -234,7 +234,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandNullCoalescingAssignmentOperator(
         BoundNullCoalescingAssignmentOperator expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         /*
 
         <left> <op>= <right>
@@ -642,7 +642,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandIsPatternExpression(
         BoundIsPatternExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         /*
 
         Note that these lowerings violate normal language nullability rules but it's fine because we verify they aren't null
@@ -951,7 +951,7 @@ internal sealed class Expander : SharedExpander {
         List<BoundStatement> statements,
         BoundExpression tentativeReplacement,
         out BoundExpression replacement) {
-        if (useKind == UseKind.Value) {
+        if (useKind is UseKind.Value or UseKind.None) {
             replacement = tentativeReplacement;
             return statements;
         } else if (useKind == UseKind.StableValue) {
@@ -1206,7 +1206,7 @@ internal sealed class Expander : SharedExpander {
         }
 
         var op = expression.operatorKind.Operator();
-        var isIsolated = syntax.parent.kind == SyntaxKind.ExpressionStatement;
+        var isIsolated = useKind == UseKind.None;
 
         if (op == UnaryOperatorKind.PrefixIncrement || (op == UnaryOperatorKind.PostfixIncrement && isIsolated))
             return ExpandCompoundAssignmentOperator(Increment(syntax, operand), out replacement, useKind);
@@ -1481,7 +1481,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandInitializerDictionary(
         BoundInitializerDictionary expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         var syntax = expression.syntax;
         var dictionaryType = (NamedTypeSymbol)expression.StrippedType();
         var tempLocal = GenerateTempLocal(expression.Type());

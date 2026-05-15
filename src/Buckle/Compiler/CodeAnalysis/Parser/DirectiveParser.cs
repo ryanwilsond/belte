@@ -22,43 +22,39 @@ internal sealed class DirectiveParser : SyntaxParser {
             hash = AddDiagnostic(hash, Error.InvalidDirectivePlacement());
 
         BelteSyntaxNode result;
-        switch (currentToken.kind) {
+        switch (currentToken.contextualKind) {
             case SyntaxKind.IfKeyword:
                 result = ParseIfDirective(hash, EatToken(), isActive);
                 break;
             case SyntaxKind.ElifKeyword:
-                result = ParseElifDirective(hash, EatToken(), isActive, endIsActive);
+                result = ParseElifDirective(hash, ConvertToKeyword(EatToken()), isActive, endIsActive);
                 break;
             case SyntaxKind.ElseKeyword:
                 result = ParseElseDirective(hash, EatToken(), isActive, endIsActive);
                 break;
             case SyntaxKind.EndifKeyword:
-                result = ParseEndIfDirective(hash, EatToken(), isActive, endIsActive);
+                result = ParseEndIfDirective(hash, ConvertToKeyword(EatToken()), isActive, endIsActive);
                 break;
             case SyntaxKind.DefineKeyword:
             case SyntaxKind.UndefKeyword:
                 result = ParseDefineOrUndefDirective(
                     hash,
-                    EatToken(),
+                    ConvertToKeyword(EatToken()),
                     isActive,
                     isAfterFirstTokenInFile && !isAfterNonWhitespaceOnLine
                 );
 
                 break;
+            case SyntaxKind.HandleKeyword:
+                result = ParseHandleDirective(hash, ConvertToKeyword(EatToken()), isActive);
+                break;
+            case SyntaxKind.ExclamationToken:
+                if (hashPosition != 0 || hash.trailingTrivia.Count > 0)
+                    hash = AddDiagnostic(hash, Error.ShebangNotOnFirstLine());
+
+                result = ParseShebangDirective(hash, EatToken(), isActive);
+                break;
             default:
-                if (currentToken.kind == SyntaxKind.ExclamationToken) {
-                    if (hashPosition != 0 || hash.trailingTrivia.Count > 0)
-                        hash = AddDiagnostic(hash, Error.ShebangNotOnFirstLine());
-
-                    result = ParseShebangDirective(hash, EatToken(), isActive);
-                    break;
-                }
-
-                if (currentToken.contextualKind == SyntaxKind.HandleKeyword) {
-                    result = ParseHandleDirective(hash, EatToken(), isActive);
-                    break;
-                }
-
                 var identifier = Match(SyntaxKind.IdentifierToken);
                 var end = ParseEndOfDirective();
                 result = SyntaxFactory.BadDirectiveTrivia(hash, identifier, end, isActive);
