@@ -392,31 +392,16 @@ do {
 
 ### 2.4.3 For Loops
 
-A more complex form of a `while` loop is a `for` loop which is the same allows for a count to be help each loop or to
-loop a specific number of times:
+A `for` loop contains a local declaration, condition, and iterator expression that executes once after each loop in the
+form `for (<declaration> <condition>; <expression>) <body>`.
+
+For example, a loop that displays the numbers 0 through 9 inclusive.
 
 ```belte
-for (int i=0; i<10; i++) {
+for (int i = 0; i < 10; i++) {
   Console.PrintLine(i);
 }
 ```
-
-Output:
-
-```txt
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-```
-
-For loops take the format of `for (<iterator>; <condition>; <expression>) { <body> }` as seen above.
 
 ### 2.4.4 For Each Loops
 

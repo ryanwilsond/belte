@@ -241,10 +241,12 @@ can then be called like a normal method:
 var myPtr = &MyMethod;
 var myInt = myPtr(); // myInt = 4
 
-int32 MyMethod() {
+static int32 MyMethod() {
   return 4;
 }
 ```
+
+Non-static local functions cannot have their address taken with a function pointer.
 
 When not using `var`, the explicit function pointer type can be written as
 `returnType(argTypes...)*`:
@@ -252,7 +254,7 @@ When not using `var`, the explicit function pointer type can be written as
 ```belte
 int32(bool, string)* myPtr = &MyMethod;
 
-int32 MyMethod(bool arg1, string arg2) { /* ... */ }
+static int32 MyMethod(bool arg1, string arg2) { /* ... */ }
 ```
 
 Function pointers are treated the same as normal pointers in that they can be

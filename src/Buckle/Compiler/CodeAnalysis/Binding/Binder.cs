@@ -8795,6 +8795,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         if (resultRight.constantValue is not null &&
             resultRight.constantValue.specialType.IsNumeric() &&
+            !resultRight.constantValue.specialType.IsFloatingPoint() &&
             resultRight.constantValue.specialType != SpecialType.Char &&
             Convert.ToDouble(resultRight.constantValue.value) == 0 &&
             resultOperatorKind.Operator() == BinaryOperatorKind.Division) {

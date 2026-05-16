@@ -167,7 +167,12 @@ public static class LibraryHelpers {
             if (type is FunctionTypeSymbol)
                 return "Fn";
 
-            return char.ToUpper(type.name[0]).ToString();
+            var chr = char.ToUpper(type.name[0]);
+
+            if (type.specialType.IsLowLevelNumeric())
+                return chr + type.specialType.SizeInBytes().ToString();
+
+            return chr.ToString();
         }
     }
 

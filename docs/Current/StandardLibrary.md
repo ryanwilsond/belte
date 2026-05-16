@@ -33,4 +33,8 @@ not require using the namespace qualifier to reference.
 - [5.8](StandardLibrary/LowLevel.md) LowLevel
   - [5.8.1](StandardLibrary/LowLevel.md#581-methods) Methods
 - [5.9](StandardLibrary/Int.md) Int
-  - [5.9.1](StandardLibrary/Int.md#591-methods) Methods
+  - [5.9.1](StandardLibrary/Int.md#591-fields) Fields
+  - [5.9.2](StandardLibrary/Int.md#592-methods) Methods
+- [5.10](StandardLibrary/Decimal.md) Decimal, Float64, and Float32
+  - [5.10.1](StandardLibrary/Decimal.md#5101-fields) Fields
+  - [5.10.2](StandardLibrary/Decimal.md#5102-methods) Methods

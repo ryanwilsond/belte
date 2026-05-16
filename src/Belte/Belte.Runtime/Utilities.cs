@@ -41,6 +41,22 @@ public static class Utilities {
         return str.Length;
     }
 
+    public static long StringIndexOf(string str, char chr) {
+        return str.IndexOf(chr);
+    }
+
+    public static string StringPadLeft(string str, char chr, long width) {
+        return str.PadLeft((int)width, chr);
+    }
+
+    public static string StringPadRight(string str, char chr, long width) {
+        return str.PadRight((int)width, chr);
+    }
+
+    public static string StringReplace(string str, string search, string replacement) {
+        return str.Replace(search, replacement);
+    }
+
     public static void CreateDirectory(string path) {
         System.IO.Directory.CreateDirectory(path);
     }
@@ -93,7 +109,21 @@ public static class Utilities {
         return null;
     }
 
+    public static double? DecimalParse(string text) {
+        if (text is null)
+            return null;
+
+        if (double.TryParse(text, out var result))
+            return result;
+
+        return null;
+    }
+
     public static string IntToString(long num, string format) {
+        return num.ToString(format);
+    }
+
+    public static string DecimalToString(double num, string format) {
         return num.ToString(format);
     }
 

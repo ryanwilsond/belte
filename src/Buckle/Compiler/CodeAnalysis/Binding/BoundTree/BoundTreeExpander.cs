@@ -1226,7 +1226,9 @@ internal abstract partial class BoundTreeExpander {
             // Structs are special case because they have limited expansion ability (they are non-nullable)
             // And because they are passed by value so in something like `a.b.c = x`, we can't hoist anything
             var isTrueStructReceiver = expression.receiver.Type().IsStructType() &&
-                !(expression.receiver is BoundCallExpression c && c.receiver.StrippedType().IsStructType());
+                !(expression.receiver is BoundCallExpression c &&
+                    c.receiver is not null &&
+                    c.receiver.StrippedType().IsStructType());
 
             var statements = ExpandExpression(
                 expression.receiver,

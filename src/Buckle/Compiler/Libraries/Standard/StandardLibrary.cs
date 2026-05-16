@@ -16,6 +16,17 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
     private static SynthesizedFinishedNamedTypeSymbol _lazyInt;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyInt64;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyInt32;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyInt16;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyInt8;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt64;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt32;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt16;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt8;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyDecimal;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyFloat64;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyFloat32;
     private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
 
@@ -100,6 +111,105 @@ internal static class StandardLibrary {
         }
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol Int64 {
+        get {
+            if (_lazyInt64 is null)
+                Interlocked.CompareExchange(ref _lazyInt64, GenerateInt64(), null);
+
+            return _lazyInt64;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Int32 {
+        get {
+            if (_lazyInt32 is null)
+                Interlocked.CompareExchange(ref _lazyInt32, GenerateInt32(), null);
+
+            return _lazyInt32;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Int16 {
+        get {
+            if (_lazyInt16 is null)
+                Interlocked.CompareExchange(ref _lazyInt16, GenerateInt16(), null);
+
+            return _lazyInt16;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Int8 {
+        get {
+            if (_lazyInt8 is null)
+                Interlocked.CompareExchange(ref _lazyInt8, GenerateInt8(), null);
+
+            return _lazyInt8;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol UInt64 {
+        get {
+            if (_lazyUInt64 is null)
+                Interlocked.CompareExchange(ref _lazyUInt64, GenerateUInt64(), null);
+
+            return _lazyUInt64;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol UInt32 {
+        get {
+            if (_lazyUInt32 is null)
+                Interlocked.CompareExchange(ref _lazyUInt32, GenerateUInt32(), null);
+
+            return _lazyUInt32;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol UInt16 {
+        get {
+            if (_lazyUInt16 is null)
+                Interlocked.CompareExchange(ref _lazyUInt16, GenerateUInt16(), null);
+
+            return _lazyUInt16;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol UInt8 {
+        get {
+            if (_lazyUInt8 is null)
+                Interlocked.CompareExchange(ref _lazyUInt8, GenerateUInt8(), null);
+
+            return _lazyUInt8;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Decimal {
+        get {
+            if (_lazyDecimal is null)
+                Interlocked.CompareExchange(ref _lazyDecimal, GenerateDecimal(), null);
+
+            return _lazyDecimal;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Float64 {
+        get {
+            if (_lazyFloat64 is null)
+                Interlocked.CompareExchange(ref _lazyFloat64, GenerateFloat64(), null);
+
+            return _lazyFloat64;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Float32 {
+        get {
+            if (_lazyFloat32 is null)
+                Interlocked.CompareExchange(ref _lazyFloat32, GenerateFloat32(), null);
+
+            return _lazyFloat32;
+        }
+    }
+
     internal static SynthesizedFinishedNamedTypeSymbol CallingConvention {
         get {
             if (_lazyCallingConvention is null)
@@ -131,6 +241,17 @@ internal static class StandardLibrary {
             yield return Random;
             yield return String;
             yield return Int;
+            yield return Decimal;
+            yield return Float64;
+            yield return Float32;
+            yield return Int64;
+            yield return Int32;
+            yield return Int16;
+            yield return Int8;
+            yield return UInt64;
+            yield return UInt32;
+            yield return UInt16;
+            yield return UInt8;
         }
     }
 
@@ -155,6 +276,10 @@ internal static class StandardLibrary {
             StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
             StaticMethod("IsDigit", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
             StaticMethod("Substring", SpecialType.String, [("text", SpecialType.String, false), ("start", SpecialType.Int, true), ("length", SpecialType.Int, true)]),
+            StaticMethod("IndexOf", SpecialType.Int, [("text", SpecialType.String), ("chr", SpecialType.Char)]),
+            StaticMethod("PadLeft", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
+            StaticMethod("PadRight", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
+            StaticMethod("Replace", SpecialType.String, [("text", SpecialType.String), ("search", SpecialType.String), ("replacement", SpecialType.String)]),
         ]);
     }
 
@@ -162,6 +287,99 @@ internal static class StandardLibrary {
         return StaticClass("Int", [
             StaticMethod("Parse", SpecialType.Int, true, [("text", SpecialType.String, true)]),
             StaticMethod("ToString", SpecialType.String, true, [("num", SpecialType.Int), ("format", SpecialType.String)]),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateDecimal() {
+        return StaticClass("Decimal", [
+            StaticMethod("IsNaN", SpecialType.Bool, [("num", SpecialType.Float64)]),
+            StaticMethod("IsNaN", SpecialType.Bool, [("num", SpecialType.Float32)]),
+            StaticMethod("IsPosInfinity", SpecialType.Bool, [("num", SpecialType.Float64)]),
+            StaticMethod("IsPosInfinity", SpecialType.Bool, [("num", SpecialType.Float32)]),
+            StaticMethod("IsNegInfinity", SpecialType.Bool, [("num", SpecialType.Float64)]),
+            StaticMethod("IsNegInfinity", SpecialType.Bool, [("num", SpecialType.Float32)]),
+            StaticMethod("IsInfinity", SpecialType.Bool, [("num", SpecialType.Float64)]),
+            StaticMethod("IsInfinity", SpecialType.Bool, [("num", SpecialType.Float32)]),
+            StaticMethod("Parse", SpecialType.Decimal, true, [("text", SpecialType.String, true)]),
+            StaticMethod("ToString", SpecialType.String, true, [("num", SpecialType.Decimal), ("format", SpecialType.String)]),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateFloat64() {
+        return StaticClass("Float64", [
+            ConstExprField("MinValue", SpecialType.Float64, double.MinValue),
+            ConstExprField("MaxValue", SpecialType.Float64, double.MaxValue),
+            ConstExprField("Epsilon", SpecialType.Float64, double.Epsilon),
+            ConstExprField("PositiveInfinity", SpecialType.Float64, double.PositiveInfinity),
+            ConstExprField("NegativeInfinity", SpecialType.Float64, double.NegativeInfinity),
+            ConstExprField("NaN", SpecialType.Float64, double.NaN),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateFloat32() {
+        return StaticClass("Float32", [
+            ConstExprField("MinValue", SpecialType.Float32, float.MinValue),
+            ConstExprField("MaxValue", SpecialType.Float32, float.MaxValue),
+            ConstExprField("Epsilon", SpecialType.Float32, float.Epsilon),
+            ConstExprField("PositiveInfinity", SpecialType.Float32, float.PositiveInfinity),
+            ConstExprField("NegativeInfinity", SpecialType.Float32, float.NegativeInfinity),
+            ConstExprField("NaN", SpecialType.Float32, float.NaN),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateInt64() {
+        return StaticClass("Int64", [
+            ConstExprField("MinValue", SpecialType.Int64, long.MinValue),
+            ConstExprField("MaxValue", SpecialType.Int64, long.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateInt32() {
+        return StaticClass("Int32", [
+            ConstExprField("MinValue", SpecialType.Int32, int.MinValue),
+            ConstExprField("MaxValue", SpecialType.Int32, int.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateInt16() {
+        return StaticClass("Int16", [
+            ConstExprField("MinValue", SpecialType.Int16, short.MinValue),
+            ConstExprField("MaxValue", SpecialType.Int16, short.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateInt8() {
+        return StaticClass("Int8", [
+            ConstExprField("MinValue", SpecialType.Int8, sbyte.MinValue),
+            ConstExprField("MaxValue", SpecialType.Int8, sbyte.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt64() {
+        return StaticClass("UInt64", [
+            ConstExprField("MinValue", SpecialType.UInt64, ulong.MinValue),
+            ConstExprField("MaxValue", SpecialType.UInt64, ulong.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt32() {
+        return StaticClass("UInt32", [
+            ConstExprField("MinValue", SpecialType.UInt32, uint.MinValue),
+            ConstExprField("MaxValue", SpecialType.UInt32, uint.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt16() {
+        return StaticClass("UInt16", [
+            ConstExprField("MinValue", SpecialType.UInt16, ushort.MinValue),
+            ConstExprField("MaxValue", SpecialType.UInt16, ushort.MaxValue),
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt8() {
+        return StaticClass("UInt8", [
+            ConstExprField("MinValue", SpecialType.UInt8, byte.MinValue),
+            ConstExprField("MaxValue", SpecialType.UInt8, byte.MaxValue),
         ]);
     }
 
@@ -729,16 +947,46 @@ internal static class StandardLibrary {
                 => { return a is not null && char.IsDigit((char)a); }) },
             { "String_Length_S", new Func<object, object, object, object>((a, b, c)
                 => { return ((string)a).Length; }) },
+            { "String_IndexOf_SC", new Func<object, object, object, object>((a, b, c)
+                => { return (long)((string)a).IndexOf((char)b); }) },
             { "String_Substring_SI?I?", new Func<object, object, object, object>((a, b, c)
                 => { if (a is null) return null;
                      if (c is null) return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b));
                      return ((string)a).Substring(b is null ? 0 : unchecked((int)(long)b), unchecked((int)(long)c)); }) },
+            { "String_PadLeft_SCI", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).PadLeft((int)(long)c, (char)b); }) },
+            { "String_PadRight_SCI", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).PadRight((int)(long)c, (char)b); }) },
+            { "String_Replace_SSS", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).Replace((string)b, (string)c); }) },
             { "Int_Parse_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (a is null) return null;
                      if (long.TryParse((string)a, out var result)) return result;
                      return null; }) },
             { "Int_ToString_IS", new Func<object, object, object, object>((a, b, c)
                 => { return ((long)a).ToString((string)b); }) },
+            { "Decimal_IsNaN_F4", new Func<object, object, object, object>((a, b, c)
+                => { return float.IsNaN((float)a); }) },
+            { "Decimal_IsPosInfinity_F4", new Func<object, object, object, object>((a, b, c)
+                => { return float.IsPositiveInfinity((float)a); }) },
+            { "Decimal_IsNegInfinity_F4", new Func<object, object, object, object>((a, b, c)
+                => { return float.IsNegativeInfinity((float)a); }) },
+            { "Decimal_IsInfinity_F4", new Func<object, object, object, object>((a, b, c)
+                => { return float.IsInfinity((float)a); }) },
+            { "Decimal_IsNaN_F8", new Func<object, object, object, object>((a, b, c)
+                => { return double.IsNaN((double)a); }) },
+            { "Decimal_IsPosInfinity_F8", new Func<object, object, object, object>((a, b, c)
+                => { return double.IsPositiveInfinity((double)a); }) },
+            { "Decimal_IsNegInfinity_F8", new Func<object, object, object, object>((a, b, c)
+                => { return double.IsNegativeInfinity((double)a); }) },
+            { "Decimal_IsInfinity_F8", new Func<object, object, object, object>((a, b, c)
+                => { return double.IsInfinity((double)a); }) },
+            { "Decimal_Parse_S?", new Func<object, object, object, object>((a, b, c)
+                => { if (a is null) return null;
+                     if (double.TryParse((string)a, out var result)) return result;
+                     return null; }) },
+            { "Decimal_ToString_DS", new Func<object, object, object, object>((a, b, c)
+                => { return ((double)a).ToString((string)b); }) },
         };
     }
 }

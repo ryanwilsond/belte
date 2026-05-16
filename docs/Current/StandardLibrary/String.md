@@ -17,5 +17,9 @@ The Belte public interface for the String class can be found
 | `bool! IsNullOrWhiteSpace(string?)` | Returns true if the given string is null, empty, or contains only whitespace characters. |
 | `bool! IsNullOrWhiteSpace(char?)` | Returns true if the given char is null or is a whitespace character. |
 | `int! Length(string!)` | Returns the length of a string. |
+| `int! IndexOf(string!, char!)` | Returns the first index of the given character in the given string or -1 if there is none. |
 | `string![]! Split(string!, string!)` | Splits the first given string at every instance of the second given string. The return value will not contain any instances of the second given string. |
 | `string? Substring(string?, int?, int?)` | Returns a copy of the given string starting at the given index with a given length. |
+| `string! PadLeft(string!, char!, int!)` | Returns a copy of the string that is increased to the given width by filling the left side with a given character. |
+| `string! PadRight(string!, char!, int!)` | Returns a copy of the string that is increased to the given width by filling the right side with a given character. |
+| `string! Replace(string!, string!, string!)` | Returns a copy of the first string where each instance of the second string is replaced with the third string. |

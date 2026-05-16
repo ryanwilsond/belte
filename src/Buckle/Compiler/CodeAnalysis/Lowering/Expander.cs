@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -306,10 +307,12 @@ internal sealed class Expander : SharedExpander {
         UseKind useKind) {
         var statements = base.ExpandCallExpression(expression, out replacement, UseKind.Value);
 
-        if (useKind == UseKind.Writable && expression.method.returnsByRef)
+        if (useKind == UseKind.Writable) {
+            Debug.Assert(expression.method.returnsByRef || expression.method.returnType.StrippedType().IsStructType());
             return statements;
-        else
+        } else {
             return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+        }
     }
 
     private protected override List<BoundStatement> ExpandBinaryOperator(

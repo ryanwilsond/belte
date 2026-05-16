@@ -151,6 +151,45 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return Nop();
     }
 
+    internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
+        /*
+
+        <left> <op> <right>
+
+        ----> (float64)0.0 / (float64)0.0
+
+        Float64.NaN
+
+        ----> (float64)>=1 / (float64)0.0
+
+        Float64.PositiveInfinity
+
+        ----> (float64)<=-1 / (float64)0.0
+
+        Float64.NegativeInfinity
+
+        ----> (float32)0.0 / (float32)0.0
+
+        Float32.NaN
+
+        ----> (float32)>=1 / (float32)0.0
+
+        Float32.PositiveInfinity
+
+        ----> (float32)<=-1 / (float32)0.0
+
+        Float32.NegativeInfinity
+
+        */
+        if (node.operatorKind == BinaryOperatorKind.Float64Division) {
+            return base.VisitBinaryOperator(node);
+        } else if (node.operatorKind == BinaryOperatorKind.Float32Division) {
+            return base.VisitBinaryOperator(node);
+        } else {
+            return base.VisitBinaryOperator(node);
+        }
+    }
+
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
         /*
 
