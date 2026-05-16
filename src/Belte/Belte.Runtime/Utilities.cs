@@ -57,6 +57,30 @@ public static class Utilities {
         return str.Replace(search, replacement);
     }
 
+    public static string StringTrim(string str) {
+        return str.Trim();
+    }
+
+    public static string StringTrim(string str, char[] trimChars) {
+        return str.Trim(trimChars);
+    }
+
+    public static string StringTrimStart(string str) {
+        return str.TrimStart();
+    }
+
+    public static string StringTrimStart(string str, char[] trimChars) {
+        return str.TrimStart(trimChars);
+    }
+
+    public static string StringTrimEnd(string str) {
+        return str.TrimEnd();
+    }
+
+    public static string StringTrimEnd(string str, char[] trimChars) {
+        return str.TrimEnd(trimChars);
+    }
+
     public static void CreateDirectory(string path) {
         System.IO.Directory.CreateDirectory(path);
     }

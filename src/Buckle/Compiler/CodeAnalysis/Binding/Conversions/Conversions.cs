@@ -293,6 +293,8 @@ internal sealed partial class Conversions {
                 return Conversion.DefaultLiteral;
             case BoundUnconvertedObjectCreationExpression:
                 return Conversion.ObjectCreation;
+            case BoundUnconvertedConditionalOperator conditionalOperator:
+                return GetConditionalExpressionConversion(conditionalOperator, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -321,7 +323,7 @@ internal sealed partial class Conversions {
         if (Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
-        return GetConditionalExpressionConversion(sourceExpression, target);
+        return Conversion.None;
     }
 
     private Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
@@ -927,12 +929,11 @@ internal sealed partial class Conversions {
         }
     }
 
-    private Conversion GetConditionalExpressionConversion(BoundExpression source, TypeSymbol destination) {
-        if (source is not BoundUnconvertedConditionalOperator conditionalOperator)
-            return Conversion.None;
-
+    private Conversion GetConditionalExpressionConversion(
+        BoundUnconvertedConditionalOperator source,
+        TypeSymbol destination) {
         var trueConversion = ClassifyImplicitConversionFromExpression(
-            conditionalOperator.trueExpression,
+            source.trueExpression,
             destination
         );
 
@@ -940,7 +941,7 @@ internal sealed partial class Conversions {
             return Conversion.None;
 
         var falseConversion = ClassifyImplicitConversionFromExpression(
-            conditionalOperator.falseExpression,
+            source.falseExpression,
             destination
         );
 

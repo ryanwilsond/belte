@@ -158,6 +158,24 @@ void Build(Builder builder) {
 
 ## Diagnostics
 
+### General Reporting
+
+The diagnostic reporting severity can be set with `Builder.SetDiagnosticSeverity(severity)` where only diagnostics of
+the given severity or more severe will be reported. The default is `DiagnosticSeverity.Warning`.
+
+> [List of diagnostic severities](Buckle.md#--severityseverity-default-warning)
+
+For example:
+
+```belte
+using Buckle.Building;
+using Diagnostics;
+
+void Build(Builder builder) {
+  builder.SetDiagnosticSeverity(DiagnosticSeverity.Info);
+}
+```
+
 The diagnostic reporting warning level can be set with `Builder.SetWarningLevel(level)`. The default is `1`.
 
 For example:
@@ -183,6 +201,56 @@ void Build(Builder builder) {
   builder.ExcludeWarnings({ "BU0026" });
 }
 ```
+
+### Source-Specific Reporting
+
+By default, diagnostic options apply to all added sources regardless of ordering. To set options on a per-source basis,
+the diagnostic flag mode can be set to `DiagnosticFlagMode.Positional` via `Builder.SetDiagnosticFlagMode(mode)`. When
+in this mode, options will be applied to the next added source. Any sources after that go back to using the default
+diagnostic options unless set again.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetDiagnosticFlagMode(.Positional);
+
+  builder.SetDiagnosticSeverity(.Warning);
+  builder.AddInput("src");
+
+  builder.SetDiagnosticSeverity(.Error);
+  builder.AddInput("lib");
+}
+```
+
+In the above example, files compiled under `src` will report warnings and above, while files compiled under `lib` will
+only report errors and above.
+
+The diagnostic flag mode can be set back to global where sources will use any globally set options.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetDiagnosticSeverity(.Error);
+  builder.AddInput("src1");
+
+  builder.SetDiagnosticFlagMode(.Positional);
+  builder.SetDiagnosticSeverity(.Info);
+
+  builder.AddInput("src2");
+
+  builder.SetDiagnosticFlagMode(.Global);
+  builder.AddInput("src3");
+}
+```
+
+In the above example, `src1` and `src3` will both have a diagnostic reporting severity of errors or higher as they were
+both added as inputs while in global diagnostic flag mode. `src2` will have a reporting severity of info or higher.
 
 ## Logging
 

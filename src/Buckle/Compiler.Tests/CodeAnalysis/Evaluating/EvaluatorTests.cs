@@ -399,6 +399,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar?.num; return a;", 7)]
     [InlineData("class A { public static int? a = 3; } return A.a;", 3)]
     [InlineData("class A { public static int? a = 3; static constructor() { a = 10; } } return A.a;", 10)]
+    [InlineData("class A { public static int[] a = new int[10]; static constructor() { a[0] = 10; } } return A.a[0];", 10)]
+    [InlineData("class A { public static int[] a = new int[10]; static constructor() { a[0] = 10; } } return A.a[1];", 0)]
     [InlineData("class A { public static int? a = 3; } A.a = 20; return A.a;", 20)]
     [InlineData("struct A { public int a; } var a = new A(); return a.a;", 0)]
     [InlineData("struct A { public int? a; } var a = new A(); return a.a;", null)]

@@ -647,8 +647,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 case BoundConstructorMethodBody constructor:
                     body = constructor.body;
 
-                    if (sourceMethod.methodKind == MethodKind.Constructor &&
-                        constructor.initializer is BoundExpressionStatement expressionStatement) {
+                    if (constructor.initializer is BoundExpressionStatement expressionStatement) {
                         ReportConstructorInitializerCycles(
                             method,
                             expressionStatement.expression,
@@ -666,9 +665,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                             builder.Add(body);
 
                         body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
+                        return body;
                     }
 
-                    return body;
+                    // TODO Roslyn returns here even in the static constructor case
+                    // But for the life of me I can't figure out where the static initializers are added so i'm just
+                    // going to break here instead
+                    // return body;
+                    break;
                 case BoundNonConstructorMethodBody nonConstructor:
                     body = nonConstructor.body;
                     break;

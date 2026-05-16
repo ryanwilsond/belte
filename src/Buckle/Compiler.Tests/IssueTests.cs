@@ -1070,4 +1070,57 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate() {
+        var text = @"
+            var ch = '0';
+            var b = ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z'));
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate2() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var b = new A();
+            var c = b.f < 0 || a.f > b.f;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate3() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var c = (a.f < 21 && a.f > -7);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ConditionalOperator_GetsTargetTyped() {
+        var text = @"
+            int? M() {
+                var cond = true;
+                return cond ? 3 : null;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

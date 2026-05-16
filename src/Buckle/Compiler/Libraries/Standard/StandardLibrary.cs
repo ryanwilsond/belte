@@ -280,6 +280,12 @@ internal static class StandardLibrary {
             StaticMethod("PadLeft", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
             StaticMethod("PadRight", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
             StaticMethod("Replace", SpecialType.String, [("text", SpecialType.String), ("search", SpecialType.String), ("replacement", SpecialType.String)]),
+            StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String)]),
+            StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharArray)]),
+            StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String)]),
+            StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharArray)]),
+            StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String)]),
+            StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharArray)]),
         ]);
     }
 
@@ -959,6 +965,18 @@ internal static class StandardLibrary {
                 => { return ((string)a).PadRight((int)(long)c, (char)b); }) },
             { "String_Replace_SSS", new Func<object, object, object, object>((a, b, c)
                 => { return ((string)a).Replace((string)b, (string)c); }) },
+            { "String_Trim_S", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).Trim(); }) },
+            { "String_Trim_S[", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).Trim(Array.ConvertAll((object[])b, i => (char)i)); }) },
+            { "String_TrimStart_S", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).TrimStart(); }) },
+            { "String_TrimStart_S[", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).TrimStart(Array.ConvertAll((object[])b, i => (char)i)); }) },
+            { "String_TrimEnd_S", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).TrimEnd(); }) },
+            { "String_TrimEnd_S[", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).TrimEnd(Array.ConvertAll((object[])b, i => (char)i)); }) },
             { "Int_Parse_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (a is null) return null;
                      if (long.TryParse((string)a, out var result)) return result;

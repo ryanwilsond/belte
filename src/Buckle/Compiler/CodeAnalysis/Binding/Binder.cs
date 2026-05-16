@@ -13167,6 +13167,9 @@ symIsHidden:;
         MethodSymbol constructor,
         BelteDiagnosticQueue diagnostics,
         Compilation compilation) {
+        if (constructor.methodKind != MethodKind.Constructor || constructor.isExtern)
+            return null;
+
         var containingType = constructor.containingType;
         var baseType = containingType.baseType;
 

@@ -23,3 +23,9 @@ The Belte public interface for the String class can be found
 | `string! PadLeft(string!, char!, int!)` | Returns a copy of the string that is increased to the given width by filling the left side with a given character. |
 | `string! PadRight(string!, char!, int!)` | Returns a copy of the string that is increased to the given width by filling the right side with a given character. |
 | `string! Replace(string!, string!, string!)` | Returns a copy of the first string where each instance of the second string is replaced with the third string. |
+| `string! Trim(string!)` | Returns a copy of the string with leading and trailing whitespace omitted. |
+| `string! Trim(string!, char![]!)` | Returns a copy of the string with leading and trailing instances of any characters in the given array omitted. |
+| `string! TrimStart(string!)` | Returns a copy of the string with leading whitespace omitted. |
+| `string! TrimStart(string!, char![]!)` | Returns a copy of the string with leading instances of any characters in the given array whitespace omitted. |
+| `string! TrimEnd(string!)` | Returns a copy of the string with trailing whitespace omitted. |
+| `string! TrimEnd(string!, char![]!)` | Returns a copy of the string with trailing instances of any characters in the given array omitted. |

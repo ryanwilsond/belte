@@ -23,4 +23,16 @@ public static class String {
     public static string! PadRight(string! text, char! padding, int! totalWidth);
 
     public static string! Replace(string! text, string! search, string! replacement);
+
+    public static string! Trim(string! text);
+
+    public static string! Trim(string! text, char![]! trimCharacters);
+
+    public static string! TrimStart(string! text);
+
+    public static string! TrimStart(string! text, char![]! trimCharacters);
+
+    public static string! TrimEnd(string! text);
+
+    public static string! TrimEnd(string! text, char![]! trimCharacters);
 }

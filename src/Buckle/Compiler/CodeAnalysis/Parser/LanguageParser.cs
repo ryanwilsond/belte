@@ -959,8 +959,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private SeparatedSyntaxList<ParameterSyntax> ParseParameters() {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextParameter = true;
-        var saved = _context;
-        _context |= ParserContext.InExpression;
 
         while (parseNextParameter &&
             currentToken.kind != SyntaxKind.CloseParenToken &&
@@ -976,16 +974,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
             }
         }
 
-        _context = saved;
-
         return new SeparatedSyntaxList<ParameterSyntax>(nodesAndSeparators.ToList());
     }
 
     private SeparatedSyntaxList<FunctionPointerParameterSyntax> ParseFunctionPointerParameters() {
         var nodesAndSeparators = SyntaxListBuilder<BelteSyntaxNode>.Create();
         var parseNextParameter = true;
-        var saved = _context;
-        _context |= ParserContext.InExpression;
 
         while (parseNextParameter &&
             currentToken.kind != SyntaxKind.CloseParenToken &&
@@ -1000,8 +994,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 parseNextParameter = false;
             }
         }
-
-        _context = saved;
 
         return new SeparatedSyntaxList<FunctionPointerParameterSyntax>(nodesAndSeparators.ToList());
     }
@@ -2582,6 +2574,35 @@ done:
         }
     }
 
+    private bool CanFollowTemplateArgumentList(SyntaxKind kind) {
+        var inExpression = (_context & ParserContext.InExpression) != 0;
+
+        switch (kind) {
+            case SyntaxKind.IdentifierToken when !inExpression:
+            case SyntaxKind.SemicolonToken:
+            case SyntaxKind.OpenParenToken:
+            case SyntaxKind.CloseParenToken:
+            case SyntaxKind.OpenBracketToken:
+            case SyntaxKind.CloseBracketToken:
+            case SyntaxKind.OpenBraceToken:
+            case SyntaxKind.CloseBraceToken:
+            case SyntaxKind.CommaToken:
+            case SyntaxKind.ExclamationToken:
+            case SyntaxKind.QuestionToken:
+            case SyntaxKind.GreaterThanToken:
+            case SyntaxKind.GreaterThanGreaterThanToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+            case SyntaxKind.PeriodToken:
+            case SyntaxKind.AsteriskToken:
+            case SyntaxKind.AsteriskAsteriskToken:
+            case SyntaxKind.OperatorKeyword:
+            case SyntaxKind.EndOfFileToken:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private ExpressionSyntax ParseCastExpression() {
         var openParenthesis = Match(SyntaxKind.OpenParenToken);
         var type = ParseType(false, false);
@@ -2814,25 +2835,6 @@ done:
     private ExpressionSyntax ParseIndexExpression(ExpressionSyntax expression) {
         var argumentList = ParseBracketedArgumentList();
         return SyntaxFactory.IndexExpression(expression, argumentList);
-    }
-
-    private ScanTemplateArgumentListKind ScanTemplateArgumentList() {
-        if (currentToken.kind != SyntaxKind.LessThanToken)
-            return ScanTemplateArgumentListKind.NotTemplateArgumentList;
-
-        if ((_context & ParserContext.InExpression) == 0)
-            return ScanTemplateArgumentListKind.DefiniteTemplateArgumentList;
-
-        var lookahead = 1;
-
-        while (Peek(lookahead).kind is not SyntaxKind.GreaterThanToken and not SyntaxKind.EndOfFileToken)
-            lookahead++;
-
-        return Peek(lookahead + 1).kind switch {
-            SyntaxKind.OpenParenToken or SyntaxKind.EndOfFileToken
-                => ScanTemplateArgumentListKind.PossibleTemplateArgumentList,
-            _ => ScanTemplateArgumentListKind.NotTemplateArgumentList,
-        };
     }
 
     private ExpressionSyntax ParseCallExpression(ExpressionSyntax expression) {
@@ -3167,7 +3169,7 @@ done:
             var point = GetResetPoint();
             var templateArgumentList = ParseTemplateArgumentList();
 
-            if (templateArgumentList.containsDiagnostics)
+            if (templateArgumentList.containsDiagnostics || !CanFollowTemplateArgumentList(currentToken.kind))
                 Reset(point);
             else
                 name = SyntaxFactory.TemplateName(identifierName.identifier, templateArgumentList);

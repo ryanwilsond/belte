@@ -526,25 +526,58 @@ public class {name} {{
         var moduleName = Path.GetFileNameWithoutExtension(outputFilename);
 
         var tasks = new List<FileState>();
+        var taskDiagnosticOptions =
+            new Dictionary<string, (DiagnosticSeverity, int, DiagnosticInfo[], DiagnosticInfo[])>();
 
-        foreach (var (input, options) in builder.inputs)
-            ResolveInputFileOrDir(input, tasks, null, diagnostics, recursive: (options & InputOptions.Flat) == 0);
+        var includeWarnings = ParseAndVerifyWarningCodes(builder.diagnosticOptions.wincludes.ToArray(), diagnostics)
+            .ToArray();
+        var excludeWarnings = ParseAndVerifyWarningCodes(builder.diagnosticOptions.wexcludes.ToArray(), diagnostics)
+            .ToArray();
+
+        foreach (var (input, options, diagnosticOptions) in builder.inputs) {
+            var sourceTasks = ResolveInputFileOrDir(
+                input,
+                tasks,
+                null,
+                diagnostics,
+                recursive: (options & InputOptions.Flat) == 0
+            );
+
+            if (diagnosticOptions != builder.diagnosticOptions) {
+                var localIncludeWarnings = ParseAndVerifyWarningCodes(
+                    diagnosticOptions.wincludes.ToArray(),
+                    diagnostics
+                ).ToArray();
+
+                var localExcludeWarnings = ParseAndVerifyWarningCodes(
+                    diagnosticOptions.wexcludes.ToArray(),
+                    diagnostics
+                ).ToArray();
+
+                var localDiagnosticOptions = (
+                    diagnosticOptions.severity,
+                    diagnosticOptions.warningLevel,
+                    localIncludeWarnings,
+                    localExcludeWarnings
+                );
+
+                foreach (var task in sourceTasks)
+                    taskDiagnosticOptions.Add(task.inputFileName, localDiagnosticOptions);
+            }
+        }
 
         var verboseMode = builder.verboseMode is VerboseMode.Normal or VerboseMode.Reduced;
 
         var maxCores = builder.maxCores > 0 ? builder.maxCores : Environment.ProcessorCount - 2;
         var concurrentBuild = maxCores > 1;
 
-        var includeWarnings = ParseAndVerifyWarningCodes(builder.wincludes.ToArray(), diagnostics).ToArray();
-        var excludeWarnings = ParseAndVerifyWarningCodes(builder.wexcludes.ToArray(), diagnostics).ToArray();
-
         return new CompilerState() {
             buildMode = builder.buildMode,
             moduleName = moduleName,
             references = references.ToArray(),
             debugMode = false,
-            severity = DiagnosticSeverity.Error,
-            warningLevel = builder.warningLevel,
+            severity = builder.diagnosticOptions.severity,
+            warningLevel = builder.diagnosticOptions.warningLevel,
             includeWarnings = includeWarnings,
             excludeWarnings = excludeWarnings,
             finishStage = CompilerStage.Finished,
@@ -560,7 +593,8 @@ public class {name} {{
             concurrentBuild = concurrentBuild,
             maxCores = maxCores,
             entryName = null,
-            noStdLib = false
+            noStdLib = false,
+            taskDiagnosticOptions = taskDiagnosticOptions
         };
     }
 
@@ -818,11 +852,19 @@ public class {name} {{
             Console.ResetColor();
 
         var info = diagnostic.info;
+        var diagnosticOptions = (state.severity, state.warningLevel, state.includeWarnings, state.excludeWarnings);
 
-        var ignoreDiagnostic = CheckDiagnosticSeverity(info, state);
-        ignoreDiagnostic |= CheckWarningLevel(info, state);
-        ignoreDiagnostic &= !WarningIncluded(info, state);
-        ignoreDiagnostic |= WarningExcluded(info, state);
+        if (state.taskDiagnosticOptions is not null &&
+            diagnostic is BelteDiagnostic diagnosticWithLocation &&
+            diagnosticWithLocation.location is not null) {
+            if (state.taskDiagnosticOptions.TryGetValue(diagnosticWithLocation.location.fileName, out var value))
+                diagnosticOptions = value;
+        }
+
+        var ignoreDiagnostic = CheckDiagnosticSeverity(info, state, diagnosticOptions.severity);
+        ignoreDiagnostic |= CheckWarningLevel(info, diagnosticOptions.warningLevel);
+        ignoreDiagnostic &= !WarningIncluded(info, diagnosticOptions.includeWarnings);
+        ignoreDiagnostic |= WarningExcluded(info, diagnosticOptions.excludeWarnings);
 
         if (!ignoreDiagnostic) {
             if (info.module != "BU") {
@@ -837,41 +879,41 @@ public class {name} {{
         return info.severity;
     }
 
-    private static bool CheckDiagnosticSeverity(DiagnosticInfo info, CompilerState state) {
+    private static bool CheckDiagnosticSeverity(DiagnosticInfo info, CompilerState state, DiagnosticSeverity severity) {
         if (state.time && info.severity == DiagnosticSeverity.Debug)
             return false;
 
-        return (int)state.severity > (int)info.severity;
+        return (int)severity > (int)info.severity;
     }
 
-    private static bool CheckWarningLevel(DiagnosticInfo info, CompilerState state) {
+    private static bool CheckWarningLevel(DiagnosticInfo info, int warningLevel) {
         if (info.severity != DiagnosticSeverity.Warning)
             return false;
 
-        if (state.warningLevel == 0)
+        if (warningLevel == 0)
             return true;
-        else if (state.warningLevel == 1)
+        else if (warningLevel == 1)
             return !WarningInWarningList(WarningLevel1, info);
-        else if (state.warningLevel == 2)
+        else if (warningLevel == 2)
             return !(WarningInWarningList(WarningLevel2, info) || WarningInWarningList(WarningLevel1, info));
-        else if (state.warningLevel == 3)
+        else if (warningLevel == 3)
             return false;
 
         throw new UnreachableException();
     }
 
-    private static bool WarningIncluded(DiagnosticInfo info, CompilerState state) {
+    private static bool WarningIncluded(DiagnosticInfo info, DiagnosticInfo[] includeWarnings) {
         if (info.severity != DiagnosticSeverity.Warning)
             return false;
 
-        return WarningInWarningList(state.includeWarnings, info);
+        return WarningInWarningList(includeWarnings, info);
     }
 
-    private static bool WarningExcluded(DiagnosticInfo info, CompilerState state) {
+    private static bool WarningExcluded(DiagnosticInfo info, DiagnosticInfo[] excludeWarnings) {
         if (info.severity != DiagnosticSeverity.Warning)
             return false;
 
-        return WarningInWarningList(state.excludeWarnings, info);
+        return WarningInWarningList(excludeWarnings, info);
     }
 
     private static bool WarningInWarningList(DiagnosticInfo[] warnings, DiagnosticInfo info) {
@@ -1742,13 +1784,14 @@ public class {name} {{
         return false;
     }
 
-    private static void ResolveInputFileOrDir(
+    private static FileState[] ResolveInputFileOrDir(
         string name,
         List<FileState> tasks,
         string fileAssociation,
         DiagnosticQueue<Diagnostic> diagnostics,
         bool recursive = true) {
         var fileNames = new List<string>();
+        var fileStates = new List<FileState>();
 
         if (Directory.Exists(name)) {
             fileNames.AddRange(Directory.GetFiles(
@@ -1760,7 +1803,7 @@ public class {name} {{
             fileNames.Add(name);
         } else {
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(name));
-            return;
+            return [];
         }
 
         foreach (var fileName in fileNames) {
@@ -1799,6 +1842,9 @@ public class {name} {{
             }
 
             tasks.Add(task);
+            fileStates.Add(task);
         }
+
+        return fileStates.ToArray();
     }
 }
