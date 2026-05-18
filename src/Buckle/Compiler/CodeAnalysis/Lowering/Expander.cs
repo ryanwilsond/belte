@@ -307,11 +307,29 @@ internal sealed class Expander : SharedExpander {
         UseKind useKind) {
         var statements = base.ExpandCallExpression(expression, out replacement, UseKind.Value);
 
+        return StabilizeCallIfNecessary(
+            expression.syntax,
+            expression.method,
+            useKind,
+            statements,
+            replacement,
+            out replacement
+        );
+    }
+
+    private List<BoundStatement> StabilizeCallIfNecessary(
+        SyntaxNode syntax,
+        MethodSymbol method,
+        UseKind useKind,
+        List<BoundStatement> statements,
+        BoundExpression tentativeReplacement,
+        out BoundExpression replacement) {
         if (useKind == UseKind.Writable) {
-            Debug.Assert(expression.method.returnsByRef || expression.method.returnType.StrippedType().IsStructType());
+            Debug.Assert(method.returnsByRef || method.returnType.StrippedType().IsStructType());
+            replacement = tentativeReplacement;
             return statements;
         } else {
-            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+            return StabilizeIfNecessary(syntax, useKind, statements, tentativeReplacement, out replacement);
         }
     }
 
@@ -363,18 +381,19 @@ internal sealed class Expander : SharedExpander {
         }
 
         var syntax = expression.syntax;
+        var method = expression.method;
 
-        if (expression.method is not null) {
+        if (method is not null) {
             var statements = ExpandExpression(expression.left, out var newLeft);
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
             replacement = Call(
                 syntax,
-                expression.method,
+                method,
                 newLeft,
                 newRight
             );
 
-            return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+            return StabilizeCallIfNecessary(syntax, method, useKind, statements, replacement, out replacement);
         }
 
         if (op.Operator() == BinaryOperatorKind.Power) {
@@ -998,16 +1017,17 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
         var operand = expression.operand;
+        var method = expression.method;
 
-        if (expression.method is not null) {
+        if (method is not null) {
             var statements = ExpandExpression(operand, out var newOperand);
             replacement = Call(
                 syntax,
-                expression.method,
+                method,
                 newOperand
             );
 
-            return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+            return StabilizeCallIfNecessary(syntax, method, useKind, statements, replacement, out replacement);
         }
 
         var op = expression.operatorKind;
@@ -1072,9 +1092,9 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
         var operand = expression.operand;
+        var method = expression.conversion.method;
 
         if (expression.conversion.kind == ConversionKind.MethodGroup) {
-            var method = expression.conversion.method;
             var receiver = (!method.RequiresInstanceReceiver() && !method.isAbstract && !method.isVirtual)
                 ? new BoundTypeExpression(syntax, null, null, method.containingType)
                 : ((BoundMethodGroup)operand).receiver;
@@ -1094,15 +1114,15 @@ internal sealed class Expander : SharedExpander {
             return [];
         }
 
-        if (expression.conversion.method is not null) {
+        if (method is not null) {
             var statements = ExpandExpression(operand, out var newOperand);
             replacement = Call(
                 syntax,
-                expression.conversion.method,
+                method,
                 newOperand
             );
 
-            return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+            return StabilizeCallIfNecessary(syntax, method, useKind, statements, replacement, out replacement);
         }
 
         var type = expression.Type();
@@ -1196,16 +1216,17 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
         var operand = expression.operand;
+        var method = expression.method;
 
-        if (expression.method is not null) {
+        if (method is not null) {
             var statements = ExpandExpression(operand, out var newOperand);
             replacement = Call(
                 syntax,
-                expression.method,
+                method,
                 newOperand
             );
 
-            return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+            return StabilizeCallIfNecessary(syntax, method, useKind, statements, replacement, out replacement);
         }
 
         var op = expression.operatorKind.Operator();

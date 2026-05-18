@@ -795,7 +795,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
             foreach (var member in type.GetMembers()) {
                 if (member is FieldSymbol f) {
-                    if (f.type is NamedTypeSymbol nt &&
+                    if (!f.isConstExpr && !f.isStatic && f.type is NamedTypeSymbol nt &&
                         nt.IsStructType() &&
                         _types.ContainsKey(nt.originalDefinition)) {
 

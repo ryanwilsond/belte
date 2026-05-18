@@ -7,10 +7,15 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static class OperatorFacts {
     internal static bool NoUserDefinedOperators(TypeSymbol type) {
-        return type.typeKind switch {
-            TypeKind.Class or TypeKind.TemplateParameter => false,
-            _ => true,
-        };
+        switch (type.typeKind) {
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Enum:
+            case TypeKind.TemplateParameter:
+                return false;
+            default:
+                return true;
+        }
     }
 
     internal static bool IsValidObjectEquality(

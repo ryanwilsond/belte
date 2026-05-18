@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -221,29 +222,23 @@ internal sealed class Evaluator {
 
         var staticConstructor = type.staticConstructors.SingleOrDefault();
 
-        if (staticConstructor is not null) {
-            if (type.IsStructType()) {
-                var structValue = CreateStruct(type);
-                _context.AddStaticType(type, structValue);
-                return structValue;
-            }
-
-            if (type.IsEnumType()) {
-                var enumValue = CreateEnum(type);
-                _context.AddStaticType(type, enumValue);
-                return enumValue;
-            }
-
-            var ptr = CreateObject(type);
-            _context.AddStaticType(type, ptr);
-            InvokeMethod(staticConstructor, ptr, [], abort);
-            return ptr;
+        if (type.IsEnumType()) {
+            var enumValue = CreateEnum(type);
+            _context.AddStaticType(type, enumValue);
+            return enumValue;
         }
 
-        return EvaluatorValue.None;
+        var ptr = CreateObject(type, isStatic: true);
+        _context.AddStaticType(type, ptr);
+
+        if (staticConstructor is not null)
+            InvokeMethod(staticConstructor, ptr, [], abort);
+
+        return ptr;
     }
-    private EvaluatorValue CreateObject(NamedTypeSymbol type) {
-        var heapObject = CreateHeapObject(type);
+
+    private EvaluatorValue CreateObject(NamedTypeSymbol type, bool isStatic = false) {
+        var heapObject = CreateHeapObject(type, isStatic: isStatic);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         return EvaluatorValue.HeapPtr(index);
     }
@@ -256,7 +251,7 @@ internal sealed class Evaluator {
         return EvaluatorValue.Struct(CreateHeapObject(type));
     }
 
-    private HeapObject CreateHeapObject(NamedTypeSymbol type) {
+    private HeapObject CreateHeapObject(NamedTypeSymbol type, bool isStatic = false) {
         if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout)) {
             _program.TryGetTypeLayoutIncludingParents(type, out _);
             throw new BelteInternalException($"Failed to get type layout ({type}).");
@@ -266,6 +261,9 @@ internal sealed class Evaluator {
         var heapObject = new HeapObject(type, fields.Length);
 
         foreach (var field in fields) {
+            if (field.symbol is FieldSymbol f && f.isStatic && !isStatic)
+                continue;
+
             var fieldType = field.type;
 
             if (type.templateSubstitution is not null)
@@ -461,11 +459,16 @@ internal sealed class Evaluator {
                             var expression = returnStatement.expression;
 
                             if (returnStatement.refKind == RefKind.None) {
-                                _lastValue = EvaluateExpression(expression, true, abort);
+                                _lastValue = EvaluateAssignmentDuplication(
+                                    UseKind.UsedAsValue,
+                                    EvaluateExpression(expression, true, abort)
+                                );
                             } else {
                                 _lastValue = EvaluateAddress(
                                     expression,
-                                    method.refKind == RefKind.RefConst ? AddressKind.ReadOnlyStrict : AddressKind.Writeable,
+                                    method.refKind == RefKind.RefConst
+                                        ? AddressKind.ReadOnlyStrict
+                                        : AddressKind.Writeable,
                                     abort
                                 );
                             }
@@ -577,6 +580,7 @@ internal sealed class Evaluator {
             BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("Stackalloc is not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used),
+            BoundKind.SizeOfOperator => EvaluateSizeOfOperator((BoundSizeOfOperator)node, used),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -602,27 +606,80 @@ internal sealed class Evaluator {
         if (!used)
             return EvaluatorValue.None;
 
-        return EvaluateDefaultExpression(node.type);
+        return GetDefaultValue(node.type, null);
     }
 
-    private EvaluatorValue EvaluateDefaultExpression(TypeSymbol type) {
-        if (type.IsNullableType())
-            return EvaluatorValue.Null;
+    private EvaluatorValue EvaluateSizeOfOperator(BoundSizeOfOperator node, bool used) {
+        if (!used)
+            return EvaluatorValue.None;
 
-        if (!type.IsTemplateParameter()) {
-            var constantValue = LiteralUtilities.TryGetDefaultValue(type);
+        return GetSizeOf(node.sourceType.type);
+    }
 
-            if (constantValue is not null)
-                return EvaluatorValue.Literal(constantValue.value, type.specialType);
+    private EvaluatorValue GetSizeOf(TypeSymbol type) {
+        const int PointerSize = 8;
+
+        // ? Note that `sizeof(T)` is platform specific so we are sort of allowed to just pick arbitrary values here
+        // We try to match what it "reasonably" could look like for a 64-bit machine
+        if (type.IsVerifierReference() || type.IsTemplateParameter())
+            return EvaluatorValue.Literal(PointerSize, SpecialType.Int32);
+
+        if (type.IsEnumType())
+            return GetSizeOf(type.GetEnumUnderlyingType());
+
+        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+            return EvaluatorValue.Literal(PointerSize, SpecialType.Int32);
+
+        if (type.IsNullableType()) {
+            var tSize = GetSizeOf(type.StrippedType()).int32;
+            var paddingSize = Math.Min(tSize, PointerSize);
+            return EvaluatorValue.Literal(tSize + paddingSize, SpecialType.Int32);
         }
 
-        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.UIntPtr or SpecialType.IntPtr) {
-            return new EvaluatorValue() { kind = ValueKind.Ref, uint64 = 0 };
-        } else if (type.IsTemplateParameter()) {
-            var targetType = SubstituteTemplateParameter((TemplateParameterSymbol)type);
-            return EvaluateDefaultExpression(targetType);
+        var sizeInBytes = type.specialType.SizeInBytes();
+
+        if (sizeInBytes > 0)
+            return EvaluatorValue.Literal(sizeInBytes, SpecialType.Int32);
+
+        var namedType = (NamedTypeSymbol)type;
+
+        if (!_program.TryGetTypeLayoutIncludingParents(namedType, out var layout))
+            throw new BelteInternalException($"Failed to get type layout ({namedType}).");
+
+        var fields = layout.LocalsInOrder();
+        var size = 0;
+
+        if (namedType.isUnionStruct) {
+            foreach (var field in fields) {
+                if (field.symbol.isStatic)
+                    continue;
+
+                size = Math.Max(size, GetSizeOf(field.type).int32);
+            }
         } else {
-            return CreateObject((NamedTypeSymbol)type);
+            var alignment = 0;
+
+            foreach (var field in fields) {
+                if (field.symbol.isStatic)
+                    continue;
+
+                var fieldSize = GetSizeOf(field.type).int32;
+                var fieldAlignment = Math.Min(fieldSize, PointerSize);
+
+                alignment = Math.Max(alignment, fieldAlignment);
+                size = Align(size, fieldAlignment);
+                size += fieldSize;
+            }
+
+            size = Align(size, alignment);
+        }
+
+        size = Math.Max(size, 1);
+
+        return EvaluatorValue.Literal(size, SpecialType.Int32);
+
+        static int Align(int value, int alignment) {
+            return (value + alignment - 1) & ~(alignment - 1);
         }
     }
 
@@ -1266,29 +1323,41 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
-        if (node.type.IsStructType()) {
-            if (used)
-                return CreateStruct((NamedTypeSymbol)node.type);
-
-            return EvaluatorValue.None;
-        }
-
         if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], used, abort);
 
         var type = (NamedTypeSymbol)node.StrippedType();
-        var ptr = CreateObject(type);
 
-        var temp = AllocateTemp(type);
-        _stack.Peek().values[temp.slot] = ptr;
+        if (node.type.IsStructType()) {
+            var value = CreateStruct(type);
 
-        var method = node.constructor;
-        var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
-        InvokeMethod(method, ptr, evaluatedArguments, abort);
+            var temp = AllocateTemp(type);
+            _stack.Peek().values[temp.slot] = value;
 
-        _stack.Peek().layout.FreeSlot(temp);
+            var ptr = EvaluatorValue.Ref(_stack.Peek().values, temp.slot);
 
-        return ptr;
+            var method = node.constructor;
+            var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
+            InvokeMethod(method, ptr, evaluatedArguments, abort);
+
+            if (used)
+                return _stack.Peek().values[temp.slot];
+
+            return EvaluatorValue.None;
+        } else {
+            var ptr = CreateObject(type);
+
+            var temp = AllocateTemp(type);
+            _stack.Peek().values[temp.slot] = ptr;
+
+            var method = node.constructor;
+            var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
+            InvokeMethod(method, ptr, evaluatedArguments, abort);
+
+            _stack.Peek().layout.FreeSlot(temp);
+
+            return ptr;
+        }
     }
 
     private EvaluatorValue EvaluateArrayAccessExpression(BoundArrayAccessExpression node, bool used, ValueWrapper<bool> abort) {
@@ -1387,22 +1456,33 @@ internal sealed class Evaluator {
     }
 
     private EvaluatorValue GetDefaultValue(TypeSymbol type, object constantValueForEnum) {
-        if (type.IsStructType())
+        if (type.IsNullableType())
+            return EvaluatorValue.Null;
+
+        if (!type.IsTemplateParameter()) {
+            var constantValue = LiteralUtilities.TryGetDefaultValue(type);
+
+            if (constantValue is not null)
+                return EvaluatorValue.Literal(constantValue.value, type.specialType);
+        }
+
+        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.UIntPtr or SpecialType.IntPtr) {
+            return new EvaluatorValue() { kind = ValueKind.Ref, uint64 = 0 };
+        } else if (type.IsTemplateParameter()) {
+            var targetType = SubstituteTemplateParameter((TemplateParameterSymbol)type);
+            return GetDefaultValue(targetType, constantValueForEnum);
+        } else if (type.IsStructType()) {
             return CreateStruct((NamedTypeSymbol)type);
-
-        if (type is PointerTypeSymbol)
-            return EvaluatorValue.Literal(value: 0);
-
-        if (type.IsEnumType()) {
+        } else if (type.IsEnumType()) {
             return EvaluatorValue.Literal(
                 constantValueForEnum,
                 (type as NamedTypeSymbol).enumUnderlyingType.StrippedType().specialType
             );
+        } else if (type.IsVerifierReference()) {
+            return EvaluatorValue.Null;
+        } else {
+            return CreateObject((NamedTypeSymbol)type);
         }
-
-        return (!type.IsNullableType() && type.IsVerifierValue())
-            ? EvaluatorValue.Literal(type.specialType)
-            : EvaluatorValue.Null;
     }
 
     #endregion
@@ -1468,7 +1548,8 @@ internal sealed class Evaluator {
             value.kind == ValueKind.Float64 && targetSpecialType == SpecialType.Float64 ||
             value.kind == ValueKind.Bool && targetSpecialType == SpecialType.Bool ||
             value.kind == ValueKind.String && targetSpecialType == SpecialType.String ||
-            targetSpecialType == SpecialType.Any) {
+            targetSpecialType == SpecialType.Any ||
+            targetSpecialType == SpecialType.Object) {
             value.@bool = !node.isNot;
             value.kind = ValueKind.Bool;
             return value;
@@ -1655,7 +1736,8 @@ internal sealed class Evaluator {
                 IndirectStore(location, lhs, value);
                 break;
             case BoundKind.ThisExpression:
-                lhs.ptr = value.ptr;
+                Debug.Assert(lhs.kind == ValueKind.Ref && node.StrippedType().IsStructType());
+                lhs.loc[lhs.ptr] = value;
                 break;
             case BoundKind.AssignmentOperator:
                 var nested = (BoundAssignmentOperator)expression;
@@ -2592,7 +2674,9 @@ internal sealed class Evaluator {
             receiver?.StrippedType()?.typeKind != TypeKind.TemplateParameter) {
             var typeToLookup = receiver?.kind == BoundKind.BaseExpression
                 ? receiver.StrippedType()
-                : _context.heap[thisParameter.ptr].type.StrippedType();
+                : thisParameter.kind == ValueKind.Struct
+                    ? thisParameter.@struct.type.StrippedType()
+                    : _context.heap[thisParameter.ptr].type.StrippedType();
 
             // TODO Use GetLeastOverriddenMember instead
             // var newMethod = method.GetLeastOverriddenMethod((NamedTypeSymbol)typeToLookup);
@@ -2645,7 +2729,7 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateArgument(BoundExpression argument, RefKind refKind, ValueWrapper<bool> abort) {
         if (refKind == RefKind.None)
-            return EvaluateExpression(argument, true, abort);
+            return EvaluateAssignmentDuplication(UseKind.UsedAsValue, EvaluateExpression(argument, true, abort));
 
         return EvaluateAddress(argument, AddressKind.Writeable, abort);
     }
@@ -2849,9 +2933,8 @@ internal sealed class Evaluator {
 
                     return true;
                 case "LowLevel_SizeOf": {
-                        // TODO
-                        // TODO EvaluateSizeOf()
-                        result = EvaluatorValue.Null;
+                        var type = method.templateArguments[0].type.type;
+                        result = GetSizeOf(type);
                     }
 
                     return true;
@@ -2971,7 +3054,7 @@ internal sealed class Evaluator {
                     if (thisParameter.kind == ValueKind.Null)
                         throw new BelteNullReferenceException(receiver.syntax.location);
 
-                    result = thisParameter.kind == ValueKind.HeapPtr
+                    result = thisParameter.kind is ValueKind.HeapPtr or ValueKind.Struct
                         ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
                         : EvaluatorValue.Format(thisParameter, _context);
 

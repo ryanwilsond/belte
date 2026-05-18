@@ -260,7 +260,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     declaredBase = CorLibrary.GetSpecialType(SpecialType.Object);
                     break;
                 case TypeKind.Struct:
-                    declaredBase = null;
+                    declaredBase = CorLibrary.GetSpecialType(SpecialType.ValueType);
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(typeKind);

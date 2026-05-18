@@ -197,6 +197,10 @@ internal sealed class RefILBuilder : ILBuilder {
         Emit(ConvertToRef(opCode), value);
     }
 
+    internal override void EmitLoadArgument0() {
+        Emit(OpCodes.Ldarg_0);
+    }
+
     internal override void EmitLoadArgument(int slot) {
         switch (slot) {
             case 0: Emit(OpCodes.Ldarg_0); break;

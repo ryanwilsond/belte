@@ -2,6 +2,7 @@ Usage: buckle.exe [options] file...
 
 Options:
   -h|--help                   Display this information.
+  --dumpmachine               Display host machine information.
   --version                   Display compiler version information.
   --noout                     Disable any file output the compiler would have produced.
 

@@ -95,7 +95,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'string' implicitly; an explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int!' to 'string?' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -276,7 +276,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'A!' to 'bool'
+            cannot convert from type 'A!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -342,7 +342,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot apply indexing with [] to an expression of type 'int'
+            cannot apply indexing with [] to an expression of type 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -724,9 +724,48 @@ public sealed class DiagnosticTests {
     // Unreachable currently
 
     [Fact]
-    public void Reports_Error_BU0055_VoidVariable() {
+    public void Reports_Error_BU0055_VoidUsedAsType() {
         var text = @"
             [void] a;
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0055_VoidUsedAsType2() {
+        var text = @"
+            void F([void] a) { }
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0055_VoidUsedAsType3() {
+        var text = @"
+            void([void]) a;
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0055_VoidUsedAsType4() {
+        var text = @"
+            var a = sizeof([void]);
         ";
 
         var diagnostics = @"
@@ -783,7 +822,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            call is ambiguous between 'A.myFunc(int)' and 'A.myFunc(string)'
+            call is ambiguous between 'A.myFunc(int?)' and 'A.myFunc(string?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1220,7 +1259,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0091_CannotInitializeInStructs() {
         var text = @"
             struct A {
-                int? num [=] 3;
+                int? num [= 3];
             }
         ";
 
@@ -1692,7 +1731,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'Object' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'Object?' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1918,7 +1957,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the operator A.op_Equality(A, A) requires a matching operator '!=' to also be defined
+            the operator A.op_Equality(A?, A?) requires a matching operator '!=' to also be defined
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2085,7 +2124,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot derive from template parameter 'int T2'
+            cannot derive from template parameter 'int? T2'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2117,7 +2156,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            inconsistent accessibility: return type 'A.B' is less accessible than operator 'A.op_Addition(A, A)'
+            inconsistent accessibility: return type 'A.B' is less accessible than operator 'A.op_Addition(A?, A?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2149,7 +2188,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            inconsistent accessibility: parameter type 'A.B' is less accessible than operator 'A.op_Addition(A.B, A)'
+            inconsistent accessibility: parameter type 'A.B' is less accessible than operator 'A.op_Addition(A.B?, A?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2165,7 +2204,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            inconsistent accessibility: parameter type 'A.B' is less accessible than method 'A.F(A.B)'
+            inconsistent accessibility: parameter type 'A.B' is less accessible than method 'A.F(A.B?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2430,7 +2469,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'bool!' to 'int'
+            argument 1: cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2444,7 +2483,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'int!' implicitly; an explicit conversion exists (are you missing a cast?)
+            cannot convert from type 'int?' to 'int!' implicitly; an explicit conversion exists (are you missing a cast?)
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2453,11 +2492,12 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Warning_BU0180_NeverGivenType() {
         var text = @"
-            bool b = [3 is Object];
+            static class A { }
+            bool b = [3 is A];
         ";
 
         var diagnostics = @"
-            the given expression is never of the provided type ('Object')
+            the given expression is never of the provided type ('A')
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
@@ -2478,7 +2518,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            binary operator '+' is ambiguous for operands with types 'A' and 'B'
+            binary operator '+' is ambiguous for operands with types 'A?' and 'B?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2649,7 +2689,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            there is no argument given that corresponds to the required parameter 'b' of 'F(int, int)'
+            there is no argument given that corresponds to the required parameter 'b' of 'F(int?, int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3044,7 +3084,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            a value of type 'string!' cannot be used as a default parameter because there are no casts to type 'bool'
+            a value of type 'string!' cannot be used as a default parameter because there are no casts to type 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3462,7 +3502,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'B.M(ref int)' must match by reference return of overridden member 'A.M(ref int)'
+            'B.M(ref int?)' must match by reference return of overridden member 'A.M(ref int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3674,7 +3714,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the template type 'A<int t>' requires 1 template arguments
+            the template type 'A<int? t>' requires 1 template arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3941,7 +3981,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'int' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'int?' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3955,7 +3995,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'Object' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'Object?' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -4125,7 +4165,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            constant value 'asdf' cannot be converted to 'bool'
+            constant value 'asdf' cannot be converted to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -4909,7 +4949,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot apply a null erasure operator to an expression with type 'A' because it has no default value
+            cannot apply a null erasure operator to an expression with type 'A?' because it has no non-null default value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5012,7 +5052,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            no overload for 'F' matches function 'void()'
+            no overload for 'F' matches function 'void()?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5026,7 +5066,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'int F()' has the wrong return type; expected 'void'
+            'int? F()' has the wrong return type; expected 'void'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5040,7 +5080,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            ref mismatch between 'F(ref int)' and function 'int(ref int)'
+            ref mismatch between 'F(ref int?)' and function 'int?(ref int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5212,7 +5252,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot use nullable type 'int' in a pattern; use the underlying type 'int!' or a null-binding contract instead
+            cannot use nullable type 'int?' in a pattern; use the underlying type 'int!' or a null-binding contract instead
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5475,6 +5515,52 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot create a function pointer to 'F()' because it is not a static method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0440_NonPublicParameterlessStructConstructor() {
+        var text = @"
+            struct A {
+                private [constructor]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            parameterless struct constructors must be 'public'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0441_UnionMustHaveField() {
+        var text = @"
+            union [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            unions must contain at least 1 non-static field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0441_UnionMustHaveField2() {
+        var text = @"
+            struct A {
+                [union] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            unions must contain at least 1 non-static field
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -35,7 +35,7 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic NeverGivenType(TextLocation location, TypeSymbol type) {
-        var message = $"the given expression is never of the provided type ('{type.ToNullOrString()}')";
+        var message = $"the given expression is never of the provided type ('{type.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}')";
         return CreateWarning(DiagnosticCode.WRN_NeverGivenType, location, message);
     }
 

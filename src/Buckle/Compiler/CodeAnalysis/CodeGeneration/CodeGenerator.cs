@@ -170,9 +170,10 @@ internal sealed partial class CodeGenerator {
                     if (!HasHome(expression, addressKind))
                         goto default;
 
-                    _builder.EmitLoadArgument(0);
+                    _builder.EmitLoadArgument0();
                 } else {
-                    _builder.EmitLoadArgumentAddr(0);
+                    throw ExceptionUtilities.Unreachable();
+                    // _builder.EmitLoadArgumentAddr0();
                 }
 
                 break;
@@ -3097,11 +3098,10 @@ oneMoreTime:
                 _builder.Emit(OpCode.Stind_R8);
                 break;
             default:
-                if (type.IsVerifierReference()) {
+                if (type.IsVerifierReference())
                     _builder.Emit(OpCode.Stind_Ref);
-                } else {
+                else
                     _builder.EmitWithSymbolToken(OpCode.Stobj, type);
-                }
 
                 break;
         }
@@ -3299,6 +3299,11 @@ oneMoreTime:
                 return false;
         }
 
+        if (right.IsDefaultValue()) {
+            InPlaceInit(left, used);
+            return true;
+        }
+
         if (right is BoundObjectCreationExpression objCreation) {
             if (PartialCtorResultCannotEscape(left)) {
                 var ctor = objCreation.constructor;
@@ -3322,6 +3327,15 @@ oneMoreTime:
         }
 
         return false;
+    }
+
+    private void InPlaceInit(BoundExpression target, bool used) {
+        var temp = EmitAddress(target, AddressKind.Writeable);
+
+        _builder.EmitWithSymbolToken(OpCode.Initobj, target.type);
+
+        if (used)
+            EmitExpression(target, used);
     }
 
     private bool TryInPlaceCtorCall(BoundExpression target, BoundObjectCreationExpression objCreation, bool used) {

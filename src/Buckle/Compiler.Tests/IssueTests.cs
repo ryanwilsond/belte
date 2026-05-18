@@ -209,7 +209,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '+=' is not defined for operands of types 'int' and 'bool!'
+            binary operator '+=' is not defined for operands of types 'int?' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -263,7 +263,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int)'
+            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -336,7 +336,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -350,7 +350,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -364,7 +364,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -377,7 +377,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int?' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -468,7 +468,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'bool!' to 'int'
+            cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -588,7 +588,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'bool!' to 'int'
+            argument 1: cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

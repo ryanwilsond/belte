@@ -494,14 +494,15 @@ internal sealed partial class Lexer : IDisposable {
                 break;
             case '*':
                 _position++;
+                _kind = SyntaxKind.AsteriskToken;
 
-                if (AdvanceIfMatches('*')) {
-                    if (AdvanceIfMatches('=')) _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
-                    else _kind = SyntaxKind.AsteriskAsteriskToken;
-                } else if (AdvanceIfMatches('=')) {
+                if (AdvanceIfMatches('=')) {
                     _kind = SyntaxKind.AsteriskEqualsToken;
-                } else {
-                    _kind = SyntaxKind.AsteriskToken;
+                } else if (AdvanceIfMatches('*')) {
+                    if (AdvanceIfMatches('='))
+                        _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
+                    else
+                        _position--;
                 }
 
                 break;

@@ -832,6 +832,49 @@ struct A {
 
 Because struct fields cannot have explicit initializers, structs can only contain fields of types with a default value.
 
+Accessibility modifiers can still be used in structs to make members private:
+
+```belte
+struct A {
+  private int a;
+}
+```
+
+Similar to classes, structs can contain members such as constructors and methods or other nested types:
+
+```belte
+struct A {
+  int a;
+
+  public constructor() {
+    a = 3;
+  }
+}
+```
+
+Note that any parameterless struct constructors must be made public, but this is the default accessibility modifier so
+the following is also correct:
+
+```belte
+struct A {
+  int a;
+
+  constructor() {
+    a = 3;
+  }
+}
+```
+
+While normal fields cannot contain initializers, static or constexpr fields still can:
+
+```belte
+struct A {
+  static const int f1 = 3; // OK
+  constexpr int f2 = 10; // OK
+  int f3 = 3; // Invalid
+}
+```
+
 ### 4.9.1 Unions
 
 A union struct is a struct where all of the fields overlap in memory. Because of this, assigning to any field in the

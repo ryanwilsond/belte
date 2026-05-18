@@ -143,9 +143,8 @@
     - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
-    - [6.2](Current/LowLevelFeatures.md#62-structures) Structures
+    - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
     - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
-      - [6.3.1](Current/LowLevelFeatures.md#631-initializer-lists) Initializer Lists
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
       - [6.5.1](Current/LowLevelFeatures.md#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers

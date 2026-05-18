@@ -882,6 +882,8 @@ public sealed class DisplayText {
         bool conditional = false) {
         if (node.receiver is not null)
             DisplayNode(text, node.receiver);
+        else
+            SymbolDisplay.AppendToDisplayText(text, node.field.containingType, SymbolDisplayFormat.QualifiedNameFormat);
 
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
@@ -1307,7 +1309,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
-        DisplayNode(text, node.receiver);
+        if (node.receiver is not null)
+            DisplayNode(text, node.receiver);
+        else
+            SymbolDisplay.AppendToDisplayText(text, node.field.containingType, SymbolDisplayFormat.QualifiedNameFormat);
+
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
     }

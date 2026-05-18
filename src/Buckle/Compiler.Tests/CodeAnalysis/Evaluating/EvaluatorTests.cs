@@ -149,6 +149,7 @@ public sealed class EvaluatorTests {
     [InlineData("return \"string\" is string;", true)]
     [InlineData("return null is string;", false)]
     [InlineData("return null is Object;", false)]
+    [InlineData("return 3 is Object;", true)]
     [InlineData("return null isnt null;", false)]
     [InlineData("return 3 isnt null;", true)]
     [InlineData("return 5 % 2;", 1)]
@@ -417,7 +418,9 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public constexpr int? a; } return A.a;", null)]
     [InlineData("class A { public static int? B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { public static int? B(int a) { return a + 3; } } return A.B(4);", 7)]
+    [InlineData("struct A { public static A a = default; int f; } return A.a.f;", 0)]
     // Structs
+    [InlineData("struct A { } var a = new A(); return a is Object;", true)]
     [InlineData("struct A { public int! a; } var a = new A(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
     [InlineData("union A { int32 a; int16 b; } var a = new A(); a.a = 5; return a.b;", 5)]
     [InlineData("union A { int32 a; int16 b; } var a = new A(); a.b = 5; return a.a;", 5)]
@@ -425,6 +428,23 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.c;", 5)]
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.a;", 5)]
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.b;", 0)]
+    [InlineData("struct A { int a; constructor() { a = 3; } } var a = new A(); return a.a;", 3)]
+    [InlineData("struct A { int a; void SetA(int a) { this.a = a; } } var a = new A(); a.SetA(10); return a.a;", 10)]
+    [InlineData("struct A { static int x = 3; } return A.x;", 3)]
+    [InlineData("struct A { constexpr int x = 3; } return A.x;", 3)]
+    [InlineData(@"
+        struct A {
+            int a;
+            int Mut() {
+                a++;
+                return a;
+            }
+        }
+        A GetA() {
+            return new A();
+        }
+        var a = GetA().Mut();
+        return a;", 1)]
     [InlineData(@"
         struct A { public int x; }
         var a = new A();
@@ -438,6 +458,25 @@ public sealed class EvaluatorTests {
         var b = new B();
         b.a.x = 4;
         return b.a.x;", 4)]
+    [InlineData(@"
+        struct A {
+            public int x;
+            public constructor(int x) {
+                this = new A()..x=x;
+            }
+        }
+        var a = new A(10);
+        return a.x;", 10)]
+    [InlineData(@"
+        struct A {
+            public int x;
+            public constructor(int a) {
+                this = new A();
+                x++;
+            }
+        }
+        var a = new A(10);
+        return a.x;", 1)]
     // Enums
     [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
     [InlineData("enum flags A { q, w, e, r, t } return A.t;", 16)]
@@ -561,7 +600,9 @@ public sealed class EvaluatorTests {
     [InlineData("var? cond = true; int? res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
     // Libraries
     [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
+    [InlineData("struct A { } var a = new A(); return a.ToString();", "A")]
     [InlineData("class A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
+    [InlineData("struct A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
     [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length<any[]>(a);", 3)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
@@ -583,6 +624,22 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int32) == typeof(int64);", false)]
     [InlineData("return typeof(decimal) == typeof(float64);", true)]
     [InlineData("return typeof(float32) == typeof(float64);", false)]
+    // SizeOf expressions
+    [InlineData("return sizeof(int8);", 1)]
+    [InlineData("return sizeof(int16);", 2)]
+    [InlineData("return sizeof(int32);", 4)]
+    [InlineData("return sizeof(int64);", 8)]
+    [InlineData("return sizeof(uint8);", 1)]
+    [InlineData("return sizeof(uint16);", 2)]
+    [InlineData("return sizeof(uint32);", 4)]
+    [InlineData("return sizeof(uint64);", 8)]
+    [InlineData("return sizeof(int);", 8)]
+    [InlineData("return sizeof(char);", 2)]
+    [InlineData("return sizeof(float32);", 4)]
+    [InlineData("return sizeof(float64);", 8)]
+    [InlineData("return sizeof(decimal);", 8)]
+    [InlineData("return sizeof(bool);", 1)]
+    [InlineData("return sizeof(winbool);", 4)]
     // Operators
     [InlineData(@"
         class A {
@@ -628,6 +685,44 @@ public sealed class EvaluatorTests {
         var a = new A(1);
         var b = new A(2);
         return (a + b).x;", 3)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A operator+(A a, A b) {
+                a.x += b.x;
+                return a;
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        return (a + b).x;", 3)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A operator+(A a, A b) {
+                a.x += b.x;
+                return a;
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        var c = a + b;
+        return c.x;", 3)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A operator+(A a, A b) {
+                a.x += b.x;
+                return a;
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        var c = a + b;
+        return a.x;", 1)]
     // Overrides
     [InlineData(@"
         class A {
@@ -743,12 +838,6 @@ public sealed class EvaluatorTests {
     [InlineData("return f\"{1}{2}{3}\";", "123")]
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
-    // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
-    // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
-    // [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
-    // [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
-    // [InlineData("lowlevel int[] Test<int[] a>() { return a; } lowlevel { return Test<{1, 2, 3}>()[1]; }", 2)]
-    // [InlineData("lowlevel { int[] Test<int[] a>() { return a; } return Test<{1, 2, 3}>()[1]; }", 2)]
     [InlineData("class A<type t> { public t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
     [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int?>>();", null)]
@@ -1095,5 +1184,32 @@ public sealed class EvaluatorTests {
         return Run();", 6)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
+    }
+
+    [Theory]
+    // Non-Type Templates
+    [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
+    [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
+    [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
+    // Runtime Defined SizeOf
+    [InlineData("struct A { int32 a; bool b; } return sizeof(A);", 8)]
+    [InlineData("class A { int32 a; bool b; } return sizeof(A);", 8)]
+    [InlineData("struct A { int32 a; bool b; } return sizeof(A?);", 16)]
+    [InlineData("return sizeof(int?);", 16)]
+    [InlineData("return sizeof(bool?);", 2)]
+    [InlineData("return sizeof(intptr);", 8)]
+    [InlineData("return sizeof(uintptr);", 8)]
+    [InlineData("return sizeof(void*);", 8)]
+    [InlineData("return sizeof(int32*);", 8)]
+    [InlineData("union A { int32 a; bool b; } return sizeof(A);", 4)]
+    [InlineData("struct A { int32 a; union { int32 b; bool c; } } return sizeof(A);", 8)]
+    [InlineData("struct A { int32 a; bool b; } struct B { A a; bool b; } return sizeof(B);", 16)]
+    [InlineData("struct A { int16 a; int16 b; int32 c; } return sizeof(A);", 8)]
+    [InlineData("struct A { int16 a; int8 b; } union B { int8 a; A b; } return sizeof(B);", 4)]
+    [InlineData("struct A { int8 b; } return sizeof(A);", 1)]
+    [InlineData("union A { int8 b; } return sizeof(A);", 1)]
+    [InlineData("struct A { } return sizeof(A);", 1)]
+    public void EvaluatorOnly_Computes_CorrectValues(string text, object? expectedValue) {
+        AssertValue(text, expectedValue, evaluator: true, executor: false);
     }
 }

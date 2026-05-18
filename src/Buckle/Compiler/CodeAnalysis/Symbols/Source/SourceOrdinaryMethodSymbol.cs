@@ -151,7 +151,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         BelteDiagnosticQueue diagnostics) {
         return ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
-            containingType.IsFileScoped() ? DeclarationModifiers.Public : DeclarationModifiers.None,
+            (containingType.IsStructType() || containingType.IsFileScoped())
+                ? DeclarationModifiers.Public
+                : DeclarationModifiers.None,
             allowedModifiers,
             syntax.identifier.location,
             diagnostics,

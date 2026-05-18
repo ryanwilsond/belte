@@ -203,11 +203,11 @@ done:
         if (!IsNoMoreVisibleThan(underlyingReturnType)) {
             if (methodKind is MethodKind.Operator or MethodKind.Conversion) {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType.StrippedType(), this)
                 );
             } else {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityReturn(location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityReturn(location, underlyingReturnType.StrippedType(), this)
                 );
             }
         }
@@ -216,11 +216,11 @@ done:
             if (!parameter.typeWithAnnotations.nullableUnderlyingTypeOrSelf.IsAtLeastAsVisibleAs(this)) {
                 if (methodKind is MethodKind.Operator or MethodKind.Conversion) {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityOperatorParameter(location, parameter.type, this)
+                        Error.InconsistentAccessibilityOperatorParameter(location, parameter.type.StrippedType(), this)
                     );
                 } else {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityParameter(location, parameter.type, this)
+                        Error.InconsistentAccessibilityParameter(location, parameter.type.StrippedType(), this)
                     );
                 }
             }

@@ -80,6 +80,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitLoadArgument(int slot);
 
+    internal abstract void EmitLoadArgument0();
+
     internal abstract void EmitLoadArgumentAddr(int slot);
 
     internal abstract void EmitStoreArgument(int slot);

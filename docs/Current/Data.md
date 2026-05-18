@@ -398,8 +398,19 @@ int b = a[1]; // 2
 a[2] = 6;
 ```
 
-Note that this functionality will eventually be moved to be exclusive to low-level contexts, and be replaced with more
-powerful collection types.
+An initializer list expression can be used to implicitly create an array in
+contexts where it is not being used as an initializer such as in the examples
+above.
+
+The array creation can also be made explicit in these scenarios. The following
+are equivalent:
+
+```belte
+F({1, 2, 3});
+F(new int[] {1, 2, 3});
+
+void F(int[] arr) { /* ... */}
+```
 
 ## 3.7 Compile-Time Expressions
 

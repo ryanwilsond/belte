@@ -843,6 +843,24 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitThisExpression(node);
     }
 
+    internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
+        /*
+
+        new <type>(<args>)
+
+        ----> <type> is struct and uses the default parameterless constructor
+
+        default(<type>)
+
+        */
+        var type = node.type;
+
+        if (type.IsStructType() && node.constructor is SynthesizedInstanceConstructorSymbol)
+            return new BoundDefaultExpression(node.syntax, null, null, type);
+
+        return base.VisitObjectCreationExpression(node);
+    }
+
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
         /*
 

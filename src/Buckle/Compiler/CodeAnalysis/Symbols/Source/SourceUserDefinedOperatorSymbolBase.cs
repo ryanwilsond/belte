@@ -289,7 +289,9 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         BaseMethodDeclarationSyntax syntax,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = containingType.IsFileScoped() ? DeclarationModifiers.Public : DeclarationModifiers.Private;
+        var defaultAccess = (containingType.IsStructType() || containingType.IsFileScoped())
+            ? DeclarationModifiers.Public
+            : DeclarationModifiers.Private;
         var allowedModifiers = DeclarationModifiers.Static
             | DeclarationModifiers.LowLevel
             | DeclarationModifiers.AccessibilityMask;

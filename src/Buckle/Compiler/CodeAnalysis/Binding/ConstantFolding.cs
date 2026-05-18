@@ -364,7 +364,6 @@ internal static class ConstantFolding {
 
     internal static ConstantValue FoldIs(ConstantValue left, ConstantValue right, bool isNot) {
         // TODO Should be able to expand this to cover some `is object` or `is primitive` expressions too
-
         if (ConstantValue.IsNull(left) && ConstantValue.IsNull(right))
             return new ConstantValue(!isNot, SpecialType.Bool);
 

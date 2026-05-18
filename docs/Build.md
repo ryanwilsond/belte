@@ -66,6 +66,20 @@ void Build(Builder builder) {
 }
 ```
 
+To override the default entry point search rules, a type name can be specified.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetEntryTypeName("MyNamespace.MyType");
+}
+```
+
+Refer to the [*--entry* CLI option](Buckle.md#--entryname) for more information.
+
 ## Build Mode & Output Kind
 
 The field `Builder.buildMode` can be assigned to to specify a build mode.
@@ -112,6 +126,19 @@ void Build(Builder builder) {
 }
 ```
 
+To perform a debug build, the [*--debug* CLI option](Buckle.md#--debug) can be used when running `buckle build` or
+`build run`, or the field `Builder.debugBuild` can be set to `true`.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.debugBuild = true;
+}
+```
+
 ## References
 
 DLL references can be added with `Builder.AddRef(path, options)`. By default, directories search for `*.dll` files
@@ -138,6 +165,18 @@ using Buckle.Building;
 
 void Build(Builder builder) {
   builder.IncludeNETSDK();
+}
+```
+
+To disable building with the native Belte Standard Library, set the `Builder.includeStdLib` field to `false`.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.includeStdLib = false;
 }
 ```
 
@@ -270,5 +309,19 @@ using Buckle.Building;
 
 void Build(Builder builder) {
   builder.SetVerboseMode(.TimeOnly);
+}
+```
+
+To override the default verbose artifact output path (the working directory), `Builder.SetVerboseArtifactPath(path)` can
+be used.
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetVerboseMode(.Normal);
+  builder.SetVerboseArtifactPath("artifacts");
 }
 ```

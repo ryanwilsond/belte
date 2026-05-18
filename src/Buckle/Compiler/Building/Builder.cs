@@ -10,6 +10,8 @@ public sealed class Builder {
 
     public BuildMode buildMode;
     public OutputKind outputKind;
+    public bool debugBuild;
+    public bool includeStdLib;
 
     public Builder() {
         buildMode = BuildMode.Execute;
@@ -18,6 +20,8 @@ public sealed class Builder {
         refs = [];
         l = 0;
         maxCores = 0;
+        debugBuild = false;
+        includeStdLib = true;
         _diagnosticFlagMode = DiagnosticFlagMode.Global;
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();
@@ -33,7 +37,11 @@ public sealed class Builder {
 
     public VerboseMode verboseMode { get; private set; }
 
+    public string vPath { get; private set; }
+
     public int maxCores { get; private set; }
+
+    public string entryName { get; private set; }
 
     public DiagnosticOptions diagnosticOptions => _globalDiagnosticOptions;
 
@@ -65,6 +73,14 @@ public sealed class Builder {
 
     public void SetVerboseMode(VerboseMode mode) {
         verboseMode = mode;
+    }
+
+    public void SetVerboseArtifactPath(string path) {
+        vPath = path;
+    }
+
+    public void SetEntryTypeName(string name) {
+        entryName = name;
     }
 
     public void SetMaxCores(int coreCount) {

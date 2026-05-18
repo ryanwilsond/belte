@@ -63,7 +63,7 @@ public enum DiagnosticCode : ushort {
     ERR_ExpectedTokenAtEOF = 52,
     WRN_ImpliedReference = 53,
     ERR_ReferenceToConstant = 54,
-    ERR_VoidVariable = 55,
+    ERR_VoidUsedAsType = 55,
     ERR_ExpectedToken = 56,
     ERR_WrongArgumentCount = 57,
     ERR_AmbiguousMethodOverload = 58,
@@ -448,6 +448,8 @@ public enum DiagnosticCode : ushort {
     ERR_AmbiguousTernary = 437,
     ERR_InvalidTernary = 438,
     ERR_CannotTakeFunctionPointerOfNonStatic = 439,
+    ERR_NonPublicParameterlessStructConstructor = 440,
+    ERR_UnionMustHaveField = 441,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -21,7 +21,7 @@ Displays a brief options summary.
 ### *new*
 
 Creates a starter build script. Optionally accepts a namespace name as the next argument. Only the
-[*--type*](#--typeconsolegraphics-default-console) option can be specified in addition.
+[*--type*](#--typeconsolegraphics-default-console) and [*--debug*](#--debug) options can be specified in addition.
 
 The generated build script will be placed at `Build.blt` in the working directory, and an entry point will be created
 at `src/Program.blt`. Both locations must be unoccupied.
@@ -30,8 +30,8 @@ at `src/Program.blt`. Both locations must be unoccupied.
 
 Instead of using normal options, a build script can be used to drive the compilation. The build script is found
 automatically by searching the working directory for a file named `Build.blt`. When using this option, only
-[*--time*](#--time) and [*--info*](#--info) can be specified in addition. All other arguments must be defined in the
-build script itself.
+[*--time*](#--time), [*--info*](#--info), and [*--debug*](#--debug) options can be specified in addition. All other
+arguments must be defined in the build script itself.
 
 Optionally, the build script can be specified manually by passing it's path as an argument immediately following
 *build*.
@@ -171,6 +171,10 @@ Suppresses specified warnings. Warnings should be comma delimited. Warnings shou
 Specifically avoids suppressing specific warnings, even if the [severity level](#--severityseverity-default-warning) or
 [warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited.
 Warnings should be specified using their codes.
+
+### *--dumpmachine*
+
+Displays host machine information. The message will be in the form `Host: [target]`. For example, `Host: win-x64`.
 
 ### *--version*
 

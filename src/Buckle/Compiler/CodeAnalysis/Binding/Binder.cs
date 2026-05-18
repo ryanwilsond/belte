@@ -3626,6 +3626,9 @@ internal partial class Binder {
         var typeWithAnnotations = BindType(typeSyntax, diagnostics, out var alias);
         var type = typeWithAnnotations.type;
 
+        if (type.IsVoidType())
+            diagnostics.Push(Error.VoidUsedAsType(node.type.location));
+
         var typeHasErrors = type.IsErrorType();
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, alias, type, typeHasErrors);
@@ -5691,7 +5694,7 @@ internal partial class Binder {
                 if (qualifier is ErrorTypeSymbol errorQualifier && errorQualifier.error is not null)
                     return errorQualifier.error;
 
-                var error = Error.DottedTypeNamesNotFound(location, whereText, qualifier);
+                var error = Error.DottedTypeNamesNotFound(location, whereText, qualifier.StrippedTypeOrSelf());
                 diagnostics.Push(error);
                 return error;
             } else {
@@ -8094,8 +8097,15 @@ internal partial class Binder {
     }
 
     private static bool IsCanHandle(TypeSymbol sourceType, TypeSymbol targetType) {
-        if (sourceType.specialType != targetType.specialType)
-            return sourceType.specialType == SpecialType.Any || targetType.specialType == SpecialType.Any;
+        if (sourceType.specialType != targetType.specialType) {
+            if (sourceType.specialType == SpecialType.Any || targetType.specialType == SpecialType.Any)
+                return true;
+
+            if (sourceType.specialType == SpecialType.Object || targetType.specialType == SpecialType.Object)
+                return true;
+
+            return false;
+        }
 
         if (sourceType.specialType == targetType.specialType && sourceType.specialType != SpecialType.None)
             return true;
@@ -8103,9 +8113,7 @@ internal partial class Binder {
         if (sourceType.IsArray() || targetType.IsArray())
             return sourceType.Equals(targetType);
 
-        return !((sourceType.isObjectType && targetType.isPrimitiveType) ||
-               (sourceType.isPrimitiveType && targetType.isObjectType) ||
-                targetType.isStatic);
+        return !targetType.isStatic;
     }
 
     private BoundExpression BindIsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -8165,11 +8173,9 @@ internal partial class Binder {
         if (operand.hasAnyErrors || targetTypeKind == TypeKind.Error)
             return new BoundAsOperator(node, operand, boundType, null, null, resultType, true);
 
-        if ((operand.Type().isObjectType && targetType.isPrimitiveType) ||
-            (operand.Type().isPrimitiveType && targetType.isObjectType) ||
-            targetType.isStatic) {
+        if (targetType.isStatic) {
             diagnostics.Push(Warning.NeverGivenType(node.location, targetType));
-            return new BoundLiteralExpression(node, new ConstantValue(false, SpecialType.Bool), resultType);
+            return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), resultType);
         }
 
         BoundValuePlaceholder operandPlaceholder;
@@ -12762,7 +12768,7 @@ symIsHidden:;
                 diagnostics.Push(Error.StaticDataContainer(declarationNode.location));
 
             if (declType.IsVoidType())
-                diagnostics.Push(Error.VoidVariable(typeSyntax.location));
+                diagnostics.Push(Error.VoidUsedAsType(typeSyntax.location));
         }
 
         return declType;
@@ -13071,14 +13077,16 @@ symIsHidden:;
                 if (!fieldSymbol.isConstExpr) {
                     var syntaxRef = initializer.syntax;
 
+                    if (!fieldSymbol.isStatic && fieldSymbol.containingType.IsStructType())
+                        diagnostics.Push(Error.CannotInitializeInStructs(syntaxRef.location));
+
                     switch (syntaxRef.node) {
                         case EqualsValueClauseSyntax initializerNode:
                             binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
                             var parentBinder = binderFactory.GetBinder(initializerNode);
                             parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
 
-                            if (firstImportChain is null)
-                                firstImportChain = parentBinder.importChain;
+                            firstImportChain ??= parentBinder.importChain;
 
                             var boundInitializer = BindFieldInitializer(
                                 parentBinder,

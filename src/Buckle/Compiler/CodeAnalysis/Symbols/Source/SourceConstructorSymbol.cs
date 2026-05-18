@@ -96,7 +96,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         out bool modifierErrors) {
         var defaultAccess = (methodKind == MethodKind.StaticConstructor)
             ? DeclarationModifiers.None
-            : containingType.IsFileScoped()
+            : (containingType.IsStructType() || containingType.IsFileScoped())
                 ? DeclarationModifiers.Public
                 : DeclarationModifiers.Private;
 

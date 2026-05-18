@@ -407,6 +407,24 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
+        CheckUnionIsNonEmpty(diagnostics);
+    }
+
+    private void CheckUnionIsNonEmpty(BelteDiagnosticQueue diagnostics) {
+        if (!isUnionStruct)
+            return;
+
+        var hasNonStaticField = false;
+
+        foreach (var m in GetMembers()) {
+            if (m is FieldSymbol f && !f.isStatic) {
+                hasNonStaticField = true;
+                break;
+            }
+        }
+
+        if (!hasNonStaticField)
+            diagnostics.Push(Error.UnionMustHaveField(location));
     }
 
     private void CheckForUnmatchedOperators(BelteDiagnosticQueue diagnostics) {
@@ -1244,6 +1262,19 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Error.MemberAlreadyExists(method1.location, this, method1.name));
     }
 
+    private static void CheckForStructDefaultConstructors(
+        ArrayBuilder<Symbol> members,
+        BelteDiagnosticQueue diagnostics) {
+        foreach (var s in members) {
+            if (s is MethodSymbol m) {
+                if (m.methodKind == MethodKind.Constructor && m.parameterCount == 0) {
+                    if (m.declaredAccessibility != Accessibility.Public)
+                        diagnostics.Push(Error.NonPublicParameterlessStructConstructor(m.location));
+                }
+            }
+        }
+    }
+
     private void CheckMemberNamesDistinctFromType(BelteDiagnosticQueue diagnostics) {
         foreach (var member in GetMembersAndInitializers().nonTypeMembers)
             CheckMemberNameDistinctFromType(member, diagnostics);
@@ -1287,7 +1318,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private void NoteFieldDefinitions() {
         var membersAndInitializers = GetMembersAndInitializers();
 
-        // TODO This is thread protection, but is this code ever called from multiple places?
         lock (membersAndInitializers) {
             if (!_fieldDefinitionsNoted) {
                 // TODO Implement this to support unused fields warnings
@@ -1445,7 +1475,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case TypeKind.Struct:
                     // TODO, but pretty sure we just do nothing here, same for enum
                     // CheckForStructBadInitializers(builder, diagnostics);
-                    // CheckForStructDefaultConstructors(builder.nonTypeMembers, isEnum: false, diagnostics: diagnostics);
+                    CheckForStructDefaultConstructors(builder.nonTypeMembers, diagnostics);
                     break;
                 default:
                     break;
@@ -1569,8 +1599,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case SyntaxKind.UnionDeclaration: {
                         var unionSyntax = (UnionDeclarationSyntax)m;
 
-                        if (unionSyntax.identifier is not null || unionSyntax.members.Count == 0)
+                        if (unionSyntax.identifier is not null)
                             break;
+
+                        if (unionSyntax.members.Count == 0) {
+                            diagnostics.Push(Error.UnionMustHaveField(unionSyntax.keyword.location));
+                            break;
+                        }
 
                         var unionMembers = ArrayBuilder<SourceMemberFieldSymbol>.GetInstance();
 
@@ -1820,7 +1855,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (!hasStaticConstructor && HasNonConstExprInitializer(declaredMembersAndInitializers.staticInitializers))
             builder.AddNonTypeMember(new SynthesizedStaticConstructor(this), declaredMembersAndInitializers);
 
-        if (!hasConstructor && !isStatic)
+        if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {

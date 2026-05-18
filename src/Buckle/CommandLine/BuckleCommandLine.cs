@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Hashing;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -296,7 +297,7 @@ public class {name} {{
     private static int ProcessBuildArgs(string processName, string[] args, out CompilerState state) {
         int err;
 
-        var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments);
+        var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments, out var debugMode);
         state = new CompilerState {
             noOut = false,
             warningLevel = 1,
@@ -356,6 +357,7 @@ public class {name} {{
         compiler.state = ToCompilerState(diagnostics, builder, out var pendingReferenceCopies);
         state = compiler.state;
         state.arguments = arguments;
+        state.debugMode = debugMode;
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
@@ -575,7 +577,7 @@ public class {name} {{
             buildMode = builder.buildMode,
             moduleName = moduleName,
             references = references.ToArray(),
-            debugMode = false,
+            debugMode = builder.debugBuild,
             severity = builder.diagnosticOptions.severity,
             warningLevel = builder.diagnosticOptions.warningLevel,
             includeWarnings = includeWarnings,
@@ -588,12 +590,12 @@ public class {name} {{
             projectType = builder.outputKind,
             verboseMode = verboseMode,
             reducedVerboseMode = builder.verboseMode == VerboseMode.Reduced,
-            verbosePath = null,
+            verbosePath = builder.vPath,
             time = builder.verboseMode != VerboseMode.Off,
             concurrentBuild = concurrentBuild,
             maxCores = maxCores,
-            entryName = null,
-            noStdLib = false,
+            entryName = builder.entryName,
+            noStdLib = !builder.includeStdLib,
             taskDiagnosticOptions = taskDiagnosticOptions
         };
     }
@@ -822,9 +824,8 @@ public class {name} {{
     }
 
     private static void ShowMachineDialog() {
-        // TODO Do we even care about this
-        // var machineMessage = "Machine: x86_64-w64";
-        // Console.WriteLine(machineMessage);
+        var machineMessage = $"Host: {RuntimeInformation.RuntimeIdentifier}";
+        Console.WriteLine(machineMessage);
     }
 
     private static void ShowVersionDialog() {
@@ -1124,7 +1125,8 @@ public class {name} {{
     private static BuildState DecodeBuildOptions(
         string[] args,
         out DiagnosticQueue<Diagnostic> diagnostics,
-        out string[] arguments) {
+        out string[] arguments,
+        out bool debugMode) {
         var state = new BuildState {
             showTime = false,
             showInfo = false,
@@ -1133,6 +1135,7 @@ public class {name} {{
 
         diagnostics = new DiagnosticQueue<Diagnostic>();
         arguments = Array.Empty<string>();
+        debugMode = false;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -1150,6 +1153,9 @@ public class {name} {{
                     break;
                 case "--time":
                     state.showTime = true;
+                    break;
+                case "--debug":
+                    debugMode = true;
                     break;
                 default:
                     if (i == 1 && !arg.StartsWith('-'))

@@ -6,9 +6,8 @@ Currently, all of these features are enabled everywhere for conciseness.
 This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
-- [6.2](#62-structures) Structures
+- [6.2](#62-structs) Structs
 - [6.3](#63-arrays) Arrays
-  - [6.3.1](#631-initializer-lists) Initializer Lists
 - [6.4](#64-numerics) Numerics
 - [6.5](#65-pointers) Pointers
   - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
@@ -48,63 +47,19 @@ The low-level context extends from the declaration to all statements inside. In
 other words, if a method is marked `lowlevel`, the parameter list of that method
 can use low-level exclusive features.
 
-## 6.2 Structures
+## 6.2 Structs
 
-Structures are custom data types that pass by value and use the stack, unlike
-classes which are heap-allocated.
+> [Main struct docs](ClassesAndObjects.md#49-structs)
 
-Structures only allow field declarations with no initializers. Fields within
-structures cannot be constants or references.
-
-```belte
-struct MyStruct {
-  int a;
-  string b;
-}
-```
-
-Creating a new instance of a structure uses the same `new` keyword as classes,
-but the constructor cannot be overridden and always takes no arguments:
-
-```belte
-var myInstance = new MyStruct();
-```
-
-Because of this, all fields must manually be written to after structure
-creation:
-
-```belte
-myInstance.a = 3;
-myInstance.b = "Hello";
-```
+Structs may be restricted to [lowlevel contexts](#61-low-level-contexts) in the
+future.
 
 ## 6.3 Arrays
 
-Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
-C-style arrays.
+> [Main array docs](Data.md#36-arrays)
 
-```belte
-int![]! v = { 1, 2, 3 };
-int![]! v = { 1, 2, 3 };
-```
-
-Arrays are heap allocated and have no members. To sort or get the length of the
-array,
-[`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
-
-Arrays are runtime checked, meaning trying to access an index outside the bounds
-of the array will throw an exception.
-
-### 6.3.1 Initializer Lists
-
-~~It is also important to note outside of low-level contexts, an initializer list will create a
-[List](StandardLibrary/List.md), while inside of a low-level context, it will create an array.~~
-
-Currently, initializer lists always create arrays.
-
-```belte
-int[] v = { 1, 2, 3 };
-```
+Initializer lists may create a [List](StandardLibrary/List.md) outside of
+[lowlevel contexts](#61-low-level-contexts) in the future.
 
 ## 6.4 Numerics
 

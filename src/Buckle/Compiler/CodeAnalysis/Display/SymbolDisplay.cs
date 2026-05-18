@@ -86,21 +86,24 @@ public static class SymbolDisplay {
         }
     }
 
-    public static void DisplayType(DisplayText text, ITypeSymbol type, SymbolDisplayFormat format = null) {
+    public static void DisplayType(
+        DisplayText text,
+        ITypeSymbol type,
+        SymbolDisplayFormat format = null,
+        bool outerMostType = true) {
         format ??= SymbolDisplayFormat.ErrorMessageFormat;
         var stripped = ((TypeSymbol)type).StrippedType();
 
-        if (type is ArrayTypeSymbol ||
-            ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
-                stripped is ArrayTypeSymbol)) {
-
+        if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
             DisplayType(text, array.elementType, format);
             text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
             text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
 
-            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+            if (outerMostType &&
+                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+            }
         } else if (type.specialType == SpecialType.Void) {
             text.Write(CreateKeyword("void"));
         } else if (type is NamedTypeSymbol namedType) {
@@ -111,8 +114,9 @@ public static class SymbolDisplay {
                 if (underlyingType is NamedTypeSymbol namedUnderlying)
                     DisplayTypeCore(text, namedUnderlying, format);
                 else
-                    DisplayType(text, underlyingType, format);
+                    DisplayType(text, underlyingType, format, outerMostType: false);
 
+                text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
                 return;
             }
 

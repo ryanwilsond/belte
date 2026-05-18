@@ -186,6 +186,10 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(ConvertToCil(opCode), value);
     }
 
+    internal override void EmitLoadArgument0() {
+        iLProcessor.Emit(OpCodes.Ldarg_0);
+    }
+
     internal override void EmitLoadArgument(int slot) {
         slot = _definition.HasThis && !_definition.ExplicitThis ? slot - 1 : slot;
         iLProcessor.Emit(OpCodes.Ldarg, _definition.Parameters[slot]);
