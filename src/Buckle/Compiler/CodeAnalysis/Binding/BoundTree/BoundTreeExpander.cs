@@ -413,6 +413,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.IsPatternExpression => ExpandIsPatternExpression((BoundIsPatternExpression)expression, out replacement, useKind),
             BoundKind.WithExpression => ExpandWithExpression((BoundWithExpression)expression, out replacement, useKind),
             BoundKind.UnconvertedObjectCreationExpression => ExpandUnconvertedObjectCreationExpression((BoundUnconvertedObjectCreationExpression)expression, out replacement, useKind),
+            BoundKind.ClampOperator => ExpandClampOperator((BoundClampOperator)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -1174,6 +1175,32 @@ internal abstract partial class BoundTreeExpander {
                 expression.isRef,
                 newTrueExpression,
                 newFalseExpression,
+                expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandClampOperator(
+        BoundClampOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.left, out var newLeft);
+        statements.AddRange(ExpandExpression(expression.lower, out var newLower));
+        statements.AddRange(ExpandExpression(expression.upper, out var newUpper));
+
+        if (statements.Count != 0 || expression.left != newLeft ||
+            expression.lower != newLower || expression.upper != newUpper) {
+            replacement = expression.Update(
+                newLeft,
+                expression.isAssignment,
+                newLower,
+                newUpper,
                 expression.constantValue,
                 expression.type
             );

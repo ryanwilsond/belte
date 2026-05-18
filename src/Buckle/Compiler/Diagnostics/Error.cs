@@ -2166,6 +2166,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_UnionMustHaveField, location, message);
     }
 
+    internal static BelteDiagnostic ClampMustBeNumeric(TextLocation location, TypeSymbol type) {
+        var message = $"cannot clamp on type '{type}'; can only clamp on numeric primitives";
+        return CreateError(DiagnosticCode.ERR_ClampMustBeNumeric, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

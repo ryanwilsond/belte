@@ -450,6 +450,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotTakeFunctionPointerOfNonStatic = 439,
     ERR_NonPublicParameterlessStructConstructor = 440,
     ERR_UnionMustHaveField = 441,
+    ERR_ClampMustBeNumeric = 442,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

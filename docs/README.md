@@ -82,6 +82,9 @@
         - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
         - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
         - [3.2.2.9](Current/Data.md#3229-x) `x!!`
+        - [3.2.2.10](Current/Data.md#32210-x--y) `x /\ y`
+        - [3.2.2.11](Current/Data.md#32211-x--y) `x \/ y`
+        - [3.2.2.12](Current/Data.md#32212-x--y-z) `x >< [y, z]`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
     - [3.3](Current/Data.md#33-variables-and-constants) Variables and Constants
       - [3.3.1](Current/Data.md#331-implicit-typing) Implicit Typing

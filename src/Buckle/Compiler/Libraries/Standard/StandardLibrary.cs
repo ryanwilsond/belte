@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 using static Buckle.Libraries.LibraryHelpers;
 
 namespace Buckle.Libraries;
@@ -257,6 +259,53 @@ internal static class StandardLibrary {
 
     internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
         return (MethodSymbol)Math.GetMembers("Pow")[(isLifted ? 0 : 1) + (isInt ? 2 : 0)];
+    }
+
+    internal static MethodSymbol GetMinMethod(bool isLifted, BinaryOperatorKind operandTypes) {
+        var operandOffset = operandTypes switch {
+            BinaryOperatorKind.Float64 => 0,
+            BinaryOperatorKind.Float32 => 2,
+            BinaryOperatorKind.Int64 => 4,
+            BinaryOperatorKind.UInt64 => 6,
+            BinaryOperatorKind.Int32 => 8,
+            BinaryOperatorKind.UInt32 => 10,
+            _ => throw ExceptionUtilities.UnexpectedValue(operandTypes)
+        };
+
+        return (MethodSymbol)Math.GetMembers("Min")[(isLifted ? 0 : 1) + operandOffset];
+    }
+
+    internal static MethodSymbol GetMaxMethod(bool isLifted, BinaryOperatorKind operandTypes) {
+        var operandOffset = operandTypes switch {
+            BinaryOperatorKind.Float64 => 0,
+            BinaryOperatorKind.Float32 => 2,
+            BinaryOperatorKind.Int64 => 4,
+            BinaryOperatorKind.UInt64 => 6,
+            BinaryOperatorKind.Int32 => 8,
+            BinaryOperatorKind.UInt32 => 10,
+            _ => throw ExceptionUtilities.UnexpectedValue(operandTypes)
+        };
+
+        return (MethodSymbol)Math.GetMembers("Max")[(isLifted ? 0 : 1) + operandOffset];
+    }
+
+    internal static MethodSymbol GetClampMethod(bool isLifted, SpecialType operandTypes) {
+        var operandOffset = operandTypes switch {
+            SpecialType.Float64 => 0,
+            SpecialType.Float32 => 2,
+            SpecialType.Int64 => 4,
+            SpecialType.UInt64 => 6,
+            SpecialType.Int32 => 8,
+            SpecialType.UInt32 => 10,
+            SpecialType.Int16 => 12,
+            SpecialType.UInt16 => 14,
+            SpecialType.Int8 => 16,
+            SpecialType.UInt8 => 18,
+            SpecialType.Char => 20,
+            _ => throw ExceptionUtilities.UnexpectedValue(operandTypes)
+        };
+
+        return (MethodSymbol)Math.GetMembers("Clamp")[(isLifted ? 0 : 1) + operandOffset];
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
@@ -684,8 +733,26 @@ internal static class StandardLibrary {
             StaticMethod("Ceiling", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Clamp", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true), ("min", SpecialType.Decimal, true), ("max", SpecialType.Decimal, true)]),
             StaticMethod("Clamp", SpecialType.Decimal, [("value", SpecialType.Decimal), ("min", SpecialType.Decimal), ("max", SpecialType.Decimal)]),
+            StaticMethod("Clamp", SpecialType.Float32, true, [("value", SpecialType.Float32, true), ("min", SpecialType.Float32, true), ("max", SpecialType.Float32, true)]),
+            StaticMethod("Clamp", SpecialType.Float32, [("value", SpecialType.Float32), ("min", SpecialType.Float32), ("max", SpecialType.Float32)]),
             StaticMethod("Clamp", SpecialType.Int, true, [("value", SpecialType.Int, true), ("min", SpecialType.Int, true), ("max", SpecialType.Int, true)]),
             StaticMethod("Clamp", SpecialType.Int, [("value", SpecialType.Int), ("min", SpecialType.Int), ("max", SpecialType.Int)]),
+            StaticMethod("Clamp", SpecialType.UInt64, true, [("value", SpecialType.UInt64, true), ("min", SpecialType.UInt64, true), ("max", SpecialType.UInt64, true)]),
+            StaticMethod("Clamp", SpecialType.UInt64, [("value", SpecialType.UInt64), ("min", SpecialType.UInt64), ("max", SpecialType.UInt64)]),
+            StaticMethod("Clamp", SpecialType.Int32, true, [("value", SpecialType.Int32, true), ("min", SpecialType.Int32, true), ("max", SpecialType.Int32, true)]),
+            StaticMethod("Clamp", SpecialType.Int32, [("value", SpecialType.Int32), ("min", SpecialType.Int32), ("max", SpecialType.Int32)]),
+            StaticMethod("Clamp", SpecialType.UInt32, true, [("value", SpecialType.UInt32, true), ("min", SpecialType.UInt32, true), ("max", SpecialType.UInt32, true)]),
+            StaticMethod("Clamp", SpecialType.UInt32, [("value", SpecialType.UInt32), ("min", SpecialType.UInt32), ("max", SpecialType.UInt32)]),
+            StaticMethod("Clamp", SpecialType.Int16, true, [("value", SpecialType.Int16, true), ("min", SpecialType.Int16, true), ("max", SpecialType.Int16, true)]),
+            StaticMethod("Clamp", SpecialType.Int16, [("value", SpecialType.Int16), ("min", SpecialType.Int16), ("max", SpecialType.Int16)]),
+            StaticMethod("Clamp", SpecialType.UInt16, true, [("value", SpecialType.UInt16, true), ("min", SpecialType.UInt16, true), ("max", SpecialType.UInt16, true)]),
+            StaticMethod("Clamp", SpecialType.UInt16, [("value", SpecialType.UInt16), ("min", SpecialType.UInt16), ("max", SpecialType.UInt16)]),
+            StaticMethod("Clamp", SpecialType.Int8, true, [("value", SpecialType.Int8, true), ("min", SpecialType.Int8, true), ("max", SpecialType.Int8, true)]),
+            StaticMethod("Clamp", SpecialType.Int8, [("value", SpecialType.Int8), ("min", SpecialType.Int8), ("max", SpecialType.Int8)]),
+            StaticMethod("Clamp", SpecialType.UInt8, true, [("value", SpecialType.UInt8, true), ("min", SpecialType.UInt8, true), ("max", SpecialType.UInt8, true)]),
+            StaticMethod("Clamp", SpecialType.UInt8, [("value", SpecialType.UInt8), ("min", SpecialType.UInt8), ("max", SpecialType.UInt8)]),
+            StaticMethod("Clamp", SpecialType.Char, true, [("value", SpecialType.Char, true), ("min", SpecialType.Char, true), ("max", SpecialType.Char, true)]),
+            StaticMethod("Clamp", SpecialType.Char, [("value", SpecialType.Char), ("min", SpecialType.Char), ("max", SpecialType.Char)]),
             StaticMethod("Cos", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
             StaticMethod("Cos", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Cosh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
@@ -702,12 +769,28 @@ internal static class StandardLibrary {
             StaticMethod("Log", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
             StaticMethod("Max", SpecialType.Decimal, true, [("val1", SpecialType.Decimal, true), ("val2", SpecialType.Decimal, true)]),
             StaticMethod("Max", SpecialType.Decimal, [("val1", SpecialType.Decimal), ("val2", SpecialType.Decimal)]),
+            StaticMethod("Max", SpecialType.Float32, true, [("val1", SpecialType.Float32, true), ("val2", SpecialType.Float32, true)]),
+            StaticMethod("Max", SpecialType.Float32, [("val1", SpecialType.Float32), ("val2", SpecialType.Float32)]),
             StaticMethod("Max", SpecialType.Int, true, [("val1", SpecialType.Int, true), ("val2", SpecialType.Int, true)]),
             StaticMethod("Max", SpecialType.Int, [("val1", SpecialType.Int), ("val2", SpecialType.Int)]),
+            StaticMethod("Max", SpecialType.UInt64, true, [("val1", SpecialType.UInt64, true), ("val2", SpecialType.UInt64, true)]),
+            StaticMethod("Max", SpecialType.UInt64, [("val1", SpecialType.UInt64), ("val2", SpecialType.UInt64)]),
+            StaticMethod("Max", SpecialType.Int32, true, [("val1", SpecialType.Int32, true), ("val2", SpecialType.Int32, true)]),
+            StaticMethod("Max", SpecialType.Int32, [("val1", SpecialType.Int32), ("val2", SpecialType.Int32)]),
+            StaticMethod("Max", SpecialType.UInt32, true, [("val1", SpecialType.UInt32, true), ("val2", SpecialType.UInt32, true)]),
+            StaticMethod("Max", SpecialType.UInt32, [("val1", SpecialType.UInt32), ("val2", SpecialType.UInt32)]),
             StaticMethod("Min", SpecialType.Decimal, true, [("val1", SpecialType.Decimal, true), ("val2", SpecialType.Decimal, true)]),
             StaticMethod("Min", SpecialType.Decimal, [("val1", SpecialType.Decimal), ("val2", SpecialType.Decimal)]),
+            StaticMethod("Min", SpecialType.Float32, true, [("val1", SpecialType.Float32, true), ("val2", SpecialType.Float32, true)]),
+            StaticMethod("Min", SpecialType.Float32, [("val1", SpecialType.Float32), ("val2", SpecialType.Float32)]),
             StaticMethod("Min", SpecialType.Int, true, [("val1", SpecialType.Int, true), ("val2", SpecialType.Int, true)]),
             StaticMethod("Min", SpecialType.Int, [("val1", SpecialType.Int), ("val2", SpecialType.Int)]),
+            StaticMethod("Min", SpecialType.UInt64, true, [("val1", SpecialType.UInt64, true), ("val2", SpecialType.UInt64, true)]),
+            StaticMethod("Min", SpecialType.UInt64, [("val1", SpecialType.UInt64), ("val2", SpecialType.UInt64)]),
+            StaticMethod("Min", SpecialType.Int32, true, [("val1", SpecialType.Int32, true), ("val2", SpecialType.Int32, true)]),
+            StaticMethod("Min", SpecialType.Int32, [("val1", SpecialType.Int32), ("val2", SpecialType.Int32)]),
+            StaticMethod("Min", SpecialType.UInt32, true, [("val1", SpecialType.UInt32, true), ("val2", SpecialType.UInt32, true)]),
+            StaticMethod("Min", SpecialType.UInt32, [("val1", SpecialType.UInt32), ("val2", SpecialType.UInt32)]),
             StaticMethod("Pow", SpecialType.Decimal, true, [("x", SpecialType.Decimal, true), ("y", SpecialType.Decimal, true)]),
             StaticMethod("Pow", SpecialType.Decimal, [("x", SpecialType.Decimal), ("y", SpecialType.Decimal)]),
             StaticMethod("Pow", SpecialType.Int, true, [("x", SpecialType.Int, true), ("y", SpecialType.Int, true)]),
@@ -837,10 +920,46 @@ internal static class StandardLibrary {
                 => { return (a is null || b is null || c is null) ? null : System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
             { "Math_Clamp_DDD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Clamp(Convert.ToDouble(a), Convert.ToDouble(b), Convert.ToDouble(c)); }) },
+            { "Math_Clamp_F4?F4?F4?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp(Convert.ToSingle(a), Convert.ToSingle(b), Convert.ToSingle(c)); }) },
+            { "Math_Clamp_F4F4F4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp(Convert.ToSingle(a), Convert.ToSingle(b), Convert.ToSingle(c)); }) },
             { "Math_Clamp_I?I?I?", new Func<object, object, object, object>((a, b, c)
                 => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((long)a, (long)b, (long)c); }) },
             { "Math_Clamp_III", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Clamp((long)a, (long)b, (long)c); }) },
+            { "Math_Clamp_U8?U8?U8?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((ulong)a, (ulong)b, (ulong)c); }) },
+            { "Math_Clamp_U8U8U8", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((ulong)a, (ulong)b, (ulong)c); }) },
+            { "Math_Clamp_I4?I4?I4?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((int)a, (int)b, (int)c); }) },
+            { "Math_Clamp_I4I4I4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((int)a, (int)b, (int)c); }) },
+            { "Math_Clamp_U4?U4?U4?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((uint)a, (uint)b, (uint)c); }) },
+            { "Math_Clamp_U4U4U4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((uint)a, (uint)b, (uint)c); }) },
+            { "Math_Clamp_I2?I2?I2?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((short)a, (short)b, (short)c); }) },
+            { "Math_Clamp_I2I2I2", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((short)a, (short)b, (short)c); }) },
+            { "Math_Clamp_U2?U2?U2?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((ushort)a, (ushort)b, (ushort)c); }) },
+            { "Math_Clamp_U2U2U2", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((ushort)a, (ushort)b, (ushort)c); }) },
+            { "Math_Clamp_I1?I1?I1?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((sbyte)a, (sbyte)b, (sbyte)c); }) },
+            { "Math_Clamp_I1I1I1", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((sbyte)a, (sbyte)b, (sbyte)c); }) },
+            { "Math_Clamp_U1?U1?U1?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((byte)a, (byte)b, (byte)c); }) },
+            { "Math_Clamp_U1U1U1", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((byte)a, (byte)b, (byte)c); }) },
+            { "Math_Clamp_C?C?C?", new Func<object, object, object, object>((a, b, c)
+                => { return (a is null || b is null || c is null) ? null : System.Math.Clamp((char)a, (char)b, (char)c); }) },
+            { "Math_Clamp_CCC", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Clamp((char)a, (char)b, (char)c); }) },
             { "Math_Cos_D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null ? null : System.Math.Cos(Convert.ToDouble(a)); }) },
             { "Math_Cos_D", new Func<object, object, object, object>((a, b, c)
@@ -873,18 +992,50 @@ internal static class StandardLibrary {
                 => { return a is null || b is null ? null : System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Max_DD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Max(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Max_F4?F4?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Max(Convert.ToSingle(a), Convert.ToSingle(b)); }) },
+            { "Math_Max_F4F4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Max(Convert.ToSingle(a), Convert.ToSingle(b)); }) },
             { "Math_Max_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null || b is null ? null : System.Math.Max((long)a, (long)b); }) },
             { "Math_Max_II", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Max((long)a, (long)b); }) },
+            { "Math_Max_I4?I4?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Max((int)a, (int)b); }) },
+            { "Math_Max_I4I4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Max((int)a, (int)b); }) },
+            { "Math_Max_U8?U8?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Max((ulong)a, (ulong)b); }) },
+            { "Math_Max_U8U8", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Max((ulong)a, (ulong)b); }) },
+            { "Math_Max_U4?U4?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Max((uint)a, (uint)b); }) },
+            { "Math_Max_U4U4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Max((uint)a, (uint)b); }) },
             { "Math_Min_D?D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null || b is null ? null : System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Min_DD", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Min(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
+            { "Math_Min_F4?F4?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Min(Convert.ToSingle(a), Convert.ToSingle(b)); }) },
+            { "Math_Min_F4F4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Min(Convert.ToSingle(a), Convert.ToSingle(b)); }) },
             { "Math_Min_I?I?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null || b is null ? null : System.Math.Min((long)a, (long)b); }) },
             { "Math_Min_II", new Func<object, object, object, object>((a, b, c)
                 => { return System.Math.Min((long)a, (long)b); }) },
+            { "Math_Min_I4?I4?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Min((int)a, (int)b); }) },
+            { "Math_Min_I4I4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Min((int)a, (int)b); }) },
+            { "Math_Min_U8?U8?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Min((ulong)a, (ulong)b); }) },
+            { "Math_Min_U8U8", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Min((ulong)a, (ulong)b); }) },
+            { "Math_Min_U4?U4?", new Func<object, object, object, object>((a, b, c)
+                => { return a is null || b is null ? null : System.Math.Min((uint)a, (uint)b); }) },
+            { "Math_Min_U4U4", new Func<object, object, object, object>((a, b, c)
+                => { return System.Math.Min((uint)a, (uint)b); }) },
             { "Math_Pow_D?D?", new Func<object, object, object, object>((a, b, c)
                 => { return a is null || b is null ? null : System.Math.Pow(Convert.ToDouble(a), Convert.ToDouble(b)); }) },
             { "Math_Pow_DD", new Func<object, object, object, object>((a, b, c)

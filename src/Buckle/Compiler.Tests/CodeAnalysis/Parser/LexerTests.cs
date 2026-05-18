@@ -42,6 +42,8 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanToken);
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanGreaterThanGreaterThanToken);
         untestedTokenTypes.Remove(SyntaxKind.AsteriskAsteriskToken);
+        untestedTokenTypes.Remove(SyntaxKind.GreaterThanLessThanToken);
+        untestedTokenTypes.Remove(SyntaxKind.GreaterThanLessThanEqualsToken);
         untestedTokenTypes.Remove(SyntaxKind.HashToken);
         untestedTokenTypes.Remove(SyntaxKind.EndOfDirectiveToken);
         untestedTokenTypes.Remove(SyntaxKind.OmittedArgumentToken);
@@ -164,7 +166,9 @@ public sealed class LexerTests {
             .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
                          and not SyntaxKind.HashToken
-                         and not SyntaxKind.AsteriskAsteriskToken)
+                         and not SyntaxKind.AsteriskAsteriskToken
+                         and not SyntaxKind.GreaterThanLessThanToken
+                         and not SyntaxKind.GreaterThanLessThanEqualsToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
             .Where(t => t.text is not null && !SyntaxFacts.IsContextualKeyword(t.kind));
 
@@ -323,6 +327,16 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationEqualsToken) return true;
         if (t1Kind == SyntaxKind.QuestionToken && t2Kind == SyntaxKind.ExclamationExclamationToken) return true;
         if (t1Kind == SyntaxKind.ExclamationToken && t2Kind == SyntaxKind.ExclamationToken) return true;
+        if (t1Kind == SyntaxKind.BackslashSlashToken && t2Kind == SyntaxKind.EqualsEqualsToken) return true;
+        if (t1Kind == SyntaxKind.SlashBackslashToken && t2Kind == SyntaxKind.EqualsEqualsToken) return true;
+        if (t1Kind == SyntaxKind.BackslashSlashToken && t2Kind == SyntaxKind.EqualsToken) return true;
+        if (t1Kind == SyntaxKind.SlashBackslashToken && t2Kind == SyntaxKind.EqualsToken) return true;
+        if (t1Kind == SyntaxKind.BackslashSlashToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.SlashBackslashToken && t2Kind == SyntaxKind.EqualsGreaterThanToken) return true;
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.BackslashSlashToken) return true;
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.BackslashSlashEqualsToken) return true;
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashBackslashToken) return true;
+        if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashBackslashEqualsToken) return true;
 
         return false;
     }

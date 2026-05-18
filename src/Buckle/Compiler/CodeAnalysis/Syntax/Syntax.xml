@@ -1193,6 +1193,22 @@
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="right" Type="ExpressionSyntax"/>
   </Node>
+  <Node Name="ClampExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ClampExpression"/>
+    <Field Name="left" Type="ExpressionSyntax"/>
+    <Field Name="operatorToken" Type="SyntaxToken"/>
+    <Field Name="openBracket" Type="SyntaxToken">
+      <Kind Name="OpenBracketToken"/>
+    </Field>
+    <Field Name="lower" Type="ExpressionSyntax"/>
+    <Field Name="comma" Type="SyntaxToken">
+      <Kind Name="CommaToken"/>
+    </Field>
+    <Field Name="upper" Type="ExpressionSyntax"/>
+    <Field Name="closeBracket" Type="SyntaxToken">
+      <Kind Name="CloseBracketToken"/>
+    </Field>
+  </Node>
   <Node Name="IsPatternExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="IsPatternExpression"/>
     <Field Name="left" Type="ExpressionSyntax"/>

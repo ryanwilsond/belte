@@ -74,6 +74,12 @@ public enum SyntaxKind : ushort {
     QuestionPeriodPeriodToken,
     QuestionExclamationToken,
     QuestionExclamationEqualsToken,
+    SlashBackslashToken,
+    SlashBackslashEqualsToken,
+    BackslashSlashToken,
+    BackslashSlashEqualsToken,
+    GreaterThanLessThanToken,
+    GreaterThanLessThanEqualsToken,
     EqualsGreaterThanToken,
 
     // Tokens with text
@@ -195,6 +201,7 @@ public enum SyntaxKind : ushort {
     PostfixExpression,
     AssignmentExpression,
     IsPatternExpression,
+    ClampExpression,
     DeclarationPattern,
 
     // Primary expressions

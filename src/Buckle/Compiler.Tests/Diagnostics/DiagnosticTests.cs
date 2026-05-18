@@ -5565,4 +5565,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0442_ClampMustBeNumeric() {
+        var text = @"
+            var b = [true] >< \[false, true\];
+        ";
+
+        var diagnostics = @"
+            cannot clamp on type 'bool!'; can only clamp on numeric primitives
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

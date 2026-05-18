@@ -154,17 +154,19 @@ internal sealed class Lowerer : BoundTreeRewriter {
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
         /*
 
+        TODO Is there any case where these cases aren't caught by constant folding?
+
         <left> <op> <right>
 
         ----> (float64)0.0 / (float64)0.0
 
         Float64.NaN
 
-        ----> (float64)>=1 / (float64)0.0
+        ----> (float64)>0 / (float64)0.0
 
         Float64.PositiveInfinity
 
-        ----> (float64)<=-1 / (float64)0.0
+        ----> (float64)<0 / (float64)0.0
 
         Float64.NegativeInfinity
 
@@ -172,22 +174,67 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         Float32.NaN
 
-        ----> (float32)>=1 / (float32)0.0
+        ----> (float32)>0 / (float32)0.0
 
         Float32.PositiveInfinity
 
-        ----> (float32)<=-1 / (float32)0.0
+        ----> (float32)<0 / (float32)0.0
 
         Float32.NegativeInfinity
 
         */
+        var left = node.left.constantValue;
+        var right = node.right.constantValue;
+
+        if (left?.value is null || right?.value is null)
+            return base.VisitBinaryOperator(node);
         if (node.operatorKind == BinaryOperatorKind.Float64Division) {
-            return base.VisitBinaryOperator(node);
+            if ((double)right.value == 0) {
+                if ((double)left.value == 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NaN")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((double)left.value > 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("PositiveInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((double)left.value < 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NegativeInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                }
+            }
         } else if (node.operatorKind == BinaryOperatorKind.Float32Division) {
-            return base.VisitBinaryOperator(node);
-        } else {
-            return base.VisitBinaryOperator(node);
+            if ((float)right.value == 0) {
+                if ((float)left.value == 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NaN")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((float)left.value > 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("PositiveInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((float)left.value < 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NegativeInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                }
+            }
         }
+
+        return base.VisitBinaryOperator(node);
+    }
+
+    internal override BoundNode VisitClampOperator(BoundClampOperator node) {
+        /*
+
+        <left> >< [<lower>, <upper>]
+
+        ---->
+
+        Math.Clamp(<left>, <lower>, <upper>)
+
+        */
+        var specialType = CodeGenerator.NormalizeNumericType(node.type.StrippedType().specialType);
+
+        return Visit(Call(node.syntax,
+            StandardLibrary.GetClampMethod(node.type.IsNullableType(), specialType),
+            [node.left, node.lower, node.upper]
+        ));
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {

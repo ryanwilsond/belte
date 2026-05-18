@@ -446,6 +446,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             WellKnownMemberNames.GreaterThanOrEqualOperatorName
         );
 
+        CheckForUnmatchedOperator(
+            diagnostics,
+            WellKnownMemberNames.SlashBackslashOperatorName,
+            WellKnownMemberNames.BackslashSlashOperatorName
+        );
+
         CheckForEqualityAndGetHashCode(diagnostics);
     }
 

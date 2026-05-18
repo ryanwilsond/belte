@@ -30,7 +30,9 @@ public sealed class SyntaxFactTests {
             .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
                          and not SyntaxKind.HashToken
-                         and not SyntaxKind.AsteriskAsteriskToken)
+                         and not SyntaxKind.AsteriskAsteriskToken
+                         and not SyntaxKind.GreaterThanLessThanToken
+                         and not SyntaxKind.GreaterThanLessThanEqualsToken)
             .ToArray();
 
         foreach (var type in types)

@@ -1850,6 +1850,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.PercentEqualsToken:
             case SyntaxKind.QuestionQuestionEqualsToken:
             case SyntaxKind.QuestionExclamationEqualsToken:
+            case SyntaxKind.SlashBackslashEqualsToken:
+            case SyntaxKind.BackslashSlashEqualsToken:
             case SyntaxKind.EqualsToken:
                 var operatorToken = EatToken();
                 var right = ParseAssignmentOrLambdaExpression(insideCascade);
@@ -1998,7 +2000,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         while (true) {
             var tokensToCombine = 1;
             var combinedTokenKind = currentToken.kind;
-            var precedence = currentToken.kind.GetBinaryPrecedence();
+            var precedence = combinedTokenKind.GetBinaryPrecedence();
 
             if (currentToken.kind == SyntaxKind.GreaterThanToken &&
                 Peek(1).kind == SyntaxKind.GreaterThanToken &&
@@ -2018,6 +2020,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 tokensToCombine = 2;
                 combinedTokenKind = SyntaxKind.AsteriskAsteriskToken;
                 precedence = combinedTokenKind.GetBinaryPrecedence();
+            } else if (currentToken.kind == SyntaxKind.GreaterThanToken &&
+                Peek(1).kind is SyntaxKind.LessThanToken or SyntaxKind.LessThanEqualsToken &&
+                NoTriviaBetween(currentToken, Peek(1))) {
+                break;
             }
 
             var associativity = combinedTokenKind.GetOperatorAssociativity();
@@ -2063,16 +2069,46 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         while (true) {
-            var precedence = currentToken.kind.GetTernaryPrecedence();
+            var tokensToCombine = 1;
+            var combinedTokenKind = currentToken.kind;
+            var precedence = combinedTokenKind.GetTernaryPrecedence();
+
+            if (currentToken.kind == SyntaxKind.GreaterThanToken &&
+                Peek(1).kind is SyntaxKind.LessThanToken or SyntaxKind.LessThanEqualsToken &&
+                NoTriviaBetween(currentToken, Peek(1))) {
+                tokensToCombine = 2;
+                combinedTokenKind = Peek(1).kind == SyntaxKind.LessThanToken
+                    ? SyntaxKind.GreaterThanLessThanToken
+                    : SyntaxKind.GreaterThanLessThanEqualsToken;
+                precedence = combinedTokenKind.GetTernaryPrecedence();
+            }
 
             if (precedence == 0 || precedence < parentPrecedence || IsTerminator())
                 break;
 
             var leftOperatorToken = EatToken();
-            var center = ParseOperatorExpression(precedence);
-            var rightOperatorToken = Match(leftOperatorToken.kind.GetTernaryOperatorPair());
-            var right = ParseOperatorExpression(precedence);
-            left = SyntaxFactory.TernaryExpression(left, leftOperatorToken, center, rightOperatorToken, right);
+
+            if (tokensToCombine == 2) {
+                var operatorToken2 = EatToken();
+
+                leftOperatorToken = SyntaxFactory.Token(
+                    leftOperatorToken.GetLeadingTrivia(),
+                    combinedTokenKind,
+                    operatorToken2.GetTrailingTrivia()
+                );
+            } else if (tokensToCombine != 1) {
+                throw ExceptionUtilities.Unreachable();
+            }
+
+            if (leftOperatorToken.kind is SyntaxKind.GreaterThanLessThanToken
+                                       or SyntaxKind.GreaterThanLessThanEqualsToken) {
+                left = ParseClampExpression(precedence, left, leftOperatorToken);
+            } else {
+                var center = ParseOperatorExpression(precedence);
+                var rightOperatorToken = Match(leftOperatorToken.kind.GetTernaryOperatorPair());
+                var right = ParseOperatorExpression(precedence);
+                left = SyntaxFactory.TernaryExpression(left, leftOperatorToken, center, rightOperatorToken, right);
+            }
         }
 
         return left;
@@ -2091,6 +2127,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
             Reset(resetPoint);
             return false;
         }
+    }
+
+    private ClampExpressionSyntax ParseClampExpression(
+        int precedence,
+        ExpressionSyntax left,
+        SyntaxToken operatorToken) {
+        var openBracket = Match(SyntaxKind.OpenBracketToken);
+        var lower = ParseOperatorExpression(precedence);
+        var comma = Match(SyntaxKind.CommaToken);
+        var upper = ParseOperatorExpression(precedence);
+        var closeBracket = Match(SyntaxKind.CloseBracketToken);
+        return SyntaxFactory.ClampExpression(left, operatorToken, openBracket, lower, comma, upper, closeBracket);
     }
 
     private ExpressionSyntax ParseIsOrIsntOrIsPatternExpression(ExpressionSyntax left, SyntaxToken operatorToken) {

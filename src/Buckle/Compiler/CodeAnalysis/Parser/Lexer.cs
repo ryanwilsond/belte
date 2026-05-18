@@ -489,8 +489,31 @@ internal sealed partial class Lexer : IDisposable {
                 break;
             case '/':
                 _position++;
-                if (AdvanceIfMatches('=')) _kind = SyntaxKind.SlashEqualsToken;
-                else _kind = SyntaxKind.SlashToken;
+                if (AdvanceIfMatches('=')) {
+                    _kind = SyntaxKind.SlashEqualsToken;
+                } else if (AdvanceIfMatches('\\')) {
+                    if (AdvanceIfMatches('='))
+                        _kind = SyntaxKind.SlashBackslashEqualsToken;
+                    else
+                        _kind = SyntaxKind.SlashBackslashToken;
+                } else {
+                    _kind = SyntaxKind.SlashToken;
+                }
+
+                break;
+            case '\\':
+                _position++;
+
+                if (AdvanceIfMatches('/')) {
+                    if (AdvanceIfMatches('='))
+                        _kind = SyntaxKind.BackslashSlashEqualsToken;
+                    else
+                        _kind = SyntaxKind.BackslashSlashToken;
+                } else {
+                    _position--;
+                    goto default;
+                }
+
                 break;
             case '*':
                 _position++;

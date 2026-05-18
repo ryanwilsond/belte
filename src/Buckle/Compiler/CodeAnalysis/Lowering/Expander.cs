@@ -148,6 +148,62 @@ internal sealed class Expander : SharedExpander {
         }
     }
 
+    private protected override List<BoundStatement> ExpandClampOperator(
+        BoundClampOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <left> <op> [<lower>, <upper>]
+
+        ----> <op> is ><=, UseKind.Value, UseKind.None
+
+        <left> = <left> <op> <right>
+
+        ---> <op> is ><=, UseKind.StableValue, UseKind.Writable
+
+        <left> = <left> <op> <right>
+        <left>
+
+        */
+        if (!expression.isAssignment)
+            return base.ExpandClampOperator(expression, out replacement, useKind);
+
+        var syntax = expression.syntax;
+
+        var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
+        statements.AddRange(ExpandExpression(expression.lower, out var newLower));
+        statements.AddRange(ExpandExpression(expression.upper, out var newUpper));
+
+        statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
+            newLeft,
+            new BoundClampOperator(syntax,
+                newLeft,
+                isAssignment: false,
+                newLower,
+                newUpper,
+                ConstantFolding.FoldClamp(
+                    newLeft,
+                    newLower,
+                    newUpper,
+                    expression.Type()
+                ),
+                expression.type
+            ),
+            false,
+            expression.type
+        ), out var assignment, UseKind.Value));
+
+        if (useKind is UseKind.Value or UseKind.None) {
+            replacement = assignment;
+            return statements;
+        } else {
+            statements.Add(Statement(syntax, assignment));
+            replacement = newLeft;
+            return statements;
+        }
+    }
+
     private protected override List<BoundStatement> ExpandNullCoalescingOperator(
         BoundNullCoalescingOperator expression,
         out BoundExpression replacement,
@@ -356,6 +412,14 @@ internal sealed class Expander : SharedExpander {
 
         Math.Pow(<left>, <right>)
 
+        ----> <op> is /\
+
+        Math.Min(<left>, <right>)
+
+        ----> <op> is \/
+
+        Math.Max(<left>, <right>)
+
         ----> <left> is nullable and <right> is nullable
 
         ((HasValue(<left>) & HasValue(<right>)) ? new Nullable( Value(<left>) <op> Value(<right>) ) : null)
@@ -402,6 +466,32 @@ internal sealed class Expander : SharedExpander {
             replacement = Call(
                 syntax,
                 StandardLibrary.GetPowerMethod(op.IsLifted(), op.OperandTypes() == BinaryOperatorKind.Int64),
+                newLeft,
+                newRight
+            );
+
+            return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+        }
+
+        if (op.Operator() == BinaryOperatorKind.Min) {
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+            replacement = Call(
+                syntax,
+                StandardLibrary.GetMinMethod(op.IsLifted(), op.OperandTypes()),
+                newLeft,
+                newRight
+            );
+
+            return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+        }
+
+        if (op.Operator() == BinaryOperatorKind.Max) {
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+            replacement = Call(
+                syntax,
+                StandardLibrary.GetMaxMethod(op.IsLifted(), op.OperandTypes()),
                 newLeft,
                 newRight
             );

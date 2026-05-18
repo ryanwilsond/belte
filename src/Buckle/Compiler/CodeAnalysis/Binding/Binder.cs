@@ -3100,6 +3100,8 @@ internal partial class Binder {
                 return BindIncrementOrNullAssertOperator((PostfixExpressionSyntax)node, diagnostics);
             case SyntaxKind.TernaryExpression:
                 return BindTernaryExpression((TernaryExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ClampExpression:
+                return BindClampExpression((ClampExpressionSyntax)node, diagnostics);
             case SyntaxKind.AssignmentExpression:
                 return BindAssignmentOperator((AssignmentExpressionSyntax)node, diagnostics);
             case SyntaxKind.ObjectCreationExpression:
@@ -8591,6 +8593,8 @@ internal partial class Binder {
                 case SyntaxKind.GreaterThanToken:
                 case SyntaxKind.LessThanEqualsToken:
                 case SyntaxKind.GreaterThanEqualsToken:
+                case SyntaxKind.SlashBackslashToken:
+                case SyntaxKind.BackslashSlashToken:
                     return true;
                 case SyntaxKind.IsKeyword:
                 case SyntaxKind.IsntKeyword:
@@ -9034,6 +9038,12 @@ internal partial class Binder {
             case SyntaxKind.AsteriskAsteriskEqualsToken:
             case SyntaxKind.AsteriskAsteriskToken:
                 return BinaryOperatorKind.Power;
+            case SyntaxKind.SlashBackslashToken:
+            case SyntaxKind.SlashBackslashEqualsToken:
+                return BinaryOperatorKind.Min;
+            case SyntaxKind.BackslashSlashToken:
+            case SyntaxKind.BackslashSlashEqualsToken:
+                return BinaryOperatorKind.Max;
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);
         }
@@ -9061,6 +9071,50 @@ internal partial class Binder {
             default:
                 return BindValueKind.RValue;
         }
+    }
+
+    private BoundExpression BindClampExpression(ClampExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        // TODO Operator overloading?
+        var isAssignment = node.operatorToken.kind == SyntaxKind.GreaterThanLessThanEqualsToken;
+        var leftValueKind = isAssignment ? BindValueKind.CompoundAssignment : BindValueKind.RValue;
+
+        var left = BindToNaturalType(BindValue(node.left, diagnostics, leftValueKind), diagnostics);
+        var lower = BindValue(node.lower, diagnostics, BindValueKind.RValue);
+        var upper = BindValue(node.upper, diagnostics, BindValueKind.RValue);
+
+        var hasErrors = left.type.IsErrorType();
+        var specialType = left.type.StrippedType().specialType;
+
+        // Exclude intptr and uintptr
+        if (!hasErrors && !specialType.IsIntegral() && !specialType.IsFloatingPoint()) {
+            diagnostics.Push(Error.ClampMustBeNumeric(node.left.location, left.type));
+            hasErrors = true;
+        }
+
+        if (hasErrors) {
+            lower = BindToNaturalType(lower, diagnostics, false);
+            upper = BindToNaturalType(upper, diagnostics, false);
+        } else {
+            lower = GenerateConversionForAssignment(left.type, lower, diagnostics);
+            upper = GenerateConversionForAssignment(left.type, upper, diagnostics);
+            hasErrors = lower.hasAnyErrors || upper.hasAnyErrors;
+        }
+
+        ConstantValue constantValue = null;
+
+        if (!hasErrors && !isAssignment)
+            constantValue = ConstantFolding.FoldClamp(left, lower, upper, left.type);
+
+        return new BoundClampOperator(
+            node,
+            left,
+            isAssignment,
+            lower,
+            upper,
+            constantValue,
+            left.type,
+            hasErrors
+        );
     }
 
     private BoundExpression BindTernaryExpression(TernaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

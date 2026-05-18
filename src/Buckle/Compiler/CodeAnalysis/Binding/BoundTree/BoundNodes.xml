@@ -136,6 +136,13 @@
     <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundClampOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="isAssignment" Type="bool"/>
+    <Field Name="lower" Type="BoundExpression"/>
+    <Field Name="upper" Type="BoundExpression"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundCallExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="method" Type="MethodSymbol"/>
